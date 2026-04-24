@@ -454,16 +454,18 @@ export default function ReaderPage() {
         }
       />
 
-      {/* Click hot-zones for page turns (left third = back, right third = forward) */}
+      {/* Click hot-zones for page turns — narrow strips at the very edges so
+          they never sit on top of the thumb-index tabs (which live ~16-40px
+          in from each edge). z-index sits BELOW the tabs (z-[7] inside BookScene). */}
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className="fixed top-20 bottom-16 left-0 w-[10vw] z-[15] opacity-0"
+        className="fixed top-20 bottom-16 left-0 w-3 z-[5] opacity-0"
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className="fixed top-20 bottom-16 right-0 w-[10vw] z-[15] opacity-0"
+        className="fixed top-20 bottom-16 right-0 w-3 z-[5] opacity-0"
       />
 
       {/* Headless paginator — measures and reports splits */}
