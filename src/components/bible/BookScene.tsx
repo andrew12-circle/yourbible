@@ -59,24 +59,47 @@ export function BookScene({
         <div className="pt-2 sm:pt-3 pb-3">
           {/* Outer leather cover */}
           <div
-            className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7),0_10px_20px_-10px_rgba(0,0,0,0.5)]"
+            className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
             style={{
               backgroundImage:
-                "radial-gradient(ellipse at 30% 20%, hsl(0 50% 28% / 0.55) 0%, transparent 55%), radial-gradient(ellipse at 70% 80%, hsl(0 60% 10% / 0.55) 0%, transparent 55%), linear-gradient(135deg, hsl(0 55% 14%) 0%, hsl(0 48% 22%) 50%, hsl(0 55% 12%) 100%)",
+                // SVG fractal-noise grain (fine leather pores)
+                `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
+                // larger creases / scuffs
+                `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.05  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
+                // worn highlights at top/edges
+                "radial-gradient(ellipse 70% 35% at 50% 0%, hsl(10 70% 38% / 0.55) 0%, transparent 70%)," +
+                "radial-gradient(ellipse 60% 30% at 50% 100%, hsl(0 0% 0% / 0.55) 0%, transparent 70%)," +
+                "radial-gradient(ellipse at 25% 25%, hsl(8 55% 32% / 0.5) 0%, transparent 60%)," +
+                "radial-gradient(ellipse at 75% 75%, hsl(0 60% 8% / 0.55) 0%, transparent 60%)," +
+                // base oxblood leather
+                "linear-gradient(150deg, hsl(0 45% 16%) 0%, hsl(0 50% 24%) 35%, hsl(0 55% 20%) 60%, hsl(0 60% 12%) 100%)",
+              backgroundBlendMode:
+                "overlay, multiply, screen, multiply, multiply, multiply, normal",
             }}
           >
+            {/* Soft leather sheen across the surface */}
             <div
-              className="absolute inset-0 rounded-[10px] pointer-events-none mix-blend-overlay opacity-60"
+              className="absolute inset-0 rounded-[10px] pointer-events-none"
               style={{
                 backgroundImage:
-                  "repeating-linear-gradient(45deg, hsl(0 0% 0% / 0.08) 0 1px, transparent 1px 4px), repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.05) 0 1px, transparent 1px 5px)",
+                  "linear-gradient(115deg, transparent 0%, hsl(20 60% 60% / 0.07) 38%, hsl(30 70% 70% / 0.10) 50%, hsl(20 60% 50% / 0.05) 62%, transparent 100%)",
+                mixBlendMode: "screen",
+              }}
+            />
+            {/* Subtle scuff streaks — irregular, very low opacity */}
+            <div
+              className="absolute inset-0 rounded-[10px] pointer-events-none opacity-30 mix-blend-overlay"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(122deg, hsl(0 0% 0% / 0.12) 0 0.5px, transparent 0.5px 11px), repeating-linear-gradient(58deg, hsl(0 0% 100% / 0.06) 0 0.5px, transparent 0.5px 17px)",
               }}
             />
             <div
               className="absolute inset-1.5 rounded-[8px] pointer-events-none"
               style={{
-                border: "1px solid hsl(38 58% 52% / 0.35)",
-                boxShadow: "inset 0 0 0 1px hsl(0 0% 0% / 0.3)",
+                border: "1px solid hsl(38 58% 52% / 0.45)",
+                boxShadow:
+                  "inset 0 0 0 1px hsl(0 0% 0% / 0.4), inset 0 0 24px hsl(0 0% 0% / 0.45)",
               }}
             />
 
