@@ -29,6 +29,20 @@ function buildArcClip(spine: "left" | "right"): string {
 const PAGE_ARC_CLIP_LEFT = buildArcClip("right");  // left page → spine on right
 const PAGE_ARC_CLIP_RIGHT = buildArcClip("left");  // right page → spine on left
 
+/**
+ * Cumulative dip (in CSS px) the TOP page uses at its outermost corner.
+ * Must match the visual depth of `buildArcClip(DIP=0.9)` over a typical page
+ * height (~700–900px) — roughly 6–8 px. We use 8 here so the under-page band
+ * has room to fan visibly above/below the top page.
+ */
+const TOP_PAGE_OUTER_DIP_PX = 8;
+/**
+ * How many px the deepest under-page edge (bottom of the stack) drops below
+ * the top page at the outer corner. This is the visible "fanned page edges"
+ * band that makes the spread look like a real bound book.
+ */
+const STACK_FAN_PX = 14;
+
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
   progress: number;
@@ -167,6 +181,13 @@ export function BookScene({
               {/* === Page surfaces === */}
               {!isMobile ? (
                 <>
+                  {/* Fanned under-page edges along the TOP and BOTTOM of the spread.
+                      They arc the same way as the top page (deepest dip at the outer
+                      corners, high at the spine) but extend a few px further out, so
+                      the lower pages appear to peek out past the topmost sheet — the
+                      classic look of an open bound book lying on a table. */}
+                  <PageStackArc edge="top" />
+                  <PageStackArc edge="bottom" />
                   {/* Left page */}
                   <div
                     className="absolute top-0 bottom-0 z-[2]"
@@ -347,6 +368,150 @@ function PageCurve({ side }: { side: "left" | "right" }) {
         }}
       />
     </>
+  );
+}
+
+/**
+ * Renders the visible cumulative top (or bottom) edges of the page block as a
+ * series of fine arched lines that follow the same curve as the top page but
+ * dip a few px deeper at the outer corners. This is what makes the spread
+ * read as a real bound book lying open: lower pages bow out past the top
+ * sheet at the outer edges, while staying perfectly flush at the spine.
+ *
+ * Pure inline SVG — no extra deps. Sits BEHIND the page surfaces so it shows
+ * only at the strips that are not covered by the (more tightly clipped) top
+ * page. We render it slightly outside the page block so it overhangs by a
+ * couple of pixels — like a real book.
+ */
+function PageStackArc({ edge }: { edge: "top" | "bottom" }) {
+  // Number of fanned sheets to draw. More = denser fan, but more SVG cost.
+  const SHEETS = 9;
+  // Total band height in px (how far the deepest sheet sits from the page edge).
+  const BAND_PX = 18;
+  // How far the topmost sheet line sits above the page surface (gives the
+  // top page itself a thin visible gilt highlight along its arched edge).
+  const OVERHANG_PX = 2;
+  // viewBox math — width is arbitrary; we use 1000 for sub-px precision.
+  const VW = 1000;
+  const VH = BAND_PX + OVERHANG_PX;
+  const isTop = edge === "top";
+
+  // For each sheet i (0 = topmost / shortest dip, SHEETS-1 = deepest / fans
+  // out the furthest), build a path that arcs from spine-flush to a deeper
+  // dip at the outer corners. Spine sits at x = VW/2.
+  const paths: { d: string; opacity: number; stroke: string }[] = [];
+  for (let i = 0; i < SHEETS; i++) {
+    // 0 → top page line, 1 → deepest underneath sheet
+    const t = i / (SHEETS - 1);
+    // Per-sheet outer dip in viewBox units. Topmost sheet matches the page
+    // surface's own dip, deepest sheet adds STACK_FAN_PX of fan.
+    const outerDip = (TOP_PAGE_OUTER_DIP_PX + t * STACK_FAN_PX) * (VH / (BAND_PX + OVERHANG_PX));
+    // The y-coordinate of the sheet at the spine (always near top of the band
+    // for the top edge / near bottom for the bottom edge — flush with the page).
+    const spineY = isTop ? OVERHANG_PX : VH - OVERHANG_PX;
+    // The y-coordinate at the outer corners — dips away from the page.
+    const outerY = isTop ? OVERHANG_PX + outerDip : VH - OVERHANG_PX - outerDip;
+
+    // Build a smooth curve: high at the spine (x = VW/2), dipping out toward
+    // x = 0 and x = VW. We sample the same sin-quarter shape as buildArcClip
+    // so the topmost sheet exactly matches the top page's clip-path.
+    const samples = 14;
+    const pts: string[] = [];
+    for (let s = 0; s <= samples; s++) {
+      const x = (s / samples) * VW;
+      // Distance from spine, normalized 0 (spine) → 1 (outer corner).
+      const distFromSpine = Math.abs(x - VW / 2) / (VW / 2);
+      // Same sin-quarter curve used in buildArcClip.
+      const dipFrac = Math.sin((distFromSpine * Math.PI) / 2);
+      const y = isTop
+        ? spineY + (outerY - spineY) * dipFrac
+        : spineY - (spineY - outerY) * dipFrac;
+      pts.push(`${x.toFixed(2)},${y.toFixed(3)}`);
+    }
+    const d = `M ${pts.join(" L ")}`;
+
+    // Topmost = bright gilt line, deeper sheets = progressively duskier gold.
+    const lightness = 72 - t * 28; // 72% → 44%
+    const sat = 70 - t * 25;
+    const stroke = `hsl(${38 + t * 4} ${sat}% ${lightness}%)`;
+    const opacity = 0.95 - t * 0.35;
+    paths.push({ d, opacity, stroke });
+  }
+
+  return (
+    <div
+      aria-hidden
+      className="absolute left-0 right-0 pointer-events-none z-[1]"
+      style={{
+        height: VH,
+        [isTop ? "top" : "bottom"]: -OVERHANG_PX,
+      }}
+    >
+      <svg
+        viewBox={`0 0 ${VW} ${VH}`}
+        preserveAspectRatio="none"
+        width="100%"
+        height="100%"
+        style={{
+          display: "block",
+          // Soft drop shadow gives the fanned edge a hint of physical depth.
+          filter: isTop
+            ? "drop-shadow(0 1px 0.5px hsl(28 35% 22% / 0.45))"
+            : "drop-shadow(0 -1px 0.5px hsl(28 35% 22% / 0.45))",
+        }}
+      >
+        {/* Warm gilt wash beneath the individual sheet lines so the band reads
+            as a continuous gilded edge, not just stripes. */}
+        <defs>
+          <linearGradient
+            id={`stack-arc-wash-${edge}`}
+            x1="0"
+            y1={isTop ? 0 : VH}
+            x2="0"
+            y2={isTop ? VH : 0}
+          >
+            <stop offset="0%" stopColor="hsl(40 75% 65%)" stopOpacity="0.0" />
+            <stop offset="35%" stopColor="hsl(38 70% 58%)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="hsl(32 55% 38%)" stopOpacity="0.85" />
+          </linearGradient>
+          {/* Mask: only show the wash inside the area between the topmost
+              sheet curve and the deepest sheet curve, so we don't paint over
+              the actual page surfaces. */}
+          <clipPath id={`stack-arc-clip-${edge}`}>
+            <path
+              d={
+                // Top boundary = topmost sheet curve; bottom boundary =
+                // deepest sheet curve. Combine into a closed region.
+                `${paths[0].d} L ${paths[SHEETS - 1].d
+                  .replace(/^M /, "")
+                  .split(" ")
+                  .reverse()
+                  .join(" L ")} Z`
+              }
+            />
+          </clipPath>
+        </defs>
+        <rect
+          x="0"
+          y="0"
+          width={VW}
+          height={VH}
+          fill={`url(#stack-arc-wash-${edge})`}
+          clipPath={`url(#stack-arc-clip-${edge})`}
+        />
+        {paths.map((p, i) => (
+          <path
+            key={i}
+            d={p.d}
+            fill="none"
+            stroke={p.stroke}
+            strokeOpacity={p.opacity}
+            strokeWidth={i === 0 ? 0.9 : 0.6}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
