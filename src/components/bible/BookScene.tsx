@@ -113,6 +113,8 @@ export function BookScene({
                 boxShadow:
                   "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge))",
                 minHeight: "calc(100vh - 40px)",
+                perspective: isMobile ? undefined : "1800px",
+                perspectiveOrigin: "50% 50%",
               }}
             >
               {/* Page-stacks */}
@@ -136,7 +138,16 @@ export function BookScene({
                   {/* Left page */}
                   <div
                     className="absolute top-0 bottom-0 z-[2]"
-                    style={{ left: leftStack, right: "50%", paddingRight: 6 }}
+                    style={{
+                      left: leftStack,
+                      right: "50%",
+                      paddingRight: 6,
+                      transform: "rotateY(4deg)",
+                      transformOrigin: "right center",
+                      transformStyle: "preserve-3d",
+                      backfaceVisibility: "hidden",
+                      willChange: "transform",
+                    }}
                   >
                     <PageCurve side="right" />
                     <div className="relative h-full overflow-hidden">{leftPage}</div>
@@ -144,7 +155,16 @@ export function BookScene({
                   {/* Right page */}
                   <div
                     className="absolute top-0 bottom-0 z-[2]"
-                    style={{ left: "50%", right: rightStack, paddingLeft: 6 }}
+                    style={{
+                      left: "50%",
+                      right: rightStack,
+                      paddingLeft: 6,
+                      transform: "rotateY(-4deg)",
+                      transformOrigin: "left center",
+                      transformStyle: "preserve-3d",
+                      backfaceVisibility: "hidden",
+                      willChange: "transform",
+                    }}
                   >
                     <PageCurve side="left" />
                     <div className="relative h-full overflow-hidden">{rightPage}</div>
@@ -249,17 +269,33 @@ export function BookScene({
 
 function PageCurve({ side }: { side: "left" | "right" }) {
   return (
-    <div
-      className="absolute top-0 bottom-0 pointer-events-none z-[2]"
-      style={{
-        [side]: 0,
-        width: 24,
-        background:
-          side === "right"
-            ? "linear-gradient(270deg, hsl(0 0% 0% / 0.15) 0%, transparent 100%)"
-            : "linear-gradient(90deg, hsl(0 0% 0% / 0.15) 0%, transparent 100%)",
-      }}
-    />
+    <>
+      {/* Spine-side shadow — page dips into the gutter */}
+      <div
+        className="absolute top-0 bottom-0 pointer-events-none z-[3]"
+        style={{
+          [side]: 0,
+          width: 56,
+          background:
+            side === "right"
+              ? "linear-gradient(270deg, hsl(0 0% 0% / 0.32) 0%, hsl(0 0% 0% / 0.12) 45%, transparent 100%)"
+              : "linear-gradient(90deg, hsl(0 0% 0% / 0.32) 0%, hsl(0 0% 0% / 0.12) 45%, transparent 100%)",
+        }}
+      />
+      {/* Outer-edge highlight — the part of the page closest to the eye */}
+      <div
+        className="absolute top-0 bottom-0 pointer-events-none z-[3]"
+        style={{
+          [side === "right" ? "left" : "right"]: 0,
+          width: 70,
+          background:
+            side === "right"
+              ? "linear-gradient(90deg, hsl(40 60% 96% / 0.55) 0%, transparent 100%)"
+              : "linear-gradient(270deg, hsl(40 60% 96% / 0.55) 0%, transparent 100%)",
+          mixBlendMode: "screen",
+        }}
+      />
+    </>
   );
 }
 
