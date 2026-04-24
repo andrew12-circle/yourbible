@@ -15,6 +15,7 @@ import { TopBar } from "@/components/bible/TopBar";
 import { ChapterPicker } from "@/components/bible/ChapterPicker";
 import { BookScene } from "@/components/bible/BookScene";
 import { useChapterData, useBookmarks } from "@/hooks/useUserData";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -46,6 +47,28 @@ export default function ReaderPage() {
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
+  const [mobilePage, setMobilePage] = useState<"left" | "right">("left");
+  const isMobile = useIsMobile();
+
+  // Total chapters across the canon → for progress through the Bible
+  const { progress, chaptersBefore, totalChapters } = useMemo(() => {
+    const total = BOOKS.reduce((s, b) => s + b.chapters, 0);
+    let before = 0;
+    for (const b of BOOKS) {
+      if (b.abbr === book.abbr) break;
+      before += b.chapters;
+    }
+    return {
+      progress: Math.max(0, Math.min(1, (before + chapter - 1) / Math.max(1, total - 1))),
+      chaptersBefore: before,
+      totalChapters: total,
+    };
+  }, [book.abbr, chapter]);
+
+  // Reset mobile page to "left" whenever the chapter changes
+  useEffect(() => {
+    setMobilePage("left");
+  }, [book.abbr, chapter]);
 
   const { highlights, notes, setHighlight, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
