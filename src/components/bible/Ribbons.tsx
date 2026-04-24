@@ -33,11 +33,11 @@ export function Ribbons({ ribbons, swaying, onJump, onAddAt }: Props) {
         const colorMeta = RIBBON_COLORS.find(
           (c) => c.id === (r?.color ?? "gold"),
         )!;
-        // Stagger ribbons across the spine, give each a slight unique tilt + length
-        const offset = (slot - 2) * 7 + (slot === 2 ? 1 : 0); // -7, +1, +7
-        const baseTilt = [-1.6, 0.9, -0.4][slot - 1]; // gentle uneven hang
-        // Each ribbon overshoots the bottom of the book by a different amount
-        const overshoot = [38, 28, 46][slot - 1];
+        // Tighter cluster down the gutter, almost straight (just a hair of natural lean)
+        const offset = (slot - 2) * 4; // -4, 0, +4
+        const baseTilt = [-0.5, 0.2, -0.2][slot - 1];
+        // Each ribbon barely peeks below the cover (matches reference photo)
+        const overshoot = [22, 16, 28][slot - 1];
         return (
           <motion.button
             key={slot}

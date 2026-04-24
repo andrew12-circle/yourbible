@@ -8,15 +8,26 @@ interface Props {
   side?: "left" | "right";
 }
 
-const SECTION_COLOR: Record<BibleBook["section"], string> = {
-  law: "var(--section-law)",
-  history: "var(--section-history)",
-  poetry: "var(--section-poetry)",
-  prophets: "var(--section-prophets)",
-  gospels: "var(--section-gospels)",
-  acts: "var(--section-acts)",
-  epistles: "var(--section-epistles)",
-  revelation: "var(--section-revelation)",
+/** Very subtle warm tints per section — all in cream/blush range, never neon. */
+const SECTION_TINT: Record<BibleBook["section"], string> = {
+  law:        "hsl(28 32% 88%)",
+  history:    "hsl(22 30% 87%)",
+  poetry:     "hsl(18 35% 89%)",
+  prophets:   "hsl(30 28% 86%)",
+  gospels:    "hsl(20 38% 90%)",
+  acts:       "hsl(24 32% 88%)",
+  epistles:   "hsl(28 30% 89%)",
+  revelation: "hsl(16 36% 87%)",
+};
+const SECTION_TINT_DEEP: Record<BibleBook["section"], string> = {
+  law:        "hsl(28 28% 78%)",
+  history:    "hsl(22 26% 76%)",
+  poetry:     "hsl(18 30% 79%)",
+  prophets:   "hsl(30 24% 76%)",
+  gospels:    "hsl(20 32% 80%)",
+  acts:       "hsl(24 28% 78%)",
+  epistles:   "hsl(28 26% 79%)",
+  revelation: "hsl(16 30% 77%)",
 };
 
 /**
@@ -43,89 +54,76 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
     <div className="absolute inset-0 pointer-events-none" aria-label="Book navigation">
       <div
         className="absolute top-0 bottom-0 pointer-events-auto"
-        style={{ width: 36, [isLeft ? "right" : "left"]: "100%" }}
+        // Tabs sit just inside the page edge and stick out ~16px past it.
+        style={{ width: 30, [isLeft ? "right" : "left"]: -16 }}
       >
-        <div className="pointer-events-none absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-paper to-transparent z-10" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-paper to-transparent z-10" />
-
         <div
           ref={containerRef}
-          className="h-full overflow-y-auto scrollbar-hide select-none"
+          className="h-full overflow-y-auto scrollbar-hide select-none flex flex-col justify-evenly py-4"
           style={{ scrollSnapType: "y proximity" }}
         >
-          <div style={{ height: "20vh" }} />
-          {BOOKS.map((b, i) => {
+          {BOOKS.map((b) => {
             const isActive = b.abbr === current.abbr;
-            const prevSec = i > 0 ? BOOKS[i - 1].section : null;
-            const showLabel = b.section !== prevSec;
-            const tone = `hsl(${SECTION_COLOR[b.section]})`;
-            const tabHeight = "calc((100vh - 8rem) / 5)";
+            const tint = SECTION_TINT[b.section];
+            const tintDeep = SECTION_TINT_DEEP[b.section];
+            // Even spacing — let flex distribute, but enforce a tidy min height.
+            const tabHeight = isActive ? 36 : 30;
             return (
-              <div key={b.abbr}>
-                {showLabel && (
-                  <div className="px-1 pt-2 pb-1 text-[7px] uppercase tracking-[0.18em] text-paper/60 text-center font-display">
-                    {SECTION_LABELS[b.section].slice(0, 3)}
-                  </div>
-                )}
-                <button
-                  ref={isActive ? activeRef : undefined}
-                  onClick={() => onSelect(b)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`relative block group transition-all duration-300 ${
-                    isActive ? "w-full" : "w-[78%] hover:w-[95%]"
-                  } ${isLeft ? "ml-auto" : ""}`}
+              <button
+                key={b.abbr}
+                ref={isActive ? activeRef : undefined}
+                onClick={() => onSelect(b)}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
+                className={`relative block group transition-all duration-200 ${isLeft ? "ml-auto mr-0" : "mr-auto ml-0"}`}
+                style={{
+                  height: tabHeight,
+                  width: isActive ? "100%" : "92%",
+                  scrollSnapAlign: "center",
+                }}
+              >
+                {/* Tab body */}
+                <span
+                  className="absolute inset-0 block"
                   style={{
-                    height: tabHeight,
-                    marginTop: 4,
-                    marginBottom: 4,
-                    [isLeft ? "marginRight" : "marginLeft"]: -4,
-                    scrollSnapAlign: "center",
+                    backgroundImage: `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
+                    borderTopLeftRadius: isLeft ? 4 : 2,
+                    borderBottomLeftRadius: isLeft ? 4 : 2,
+                    borderTopRightRadius: isLeft ? 2 : 4,
+                    borderBottomRightRadius: isLeft ? 2 : 4,
+                    border: "1px solid hsl(28 22% 60% / 0.55)",
+                    [isLeft ? "borderRight" : "borderLeft"]: "1px solid hsl(28 22% 50% / 0.25)",
+                    boxShadow: isActive
+                      ? `inset 0 1px 0 hsl(0 0% 100% / 0.7), ${isLeft ? "-2px" : "2px"} 2px 5px hsl(0 0% 0% / 0.28)`
+                      : `inset 0 1px 0 hsl(0 0% 100% / 0.55), ${isLeft ? "-1px" : "1px"} 1px 3px hsl(0 0% 0% / 0.22)`,
+                  }}
+                />
+                {/* Subtle inner highlight line along outer edge */}
+                <span
+                  className="absolute top-1 bottom-1"
+                  style={{
+                    [isLeft ? "left" : "right"]: 1,
+                    width: 1,
+                    background:
+                      "linear-gradient(180deg, transparent, hsl(0 0% 100% / 0.45), transparent)",
+                  }}
+                />
+                {/* Vertical book name */}
+                <span
+                  className={`relative z-10 flex items-center justify-center h-full font-display tracking-[0.18em] ${
+                    isActive ? "text-leather text-[9px] font-semibold" : "text-leather/70 text-[8.5px] font-medium"
+                  }`}
+                  style={{
+                    writingMode: "vertical-rl",
+                    textOrientation: "mixed",
+                    textTransform: "uppercase",
                   }}
                 >
-                  <span
-                    className="absolute inset-0 block"
-                    style={{
-                      background: `linear-gradient(180deg, ${tone} 0%, ${tone} 50%, hsl(0 0% 0% / 0.18) 100%), ${tone}`,
-                      backgroundBlendMode: "multiply, normal",
-                      borderTopLeftRadius: isLeft ? 14 : 0,
-                      borderBottomLeftRadius: isLeft ? 14 : 0,
-                      borderTopRightRadius: isLeft ? 0 : 14,
-                      borderBottomRightRadius: isLeft ? 0 : 14,
-                      borderTop: "1px solid hsl(0 0% 100% / 0.25)",
-                      [isLeft ? "borderLeft" : "borderRight"]: "1px solid hsl(0 0% 0% / 0.3)",
-                      borderBottom: "1px solid hsl(0 0% 0% / 0.25)",
-                      boxShadow: isActive
-                        ? `inset 1px 1px 0 hsl(0 0% 100% / 0.25), ${isLeft ? "-3px" : "3px"} 2px 8px hsl(0 0% 0% / 0.35)`
-                        : `inset 1px 1px 0 hsl(0 0% 100% / 0.15), ${isLeft ? "-1px" : "1px"} 1px 4px hsl(0 0% 0% / 0.22)`,
-                      filter: isActive ? "saturate(1.1)" : "saturate(0.9) brightness(0.96)",
-                    }}
-                  />
-                  <span
-                    className="absolute top-3 bottom-3 w-px"
-                    style={{
-                      [isLeft ? "right" : "left"]: 0,
-                      backgroundImage:
-                        "repeating-linear-gradient(180deg, hsl(0 0% 100% / 0.45) 0 3px, transparent 3px 6px)",
-                      opacity: 0.55,
-                    }}
-                  />
-                  <span
-                    className={`relative z-10 flex items-center justify-center h-full font-display font-bold tracking-[0.1em] ${
-                      isActive ? "text-paper text-[11px]" : "text-paper/85 text-[10px]"
-                    }`}
-                    style={{
-                      writingMode: "vertical-rl",
-                      textOrientation: "mixed",
-                      textShadow: "0 1px 0 hsl(0 0% 0% / 0.4)",
-                    }}
-                  >
-                    {b.abbr.toUpperCase()}
-                  </span>
-                </button>
-              </div>
+                  {b.abbr.toUpperCase()}
+                </span>
+              </button>
             );
           })}
-          <div style={{ height: "20vh" }} />
         </div>
       </div>
     </div>
