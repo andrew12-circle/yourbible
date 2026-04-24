@@ -18,9 +18,12 @@ const SECTION_COLOR: Record<BibleBook["section"], string> = {
 };
 
 /**
- * Vertical thumb-index tabs that protrude from the right paper stack of the
- * open Bible. Designed to sit INSIDE BookScene, anchored to its right edge.
- * About 5 tabs visible; scroll to reveal more.
+ * Thumb-index tabs that LOOK like they are cut into the page stack and falling
+ * off the right edge of the open book. The tab is a coloured leather sliver
+ * that emerges out from underneath the right-edge stack of pages.
+ *
+ * Designed to render INSIDE BookScene's right-stack overlay container — that
+ * container is positioned absolute to the right page-stack edge.
  */
 export function BookTabs({ current, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,12 +40,16 @@ export function BookTabs({ current, onSelect }: Props) {
 
   return (
     <div
-      className="absolute right-0 top-0 bottom-0 z-[4] flex items-stretch pointer-events-none"
+      className="absolute inset-0 pointer-events-none"
       aria-label="Book navigation"
     >
-      <div className="relative w-9 sm:w-11 h-full pointer-events-auto">
-        <div className="pointer-events-none absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-paper to-transparent z-10" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-paper to-transparent z-10" />
+      {/* Tabs poke OUT to the right of the page-stack: place a wider container */}
+      <div
+        className="absolute top-0 bottom-0 left-full pointer-events-auto"
+        style={{ width: 36 }}
+      >
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-paper to-transparent z-10" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-paper to-transparent z-10" />
 
         <div
           ref={containerRef}
@@ -60,7 +67,7 @@ export function BookTabs({ current, onSelect }: Props) {
             return (
               <div key={b.abbr}>
                 {showLabel && (
-                  <div className="px-1 pt-2 pb-1 text-[8px] uppercase tracking-[0.18em] text-muted-foreground text-center font-display">
+                  <div className="px-1 pt-2 pb-1 text-[7px] uppercase tracking-[0.18em] text-paper/60 text-center font-display">
                     {SECTION_LABELS[b.section].slice(0, 3)}
                   </div>
                 )}
@@ -68,13 +75,14 @@ export function BookTabs({ current, onSelect }: Props) {
                   ref={isActive ? activeRef : undefined}
                   onClick={() => onSelect(b)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative block ml-auto group transition-all duration-300 ${
-                    isActive ? "w-full" : "w-[78%] hover:w-[92%]"
+                  className={`relative block group transition-all duration-300 ${
+                    isActive ? "w-full" : "w-[78%] hover:w-[95%]"
                   }`}
                   style={{
                     height: tabHeight,
                     marginTop: 4,
                     marginBottom: 4,
+                    marginLeft: -4, // tuck under the page-stack so it appears to emerge from it
                     scrollSnapAlign: "center",
                   }}
                 >
@@ -83,19 +91,22 @@ export function BookTabs({ current, onSelect }: Props) {
                     style={{
                       background: `linear-gradient(180deg, ${tone} 0%, ${tone} 50%, hsl(0 0% 0% / 0.18) 100%), ${tone}`,
                       backgroundBlendMode: "multiply, normal",
-                      borderTopLeftRadius: 14,
-                      borderBottomLeftRadius: 14,
+                      // Tab cut shape — flat on the left (where it meets the stack),
+                      // rounded on the right (the protruding edge).
+                      borderTopRightRadius: 14,
+                      borderBottomRightRadius: 14,
                       borderTop: "1px solid hsl(0 0% 100% / 0.25)",
-                      borderLeft: "1px solid hsl(0 0% 100% / 0.18)",
+                      borderRight: "1px solid hsl(0 0% 0% / 0.3)",
                       borderBottom: "1px solid hsl(0 0% 0% / 0.25)",
                       boxShadow: isActive
-                        ? "inset 1px 1px 0 hsl(0 0% 100% / 0.25), -3px 2px 8px hsl(0 0% 0% / 0.28)"
-                        : "inset 1px 1px 0 hsl(0 0% 100% / 0.15), -1px 1px 4px hsl(0 0% 0% / 0.18)",
+                        ? "inset 1px 1px 0 hsl(0 0% 100% / 0.25), 3px 2px 8px hsl(0 0% 0% / 0.35)"
+                        : "inset 1px 1px 0 hsl(0 0% 100% / 0.15), 1px 1px 4px hsl(0 0% 0% / 0.22)",
                       filter: isActive ? "saturate(1.1)" : "saturate(0.9) brightness(0.96)",
                     }}
                   />
+                  {/* Stitched edge near the page-stack */}
                   <span
-                    className="absolute left-1.5 top-3 bottom-3 w-px"
+                    className="absolute left-0 top-3 bottom-3 w-px"
                     style={{
                       backgroundImage:
                         "repeating-linear-gradient(180deg, hsl(0 0% 100% / 0.45) 0 3px, transparent 3px 6px)",
@@ -103,16 +114,16 @@ export function BookTabs({ current, onSelect }: Props) {
                     }}
                   />
                   <span
-                    className={`relative z-10 flex items-center justify-center h-full font-display font-bold tracking-[0.12em] ${
-                      isActive ? "text-paper text-[12px]" : "text-paper/85 text-[11px]"
+                    className={`relative z-10 flex items-center justify-center h-full font-display font-bold tracking-[0.1em] ${
+                      isActive ? "text-paper text-[11px]" : "text-paper/85 text-[10px]"
                     }`}
                     style={{
                       writingMode: "vertical-rl",
                       textOrientation: "mixed",
-                      textShadow: "0 1px 0 hsl(0 0% 0% / 0.35)",
+                      textShadow: "0 1px 0 hsl(0 0% 0% / 0.4)",
                     }}
                   >
-                    {b.name}
+                    {b.abbr.toUpperCase()}
                   </span>
                 </button>
               </div>
