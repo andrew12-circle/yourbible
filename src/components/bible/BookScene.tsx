@@ -43,6 +43,83 @@ const TOP_PAGE_OUTER_DIP_PX = 8;
  */
 const STACK_FAN_PX = 14;
 
+/**
+ * SVG mask for the leather cover so its top and bottom edges arc the same way
+ * as the page block — high at the spine, dipping ~22 px lower at the outer
+ * corners. Real bound books have a cover that bows out further than the page
+ * block at the outer corners (it has to wrap and protect the fanned pages),
+ * so we use a slightly larger dip than the deepest page-stack edge.
+ *
+ * The mask is applied via `mask-image: url(...)` and uses `preserveAspectRatio="none"`
+ * so a single SVG stretches across any cover size. We bake in rounded outer
+ * corners (radius 10, matching `rounded-[10px]`) so the cover keeps its
+ * supple silhouette.
+ */
+function buildCoverArcMask(): string {
+  // viewBox is arbitrary; we use 1000 wide × 1000 tall and rely on
+  // preserveAspectRatio="none" to stretch.
+  const W = 1000;
+  const H = 1000;
+  // Dip at the outer corners, in viewBox units. ~3.2% of height feels right
+  // — slightly more pronounced than the page-stack arc so the cover reads
+  // as the outermost "shell" of the book.
+  const DIP = 32;
+  const R = 10; // rounded outer corner radius (matches rounded-[10px])
+  const samples = 18;
+  // Top edge: from (R, 0+small) up to (W-R, 0+small), dipping so the deepest
+  // point is at the outer corners. Spine is at x = W/2.
+  // Actually we want the spine HIGH (y small) and outer corners LOW (y large).
+  const topPts: string[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const x = R + ((W - 2 * R) * i) / samples;
+    const distFromSpine = Math.abs(x - W / 2) / (W / 2 - R);
+    const dip = DIP * Math.sin((Math.min(1, distFromSpine) * Math.PI) / 2);
+    topPts.push(`${x.toFixed(2)},${dip.toFixed(2)}`);
+  }
+  const bottomPts: string[] = [];
+  for (let i = samples; i >= 0; i--) {
+    const x = R + ((W - 2 * R) * i) / samples;
+    const distFromSpine = Math.abs(x - W / 2) / (W / 2 - R);
+    const dip = DIP * Math.sin((Math.min(1, distFromSpine) * Math.PI) / 2);
+    bottomPts.push(`${x.toFixed(2)},${(H - dip).toFixed(2)}`);
+  }
+  // Compose path: rounded-rect-ish with arched top + bottom.
+  // Start at (R, top[0].y), arc to (0, R), line down to (0, H-R), arc to
+  // (R, bottom-end), follow bottom curve, arc to (W, H-R), line up to (W, R),
+  // arc to (W-R, top-end), follow top curve back to start.
+  const topY0 = topPts[0].split(",")[1];
+  const topYEnd = topPts[topPts.length - 1].split(",")[1];
+  const bottomY0 = bottomPts[0].split(",")[1]; // starts at outer right
+  const bottomYEnd = bottomPts[bottomPts.length - 1].split(",")[1];
+  const d =
+    `M ${R},${topY0} ` +
+    // Top arc — line through sampled points
+    `L ${topPts.slice(1).join(" L ")} ` +
+    // Top-right rounded corner: from (W-R, topYEnd) curve to (W, topYEnd + R)
+    `Q ${W},${topYEnd} ${W},${Number(topYEnd) + R} ` +
+    // Right edge straight down
+    `L ${W},${H - R} ` +
+    // Bottom-right rounded corner
+    `Q ${W},${H} ${W - R},${bottomY0} ` +
+    // Bottom arc — already starts at (W-R, ...) since bottomPts[0] uses outer x
+    `L ${bottomPts.slice(1).join(" L ")} ` +
+    // Bottom-left rounded corner
+    `Q 0,${H} 0,${H - R} ` +
+    // Left edge up
+    `L 0,${Number(topY0) + R} ` +
+    // Top-left rounded corner back to start
+    `Q 0,${topY0} ${R},${topY0} Z`;
+
+  // White path on transparent — for use as a CSS mask.
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${W} ${H}' preserveAspectRatio='none'>` +
+    `<path d='${d}' fill='white'/>` +
+    `</svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+
+const COVER_ARC_MASK = buildCoverArcMask();
+
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
   progress: number;
@@ -104,10 +181,42 @@ export function BookScene({
         style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
         <div className="pt-2 sm:pt-3 pb-3">
-          {/* Outer leather cover */}
+          {/* Outer leather cover.
+              On desktop we wrap it in a `filter: drop-shadow(...)` container so
+              the cast shadow follows the arched silhouette of the cover (CSS
+              `box-shadow` does not respect `mask-image`, so we have to use a
+              filter on a parent instead). */}
           <div
-            className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
+            style={
+              isMobile
+                ? undefined
+                : {
+                    filter:
+                      "drop-shadow(0 40px 40px rgba(0,0,0,0.55)) drop-shadow(0 14px 18px rgba(0,0,0,0.5))",
+                  }
+            }
+          >
+          <div
+            className={
+              "relative rounded-[10px] p-[12px] sm:p-[16px] " +
+              (isMobile
+                ? "shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
+                : "shadow-[inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]")
+            }
             style={{
+              // On desktop, arc the cover's top + bottom so it bows out at the
+              // outer corners just like the page block — a real bound book's
+              // cover is the outermost curved shell, not a flat rectangle.
+              ...(isMobile
+                ? null
+                : {
+                    WebkitMaskImage: COVER_ARC_MASK,
+                    maskImage: COVER_ARC_MASK,
+                    WebkitMaskSize: "100% 100%",
+                    maskSize: "100% 100%",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                  }),
               backgroundImage:
                 // SVG fractal-noise grain (fine leather pores)
                 `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
@@ -332,6 +441,7 @@ export function BookScene({
                 {ribbons}
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
