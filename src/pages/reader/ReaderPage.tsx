@@ -356,7 +356,7 @@ export default function ReaderPage() {
             onAddAt={(p) => setBmDialog({ position: p })}
           />
         }
-        renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
+        renderTabs={undefined}
         leftPage={
           <SwipePage onSwipe={goPage}>
             <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
