@@ -65,6 +65,12 @@ export function BookScene({
   const leftStack = Math.max(minStack, Math.round(totalStack * progress));
   const rightStack = Math.max(minStack, Math.round(totalStack * (1 - progress)));
 
+  // Page-block thickness shown on the TOP and BOTTOM edges of the book — what
+  // you see of the stacked sheet edges from above. Thinner than the side stacks
+  // because we're looking nearly down their length.
+  const topEdge = isMobile ? 5 : 8;
+  const bottomEdge = isMobile ? 6 : 9;
+
   // Mobile: spine sits on the side OPPOSITE the page (so the page hugs the outer edge of the device)
   const spineOnRight = isMobile && pageSide === "left";
   const spineOnLeft = isMobile && pageSide === "right";
@@ -90,10 +96,25 @@ export function BookScene({
         style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
         <div className="pt-2 sm:pt-3 pb-3">
+          {/* Outer perspective wrapper — tips the whole book back a hair so the
+              top edge recedes slightly. Skipped on mobile. */}
+          <div
+            style={
+              isMobile
+                ? undefined
+                : {
+                    perspective: "2600px",
+                    perspectiveOrigin: "50% 120%",
+                  }
+            }
+          >
           {/* Outer leather cover */}
           <div
-            className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
+            className="relative rounded-[10px] p-[14px] sm:p-[18px] shadow-[0_60px_90px_-30px_rgba(0,0,0,0.9),0_30px_50px_-20px_rgba(0,0,0,0.7),0_14px_28px_-10px_rgba(0,0,0,0.55),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
             style={{
+              transform: isMobile ? undefined : "rotateX(1.2deg)",
+              transformOrigin: "50% 100%",
+              transformStyle: "preserve-3d",
               backgroundImage:
                 // SVG fractal-noise grain (fine leather pores)
                 `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
@@ -143,12 +164,35 @@ export function BookScene({
                 marginTop: 4,
                 marginBottom: 4,
                 boxShadow:
-                  "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge))",
+                  "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge)), inset 0 6px 14px -6px hsl(0 0% 0% / 0.55), inset 0 -8px 16px -6px hsl(0 0% 0% / 0.55), inset 6px 0 14px -6px hsl(0 0% 0% / 0.45), inset -6px 0 14px -6px hsl(0 0% 0% / 0.45)",
                 minHeight: "calc(100vh - 40px)",
                 perspective: isMobile ? undefined : "1800px",
                 perspectiveOrigin: "50% 50%",
               }}
             >
+              {/* === Top page-block edge (gilt seen from above) === */}
+              <div
+                aria-hidden
+                className="absolute left-0 right-0 top-0 pointer-events-none z-[5]"
+                style={{
+                  height: topEdge,
+                  background: horizontalEdgeBackground("top"),
+                  boxShadow:
+                    "0 1px 0 hsl(0 0% 0% / 0.35), inset 0 1px 0 hsl(40 70% 80% / 0.55)",
+                }}
+              />
+              {/* === Bottom page-block edge === */}
+              <div
+                aria-hidden
+                className="absolute left-0 right-0 bottom-0 pointer-events-none z-[5]"
+                style={{
+                  height: bottomEdge,
+                  background: horizontalEdgeBackground("bottom"),
+                  boxShadow:
+                    "0 -1px 0 hsl(0 0% 0% / 0.35), inset 0 -1px 0 hsl(36 55% 45% / 0.6)",
+                }}
+              />
+
               {/* Page-stacks */}
               {/* On mobile we only show the stack on the OUTER edge of the visible page */}
               {(!isMobile || pageSide === "left") && (
@@ -312,6 +356,7 @@ export function BookScene({
               </div>
             )}
           </div>
+          </div>
         </div>
       </div>
     </div>
@@ -375,6 +420,41 @@ function stackBackground(side: "left" | "right") {
     hsl(34 55% 40%) 75%,
     hsl(0 0% 0% / 0.45) 100%)`;
   return `${bands}, ${sheets}, ${gilt}`;
+}
+
+/**
+ * Horizontal page-block edge (top or bottom of the book). This is what you see
+ * of the stacked sheets when looking down at the top of the book — same gilt
+ * palette as the side stacks but the striations run vertically (sheet seams
+ * seen end-on) and the band is darker toward the spine center.
+ */
+function horizontalEdgeBackground(edge: "top" | "bottom"): string {
+  // Vertical fine sheet striations across the horizontal edge.
+  const sheets = `repeating-linear-gradient(90deg,
+    hsl(38 55% 58% / 0.95) 0 0.5px,
+    hsl(42 75% 70% / 0.85) 0.5px 1.1px,
+    hsl(36 50% 45% / 0.55) 1.1px 1.4px,
+    hsl(40 65% 62% / 0.85) 1.4px 2.2px)`;
+  const bands = `repeating-linear-gradient(90deg,
+    transparent 0 9px,
+    hsl(28 35% 28% / 0.20) 9px 9.4px,
+    transparent 9.4px 21px,
+    hsl(28 35% 28% / 0.13) 21px 21.3px)`;
+  // Darker at the spine center, brighter at the outer corners; bottom edge a
+  // touch more shadowed (light from above).
+  const baseLight = edge === "top" ? 60 : 52;
+  const baseDark = edge === "top" ? 36 : 30;
+  const gilt = `radial-gradient(ellipse 60% 200% at 50% 50%,
+    hsl(34 55% ${baseDark}%) 0%,
+    hsl(38 65% ${baseLight - 8}%) 35%,
+    hsl(40 75% ${baseLight}%) 100%)`;
+  // Soft inner shading: top edge picks up a bright top sliver (light source);
+  // bottom edge picks up a darker bottom sliver (cast shadow side).
+  const shade =
+    edge === "top"
+      ? "linear-gradient(180deg, hsl(40 70% 78% / 0.45) 0%, transparent 60%, hsl(0 0% 0% / 0.18) 100%)"
+      : "linear-gradient(0deg, hsl(0 0% 0% / 0.30) 0%, transparent 55%, hsl(40 60% 70% / 0.25) 100%)";
+  return `${shade}, ${bands}, ${sheets}, ${gilt}`;
 }
 
 /**
