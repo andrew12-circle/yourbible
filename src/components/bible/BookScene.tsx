@@ -29,6 +29,20 @@ function buildArcClip(spine: "left" | "right"): string {
 const PAGE_ARC_CLIP_LEFT = buildArcClip("right");  // left page → spine on right
 const PAGE_ARC_CLIP_RIGHT = buildArcClip("left");  // right page → spine on left
 
+/**
+ * Cumulative dip (in CSS px) the TOP page uses at its outermost corner.
+ * Must match the visual depth of `buildArcClip(DIP=0.9)` over a typical page
+ * height (~700–900px) — roughly 6–8 px. We use 8 here so the under-page band
+ * has room to fan visibly above/below the top page.
+ */
+const TOP_PAGE_OUTER_DIP_PX = 8;
+/**
+ * How many px the deepest under-page edge (bottom of the stack) drops below
+ * the top page at the outer corner. This is the visible "fanned page edges"
+ * band that makes the spread look like a real bound book.
+ */
+const STACK_FAN_PX = 14;
+
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
   progress: number;
