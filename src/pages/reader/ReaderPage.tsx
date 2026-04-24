@@ -13,6 +13,7 @@ import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
 import { ChapterPicker } from "@/components/bible/ChapterPicker";
+import { BookScene } from "@/components/bible/BookScene";
 import { useChapterData, useBookmarks } from "@/hooks/useUserData";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
