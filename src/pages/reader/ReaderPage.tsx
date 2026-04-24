@@ -225,6 +225,25 @@ export default function ReaderPage() {
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
   useEffect(() => { setChapterPage(0); }, [book.abbr, chapter]);
 
+  // Pending verse-jump: after the user picks a verse from the TopBar picker,
+  // remember it so once the chapter (re)loads and pagination splits are known,
+  // we can hop to the page that contains that verse.
+  const [pendingVerse, setPendingVerse] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingVerse == null || splits.length <= 1) return;
+    // splits[i] is the index of the first verse on page i. Find the largest i
+    // such that splits[i] < pendingVerse (verses are 1-indexed, splits 0-indexed).
+    let target = 0;
+    for (let i = 0; i < splits.length; i++) {
+      if (splits[i] < pendingVerse) target = i;
+      else break;
+    }
+    // On desktop spreads, snap to an even page so the verse is on the spread.
+    if (!isMobile && target % 2 === 1) target -= 1;
+    setChapterPage(Math.max(0, target));
+    setPendingVerse(null);
+  }, [pendingVerse, splits, isMobile]);
+
   // Auth/onboarding gates — placed AFTER all hooks so hook order stays stable
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
@@ -410,6 +429,18 @@ export default function ReaderPage() {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
           setBmDialog({ position: free });
+        }}
+        currentBook={book}
+        currentChapter={chapter}
+        currentVerseCount={verses.length}
+        onJumpTo={(b, c, v) => {
+          if (v && v > 0) setPendingVerse(v);
+          if (b.abbr === book.abbr && c === chapter) {
+            // Same chapter — just hop to the page containing the verse (if any)
+            if (!v) setChapterPage(0);
+          } else {
+            navigate(`/read/${b.abbr}/${c}`);
+          }
         }}
       />
 
