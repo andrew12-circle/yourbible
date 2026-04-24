@@ -125,20 +125,6 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
                   "linear-gradient(180deg, transparent, hsl(0 0% 100% / 0.5), transparent)",
               }}
             />
-            {/* Pinhole / clip dot — suggests it's hooked onto the page */}
-            <span
-              className="absolute"
-              style={{
-                [isLeft ? "right" : "left"]: 3,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 3,
-                height: 3,
-                borderRadius: 999,
-                background: "hsl(28 22% 35% / 0.55)",
-                boxShadow: "inset 0 0 0 0.5px hsl(0 0% 100% / 0.35)",
-              }}
-            />
             {/* Vertical full book name */}
             <span
               className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.18em] text-leather/85 text-[9px] font-semibold whitespace-nowrap overflow-hidden px-1"
