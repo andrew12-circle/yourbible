@@ -430,6 +430,18 @@ export default function ReaderPage() {
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
           setBmDialog({ position: free });
         }}
+        currentBook={book}
+        currentChapter={chapter}
+        currentVerseCount={verses.length}
+        onJumpTo={(b, c, v) => {
+          if (v && v > 0) setPendingVerse(v);
+          if (b.abbr === book.abbr && c === chapter) {
+            // Same chapter — just hop to the page containing the verse (if any)
+            if (!v) setChapterPage(0);
+          } else {
+            navigate(`/read/${b.abbr}/${c}`);
+          }
+        }}
       />
 
       {/* Hidden measurement node — same width/height as a real page */}
