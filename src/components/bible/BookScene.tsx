@@ -233,6 +233,15 @@ export function BookScene({
                 </div>
               )}
             </div>
+            {/* Ribbons live OUTSIDE the page block so they can overhang the bottom of the book */}
+            {!isMobile && ribbons && (
+              <div
+                className="absolute left-0 right-0 pointer-events-none z-[8]"
+                style={{ top: isMobile ? 12 : 16, bottom: -56 }}
+              >
+                {ribbons}
+              </div>
+            )}
           </div>
         </div>
       </div>
