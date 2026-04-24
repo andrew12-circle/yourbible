@@ -54,9 +54,9 @@ export function BookScene({
 
       <div
         className="relative z-10 mx-auto"
-        style={{ maxWidth: isMobile ? "100vw" : "min(1200px, 96vw)" }}
+        style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
-        <div className="pt-6 sm:pt-10 pb-10">
+        <div className="pt-2 sm:pt-3 pb-3">
           {/* Outer leather cover */}
           <div
             className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7),0_10px_20px_-10px_rgba(0,0,0,0.5)]"
