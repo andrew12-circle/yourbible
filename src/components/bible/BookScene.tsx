@@ -28,9 +28,10 @@ export function BookScene({
   renderTabs,
 }: Props) {
   const isMobile = useIsMobile();
-  const totalStack = 18;
-  const leftStack = Math.max(2, Math.round(totalStack * progress));
-  const rightStack = Math.max(2, Math.round(totalStack * (1 - progress)));
+  // Wider gilt edges so the fanned page-block reads clearly on the sides.
+  const totalStack = isMobile ? 22 : 32;
+  const leftStack = Math.max(10, Math.round(totalStack * progress));
+  const rightStack = Math.max(10, Math.round(totalStack * (1 - progress)));
 
   // Mobile: spine sits on the side OPPOSITE the page (so the page hugs the outer edge of the device)
   const spineOnRight = isMobile && pageSide === "left";
@@ -102,9 +103,6 @@ export function BookScene({
                   "inset 0 0 0 1px hsl(0 0% 0% / 0.4), inset 0 0 24px hsl(0 0% 0% / 0.45)",
               }}
             />
-
-            <PageStackEdge side="top" leftStack={leftStack} rightStack={rightStack} mobile={isMobile} />
-            <PageStackEdge side="bottom" leftStack={leftStack} rightStack={rightStack} mobile={isMobile} />
 
             {/* Page block */}
             <div
