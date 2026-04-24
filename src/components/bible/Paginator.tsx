@@ -20,6 +20,9 @@ interface Props {
   header?: React.ReactNode;
   /** Footer reserved height per page (chapter nav etc.) */
   footerHeight?: number;
+  /** Optional inline style applied to the measurement node so paginator
+   * splits stay in sync with the live page when text size changes. */
+  fontSizeStyle?: React.CSSProperties;
   /** Called with the verse-index splits: pages[i] = verses[splits[i]..splits[i+1]] */
   onSplitsChange: (splits: number[]) => void;
 }
@@ -38,6 +41,7 @@ export function Paginator({
   columnsClassName,
   header,
   footerHeight = 0,
+  fontSizeStyle,
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -50,7 +54,7 @@ export function Paginator({
   // for measurement. Including it caused an infinite re-pagination loop.
   useEffect(() => {
     setRevision(r => r + 1);
-  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, className, columnsClassName]);
+  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, className, columnsClassName, fontSizeStyle?.fontSize]);
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || verses.length === 0) {
@@ -122,7 +126,7 @@ export function Paginator({
         pointerEvents: "none",
       }}
     >
-      <div ref={ref} className={className} style={{ width: pageWidth }} />
+      <div ref={ref} className={className} style={{ width: pageWidth, ...fontSizeStyle }} />
     </div>
   );
 }
