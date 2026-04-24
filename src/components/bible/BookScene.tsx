@@ -54,9 +54,9 @@ export function BookScene({
 
       <div
         className="relative z-10 mx-auto"
-        style={{ maxWidth: isMobile ? "100vw" : "min(1200px, 96vw)" }}
+        style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
-        <div className="pt-6 sm:pt-10 pb-10">
+        <div className="pt-2 sm:pt-3 pb-3">
           {/* Outer leather cover */}
           <div
             className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7),0_10px_20px_-10px_rgba(0,0,0,0.5)]"
@@ -91,7 +91,7 @@ export function BookScene({
                 marginBottom: 4,
                 boxShadow:
                   "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge))",
-                minHeight: "calc(100vh - 90px)",
+                minHeight: "calc(100vh - 40px)",
               }}
             >
               {/* Page-stacks */}
@@ -235,6 +235,15 @@ function PageStackEdge({
   const flipped =
     "linear-gradient(0deg, hsl(38 58% 52%) 0%, hsl(42 78% 62%) 50%, hsl(32 48% 38%) 100%)";
   const inset = mobile ? 12 : 16;
+  const pageMarks = `repeating-linear-gradient(90deg,
+    hsl(0 0% 0% / 0.18) 0 0.5px,
+    transparent 0.5px 2.3px,
+    hsl(0 0% 0% / 0.10) 2.3px 2.7px,
+    transparent 2.7px 5.1px)`;
+  const sideStripes = `repeating-linear-gradient(90deg,
+    hsl(38 30% 78%) 0 0.6px,
+    hsl(38 22% 62%) 0.6px 1.4px,
+    hsl(38 30% 80%) 1.4px 2.2px)`;
   return (
     <div
       className="absolute pointer-events-none flex"
@@ -243,7 +252,7 @@ function PageStackEdge({
         right: inset,
         height: 6,
         [side]: inset / 2,
-        background: side === "top" ? gradient : flipped,
+        backgroundImage: `${pageMarks}, ${side === "top" ? gradient : flipped}`,
         boxShadow:
           side === "top"
             ? "inset 0 -1px 0 hsl(0 0% 0% / 0.3)"
@@ -254,9 +263,9 @@ function PageStackEdge({
         borderBottomRightRadius: side === "bottom" ? 2 : 0,
       }}
     >
-      <div className="h-full" style={{ width: leftStack, background: "hsl(38 30% 80%)", opacity: 0.5 }} />
+      <div className="h-full" style={{ width: leftStack, backgroundImage: sideStripes, opacity: 0.7 }} />
       <div className="flex-1" />
-      <div className="h-full" style={{ width: rightStack, background: "hsl(38 30% 80%)", opacity: 0.5 }} />
+      <div className="h-full" style={{ width: rightStack, backgroundImage: sideStripes, opacity: 0.7 }} />
     </div>
   );
 }
@@ -278,8 +287,29 @@ function PageCurve({ side }: { side: "left" | "right" }) {
 }
 
 function stackBackground(side: "left" | "right") {
+  // Build an organic, slightly irregular stack of pages.
+  // Mix multiple striation passes with different periods so it never reads as a perfect ruler.
   const dir = side === "left" ? "90deg" : "270deg";
-  const lines = `repeating-linear-gradient(${dir}, hsl(var(--paper-edge)) 0 1px, hsl(var(--paper)) 1px 2px)`;
-  const fade = `linear-gradient(${dir}, hsl(var(--paper-deep)) 0%, hsl(var(--paper-edge)) 70%, transparent 100%)`;
-  return `${fade}, ${lines}`;
+  const inward = side === "left" ? "90deg" : "270deg";
+  const stripesA = `repeating-linear-gradient(${dir},
+    hsl(var(--paper-edge) / 0.95) 0 0.6px,
+    hsl(var(--paper) / 0.85) 0.6px 1.7px,
+    hsl(var(--paper-deep) / 0.55) 1.7px 2.1px,
+    hsl(var(--paper) / 0.9) 2.1px 3.3px)`;
+  const stripesB = `repeating-linear-gradient(${dir},
+    transparent 0 5px,
+    hsl(0 0% 0% / 0.10) 5px 5.4px,
+    transparent 5.4px 11px,
+    hsl(0 0% 0% / 0.06) 11px 11.3px)`;
+  const stripesC = `repeating-linear-gradient(${dir},
+    transparent 0 19px,
+    hsl(30 18% 35% / 0.18) 19px 19.6px,
+    transparent 19.6px 33px)`;
+  // soft warm shading deeper toward the spine (inner edge)
+  const shade = `linear-gradient(${inward},
+    hsl(var(--paper-deep)) 0%,
+    hsl(30 22% 70%) 35%,
+    hsl(38 28% 78%) 70%,
+    hsl(0 0% 0% / 0.22) 100%)`;
+  return `${stripesC}, ${stripesB}, ${stripesA}, ${shade}`;
 }
