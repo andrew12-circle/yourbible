@@ -1,45 +1,34 @@
+## Red-letter words of Jesus, slightly lifted off the page
 
+A real "red-letter edition" — Jesus' direct speech rendered in a warm crimson with a subtle raised-from-the-page effect.
 
-## Match the real-Bible look from the reference photo
+### What changes
 
-Three concrete changes, all visual / layout — no business-logic changes.
+**1. Detect Jesus' spoken text per verse**
+- Add a small helper `splitJesusSpeech(verse)` in `src/lib/bible/redLetter.ts` that returns an array of `{ text, isJesus }` segments.
+- Heuristic: when a verse appears in Matthew/Mark/Luke/John (Mt, Mk, Lk, Jhn) AND is in a **known red-letter range** for that chapter, the text inside paired quotation marks (`"…"` / `"…"` / `'…'`) is treated as Jesus.
+- Maintain a curated, conservative range list (e.g. Mt 5–7 Sermon on the Mount, Mt 11:25–30, Mt 13 parables, Jhn 3:3–21, Jhn 6:26–65, Jhn 14–17, Lk 15 parables, etc.). Verses outside the list never get red letters even if they have quotes — avoids painting Pharisees/disciples red.
 
-### 1. Two-column text on each page
+**2. Render red segments with a "lifted" feel**
+- New CSS class `.red-letter` in `src/index.css`:
+  - `color: hsl(0 75% 38%)` (warm Bible-red, not neon)
+  - `font-weight: 500` (a touch heavier so it lifts visually)
+  - `text-shadow` stack: `0 1px 0 hsl(0 0% 100% / 0.7), 0 2px 1px hsl(0 65% 25% / 0.35), 0 0 0.5px hsl(0 75% 30% / 0.4)` — a tiny embossed shadow that reads as "raised off the page."
+  - Tight letter-spacing tweak so it stays compact in the 2-column layout.
+- Works in light/dark themes.
 
-Right now each page renders one wide paragraph column. The reference shows **two narrow columns per page** (so a desktop spread = 4 columns total, mobile = 2 columns).
-
-- In `ReaderPage.tsx`, render the verse `<article>` inside a `columns-2 gap-5` (Tailwind multi-column) container so verses flow column → column → next page naturally.
-- Update the headless `Paginator` to also measure inside a 2-column layout at the same width so page splits stay accurate.
-- Slightly tighten typography (verse-num superscript size, line height ~1.55) to match the dense Bible look.
-- Keep highlights, notes, taps, swipe, page-flip animation untouched.
-
-### 2. Realistic page-edge thumb tabs (replace the colored stack tabs)
-
-The current `BookTabs` are bright candy-colored stripes that overlap the page-stack. The reference shows **soft cream/blush tabs cut into the page edge** with the book name printed on each, sized to the page block, evenly spaced top-to-bottom.
-
-- Rewrite `BookTabs.tsx` so each tab:
-  - Sits flush with the outer page edge, sticking out only ~14–18px past the page (like a real index tab).
-  - Uses a warm cream/paper color with a subtle pink/peach tint that varies *very slightly* by section (no neon).
-  - Has a soft inner highlight line, a thin pencil-style border, and a small drop shadow under it.
-  - Renders the abbreviated book name in vertical small caps in a muted ink color.
-  - Active book = slightly larger, slightly brighter, sits more proud.
-- Keep the same scroll-into-view behavior and click-to-navigate handler.
-- Tabs render on **both outer edges** as today (left edge for OT-leaning books, right edge for NT — current logic preserved).
-
-### 3. Ribbons land like the photo
-
-Small refinement only — already mostly right. Make the visible ribbon hang straight down the gutter (less tilt), with the angled tip just barely peeking out beneath the cover. No structural change beyond tuning the existing `Ribbons.tsx` numbers.
+**3. Wire it into the verse renderer**
+- In `ReaderPage.tsx`, replace the plain `{v.text}` (and the highlighted variant) with a small inline component that maps the segments → `<span class="red-letter">…</span>` for Jesus segments, plain text otherwise.
+- Apply inside the existing highlight wrapper too, so red letters show through highlights.
+- Update `Paginator.tsx`'s headless HTML so its measurements match (same red spans, same weight) — keeps page splits accurate.
 
 ### Files touched
-
-- `src/pages/reader/ReaderPage.tsx` — wrap verses in a `columns-2` container; pass the column-aware width to `Paginator`.
-- `src/components/bible/Paginator.tsx` — measure inside a `columns-2` test node so splits match the rendered layout.
-- `src/components/bible/BookTabs.tsx` — visual rewrite (cream tabs, vertical type, subtle elevation).
-- `src/components/bible/Ribbons.tsx` — minor tuning of tilt/overshoot.
+- `src/lib/bible/redLetter.ts` (new) — range table + segmentation helper.
+- `src/index.css` — `.red-letter` class.
+- `src/pages/reader/ReaderPage.tsx` — use the segmenter inside `renderVerse`.
+- `src/components/bible/Paginator.tsx` — use the same segmenter when building the measurement HTML.
 
 ### Out of scope
-
-- Cover leather, page-edge gilt stack, and overall book size stay as they are now.
-- No changes to highlights, notes, bookmarks, AI sheet, or chapter navigation.
-- Section coloring stays subtle; no per-section saturated colors.
-
+- No translation-specific quotation parsing beyond the standard `" " " ' '` set.
+- No per-character animation, no tooltip explaining red letters — just the look.
+- Cover, tabs, columns, ribbons all stay as they are.
