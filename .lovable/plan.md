@@ -1,16 +1,16 @@
-Add a subtle 3D arc to the open spread so the pages curve inward toward the spine like a real bound book — not flat. Two changes in `BookScene.tsx`:
 
-1. **Page-curl gradients (cheap, no transforms)**
-   - Strengthen the existing `PageCurve` strips at the spine side of each page so the inner edge has a soft shadow falling away from the spine (suggesting the page bowing into the gutter).
-   - Add a matching outer-edge highlight gradient on each page so the outer side reads as the part of the page closest to the eye (lifted), and the inner side as the part dipping into the spine.
+The user wants the **top edge of each page to be subtly arched** (concave) instead of a perfectly straight horizontal line — high near the spine, dipping toward the outer edge — so the open spread looks like a real bound book that bows outward. Same for the bottom edge.
 
-2. **True perspective tilt (the "arc")**
-   - Wrap each page surface in a perspective container (`perspective: ~1800px` on the page-block).
-   - Apply a small `rotateY` to each page — left page tilts ~+4°, right page tilts ~-4° — pivoting from the spine (`transformOrigin: right center` for the left page, `left center` for the right page).
-   - Add `backface-visibility: hidden` and a faint inner shadow at the gutter so the curve reads cleanly.
-   - Mobile: skip the tilt (single page, no spread to arc).
+This is a CSS-only change in `src/components/bible/BookScene.tsx`:
+
+1. Apply a `clipPath` polygon to each desktop page surface wrapper that:
+   - Left page: top edge starts high at the right (spine, ~0px from top) and dips ~6–8px lower at the left (outer edge). Bottom mirrors: high at right (spine), low at left.
+   - Right page: top edge starts high at the left (spine) and dips ~6–8px lower at the right (outer edge). Bottom mirrors.
+   - Use enough intermediate vertices (~6–8 points along the top/bottom) for a smooth arc.
+2. Add a faint shadow/highlight gradient along the new curved top and bottom of each page so the curl reads as depth rather than a clipped rectangle.
+3. Mobile stays flat (single page, no spread arc).
 
 Files touched:
-- `src/components/bible/BookScene.tsx` — perspective wrapper, rotateY on each page, stronger gutter shading.
+- `src/components/bible/BookScene.tsx` — add `clipPath` + edge shading to each desktop page surface wrapper.
 
-Out of scope: ribbons, tabs, gilt edges, cover, typography — all unchanged. No animation on page turn beyond what's already there.
+Out of scope: the existing perspective tilt, gilt edges, tabs, ribbons, cover, typography — all unchanged. No JS, no new components.
