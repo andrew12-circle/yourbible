@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { BookOpen, Loader2 } from "lucide-react";
+import { lovable } from "@/integrations/lovable";
 
 export default function AuthPage() {
   const { user, signIn, signUp, loading } = useAuth();
@@ -16,8 +17,23 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
 
   if (!loading && user) return <Navigate to="/" replace />;
+
+  const signInWithApple = async () => {
+    setAppleBusy(true);
+    const result = await lovable.auth.signInWithOAuth("apple", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setAppleBusy(false);
+      toast({ variant: "destructive", title: "Couldn't sign in with Apple", description: result.error.message });
+      return;
+    }
+    if (result.redirected) return;
+    navigate("/");
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +100,31 @@ export default function AuthPage() {
             {mode === "signin" ? "New here? Create an account." : "Already have an account? Sign in."}
           </button>
         </form>
+
+        <div className="mt-5">
+          <div className="relative flex items-center my-4">
+            <div className="flex-1 h-px bg-paper-edge" />
+            <span className="px-3 text-[10px] uppercase tracking-widest text-muted-foreground">or</span>
+            <div className="flex-1 h-px bg-paper-edge" />
+          </div>
+          <button
+            type="button"
+            onClick={signInWithApple}
+            disabled={appleBusy}
+            className="w-full h-11 rounded-md bg-black text-white flex items-center justify-center gap-2 hover:bg-black/90 transition-colors disabled:opacity-60"
+          >
+            {appleBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                  <path d="M16.365 12.96c-.02-2.18 1.78-3.23 1.86-3.28-1.01-1.48-2.59-1.68-3.15-1.7-1.34-.13-2.61.79-3.29.79-.69 0-1.73-.77-2.85-.75-1.46.02-2.81.85-3.56 2.16-1.52 2.64-.39 6.55 1.09 8.7.72 1.05 1.58 2.23 2.7 2.19 1.09-.04 1.5-.7 2.81-.7 1.31 0 1.68.7 2.83.68 1.17-.02 1.91-1.07 2.62-2.13.83-1.22 1.17-2.41 1.19-2.47-.03-.01-2.28-.87-2.31-3.49zM14.2 6.27c.6-.73 1.01-1.74.9-2.75-.87.04-1.93.58-2.55 1.31-.55.64-1.04 1.68-.91 2.66.97.07 1.96-.49 2.56-1.22z"/>
+                </svg>
+                <span className="text-sm font-medium">Continue with Apple</span>
+              </>
+            )}
+          </button>
+        </div>
       </motion.div>
     </div>
   );
