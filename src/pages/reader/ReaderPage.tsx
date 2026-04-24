@@ -294,6 +294,20 @@ export default function ReaderPage() {
           }}
         />
       )}
+
+      {/* Chapter picker */}
+      {pickerBook && (
+        <ChapterPicker
+          open
+          book={pickerBook}
+          currentChapter={pickerBook.abbr === book.abbr ? chapter : undefined}
+          onClose={() => setPickerBook(null)}
+          onPick={(c) => {
+            navigate(`/read/${pickerBook.abbr}/${c}`);
+            setPickerBook(null);
+          }}
+        />
+      )}
     </div>
   );
 }
