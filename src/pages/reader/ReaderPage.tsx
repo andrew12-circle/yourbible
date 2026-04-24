@@ -239,14 +239,14 @@ export default function ReaderPage() {
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
   // Reset when chapter / size changes
-  useEffect(() => { setSplits([0]); setChapterPage(0); }, [book.abbr, chapter, pageBox.w, pageBox.h, isMobile, fontScale]);
+  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, isMobile, fontScale]);
   const verses = passage?.verses ?? [];
   const totalPagesInChapter = Math.max(1, splits.length - 1);
 
   // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
-  useEffect(() => { setChapterPage(0); }, [book.abbr, chapter]);
+  useEffect(() => { setChapterPage(0); }, [book.abbr, chapter, fontScale]);
 
   // Pending verse-jump: after the user picks a verse from the TopBar picker,
   // remember it so once the chapter (re)loads and pagination splits are known,
