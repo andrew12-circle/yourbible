@@ -24,6 +24,7 @@ import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const LS_BIBLE_KEY = "yb.bibleId";
+const LS_FONT_SCALE_KEY = "yb.fontScale";
 const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
 const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
 
@@ -145,6 +146,17 @@ export default function ReaderPage() {
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
+
+  // Reading text-size scale (persisted). Clamp into a sane range.
+  const [fontScale, setFontScale] = useState<number>(() => {
+    const raw = parseFloat(localStorage.getItem(LS_FONT_SCALE_KEY) ?? "");
+    return Number.isFinite(raw) ? Math.min(1.5, Math.max(0.85, raw)) : 1;
+  });
+  const updateFontScale = (next: number) => {
+    const clamped = Math.min(1.5, Math.max(0.85, +next.toFixed(2)));
+    setFontScale(clamped);
+    localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
+  };
 
   const isMobile = useIsMobile();
 
