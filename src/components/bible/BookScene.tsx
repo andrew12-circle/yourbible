@@ -154,7 +154,17 @@ export function BookScene({
                     }}
                   >
                     <PageCurve side="right" />
-                    <div className="relative h-full overflow-hidden">{leftPage}</div>
+                    <div
+                      className="relative h-full overflow-hidden"
+                      style={{
+                        // Top edge: high at the spine (right), dipping ~7px lower at the outer edge (left).
+                        // Bottom edge mirrors the same arc.
+                        clipPath: PAGE_ARC_CLIP_LEFT,
+                      }}
+                    >
+                      {leftPage}
+                      <PageEdgeShading side="left" />
+                    </div>
                   </div>
                   {/* Right page */}
                   <div
@@ -171,7 +181,16 @@ export function BookScene({
                     }}
                   >
                     <PageCurve side="left" />
-                    <div className="relative h-full overflow-hidden">{rightPage}</div>
+                    <div
+                      className="relative h-full overflow-hidden"
+                      style={{
+                        // Mirror of the left page: high at the spine (left), dipping toward the outer edge (right).
+                        clipPath: PAGE_ARC_CLIP_RIGHT,
+                      }}
+                    >
+                      {rightPage}
+                      <PageEdgeShading side="right" />
+                    </div>
                   </div>
                   {/* Spine */}
                   <div
@@ -328,4 +347,99 @@ function stackBackground(side: "left" | "right") {
     hsl(34 55% 40%) 75%,
     hsl(0 0% 0% / 0.45) 100%)`;
   return `${bands}, ${sheets}, ${gilt}`;
+}
+
+/**
+ * Concave-arc clip-path for a page surface. The top and bottom edges are
+ * "tall" (closer to the page's outer y-bounds) at the spine and dip a few
+ * pixels inward at the outer edge — so the open spread silhouettes like a
+ * real bound book bowing outward, not a perfect rectangle.
+ *
+ * Built as a polygon with multiple vertices along the top and bottom for a
+ * smooth arc. Coordinates are in % of the page surface size.
+ *
+ * For the LEFT page, the spine is on the right; for the RIGHT page, the
+ * spine is on the left.
+ */
+function buildArcClip(spine: "left" | "right"): string {
+  // Arc depth at the outer edge (in calc-able units). Using calc() inside
+  // polygon() with px isn't widely supported, so we use a small % that scales
+  // gracefully with page height (≈0.9% of page height ≈ 6–9px for a typical
+  // open spread). Keeps a subtle "bowed" silhouette.
+  const DIP = 0.9; // %
+  // Sample 7 points along the top and 7 along the bottom for a smooth arc.
+  // x goes from 0% (left) to 100% (right). For a left-spined (right page),
+  // y_top is 0 at x=0 (spine) and DIP at x=100% (outer); arc shape via cosine.
+  const samples = 7;
+  const pts: string[] = [];
+  // ---- top edge (left → right) ----
+  for (let i = 0; i <= samples; i++) {
+    const x = (i / samples) * 100;
+    // distance from spine (0 at spine, 1 at outer edge)
+    const t = spine === "left" ? i / samples : 1 - i / samples;
+    // Smooth concave arc: max dip at outer edge, 0 at spine.
+    // Use sine for a clean half-arc shape.
+    const y = DIP * Math.sin((t * Math.PI) / 2);
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(3)}%`);
+  }
+  // ---- bottom edge (right → left) ----
+  for (let i = 0; i <= samples; i++) {
+    const x = 100 - (i / samples) * 100;
+    const t = spine === "left" ? 1 - i / samples : i / samples;
+    const y = 100 - DIP * Math.sin((t * Math.PI) / 2);
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(3)}%`);
+  }
+  return `polygon(${pts.join(", ")})`;
+}
+
+const PAGE_ARC_CLIP_LEFT = buildArcClip("right");  // left page → spine on right
+const PAGE_ARC_CLIP_RIGHT = buildArcClip("left");  // right page → spine on left
+
+/**
+ * Faint shadow strips that hug the curved top/bottom edges so the arc reads as
+ * depth (a slightly bowed sheet) rather than just a clipped rectangle.
+ * Pure CSS — no extra DOM nodes outside the page surface itself.
+ */
+function PageEdgeShading({ side }: { side: "left" | "right" }) {
+  // The "outer edge" (where the dip is deepest) is on the left for the left
+  // page and on the right for the right page. We darken slightly more on the
+  // outer side so the curve has perceived volume.
+  const outer = side === "left" ? "270deg" : "90deg";
+  return (
+    <>
+      {/* Top edge shadow — soft, fades downward */}
+      <div
+        aria-hidden
+        className="absolute left-0 right-0 top-0 pointer-events-none z-[4]"
+        style={{
+          height: 14,
+          background:
+            "linear-gradient(180deg, hsl(0 0% 0% / 0.18) 0%, hsl(0 0% 0% / 0.06) 55%, transparent 100%)",
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* Bottom edge shadow — soft, fades upward */}
+      <div
+        aria-hidden
+        className="absolute left-0 right-0 bottom-0 pointer-events-none z-[4]"
+        style={{
+          height: 16,
+          background:
+            "linear-gradient(0deg, hsl(0 0% 0% / 0.22) 0%, hsl(0 0% 0% / 0.07) 55%, transparent 100%)",
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* Subtle outer-edge darkening to enhance the bowed read */}
+      <div
+        aria-hidden
+        className="absolute top-0 bottom-0 pointer-events-none z-[4]"
+        style={{
+          [side === "left" ? "left" : "right"]: 0,
+          width: 24,
+          background: `linear-gradient(${outer}, hsl(0 0% 0% / 0.10) 0%, transparent 100%)`,
+          mixBlendMode: "multiply",
+        }}
+      />
+    </>
+  );
 }
