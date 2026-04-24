@@ -1,34 +1,45 @@
 
 
-## Hide the brown side-tap bars, add subtle arrows by the page number
+## Match the real-Bible look from the reference photo
 
-Right now each page has a wide brown "tap zone" along its outer edge that advances/goes back. You want that gone and replaced with discreet ‹ / › arrows next to the page number at the bottom of the page.
+Three concrete changes, all visual / layout — no business-logic changes.
 
-### What changes
+### 1. Two-column text on each page
 
-**Remove**
-- The full-height brown tap strips on the left and right outer edges of the pages (the `renderTabs` thumb-index strips wired through `BookScene` → `Paginator`/`ReaderPage`).
+Right now each page renders one wide paragraph column. The reference shows **two narrow columns per page** (so a desktop spread = 4 columns total, mobile = 2 columns).
 
-**Add**
-- Two small chevron buttons (`ChevronLeft` / `ChevronRight` from lucide-react) sitting inline beside the page number in the footer of each page, e.g.:
+- In `ReaderPage.tsx`, render the verse `<article>` inside a `columns-2 gap-5` (Tailwind multi-column) container so verses flow column → column → next page naturally.
+- Update the headless `Paginator` to also measure inside a 2-column layout at the same width so page splits stay accurate.
+- Slightly tighten typography (verse-num superscript size, line height ~1.55) to match the dense Bible look.
+- Keep highlights, notes, taps, swipe, page-flip animation untouched.
 
-  ```text
-  ‹  John · p. 14  ›
-  ```
+### 2. Realistic page-edge thumb tabs (replace the colored stack tabs)
 
-- Buttons are ghost-styled, ~20px, same muted ink color as the page number, with a subtle hover state. They call the same prev/next handlers the brown bars used to call.
-- Disabled state (faded, no pointer) when on the first/last page.
+The current `BookTabs` are bright candy-colored stripes that overlap the page-stack. The reference shows **soft cream/blush tabs cut into the page edge** with the book name printed on each, sized to the page block, evenly spaced top-to-bottom.
 
-### Behavior preserved
-- Swipe gestures, keyboard arrows, and any header navigation keep working.
-- Page-turn animation (PageFlip) still fires from these new buttons.
+- Rewrite `BookTabs.tsx` so each tab:
+  - Sits flush with the outer page edge, sticking out only ~14–18px past the page (like a real index tab).
+  - Uses a warm cream/paper color with a subtle pink/peach tint that varies *very slightly* by section (no neon).
+  - Has a soft inner highlight line, a thin pencil-style border, and a small drop shadow under it.
+  - Renders the abbreviated book name in vertical small caps in a muted ink color.
+  - Active book = slightly larger, slightly brighter, sits more proud.
+- Keep the same scroll-into-view behavior and click-to-navigate handler.
+- Tabs render on **both outer edges** as today (left edge for OT-leaning books, right edge for NT — current logic preserved).
+
+### 3. Ribbons land like the photo
+
+Small refinement only — already mostly right. Make the visible ribbon hang straight down the gutter (less tilt), with the angled tip just barely peeking out beneath the cover. No structural change beyond tuning the existing `Ribbons.tsx` numbers.
 
 ### Files touched
-- `src/components/bible/BookScene.tsx` — drop the `renderTabs` slot rendering on outer edges (or stop passing it from the parent).
-- `src/pages/reader/ReaderPage.tsx` (or wherever `renderTabs` is supplied) — remove the brown-bar renderer; pass `onPrev` / `onNext` / `canPrev` / `canNext` down to the page footer instead.
-- `src/components/bible/Paginator.tsx` — render the page-number footer with the two chevron buttons inline.
+
+- `src/pages/reader/ReaderPage.tsx` — wrap verses in a `columns-2` container; pass the column-aware width to `Paginator`.
+- `src/components/bible/Paginator.tsx` — measure inside a `columns-2` test node so splits match the rendered layout.
+- `src/components/bible/BookTabs.tsx` — visual rewrite (cream tabs, vertical type, subtle elevation).
+- `src/components/bible/Ribbons.tsx` — minor tuning of tilt/overshoot.
 
 ### Out of scope
-- No change to header, swipe, or page-curl animation work.
-- No change to the gold page-edge stack along the top/bottom of the book — only the brown vertical click strips on the page sides go away.
+
+- Cover leather, page-edge gilt stack, and overall book size stay as they are now.
+- No changes to highlights, notes, bookmarks, AI sheet, or chapter navigation.
+- Section coloring stays subtle; no per-section saturated colors.
 
