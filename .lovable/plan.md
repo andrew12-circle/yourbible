@@ -1,85 +1,100 @@
 
-# Your Bible — Phase 1 + 2
 
-A premium, personal Bible reader that feels like the real thing — leather, ribbon bookmarks, side tabs, AI verse breakdowns, and a calm sleep mode. Built on Lovable Cloud with API.Bible for translations.
+## iBooks vs Our Bible Reader — Gap Analysis
 
-## Look & feel
-- **Warm cream paper** background, deep cordovan-leather accents, gold edge highlights
-- **Serif body type** (Crimson Pro / Lora) for scripture, clean sans for UI chrome
-- Subtle paper grain, soft drop shadows, gold/foil-style detailing — not skeuomorphic-cheesy, premium-restrained
+This is a research/comparison question, so here's what iBooks (Apple Books) offers that our current reader is missing, organized by category.
 
-## Phase 1 — The Bible itself
+### Reading Experience
 
-### 1. Onboarding & accounts
-- Email + password sign-up via Lovable Cloud
-- After sign-up: pick a **cover** (cordovan, black, blush, sand linen) and a **highlight palette** (classic warm, pastel, jewel)
-- These choices become "My Bible" defaults — editable later in settings
+**Page turn animation**
+- iBooks: True curling page-peel that follows your finger in real time, with shadow under the lifted page and a visible back-of-page during the turn.
+- Ours: 3D `rotateY` flip in `PageFlip.tsx` that plays after release. No finger-following curl, no back-of-page shading, no partial-drag preview.
 
-### 2. Reader
-- Single-column reading view with verse numbers as small superscript
-- Cream page with soft vignette; chapter title in serif display
-- Top bar collapses on scroll for a clean reading surface
-- Translation switcher (NIV / ESV / KJV / NLT — whichever the API.Bible key allows)
+**Continuous scroll mode**
+- iBooks: Toggle between paginated and one long scroll.
+- Ours: Pagination only.
 
-### 3. Side tabs (real Bible navigation)
-- Vertical tabs along the right edge, grouped by section: Law / History / Poetry / Prophets / Gospels / Acts / Epistles / Revelation
-- Color-coded by section, abbreviated book names (Gen, Exo, Lev…)
-- Tap = jump. Drag finger down = scrub through books with haptic-style preview popover
-- Active book sits slightly proud, brighter
+**Auto-pagination to screen**
+- iBooks: Repaginates instantly on font/size/orientation change with no layout jump.
+- Ours: `Paginator.tsx` re-measures, but there's a visible reflow flash and no "remember my place across font changes."
 
-### 4. Tap-to-Understand (AI breakdown)
-- Tap any verse → bottom sheet with tabs: **Summary · Context · Apply · Deep Dive**
-- "Ask about this verse" free-form chat anchored to that verse
-- Powered by Lovable AI Gateway (Gemini default — free during promo period)
+### Typography & Display
 
-### 5. Highlights & notes
-- Long-press a verse → choose a highlight color (palette from onboarding)
-- Highlights render with a **hand-drawn marker look**: uneven edges, slight transparency, faint streak texture, imperfect start/end (SVG mask + filter, not flat rectangles)
-- Each color can be named/assigned meaning ("Promises", "Identity", etc.)
-- Add a personal note to any verse; notes stack in the margin and show as a small dot when collapsed
+**Font picker** — iBooks ships 8+ typefaces (Athelas, Charter, Georgia, Iowan, Palatino, San Francisco, Seravek, Times New Roman). We have one scripture font.
 
-## Phase 2 — Make it feel real
+**Font size slider** — granular 12-step control. Ours: none exposed in reader UI.
 
-### 6. Ribbon bookmarks
-- Up to 3 fabric ribbons (red, gold, blue) hanging from the top edge of the page
-- Drag to reposition, tap edge to jump to saved spot, rename per ribbon ("Daily reading", "Sermon", "Study")
-- Subtle physics — gentle sway when you scroll/turn pages, no cartoon bounce
+**Line spacing & margins** — three presets each. Ours: none.
 
-### 7. Focus Mode ("Secret Place")
-- One tap dims chrome, hides all social/community surfaces, mutes badges
-- Soft transition: contrast lowers slightly, motion stills, only text + highlights + ribbons + audio remain
-- Honest about scope: this silences the app, not the whole phone
+**Themes** — White, Sepia, Gray, Night, with auto night-mode on schedule. Ours: single paper theme.
 
-### 8. Sleep Mode
-- Full-screen dark experience, minimal controls
-- Choose: scripture (Psalms / Gospels / themed sets like Peace, Provision, Healing), narrator voice, background (soft piano, rain, ambient pad), duration (10/20/until-asleep)
-- ElevenLabs voice via edge function — calm pacing, gentle pauses between verses, fade-in / fade-out
-- Background audio mixed low under the voice
+**Bold text toggle** and **publisher font override**. Ours: neither.
 
-## Settings — "My Bible"
-- Cover · Tab palette · Highlight palette · Font (serif/sans) · Page tone (cream/warm white) · Layout (classic/reading/journal)
-- Live preview as you change
+### Navigation
 
-## Data model (Lovable Cloud)
-- `profiles` — display name, customization (cover, palette, font, layout)
-- `highlights` — user_id, book, chapter, verse, color, label
-- `notes` — user_id, verse reference, body, created_at
-- `bookmarks` — user_id, label, color, reference, position
-- `ai_conversations` — verse-anchored chat threads
-- RLS so each user only sees their own data
+**Scrubber bar** at the bottom showing chapter name + "X pages left in chapter" as you drag. Ours: tabs + chapter picker, no scrubber.
 
-## What's NOT in this build (deferred)
-- Threads / cross-reference web view
-- Praise Reports
-- Live Reading (presence avatars)
-- Church Mode + bulletin upload
-- Legacy Bible scanning
-- Curated YouTube content
+**Table of contents drawer** with nested chapters/sections, current location highlighted. Ours: `BookTabs` + `ChapterPicker`, no unified TOC drawer.
 
-These all stay on the roadmap for Phase 3+ once the core feels great.
+**Bookmarks list view** — all bookmarks across the book in one panel with snippet preview. Ours: `BookmarkDialog` exists, no aggregated list view in-reader.
 
-## Setup needed before building
-- **API.Bible key** — sign up at scripture.api.bible, I'll prompt to add it as a secret
-- **ElevenLabs** — connect via the ElevenLabs connector for Sleep Mode voice
-- **Lovable AI Gateway** — auto-provisioned, no setup
-- **Lovable Cloud** — auto-provisioned for auth + database
+**Search across the whole book** with highlighted hits and jump-to. Ours: no search.
+
+**Go back** — after tapping a footnote/cross-reference, a "Back to page X" pill appears. Ours: no cross-ref navigation history.
+
+### Annotations
+
+**Highlight colors palette** — 5 colors + underline, all visible at once on the page. Ours: `HighlightMenu` exists; verify color count and underline option.
+
+**Notes margin indicator** — small icon in the margin where a note exists, tap to expand. Ours: `NoteDialog` exists, unclear if there's a visible margin marker.
+
+**Notes & highlights tab** — a dedicated panel listing every annotation with the highlighted text + note, exportable. Ours: not present.
+
+**Share highlight** as image card with book attribution. Ours: not present.
+
+### Dictionary & Reference
+
+**Tap-and-hold a word** → inline dictionary definition, Wikipedia, translate, search book. Ours: `VerseSheet` works at verse level, no per-word lookup.
+
+**Footnotes & cross-references** as tappable popovers without leaving the page. Ours: not implemented (Bible cross-refs would be a major add).
+
+### Library & Sync
+
+**Library shelf** showing all books with covers, reading progress %, last-opened sort. Ours: single book (the Bible), so partially N/A — but no "recent books / recent chapters" surface.
+
+**iCloud sync** of position, bookmarks, highlights, notes across devices. Ours: Supabase-backed, likely already syncing — confirm parity.
+
+**Reading goals** — daily minutes, streaks, finished-books stats. Ours: not present.
+
+### Audio
+
+**Read Aloud** with sentence highlighting, speed control, voice picker, sleep timer. Ours: `sleep-tts` edge function exists for the Sleep page; no in-reader read-aloud with verse-level highlight tracking.
+
+### Accessibility
+
+**VoiceOver-optimized reading order**, **Dynamic Type** respect, **Spoken Content** integration. Ours: standard web a11y only, not audited.
+
+### Polish Details
+
+- Battery + clock overlay at the page bottom while reading.
+- Brightness slider in the reader (separate from system).
+- "X minutes left in chapter" estimate.
+- Subtle paper-grain that shifts per page (we have static paper texture).
+- Drop-cap on chapter openings.
+- Page numbers that match physical book pagination.
+
+---
+
+### Suggested next step
+
+If you want to close the biggest gaps, the highest-impact additions in priority order would be:
+
+1. **Finger-following page curl** (replaces current flip) — single biggest "feels real" upgrade.
+2. **Typography controls** (font, size, spacing, theme) — sepia/night mode especially.
+3. **Full-text search** across the Bible.
+4. **Notes & highlights panel** — aggregated list with jump-to.
+5. **Read Aloud in-reader** with verse highlighting + sleep timer.
+6. **Reading progress** — "X min left in chapter" + streaks.
+
+Tell me which of these you want to build next and I'll come back with an implementation plan.
+
