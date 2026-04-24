@@ -138,7 +138,7 @@ export default function ReaderPage() {
   const hlFor = (n: number) => highlights.find(x => x.verse === n);
 
   return (
-    <div className={`min-h-screen relative paper-texture transition-all duration-700 ${focusMode ? "saturate-[0.85] contrast-[0.95]" : ""}`}>
+    <div className={`min-h-screen relative transition-all duration-700 ${focusMode ? "saturate-[0.85] contrast-[0.95]" : ""}`}>
       <MarkerSvgFilter />
 
       <TopBar
@@ -157,82 +157,84 @@ export default function ReaderPage() {
         }}
       />
 
-      {/* Ribbons */}
-      <Ribbons
-        ribbons={bookmarks as RibbonData[]}
-        swaying={scrolling}
-        onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
-        onAddAt={(p) => setBmDialog({ position: p })}
-      />
+      <BookScene
+        ribbons={
+          <Ribbons
+            ribbons={bookmarks as RibbonData[]}
+            swaying={scrolling}
+            onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
+            onAddAt={(p) => setBmDialog({ position: p })}
+          />
+        }
+        tabs={!focusMode ? <BookTabs current={book} onSelect={goBook} /> : null}
+      >
+        <div className="px-8 sm:px-14 pt-10 pb-16 pr-14 sm:pr-20">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="font-display text-2xl sm:text-3xl text-leather text-center mb-1"
+          >
+            {book.name}
+          </motion.h1>
+          <div className="text-center mb-6 flex items-center justify-center gap-3 text-muted-foreground">
+            <span className="h-px w-10 bg-gradient-to-r from-transparent to-gold/40" />
+            <span className="font-display text-xs uppercase tracking-[0.3em]">Chapter {chapter}</span>
+            <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold/40" />
+          </div>
 
-      {/* Side tabs */}
-      {!focusMode && <BookTabs current={book} onSelect={goBook} />}
+          {loadingPassage && (
+            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
+          )}
 
-      {/* Reading area */}
-      <main className="pt-20 pb-32 px-5 sm:px-6 max-w-3xl mx-auto relative page-vignette">
-        <motion.h1
-          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="font-display text-3xl sm:text-4xl text-leather text-center mb-1 mt-4"
-        >
-          {book.name}
-        </motion.h1>
-        <div className="text-center mb-8 flex items-center justify-center gap-4 text-muted-foreground">
-          <span className="h-px w-12 bg-gradient-to-r from-transparent to-gold/40" />
-          <span className="font-display text-sm uppercase tracking-[0.3em]">Chapter {chapter}</span>
-          <span className="h-px w-12 bg-gradient-to-l from-transparent to-gold/40" />
+          {!loadingPassage && passage && (
+            <article
+              className="font-scripture text-[16px] sm:text-[17px] leading-[1.78] text-foreground/90 columns-1 sm:columns-2 gap-16"
+              style={{ columnRule: "1px solid transparent" }}
+            >
+              <p>
+                {passage.verses.map(v => {
+                  const hl = hlFor(v.number);
+                  const note = noteFor(v.number);
+                  return (
+                    <span key={v.number}>
+                      <span
+                        onPointerDown={(e) => onVersePointerDown(e, v)}
+                        onPointerUp={() => onVersePointerUp(v)}
+                        onPointerCancel={onVersePointerCancel}
+                        className="no-tap-highlight cursor-pointer transition-colors hover:text-leather"
+                      >
+                        <span className="verse-num">{v.number}</span>
+                        {hl ? (
+                          <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{v.text}</span>
+                        ) : v.text}
+                        {note && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
+                            className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
+                            aria-label="Open note"
+                          >
+                            <NotebookPen className="w-2.5 h-2.5 m-auto" />
+                          </button>
+                        )}
+                      </span>{" "}
+                    </span>
+                  );
+                })}
+              </p>
+            </article>
+          )}
+
+          <div className="flex items-center justify-between mt-12 pt-6 border-t border-paper-edge/60">
+            <Button variant="ghost" onClick={() => goChapter(-1)} className="text-leather hover:text-leather-deep">
+              <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+            </Button>
+            <div className="text-xs text-muted-foreground">{chapter} of {book.chapters}</div>
+            <Button variant="ghost" onClick={() => goChapter(1)} className="text-leather hover:text-leather-deep">
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
         </div>
-
-        {loadingPassage && (
-          <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
-        )}
-
-        {!loadingPassage && passage && (
-          <article className="font-scripture text-[19px] sm:text-[20px] leading-[1.85] text-foreground/90">
-            <p className="text-balance">
-              {passage.verses.map(v => {
-                const hl = hlFor(v.number);
-                const note = noteFor(v.number);
-                return (
-                  <span key={v.number}>
-                    <span
-                      onPointerDown={(e) => onVersePointerDown(e, v)}
-                      onPointerUp={() => onVersePointerUp(v)}
-                      onPointerCancel={onVersePointerCancel}
-                      className="no-tap-highlight cursor-pointer transition-colors hover:text-leather"
-                    >
-                      <span className="verse-num">{v.number}</span>
-                      {hl ? (
-                        <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{v.text}</span>
-                      ) : v.text}
-                      {note && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
-                          className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
-                          aria-label="Open note"
-                        >
-                          <NotebookPen className="w-2.5 h-2.5 m-auto" />
-                        </button>
-                      )}
-                    </span>{" "}
-                  </span>
-                );
-              })}
-            </p>
-          </article>
-        )}
-
-        {/* Chapter nav */}
-        <div className="flex items-center justify-between mt-16 mb-8">
-          <Button variant="ghost" onClick={() => goChapter(-1)} className="text-leather hover:text-leather-deep">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-          </Button>
-          <div className="text-xs text-muted-foreground">{chapter} of {book.chapters}</div>
-          <Button variant="ghost" onClick={() => goChapter(1)} className="text-leather hover:text-leather-deep">
-            Next <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        </div>
-      </main>
+      </BookScene>
 
       {/* Focus mode notice */}
       <AnimatePresence>
