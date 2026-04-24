@@ -91,7 +91,7 @@ export function BookScene({
                 marginBottom: 4,
                 boxShadow:
                   "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge))",
-                minHeight: "calc(100vh - 90px)",
+                minHeight: "calc(100vh - 40px)",
               }}
             >
               {/* Page-stacks */}
