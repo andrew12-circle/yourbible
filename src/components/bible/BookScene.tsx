@@ -213,24 +213,24 @@ export function BookScene({
                 </>
               )}
 
-              {/* === Tabs — render on OUTER edges === */}
-              {renderTabs && (!isMobile || pageSide === "left") && (
-                <div
-                  className="absolute top-0 bottom-0 z-[5] pointer-events-none"
-                  style={{ left: 0, width: leftStack }}
-                >
-                  {renderTabs("left")}
-                </div>
-              )}
-              {renderTabs && (!isMobile || pageSide === "right") && (
-                <div
-                  className="absolute top-0 bottom-0 z-[5] pointer-events-none"
-                  style={{ right: 0, width: rightStack }}
-                >
-                  {renderTabs("right")}
-                </div>
-              )}
             </div>
+            {/* === Tabs — render OUTSIDE the page-block so they can overhang the gilt edge === */}
+            {renderTabs && (!isMobile || pageSide === "left") && (
+              <div
+                className="absolute top-0 bottom-0 z-[7] pointer-events-none"
+                style={{ left: isMobile ? 12 : 16 }}
+              >
+                {renderTabs("left")}
+              </div>
+            )}
+            {renderTabs && (!isMobile || pageSide === "right") && (
+              <div
+                className="absolute top-0 bottom-0 z-[7] pointer-events-none"
+                style={{ right: isMobile ? 12 : 16 }}
+              >
+                {renderTabs("right")}
+              </div>
+            )}
             {/* Ribbons live OUTSIDE the page block so they can overhang the bottom of the book */}
             {!isMobile && ribbons && (
               <div
