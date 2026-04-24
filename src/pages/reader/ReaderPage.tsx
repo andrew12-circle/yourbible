@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
@@ -27,30 +27,98 @@ const LS_BIBLE_KEY = "yb.bibleId";
 const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
 const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
 
-/** Wraps a page surface and detects horizontal swipes to turn pages */
-function SwipePage({
-  onSwipe,
+/**
+ * Lets the user grab the OUTER corner of a page and drag it across the spine
+ * to turn — like iBooks. The right page's outer (right) edge folds to the
+ * left to advance; the left page's outer (left) edge folds to the right to
+ * go back. A small swipe anywhere on the page also turns.
+ */
+function CornerDragPage({
+  side,
+  onTurn,
   children,
 }: {
-  onSwipe: (delta: 1 | -1) => void;
+  side: "left" | "right";
+  /** delta = +1 forward, -1 back */
+  onTurn: (delta: 1 | -1) => void;
   children: React.ReactNode;
 }) {
+  const isRight = side === "right";
+  // Drag distance in px (negative = leftward for right page; positive = rightward for left page)
+  const x = useMotionValue(0);
+  // Map drag distance to a rotateY (0° → ±180°). A page width is roughly 500px.
+  const PAGE_W = 520;
+  const rotateY = useTransform(x, (v) => {
+    if (isRight) {
+      // forward turn: x goes 0 → -PAGE_W → rotateY 0 → -180
+      const t = Math.max(-1, Math.min(0, v / PAGE_W));
+      return t * 180;
+    } else {
+      // back turn: x goes 0 → +PAGE_W → rotateY 0 → +180
+      const t = Math.max(0, Math.min(1, v / PAGE_W));
+      return t * 180;
+    }
+  });
+
+  const commit = (delta: 1 | -1) => {
+    // Snap to fully turned, then fire onTurn (which will navigate / change page;
+    // the new page renders and x resets naturally on remount).
+    const target = isRight ? -PAGE_W : PAGE_W;
+    animate(x, target, {
+      duration: 0.32,
+      ease: [0.45, 0.05, 0.25, 1],
+      onComplete: () => {
+        onTurn(delta);
+        x.set(0);
+      },
+    });
+  };
+  const cancel = () => {
+    animate(x, 0, { type: "spring", stiffness: 280, damping: 28 });
+  };
+
   return (
-    <motion.div
-      className="h-full w-full touch-pan-y"
-      drag="x"
-      dragSnapToOrigin
-      dragElastic={0.18}
-      dragConstraints={{ left: 0, right: 0 }}
-      onDragEnd={(_, info) => {
-        const SWIPE = 60;
-        const VELOCITY = 350;
-        if (info.offset.x < -SWIPE || info.velocity.x < -VELOCITY) onSwipe(1);
-        else if (info.offset.x > SWIPE || info.velocity.x > VELOCITY) onSwipe(-1);
-      }}
+    <div
+      className="relative h-full w-full"
+      style={{ perspective: 2200, transformStyle: "preserve-3d" }}
     >
-      {children}
-    </motion.div>
+      <motion.div
+        className="h-full w-full touch-pan-y"
+        drag="x"
+        dragElastic={0}
+        dragMomentum={false}
+        dragConstraints={isRight ? { left: -PAGE_W, right: 0 } : { left: 0, right: PAGE_W }}
+        style={{
+          x,
+          rotateY,
+          transformOrigin: isRight ? "left center" : "right center",
+          transformStyle: "preserve-3d",
+          backfaceVisibility: "hidden",
+          willChange: "transform",
+        }}
+        onDragEnd={(_, info) => {
+          const COMMIT_DIST = PAGE_W * 0.28;
+          const COMMIT_VEL = 380;
+          if (isRight) {
+            // Forward: drag left
+            if (info.offset.x < -COMMIT_DIST || info.velocity.x < -COMMIT_VEL) commit(1);
+            // Back: drag right (small swipe)
+            else if (info.offset.x > COMMIT_DIST || info.velocity.x > COMMIT_VEL) {
+              x.set(0);
+              onTurn(-1);
+            } else cancel();
+          } else {
+            if (info.offset.x > COMMIT_DIST || info.velocity.x > COMMIT_VEL) commit(-1);
+            else if (info.offset.x < -COMMIT_DIST || info.velocity.x < -COMMIT_VEL) {
+              x.set(0);
+              onTurn(1);
+            } else cancel();
+          }
+        }}
+      >
+        {children}
+      </motion.div>
+    </div>
   );
 }
 
@@ -371,18 +439,18 @@ export default function ReaderPage() {
         }
         renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
         leftPage={
-          <SwipePage onSwipe={goPage}>
+          <CornerDragPage side="left" onTurn={goPage}>
             <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
               <PageSurface pageIdx={leftIdx} side="left" />
             </PageFlip>
-          </SwipePage>
+          </CornerDragPage>
         }
         rightPage={
-          <SwipePage onSwipe={goPage}>
+          <CornerDragPage side="right" onTurn={goPage}>
             <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
               <PageSurface pageIdx={rightIdx} side="right" />
             </PageFlip>
-          </SwipePage>
+          </CornerDragPage>
         }
       />
 
