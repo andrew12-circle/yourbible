@@ -154,7 +154,17 @@ export function BookScene({
                     }}
                   >
                     <PageCurve side="right" />
-                    <div className="relative h-full overflow-hidden">{leftPage}</div>
+                    <div
+                      className="relative h-full overflow-hidden"
+                      style={{
+                        // Top edge: high at the spine (right), dipping ~7px lower at the outer edge (left).
+                        // Bottom edge mirrors the same arc.
+                        clipPath: PAGE_ARC_CLIP_LEFT,
+                      }}
+                    >
+                      {leftPage}
+                      <PageEdgeShading side="left" />
+                    </div>
                   </div>
                   {/* Right page */}
                   <div
@@ -171,7 +181,16 @@ export function BookScene({
                     }}
                   >
                     <PageCurve side="left" />
-                    <div className="relative h-full overflow-hidden">{rightPage}</div>
+                    <div
+                      className="relative h-full overflow-hidden"
+                      style={{
+                        // Mirror of the left page: high at the spine (left), dipping toward the outer edge (right).
+                        clipPath: PAGE_ARC_CLIP_RIGHT,
+                      }}
+                    >
+                      {rightPage}
+                      <PageEdgeShading side="right" />
+                    </div>
                   </div>
                   {/* Spine */}
                   <div
