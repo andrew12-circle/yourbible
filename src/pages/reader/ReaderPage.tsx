@@ -398,19 +398,6 @@ export default function ReaderPage() {
         className="fixed top-20 bottom-16 right-0 w-[10vw] z-[15] opacity-0"
       />
 
-      {/* Visible chapter nav */}
-      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-leather/90 text-paper text-xs px-3 py-1.5 rounded-full backdrop-blur shadow-leather">
-        <button onClick={() => goPage(-1)} className="hover:text-gold-bright transition-colors p-1" aria-label="Previous">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="font-display tracking-wider">
-          {book.name} {chapter} · pg {chapterPage + 1}/{totalPagesInChapter}
-        </span>
-        <button onClick={() => goPage(1)} className="hover:text-gold-bright transition-colors p-1" aria-label="Next">
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Headless paginator — measures and reports splits */}
       {pageBox.w > 0 && pageBox.h > 0 && verses.length > 0 && (
         <Paginator
