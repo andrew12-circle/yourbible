@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
-import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
 import { HighlightMenu } from "@/components/bible/HighlightMenu";
@@ -286,9 +285,23 @@ export default function ReaderPage() {
             <p>{slice.map(renderVerse)}</p>
           </article>
         )}
-        {/* Page number footer */}
-        <div className={`absolute bottom-3 ${side === "left" ? "left-1/2 -translate-x-1/2" : "left-1/2 -translate-x-1/2"} text-[10px] text-muted-foreground/60 font-display tracking-widest`}>
-          {globalPage}
+        {/* Page number footer with subtle prev/next chevrons */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
+          <button
+            onClick={() => goPage(-1)}
+            aria-label="Previous page"
+            className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <span>{book.name} · p. {globalPage}</span>
+          <button
+            onClick={() => goPage(1)}
+            aria-label="Next page"
+            className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     );
@@ -343,7 +356,7 @@ export default function ReaderPage() {
             onAddAt={(p) => setBmDialog({ position: p })}
           />
         }
-        renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
+        renderTabs={undefined}
         leftPage={
           <SwipePage onSwipe={goPage}>
             <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
