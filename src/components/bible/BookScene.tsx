@@ -166,20 +166,53 @@ export function BookScene({
         <div className="pt-2 sm:pt-3 pb-3 relative">
           {/* === Cast shadow on the table, follows the curved cover silhouette === */}
           {!isMobile && (
-            <div
-              aria-hidden
-              className="absolute pointer-events-none"
-              style={{
-                left: "3%",
-                right: "3%",
-                bottom: -22,
-                height: 60,
-                background:
-                  "radial-gradient(ellipse 70% 100% at 50% 0%, hsl(0 0% 0% / 0.55) 0%, hsl(0 0% 0% / 0.30) 35%, transparent 75%)",
-                filter: "blur(14px)",
-                zIndex: 0,
-              }}
-            />
+            <>
+              {/* Wide ambient occlusion — soft, diffuse halo on the table */}
+              <div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "-4%",
+                  right: "-4%",
+                  bottom: -46,
+                  height: 110,
+                  background:
+                    "radial-gradient(ellipse 60% 100% at 50% 10%, hsl(0 0% 0% / 0.42) 0%, hsl(0 0% 0% / 0.18) 45%, transparent 80%)",
+                  filter: "blur(22px)",
+                  zIndex: 0,
+                }}
+              />
+              {/* Tight contact shadow — narrow, dark band hugging the bottom edge */}
+              <div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "6%",
+                  right: "6%",
+                  bottom: -8,
+                  height: 26,
+                  background:
+                    "radial-gradient(ellipse 55% 100% at 50% 0%, hsl(0 0% 0% / 0.78) 0%, hsl(0 0% 0% / 0.45) 40%, transparent 75%)",
+                  filter: "blur(5px)",
+                  zIndex: 0,
+                }}
+              />
+              {/* Hairline ground-line — anchors the book to the table */}
+              <div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "10%",
+                  right: "10%",
+                  bottom: 2,
+                  height: 4,
+                  background:
+                    "radial-gradient(ellipse 45% 100% at 50% 0%, hsl(0 0% 0% / 0.85) 0%, transparent 80%)",
+                  filter: "blur(1.5px)",
+                  zIndex: 0,
+                }}
+              />
+            </>
           )}
 
           {/* Outer leather cover — wrapped in a drop-shadow filter so the cast
@@ -259,12 +292,28 @@ export function BookScene({
                     "inset 0 0 0 1px hsl(0 0% 0% / 0.4), inset 0 0 24px hsl(0 0% 0% / 0.45)",
                 }}
               />
-              {/* Soft self-shadow from cover edge onto page block */}
+              {/* Soft self-shadow cast by the raised leather cover edge onto the
+                  inset page block — stronger at top (light from above) and along
+                  sides, lighter at the bottom where the page meets the cover. */}
               <div
                 className="absolute inset-[10px] rounded-[6px] pointer-events-none"
                 style={{
                   boxShadow:
-                    "inset 0 6px 10px hsl(0 0% 0% / 0.35), inset 0 -4px 8px hsl(0 0% 0% / 0.28)",
+                    "inset 0 10px 14px -2px hsl(0 0% 0% / 0.55), " +
+                    "inset 0 -5px 10px -2px hsl(0 0% 0% / 0.32), " +
+                    "inset 8px 0 12px -4px hsl(0 0% 0% / 0.40), " +
+                    "inset -8px 0 12px -4px hsl(0 0% 0% / 0.40)",
+                }}
+              />
+              {/* Hair-thin dark crease where the cover lip meets the paper */}
+              <div
+                className="absolute inset-[10px] rounded-[6px] pointer-events-none"
+                style={{
+                  boxShadow:
+                    "inset 0 1px 0 hsl(0 0% 0% / 0.55), " +
+                    "inset 0 -1px 0 hsl(0 0% 0% / 0.45), " +
+                    "inset 1px 0 0 hsl(0 0% 0% / 0.45), " +
+                    "inset -1px 0 0 hsl(0 0% 0% / 0.45)",
                 }}
               />
 
