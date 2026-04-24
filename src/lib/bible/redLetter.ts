@@ -193,14 +193,11 @@ export function splitJesusSpeech(
   }
   flush(inside);
 
-  // If no quotes were found at all, we'd still mark the entire verse — but
-  // many red-letter editions do exactly that for verses inside continuous
-  // discourse (e.g. mid-Sermon paragraphs without inner quotes). That's the
-  // intended behavior here.
-  if (out.length === 1 && out[0].isJesus === false) {
-    return [{ text, isJesus: true }];
-  }
-
+  // If no quote pairs were found, we deliberately do NOT paint the entire
+  // verse red. Many curated ranges include narrative verses adjacent to
+  // Jesus' speech (e.g. "And he said to them,") where only the quoted span
+  // is actually his words. Painting the whole verse caused false positives
+  // and a "wall of red" that's hard to read. Only quoted text turns red.
   return out;
 }
 
