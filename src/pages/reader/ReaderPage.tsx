@@ -174,8 +174,19 @@ export default function ReaderPage() {
     listBibles().then(list => {
       setBibles(list);
       if (!bibleId && list.length) {
-        const pref = ["KJV", "WEB", "ESV", "NIV", "NLT"];
-        const found = list.find(b => pref.includes(b.abbreviation.toUpperCase())) ?? list[0];
+        // Default translation preference: Christian Standard Bible first, then
+        // common fallbacks if CSB isn't available in the API catalog.
+        const pref = ["CSB", "KJV", "WEB", "ESV", "NIV", "NLT"];
+        const byAbbr = (code: string) =>
+          list.find(b => b.abbreviation.toUpperCase() === code);
+        const byName = list.find(b =>
+          /christian\s+standard\s+bible/i.test(b.name) ||
+          /\bcsb\b/i.test(b.name),
+        );
+        const found =
+          byName ??
+          pref.map(byAbbr).find(Boolean) ??
+          list[0];
         setBibleId(found.id);
         localStorage.setItem(LS_BIBLE_KEY, found.id);
       }
