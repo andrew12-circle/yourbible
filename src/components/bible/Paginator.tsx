@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { PassageVerse as Verse } from "@/lib/bible/api";
+import { splitJesusSpeechHtml } from "@/lib/bible/redLetter";
 
 interface Props {
   verses: Verse[];
+  /** Book abbreviation — used for red-letter detection */
+  bookAbbr: string;
+  /** Chapter number — used for red-letter detection */
+  chapter: number;
   /** Width of one page's text area (px) */
   pageWidth: number;
   /** Height of one page's text area (px) */
@@ -25,6 +30,8 @@ interface Props {
  */
 export function Paginator({
   verses,
+  bookAbbr,
+  chapter,
   pageWidth,
   pageHeight,
   className,
@@ -39,7 +46,7 @@ export function Paginator({
   // Recompute when inputs change
   useEffect(() => {
     setRevision(r => r + 1);
-  }, [verses, pageWidth, pageHeight, footerHeight, header, className, columnsClassName]);
+  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, header, className, columnsClassName]);
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || verses.length === 0) {
@@ -59,7 +66,7 @@ export function Paginator({
       // exponential search to find a too-many size, then binary search down
       let n = 1;
       while (i + n <= verses.length) {
-        renderInto(node, verses.slice(i, i + n), isFirstPage ? header : undefined, columnsClassName);
+        renderInto(node, verses.slice(i, i + n), bookAbbr, chapter, isFirstPage ? header : undefined, columnsClassName);
         if (node.scrollHeight <= limit) {
           lastFit = i + n;
           n *= 2;
@@ -72,7 +79,7 @@ export function Paginator({
       hi = Math.min(i + n, verses.length);
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
-        renderInto(node, verses.slice(i, mid), isFirstPage ? header : undefined, columnsClassName);
+        renderInto(node, verses.slice(i, mid), bookAbbr, chapter, isFirstPage ? header : undefined, columnsClassName);
         if (node.scrollHeight <= limit) {
           lastFit = mid;
           lo = mid + 1;
@@ -107,11 +114,11 @@ export function Paginator({
   );
 }
 
-function renderInto(node: HTMLDivElement, verses: Verse[], header?: React.ReactNode, columnsClassName?: string) {
+function renderInto(node: HTMLDivElement, verses: Verse[], bookAbbr: string, chapter: number, header?: React.ReactNode, columnsClassName?: string) {
   // Build inline HTML to mimic our reader output without React reconciliation cost
   const headerHtml = header ? renderHeaderHtml() : "";
   const versesHtml = verses
-    .map(v => `<span><span class="verse-num">${v.number}</span>${escapeHtml(v.text)} </span>`)
+    .map(v => `<span><span class="verse-num">${v.number}</span>${splitJesusSpeechHtml(bookAbbr, chapter, v.number, v.text, escapeHtml)} </span>`)
     .join("");
   const inner = `${headerHtml}<p style="text-align:justify;hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
   node.innerHTML = columnsClassName

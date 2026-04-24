@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
+import { splitJesusSpeech } from "@/lib/bible/redLetter";
 import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
@@ -229,6 +230,14 @@ export default function ReaderPage() {
   const renderVerse = (v: PassageVerse) => {
     const hl = hlFor(v.number);
     const note = noteFor(v.number);
+    const segments = splitJesusSpeech(book.abbr, chapter, v.number, v.text);
+    const body = segments.map((s, i) =>
+      s.isJesus ? (
+        <span key={i} className="red-letter">{s.text}</span>
+      ) : (
+        <span key={i}>{s.text}</span>
+      ),
+    );
     return (
       <span key={v.number}>
         <span
@@ -239,8 +248,8 @@ export default function ReaderPage() {
         >
           <span className="verse-num">{v.number}</span>
           {hl ? (
-            <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{v.text}</span>
-          ) : v.text}
+            <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{body}</span>
+          ) : body}
           {note && (
             <button
               onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
@@ -406,6 +415,8 @@ export default function ReaderPage() {
       {pageBox.w > 0 && pageBox.h > 0 && verses.length > 0 && (
         <Paginator
           verses={verses}
+          bookAbbr={book.abbr}
+          chapter={chapter}
           pageWidth={Math.max(200, pageBox.w * (isMobile ? 0.85 : 0.42))}
           pageHeight={Math.max(200, pageBox.h - 120)}
           className={PAGE_TYPO_CLASS}
