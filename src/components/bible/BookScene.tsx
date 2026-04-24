@@ -442,6 +442,7 @@ export function BookScene({
               </div>
             )}
           </div>
+          </div>
         </div>
       </div>
     </div>
