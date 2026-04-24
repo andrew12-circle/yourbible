@@ -415,6 +415,8 @@ export default function ReaderPage() {
       {pageBox.w > 0 && pageBox.h > 0 && verses.length > 0 && (
         <Paginator
           verses={verses}
+          bookAbbr={book.abbr}
+          chapter={chapter}
           pageWidth={Math.max(200, pageBox.w * (isMobile ? 0.85 : 0.42))}
           pageHeight={Math.max(200, pageBox.h - 120)}
           className={PAGE_TYPO_CLASS}
