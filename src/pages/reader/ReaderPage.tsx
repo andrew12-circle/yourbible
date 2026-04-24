@@ -402,7 +402,10 @@ export default function ReaderPage() {
         {loadingPassage ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
         ) : (
-          <article className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}>
+          <article
+            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
+            style={{ fontSize: `${fontScale}em` }}
+          >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
               {slice.map(renderVerse)}
             </p>
