@@ -1,6 +1,34 @@
 import { ReactNode } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+/**
+ * Concave-arc clip-path for a page surface. The top and bottom edges are
+ * "tall" (closer to the page's outer y-bounds) at the spine and dip a few
+ * pixels inward at the outer edge — so the open spread silhouettes like a
+ * real bound book bowing outward, not a perfect rectangle.
+ */
+function buildArcClip(spine: "left" | "right"): string {
+  const DIP = 0.9; // %
+  const samples = 7;
+  const pts: string[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const x = (i / samples) * 100;
+    const t = spine === "left" ? i / samples : 1 - i / samples;
+    const y = DIP * Math.sin((t * Math.PI) / 2);
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(3)}%`);
+  }
+  for (let i = 0; i <= samples; i++) {
+    const x = 100 - (i / samples) * 100;
+    const t = spine === "left" ? 1 - i / samples : i / samples;
+    const y = 100 - DIP * Math.sin((t * Math.PI) / 2);
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(3)}%`);
+  }
+  return `polygon(${pts.join(", ")})`;
+}
+
+const PAGE_ARC_CLIP_LEFT = buildArcClip("right");  // left page → spine on right
+const PAGE_ARC_CLIP_RIGHT = buildArcClip("left");  // right page → spine on left
+
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
   progress: number;
