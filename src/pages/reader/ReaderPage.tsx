@@ -25,6 +25,33 @@ import { toast } from "@/hooks/use-toast";
 const LS_BIBLE_KEY = "yb.bibleId";
 const PAGE_TYPO_CLASS = "font-scripture text-[16px] sm:text-[17px] leading-[1.78] ink-text";
 
+/** Wraps a page surface and detects horizontal swipes to turn pages */
+function SwipePage({
+  onSwipe,
+  children,
+}: {
+  onSwipe: (delta: 1 | -1) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      className="h-full w-full touch-pan-y"
+      drag="x"
+      dragSnapToOrigin
+      dragElastic={0.18}
+      dragConstraints={{ left: 0, right: 0 }}
+      onDragEnd={(_, info) => {
+        const SWIPE = 60;
+        const VELOCITY = 350;
+        if (info.offset.x < -SWIPE || info.velocity.x < -VELOCITY) onSwipe(1);
+        else if (info.offset.x > SWIPE || info.velocity.x > VELOCITY) onSwipe(-1);
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export default function ReaderPage() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -317,14 +344,18 @@ export default function ReaderPage() {
         }
         renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
         leftPage={
-          <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
-            <PageSurface pageIdx={leftIdx} side="left" />
-          </PageFlip>
+          <SwipePage onSwipe={goPage}>
+            <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
+              <PageSurface pageIdx={leftIdx} side="left" />
+            </PageFlip>
+          </SwipePage>
         }
         rightPage={
-          <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
-            <PageSurface pageIdx={rightIdx} side="right" />
-          </PageFlip>
+          <SwipePage onSwipe={goPage}>
+            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
+              <PageSurface pageIdx={rightIdx} side="right" />
+            </PageFlip>
+          </SwipePage>
         }
       />
 
