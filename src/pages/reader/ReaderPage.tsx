@@ -317,14 +317,18 @@ export default function ReaderPage() {
         }
         renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
         leftPage={
-          <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
-            <PageSurface pageIdx={leftIdx} side="left" />
-          </PageFlip>
+          <SwipePage onSwipe={goPage}>
+            <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
+              <PageSurface pageIdx={leftIdx} side="left" />
+            </PageFlip>
+          </SwipePage>
         }
         rightPage={
-          <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
-            <PageSurface pageIdx={rightIdx} side="right" />
-          </PageFlip>
+          <SwipePage onSwipe={goPage}>
+            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
+              <PageSurface pageIdx={rightIdx} side="right" />
+            </PageFlip>
+          </SwipePage>
         }
       />
 
