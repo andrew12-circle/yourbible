@@ -180,84 +180,124 @@ export default function ReaderPage() {
         }}
       />
 
-      <BookScene
-        ribbons={
-          <Ribbons
-            ribbons={bookmarks as RibbonData[]}
-            swaying={scrolling}
-            onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
-            onAddAt={(p) => setBmDialog({ position: p })}
-          />
-        }
-        tabs={!focusMode ? <BookTabs current={book} onSelect={goBook} /> : null}
-      >
-        <div className="px-8 sm:px-14 pt-10 pb-16 pr-14 sm:pr-20">
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="font-display text-2xl sm:text-3xl text-leather text-center mb-1"
-          >
-            {book.name}
-          </motion.h1>
-          <div className="text-center mb-6 flex items-center justify-center gap-3 text-muted-foreground">
-            <span className="h-px w-10 bg-gradient-to-r from-transparent to-gold/40" />
-            <span className="font-display text-xs uppercase tracking-[0.3em]">Chapter {chapter}</span>
-            <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold/40" />
-          </div>
+      {(() => {
+        const verses = passage?.verses ?? [];
+        const half = Math.ceil(verses.length / 2);
+        const leftVerses = verses.slice(0, half);
+        const rightVerses = verses.slice(half);
 
-          {loadingPassage && (
-            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
-          )}
-
-          {!loadingPassage && passage && (
-            <article
-              className="font-scripture text-[16px] sm:text-[17px] leading-[1.78] text-foreground/90 columns-1 sm:columns-2 gap-16"
-              style={{ columnRule: "1px solid transparent" }}
-            >
-              <p>
-                {passage.verses.map(v => {
-                  const hl = hlFor(v.number);
-                  const note = noteFor(v.number);
-                  return (
-                    <span key={v.number}>
-                      <span
-                        onPointerDown={(e) => onVersePointerDown(e, v)}
-                        onPointerUp={() => onVersePointerUp(v)}
-                        onPointerCancel={onVersePointerCancel}
-                        className="no-tap-highlight cursor-pointer transition-colors hover:text-leather"
+        const renderVerses = (vs: typeof verses) => (
+          <p>
+            {vs.map(v => {
+              const hl = hlFor(v.number);
+              const note = noteFor(v.number);
+              return (
+                <span key={v.number}>
+                  <span
+                    onPointerDown={(e) => onVersePointerDown(e, v)}
+                    onPointerUp={() => onVersePointerUp(v)}
+                    onPointerCancel={onVersePointerCancel}
+                    className="no-tap-highlight cursor-pointer transition-colors hover:text-leather"
+                  >
+                    <span className="verse-num">{v.number}</span>
+                    {hl ? (
+                      <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{v.text}</span>
+                    ) : v.text}
+                    {note && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
+                        className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
+                        aria-label="Open note"
                       >
-                        <span className="verse-num">{v.number}</span>
-                        {hl ? (
-                          <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{v.text}</span>
-                        ) : v.text}
-                        {note && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
-                            className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
-                            aria-label="Open note"
-                          >
-                            <NotebookPen className="w-2.5 h-2.5 m-auto" />
-                          </button>
-                        )}
-                      </span>{" "}
-                    </span>
-                  );
-                })}
-              </p>
-            </article>
-          )}
+                        <NotebookPen className="w-2.5 h-2.5 m-auto" />
+                      </button>
+                    )}
+                  </span>{" "}
+                </span>
+              );
+            })}
+          </p>
+        );
 
-          <div className="flex items-center justify-between mt-12 pt-6 border-t border-paper-edge/60">
-            <Button variant="ghost" onClick={() => goChapter(-1)} className="text-leather hover:text-leather-deep">
+        const Header = (
+          <>
+            <motion.h1
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="font-display text-2xl sm:text-3xl text-leather text-center mb-1"
+            >
+              {book.name}
+            </motion.h1>
+            <div className="text-center mb-5 flex items-center justify-center gap-3 text-muted-foreground">
+              <span className="h-px w-8 bg-gradient-to-r from-transparent to-gold/40" />
+              <span className="font-display text-[11px] uppercase tracking-[0.3em]">Chapter {chapter}</span>
+              <span className="h-px w-8 bg-gradient-to-l from-transparent to-gold/40" />
+            </div>
+          </>
+        );
+
+        const Footer = (
+          <div className="flex items-center justify-between mt-10 pt-5 border-t border-paper-edge/60">
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => isMobile && mobilePage === "right" ? setMobilePage("left") : goChapter(-1)}
+              className="text-leather hover:text-leather-deep"
+            >
               <ChevronLeft className="w-4 h-4 mr-1" /> Previous
             </Button>
-            <div className="text-xs text-muted-foreground">{chapter} of {book.chapters}</div>
-            <Button variant="ghost" onClick={() => goChapter(1)} className="text-leather hover:text-leather-deep">
+            <div className="text-[10px] text-muted-foreground">{chapter} of {book.chapters}</div>
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => isMobile && mobilePage === "left" ? setMobilePage("right") : goChapter(1)}
+              className="text-leather hover:text-leather-deep"
+            >
               Next <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        </div>
-      </BookScene>
+        );
+
+        const PageInner = ({ side }: { side: "left" | "right" }) => (
+          <div
+            className={`h-full overflow-y-auto px-6 sm:px-10 pt-8 pb-12 ${
+              side === "left" ? "pl-8 sm:pl-14 pr-5 sm:pr-8" : "pl-5 sm:pl-8 pr-8 sm:pr-14"
+            }`}
+          >
+            {side === "left" && Header}
+            {loadingPassage ? (
+              <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
+            ) : passage ? (
+              <article className="font-scripture text-[16px] sm:text-[17px] leading-[1.78] text-foreground/90">
+                {renderVerses(side === "left" ? leftVerses : rightVerses)}
+              </article>
+            ) : null}
+            {/* Footer only on the last page */}
+            {((isMobile && side === mobilePage && (mobilePage === "right" || rightVerses.length === 0)) ||
+              (!isMobile && side === "right")) && Footer}
+            {/* Page-number footer */}
+            <div className="text-center mt-6 text-[10px] text-muted-foreground/70 font-display tracking-widest">
+              {chaptersBefore + chapter + (side === "right" ? 0 : -1) /* approximate */} · {totalChapters}
+            </div>
+          </div>
+        );
+
+        return (
+          <BookScene
+            progress={progress}
+            pageSide={mobilePage}
+            ribbons={
+              <Ribbons
+                ribbons={bookmarks as RibbonData[]}
+                swaying={scrolling}
+                onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
+                onAddAt={(p) => setBmDialog({ position: p })}
+              />
+            }
+            tabs={!focusMode ? <BookTabs current={book} onSelect={goBook} /> : null}
+            leftPage={<PageInner side="left" />}
+            rightPage={<PageInner side="right" />}
+          />
+        );
+      })()}
 
       {/* Focus mode notice */}
       <AnimatePresence>
