@@ -2,7 +2,7 @@
 // Public read endpoint — no auth required to read scripture.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 
-const API_BASE = "https://api.scripture.api.bible/v1";
+const API_BASE = "https://rest.api.bible/v1";
 
 // Map our short canonical abbreviations to API.Bible's USFM-style book IDs.
 const BOOK_ID_MAP: Record<string, string> = {
