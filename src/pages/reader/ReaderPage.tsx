@@ -23,7 +23,8 @@ import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const LS_BIBLE_KEY = "yb.bibleId";
-const PAGE_TYPO_CLASS = "font-scripture text-[16px] sm:text-[17px] leading-[1.78] ink-text";
+const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
 
 /** Wraps a page surface and detects horizontal swipes to turn pages */
 function SwipePage({
@@ -282,8 +283,10 @@ export default function ReaderPage() {
         {loadingPassage ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
         ) : (
-          <article className={PAGE_TYPO_CLASS}>
-            <p>{slice.map(renderVerse)}</p>
+          <article className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}>
+            <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
+              {slice.map(renderVerse)}
+            </p>
           </article>
         )}
         {/* Page number footer with subtle prev/next chevrons */}
@@ -406,6 +409,7 @@ export default function ReaderPage() {
           pageWidth={Math.max(200, pageBox.w * (isMobile ? 0.85 : 0.42))}
           pageHeight={Math.max(200, pageBox.h - 120)}
           className={PAGE_TYPO_CLASS}
+          columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
           footerHeight={40}
           onSplitsChange={setSplits}
