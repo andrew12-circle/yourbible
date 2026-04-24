@@ -539,6 +539,7 @@ export default function ReaderPage() {
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
           footerHeight={40}
+          fontSizeStyle={{ fontSize: `${fontScale}em` }}
           onSplitsChange={setSplits}
         />
       )}
