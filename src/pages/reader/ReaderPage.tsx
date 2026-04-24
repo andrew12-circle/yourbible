@@ -358,7 +358,12 @@ export default function ReaderPage() {
         >
           <span className="verse-num">{v.number}</span>
           {hl ? (
-            <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${hl.color})` }}>{body}</span>
+            <span
+              className={`marker-hl v${markerVariant(book.abbr, chapter, v.number)}`}
+              style={{ ["--hl-color" as string]: `var(${hl.color})` }}
+            >
+              {body}
+            </span>
           ) : body}
           {note && (
             <button
