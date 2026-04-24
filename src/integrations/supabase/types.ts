@@ -14,7 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_conversations: {
+        Row: {
+          book: string
+          chapter: number
+          created_at: string
+          id: string
+          messages: Json
+          updated_at: string
+          user_id: string
+          verse: number
+        }
+        Insert: {
+          book: string
+          chapter: number
+          created_at?: string
+          id?: string
+          messages?: Json
+          updated_at?: string
+          user_id: string
+          verse: number
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          messages?: Json
+          updated_at?: string
+          user_id?: string
+          verse?: number
+        }
+        Relationships: []
+      }
+      bookmarks: {
+        Row: {
+          book: string
+          chapter: number
+          color: string
+          created_at: string
+          id: string
+          label: string
+          position: number
+          updated_at: string
+          user_id: string
+          verse: number | null
+        }
+        Insert: {
+          book: string
+          chapter: number
+          color: string
+          created_at?: string
+          id?: string
+          label: string
+          position: number
+          updated_at?: string
+          user_id: string
+          verse?: number | null
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          color?: string
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+          verse?: number | null
+        }
+        Relationships: []
+      }
+      highlights: {
+        Row: {
+          book: string
+          chapter: number
+          color: string
+          created_at: string
+          id: string
+          label: string | null
+          updated_at: string
+          user_id: string
+          verse: number
+        }
+        Insert: {
+          book: string
+          chapter: number
+          color: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          updated_at?: string
+          user_id: string
+          verse: number
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          color?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          updated_at?: string
+          user_id?: string
+          verse?: number
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          body: string
+          book: string
+          chapter: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          verse: number
+        }
+        Insert: {
+          body: string
+          book: string
+          chapter: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          verse: number
+        }
+        Update: {
+          body?: string
+          book?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          verse?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          cover: string
+          created_at: string
+          display_name: string | null
+          font_choice: string
+          highlight_palette: string
+          id: string
+          layout: string
+          onboarded: boolean
+          page_tone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover?: string
+          created_at?: string
+          display_name?: string | null
+          font_choice?: string
+          highlight_palette?: string
+          id?: string
+          layout?: string
+          onboarded?: boolean
+          page_tone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover?: string
+          created_at?: string
+          display_name?: string | null
+          font_choice?: string
+          highlight_palette?: string
+          id?: string
+          layout?: string
+          onboarded?: boolean
+          page_tone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
