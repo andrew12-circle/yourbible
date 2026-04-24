@@ -181,6 +181,13 @@ export function BookScene({
               {/* === Page surfaces === */}
               {!isMobile ? (
                 <>
+                  {/* Fanned under-page edges along the TOP and BOTTOM of the spread.
+                      They arc the same way as the top page (deepest dip at the outer
+                      corners, high at the spine) but extend a few px further out, so
+                      the lower pages appear to peek out past the topmost sheet — the
+                      classic look of an open bound book lying on a table. */}
+                  <PageStackArc edge="top" />
+                  <PageStackArc edge="bottom" />
                   {/* Left page */}
                   <div
                     className="absolute top-0 bottom-0 z-[2]"
