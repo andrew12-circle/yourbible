@@ -12,6 +12,7 @@ import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
+import { ChapterPicker } from "@/components/bible/ChapterPicker";
 import { useChapterData, useBookmarks } from "@/hooks/useUserData";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
@@ -43,6 +44,7 @@ export default function ReaderPage() {
   const [hlMenu, setHlMenu] = useState<{ verse: number; x: number; y: number } | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
+  const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
 
   const { highlights, notes, setHighlight, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
@@ -98,7 +100,7 @@ export default function ReaderPage() {
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
 
-  const goBook = (b: typeof book) => navigate(`/read/${b.abbr}/1`);
+  const goBook = (b: typeof book) => setPickerBook(b);
   const goChapter = (delta: number) => {
     const next = chapter + delta;
     if (next < 1) {
