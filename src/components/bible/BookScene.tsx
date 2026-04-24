@@ -181,9 +181,28 @@ export function BookScene({
         style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
         <div className="pt-2 sm:pt-3 pb-3">
-          {/* Outer leather cover */}
+          {/* Outer leather cover.
+              On desktop we wrap it in a `filter: drop-shadow(...)` container so
+              the cast shadow follows the arched silhouette of the cover (CSS
+              `box-shadow` does not respect `mask-image`, so we have to use a
+              filter on a parent instead). */}
           <div
-            className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
+            style={
+              isMobile
+                ? undefined
+                : {
+                    filter:
+                      "drop-shadow(0 40px 40px rgba(0,0,0,0.55)) drop-shadow(0 14px 18px rgba(0,0,0,0.5))",
+                  }
+            }
+          >
+          <div
+            className={
+              "relative rounded-[10px] p-[12px] sm:p-[16px] " +
+              (isMobile
+                ? "shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
+                : "shadow-[inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]")
+            }
             style={{
               // On desktop, arc the cover's top + bottom so it bows out at the
               // outer corners just like the page block — a real bound book's
