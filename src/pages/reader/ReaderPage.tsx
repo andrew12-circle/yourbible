@@ -24,6 +24,7 @@ import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const LS_BIBLE_KEY = "yb.bibleId";
+const LS_FONT_SCALE_KEY = "yb.fontScale";
 const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
 const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
 
@@ -146,6 +147,17 @@ export default function ReaderPage() {
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
 
+  // Reading text-size scale (persisted). Clamp into a sane range.
+  const [fontScale, setFontScale] = useState<number>(() => {
+    const raw = parseFloat(localStorage.getItem(LS_FONT_SCALE_KEY) ?? "");
+    return Number.isFinite(raw) ? Math.min(1.5, Math.max(0.85, raw)) : 1;
+  });
+  const updateFontScale = (next: number) => {
+    const clamped = Math.min(1.5, Math.max(0.85, +next.toFixed(2)));
+    setFontScale(clamped);
+    localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
+  };
+
   const isMobile = useIsMobile();
 
   // Total chapters across the canon → progress through the Bible
@@ -227,14 +239,14 @@ export default function ReaderPage() {
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
   // Reset when chapter / size changes
-  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, isMobile]);
+  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, isMobile, fontScale]);
   const verses = passage?.verses ?? [];
   const totalPagesInChapter = Math.max(1, splits.length - 1);
 
   // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
-  useEffect(() => { setChapterPage(0); }, [book.abbr, chapter]);
+  useEffect(() => { setChapterPage(0); }, [book.abbr, chapter, fontScale]);
 
   // Pending verse-jump: after the user picks a verse from the TopBar picker,
   // remember it so once the chapter (re)loads and pagination splits are known,
@@ -390,7 +402,10 @@ export default function ReaderPage() {
         {loadingPassage ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
         ) : (
-          <article className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}>
+          <article
+            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
+            style={{ fontSize: `${fontScale}em` }}
+          >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
               {slice.map(renderVerse)}
             </p>
@@ -453,6 +468,8 @@ export default function ReaderPage() {
             navigate(`/read/${b.abbr}/${c}`);
           }
         }}
+        fontScale={fontScale}
+        onFontScaleChange={updateFontScale}
       />
 
       {/* Hidden measurement node — same width/height as a real page */}
@@ -522,6 +539,7 @@ export default function ReaderPage() {
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
           footerHeight={40}
+          fontSizeStyle={{ fontSize: `${fontScale}em` }}
           onSplitsChange={setSplits}
         />
       )}

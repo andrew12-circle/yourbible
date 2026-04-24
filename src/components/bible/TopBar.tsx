@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, Search, X } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, Search, X, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -24,6 +24,10 @@ interface Props {
   currentVerseCount: number;
   /** Jump to a specific reference. verse is optional (defaults to top of chapter). */
   onJumpTo: (book: BibleBook, chapter: number, verse?: number) => void;
+  /** Current text-size scale (1 = default). */
+  fontScale: number;
+  /** Bump the text-size scale by ±step (clamped). Pass 0 to reset. */
+  onFontScaleChange: (next: number) => void;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -32,6 +36,7 @@ export function TopBar({
   reference, collapsed, focusMode, onToggleFocus,
   bibleId, bibles, onChangeBible, onBookmark,
   currentBook, currentChapter, currentVerseCount, onJumpTo,
+  fontScale, onFontScaleChange,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
@@ -325,6 +330,38 @@ export function TopBar({
         <div className="flex items-center gap-1">
           {!focusMode && (
             <>
+              {/* Text size — A−  ⏤  A+  with current % readout (click to reset) */}
+              <div className="flex items-center gap-0.5 mr-1 px-1 py-0.5 rounded-md border border-paper-edge bg-paper/40">
+                <button
+                  type="button"
+                  onClick={() => onFontScaleChange(Math.max(0.85, +(fontScale - 0.1).toFixed(2)))}
+                  aria-label="Smaller text"
+                  title="Smaller text"
+                  className="p-1 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  disabled={fontScale <= 0.85 + 0.001}
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFontScaleChange(1)}
+                  aria-label={`Reset text size (current: ${Math.round(fontScale * 100)}%)`}
+                  title="Reset text size"
+                  className="px-1 text-[10px] font-mono tabular-nums text-leather/70 hover:text-leather transition-colors min-w-[2.6rem] text-center"
+                >
+                  {Math.round(fontScale * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFontScaleChange(Math.min(1.5, +(fontScale + 0.1).toFixed(2)))}
+                  aria-label="Larger text"
+                  title="Larger text"
+                  className="p-1 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  disabled={fontScale >= 1.5 - 0.001}
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
               <Button variant="ghost" size="icon" onClick={onBookmark} title="Bookmark this page" className="text-leather/80 hover:text-leather">
                 <BookmarkPlus className="w-4 h-4" />
               </Button>
