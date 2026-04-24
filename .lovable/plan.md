@@ -1,16 +1,15 @@
-Add a font-size control so the user can scale the reading text up and down.
+Make highlighted verses look like a *real* hand-applied highlighter — uneven, slightly translucent ink with imperfect edges, varied stroke widths, and a subtle texture so no two highlights look exactly alike.
 
-Approach:
-1. Persist a `fontScale` (e.g. 0.85 → 1.5, default 1.0) in `localStorage` so the choice survives reloads. No backend change needed for now.
-2. Expose two small `A−` / `A+` buttons in the `TopBar` (next to the bookmark icon) that step the scale by ±0.1, clamped, with a tooltip showing the current %. Add a "reset" affordance via clicking the current % readout (hidden behind the +/-).
-3. Plumb the scale into the reader so it applies to verse text on the page:
-   - Pass `fontScale` from `ReaderPage` into `PageSurface` and into the `Paginator` (so pagination splits stay correct at the new size).
-   - Apply via inline `style={{ fontSize: \`\${fontScale}em\` }}` on the article element.
-4. Re-paginate when the scale changes (already wired — `Paginator` recomputes on prop change; we just need to reset `splits` and `chapterPage` when scale changes).
+Approach (CSS-only, no new dependencies):
+
+1. **10 stroke "versions"** — pre-compose 10 distinct SVG filter recipes (or 10 sets of background-image gradients) that simulate slight variations in marker pressure: tilt, fade-out at one end, ragged top/bottom edges, pooling at one corner, double-pass overlap. Each is a class like `marker-v1`…`marker-v10`.
+2. **Deterministic per-verse pick** — hash `(book + chapter + verse)` to pick one of the 10 variants so the same verse always looks the same on reload, but adjacent verses look different.
+3. **Texture overlay** — add a fine SVG fractal-noise mask over the highlight color so the ink reads as porous marker pigment, not a flat rectangle. Slight rotation per variant (-1° to +1°) so strokes aren't perfectly horizontal.
+4. **Color stays driven by user palette** — use the existing `--hl-color` CSS var (already wired in `renderVerse`). Variants only change the *shape/texture* of the ink, never the color.
+5. **Multi-line behavior** — keep the current `box-decoration-break: clone` so each line of a multi-line highlight gets its own slightly imperfect stroke.
 
 Files touched:
-- `src/components/bible/TopBar.tsx` — add A−/A+ controls, accept `fontScale` + `onFontScaleChange` props.
-- `src/pages/reader/ReaderPage.tsx` — own the `fontScale` state with `localStorage` persistence; pass it to `TopBar`, `PageSurface`, and `Paginator`; reset splits when it changes.
-- `src/components/bible/Paginator.tsx` — accept an optional `fontSizeStyle` so its hidden measurement node uses the same scale (otherwise pagination splits would be wrong).
+- `src/index.css` — replace the current single `.marker-hl` style with a base style + 10 `.marker-hl.v1`…`.v10` modifier rules. Add the SVG noise filter as a data-URI `mask` for porous texture.
+- `src/pages/reader/ReaderPage.tsx` — in `renderVerse`, attach a deterministic `v{1-10}` modifier class to the `.marker-hl` span based on a tiny hash of `book+chapter+verse`.
 
-Out of scope: per-book overrides, font-family change (already in profile), line-height control, mobile-only different defaults. Just text size, applied globally across the reader.
+Out of scope: highlighter palette/colors (already user-controlled), per-word highlighting, per-character variation (just per-verse stroke for now), animation when applied. SVG filter cost is one-time per page.
