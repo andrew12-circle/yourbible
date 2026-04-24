@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Verse } from "@/lib/bible/api";
+import type { PassageVerse as Verse } from "@/lib/bible/api";
 
 interface Props {
   verses: Verse[];
