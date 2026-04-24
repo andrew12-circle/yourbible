@@ -18,10 +18,9 @@ const SECTION_COLOR: Record<BibleBook["section"], string> = {
 };
 
 /**
- * Physical Bible thumb-index tabs.
- * Each book is a small leathery half-moon protruding from the right edge of
- * the page. The active tab is darker/larger and pulled out further. The strip
- * is scrollable so all books are reachable.
+ * Physical Bible thumb-index tabs — vertical orientation.
+ * Each tab is tall with the book name running top-to-bottom along the spine.
+ * About 5 tabs fit at a time; scroll the strip to bring more up the page.
  */
 export function BookTabs({ current, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,10 +37,10 @@ export function BookTabs({ current, onSelect }: Props) {
 
   return (
     <div
-      className="fixed right-0 top-1/2 -translate-y-1/2 z-30 h-[82vh] flex items-stretch pointer-events-none"
+      className="fixed right-0 top-0 bottom-0 z-30 flex items-stretch pointer-events-none"
       aria-label="Book navigation"
     >
-      {/* Page edge — the cream paper stack the tabs poke out of */}
+      {/* Page edge — paper stack the tabs poke out of */}
       <div
         className="w-2 self-stretch pointer-events-none"
         style={{
@@ -51,24 +50,29 @@ export function BookTabs({ current, onSelect }: Props) {
         }}
       />
 
-      {/* Top + bottom fade hints */}
-      <div className="relative w-9 sm:w-11 h-full pointer-events-auto">
-        <div className="pointer-events-none absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-background to-transparent z-10" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent z-10" />
+      <div className="relative w-9 sm:w-10 h-full pointer-events-auto">
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-background to-transparent z-10" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent z-10" />
 
         <div
           ref={containerRef}
-          className="h-full overflow-y-auto scrollbar-hide py-[40vh] select-none"
+          className="h-full overflow-y-auto scrollbar-hide select-none"
+          style={{ scrollSnapType: "y proximity" }}
         >
+          {/* Spacer so first tab can sit centered when scrolled to top */}
+          <div style={{ height: "20vh" }} />
+
           {BOOKS.map((b, i) => {
             const isActive = b.abbr === current.abbr;
             const prevSec = i > 0 ? BOOKS[i - 1].section : null;
             const showLabel = b.section !== prevSec;
             const tone = `hsl(${SECTION_COLOR[b.section]})`;
+            // ~5 tabs visible across viewport height
+            const tabHeight = "calc((100vh - 8rem) / 5)";
             return (
               <div key={b.abbr}>
                 {showLabel && (
-                  <div className="px-1 pt-3 pb-1 text-[8px] uppercase tracking-[0.18em] text-muted-foreground text-center font-display">
+                  <div className="px-1 pt-2 pb-1 text-[8px] uppercase tracking-[0.18em] text-muted-foreground text-center font-display">
                     {SECTION_LABELS[b.section].slice(0, 3)}
                   </div>
                 )}
@@ -76,56 +80,61 @@ export function BookTabs({ current, onSelect }: Props) {
                   ref={isActive ? activeRef : undefined}
                   onClick={() => onSelect(b)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative block my-[3px] ml-auto group transition-all duration-300 ${
+                  className={`relative block ml-auto group transition-all duration-300 ${
                     isActive ? "w-full" : "w-[78%] hover:w-[92%]"
                   }`}
                   style={{
-                    height: isActive ? 28 : 22,
+                    height: tabHeight,
+                    marginTop: 4,
+                    marginBottom: 4,
+                    scrollSnapAlign: "center",
                   }}
                 >
-                  {/* Tab body — half-moon protrusion */}
+                  {/* Tab body */}
                   <span
                     className="absolute inset-0 block"
                     style={{
-                      background: `linear-gradient(180deg, ${tone} 0%, ${tone} 45%, hsl(0 0% 0% / 0.18) 100%), ${tone}`,
+                      background: `linear-gradient(180deg, ${tone} 0%, ${tone} 50%, hsl(0 0% 0% / 0.18) 100%), ${tone}`,
                       backgroundBlendMode: "multiply, normal",
-                      borderTopLeftRadius: 9999,
-                      borderBottomLeftRadius: 9999,
+                      borderTopLeftRadius: 14,
+                      borderBottomLeftRadius: 14,
                       borderTop: "1px solid hsl(0 0% 100% / 0.25)",
                       borderLeft: "1px solid hsl(0 0% 100% / 0.18)",
                       borderBottom: "1px solid hsl(0 0% 0% / 0.25)",
                       boxShadow: isActive
-                        ? "inset 1px 1px 0 hsl(0 0% 100% / 0.25), -2px 2px 6px hsl(0 0% 0% / 0.25)"
-                        : "inset 1px 1px 0 hsl(0 0% 100% / 0.15), -1px 1px 3px hsl(0 0% 0% / 0.18)",
+                        ? "inset 1px 1px 0 hsl(0 0% 100% / 0.25), -3px 2px 8px hsl(0 0% 0% / 0.28)"
+                        : "inset 1px 1px 0 hsl(0 0% 100% / 0.15), -1px 1px 4px hsl(0 0% 0% / 0.18)",
                       filter: isActive ? "saturate(1.1)" : "saturate(0.9) brightness(0.96)",
                     }}
                   />
-                  {/* Stitched edge */}
+                  {/* Stitched left edge */}
                   <span
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 h-[60%] w-px"
+                    className="absolute left-1.5 top-3 bottom-3 w-px"
                     style={{
                       backgroundImage:
-                        "repeating-linear-gradient(180deg, hsl(0 0% 100% / 0.45) 0 2px, transparent 2px 4px)",
-                      opacity: 0.6,
+                        "repeating-linear-gradient(180deg, hsl(0 0% 100% / 0.45) 0 3px, transparent 3px 6px)",
+                      opacity: 0.55,
                     }}
                   />
-                  {/* Label — gold-foil-ish for active, faded ink otherwise */}
+                  {/* Vertical label — text runs top to bottom */}
                   <span
-                    className={`relative z-10 flex items-center justify-center h-full font-display font-bold tracking-wide ${
-                      isActive
-                        ? "text-paper text-[11px]"
-                        : "text-paper/85 text-[10px]"
+                    className={`relative z-10 flex items-center justify-center h-full font-display font-bold tracking-[0.12em] ${
+                      isActive ? "text-paper text-[12px]" : "text-paper/85 text-[11px]"
                     }`}
                     style={{
+                      writingMode: "vertical-rl",
+                      textOrientation: "mixed",
                       textShadow: "0 1px 0 hsl(0 0% 0% / 0.35)",
                     }}
                   >
-                    {b.abbr}
+                    {b.name}
                   </span>
                 </button>
               </div>
             );
           })}
+
+          <div style={{ height: "20vh" }} />
         </div>
       </div>
     </div>
