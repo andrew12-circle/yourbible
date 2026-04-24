@@ -215,8 +215,6 @@ export function BookScene({
                 </>
               )}
 
-              {!isMobile && ribbons}
-
               {/* === Tabs — render on OUTER edges === */}
               {renderTabs && (!isMobile || pageSide === "left") && (
                 <div
