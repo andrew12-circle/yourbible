@@ -42,15 +42,24 @@ export function Paginator({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
+  const lastSplitsRef = useRef<string>("");
 
-  // Recompute when inputs change
+  // Recompute when inputs that actually affect measurement change.
+  // NOTE: `header` is intentionally excluded — it's a JSX element rebuilt
+  // every parent render, and `renderInto` uses its own static header stub
+  // for measurement. Including it caused an infinite re-pagination loop.
   useEffect(() => {
     setRevision(r => r + 1);
-  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, header, className, columnsClassName]);
+  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, className, columnsClassName]);
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || verses.length === 0) {
-      onSplitsChange([0, verses.length]);
+      const next = [0, verses.length];
+      const key = next.join(",");
+      if (lastSplitsRef.current !== key) {
+        lastSplitsRef.current = key;
+        onSplitsChange(next);
+      }
       return;
     }
     const node = ref.current;
@@ -93,7 +102,11 @@ export function Paginator({
       i = lastFit;
       isFirstPage = false;
     }
-    onSplitsChange(splits);
+    const key = splits.join(",");
+    if (lastSplitsRef.current !== key) {
+      lastSplitsRef.current = key;
+      onSplitsChange(splits);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 
