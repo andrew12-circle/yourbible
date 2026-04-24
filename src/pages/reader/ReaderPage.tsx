@@ -28,6 +28,18 @@ const LS_FONT_SCALE_KEY = "yb.fontScale";
 const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
 const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
 
+// Deterministic 1..10 stroke variant per verse so the same verse always
+// renders with the same imperfect highlighter pass.
+function markerVariant(book: string, chapter: number, verse: number): number {
+  let h = 2166136261;
+  const s = `${book}|${chapter}|${verse}`;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10) + 1;
+}
+
 /**
  * Lets the user grab the OUTER corner of a page and drag it across the spine
  * to turn — like iBooks. The right page's outer (right) edge folds to the
