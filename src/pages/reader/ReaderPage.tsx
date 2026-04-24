@@ -292,7 +292,7 @@ export default function ReaderPage() {
                 onAddAt={(p) => setBmDialog({ position: p })}
               />
             }
-            tabs={!focusMode ? <BookTabs current={book} onSelect={goBook} /> : null}
+            renderTabs={!focusMode ? (side) => <BookTabs current={book} onSelect={goBook} side={side} /> : undefined}
             leftPage={<PageInner side="left" />}
             rightPage={<PageInner side="right" />}
           />
