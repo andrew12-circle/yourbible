@@ -26,7 +26,8 @@ import { toast } from "@/hooks/use-toast";
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
-const COLUMN_CLASS = "columns-2 gap-4 sm:gap-5 [column-rule:1px_solid_hsl(var(--paper-edge))]";
+// Single-column reading flow — feels like a natural book page on any screen.
+const COLUMN_CLASS = "";
 
 // Deterministic 1..10 stroke variant per verse so the same verse always
 // renders with the same imperfect highlighter pass.
