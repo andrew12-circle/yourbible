@@ -185,6 +185,19 @@ export function BookScene({
           <div
             className="relative rounded-[10px] p-[12px] sm:p-[16px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
             style={{
+              // On desktop, arc the cover's top + bottom so it bows out at the
+              // outer corners just like the page block — a real bound book's
+              // cover is the outermost curved shell, not a flat rectangle.
+              ...(isMobile
+                ? null
+                : {
+                    WebkitMaskImage: COVER_ARC_MASK,
+                    maskImage: COVER_ARC_MASK,
+                    WebkitMaskSize: "100% 100%",
+                    maskSize: "100% 100%",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                  }),
               backgroundImage:
                 // SVG fractal-noise grain (fine leather pores)
                 `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
