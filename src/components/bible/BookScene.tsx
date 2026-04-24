@@ -29,9 +29,13 @@ export function BookScene({
 }: Props) {
   const isMobile = useIsMobile();
   // Wider gilt edges so the fanned page-block reads clearly on the sides.
-  const totalStack = isMobile ? 22 : 32;
-  const leftStack = Math.max(10, Math.round(totalStack * progress));
-  const rightStack = Math.max(10, Math.round(totalStack * (1 - progress)));
+  // Both stacks always show a visible gilt strip, even at the very start or
+  // very end of the Bible — the cover's inner shadow eats ~10–14px, so the
+  // minimum needs to comfortably exceed that.
+  const totalStack = isMobile ? 32 : 44;
+  const minStack = isMobile ? 16 : 22;
+  const leftStack = Math.max(minStack, Math.round(totalStack * progress));
+  const rightStack = Math.max(minStack, Math.round(totalStack * (1 - progress)));
 
   // Mobile: spine sits on the side OPPOSITE the page (so the page hugs the outer edge of the device)
   const spineOnRight = isMobile && pageSide === "left";
