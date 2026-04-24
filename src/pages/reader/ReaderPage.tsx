@@ -465,6 +465,8 @@ export default function ReaderPage() {
             navigate(`/read/${b.abbr}/${c}`);
           }
         }}
+        fontScale={fontScale}
+        onFontScaleChange={updateFontScale}
       />
 
       {/* Hidden measurement node — same width/height as a real page */}
