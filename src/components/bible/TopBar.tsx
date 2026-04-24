@@ -44,8 +44,8 @@ export function TopBar({
   // Reference picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [step, setStep] = useState<PickerStep>("book");
-  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook);
-  const [pickedChapter, setPickedChapter] = useState<number>(currentChapter);
+  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
+  const [pickedChapter, setPickedChapter] = useState<number>(currentChapter ?? 1);
   const [search, setSearch] = useState("");
 
   const onOpenPicker = (next: boolean) => {
@@ -91,7 +91,7 @@ export function TopBar({
   // Verse grid uses the current chapter's known verse count when the user is
   // jumping within the same book+chapter; otherwise we don't know the count
   // ahead of time, so show a generous default and let the user type.
-  const sameAsLoaded = pickedBook.abbr === currentBook.abbr && pickedChapter === currentChapter;
+  const sameAsLoaded = !!currentBook && pickedBook?.abbr === currentBook.abbr && pickedChapter === currentChapter;
   const verseGridSize = sameAsLoaded && currentVerseCount > 0 ? currentVerseCount : 176; // Ps 119 max
   const [verseInput, setVerseInput] = useState("");
 
