@@ -247,57 +247,6 @@ export function BookScene({
   );
 }
 
-function PageStackEdge({
-  side,
-  leftStack,
-  rightStack,
-  mobile,
-}: {
-  side: "top" | "bottom";
-  leftStack: number;
-  rightStack: number;
-  mobile: boolean;
-}) {
-  const gradient =
-    "linear-gradient(180deg, hsl(38 58% 52%) 0%, hsl(42 78% 62%) 50%, hsl(32 48% 38%) 100%)";
-  const flipped =
-    "linear-gradient(0deg, hsl(38 58% 52%) 0%, hsl(42 78% 62%) 50%, hsl(32 48% 38%) 100%)";
-  const inset = mobile ? 12 : 16;
-  const pageMarks = `repeating-linear-gradient(90deg,
-    hsl(0 0% 0% / 0.18) 0 0.5px,
-    transparent 0.5px 2.3px,
-    hsl(0 0% 0% / 0.10) 2.3px 2.7px,
-    transparent 2.7px 5.1px)`;
-  const sideStripes = `repeating-linear-gradient(90deg,
-    hsl(38 30% 78%) 0 0.6px,
-    hsl(38 22% 62%) 0.6px 1.4px,
-    hsl(38 30% 80%) 1.4px 2.2px)`;
-  return (
-    <div
-      className="absolute pointer-events-none flex"
-      style={{
-        left: inset,
-        right: inset,
-        height: 6,
-        [side]: inset / 2,
-        backgroundImage: `${pageMarks}, ${side === "top" ? gradient : flipped}`,
-        boxShadow:
-          side === "top"
-            ? "inset 0 -1px 0 hsl(0 0% 0% / 0.3)"
-            : "inset 0 1px 0 hsl(0 0% 0% / 0.3)",
-        borderTopLeftRadius: side === "top" ? 2 : 0,
-        borderTopRightRadius: side === "top" ? 2 : 0,
-        borderBottomLeftRadius: side === "bottom" ? 2 : 0,
-        borderBottomRightRadius: side === "bottom" ? 2 : 0,
-      }}
-    >
-      <div className="h-full" style={{ width: leftStack, backgroundImage: sideStripes, opacity: 0.7 }} />
-      <div className="flex-1" />
-      <div className="h-full" style={{ width: rightStack, backgroundImage: sideStripes, opacity: 0.7 }} />
-    </div>
-  );
-}
-
 function PageCurve({ side }: { side: "left" | "right" }) {
   return (
     <div
@@ -315,29 +264,28 @@ function PageCurve({ side }: { side: "left" | "right" }) {
 }
 
 function stackBackground(side: "left" | "right") {
-  // Build an organic, slightly irregular stack of pages.
-  // Mix multiple striation passes with different periods so it never reads as a perfect ruler.
-  const dir = side === "left" ? "90deg" : "270deg";
-  const inward = side === "left" ? "90deg" : "270deg";
-  const stripesA = `repeating-linear-gradient(${dir},
-    hsl(var(--paper-edge) / 0.95) 0 0.6px,
-    hsl(var(--paper) / 0.85) 0.6px 1.7px,
-    hsl(var(--paper-deep) / 0.55) 1.7px 2.1px,
-    hsl(var(--paper) / 0.9) 2.1px 3.3px)`;
-  const stripesB = `repeating-linear-gradient(${dir},
-    transparent 0 5px,
-    hsl(0 0% 0% / 0.10) 5px 5.4px,
-    transparent 5.4px 11px,
-    hsl(0 0% 0% / 0.06) 11px 11.3px)`;
-  const stripesC = `repeating-linear-gradient(${dir},
-    transparent 0 19px,
-    hsl(30 18% 35% / 0.18) 19px 19.6px,
-    transparent 19.6px 33px)`;
-  // soft warm shading deeper toward the spine (inner edge)
-  const shade = `linear-gradient(${inward},
-    hsl(var(--paper-deep)) 0%,
-    hsl(30 22% 70%) 35%,
-    hsl(38 28% 78%) 70%,
-    hsl(0 0% 0% / 0.22) 100%)`;
-  return `${stripesC}, ${stripesB}, ${stripesA}, ${shade}`;
+  // Side gilt edge — what you see of the fanned page block from the outside
+  // of an open Bible. Warm gold base + ultra-fine vertical striations that
+  // suggest hundreds of stacked sheets, plus a soft inward (toward-spine) shade.
+  const outward = side === "left" ? "270deg" : "90deg"; // toward the outer edge
+  const inward = side === "left" ? "90deg" : "270deg";  // toward the spine
+  // Fine vertical "individual sheets" striations across the gilt face.
+  const sheets = `repeating-linear-gradient(${outward},
+    hsl(38 55% 58% / 0.95) 0 0.5px,
+    hsl(42 75% 70% / 0.85) 0.5px 1.1px,
+    hsl(36 50% 45% / 0.55) 1.1px 1.4px,
+    hsl(40 65% 62% / 0.85) 1.4px 2.2px)`;
+  // Wider, irregular darker bands — uneven page heights / shadow lines.
+  const bands = `repeating-linear-gradient(${outward},
+    transparent 0 7px,
+    hsl(28 35% 28% / 0.22) 7px 7.4px,
+    transparent 7.4px 17px,
+    hsl(28 35% 28% / 0.14) 17px 17.3px)`;
+  // Warm gold base that gets darker toward the spine.
+  const gilt = `linear-gradient(${inward},
+    hsl(38 78% 62%) 0%,
+    hsl(40 70% 55%) 35%,
+    hsl(34 55% 40%) 75%,
+    hsl(0 0% 0% / 0.45) 100%)`;
+  return `${bands}, ${sheets}, ${gilt}`;
 }
