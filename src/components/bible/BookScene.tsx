@@ -278,8 +278,29 @@ function PageCurve({ side }: { side: "left" | "right" }) {
 }
 
 function stackBackground(side: "left" | "right") {
+  // Build an organic, slightly irregular stack of pages.
+  // Mix multiple striation passes with different periods so it never reads as a perfect ruler.
   const dir = side === "left" ? "90deg" : "270deg";
-  const lines = `repeating-linear-gradient(${dir}, hsl(var(--paper-edge)) 0 1px, hsl(var(--paper)) 1px 2px)`;
-  const fade = `linear-gradient(${dir}, hsl(var(--paper-deep)) 0%, hsl(var(--paper-edge)) 70%, transparent 100%)`;
-  return `${fade}, ${lines}`;
+  const inward = side === "left" ? "90deg" : "270deg";
+  const stripesA = `repeating-linear-gradient(${dir},
+    hsl(var(--paper-edge) / 0.95) 0 0.6px,
+    hsl(var(--paper) / 0.85) 0.6px 1.7px,
+    hsl(var(--paper-deep) / 0.55) 1.7px 2.1px,
+    hsl(var(--paper) / 0.9) 2.1px 3.3px)`;
+  const stripesB = `repeating-linear-gradient(${dir},
+    transparent 0 5px,
+    hsl(0 0% 0% / 0.10) 5px 5.4px,
+    transparent 5.4px 11px,
+    hsl(0 0% 0% / 0.06) 11px 11.3px)`;
+  const stripesC = `repeating-linear-gradient(${dir},
+    transparent 0 19px,
+    hsl(30 18% 35% / 0.18) 19px 19.6px,
+    transparent 19.6px 33px)`;
+  // soft warm shading deeper toward the spine (inner edge)
+  const shade = `linear-gradient(${inward},
+    hsl(var(--paper-deep)) 0%,
+    hsl(30 22% 70%) 35%,
+    hsl(38 28% 78%) 70%,
+    hsl(0 0% 0% / 0.22) 100%)`;
+  return `${stripesC}, ${stripesB}, ${stripesA}, ${shade}`;
 }
