@@ -1,1 +1,9 @@
 project_id = "hlfyyijdmnjmrihngeqa"
+[functions.bible-passage]
+verify_jwt = false
+
+[functions.verse-ai]
+verify_jwt = false
+
+[functions.sleep-tts]
+verify_jwt = false
