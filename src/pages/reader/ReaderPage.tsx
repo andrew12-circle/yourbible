@@ -129,9 +129,6 @@ export default function ReaderPage() {
     return () => { cancelled = true; };
   }, [bibleId, book.abbr, chapter]);
 
-  if (!loading && !user) return <Navigate to="/auth" replace />;
-  if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
-
   // ---- Page measurement ----
   const measureRef = useRef<HTMLDivElement>(null);
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -157,6 +154,10 @@ export default function ReaderPage() {
   const [chapterPage, setChapterPage] = useState(0);
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
   useEffect(() => { setChapterPage(0); }, [book.abbr, chapter]);
+
+  // Auth/onboarding gates — placed AFTER all hooks so hook order stays stable
+  if (!loading && !user) return <Navigate to="/auth" replace />;
+  if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
 
   // For desktop spreads we show TWO consecutive pages: chapterPage and chapterPage+1.
   // For mobile we show only one. So advance by 1 (mobile) or 2 (desktop).
