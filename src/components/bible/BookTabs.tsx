@@ -84,8 +84,8 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         const tint = SECTION_TINT[b.section];
         const tintDeep = SECTION_TINT_DEEP[b.section];
         const stagger = STAGGER[i % STAGGER.length];
-        const tabWidth = 28;
-        const tabHeight = 72;
+        const tabWidth = 20;
+        const tabHeight = 132;
 
         return (
           <button
@@ -139,16 +139,16 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
                 boxShadow: "inset 0 0 0 0.5px hsl(0 0% 100% / 0.35)",
               }}
             />
-            {/* Vertical book code */}
+            {/* Vertical full book name */}
             <span
-              className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.22em] text-leather/80 text-[9px] font-semibold"
+              className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.18em] text-leather/85 text-[9px] font-semibold whitespace-nowrap overflow-hidden px-1"
               style={{
                 writingMode: "vertical-rl",
                 textOrientation: "mixed",
                 textTransform: "uppercase",
               }}
             >
-              {b.abbr.toUpperCase()}
+              {b.name}
             </span>
           </button>
         );
