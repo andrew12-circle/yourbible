@@ -113,8 +113,25 @@ const RED_RANGES: Record<string, Range[]> = {
     [20, 15, 17], [20, 19, 19], [20, 21, 23], [20, 26, 29],
     [21, 5, 6], [21, 10, 12], [21, 15, 22],
   ],
-  // (Acts 1, 9, 22, 26 + Revelation include Jesus quotes too — covered by
-  //  fallback at call site if you want, but kept out for now to stay safe.)
+  // ---- Acts (Jesus speaks: ascension, road to Damascus, Paul's defenses) ----
+  Act: [
+    [1, 4, 5], [1, 7, 8],
+    [9, 4, 6], [9, 10, 16],
+    [11, 16, 16],
+    [18, 9, 10],
+    [22, 7, 8], [22, 10, 10], [22, 18, 21],
+    [23, 11, 11],
+    [26, 14, 18],
+  ],
+  // ---- Revelation (Jesus speaks throughout; especially the letters to the
+  //      seven churches and the closing chapter) ----
+  Rev: [
+    [1, 8, 8], [1, 11, 11], [1, 17, 20],
+    [2, 1, 29],
+    [3, 1, 22],
+    [16, 15, 15],
+    [22, 7, 7], [22, 12, 16], [22, 20, 20],
+  ],
 };
 
 /**
@@ -126,6 +143,8 @@ const BOOK_ALIAS: Record<string, keyof typeof RED_RANGES> = {
   Mar: "Mar", Mark: "Mar", Mk: "Mar", Mrk: "Mar",
   Luk: "Luk", Luke: "Luk", Lk: "Luk",
   Jhn: "Jhn", John: "Jhn", Jn: "Jhn", Joh: "Jhn",
+  Act: "Act", Acts: "Act",
+  Rev: "Rev", Revelation: "Rev", Re: "Rev",
 };
 
 function isJesusVerse(bookAbbr: string, chapter: number, verse: number): boolean {
