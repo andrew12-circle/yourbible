@@ -21,11 +21,14 @@ export const PALETTES: Palette[] = [
   {
     id: "classic",
     label: "Classic Warm",
-    tagline: "Amber, peach, sage — the journaling staples",
+    tagline: "The warm journaling staples",
     colors: [
       { name: "Amber", cssVar: "--hl-amber", meaning: "Promise" },
       { name: "Peach", cssVar: "--hl-peach", meaning: "Identity" },
       { name: "Sage", cssVar: "--hl-sage", meaning: "Wisdom" },
+      { name: "Yellow", cssVar: "--hl-yellow", meaning: "Light" },
+      { name: "Coral", cssVar: "--hl-coral", meaning: "Joy" },
+      { name: "Clay", cssVar: "--hl-clay", meaning: "Earth" },
     ],
   },
   {
@@ -36,6 +39,9 @@ export const PALETTES: Palette[] = [
       { name: "Rose", cssVar: "--hl-rose", meaning: "Love" },
       { name: "Sky", cssVar: "--hl-sky", meaning: "Hope" },
       { name: "Violet", cssVar: "--hl-violet", meaning: "Mystery" },
+      { name: "Mint", cssVar: "--hl-mint", meaning: "Renewal" },
+      { name: "Lavender", cssVar: "--hl-lavender", meaning: "Peace" },
+      { name: "Peach", cssVar: "--hl-peach", meaning: "Identity" },
     ],
   },
   {
@@ -47,6 +53,27 @@ export const PALETTES: Palette[] = [
       { name: "Violet", cssVar: "--hl-violet", meaning: "Royalty" },
       { name: "Sage", cssVar: "--hl-sage", meaning: "Renewal" },
       { name: "Rose", cssVar: "--hl-rose", meaning: "Mercy" },
+      { name: "Teal", cssVar: "--hl-teal", meaning: "Living water" },
+      { name: "Coral", cssVar: "--hl-coral", meaning: "Fire" },
+    ],
+  },
+  {
+    id: "all",
+    label: "Full Set",
+    tagline: "Every color, no rules",
+    colors: [
+      { name: "Yellow", cssVar: "--hl-yellow" },
+      { name: "Amber", cssVar: "--hl-amber" },
+      { name: "Peach", cssVar: "--hl-peach" },
+      { name: "Coral", cssVar: "--hl-coral" },
+      { name: "Rose", cssVar: "--hl-rose" },
+      { name: "Lavender", cssVar: "--hl-lavender" },
+      { name: "Violet", cssVar: "--hl-violet" },
+      { name: "Sky", cssVar: "--hl-sky" },
+      { name: "Teal", cssVar: "--hl-teal" },
+      { name: "Mint", cssVar: "--hl-mint" },
+      { name: "Sage", cssVar: "--hl-sage" },
+      { name: "Clay", cssVar: "--hl-clay" },
     ],
   },
 ];
