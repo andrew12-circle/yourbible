@@ -8,7 +8,8 @@ import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/
 import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
-import { HighlightMenu } from "@/components/bible/HighlightMenu";
+import { SelectionToolbar, type ToolbarSelection } from "@/components/bible/SelectionToolbar";
+import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
 import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
@@ -17,7 +18,7 @@ import { ChapterPicker } from "@/components/bible/ChapterPicker";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
-import { useChapterData, useBookmarks } from "@/hooks/useUserData";
+import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
@@ -155,7 +156,7 @@ export default function ReaderPage() {
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [hlMenu, setHlMenu] = useState<{ verse: number; x: number; y: number } | null>(null);
+  const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   const [pickerBook, setPickerBook] = useState<
@@ -194,7 +195,7 @@ export default function ReaderPage() {
     };
   }, [book.abbr, chapter]);
 
-  const { highlights, notes, setHighlight, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
+  const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 
   const lpTimer = useRef<number | null>(null);
