@@ -84,8 +84,8 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         const tint = SECTION_TINT[b.section];
         const tintDeep = SECTION_TINT_DEEP[b.section];
         const stagger = STAGGER[i % STAGGER.length];
-        const tabWidth = 20;
-        const tabHeight = 132;
+        const tabWidth = 24;
+        const tabHeight = 138;
 
         return (
           <button
@@ -100,24 +100,30 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
             aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
             className="relative pointer-events-auto group transition-transform duration-200 hover:scale-[1.06]"
             style={{
-              [isLeft ? "right" : "left"]: -stagger - 6,
+              // Anchor the tab so its INNER edge sits flush against the page
+              // edge (no visible gap). Only the outer portion juts out.
+              [isLeft ? "right" : "left"]: -(stagger + tabWidth - 4),
               width: tabWidth,
               height: tabHeight,
               alignSelf: isLeft ? "flex-end" : "flex-start",
             }}
           >
-            {/* Tab body */}
+            {/* Tab body — flush against the page edge so it reads as
+                physically clipped onto the page block, not floating. */}
             <span
               className="absolute inset-0 block"
               style={{
                 backgroundImage: `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
-                borderTopLeftRadius: isLeft ? 6 : 2,
-                borderBottomLeftRadius: isLeft ? 6 : 2,
-                borderTopRightRadius: isLeft ? 2 : 6,
-                borderBottomRightRadius: isLeft ? 2 : 6,
-                border: "1px solid hsl(28 22% 55% / 0.65)",
-                [isLeft ? "borderRight" : "borderLeft"]:
-                  "1px solid hsl(28 22% 45% / 0.25)",
+                // Square off the inner edge that touches the page; round only
+                // the outer (visible) edge.
+                borderTopLeftRadius: isLeft ? 6 : 0,
+                borderBottomLeftRadius: isLeft ? 6 : 0,
+                borderTopRightRadius: isLeft ? 0 : 6,
+                borderBottomRightRadius: isLeft ? 0 : 6,
+                border: "1px solid hsl(28 22% 45% / 0.7)",
+                // Hide the inner-edge border so the tab visually merges with
+                // the page edge (no seam between tab and page).
+                [isLeft ? "borderRight" : "borderLeft"]: "none",
                 boxShadow: `inset 0 1px 0 hsl(0 0% 100% / 0.55), ${isLeft ? "-2px" : "2px"} 3px 5px hsl(0 0% 0% / 0.32)`,
               }}
             />
@@ -131,13 +137,14 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
                   "linear-gradient(180deg, transparent, hsl(0 0% 100% / 0.5), transparent)",
               }}
             />
-            {/* Vertical full book name */}
+            {/* Vertical full book name — black ink, larger, clearly legible */}
             <span
-              className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.18em] text-leather/85 text-[9px] font-semibold whitespace-nowrap overflow-hidden px-1"
+              className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.14em] text-[12px] font-bold whitespace-nowrap overflow-hidden px-1"
               style={{
                 writingMode: "vertical-rl",
                 textOrientation: "mixed",
                 textTransform: "uppercase",
+                color: "hsl(0 0% 8%)",
               }}
             >
               {b.name}
