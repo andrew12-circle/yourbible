@@ -3,7 +3,7 @@ import { BOOKS, BibleBook, SECTION_LABELS } from "@/data/books";
 
 interface Props {
   current: BibleBook;
-  onSelect: (book: BibleBook) => void;
+  onSelect: (book: BibleBook, anchor?: { x: number; y: number; side: "left" | "right" }) => void;
   /** Which outer edge of the book this strip is rendered on */
   side?: "left" | "right";
 }
@@ -90,7 +90,13 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         return (
           <button
             key={b.abbr}
-            onClick={() => onSelect(b)}
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+              // Anchor point: the tab's outer (visible) edge, vertically centered.
+              const x = isLeft ? r.left : r.right;
+              const y = r.top + r.height / 2;
+              onSelect(b, { x, y, side: isLeft ? "left" : "right" });
+            }}
             aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
             className="relative pointer-events-auto group transition-transform duration-200 hover:scale-[1.06]"
             style={{
