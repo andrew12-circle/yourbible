@@ -498,11 +498,14 @@ export function BookScene({
                 )}
               </div>
 
-              {/* Tabs — render OUTSIDE the page-block so they overhang the gilt edge */}
+              {/* Tabs — anchored to the PAGE-BLOCK edge so each tab can
+                  straddle the page edge: a few px overlap onto the page
+                  (looks clipped on) while the rest juts into the leather
+                  gutter. The page block sits at inset 10px from the cover. */}
               {renderTabs && (!isMobile || pageSide === "left") && (
                 <div
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
-                  style={{ left: isMobile ? 12 : 16 }}
+                  style={{ left: 10 }}
                 >
                   {renderTabs("left")}
                 </div>
@@ -510,7 +513,7 @@ export function BookScene({
               {renderTabs && (!isMobile || pageSide === "right") && (
                 <div
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
-                  style={{ right: isMobile ? 12 : 16 }}
+                  style={{ right: 10 }}
                 >
                   {renderTabs("right")}
                 </div>
