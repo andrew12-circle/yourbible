@@ -65,13 +65,19 @@
     --section-epistles: 38 48% 38%;
     --section-revelation: 12 60% 38%;
 
-    /* Highlight palettes */
-    --hl-amber: 42 90% 70%;
-    --hl-rose: 8 80% 78%;
-    --hl-sage: 130 35% 70%;
-    --hl-sky: 200 60% 76%;
-    --hl-violet: 268 50% 78%;
-    --hl-peach: 22 80% 78%;
+    /* Highlight palettes — soft, paper-friendly highlighter tones */
+    --hl-amber:  42  90% 70%;
+    --hl-rose:    8  80% 78%;
+    --hl-sage:  130  35% 70%;
+    --hl-sky:   200  60% 76%;
+    --hl-violet:268  50% 78%;
+    --hl-peach:  22  80% 78%;
+    --hl-yellow: 54 100% 70%;
+    --hl-mint:  158  55% 72%;
+    --hl-coral:  10  85% 74%;
+    --hl-lavender: 250 60% 80%;
+    --hl-teal:  185  55% 64%;
+    --hl-clay:  18  40% 60%;
 
     /* Shadows & gradients */
     --shadow-page: 0 8px 28px -12px hsl(0 30% 12% / 0.25), 0 2px 6px -2px hsl(0 30% 12% / 0.12);
