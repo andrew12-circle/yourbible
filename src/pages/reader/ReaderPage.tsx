@@ -546,19 +546,6 @@ export default function ReaderPage() {
         onFontScaleChange={updateFontScale}
       />
 
-      {/* Hidden measurement node — same width/height as a real page */}
-      <div
-        ref={measureRef}
-        aria-hidden
-        className="fixed pointer-events-none opacity-0"
-        style={{
-          top: 80,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      />
-
       <BookScene
         progress={progress}
         pageSide={mobileSide}
@@ -607,12 +594,14 @@ export default function ReaderPage() {
           verses={verses}
           bookAbbr={book.abbr}
           chapter={chapter}
-          pageWidth={Math.max(200, pageBox.w * (isMobile ? 0.85 : 0.42))}
-          pageHeight={Math.max(200, pageBox.h - 120)}
+          // pageBox is measured directly from the live page — width is the
+          // real text column, height is from the article's top to the footer.
+          pageWidth={Math.max(180, pageBox.w)}
+          pageHeight={Math.max(180, pageBox.h - 8)}
           className={PAGE_TYPO_CLASS}
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
-          footerHeight={40}
+          footerHeight={0}
           fontSizeStyle={{ fontSize: `${fontScale}em` }}
           onSplitsChange={setSplits}
         />
