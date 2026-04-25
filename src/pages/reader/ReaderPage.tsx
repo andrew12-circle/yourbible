@@ -628,7 +628,8 @@ export default function ReaderPage() {
         ) : (
           <article
             ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
-            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
+            data-reading-area
+            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS} selectable-text`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
