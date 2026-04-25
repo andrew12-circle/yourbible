@@ -236,18 +236,73 @@ export default function ReaderPage() {
   }, [bibleId, book.abbr, chapter]);
 
   // ---- Page measurement ----
-  const measureRef = useRef<HTMLDivElement>(null);
+  // We measure the *actual* rendered page article so pagination matches
+  // exactly what the reader sees on any screen size. The page surface
+  // registers itself via the ref callback below.
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  useEffect(() => {
-    if (!measureRef.current) return;
-    const el = measureRef.current;
-    const ro = new ResizeObserver(() => {
-      setPageBox({ w: el.clientWidth, h: el.clientHeight });
-    });
+  const articleRoRef = useRef<ResizeObserver | null>(null);
+  const articleElRef = useRef<HTMLElement | null>(null);
+  const measureArticle = (el: HTMLElement | null) => {
+    if (articleRoRef.current) {
+      articleRoRef.current.disconnect();
+      articleRoRef.current = null;
+    }
+    articleElRef.current = el;
+    if (!el) return;
+    const recompute = () => {
+      // Width: the article's own client width = real text column width.
+      const width = el.clientWidth;
+      // Height: from the article's top to the footer's top, inside the same
+      // page-surface parent. Falls back to parent-bottom if no footer found.
+      const parent = el.parentElement;
+      let height = 0;
+      if (parent) {
+        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
+        const parentRect = parent.getBoundingClientRect();
+        const articleRect = el.getBoundingClientRect();
+        const bottom = footer
+          ? footer.getBoundingClientRect().top
+          : parentRect.bottom;
+        height = Math.max(0, bottom - articleRect.top);
+      }
+      setPageBox(prev =>
+        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      );
+    };
+    const ro = new ResizeObserver(recompute);
     ro.observe(el);
-    setPageBox({ w: el.clientWidth, h: el.clientHeight });
-    return () => ro.disconnect();
-  }, [isMobile]);
+    if (el.parentElement) ro.observe(el.parentElement);
+    articleRoRef.current = ro;
+    recompute();
+  };
+  // Recompute on viewport changes too (orientation/resize/zoom).
+  useEffect(() => {
+    const onResize = () => {
+      const el = articleElRef.current;
+      if (!el) return;
+      const parent = el.parentElement;
+      const width = el.clientWidth;
+      let height = 0;
+      if (parent) {
+        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
+        const parentRect = parent.getBoundingClientRect();
+        const articleRect = el.getBoundingClientRect();
+        const bottom = footer
+          ? footer.getBoundingClientRect().top
+          : parentRect.bottom;
+        height = Math.max(0, bottom - articleRect.top);
+      }
+      setPageBox(prev =>
+        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      );
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
 
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
