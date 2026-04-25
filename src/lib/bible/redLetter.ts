@@ -237,3 +237,58 @@ export function splitJesusSpeechHtml(
     )
     .join("");
 }
+
+/**
+ * Chapter-level splitter. Walks all verses in chapter order, carrying the
+ * "inside a quote" state across verse boundaries — many translations open a
+ * quote in one verse and close it several verses later. Only verses that
+ * are inside our curated red-letter ranges contribute red text.
+ *
+ * Returns a map from verse number → segments for that verse.
+ */
+export function splitJesusSpeechForChapter(
+  bookAbbr: string,
+  chapter: number,
+  verses: { number: number; text: string }[],
+): Map<number, Segment[]> {
+  const result = new Map<number, Segment[]>();
+  let inside = false; // carries across verses
+
+  for (const v of verses) {
+    const verseIsRed = isJesusVerse(bookAbbr, chapter, v.number);
+    const segs: Segment[] = [];
+    let buf = "";
+
+    const flush = (jesus: boolean) => {
+      if (buf) {
+        segs.push({ text: buf, isJesus: jesus && verseIsRed });
+        buf = "";
+      }
+    };
+
+    for (const ch of v.text) {
+      if (!inside && OPENERS.has(ch)) {
+        flush(false);
+        buf += ch;        // keep opening quote with non-Jesus
+        flush(false);
+        inside = true;
+        continue;
+      }
+      if (inside && CLOSERS.has(ch)) {
+        flush(true);
+        buf += ch;        // keep closing quote with non-Jesus
+        flush(false);
+        inside = false;
+        continue;
+      }
+      buf += ch;
+    }
+    // Flush remaining buffer with the current state (red iff still inside a
+    // quote AND this verse is in a red range).
+    flush(inside);
+
+    result.set(v.number, segs);
+  }
+
+  return result;
+}
