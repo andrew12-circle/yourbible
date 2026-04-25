@@ -198,8 +198,7 @@ export default function ReaderPage() {
   const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 
-  const lpTimer = useRef<number | null>(null);
-  const lpFired = useRef(false);
+  // (long-press highlight removed — we now use native drag-selection)
 
   // ---- Load translations ----
   useEffect(() => {
