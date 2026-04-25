@@ -93,6 +93,7 @@ export type Database = {
           color: string
           created_at: string
           id: string
+          kind: string
           label: string | null
           updated_at: string
           user_id: string
@@ -104,6 +105,7 @@ export type Database = {
           color: string
           created_at?: string
           id?: string
+          kind?: string
           label?: string | null
           updated_at?: string
           user_id: string
@@ -115,6 +117,7 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          kind?: string
           label?: string | null
           updated_at?: string
           user_id?: string

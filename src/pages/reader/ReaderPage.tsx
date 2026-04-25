@@ -8,7 +8,8 @@ import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/
 import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
-import { HighlightMenu } from "@/components/bible/HighlightMenu";
+import { SelectionToolbar, type ToolbarSelection } from "@/components/bible/SelectionToolbar";
+import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
 import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
@@ -17,7 +18,7 @@ import { ChapterPicker } from "@/components/bible/ChapterPicker";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
-import { useChapterData, useBookmarks } from "@/hooks/useUserData";
+import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
@@ -155,7 +156,7 @@ export default function ReaderPage() {
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [hlMenu, setHlMenu] = useState<{ verse: number; x: number; y: number } | null>(null);
+  const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   const [pickerBook, setPickerBook] = useState<
@@ -194,11 +195,10 @@ export default function ReaderPage() {
     };
   }, [book.abbr, chapter]);
 
-  const { highlights, notes, setHighlight, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
+  const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 
-  const lpTimer = useRef<number | null>(null);
-  const lpFired = useRef(false);
+  // (long-press highlight removed — we now use native drag-selection)
 
   // ---- Load translations ----
   useEffect(() => {
@@ -382,26 +382,130 @@ export default function ReaderPage() {
   };
 
   // ---- Verse interactions ----
-  const onVersePointerDown = (e: React.PointerEvent, v: { number: number; text: string }) => {
-    lpFired.current = false;
-    if (lpTimer.current) window.clearTimeout(lpTimer.current);
-    const x = e.clientX, y = e.clientY;
-    lpTimer.current = window.setTimeout(() => {
-      lpFired.current = true;
-      setHlMenu({ verse: v.number, x, y });
-    }, 420);
+  // Tapping a verse number opens the verse sheet. Selection of body text is
+  // native — handled by the document-level `selectionchange` listener below.
+  const onVerseNumberClick = (
+    e: React.MouseEvent,
+    v: { number: number; text: string },
+  ) => {
+    e.stopPropagation();
+    setActiveVerse(v);
+    setSheetOpen(true);
   };
-  const onVersePointerUp = (v: { number: number; text: string }) => {
-    if (lpTimer.current) window.clearTimeout(lpTimer.current);
-    if (!lpFired.current) {
-      setActiveVerse(v);
-      setSheetOpen(true);
-    }
-  };
-  const onVersePointerCancel = () => { if (lpTimer.current) window.clearTimeout(lpTimer.current); };
 
   const noteFor = (n: number) => notes.find(x => x.verse === n);
-  const hlFor = (n: number) => highlights.find(x => x.verse === n);
+  const hlFor = (n: number) =>
+    highlights.find(x => x.verse === n && (x.kind ?? "highlight") === "highlight");
+  const ulFor = (n: number) =>
+    highlights.find(x => x.verse === n && x.kind === "underline");
+
+  // ---- Native drag-selection → toolbar ----
+  // Listens for a stable, non-empty selection inside our reading area, then
+  // pops the SelectionToolbar over it. The toolbar applies the chosen tool
+  // to every verse the selection spans.
+  useEffect(() => {
+    const root = document;
+    let pendingHide: number | null = null;
+
+    const findVerseFromNode = (node: Node | null): number | null => {
+      let el: HTMLElement | null =
+        node instanceof HTMLElement
+          ? node
+          : (node?.parentElement ?? null);
+      while (el) {
+        const v = el.dataset?.verse;
+        if (v) return Number(v);
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const computeSelection = (): ToolbarSelection | null => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+      const range = sel.getRangeAt(0);
+      // Only react to selections whose ENTIRE extent lives inside our reading
+      // area — keeps the toolbar from popping over copied UI text, etc.
+      const container = (range.commonAncestorContainer instanceof HTMLElement
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement) as HTMLElement | null;
+      if (!container || !container.closest("[data-reading-area]")) return null;
+      const startVerse = findVerseFromNode(range.startContainer);
+      const endVerse = findVerseFromNode(range.endContainer);
+      if (startVerse == null || endVerse == null) return null;
+      const lo = Math.min(startVerse, endVerse);
+      const hi = Math.max(startVerse, endVerse);
+      const verses: number[] = [];
+      for (let n = lo; n <= hi; n++) verses.push(n);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return null;
+      return {
+        rect: {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+        },
+        verses,
+      };
+    };
+
+    const onSelChange = () => {
+      // Update toolbar live as the user drags.
+      if (pendingHide) {
+        window.clearTimeout(pendingHide);
+        pendingHide = null;
+      }
+      const next = computeSelection();
+      // Only show toolbar after the user has actually selected something
+      // (more than zero chars). Clearing selection hides it.
+      if (!next) {
+        // Small delay so picking a swatch (which momentarily clears selection
+        // through React re-render) doesn't immediately hide the toolbar.
+        pendingHide = window.setTimeout(() => setTbSel(null), 80);
+        return;
+      }
+      setTbSel(next);
+    };
+
+    root.addEventListener("selectionchange", onSelChange);
+    return () => {
+      root.removeEventListener("selectionchange", onSelChange);
+      if (pendingHide) window.clearTimeout(pendingHide);
+    };
+  }, []);
+
+  const clearWindowSelection = () => {
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+    setTbSel(null);
+  };
+
+  const applyHighlightToSelection = async (cssVar: string) => {
+    if (!tbSel) return;
+    await setMarks(tbSel.verses, cssVar, "highlight");
+    clearWindowSelection();
+  };
+  const applyUnderlineToSelection = async () => {
+    if (!tbSel) return;
+    // Toggle: if every verse already underlined, clear; else apply.
+    const allUnderlined = tbSel.verses.every(v => !!ulFor(v));
+    await setMarks(tbSel.verses, allUnderlined ? null : "--leather", "underline");
+    clearWindowSelection();
+  };
+  const clearMarksOnSelection = async () => {
+    if (!tbSel) return;
+    await Promise.all([
+      setMarks(tbSel.verses, null, "highlight"),
+      setMarks(tbSel.verses, null, "underline"),
+    ]);
+    clearWindowSelection();
+  };
+  const noteOnSelection = () => {
+    if (!tbSel) return;
+    setNoteOpen({ verse: tbSel.verses[0] });
+    clearWindowSelection();
+  };
   const reference = `${book.name} ${chapter}`;
 
   const goBook = (
@@ -429,6 +533,7 @@ export default function ReaderPage() {
 
   const renderVerse = (v: PassageVerse) => {
     const hl = hlFor(v.number);
+    const ul = ulFor(v.number);
     const note = noteFor(v.number);
     const segments =
       redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
@@ -439,33 +544,55 @@ export default function ReaderPage() {
         <span key={i}>{s.text}</span>
       ),
     );
+
+    // Compose mark classes — both highlight and underline can be present.
+    const markClasses: string[] = [];
+    const styleVars: React.CSSProperties = {};
+    if (hl) {
+      markClasses.push(
+        `marker-hl v${markerVariant(book.abbr, chapter, v.number)}`,
+      );
+      (styleVars as Record<string, string>)["--hl-color"] = `var(${hl.color})`;
+    }
+    if (ul) {
+      markClasses.push("pen-underline");
+      (styleVars as Record<string, string>)["--ink-color"] =
+        `var(${ul.color || "--leather"})`;
+    }
+    const wrappedBody =
+      markClasses.length > 0 ? (
+        <span className={markClasses.join(" ")} style={styleVars}>
+          {body}
+        </span>
+      ) : (
+        body
+      );
+
     return (
-      <span key={v.number}>
-        <span
-          onPointerDown={(e) => onVersePointerDown(e, v)}
-          onPointerUp={() => onVersePointerUp(v)}
-          onPointerCancel={onVersePointerCancel}
-          className="no-tap-highlight cursor-pointer"
+      <span key={v.number} data-verse={v.number}>
+        <button
+          type="button"
+          onClick={(e) => onVerseNumberClick(e, v)}
+          className="verse-num bg-transparent border-0 p-0 m-0 cursor-pointer hover:text-leather transition-colors"
+          aria-label={`Verse ${v.number}`}
+          // The verse number itself is not selectable — keeps drag-selection
+          // of body text from accidentally including the number.
+          style={{ userSelect: "none" }}
         >
-          <span className="verse-num">{v.number}</span>
-          {hl ? (
-            <span
-              className={`marker-hl v${markerVariant(book.abbr, chapter, v.number)}`}
-              style={{ ["--hl-color" as string]: `var(${hl.color})` }}
-            >
-              {body}
-            </span>
-          ) : body}
-          {note && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
-              className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
-              aria-label="Open note"
-            >
-              <NotebookPen className="w-2.5 h-2.5 m-auto" />
-            </button>
-          )}
-        </span>{" "}
+          {v.number}
+        </button>
+        {wrappedBody}
+        {note && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setNoteOpen({ verse: v.number }); }}
+            className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
+            aria-label="Open note"
+            style={{ userSelect: "none" }}
+          >
+            <NotebookPen className="w-2.5 h-2.5 m-auto" />
+          </button>
+        )}
+        {" "}
       </span>
     );
   };
@@ -500,7 +627,8 @@ export default function ReaderPage() {
         ) : (
           <article
             ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
-            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
+            data-reading-area
+            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS} selectable-text`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
@@ -649,15 +777,24 @@ export default function ReaderPage() {
         />
       )}
 
-      <HighlightMenu
-        open={!!hlMenu}
+      {/* Live pencil underline that tracks the current text selection */}
+      <SelectionPencilOverlay />
+
+      {/* Toolbar that appears above the user's selection. Highlighter swatches,
+          a pen for underlining, a note shortcut, and a clear control. */}
+      <SelectionToolbar
+        open={!!tbSel}
         paletteId={profile?.highlight_palette ?? "classic"}
-        currentColor={hlMenu ? hlFor(hlMenu.verse)?.color ?? null : null}
-        x={hlMenu?.x ?? 0} y={hlMenu?.y ?? 0}
-        onPick={(c) => { if (hlMenu) setHighlight(hlMenu.verse, c); setHlMenu(null); }}
-        onClear={() => { if (hlMenu) setHighlight(hlMenu.verse, null); setHlMenu(null); }}
-        onNote={() => { if (hlMenu) { setNoteOpen({ verse: hlMenu.verse }); setHlMenu(null); } }}
-        onClose={() => setHlMenu(null)}
+        selection={tbSel}
+        currentColor={tbSel ? hlFor(tbSel.verses[0])?.color ?? null : null}
+        currentlyUnderlined={
+          !!tbSel && tbSel.verses.every(v => !!ulFor(v))
+        }
+        onPickHighlight={applyHighlightToSelection}
+        onPickUnderline={applyUnderlineToSelection}
+        onClear={clearMarksOnSelection}
+        onNote={noteOnSelection}
+        onClose={() => clearWindowSelection()}
       />
 
       {noteOpen && (

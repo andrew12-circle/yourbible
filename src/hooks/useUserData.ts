@@ -2,8 +2,16 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export type MarkKind = "highlight" | "underline";
 export interface Highlight {
-  id: string; book: string; chapter: number; verse: number; color: string; label: string | null;
+  id: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  /** CSS var name (e.g. "--hl-amber"). For underlines this is the ink color. */
+  color: string;
+  label: string | null;
+  kind: MarkKind;
 }
 export interface Note {
   id: string; book: string; chapter: number; verse: number; body: string;
@@ -24,24 +32,67 @@ export function useChapterData(book: string, chapter: number) {
       supabase.from("highlights").select("*").eq("user_id", user.id).eq("book", book).eq("chapter", chapter),
       supabase.from("notes").select("*").eq("user_id", user.id).eq("book", book).eq("chapter", chapter),
     ]);
-    setHighlights((h ?? []) as Highlight[]);
+    // Old rows have no `kind` — treat them as highlights.
+    setHighlights(((h ?? []) as Highlight[]).map(x => ({ ...x, kind: x.kind ?? "highlight" })));
     setNotes((n ?? []) as Note[]);
   }, [user, book, chapter]);
 
   useEffect(() => { reload(); }, [reload]);
 
-  const setHighlight = async (verse: number, color: string | null) => {
+  /**
+   * Set or clear a mark on a verse. `kind` defaults to "highlight" so older
+   * call sites keep working. Pass `color = null` to remove the mark.
+   */
+  const setMark = async (
+    verse: number,
+    color: string | null,
+    kind: MarkKind = "highlight",
+  ) => {
     if (!user) return;
-    const existing = highlights.find(h => h.verse === verse);
+    const existing = highlights.find(h => h.verse === verse && h.kind === kind);
     if (color === null && existing) {
       await supabase.from("highlights").delete().eq("id", existing.id);
     } else if (existing && color) {
       await supabase.from("highlights").update({ color }).eq("id", existing.id);
     } else if (color) {
-      await supabase.from("highlights").insert({ user_id: user.id, book, chapter, verse, color });
+      await supabase
+        .from("highlights")
+        .insert({ user_id: user.id, book, chapter, verse, color, kind });
     }
     reload();
   };
+
+  /** Apply the same mark to many verses in one go (drag-select). */
+  const setMarks = async (
+    verses: number[],
+    color: string | null,
+    kind: MarkKind = "highlight",
+  ) => {
+    if (!user || verses.length === 0) return;
+    if (color === null) {
+      await supabase
+        .from("highlights")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("book", book)
+        .eq("chapter", chapter)
+        .eq("kind", kind)
+        .in("verse", verses);
+    } else {
+      // Upsert one row per verse.
+      const rows = verses.map(v => ({
+        user_id: user.id, book, chapter, verse: v, color, kind,
+      }));
+      await supabase
+        .from("highlights")
+        .upsert(rows, { onConflict: "user_id,book,chapter,verse,kind" });
+    }
+    reload();
+  };
+
+  // Back-compat alias for callers that only deal with highlights.
+  const setHighlight = (verse: number, color: string | null) =>
+    setMark(verse, color, "highlight");
 
   const upsertNote = async (verse: number, body: string) => {
     if (!user) return;
@@ -58,7 +109,7 @@ export function useChapterData(book: string, chapter: number) {
     reload();
   };
 
-  return { highlights, notes, setHighlight, upsertNote, deleteNote, reload };
+  return { highlights, notes, setHighlight, setMark, setMarks, upsertNote, deleteNote, reload };
 }
 
 export function useBookmarks() {

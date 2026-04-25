@@ -441,6 +441,31 @@
     font-weight: 600;
   }
 
+  /* Pen underline — committed (persisted) ink stroke beneath a verse.
+     Drawn with a layered linear-gradient so it sits ~2px below the baseline
+     and survives line-wraps via box-decoration-break. */
+  .pen-underline {
+    background-image: linear-gradient(
+      to right,
+      hsl(var(--ink-color, var(--leather, 22 30% 22%)) / 0.85) 0%,
+      hsl(var(--ink-color, var(--leather, 22 30% 22%)) / 0.65) 50%,
+      hsl(var(--ink-color, var(--leather, 22 30% 22%)) / 0.85) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 1.2px;
+    background-position: 0 calc(100% - 2px);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding-bottom: 1px;
+  }
+
+  /* The reading text area uses native browser selection. We tint the
+     selection a warm cream so the live pencil overlay reads cleanly. */
+  .selectable-text { user-select: text; -webkit-user-select: text; }
+  .selectable-text ::selection {
+    background: hsl(40 70% 78% / 0.45);
+  }
+
   /* Subtle vignette over reading area */
   .page-vignette::before {
     content: '';
