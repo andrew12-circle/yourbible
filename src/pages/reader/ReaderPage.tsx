@@ -252,18 +252,22 @@ export default function ReaderPage() {
     const recompute = () => {
       // Width: the article's own client width = real text column width.
       const width = el.clientWidth;
-      // Height: from the article's top to the footer's top, inside the same
-      // page-surface parent. Falls back to parent-bottom if no footer found.
+      // Height: total content area = from the inside-top of the page surface
+      // (after its top padding) down to the top of the footer. We measure
+      // parent-inside-top rather than article-top so the value doesn't change
+      // depending on whether the chapter header is rendered (first page only).
       const parent = el.parentElement;
       let height = 0;
       if (parent) {
         const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
         const parentRect = parent.getBoundingClientRect();
-        const articleRect = el.getBoundingClientRect();
+        const cs = window.getComputedStyle(parent);
+        const padTop = parseFloat(cs.paddingTop) || 0;
+        const insideTop = parentRect.top + padTop;
         const bottom = footer
           ? footer.getBoundingClientRect().top
           : parentRect.bottom;
-        height = Math.max(0, bottom - articleRect.top);
+        height = Math.max(0, bottom - insideTop);
       }
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
@@ -286,11 +290,13 @@ export default function ReaderPage() {
       if (parent) {
         const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
         const parentRect = parent.getBoundingClientRect();
-        const articleRect = el.getBoundingClientRect();
+        const cs = window.getComputedStyle(parent);
+        const padTop = parseFloat(cs.paddingTop) || 0;
+        const insideTop = parentRect.top + padTop;
         const bottom = footer
           ? footer.getBoundingClientRect().top
           : parentRect.bottom;
-        height = Math.max(0, bottom - articleRect.top);
+        height = Math.max(0, bottom - insideTop);
       }
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
