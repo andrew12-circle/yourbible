@@ -476,6 +476,7 @@ export default function ReaderPage() {
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
         ) : (
           <article
+            ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
             className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
             style={{ fontSize: `${fontScale}em` }}
           >
@@ -485,7 +486,7 @@ export default function ReaderPage() {
           </article>
         )}
         {/* Page number footer with subtle prev/next chevrons */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
+        <div data-page-footer className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
           <button
             onClick={() => goPage(-1)}
             aria-label="Previous page"
