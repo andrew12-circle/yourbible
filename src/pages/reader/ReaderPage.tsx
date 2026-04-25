@@ -777,15 +777,24 @@ export default function ReaderPage() {
         />
       )}
 
-      <HighlightMenu
-        open={!!hlMenu}
+      {/* Live pencil underline that tracks the current text selection */}
+      <SelectionPencilOverlay />
+
+      {/* Toolbar that appears above the user's selection. Highlighter swatches,
+          a pen for underlining, a note shortcut, and a clear control. */}
+      <SelectionToolbar
+        open={!!tbSel}
         paletteId={profile?.highlight_palette ?? "classic"}
-        currentColor={hlMenu ? hlFor(hlMenu.verse)?.color ?? null : null}
-        x={hlMenu?.x ?? 0} y={hlMenu?.y ?? 0}
-        onPick={(c) => { if (hlMenu) setHighlight(hlMenu.verse, c); setHlMenu(null); }}
-        onClear={() => { if (hlMenu) setHighlight(hlMenu.verse, null); setHlMenu(null); }}
-        onNote={() => { if (hlMenu) { setNoteOpen({ verse: hlMenu.verse }); setHlMenu(null); } }}
-        onClose={() => setHlMenu(null)}
+        selection={tbSel}
+        currentColor={tbSel ? hlFor(tbSel.verses[0])?.color ?? null : null}
+        currentlyUnderlined={
+          !!tbSel && tbSel.verses.every(v => !!ulFor(v))
+        }
+        onPickHighlight={applyHighlightToSelection}
+        onPickUnderline={applyUnderlineToSelection}
+        onClear={clearMarksOnSelection}
+        onNote={noteOnSelection}
+        onClose={() => clearWindowSelection()}
       />
 
       {noteOpen && (
