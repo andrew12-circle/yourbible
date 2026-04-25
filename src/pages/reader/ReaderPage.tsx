@@ -158,7 +158,13 @@ export default function ReaderPage() {
   const [hlMenu, setHlMenu] = useState<{ verse: number; x: number; y: number } | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
-  const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
+  const [pickerBook, setPickerBook] = useState<
+    | {
+        book: typeof book;
+        anchor?: { x: number; y: number; side: "left" | "right" };
+      }
+    | null
+  >(null);
 
   // Reading text-size scale (persisted). Clamp into a sane range.
   const [fontScale, setFontScale] = useState<number>(() => {
