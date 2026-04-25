@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "
 import { useAuth } from "@/contexts/AuthContext";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
-import { splitJesusSpeech } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
@@ -323,6 +323,13 @@ export default function ReaderPage() {
   const verses = passage?.verses ?? [];
   const totalPagesInChapter = Math.max(1, splits.length - 1);
 
+  // Pre-compute red-letter segmentation for the whole chapter so multi-verse
+  // quotes (an opener in v.5, closer in v.8) carry red text across verses.
+  const redSegments = useMemo<Map<number, JesusSegment[]>>(
+    () => splitJesusSpeechForChapter(book.abbr, chapter, verses),
+    [book.abbr, chapter, verses],
+  );
+
   // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
@@ -423,7 +430,8 @@ export default function ReaderPage() {
   const renderVerse = (v: PassageVerse) => {
     const hl = hlFor(v.number);
     const note = noteFor(v.number);
-    const segments = splitJesusSpeech(book.abbr, chapter, v.number, v.text);
+    const segments =
+      redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
     const body = segments.map((s, i) =>
       s.isJesus ? (
         <span key={i} className="red-letter">{s.text}</span>
