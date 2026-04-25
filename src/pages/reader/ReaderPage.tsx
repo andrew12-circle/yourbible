@@ -158,7 +158,13 @@ export default function ReaderPage() {
   const [hlMenu, setHlMenu] = useState<{ verse: number; x: number; y: number } | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
-  const [pickerBook, setPickerBook] = useState<typeof book | null>(null);
+  const [pickerBook, setPickerBook] = useState<
+    | {
+        book: typeof book;
+        anchor?: { x: number; y: number; side: "left" | "right" };
+      }
+    | null
+  >(null);
 
   // Reading text-size scale (persisted). Clamp into a sane range.
   const [fontScale, setFontScale] = useState<number>(() => {
@@ -236,18 +242,79 @@ export default function ReaderPage() {
   }, [bibleId, book.abbr, chapter]);
 
   // ---- Page measurement ----
-  const measureRef = useRef<HTMLDivElement>(null);
+  // We measure the *actual* rendered page article so pagination matches
+  // exactly what the reader sees on any screen size. The page surface
+  // registers itself via the ref callback below.
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  useEffect(() => {
-    if (!measureRef.current) return;
-    const el = measureRef.current;
-    const ro = new ResizeObserver(() => {
-      setPageBox({ w: el.clientWidth, h: el.clientHeight });
-    });
+  const articleRoRef = useRef<ResizeObserver | null>(null);
+  const articleElRef = useRef<HTMLElement | null>(null);
+  const measureArticle = (el: HTMLElement | null) => {
+    if (articleRoRef.current) {
+      articleRoRef.current.disconnect();
+      articleRoRef.current = null;
+    }
+    articleElRef.current = el;
+    if (!el) return;
+    const recompute = () => {
+      // Width: the article's own client width = real text column width.
+      const width = el.clientWidth;
+      // Height: total content area = from the inside-top of the page surface
+      // (after its top padding) down to the top of the footer. We measure
+      // parent-inside-top rather than article-top so the value doesn't change
+      // depending on whether the chapter header is rendered (first page only).
+      const parent = el.parentElement;
+      let height = 0;
+      if (parent) {
+        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
+        const parentRect = parent.getBoundingClientRect();
+        const cs = window.getComputedStyle(parent);
+        const padTop = parseFloat(cs.paddingTop) || 0;
+        const insideTop = parentRect.top + padTop;
+        const bottom = footer
+          ? footer.getBoundingClientRect().top
+          : parentRect.bottom;
+        height = Math.max(0, bottom - insideTop);
+      }
+      setPageBox(prev =>
+        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      );
+    };
+    const ro = new ResizeObserver(recompute);
     ro.observe(el);
-    setPageBox({ w: el.clientWidth, h: el.clientHeight });
-    return () => ro.disconnect();
-  }, [isMobile]);
+    if (el.parentElement) ro.observe(el.parentElement);
+    articleRoRef.current = ro;
+    recompute();
+  };
+  // Recompute on viewport changes too (orientation/resize/zoom).
+  useEffect(() => {
+    const onResize = () => {
+      const el = articleElRef.current;
+      if (!el) return;
+      const parent = el.parentElement;
+      const width = el.clientWidth;
+      let height = 0;
+      if (parent) {
+        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
+        const parentRect = parent.getBoundingClientRect();
+        const cs = window.getComputedStyle(parent);
+        const padTop = parseFloat(cs.paddingTop) || 0;
+        const insideTop = parentRect.top + padTop;
+        const bottom = footer
+          ? footer.getBoundingClientRect().top
+          : parentRect.bottom;
+        height = Math.max(0, bottom - insideTop);
+      }
+      setPageBox(prev =>
+        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      );
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
 
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
@@ -330,7 +397,10 @@ export default function ReaderPage() {
   const hlFor = (n: number) => highlights.find(x => x.verse === n);
   const reference = `${book.name} ${chapter}`;
 
-  const goBook = (b: typeof book) => setPickerBook(b);
+  const goBook = (
+    b: typeof book,
+    anchor?: { x: number; y: number; side: "left" | "right" },
+  ) => setPickerBook({ book: b, anchor });
 
   // Header for first page of chapter
   const ChapterHeader = (
@@ -421,6 +491,7 @@ export default function ReaderPage() {
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
         ) : (
           <article
+            ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
             className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS}`}
             style={{ fontSize: `${fontScale}em` }}
           >
@@ -430,7 +501,7 @@ export default function ReaderPage() {
           </article>
         )}
         {/* Page number footer with subtle prev/next chevrons */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
+        <div data-page-footer className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
           <button
             onClick={() => goPage(-1)}
             aria-label="Previous page"
@@ -490,19 +561,6 @@ export default function ReaderPage() {
         onFontScaleChange={updateFontScale}
       />
 
-      {/* Hidden measurement node — same width/height as a real page */}
-      <div
-        ref={measureRef}
-        aria-hidden
-        className="fixed pointer-events-none opacity-0"
-        style={{
-          top: 80,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      />
-
       <BookScene
         progress={progress}
         pageSide={mobileSide}
@@ -551,12 +609,14 @@ export default function ReaderPage() {
           verses={verses}
           bookAbbr={book.abbr}
           chapter={chapter}
-          pageWidth={Math.max(200, pageBox.w * (isMobile ? 0.85 : 0.42))}
-          pageHeight={Math.max(200, pageBox.h - 120)}
+          // pageBox is measured directly from the live page — width is the
+          // real text column, height is from the article's top to the footer.
+          pageWidth={Math.max(180, pageBox.w)}
+          pageHeight={Math.max(180, pageBox.h - 8)}
           className={PAGE_TYPO_CLASS}
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
-          footerHeight={40}
+          footerHeight={0}
           fontSizeStyle={{ fontSize: `${fontScale}em` }}
           onSplitsChange={setSplits}
         />
@@ -622,11 +682,12 @@ export default function ReaderPage() {
       {pickerBook && (
         <ChapterPicker
           open
-          book={pickerBook}
-          currentChapter={pickerBook.abbr === book.abbr ? chapter : undefined}
+          book={pickerBook.book}
+          anchor={pickerBook.anchor}
+          currentChapter={pickerBook.book.abbr === book.abbr ? chapter : undefined}
           onClose={() => setPickerBook(null)}
           onPick={(c) => {
-            navigate(`/read/${pickerBook.abbr}/${c}`);
+            navigate(`/read/${pickerBook.book.abbr}/${c}`);
             setPickerBook(null);
           }}
         />

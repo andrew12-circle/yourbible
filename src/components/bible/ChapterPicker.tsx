@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { BibleBook } from "@/data/books";
 import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface Props {
   open: boolean;
   book: BibleBook;
   currentChapter?: number;
+  /** Where to anchor the popover. If omitted, falls back to top-center. */
+  anchor?: { x: number; y: number; side: "left" | "right" };
   onPick: (chapter: number) => void;
   onClose: () => void;
 }
@@ -14,7 +17,53 @@ interface Props {
  * Inline chapter picker that drops onto the reading page after a book tab is
  * tapped. Looks like a folded leaflet of gold-edged chapter chips.
  */
-export function ChapterPicker({ open, book, currentChapter, onPick, onClose }: Props) {
+export function ChapterPicker({ open, book, currentChapter, anchor, onPick, onClose }: Props) {
+  // Width is responsive — narrower than 92vw so it can sit beside the tab.
+  const PANEL_W = Math.min(360, typeof window !== "undefined" ? Math.round(window.innerWidth * 0.86) : 360);
+
+  // Compute panel position relative to the anchor (tab edge).
+  // Falls back to a centered overlay if no anchor.
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  useEffect(() => {
+    if (!open) return;
+    const compute = () => {
+      if (!anchor) {
+        setPanelStyle({
+          left: "50%",
+          top: 96,
+          transform: "translateX(-50%)",
+          width: `min(92vw, 560px)`,
+        });
+        return;
+      }
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const margin = 8;
+      const gap = 12;
+      // Estimate panel height — clamps to viewport via maxHeight on the inner div.
+      const estH = Math.min(vh - 2 * margin, 440);
+      let left: number;
+      if (anchor.side === "right") {
+        // Tab is on the right edge → panel opens to the LEFT of the tab.
+        left = anchor.x - gap - PANEL_W;
+        if (left < margin) left = Math.max(margin, anchor.x - PANEL_W - gap);
+        if (left < margin) left = margin;
+      } else {
+        // Tab is on the left edge → panel opens to the RIGHT of the tab.
+        left = anchor.x + gap;
+        if (left + PANEL_W > vw - margin) left = vw - margin - PANEL_W;
+        if (left < margin) left = margin;
+      }
+      let top = anchor.y - estH / 2;
+      if (top + estH > vh - margin) top = vh - margin - estH;
+      if (top < margin) top = margin;
+      setPanelStyle({ left, top, width: PANEL_W });
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, [open, anchor, PANEL_W]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -27,11 +76,20 @@ export function ChapterPicker({ open, book, currentChapter, onPick, onClose }: P
             className="fixed inset-0 z-40 bg-leather-deep/30 backdrop-blur-[2px]"
           />
           <motion.div
-            initial={{ opacity: 0, y: -16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            initial={{
+              opacity: 0,
+              x: anchor?.side === "right" ? 14 : anchor?.side === "left" ? -14 : 0,
+              scale: 0.97,
+            }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{
+              opacity: 0,
+              x: anchor?.side === "right" ? 10 : anchor?.side === "left" ? -10 : 0,
+              scale: 0.97,
+            }}
             transition={{ type: "spring", damping: 26, stiffness: 280 }}
-            className="fixed left-1/2 -translate-x-1/2 top-24 z-50 w-[min(92vw,560px)] paper-texture rounded-xl shadow-leather border border-gold/30 overflow-hidden"
+            style={panelStyle}
+            className="fixed z-50 paper-texture rounded-xl shadow-leather border border-gold/30 overflow-hidden flex flex-col max-h-[88vh]"
           >
             <div className="flex items-center justify-between px-5 py-3 border-b border-paper-edge bg-gradient-to-b from-paper-warm to-paper">
               <div>
@@ -46,7 +104,7 @@ export function ChapterPicker({ open, book, currentChapter, onPick, onClose }: P
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto">
+            <div className="p-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-2">
                 {Array.from({ length: book.chapters }, (_, i) => i + 1).map((c) => {
                   const isCurrent = c === currentChapter;
