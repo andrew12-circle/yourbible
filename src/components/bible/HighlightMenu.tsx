@@ -25,8 +25,8 @@ export function HighlightMenu({ open, paletteId, currentColor, x, y, onPick, onC
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-50 bg-paper border border-gold/40 rounded-full shadow-leather px-3 py-2 flex items-center gap-1.5"
-            style={{ left: Math.max(8, Math.min(x - 100, window.innerWidth - 220)), top: Math.max(8, y - 56) }}
+            className="fixed z-50 bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap max-w-[min(92vw,320px)]"
+            style={{ left: Math.max(8, Math.min(x - 140, window.innerWidth - 296)), top: Math.max(8, y - 80) }}
           >
             {palette.colors.map(c => (
               <button
