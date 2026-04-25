@@ -397,7 +397,10 @@ export default function ReaderPage() {
   const hlFor = (n: number) => highlights.find(x => x.verse === n);
   const reference = `${book.name} ${chapter}`;
 
-  const goBook = (b: typeof book) => setPickerBook(b);
+  const goBook = (
+    b: typeof book,
+    anchor?: { x: number; y: number; side: "left" | "right" },
+  ) => setPickerBook({ book: b, anchor });
 
   // Header for first page of chapter
   const ChapterHeader = (
@@ -679,11 +682,12 @@ export default function ReaderPage() {
       {pickerBook && (
         <ChapterPicker
           open
-          book={pickerBook}
-          currentChapter={pickerBook.abbr === book.abbr ? chapter : undefined}
+          book={pickerBook.book}
+          anchor={pickerBook.anchor}
+          currentChapter={pickerBook.book.abbr === book.abbr ? chapter : undefined}
           onClose={() => setPickerBook(null)}
           onPick={(c) => {
-            navigate(`/read/${pickerBook.abbr}/${c}`);
+            navigate(`/read/${pickerBook.book.abbr}/${c}`);
             setPickerBook(null);
           }}
         />
