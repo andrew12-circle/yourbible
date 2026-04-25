@@ -351,8 +351,24 @@ const RED_PARTIAL: PartialMap = {
   ),
 };
 
-function classify(bookAbbr: string, chapter: number, verse: number):
-  "whole" | "partial" | "none" {
+/**
+ * Map common API.Bible / OSIS book identifiers to the keys above so callers
+ * can pass whichever abbreviation they have on hand.
+ */
+const BOOK_ALIAS: Record<string, "Mat" | "Mar" | "Luk" | "Jhn" | "Act" | "Rev"> = {
+  Mat: "Mat", Matt: "Mat", Mt: "Mat", Matthew: "Mat",
+  Mar: "Mar", Mark: "Mar", Mk: "Mar", Mrk: "Mar",
+  Luk: "Luk", Luke: "Luk", Lk: "Luk",
+  Jhn: "Jhn", John: "Jhn", Jn: "Jhn", Joh: "Jhn",
+  Act: "Act", Acts: "Act",
+  Rev: "Rev", Revelation: "Rev", Re: "Rev",
+};
+
+function classify(
+  bookAbbr: string,
+  chapter: number,
+  verse: number,
+): "whole" | "partial" | "none" {
   const key = BOOK_ALIAS[bookAbbr];
   if (!key) return "none";
   const id = `${chapter}:${verse}`;
@@ -362,53 +378,21 @@ function classify(bookAbbr: string, chapter: number, verse: number):
 }
 
 /**
- * Map common API.Bible / OSIS book identifiers to the keys above so callers
- * can pass whichever abbreviation they have on hand.
- */
-const BOOK_ALIAS: Record<string, keyof typeof RED_RANGES> = {
-  Mat: "Mat", Matt: "Mat", Mt: "Mat", Matthew: "Mat",
-  Mar: "Mar", Mark: "Mar", Mk: "Mar", Mrk: "Mar",
-  Luk: "Luk", Luke: "Luk", Lk: "Luk",
-  Jhn: "Jhn", John: "Jhn", Jn: "Jhn", Joh: "Jhn",
-  Act: "Act", Acts: "Act",
-  Rev: "Rev", Revelation: "Rev", Re: "Rev",
-};
-
-function isJesusVerse(bookAbbr: string, chapter: number, verse: number): boolean {
-  const key = BOOK_ALIAS[bookAbbr];
-  if (!key) return false;
-  const ranges = RED_RANGES[key];
-  if (!ranges) return false;
-  for (const [c, from, to] of ranges) {
-    if (c === chapter && verse >= from && verse <= to) return true;
-  }
-  return false;
-}
-
-/**
  * Quote-character pairs we treat as opening / closing.
  * Matches straight + curly double quotes and curly single quotes. Straight
- * single quote/apostrophe is intentionally excluded (too ambiguous).
+ * single quote/apostrophe is intentionally excluded (too ambiguous: it
+ * collides with possessives and contractions like "don't" / "Jesus'").
  */
 const OPENERS = new Set(["\u201C", "\u2018", '"']);
 const CLOSERS = new Set(["\u201D", "\u2019", '"']);
 
 /**
- * Split a verse into alternating Jesus / non-Jesus segments.
- * - If the verse isn't in a Jesus-speaking range, returns one non-Jesus segment.
- * - Otherwise scans for paired quotation marks and marks the inside as Jesus.
- * - Quote characters themselves are kept in the non-Jesus segment.
+ * Split a single verse's text using paired quotation marks. Used only for
+ * PARTIAL verses (those where Jesus speaks part of the verse).
+ *
+ * IMPORTANT: state is local to this verse — never carried across verses.
  */
-export function splitJesusSpeech(
-  bookAbbr: string,
-  chapter: number,
-  verseNumber: number,
-  text: string,
-): Segment[] {
-  if (!isJesusVerse(bookAbbr, chapter, verseNumber)) {
-    return [{ text, isJesus: false }];
-  }
-
+function splitByQuotes(text: string): Segment[] {
   const out: Segment[] = [];
   let buf = "";
   let inside = false;
@@ -423,55 +407,36 @@ export function splitJesusSpeech(
   for (const ch of text) {
     if (!inside && OPENERS.has(ch)) {
       flush(false);
-      buf += ch;            // keep the opening quote with non-Jesus
+      buf += ch;          // keep the opening quote with non-Jesus
       flush(false);
       inside = true;
       continue;
     }
     if (inside && CLOSERS.has(ch)) {
       flush(true);
-      buf += ch;            // keep the closing quote with non-Jesus
+      buf += ch;          // keep the closing quote with non-Jesus
       flush(false);
       inside = false;
       continue;
     }
     buf += ch;
   }
-  flush(inside);
-
-  // If no quote pairs were found, we deliberately do NOT paint the entire
-  // verse red. Many curated ranges include narrative verses adjacent to
-  // Jesus' speech (e.g. "And he said to them,") where only the quoted span
-  // is actually his words. Painting the whole verse caused false positives
-  // and a "wall of red" that's hard to read. Only quoted text turns red.
+  // Any trailing text inside an unclosed quote is NOT painted red — without
+  // a closer we can't be sure where Jesus' speech ends.
+  flush(false);
   return out;
 }
 
-/** Same as splitJesusSpeech but emits raw HTML for the headless paginator. */
-export function splitJesusSpeechHtml(
-  bookAbbr: string,
-  chapter: number,
-  verseNumber: number,
-  text: string,
-  escape: (s: string) => string,
-): string {
-  const segs = splitJesusSpeech(bookAbbr, chapter, verseNumber, text);
-  return segs
-    .map((s) =>
-      s.isJesus
-        ? `<span class="red-letter">${escape(s.text)}</span>`
-        : escape(s.text),
-    )
-    .join("");
-}
-
 /**
- * Chapter-level splitter. Walks all verses in chapter order, carrying the
- * "inside a quote" state across verse boundaries — many translations open a
- * quote in one verse and close it several verses later. Only verses that
- * are inside our curated red-letter ranges contribute red text.
+ * Chapter-level splitter. Returns segments for every verse in the chapter.
  *
- * Returns a map from verse number → segments for that verse.
+ * For each verse:
+ *   • WHOLE   → one segment, entire verse painted red
+ *   • PARTIAL → split by paired quotation marks; only quoted spans red
+ *   • none    → one segment, no red
+ *
+ * No state is carried across verses, so a stray quote in narration cannot
+ * bleed red into following verses.
  */
 export function splitJesusSpeechForChapter(
   bookAbbr: string,
@@ -479,42 +444,16 @@ export function splitJesusSpeechForChapter(
   verses: { number: number; text: string }[],
 ): Map<number, Segment[]> {
   const result = new Map<number, Segment[]>();
-  let inside = false; // carries across verses
 
   for (const v of verses) {
-    const verseIsRed = isJesusVerse(bookAbbr, chapter, v.number);
-    const segs: Segment[] = [];
-    let buf = "";
-
-    const flush = (jesus: boolean) => {
-      if (buf) {
-        segs.push({ text: buf, isJesus: jesus && verseIsRed });
-        buf = "";
-      }
-    };
-
-    for (const ch of v.text) {
-      if (!inside && OPENERS.has(ch)) {
-        flush(false);
-        buf += ch;        // keep opening quote with non-Jesus
-        flush(false);
-        inside = true;
-        continue;
-      }
-      if (inside && CLOSERS.has(ch)) {
-        flush(true);
-        buf += ch;        // keep closing quote with non-Jesus
-        flush(false);
-        inside = false;
-        continue;
-      }
-      buf += ch;
+    const kind = classify(bookAbbr, chapter, v.number);
+    if (kind === "whole") {
+      result.set(v.number, [{ text: v.text, isJesus: true }]);
+    } else if (kind === "partial") {
+      result.set(v.number, splitByQuotes(v.text));
+    } else {
+      result.set(v.number, [{ text: v.text, isJesus: false }]);
     }
-    // Flush remaining buffer with the current state (red iff still inside a
-    // quote AND this verse is in a red range).
-    flush(inside);
-
-    result.set(v.number, segs);
   }
 
   return result;
