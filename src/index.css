@@ -141,6 +141,16 @@
   }
   .font-scripture {
     font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
+    /* Printed-ink feel: deep warm near-black with the faintest bleed and a
+       hairline imprint shadow so words read as ink pressed onto paper, not
+       flat pixels. Subpixel-positioned for slight letter "weight". */
+    color: hsl(22 28% 11%);
+    text-shadow:
+      0 0 0.35px hsl(22 30% 10% / 0.55),   /* micro ink bleed */
+      0 0.25px 0 hsl(22 30% 10% / 0.30),    /* hairline imprint */
+      0 0.5px 0.4px hsl(28 22% 35% / 0.12); /* very soft press shadow */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
 }
 
