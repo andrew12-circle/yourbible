@@ -84,12 +84,8 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         const tint = SECTION_TINT[b.section];
         const tintDeep = SECTION_TINT_DEEP[b.section];
         const stagger = STAGGER[i % STAGGER.length];
-        const tabWidth = 26;
+        const tabWidth = 22;
         const tabHeight = 138;
-        // How far the tab overlaps INWARD onto the page edge. This is what
-        // makes the tab look physically clipped onto the page (vs. floating
-        // in the gutter). The rest of the tab juts outward into the leather.
-        const overlap = 7;
 
         return (
           <button
@@ -104,18 +100,14 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
             aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
             className="relative pointer-events-auto group transition-transform duration-200 hover:scale-[1.06]"
             style={{
-              // The wrapper's anchor sits AT the page-block edge. Position
-              // the tab so a few px overlap inward onto the page (the
-              // "clip") and the rest extends outward into the leather
-              // gutter. Stagger varies how far each tab juts outward.
-              [isLeft ? "right" : "left"]: -(overlap),
-              [isLeft ? "left" : "right"]: "auto",
-              transform: isLeft
-                ? `translateX(${-stagger}px)`
-                : `translateX(${stagger}px)`,
+              // Tabs sit ENTIRELY on the page surface, hooked just inside
+              // the outer page edge. Stagger pushes each tab slightly
+              // further in so the strip doesn't read as a perfect ladder.
+              [isLeft ? "left" : "right"]: stagger,
+              [isLeft ? "right" : "left"]: "auto",
               width: tabWidth,
               height: tabHeight,
-              alignSelf: isLeft ? "flex-end" : "flex-start",
+              alignSelf: isLeft ? "flex-start" : "flex-end",
             }}
           >
             {/* Tab body — wraps around the page edge. The inner ~7px sits
@@ -126,43 +118,16 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
               className="absolute inset-0 block"
               style={{
                 backgroundImage: `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
-                // Round only the outer (visible) edge.
-                borderTopLeftRadius: isLeft ? 6 : 0,
-                borderBottomLeftRadius: isLeft ? 6 : 0,
-                borderTopRightRadius: isLeft ? 0 : 6,
-                borderBottomRightRadius: isLeft ? 0 : 6,
+                // Round only the inner edge (the side facing the text).
+                // The outer side is flush with the page edge.
+                borderTopLeftRadius: isLeft ? 0 : 5,
+                borderBottomLeftRadius: isLeft ? 0 : 5,
+                borderTopRightRadius: isLeft ? 5 : 0,
+                borderBottomRightRadius: isLeft ? 5 : 0,
                 border: "1px solid hsl(28 22% 38% / 0.75)",
-                // No border on the inner edge so the tab visually
-                // continues onto the page surface.
-                [isLeft ? "borderRight" : "borderLeft"]: "none",
-                // Shadow falls AWAY from the page (downward + outward),
-                // and a soft inner shadow on the inner edge sells the
-                // "clipped onto" effect.
                 boxShadow:
                   `inset 0 1px 0 hsl(0 0% 100% / 0.55),` +
-                  ` ${isLeft ? "-2px" : "2px"} 3px 6px hsl(0 0% 0% / 0.38),` +
-                  ` inset ${isLeft ? "2px" : "-2px"} 0 3px hsl(0 0% 0% / 0.18)`,
-              }}
-            />
-            {/* Subtle shadow cast by the tab onto the PAGE itself, just
-                inward of the inner edge — sells the "physical clip". */}
-            <span
-              aria-hidden
-              className="absolute top-1 bottom-1 pointer-events-none"
-              style={{
-                [isLeft ? "right" : "left"]: -overlap - 4,
-                width: 4,
-                background: `linear-gradient(${isLeft ? "270deg" : "90deg"}, hsl(0 0% 0% / 0.18), transparent)`,
-              }}
-            />
-            {/* Outer-edge highlight line */}
-            <span
-              className="absolute top-1.5 bottom-1.5"
-              style={{
-                [isLeft ? "left" : "right"]: 1,
-                width: 1,
-                background:
-                  "linear-gradient(180deg, transparent, hsl(0 0% 100% / 0.5), transparent)",
+                  ` ${isLeft ? "2px" : "-2px"} 2px 4px hsl(0 0% 0% / 0.32)`,
               }}
             />
             {/* Vertical full book name — black ink, larger, clearly legible */}
