@@ -505,7 +505,7 @@ export function BookScene({
               {renderTabs && (!isMobile || pageSide === "left") && (
                 <div
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
-                  style={{ left: 10 }}
+                  style={{ left: 10 + leftStack }}
                 >
                   {renderTabs("left")}
                 </div>
@@ -513,7 +513,7 @@ export function BookScene({
               {renderTabs && (!isMobile || pageSide === "right") && (
                 <div
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
-                  style={{ right: 10 }}
+                  style={{ right: 10 + rightStack }}
                 >
                   {renderTabs("right")}
                 </div>
