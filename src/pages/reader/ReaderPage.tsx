@@ -257,7 +257,7 @@ export default function ReaderPage() {
     if (!el) return;
     const recompute = () => {
       // Width: the article's own client width = real text column width.
-      const width = el.clientWidth;
+      const width = Math.round(el.clientWidth);
       // Height: total content area = from the inside-top of the page surface
       // (after its top padding) down to the top of the footer. We measure
       // parent-inside-top rather than article-top so the value doesn't change
@@ -273,7 +273,7 @@ export default function ReaderPage() {
         const bottom = footer
           ? footer.getBoundingClientRect().top
           : parentRect.bottom;
-        height = Math.max(0, bottom - insideTop);
+        height = Math.max(0, Math.round(bottom - insideTop));
       }
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
@@ -291,7 +291,7 @@ export default function ReaderPage() {
       const el = articleElRef.current;
       if (!el) return;
       const parent = el.parentElement;
-      const width = el.clientWidth;
+      const width = Math.round(el.clientWidth);
       let height = 0;
       if (parent) {
         const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
@@ -302,7 +302,7 @@ export default function ReaderPage() {
         const bottom = footer
           ? footer.getBoundingClientRect().top
           : parentRect.bottom;
-        height = Math.max(0, bottom - insideTop);
+        height = Math.max(0, Math.round(bottom - insideTop));
       }
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
