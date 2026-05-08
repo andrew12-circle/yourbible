@@ -39,8 +39,8 @@ const SECTION_TINT_DEEP: Record<BibleBook["section"], string> = {
  * depths along the page block.
  */
 const VISIBLE = 5;
-/** Horizontal stagger (px outward from the page) — never a perfect ladder */
-const STAGGER = [0, 6, 3, 9, 2];
+/** Per-tab extra outward stick-out (px) — never a perfect ladder */
+const STAGGER = [0, 5, 2, 7, 3];
 
 export function BookTabs({ current, onSelect, side = "right" }: Props) {
   const isLeft = side === "left";
@@ -76,7 +76,10 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
       className="absolute inset-y-0 pointer-events-none flex flex-col justify-around py-6"
       aria-label={`Book navigation — ${isLeft ? "previous" : "next"} books`}
       style={{
-        [isLeft ? "right" : "left"]: 0,
+        // The wrapper in BookScene anchors us at the inner edge of the
+        // page surface (just inside the gilt). Tabs extend OUTWARD from
+        // here, over the gilt and slightly past it.
+        [isLeft ? "left" : "right"]: 0,
         width: 0,
       }}
     >
@@ -84,7 +87,8 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         const tint = SECTION_TINT[b.section];
         const tintDeep = SECTION_TINT_DEEP[b.section];
         const stagger = STAGGER[i % STAGGER.length];
-        const tabWidth = 22;
+        const baseWidth = 28;
+        const tabWidth = baseWidth + stagger;
         const tabHeight = 138;
 
         return (
@@ -100,34 +104,38 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
             aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
             className="relative pointer-events-auto group transition-transform duration-200 hover:scale-[1.06]"
             style={{
-              // Tabs sit ENTIRELY on the page surface, hooked just inside
-              // the outer page edge. Stagger pushes each tab slightly
-              // further in so the strip doesn't read as a perfect ladder.
-              [isLeft ? "left" : "right"]: stagger,
-              [isLeft ? "right" : "left"]: "auto",
+              // Anchor the tab's INNER edge at the page surface (the
+              // wrapper sits there). The tab body extends OUTWARD over
+              // the gilt edge, sticking past it like a real thumb-index
+              // tab hooked onto the page block.
+              [isLeft ? "right" : "left"]: 0,
+              [isLeft ? "left" : "right"]: "auto",
               width: tabWidth,
               height: tabHeight,
               alignSelf: isLeft ? "flex-start" : "flex-end",
             }}
           >
-            {/* Tab body — wraps around the page edge. The inner ~7px sits
-                ON the page (squared corner, no border on the inner edge,
-                cast shadow onto the page so it reads as a physical clip)
-                and the outer portion juts into the gutter (rounded). */}
+            {/* Tab body — outer (visible) edge is rounded, inner (hook)
+                edge is squared and tucked under the page so the tab reads
+                as physically attached to the page block. */}
             <span
               className="absolute inset-0 block"
               style={{
                 backgroundImage: `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
-                // Round only the inner edge (the side facing the text).
-                // The outer side is flush with the page edge.
-                borderTopLeftRadius: isLeft ? 0 : 5,
-                borderBottomLeftRadius: isLeft ? 0 : 5,
-                borderTopRightRadius: isLeft ? 5 : 0,
-                borderBottomRightRadius: isLeft ? 5 : 0,
+                // Round only the OUTER edge (the visible thumb-grip side
+                // that sticks out past the gilt). The inner edge is flush
+                // and squared where it meets / tucks under the page.
+                borderTopLeftRadius: isLeft ? 5 : 0,
+                borderBottomLeftRadius: isLeft ? 5 : 0,
+                borderTopRightRadius: isLeft ? 0 : 5,
+                borderBottomRightRadius: isLeft ? 0 : 5,
                 border: "1px solid hsl(28 22% 38% / 0.75)",
+                // Hide the inner border (the side tucking under the page)
+                // so the tab reads as continuous with the page beneath.
+                [isLeft ? "borderRight" : "borderLeft"]: "none",
                 boxShadow:
                   `inset 0 1px 0 hsl(0 0% 100% / 0.55),` +
-                  ` ${isLeft ? "2px" : "-2px"} 2px 4px hsl(0 0% 0% / 0.32)`,
+                  ` ${isLeft ? "-2px" : "2px"} 2px 4px hsl(0 0% 0% / 0.35)`,
               }}
             />
             {/* Vertical full book name — black ink, larger, clearly legible */}
