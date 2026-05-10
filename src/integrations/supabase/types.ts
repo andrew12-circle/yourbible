@@ -47,6 +47,300 @@ export type Database = {
         }
         Relationships: []
       }
+      artifact_claims: {
+        Row: {
+          artifact_id: string
+          bias_flags: string[]
+          claim: string
+          created_at: string
+          doctrine_tags: string[]
+          id: string
+          match_relation: string | null
+          matched_belief_id: string | null
+          scripture_challenges: Json
+          scripture_supports: Json
+          tone: string | null
+          user_id: string
+          user_note: string | null
+          verdict: string | null
+        }
+        Insert: {
+          artifact_id: string
+          bias_flags?: string[]
+          claim: string
+          created_at?: string
+          doctrine_tags?: string[]
+          id?: string
+          match_relation?: string | null
+          matched_belief_id?: string | null
+          scripture_challenges?: Json
+          scripture_supports?: Json
+          tone?: string | null
+          user_id: string
+          user_note?: string | null
+          verdict?: string | null
+        }
+        Update: {
+          artifact_id?: string
+          bias_flags?: string[]
+          claim?: string
+          created_at?: string
+          doctrine_tags?: string[]
+          id?: string
+          match_relation?: string | null
+          matched_belief_id?: string | null
+          scripture_challenges?: Json
+          scripture_supports?: Json
+          tone?: string | null
+          user_id?: string
+          user_note?: string | null
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_claims_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_claims_matched_belief_id_fkey"
+            columns: ["matched_belief_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifacts: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          raw_text: string
+          status: string
+          title: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          raw_text: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          raw_text?: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      belief_links: {
+        Row: {
+          a_id: string
+          b_id: string
+          created_at: string
+          id: string
+          relation: string
+          user_id: string
+        }
+        Insert: {
+          a_id: string
+          b_id: string
+          created_at?: string
+          id?: string
+          relation?: string
+          user_id: string
+        }
+        Update: {
+          a_id?: string
+          b_id?: string
+          created_at?: string
+          id?: string
+          relation?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "belief_links_a_id_fkey"
+            columns: ["a_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "belief_links_b_id_fkey"
+            columns: ["b_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      belief_nodes: {
+        Row: {
+          answer: string | null
+          confidence: number
+          created_at: string
+          id: string
+          layer: string
+          notes: string | null
+          statement: string
+          tags: string[]
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          layer: string
+          notes?: string | null
+          statement: string
+          tags?: string[]
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          layer?: string
+          notes?: string | null
+          statement?: string
+          tags?: string[]
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      belief_scriptures: {
+        Row: {
+          belief_id: string
+          created_at: string
+          id: string
+          ref: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          belief_id: string
+          created_at?: string
+          id?: string
+          ref: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          belief_id?: string
+          created_at?: string
+          id?: string
+          ref?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "belief_scriptures_belief_id_fkey"
+            columns: ["belief_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      belief_sources: {
+        Row: {
+          artifact_id: string | null
+          belief_id: string
+          created_at: string
+          id: string
+          label: string
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          belief_id: string
+          created_at?: string
+          id?: string
+          label: string
+          source_type: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string | null
+          belief_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "belief_sources_belief_id_fkey"
+            columns: ["belief_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      belief_versions: {
+        Row: {
+          belief_id: string
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          belief_id: string
+          created_at?: string
+          id?: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          belief_id?: string
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "belief_versions_belief_id_fkey"
+            columns: ["belief_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookmarks: {
         Row: {
           book: string
