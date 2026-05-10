@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, Search, X, Minus, Plus } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, Search, X, Minus, Plus, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -368,6 +368,11 @@ export function TopBar({
               <Link to="/sleep">
                 <Button variant="ghost" size="icon" title="Sleep mode" className="text-leather/80 hover:text-leather">
                   <Moon className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Link to="/framework">
+                <Button variant="ghost" size="icon" title="My Framework" className="text-leather/80 hover:text-leather">
+                  <Network className="w-4 h-4" />
                 </Button>
               </Link>
               <Link to="/settings">
