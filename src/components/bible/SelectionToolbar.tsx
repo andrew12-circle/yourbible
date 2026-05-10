@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
-import { Trash2, NotebookPen, PenLine } from "lucide-react";
+import { Trash2, NotebookPen, PenLine, Network } from "lucide-react";
 
 export type ToolbarSelection = {
   /** Bounding rect of the current text selection in viewport coords. */
@@ -21,6 +21,7 @@ interface Props {
   onPickUnderline: () => void;
   onClear: () => void;
   onNote: () => void;
+  onTestFramework?: () => void;
   onClose: () => void;
 }
 
@@ -34,6 +35,7 @@ export function SelectionToolbar({
   onPickUnderline,
   onClear,
   onNote,
+  onTestFramework,
   onClose,
 }: Props) {
   const palette = getPalette(paletteId);
@@ -105,6 +107,15 @@ export function SelectionToolbar({
           >
             <NotebookPen className="w-4 h-4" />
           </button>
+          {onTestFramework && (
+            <button
+              onClick={onTestFramework}
+              title="Test against my framework"
+              className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
+            >
+              <Network className="w-4 h-4" />
+            </button>
+          )}
           {(currentColor || currentlyUnderlined) && (
             <button
               onClick={onClear}

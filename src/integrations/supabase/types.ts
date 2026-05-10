@@ -425,6 +425,42 @@ export type Database = {
         }
         Relationships: []
       }
+      framework_digests: {
+        Row: {
+          created_at: string
+          id: string
+          range_end: string
+          range_start: string
+          sections: Json
+          stats: Json
+          summary: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          range_end: string
+          range_start: string
+          sections?: Json
+          stats?: Json
+          summary: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          range_end?: string
+          range_start?: string
+          sections?: Json
+          stats?: Json
+          summary?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       highlights: {
         Row: {
           book: string
