@@ -30,7 +30,7 @@ export default function DigestPage() {
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    setDigests((data as Digest[]) ?? []);
+    setDigests(((data as unknown) as Digest[]) ?? []);
   };
 
   useEffect(() => {
