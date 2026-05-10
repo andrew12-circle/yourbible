@@ -11,6 +11,13 @@ import OnboardingPage from "./pages/onboarding/OnboardingPage";
 import ReaderPage from "./pages/reader/ReaderPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import SleepPage from "./pages/sleep/SleepPage";
+import FrameworkDashboard from "./pages/framework/FrameworkDashboard";
+import InterviewPage from "./pages/framework/InterviewPage";
+import BeliefsListPage from "./pages/framework/BeliefsListPage";
+import BeliefDetailPage from "./pages/framework/BeliefDetailPage";
+import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
+import NewArtifactPage from "./pages/framework/NewArtifactPage";
+import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +35,13 @@ const App = () => (
             <Route path="/read/:book/:chapter" element={<ReaderPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sleep" element={<SleepPage />} />
+            <Route path="/framework" element={<FrameworkDashboard />} />
+            <Route path="/framework/interview/:layer" element={<InterviewPage />} />
+            <Route path="/framework/beliefs" element={<BeliefsListPage />} />
+            <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
+            <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
+            <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
+            <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
