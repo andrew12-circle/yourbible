@@ -7,10 +7,12 @@ import {
 
 const LAST_READ_KEY = "yb_last_read"; // "Jhn/1"
 
+type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
 type AppIcon = {
   label: string;
   to: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   /** Tailwind gradient classes for the icon tile */
   gradient: string;
   badge?: string;
@@ -138,7 +140,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
 function DockIcon({
   icon: Icon, gradient, onClick, label,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   gradient: string;
   onClick: () => void;
   label: string;
