@@ -309,6 +309,51 @@ export type Database = {
           },
         ]
       }
+      belief_tensions: {
+        Row: {
+          a_id: string
+          b_id: string
+          created_at: string
+          explanation: string | null
+          id: string
+          layer: string | null
+          severity: number
+          status: string
+          suggested_resolution: string | null
+          summary: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          a_id: string
+          b_id: string
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          layer?: string | null
+          severity?: number
+          status?: string
+          suggested_resolution?: string | null
+          summary: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          a_id?: string
+          b_id?: string
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          layer?: string | null
+          severity?: number
+          status?: string
+          suggested_resolution?: string | null
+          summary?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       belief_versions: {
         Row: {
           belief_id: string
