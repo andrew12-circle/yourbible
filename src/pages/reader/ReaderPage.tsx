@@ -180,6 +180,11 @@ export default function ReaderPage() {
 
   const isMobile = useIsMobile();
 
+  // Persist last-read position so the home screen can offer "continue".
+  useEffect(() => {
+    try { localStorage.setItem("yb_last_read", `${book.abbr}/${chapter}`); } catch { /* ignore */ }
+  }, [book.abbr, chapter]);
+
   // Total chapters across the canon → progress through the Bible
   const { progress, chaptersBefore, totalChapters } = useMemo(() => {
     const total = BOOKS.reduce((s, b) => s + b.chapters, 0);
