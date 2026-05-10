@@ -22,6 +22,7 @@ interface Belief {
 }
 interface Scripture { id: string; ref: string; role: string }
 interface Source { id: string; source_type: string; label: string }
+interface VersionRow { id: string; created_at: string; snapshot: any }
 
 export default function BeliefDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,7 @@ export default function BeliefDetailPage() {
   const [b, setB] = useState<Belief | null>(null);
   const [scriptures, setScriptures] = useState<Scripture[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
+  const [versions, setVersions] = useState<VersionRow[]>([]);
   const [newScripture, setNewScripture] = useState("");
   const [newSource, setNewSource] = useState("");
   const [newSourceType, setNewSourceType] = useState("mentor");
@@ -44,12 +46,18 @@ export default function BeliefDetailPage() {
         .eq("id", id)
         .maybeSingle();
       setB(data as Belief | null);
-      const [{ data: s }, { data: src }] = await Promise.all([
+      const [{ data: s }, { data: src }, { data: vs }] = await Promise.all([
         supabase.from("belief_scriptures").select("id,ref,role").eq("belief_id", id),
         supabase.from("belief_sources").select("id,source_type,label").eq("belief_id", id),
+        supabase
+          .from("belief_versions")
+          .select("id,created_at,snapshot")
+          .eq("belief_id", id)
+          .order("created_at", { ascending: true }),
       ]);
       setScriptures((s as Scripture[]) ?? []);
       setSources((src as Source[]) ?? []);
+      setVersions((vs as VersionRow[]) ?? []);
     })();
   }, [user, id]);
 
@@ -164,6 +172,22 @@ export default function BeliefDetailPage() {
         </div>
       </div>
 
+      {versions.length > 1 && (
+        <section className="mb-6 rounded-lg border border-border bg-card p-4">
+          <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
+            Confidence over time
+          </h3>
+          <ConfidenceSparkline
+            points={versions.map((v) => ({
+              t: new Date(v.created_at).getTime(),
+              c: Math.max(0, Math.min(100, Number(v.snapshot?.confidence ?? 0))),
+            }))}
+            current={b.confidence}
+            tone={meta.tone}
+          />
+        </section>
+      )}
+
       <section className="mb-6">
         <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">Scriptures</h3>
         <ul className="space-y-1.5 mb-3">
@@ -226,5 +250,41 @@ export default function BeliefDetailPage() {
         </div>
       </section>
     </FrameworkLayout>
+  );
+}
+
+function ConfidenceSparkline({
+  points,
+  current,
+  tone,
+}: {
+  points: { t: number; c: number }[];
+  current: number;
+  tone: string;
+}) {
+  const all = [...points, { t: Date.now(), c: current }];
+  const w = 600, h = 80, pad = 4;
+  const minT = all[0].t, maxT = all[all.length - 1].t;
+  const xRange = Math.max(1, maxT - minT);
+  const x = (t: number) => pad + ((t - minT) / xRange) * (w - pad * 2);
+  const y = (c: number) => pad + (1 - c / 100) * (h - pad * 2);
+  const d = all
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.t).toFixed(1)} ${y(p.c).toFixed(1)}`)
+    .join(" ");
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20" preserveAspectRatio="none">
+        <line x1={pad} x2={w - pad} y1={y(50)} y2={y(50)} stroke="hsl(var(--border))" strokeDasharray="2 4" />
+        <path d={d} fill="none" stroke={tone} strokeWidth={2} />
+        {all.map((p, i) => (
+          <circle key={i} cx={x(p.t)} cy={y(p.c)} r={2.5} fill={tone} />
+        ))}
+      </svg>
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-1 tabular-nums">
+        <span>{new Date(all[0].t).toLocaleDateString()}</span>
+        <span>{all.length} snapshots</span>
+        <span>now {current}%</span>
+      </div>
+    </div>
   );
 }
