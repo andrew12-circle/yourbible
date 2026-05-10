@@ -22,6 +22,9 @@ import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
 import TensionsPage from "./pages/framework/TensionsPage";
 import InfluencesPage from "./pages/framework/InfluencesPage";
 import DigestPage from "./pages/framework/DigestPage";
+import ChatPage from "./pages/framework/ChatPage";
+import StudyPage from "./pages/framework/StudyPage";
+import DailyPage from "./pages/framework/DailyPage";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +50,9 @@ const App = () => (
             <Route path="/framework/tensions" element={<TensionsPage />} />
             <Route path="/framework/influences" element={<InfluencesPage />} />
             <Route path="/framework/digest" element={<DigestPage />} />
+            <Route path="/framework/chat" element={<ChatPage />} />
+            <Route path="/framework/study" element={<StudyPage />} />
+            <Route path="/framework/daily" element={<DailyPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
             <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
