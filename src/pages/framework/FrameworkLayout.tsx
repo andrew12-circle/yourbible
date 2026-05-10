@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack } from "lucide-react";
+import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 const NAV = [
   { to: "/framework", label: "Overview", icon: Sparkles },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },
+  { to: "/framework/graph", label: "Graph", icon: Share2 },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
 ];
 
