@@ -794,6 +794,20 @@ export default function ReaderPage() {
         onPickUnderline={applyUnderlineToSelection}
         onClear={clearMarksOnSelection}
         onNote={noteOnSelection}
+        onTestFramework={() => {
+          if (!tbSel) return;
+          const text = verses
+            .filter((v) => tbSel.verses.includes(v.verse))
+            .map((v) => `${v.verse} ${v.text}`)
+            .join(" ");
+          const refRange =
+            tbSel.verses.length > 1
+              ? `${book.name} ${chapter}:${tbSel.verses[0]}-${tbSel.verses[tbSel.verses.length - 1]}`
+              : `${book.name} ${chapter}:${tbSel.verses[0]}`;
+          navigate(
+            `/framework/artifacts/new?ref=${encodeURIComponent(refRange)}&verse=${encodeURIComponent(text)}`,
+          );
+        }}
         onClose={() => clearWindowSelection()}
       />
 
