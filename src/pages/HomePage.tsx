@@ -3,11 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut,
+  type LucideIcon,
 } from "lucide-react";
 
 const LAST_READ_KEY = "yb_last_read"; // "Jhn/1"
-
-type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
 type AppIcon = {
   label: string;
