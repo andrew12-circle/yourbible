@@ -43,7 +43,7 @@ export default function ArtifactDetailPage() {
       supabase.from("artifact_claims").select("*").eq("artifact_id", id).order("created_at"),
     ]);
     setA(art as Artifact | null);
-    setClaims((cl as Claim[]) ?? []);
+    setClaims(((cl as unknown) as Claim[]) ?? []);
   };
 
   useEffect(() => {
