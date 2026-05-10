@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Mic, Square, Upload, Youtube, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -8,19 +9,36 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
+type Mode = "text" | "youtube" | "voice";
+
 export default function NewArtifactPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<Mode>("text");
   const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<"text" | "youtube" | "podcast" | "journal">("text");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const seedVerse = params.get("verse");
+    const seedRef = params.get("ref");
+    if (seedVerse) {
+      setMode("text");
+      setTitle(seedRef ? `Reflection on ${seedRef}` : "Verse reflection");
+      setText(`Scripture under examination: ${seedRef ?? ""}\n"${seedVerse}"\n\nMy thoughts:\n`);
+    }
+  }, [params]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const submit = async () => {
+  const submitText = async () => {
     if (!text.trim()) {
       toast({ title: "Paste the transcript or text first", variant: "destructive" });
       return;
@@ -31,7 +49,7 @@ export default function NewArtifactPage() {
       .insert({
         user_id: user.id,
         title: title.trim() || null,
-        kind,
+        kind: "text",
         url: url.trim() || null,
         raw_text: text.trim(),
         status: "analyzing",
@@ -43,51 +61,195 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message ?? "Unknown error", variant: "destructive" });
       return;
     }
-    // Kick off analysis (fire and forget — function updates rows itself).
     supabase.functions.invoke("framework-analyze", { body: { artifact_id: data.id } }).catch((e) => {
       console.error(e);
     });
     navigate(`/framework/artifacts/${data.id}`);
   };
 
+  const submitYoutube = async () => {
+    if (!url.trim()) {
+      toast({ title: "Paste a YouTube URL", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.from("artifacts").insert({
+      user_id: user.id,
+      title: title.trim() || null,
+      kind: "youtube",
+      url: url.trim(),
+      raw_text: "",
+      status: "fetching",
+    }).select("id").maybeSingle();
+    if (error || !data) {
+      setBusy(false);
+      toast({ title: "Failed", description: error?.message, variant: "destructive" });
+      return;
+    }
+    supabase.functions.invoke("framework-fetch-transcript", {
+      body: { artifact_id: data.id, url: url.trim() },
+    }).catch((e) => console.error(e));
+    navigate(`/framework/artifacts/${data.id}`);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        const file = new File([blob], `memo-${Date.now()}.webm`, { type: blob.type });
+        setAudioFile(file);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      rec.start();
+      recorderRef.current = rec;
+      setRecording(true);
+    } catch (e) {
+      toast({ title: "Mic access denied", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    setRecording(false);
+  };
+
+  const submitVoice = async () => {
+    if (!audioFile) {
+      toast({ title: "Record or upload audio first", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.from("artifacts").insert({
+      user_id: user.id,
+      title: title.trim() || `Voice memo ${new Date().toLocaleDateString()}`,
+      kind: "voice",
+      raw_text: "",
+      status: "transcribing",
+    }).select("id").maybeSingle();
+    if (error || !data) {
+      setBusy(false);
+      toast({ title: "Failed", description: error?.message, variant: "destructive" });
+      return;
+    }
+    const ext = (audioFile.name.split(".").pop() ?? "webm").toLowerCase();
+    const path = `${user.id}/${data.id}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("voice-memos").upload(path, audioFile, {
+      upsert: true, contentType: audioFile.type || "audio/webm",
+    });
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Upload failed", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    supabase.functions.invoke("framework-transcribe-audio", {
+      body: { artifact_id: data.id, storage_path: path },
+    }).catch((e) => console.error(e));
+    navigate(`/framework/artifacts/${data.id}`);
+  };
+
+  const tabs: { id: Mode; label: string; icon: any }[] = [
+    { id: "text", label: "Text", icon: FileText },
+    { id: "youtube", label: "YouTube", icon: Youtube },
+    { id: "voice", label: "Voice", icon: Mic },
+  ];
+
   return (
     <FrameworkLayout title="New artifact" back="/framework/artifacts">
-      <p className="text-sm text-muted-foreground mb-5 max-w-prose">
-        Paste the text of a sermon, podcast transcript, song lyrics, or your
-        own journal entry. The AI will pull out the core claims and compare
-        them against your framework.
-      </p>
+      <div className="inline-flex rounded-lg border border-border overflow-hidden mb-5">
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setMode(t.id)}
+              className={`px-3 py-2 text-sm inline-flex items-center gap-1.5 ${
+                mode === t.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
       <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Title</label>
-      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tim Keller — Suffering podcast" className="mb-4" />
+      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional title" className="mb-4" />
 
-      <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Kind</label>
-      <select
-        value={kind}
-        onChange={(e) => setKind(e.target.value as typeof kind)}
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm mb-4"
-      >
-        <option value="text">Text / transcript</option>
-        <option value="youtube">YouTube</option>
-        <option value="podcast">Podcast</option>
-        <option value="journal">My journal entry</option>
-      </select>
+      {mode === "text" && (
+        <>
+          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Source URL (optional)</label>
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="mb-4" />
+          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Content</label>
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={14}
+            placeholder="Paste a sermon, podcast transcript, lyrics, or journal entry…"
+            className="mb-5 font-serif"
+          />
+          <Button onClick={submitText} disabled={busy}>{busy ? "Submitting…" : "Analyze"}</Button>
+        </>
+      )}
 
-      <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Source URL (optional)</label>
-      <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="mb-4" />
+      {mode === "youtube" && (
+        <>
+          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">YouTube URL</label>
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="mb-3" />
+          <p className="text-xs text-muted-foreground mb-5">
+            Pulls the auto-generated captions and runs them through the analyzer. If captions aren't available you'll be asked to paste the transcript.
+          </p>
+          <Button onClick={submitYoutube} disabled={busy}>{busy ? "Fetching…" : "Fetch & analyze"}</Button>
+        </>
+      )}
 
-      <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Content</label>
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={14}
-        placeholder="Paste the transcript, sermon notes, lyrics, or journal entry here…"
-        className="mb-5 font-serif"
-      />
-
-      <Button onClick={submit} disabled={busy}>
-        {busy ? "Submitting…" : "Analyze"}
-      </Button>
+      {mode === "voice" && (
+        <>
+          <div className="rounded-lg border border-border bg-card p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              {!recording ? (
+                <Button onClick={startRecording} variant="outline" size="sm">
+                  <Mic className="w-4 h-4 mr-1" /> Record
+                </Button>
+              ) : (
+                <Button onClick={stopRecording} variant="destructive" size="sm">
+                  <Square className="w-4 h-4 mr-1" /> Stop
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground">or</span>
+              <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer text-muted-foreground hover:text-foreground">
+                <Upload className="w-4 h-4" />
+                Upload audio
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </div>
+            {audioFile && (
+              <div className="text-xs text-muted-foreground">
+                Ready: <span className="text-foreground">{audioFile.name}</span> ({Math.round(audioFile.size / 1024)} KB)
+              </div>
+            )}
+            {recording && (
+              <div className="text-xs text-destructive flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" /> Recording…
+              </div>
+            )}
+          </div>
+          <Button onClick={submitVoice} disabled={busy || !audioFile}>
+            {busy ? "Uploading…" : "Transcribe & analyze"}
+          </Button>
+        </>
+      )}
     </FrameworkLayout>
   );
 }
