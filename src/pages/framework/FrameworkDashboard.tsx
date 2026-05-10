@@ -1,0 +1,150 @@
+import { useEffect, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { ChevronRight, Plus, FileStack } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ALL_LAYERS, FRAMEWORK_QUESTIONS, LAYER_META } from "@/data/framework";
+import FrameworkLayout from "./FrameworkLayout";
+import { Button } from "@/components/ui/button";
+
+interface BeliefRow {
+  id: string;
+  layer: string;
+  topic: string;
+}
+
+export default function FrameworkDashboard() {
+  const { user, loading } = useAuth();
+  const [beliefs, setBeliefs] = useState<BeliefRow[]>([]);
+  const [recentArtifacts, setRecentArtifacts] = useState<
+    { id: string; title: string | null; created_at: string; status: string }[]
+  >([]);
+  const [busy, setBusy] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const [{ data: b }, { data: a }] = await Promise.all([
+        supabase.from("belief_nodes").select("id,layer,topic").eq("user_id", user.id),
+        supabase
+          .from("artifacts")
+          .select("id,title,created_at,status")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
+      setBeliefs((b as BeliefRow[]) ?? []);
+      setRecentArtifacts((a as typeof recentArtifacts) ?? []);
+      setBusy(false);
+    })();
+  }, [user]);
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+
+  const totalBeliefs = beliefs.length;
+
+  return (
+    <FrameworkLayout title="My Framework">
+      <section className="mb-8">
+        <p className="text-sm text-muted-foreground max-w-prose mb-4">
+          A living map of what you actually believe — examined, sourced, and
+          tested against scripture. Start with the interview, then run sermons,
+          podcasts, and journal entries through the analyzer.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/framework/artifacts/new">
+              <Plus className="w-4 h-4 mr-1" /> Add an artifact
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/framework/beliefs">
+              All beliefs ({totalBeliefs})
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
+          Belief Interview
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {ALL_LAYERS.map((layer) => {
+            const meta = LAYER_META[layer];
+            const total = FRAMEWORK_QUESTIONS[layer].length;
+            const answered = beliefs.filter((b) => b.layer === layer).length;
+            const pct = total ? Math.round((answered / total) * 100) : 0;
+            return (
+              <Link
+                key={layer}
+                to={`/framework/interview/${layer}`}
+                className="group block rounded-lg border border-border bg-card p-4 hover:border-foreground/30 transition"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <div
+                      className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+                      style={{ color: meta.tone }}
+                    >
+                      Layer
+                    </div>
+                    <div className="font-display text-lg leading-tight">{meta.title}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition" />
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">{meta.subtitle}</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full"
+                      style={{ width: `${pct}%`, background: meta.tone }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {answered}/{total}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Recent Artifacts
+          </h2>
+          <Link to="/framework/artifacts" className="text-xs text-muted-foreground hover:text-foreground">
+            View all
+          </Link>
+        </div>
+        {busy ? null : recentArtifacts.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            <FileStack className="w-5 h-5 mx-auto mb-2 opacity-60" />
+            Paste a sermon, podcast transcript, or your own journal entry and
+            see how it lines up with what you believe.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+            {recentArtifacts.map((a) => (
+              <li key={a.id}>
+                <Link
+                  to={`/framework/artifacts/${a.id}`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-muted text-sm"
+                >
+                  <span className="truncate">{a.title || "Untitled"}</span>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                    {a.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </FrameworkLayout>
+  );
+}
