@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ChevronRight, Plus, FileStack } from "lucide-react";
+import { ChevronRight, Plus, FileStack, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ALL_LAYERS, FRAMEWORK_QUESTIONS, LAYER_META } from "@/data/framework";
@@ -19,12 +19,13 @@ export default function FrameworkDashboard() {
   const [recentArtifacts, setRecentArtifacts] = useState<
     { id: string; title: string | null; created_at: string; status: string }[]
   >([]);
+  const [openTensions, setOpenTensions] = useState(0);
   const [busy, setBusy] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: b }, { data: a }] = await Promise.all([
+      const [{ data: b }, { data: a }, { count: tCount }] = await Promise.all([
         supabase.from("belief_nodes").select("id,layer,topic").eq("user_id", user.id),
         supabase
           .from("artifacts")
@@ -32,9 +33,15 @@ export default function FrameworkDashboard() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(5),
+        supabase
+          .from("belief_tensions")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("status", "open"),
       ]);
       setBeliefs((b as BeliefRow[]) ?? []);
       setRecentArtifacts((a as typeof recentArtifacts) ?? []);
+      setOpenTensions(tCount ?? 0);
       setBusy(false);
     })();
   }, [user]);
@@ -61,6 +68,12 @@ export default function FrameworkDashboard() {
           <Button variant="outline" asChild>
             <Link to="/framework/beliefs">
               All beliefs ({totalBeliefs})
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/framework/tensions">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              Tensions{openTensions ? ` (${openTensions})` : ""}
             </Link>
           </Button>
         </div>
