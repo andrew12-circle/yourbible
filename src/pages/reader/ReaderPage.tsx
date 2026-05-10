@@ -797,8 +797,8 @@ export default function ReaderPage() {
         onTestFramework={() => {
           if (!tbSel) return;
           const text = verses
-            .filter((v) => tbSel.verses.includes(v.verse))
-            .map((v) => `${v.verse} ${v.text}`)
+            .filter((v) => tbSel.verses.includes(v.number))
+            .map((v) => `${v.number} ${v.text}`)
             .join(" ");
           const refRange =
             tbSel.verses.length > 1
