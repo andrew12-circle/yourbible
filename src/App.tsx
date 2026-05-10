@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
+import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/auth/AuthPage";
 import OnboardingPage from "./pages/onboarding/OnboardingPage";
@@ -38,6 +39,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/read/:book/:chapter" element={<ReaderPage />} />
             <Route path="/settings" element={<SettingsPage />} />

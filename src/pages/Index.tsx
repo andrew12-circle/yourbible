@@ -14,8 +14,7 @@ const Index = () => {
   }
   if (!user) return <Navigate to="/auth" replace />;
   if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
-  // Default open: John 1
-  return <Navigate to="/read/Jhn/1" replace />;
+  return <Navigate to="/home" replace />;
 };
 
 export default Index;
