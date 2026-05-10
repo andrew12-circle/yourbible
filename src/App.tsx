@@ -21,6 +21,7 @@ import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
 import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
 import TensionsPage from "./pages/framework/TensionsPage";
 import InfluencesPage from "./pages/framework/InfluencesPage";
+import DigestPage from "./pages/framework/DigestPage";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/framework/graph" element={<BeliefGraphPage />} />
             <Route path="/framework/tensions" element={<TensionsPage />} />
             <Route path="/framework/influences" element={<InfluencesPage />} />
+            <Route path="/framework/digest" element={<DigestPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
             <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
