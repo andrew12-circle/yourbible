@@ -18,6 +18,7 @@ import BeliefDetailPage from "./pages/framework/BeliefDetailPage";
 import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
 import NewArtifactPage from "./pages/framework/NewArtifactPage";
 import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
+import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/framework/interview/:layer" element={<InterviewPage />} />
             <Route path="/framework/beliefs" element={<BeliefsListPage />} />
             <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
+            <Route path="/framework/graph" element={<BeliefGraphPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
             <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
