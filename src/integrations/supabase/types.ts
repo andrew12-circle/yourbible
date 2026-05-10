@@ -425,6 +425,104 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_threads: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_readings: {
+        Row: {
+          belief_id: string | null
+          created_at: string
+          date: string
+          id: string
+          passage: string
+          prompt: string
+          reason: string
+          reference: string
+          user_id: string
+        }
+        Insert: {
+          belief_id?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          passage: string
+          prompt: string
+          reason: string
+          reference: string
+          user_id: string
+        }
+        Update: {
+          belief_id?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          passage?: string
+          prompt?: string
+          reason?: string
+          reference?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       framework_digests: {
         Row: {
           created_at: string
@@ -570,6 +668,66 @@ export type Database = {
           layout?: string
           onboarded?: boolean
           page_tone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_plans: {
+        Row: {
+          created_at: string
+          id: string
+          related_belief_ids: string[]
+          schedule: Json
+          sections: Json
+          summary: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          schedule?: Json
+          sections?: Json
+          summary: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          schedule?: Json
+          sections?: Json
+          summary?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tradition_views: {
+        Row: {
+          belief_id: string
+          created_at: string
+          id: string
+          traditions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          belief_id: string
+          created_at?: string
+          id?: string
+          traditions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          belief_id?: string
+          created_at?: string
+          id?: string
+          traditions?: Json
           updated_at?: string
           user_id?: string
         }
