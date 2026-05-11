@@ -114,11 +114,13 @@ export default function JournalShell({
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <JournalsRail
-          journals={journals}
-          activeJournalId={journalId}
-          onChange={reload}
-        />
+        <div className="hidden md:block w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto">
+          <JournalsRail
+            journals={journals}
+            activeJournalId={journalId}
+            onChange={reload}
+          />
+        </div>
         {/* Mobile rail in sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent side="left" className="p-0 w-72">
