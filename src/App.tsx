@@ -36,6 +36,7 @@ import JournalMediaPage from "./pages/journal/JournalMediaPage";
 import JournalMapPage from "./pages/journal/JournalMapPage";
 import JournalPromptsPage from "./pages/journal/JournalPromptsPage";
 import JournalTodayPage from "./pages/journal/JournalTodayPage";
+import HomeIndicator from "./components/HomeIndicator";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <HomeIndicator />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
