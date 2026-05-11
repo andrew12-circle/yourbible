@@ -607,16 +607,21 @@ export type Database = {
           entry_at: string
           entry_at_ts: string
           id: string
+          journal_id: string | null
           lat: number | null
           lng: number | null
           location_name: string | null
           mood: number | null
+          pinned: boolean
+          prompt_id: string | null
           tags: string[]
           title: string | null
           updated_at: string
           user_id: string
           verse_ref: string | null
           weather: string | null
+          weather_icon: string | null
+          weather_temp_c: number | null
         }
         Insert: {
           analyze_for_mirror?: boolean
@@ -626,16 +631,21 @@ export type Database = {
           entry_at?: string
           entry_at_ts?: string
           id?: string
+          journal_id?: string | null
           lat?: number | null
           lng?: number | null
           location_name?: string | null
           mood?: number | null
+          pinned?: boolean
+          prompt_id?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
           user_id: string
           verse_ref?: string | null
           weather?: string | null
+          weather_icon?: string | null
+          weather_temp_c?: number | null
         }
         Update: {
           analyze_for_mirror?: boolean
@@ -645,18 +655,58 @@ export type Database = {
           entry_at?: string
           entry_at_ts?: string
           id?: string
+          journal_id?: string | null
           lat?: number | null
           lng?: number | null
           location_name?: string | null
           mood?: number | null
+          pinned?: boolean
+          prompt_id?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
           user_id?: string
           verse_ref?: string | null
           weather?: string | null
+          weather_icon?: string | null
+          weather_temp_c?: number | null
         }
         Relationships: []
+      }
+      journal_entry_links: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          target_kind: string
+          target_ref: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          target_kind: string
+          target_ref?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          target_kind?: string
+          target_ref?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_links_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_entry_scores: {
         Row: {
@@ -766,6 +816,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      journal_prompts: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          locale: string
+          text: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          text: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          text?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      journals: {
+        Row: {
+          color: string
+          cover_kind: string
+          cover_value: string | null
+          created_at: string
+          icon: string
+          id: string
+          is_default: boolean
+          name: string
+          sort_order: number
+          source_kind: string
+          source_ref: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          cover_kind?: string
+          cover_value?: string | null
+          created_at?: string
+          icon?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          source_kind?: string
+          source_ref?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          cover_kind?: string
+          cover_value?: string | null
+          created_at?: string
+          icon?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          source_kind?: string
+          source_ref?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notes: {
         Row: {
