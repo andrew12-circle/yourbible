@@ -208,7 +208,6 @@ export default function ReaderPage() {
 
   // Companion pane integration
   const openCompanion = useCompanion(s => s.openWith);
-  const setCompanionOpen = useCompanion(s => s.setOpen);
   const companionOpen = useCompanion(s => s.open);
   const [anchorBelief, setAnchorBelief] = useState<{ id: string; statement: string } | null>(null);
   useEffect(() => {
