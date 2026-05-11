@@ -31,13 +31,21 @@ export default function JournalCover({
     <header className="relative">
       {/* Big colored cover */}
       <div
-        className="relative pt-3 pb-10 px-5"
+        className="relative pt-3 pb-12 px-5 overflow-hidden"
         style={{
           background: journal
-            ? `linear-gradient(180deg, hsl(${journal.color}) 0%, hsl(${journal.color}) 100%)`
-            : "linear-gradient(180deg, hsl(220 14% 22%) 0%, hsl(220 14% 28%) 100%)",
+            ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
+            : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)",
         }}
       >
+        {/* subtle highlight */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(80% 50% at 100% 0%, rgba(255,255,255,0.18), transparent 60%)",
+          }}
+        />
         <div className="flex items-center justify-between text-white">
           <div className="flex items-center gap-1">
             <button
@@ -58,25 +66,27 @@ export default function JournalCover({
           <div className="flex items-center gap-1 text-white">{right}</div>
         </div>
 
-        <div className="mt-6">
-          <h1 className="text-[40px] leading-none font-bold tracking-tight text-white drop-shadow-sm">
+        <div className="relative mt-8">
+          {subtitle && (
+            <p className="text-[12px] uppercase tracking-[0.16em] text-white/75 font-semibold mb-2">
+              {subtitle}
+            </p>
+          )}
+          <h1 className="text-[44px] leading-[1.02] font-bold tracking-tight text-white">
             {title}
           </h1>
-          {subtitle && (
-            <p className="text-[14px] mt-2 text-white/85 font-medium tracking-wide">{subtitle}</p>
-          )}
         </div>
       </div>
 
       {/* White card with tabs sliding up underneath */}
-      <div className="relative -mt-6 bg-background rounded-t-[20px] shadow-[0_-8px_24px_-12px_hsl(0_0%_0%/0.15)]">
+      <div className="relative -mt-5 bg-background rounded-t-[22px] shadow-[0_-10px_30px_-18px_hsl(0_0%_0%/0.25)]">
         {tabs && tabs.length > 0 && (
-          <div className="flex items-center gap-5 px-5 pt-3 pb-1 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-6 px-5 pt-3.5 pb-0.5 overflow-x-auto scrollbar-hide">
             {tabs.map((t) => (
               <Link
                 key={t.key}
                 to={t.to}
-                className={`relative pb-2 text-[15px] font-medium transition-colors whitespace-nowrap ${
+                className={`relative pb-2.5 text-[14px] font-semibold tracking-tight transition-colors whitespace-nowrap ${
                   t.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
                 style={t.active ? { color } : undefined}
@@ -84,7 +94,7 @@ export default function JournalCover({
                 {t.label}
                 {t.active && (
                   <span
-                    className="absolute left-0 right-0 -bottom-px h-[2.5px] rounded-full"
+                    className="absolute left-0 right-0 -bottom-px h-[2px] rounded-full"
                     style={{ background: color }}
                   />
                 )}
