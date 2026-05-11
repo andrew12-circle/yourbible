@@ -1,11 +1,19 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SquarePen } from "lucide-react";
+import { SquarePen, MoreHorizontal, Download, Loader2 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import JournalsRail from "./JournalsRail";
 import JournalCover from "./JournalCover";
 import { Journal, ensureDefaultJournal, listJournals } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportJournalAsZip } from "@/lib/journal/export";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   /** Currently scoped journal (null = aggregate). */
@@ -31,6 +39,7 @@ export default function JournalShell({
   const [journals, setJournals] = useState<Journal[]>([]);
   const [yearRange, setYearRange] = useState<string | undefined>(undefined);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const reload = async () => {
     if (!user) return;
@@ -68,6 +77,18 @@ export default function JournalShell({
   }, [journalId, user, subtitle]);
 
   const journal = journals.find((j) => j.id === journalId) ?? null;
+
+  const onExport = async () => {
+    setExporting(true);
+    try {
+      const n = await exportJournalAsZip(journal);
+      toast({ title: `Exported ${n} ${n === 1 ? "entry" : "entries"}` });
+    } catch (e) {
+      toast({ title: "Export failed", description: String(e), variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const tabBase = journalId ? `/journal/j/${journalId}` : "/journal";
   const tabs = [
@@ -116,6 +137,28 @@ export default function JournalShell({
             subtitle={sub}
             tabs={tabs}
             onOpenRail={() => setSheetOpen(true)}
+            right={
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-2 rounded-full hover:bg-white/15"
+                    aria-label="More"
+                  >
+                    {exporting ? (
+                      <Loader2 className="w-[20px] h-[20px] animate-spin" />
+                    ) : (
+                      <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={2.2} />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onExport} disabled={exporting}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as Markdown (.zip)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            }
           />
           <main className="pb-32">{children}</main>
         </div>
