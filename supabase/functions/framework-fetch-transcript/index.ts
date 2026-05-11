@@ -23,47 +23,102 @@ function extractYouTubeId(url: string): string | null {
 }
 
 async function fetchYouTubeTranscript(videoId: string): Promise<{ text: string; title?: string } | null> {
-  // 1) load watch page to discover caption tracks
-  const html = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
-    headers: { "User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9" },
-  }).then((r) => r.text()).catch(() => "");
-  if (!html) return null;
+  // Use YouTube's InnerTube player API. More reliable than scraping the watch page,
+  // which often returns a consent wall to server-side / cloud IPs.
+  const UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-  const titleMatch = html.match(/<title>([^<]*)<\/title>/);
-  const title = titleMatch ? titleMatch[1].replace(" - YouTube", "").trim() : undefined;
-
-  const m = html.match(/"captionTracks":(\[.*?\])/);
-  if (!m) return null;
-  let tracks: any[] = [];
-  try {
-    tracks = JSON.parse(m[1].replace(/\\u0026/g, "&"));
-  } catch {
-    return null;
+  async function callPlayer(client: "ANDROID" | "WEB" | "IOS") {
+    const ctx: Record<string, any> = {
+      ANDROID: {
+        clientName: "ANDROID",
+        clientVersion: "19.09.37",
+        androidSdkVersion: 30,
+        hl: "en",
+        gl: "US",
+      },
+      WEB: { clientName: "WEB", clientVersion: "2.20240726.00.00", hl: "en", gl: "US" },
+      IOS: { clientName: "IOS", clientVersion: "19.09.3", hl: "en", gl: "US" },
+    }[client];
+    const r = await fetch(
+      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": UA,
+          "X-YouTube-Client-Name":
+            client === "ANDROID" ? "3" : client === "IOS" ? "5" : "1",
+          "X-YouTube-Client-Version": ctx.clientVersion,
+          "Accept-Language": "en-US,en;q=0.9",
+          Origin: "https://www.youtube.com",
+        },
+        body: JSON.stringify({
+          videoId,
+          context: { client: ctx },
+          contentCheckOk: true,
+          racyCheckOk: true,
+        }),
+      },
+    );
+    if (!r.ok) return null;
+    return await r.json().catch(() => null);
   }
-  if (!tracks.length) return null;
+
+  let data: any = null;
+  for (const c of ["ANDROID", "WEB", "IOS"] as const) {
+    data = await callPlayer(c);
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (Array.isArray(tracks) && tracks.length) break;
+  }
+
+  const title: string | undefined = data?.videoDetails?.title;
+  const tracks: any[] =
+    data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+
+  if (!tracks.length) return title ? { text: "", title } : null;
 
   const pick =
+    tracks.find((t) => t.languageCode === "en" && t.kind !== "asr") ??
+    tracks.find((t) => (t.languageCode ?? "").startsWith("en") && t.kind !== "asr") ??
     tracks.find((t) => t.languageCode === "en") ??
     tracks.find((t) => (t.languageCode ?? "").startsWith("en")) ??
     tracks[0];
-  if (!pick?.baseUrl) return null;
+  if (!pick?.baseUrl) return title ? { text: "", title } : null;
 
-  const xml = await fetch(pick.baseUrl).then((r) => r.text()).catch(() => "");
-  if (!xml) return null;
-
-  const lines = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) =>
-    m[1]
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&#10;|\n/g, " ")
-      .replace(/<[^>]+>/g, "")
-      .trim(),
-  );
-  const text = lines.filter(Boolean).join(" ");
-  if (!text) return null;
+  // Prefer JSON3 format for cleaner parsing
+  const url = pick.baseUrl + (pick.baseUrl.includes("fmt=") ? "" : "&fmt=json3");
+  const res = await fetch(url, { headers: { "User-Agent": UA } });
+  const ct = res.headers.get("content-type") ?? "";
+  if (ct.includes("json")) {
+    const j = await res.json().catch(() => null);
+    const events = j?.events ?? [];
+    const text = events
+      .flatMap((e: any) => (e?.segs ?? []).map((s: any) => s.utf8 ?? ""))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text) return { text, title };
+  }
+  const xml = await fetch(pick.baseUrl, { headers: { "User-Agent": UA } })
+    .then((r) => r.text())
+    .catch(() => "");
+  if (!xml) return title ? { text: "", title } : null;
+  const text = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)]
+    .map((m) =>
+      m[1]
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#10;|\n/g, " ")
+        .replace(/<[^>]+>/g, "")
+        .trim(),
+    )
+    .filter(Boolean)
+    .join(" ");
+  if (!text) return title ? { text: "", title } : null;
   return { text, title };
 }
 
