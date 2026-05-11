@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Pin, Sparkles } from "lucide-react";
+import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 
@@ -24,69 +24,75 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
   const day = dt.getDate();
   const time = dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
-  const meta = [time];
-  if (entry.location_name) meta.push(entry.location_name);
-  if (entry.weather_temp_c != null) {
-    meta.push(`${formatTemp(entry.weather_temp_c)}${entry.weather ? " " + entry.weather : ""}`);
-  } else if (entry.weather) {
-    meta.push(entry.weather);
-  }
+  const mood = entry.mood !== null ? moodMeta(entry.mood) : null;
+  const tempStr =
+    entry.weather_temp_c != null ? formatTemp(entry.weather_temp_c) : null;
 
   return (
     <Link
       to={`/journal/${entry.id}`}
-      className="group flex gap-4 px-5 py-3.5 active:bg-muted/50 hover:bg-muted/30 transition-colors"
+      className="group flex gap-4 px-5 py-4 active:bg-muted/40 hover:bg-muted/20 transition-colors"
     >
-      {/* Date stamp column */}
-      <div className="flex-shrink-0 w-12 pt-0.5">
-        {entry.photo_url ? (
-          <img
-            src={entry.photo_url}
-            alt=""
-            className="w-12 h-12 rounded-lg object-cover"
-          />
-        ) : (
-          <div className="text-center">
-            <div className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
-              {dow}
-            </div>
-            <div className="text-[24px] font-bold leading-tight tracking-tight">
-              {day}
-            </div>
-          </div>
-        )}
+      {/* Day One-style date stamp */}
+      <div className="flex-shrink-0 w-11 text-center pt-0.5">
+        <div className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/80">
+          {dow}
+        </div>
+        <div className="text-[26px] font-semibold leading-none tracking-tight mt-0.5 tabular-nums">
+          {day}
+        </div>
       </div>
 
       <div className="flex-1 min-w-0">
-        {(entry.title || entry.pinned || entry.analyze_for_mirror) && (
-          <div className="flex items-center gap-1.5 mb-0.5">
-            {entry.pinned && (
-              <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />
-            )}
-            {entry.title && (
-              <h3 className="text-[15px] font-semibold tracking-tight truncate">
-                {entry.title}
-              </h3>
-            )}
-            {entry.analyze_for_mirror && (
-              <Sparkles className="w-3 h-3 text-violet-500 ml-auto flex-shrink-0" />
-            )}
-          </div>
-        )}
-        <p className="text-[14px] text-foreground/75 line-clamp-2 leading-snug">
-          {entry.body || (
-            <span className="italic text-muted-foreground">No body</span>
+        <div className="flex items-start gap-2 mb-0.5">
+          {entry.pinned && (
+            <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500 mt-1 flex-shrink-0" />
           )}
-        </p>
-        <div className="text-[12px] text-muted-foreground mt-1.5 flex items-center gap-1.5 flex-wrap">
-          <span>{meta.join(" · ")}</span>
-          {entry.mood !== null && moodMeta(entry.mood) && (
-            <span className={moodMeta(entry.mood)!.color}>
-              · {moodMeta(entry.mood)!.label}
-            </span>
+          <h3 className="text-[16px] font-semibold tracking-tight truncate flex-1 leading-snug">
+            {entry.title || firstLine(entry.body) || (
+              <span className="italic font-normal text-muted-foreground">No title</span>
+            )}
+          </h3>
+          {entry.analyze_for_mirror && (
+            <Sparkles className="w-3.5 h-3.5 text-violet-500 mt-1 flex-shrink-0" />
           )}
         </div>
+        <p className="text-[14px] text-muted-foreground line-clamp-2 leading-snug">
+          {entry.title ? entry.body : afterFirstLine(entry.body)}
+        </p>
+        <div className="text-[12px] text-muted-foreground/80 mt-2 flex items-center gap-2 flex-wrap">
+          <span className="tabular-nums">{time}</span>
+          {entry.location_name && (
+            <span className="inline-flex items-center gap-0.5 truncate max-w-[40%]">
+              <MapPin className="w-3 h-3" />
+              <span className="truncate">{entry.location_name}</span>
+            </span>
+          )}
+          {tempStr && (
+            <span className="inline-flex items-center gap-1">
+              {entry.weather_icon && <span>{entry.weather_icon}</span>}
+              <span className="tabular-nums">{tempStr}</span>
+            </span>
+          )}
+          {mood && <span className={mood.color}>{mood.label}</span>}
+        </div>
       </div>
+
+      {entry.photo_url && (
+        <img
+          src={entry.photo_url}
+          alt=""
+          className="flex-shrink-0 w-[68px] h-[68px] rounded-xl object-cover bg-muted"
+        />
+      )}
     </Link>
   );
+}
+
+function firstLine(s: string) {
+  return (s || "").split("\n")[0]?.slice(0, 80) ?? "";
+}
+function afterFirstLine(s: string) {
+  const parts = (s || "").split("\n");
+  return parts.slice(1).join(" ").trim() || parts[0] || "";
 }
