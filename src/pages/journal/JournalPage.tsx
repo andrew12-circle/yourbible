@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalShell from "@/components/journal/JournalShell";
+import JournalsRail from "@/components/journal/JournalsRail";
+import JournalDeskLayout from "@/components/journal/JournalDeskLayout";
+import EntryListPane from "@/components/journal/EntryListPane";
+import EntryEditorPane from "@/components/journal/EntryEditorPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 import { Input } from "@/components/ui/input";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import { useIsDesktop } from "@/hooks/use-desktop";
+import { ensureDefaultJournal, getDefaultJournalId, Journal } from "@/lib/journal/journals";
+import { getCurrentContext } from "@/lib/journal/context";
 
 interface Entry extends EntryListData {
   journal_id: string | null;
@@ -14,8 +21,105 @@ interface Entry extends EntryListData {
 
 export default function JournalPage() {
   const { user, loading } = useAuth();
-  const { journalId: paramJournalId } = useParams<{ journalId?: string }>();
-  const journalId = paramJournalId ?? null;
+  const navigate = useNavigate();
+  const params = useParams<{ journalId?: string; entryId?: string }>();
+  const journalId = params.journalId ?? null;
+  const entryId = params.entryId ?? null;
+  const isDesktop = useIsDesktop();
+
+  // Desktop: 3-pane shell
+  const [journals, setJournals] = useState<Journal[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    ensureDefaultJournal(user.id).then(setJournals);
+  }, [user, reloadKey]);
+
+  const createNew = async () => {
+    if (!user) return;
+    const jid = journalId ?? (await getDefaultJournalId(user.id));
+    const ctx = await getCurrentContext().catch(() => ({} as any));
+    const now = new Date();
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: user.id,
+        journal_id: jid,
+        title: null,
+        body: "",
+        tags: [],
+        entry_at_ts: now.toISOString(),
+        entry_at: now.toISOString().slice(0, 10),
+        analyze_for_mirror: false,
+        location_name: ctx.location_name ?? null,
+        lat: ctx.lat ?? null,
+        lng: ctx.lng ?? null,
+        weather: ctx.weather ?? null,
+        weather_temp_c: ctx.weather_temp_c ?? null,
+        weather_icon: ctx.weather_icon ?? null,
+      })
+      .select("id")
+      .maybeSingle();
+    if (error || !data) return;
+    setReloadKey((k) => k + 1);
+    if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
+    else navigate(`/journal/e/${data.id}`);
+  };
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+
+  if (isDesktop) {
+    return (
+      <JournalDeskLayout
+        sidebar={
+          <JournalsRail
+            journals={journals}
+            activeJournalId={journalId}
+            onChange={() => setReloadKey((k) => k + 1)}
+          />
+        }
+        list={
+          <div className="relative flex flex-col h-full">
+            <EntryListPane
+              journalId={journalId}
+              selectedId={entryId}
+              reloadKey={reloadKey}
+              onSelect={(id) =>
+                journalId
+                  ? navigate(`/journal/j/${journalId}/e/${id}`)
+                  : navigate(`/journal/e/${id}`)
+              }
+              onNew={createNew}
+            />
+          </div>
+        }
+        editor={
+          <EntryEditorPane
+            entryId={entryId}
+            journals={journals}
+            onChanged={() => setReloadKey((k) => k + 1)}
+            onClose={() =>
+              journalId ? navigate(`/journal/j/${journalId}`) : navigate("/journal")
+            }
+            onNew={createNew}
+            onDeleted={() => {
+              setReloadKey((k) => k + 1);
+              navigate(journalId ? `/journal/j/${journalId}` : "/journal");
+            }}
+          />
+        }
+      />
+    );
+  }
+
+  return <MobileJournalList journalId={journalId} />;
+}
+
+/** Legacy mobile list (kept identical to the original behavior). */
+function MobileJournalList({ journalId }: { journalId: string | null }) {
+  const { user } = useAuth();
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
@@ -82,9 +186,6 @@ export default function JournalPage() {
     }
     return [...map.entries()];
   }, [rest]);
-
-  if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
 
   return (
     <JournalShell journalId={journalId} activeTab="list" totalCount={entries.length}>

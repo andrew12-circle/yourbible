@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Book,
   Calendar as CalIcon,
   Lightbulb,
   Sparkles,
   Plus,
   Layers,
+  MessageCircle,
+  Settings,
 } from "lucide-react";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,20 +45,22 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
 
   return (
     <aside
-      className={`${inSheet ? "" : "hidden md:block"} w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto`}
+      className={`${inSheet ? "" : "hidden md:flex"} flex-col w-full h-full overflow-y-auto`}
     >
-      <div className="p-4">
-        <h2 className="text-[22px] font-bold tracking-tight">Day One</h2>
+      <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+        <Link
+          to="/settings"
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+          title="Settings"
+        >
+          <Settings className="w-4 h-4" />
+        </Link>
+        <Link to="/home" className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+          Home
+        </Link>
       </div>
 
       <nav className="px-2 pb-4 space-y-0.5">
-        <RailItem
-          to="/journal"
-          icon={<Layers className="w-4 h-4" />}
-          label="All Entries"
-          active={pathname === "/journal" && !activeJournalId}
-          accent="220 9% 46%"
-        />
         <RailItem
           to="/journal/today"
           icon={<CalIcon className="w-4 h-4" />}
@@ -66,11 +69,25 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           accent="142 71% 45%"
         />
         <RailItem
+          to="/framework/chat"
+          icon={<MessageCircle className="w-4 h-4" />}
+          label="Daily Chat"
+          active={pathname.startsWith("/framework/chat")}
+          accent="211 100% 50%"
+        />
+        <RailItem
           to="/journal/prompts"
           icon={<Lightbulb className="w-4 h-4" />}
           label="Prompts"
           active={pathname.startsWith("/journal/prompts")}
           accent="38 92% 50%"
+        />
+        <RailItem
+          to="/journal"
+          icon={<Layers className="w-4 h-4" />}
+          label="All Entries"
+          active={pathname === "/journal" && !activeJournalId}
+          accent="220 9% 46%"
         />
         <RailItem
           to="/journal/mirror"
@@ -83,7 +100,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
 
       <div className="px-4 pt-2 pb-1 flex items-center justify-between">
         <h3 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Journals
+          Personal
         </h3>
         <button
           onClick={() => setOpen(true)}
@@ -93,7 +110,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           <Plus className="w-4 h-4" />
         </button>
       </div>
-      <nav className="px-2 pb-6 space-y-0.5">
+      <nav className="px-2 pb-2 space-y-0.5">
         {journals.map((j) => (
           <RailItem
             key={j.id}
@@ -111,9 +128,24 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
         ))}
         {journals.length === 0 && (
           <p className="px-3 py-2 text-[13px] text-muted-foreground">
-            No journals yet. Tap + to create one.
+            No personal journals yet.
           </p>
         )}
+      </nav>
+
+      <div className="px-4 pt-2 pb-1 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Shared
+        </h3>
+      </div>
+      <nav className="px-2 pb-6 space-y-0.5">
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        >
+          <Plus className="w-4 h-4" />
+          New Shared Journal
+        </button>
       </nav>
 
       <Dialog open={open} onOpenChange={setOpen}>
