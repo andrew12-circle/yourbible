@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, LogOut, Check } from "lucide-react";
+import { ChevronLeft, LogOut, Check, ImagePlus, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 
 export default function SettingsPage() {
   const { user, profile, updateProfile, signOut, loading } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
+  const [wallpaper, setWallpaper] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem("yb_home_wallpaper") : null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!profile) return <div className="min-h-screen app-mesh flex items-center justify-center">Loading…</div>;
@@ -23,6 +26,28 @@ export default function SettingsPage() {
   };
 
   const previewPalette = PALETTES.find(p => p.id === profile.highlight_palette) ?? PALETTES[0];
+  const initials = (profile.display_name || user?.email || "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("");
+
+  const onUploadWallpaper = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { toast({ title: "Image too large", description: "Max size is 100 MB." }); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result as string;
+      try {
+        localStorage.setItem("yb_home_wallpaper", url);
+        setWallpaper(url);
+        toast({ title: "Background updated" });
+      } catch {
+        toast({ title: "Applied temporarily", description: "Image is too large to save on this device." });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="min-h-screen app-mesh pb-20">
@@ -59,6 +84,32 @@ export default function SettingsPage() {
             </p>
           </div>
         </motion.section>
+
+        {/* Profile settings */}
+        <section>
+          <h2 className="font-display text-lg text-leather mb-3">Profile settings</h2>
+          <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-leather/20 border border-paper-edge flex items-center justify-center text-leather font-semibold">{initials || <User className="w-5 h-5" />}</div>
+              <div>
+                <div className="text-sm text-muted-foreground">Profile name</div>
+                <input
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={displayNameDraft}
+                  onChange={(e) => setDisplayNameDraft(e.target.value)}
+                  onBlur={() => { if ((profile.display_name ?? "") !== displayNameDraft) void save({ display_name: displayNameDraft }); }}
+                  placeholder="Your name"
+                />
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">Signed in as {user?.email}</div>
+          </div>
+        </section>
+
+        {/* Bible settings */}
+        <section>
+          <h2 className="font-display text-lg text-leather mb-3">Bible settings</h2>
+        </section>
 
         {/* Cover */}
         <section>
@@ -129,6 +180,29 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-lg text-leather mb-3">Background settings</h2>
+          <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-md border border-paper-edge bg-paper-warm overflow-hidden flex items-center justify-center">
+                {wallpaper ? <img src={wallpaper} alt="Current background" className="w-full h-full object-cover" /> : <ImagePlus className="w-5 h-5 text-muted-foreground" />}
+              </div>
+              <div>
+                <div className="font-display text-leather">Home background</div>
+                <div className="text-xs text-muted-foreground">Choose a photo for your main screen.</div>
+              </div>
+            </div>
+            <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>Change</Button>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadWallpaper(f); e.currentTarget.value = ""; }}
+          />
         </section>
 
         <div className="pt-8 border-t border-paper-edge flex items-center justify-between">
