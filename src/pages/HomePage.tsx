@@ -119,11 +119,15 @@ export default function HomePage() {
   const fullDateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   const onUploadWallpaper = (file: File) => {
-    if (file.size > 6 * 1024 * 1024) { alert("Image too large (max 6 MB)"); return; }
+    if (file.size > 100 * 1024 * 1024) { alert("Image too large (max 100 MB)"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const url = reader.result as string;
-      localStorage.setItem(WALLPAPER_KEY, url);
+      try {
+        localStorage.setItem(WALLPAPER_KEY, url);
+      } catch {
+        alert("Wallpaper applied, but too large to save permanently on this device.");
+      }
       setWallpaper(url);
     };
     reader.readAsDataURL(file);
