@@ -672,7 +672,7 @@ export default function ReaderPage() {
           <article
             ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
             data-reading-area
-            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS} selectable-text`}
+            className={`${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} selectable-text`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
@@ -793,7 +793,7 @@ export default function ReaderPage() {
           // real text column, height is from the article's top to the footer.
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, pageBox.h - 8)}
-          className={PAGE_TYPO_CLASS}
+          className={pageTypoClass(profile?.font_choice)}
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
           footerHeight={0}
