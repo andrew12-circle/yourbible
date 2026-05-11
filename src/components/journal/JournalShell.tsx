@@ -44,21 +44,19 @@ export default function JournalShell({
 
   // Compute year range for cover subtitle
   useEffect(() => {
-    if (subtitle !== undefined) return;
+    if (subtitle !== undefined || !user) return;
     (async () => {
-      let q = (await import("@/integrations/supabase/client")).supabase
-        .from("journal_entries")
-        .select("entry_at_ts");
-      if (journalId) q = q.eq("journal_id", journalId);
-      const { data } = await q.order("entry_at_ts", { ascending: true }).limit(1);
-      const { data: latest } = await (await import("@/integrations/supabase/client")).supabase
-        .from("journal_entries")
-        .select("entry_at_ts")
-        .eq(journalId ? "journal_id" : "user_id", journalId ?? user?.id ?? "")
-        .order("entry_at_ts", { ascending: false })
-        .limit(1);
-      const first = data?.[0]?.entry_at_ts;
-      const last = latest?.[0]?.entry_at_ts;
+      const { supabase } = await import("@/integrations/supabase/client");
+      const baseFirst = supabase.from("journal_entries").select("entry_at_ts");
+      const baseLast = supabase.from("journal_entries").select("entry_at_ts");
+      const firstQ = journalId ? baseFirst.eq("journal_id", journalId) : baseFirst;
+      const lastQ = journalId ? baseLast.eq("journal_id", journalId) : baseLast;
+      const [{ data: firstData }, { data: lastData }] = await Promise.all([
+        firstQ.order("entry_at_ts", { ascending: true }).limit(1),
+        lastQ.order("entry_at_ts", { ascending: false }).limit(1),
+      ]);
+      const first = firstData?.[0]?.entry_at_ts;
+      const last = lastData?.[0]?.entry_at_ts;
       if (first && last) {
         const fy = new Date(first).getFullYear();
         const ly = new Date(last).getFullYear();
