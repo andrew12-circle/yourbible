@@ -844,6 +844,10 @@ export default function ReaderPage() {
             `/framework/artifacts/new?ref=${encodeURIComponent(refRange)}&verse=${encodeURIComponent(text)}`,
           );
         }}
+        onOpenCompanion={() => {
+          if (!tbSel) return;
+          openCompanion(buildScope(tbSel.verses), "journal");
+        }}
         onClose={() => clearWindowSelection()}
       />
 
