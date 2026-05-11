@@ -49,6 +49,12 @@ Video URL: ${url}`;
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 402) {
+      throw new Error("Lovable AI credits are exhausted for this workspace. Add credits in Settings → Workspace → Usage, then try again — or paste the transcript manually below.");
+    }
+    if (res.status === 429) {
+      throw new Error("AI is rate-limited right now. Wait a moment and try again, or paste the transcript manually below.");
+    }
     throw new Error(`AI gateway ${res.status}: ${body.slice(0, 300)}`);
   }
   const data = await res.json();
