@@ -282,3 +282,53 @@ function guessChapter(ref: string): number {
   const m = ref.match(/(\d+):/);
   return m ? Number(m[1]) : 1;
 }
+
+function LinkChip({ link }: { link: EntryLink }) {
+  const ref = link.target_ref as Record<string, unknown>;
+  let label = link.target_kind;
+  let to = "/journal";
+  switch (link.target_kind) {
+    case "verse": {
+      const r = String(ref.ref ?? "");
+      label = r || "verse";
+      to = `/read/${guessBookAbbr(r)}/${guessChapter(r)}`;
+      break;
+    }
+    case "belief":
+      label = `belief: ${String(ref.statement ?? "").slice(0, 40) || "open"}`;
+      to = `/framework/beliefs/${String(ref.id ?? "")}`;
+      break;
+    case "tension":
+      label = "tension";
+      to = `/framework/tensions`;
+      break;
+    case "study":
+      label = `study: ${String(ref.topic ?? "")}`;
+      to = `/framework/study`;
+      break;
+    case "daily":
+      label = "daily reading";
+      to = `/framework/daily`;
+      break;
+    case "chat_thread":
+      label = "chat";
+      to = `/framework/chat`;
+      break;
+    case "artifact":
+      label = "artifact";
+      to = `/framework/artifacts/${String(ref.id ?? "")}`;
+      break;
+    case "prompt":
+      label = `prompt: ${String(ref.text ?? "").slice(0, 40)}`;
+      to = "/journal";
+      break;
+  }
+  return (
+    <Link
+      to={to}
+      className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground/80 hover:bg-muted/70 transition"
+    >
+      {label}
+    </Link>
+  );
+}
