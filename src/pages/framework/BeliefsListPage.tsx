@@ -90,6 +90,7 @@ export default function BeliefsListPage() {
           })}
         </div>
       )}
+      <QuickBeliefDialog open={open} onOpenChange={setOpen} onSaved={() => refresh()} />
     </FrameworkLayout>
   );
 }
