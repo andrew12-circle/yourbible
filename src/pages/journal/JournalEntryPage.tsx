@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import EntryMiniMap from "@/components/journal/EntryMiniMap";
+import { listEntryLinks, type EntryLink } from "@/lib/journal/links";
 
 interface Entry {
   id: string;
@@ -20,6 +22,8 @@ interface Entry {
   verse_ref: string | null;
   belief_id: string | null;
   analyze_for_mirror: boolean;
+  lat: number | null;
+  lng: number | null;
 }
 interface Score {
   axes: Record<string, number>;
@@ -36,6 +40,7 @@ export default function JournalEntryPage() {
   const [beliefStatement, setBeliefStatement] = useState<string | null>(null);
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
+  const [links, setLinks] = useState<EntryLink[]>([]);
 
   const load = async () => {
     if (!id) return;
@@ -61,6 +66,7 @@ export default function JournalEntryPage() {
       .eq("entry_id", id)
       .maybeSingle();
     setScore((s as Score | null) ?? null);
+    setLinks(await listEntryLinks(id));
   };
 
   useEffect(() => {
@@ -137,6 +143,23 @@ export default function JournalEntryPage() {
       <div className="font-serif text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
         {entry.body || <span className="italic text-muted-foreground">No body</span>}
       </div>
+
+      {entry.lat != null && entry.lng != null && (
+        <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mb-6" />
+      )}
+
+      {links.length > 0 && (
+        <section className="mb-6 rounded-xl border border-border bg-card p-4">
+          <h3 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-muted-foreground mb-2">
+            Linked
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {links.map((l) => (
+              <LinkChip key={l.id} link={l} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {(entry.tags.length > 0 || entry.verse_ref || entry.belief_id) && (
         <div className="flex flex-wrap gap-1.5 mb-6">
