@@ -78,6 +78,8 @@ const App = () => (
             <Route path="/framework/daily" element={<DailyPage />} />
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/journal/j/:journalId" element={<JournalPage />} />
+            <Route path="/journal/j/:journalId/e/:entryId" element={<JournalPage />} />
+            <Route path="/journal/e/:entryId" element={<JournalPage />} />
             <Route path="/journal/calendar" element={<JournalCalendarPage />} />
             <Route path="/journal/j/:journalId/calendar" element={<JournalCalendarPage />} />
             <Route path="/journal/media" element={<JournalMediaPage />} />
