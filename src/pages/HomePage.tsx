@@ -1,8 +1,11 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
+  Lightbulb, Calendar as CalIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,6 +23,43 @@ type AppIcon = {
 export default function HomePage() {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const [todayPrompt, setTodayPrompt] = useState<{ id: string; text: string } | null>(null);
+  const [onThisDayCount, setOnThisDayCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const now = new Date();
+    (async () => {
+      const { data } = await supabase
+        .from("journal_prompts")
+        .select("id,text")
+        .limit(500);
+      const list = data ?? [];
+      if (list.length) {
+        const seed =
+          now.getFullYear() * 1000 +
+          Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+        const p = list[seed % list.length];
+        setTodayPrompt({ id: p.id as string, text: p.text as string });
+      }
+      const startOfDay = new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+      const { data: past } = await supabase
+        .from("journal_entries")
+        .select("entry_at_ts")
+        .lt("entry_at_ts", startOfDay.toISOString())
+        .order("entry_at_ts", { ascending: false })
+        .limit(500);
+      const m = now.getMonth();
+      const d = now.getDate();
+      setOnThisDayCount(
+        (past ?? []).filter((e: { entry_at_ts: string }) => {
+          const dt = new Date(e.entry_at_ts);
+          return dt.getMonth() === m && dt.getDate() === d;
+        }).length,
+      );
+    })();
+  }, [user]);
 
   if (loading) {
     return (
@@ -85,6 +125,43 @@ export default function HomePage() {
             <AppButton key={app.label} app={app} onClick={() => navigate(app.to)} />
           ))}
         </div>
+
+        {/* Today's prompt + On this day */}
+        {(todayPrompt || onThisDayCount > 0) && (
+          <div className="mt-10 grid gap-3 sm:grid-cols-2">
+            {todayPrompt && (
+              <button
+                onClick={() =>
+                  navigate(
+                    `/journal/new?promptId=${todayPrompt.id}&prompt=${encodeURIComponent(todayPrompt.text)}`,
+                  )
+                }
+                className="text-left p-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/70 hover:shadow-md transition active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 mb-2">
+                  <Lightbulb className="w-3.5 h-3.5" /> Today's prompt
+                </div>
+                <p className="text-[15px] font-medium leading-snug text-foreground/90">
+                  {todayPrompt.text}
+                </p>
+              </button>
+            )}
+            {onThisDayCount > 0 && (
+              <button
+                onClick={() => navigate("/journal/today")}
+                className="text-left p-5 rounded-3xl bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200/70 hover:shadow-md transition active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 mb-2">
+                  <CalIcon className="w-3.5 h-3.5" /> On this day
+                </div>
+                <p className="text-[15px] font-medium leading-snug text-foreground/90">
+                  {onThisDayCount} {onThisDayCount === 1 ? "entry" : "entries"} from past years
+                </p>
+              </button>
+            )}
+          </div>
+        )}
+
 
         {/* Dock */}
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
