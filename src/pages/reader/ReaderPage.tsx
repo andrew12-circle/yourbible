@@ -206,6 +206,34 @@ export default function ReaderPage() {
   const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 
+  // Companion pane integration
+  const openCompanion = useCompanion(s => s.openWith);
+  const setCompanionOpen = useCompanion(s => s.setOpen);
+  const companionOpen = useCompanion(s => s.open);
+  const [anchorBelief, setAnchorBelief] = useState<{ id: string; statement: string } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    setAnchorBelief(null);
+    supabase.from("belief_nodes")
+      .select("id,statement")
+      .eq("user_id", user.id)
+      .eq("core_scope", `${book.abbr}-${chapter}`)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => { if (data && data[0]) setAnchorBelief(data[0]); });
+  }, [user, book.abbr, chapter]);
+
+  const buildScope = (verses: number[]) => {
+    const text = (passage?.verses ?? [])
+      .filter(v => verses.length === 0 || verses.includes(v.number))
+      .map(v => `${v.number} ${v.text}`)
+      .join(" ");
+    return {
+      book: book.abbr, bookName: book.name, chapter, verses,
+      passageText: text.slice(0, 4000),
+    };
+  };
+
   // (long-press highlight removed — we now use native drag-selection)
 
   // ---- Load translations ----
