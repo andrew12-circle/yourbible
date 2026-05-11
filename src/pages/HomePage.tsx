@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
-  Lightbulb, Calendar as CalIcon, ImagePlus,
+  Lightbulb, Calendar as CalIcon, ImagePlus, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ type AppIcon = {
 };
 
 export default function HomePage() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [todayPrompt, setTodayPrompt] = useState<{ id: string; text: string } | null>(null);
   const [onThisDayCount, setOnThisDayCount] = useState(0);
@@ -34,6 +34,9 @@ export default function HomePage() {
   const [wallpaper, setWallpaper] = useState<string | null>(
     typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null,
   );
+  const [wallpaperTint, setWallpaperTint] = useState(24);
+  const [wallpaperBlur, setWallpaperBlur] = useState(0);
+  const [showWallpaperControls, setShowWallpaperControls] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +44,21 @@ export default function HomePage() {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!profile?.layout) return;
+    try {
+      const parsed = JSON.parse(profile.layout) as { homeWallpaper?: string; homeWallpaperTint?: number; homeWallpaperBlur?: number };
+      if (parsed.homeWallpaper) {
+        setWallpaper(parsed.homeWallpaper);
+        localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
+      }
+      if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
+      if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+    } catch {
+      // Keep defaults when legacy/plain layout values are present.
+    }
+  }, [profile?.layout]);
 
   useEffect(() => {
     if (!user) return;
@@ -131,8 +149,26 @@ export default function HomePage() {
         alert("Wallpaper applied, but too large to save permanently on this device.");
       }
       setWallpaper(url);
+      void updateProfile({
+        layout: JSON.stringify({
+          homeWallpaper: url,
+          homeWallpaperTint: wallpaperTint,
+          homeWallpaperBlur: wallpaperBlur,
+        }),
+      });
     };
     reader.readAsDataURL(file);
+  };
+
+  const saveWallpaperPresentation = (nextTint: number, nextBlur: number) => {
+    if (!wallpaper) return;
+    void updateProfile({
+      layout: JSON.stringify({
+        homeWallpaper: wallpaper,
+        homeWallpaperTint: nextTint,
+        homeWallpaperBlur: nextBlur,
+      }),
+    });
   };
 
   const wallpaperStyle = wallpaper
@@ -146,6 +182,12 @@ export default function HomePage() {
     >
       {/* Subtle dark overlay for legibility on photo wallpaper */}
       {wallpaper && <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30 pointer-events-none" />}
+      {wallpaper && (
+        <>
+          <div className="absolute inset-0 pointer-events-none" style={{ backdropFilter: `blur(${wallpaperBlur}px)` }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(17, 24, 39, ${wallpaperTint / 100})` }} />
+        </>
+      )}
 
       {/* iOS status bar */}
       <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
@@ -251,7 +293,27 @@ export default function HomePage() {
             >
               <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
             </button>
+            <button
+              onClick={() => setShowWallpaperControls((v) => !v)}
+              aria-label="Wallpaper tint controls"
+              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              style={{ background: "linear-gradient(160deg, #355070 0%, #4D6B90 58%, #6E8AB0 100%)" }}
+            >
+              <SlidersHorizontal className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
+            </button>
           </div>
+          {showWallpaperControls && wallpaper && (
+            <div className="mt-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/25 p-3 text-white">
+              <label className="block text-[11px] uppercase tracking-[0.12em] mb-1">Tint</label>
+              <input type="range" min={0} max={60} value={wallpaperTint} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperTint(v); saveWallpaperPresentation(v, wallpaperBlur);
+              }} className="w-full" />
+              <label className="block text-[11px] uppercase tracking-[0.12em] mt-3 mb-1">Blur</label>
+              <input type="range" min={0} max={14} value={wallpaperBlur} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperBlur(v); saveWallpaperPresentation(wallpaperTint, v);
+              }} className="w-full" />
+            </div>
+          )}
           <div className="mx-auto mt-2 w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
       </div>
@@ -270,6 +332,8 @@ export default function HomePage() {
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
   const iconColor = app.iconColor ?? "white";
+  const isBible = app.label === "Bible";
+  const isJournal = app.label === "Journal";
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-[7px] focus:outline-none" aria-label={app.label}>
       <div className="relative">
@@ -279,13 +343,36 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
         >
           {app.imageSrc ? (
             <img src={app.imageSrc} alt="" className="w-[60px] h-[60px] object-cover rounded-[17px]" />
-          ) : Icon ? (
-            <Icon
-              className="w-[30px] h-[30px]"
-              style={{ color: iconColor }}
-              strokeWidth={2.1}
-            />
-          ) : null}
+          ) : (
+            <>
+              {isBible && (
+                <>
+                  <div className="absolute inset-x-[8px] top-[9px] text-[8px] leading-[0.95] font-semibold tracking-[0.06em] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+                    HOLY
+                    <br />
+                    BIBLE
+                  </div>
+                  <div className="absolute left-[7px] right-[7px] bottom-[8px] h-[11px] rounded-b-[9px] rounded-t-[3px] bg-amber-50/90 border border-amber-100/70" />
+                  <div className="absolute left-[11px] bottom-[10px] w-[10px] h-[9px] bg-rose-500 rounded-[2px]" style={{ clipPath: "polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)" }} />
+                </>
+              )}
+
+              {isJournal && (
+                <>
+                  <div className="absolute top-[7px] left-1/2 -translate-x-1/2 w-[26px] h-[27px] bg-white/90 rounded-t-[4px] rounded-b-[1px]" />
+                  <div className="absolute top-[33px] left-1/2 -translate-x-1/2 w-[26px] h-[8px] bg-white/90" style={{ clipPath: "polygon(0 0,100% 0,50% 100%)" }} />
+                </>
+              )}
+
+              {Icon && (
+                <Icon
+                  className={`w-[30px] h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
+                  style={{ color: iconColor }}
+                  strokeWidth={2.1}
+                />
+              )}
+            </>
+          )}
         </div>
         {app.badge !== undefined && app.badge !== "" && (
           <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-[5px] rounded-full bg-[#FF3B30] text-white text-[11px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.4)] border-[1.5px] border-white flex items-center justify-center tabular-nums leading-none">

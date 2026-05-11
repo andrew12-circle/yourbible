@@ -25,8 +25,8 @@ function ref(s: NonNullable<Body["scope"]>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!KEY) throw new Error("LOVABLE_API_KEY missing");
+    const KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!KEY) throw new Error("GEMINI_API_KEY missing");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
@@ -123,11 +123,11 @@ Their dialogue with the AI companion:
 """${convo}"""
 
 Propose 1-3 belief candidates.`;
-      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           messages: [
             { role: "system", content: sys },
             { role: "user", content: user },
@@ -193,10 +193,10 @@ Markdown is supported.`;
       { role: "system", content: sys },
       ...((history ?? []) as { role: string; content: string }[]),
     ];
-    const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages, stream: true }),
+      body: JSON.stringify({ model: "gemini-2.5-flash", messages, stream: true }),
     });
     if (upstream.status === 429) {
       return new Response(JSON.stringify({ error: "Rate limited. Please try again." }), {

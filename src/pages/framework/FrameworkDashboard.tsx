@@ -66,7 +66,12 @@ export default function FrameworkDashboard() {
             <Sparkles className="w-4 h-4 mr-1" /> Capture a belief
           </Button>
           <Button asChild>
-            <Link to="/framework/artifacts/new">
+            <Link to="/framework/artifacts">
+              <FileStack className="w-4 h-4 mr-1" /> Artifacts
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link to="/framework/artifacts/new?mode=youtube">
               <Plus className="w-4 h-4 mr-1" /> Add an artifact
             </Link>
           </Button>

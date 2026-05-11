@@ -18,7 +18,7 @@ const MODE_PROMPTS: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const KEY = Deno.env.get("LOVABLE_API_KEY")!;
+    const KEY = Deno.env.get("GEMINI_API_KEY")!;
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
@@ -84,10 +84,10 @@ Markdown is supported. Cite scripture as "(Book Ch:V)". Keep responses tight unl
       ...((history ?? []) as { role: string; content: string }[]),
     ];
 
-    const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-pro", messages, stream: true }),
+      body: JSON.stringify({ model: "gemini-2.5-pro", messages, stream: true }),
     });
 
     if (!upstream.ok || !upstream.body) {
