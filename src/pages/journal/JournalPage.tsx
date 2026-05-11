@@ -88,14 +88,14 @@ export default function JournalPage() {
 
   return (
     <JournalShell journalId={journalId} activeTab="list" totalCount={entries.length}>
-      <div className="px-5 pt-4">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="px-5 pt-3 pb-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search"
-            className="pl-9 h-10 rounded-xl bg-muted border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
+            className="pl-9 h-9 rounded-[10px] bg-muted/70 border-0 text-[15px] placeholder:text-muted-foreground/70 focus-visible:ring-0"
           />
         </div>
       </div>
@@ -110,11 +110,11 @@ export default function JournalPage() {
       )}
 
       {pinned.length > 0 && (
-        <section className="mb-2">
-          <h2 className="px-5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+        <section className="mb-1">
+          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             Pinned
           </h2>
-          <div className="bg-card divide-y divide-border/50">
+          <div className="divide-y divide-border/40">
             {pinned.map((e) => (
               <EntryListItem
                 key={e.id}
@@ -126,11 +126,11 @@ export default function JournalPage() {
       )}
 
       {grouped.map(([month, list]) => (
-        <section key={month} className="mb-2">
-          <h2 className="px-5 pt-4 pb-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <section key={month}>
+          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             {formatMonth(month)}
           </h2>
-          <div className="bg-card divide-y divide-border/50">
+          <div className="divide-y divide-border/40">
             {list.map((e) => (
               <EntryListItem
                 key={e.id}
