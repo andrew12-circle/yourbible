@@ -573,3 +573,38 @@
     radial-gradient(at 18% 88%, hsl(48 100% 84% / 0.6) 0px, transparent 45%),
     radial-gradient(at 50% 50%, hsl(265 90% 92% / 0.4) 0px, transparent 55%);
 }
+
+/* Compatibility shims — when app-theme is active, neutralize the
+   leftover leather/paper/gold styling from older pages so we don't
+   have to rewrite every screen. */
+.app-theme .paper-texture,
+.app-theme .real-paper,
+.app-theme .leather-texture {
+  background: transparent !important;
+}
+.app-theme .leather-texture::after,
+.app-theme .real-paper::after { display: none !important; }
+
+.app-theme .text-leather,
+.app-theme .text-leather-deep,
+.app-theme .text-leather-light { color: hsl(var(--foreground)) !important; }
+
+.app-theme .text-gold,
+.app-theme .text-gold-bright,
+.app-theme .text-gold-deep { color: hsl(var(--primary)) !important; }
+
+.app-theme .bg-leather,
+.app-theme .bg-leather-deep { background-color: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; }
+
+.app-theme .bg-gold,
+.app-theme .bg-gold-bright { background-color: hsl(var(--primary)) !important; }
+
+.app-theme .bg-paper,
+.app-theme [class*="bg-paper/"] { background-color: hsl(var(--card)) !important; }
+
+.app-theme .border-paper-edge,
+.app-theme .border-gold,
+.app-theme .border-leather { border-color: hsl(var(--border)) !important; }
+
+.app-theme .shadow-leather,
+.app-theme .shadow-gold { box-shadow: 0 12px 30px -12px hsl(220 40% 20% / 0.18) !important; }
