@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Cognitive Theology Engine icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1d4b"/>
+      <stop offset="100%" stop-color="#020b22"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="92" fill="url(#bg)"/>
+  <circle cx="256" cy="214" r="136" fill="none" stroke="#d8b36a" stroke-width="12"/>
+  <path d="M256 130v170M171 215h170" stroke="#e2bc6f" stroke-width="28" stroke-linecap="round"/>
+  <path d="M136 328h240l-20 42H156z" fill="#e7d9bb" stroke="#d8b36a" stroke-width="6"/>
+  <text x="256" y="430" fill="#e2bc6f" font-size="52" text-anchor="middle" font-family="serif" letter-spacing="8">CTE</text>
+</svg>

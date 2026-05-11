@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
+  Loader2, BookOpen, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
   Lightbulb, Calendar as CalIcon, ImagePlus, SlidersHorizontal,
   type LucideIcon,
@@ -15,7 +15,8 @@ const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
 type AppIcon = {
   label: string;
   to: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  imageSrc?: string;
   /** Rich icon background for a more native app-tile look. */
   color: string;
   iconColor?: string;
@@ -121,7 +122,7 @@ export default function HomePage() {
   const apps: AppIcon[] = [
     { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
     { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
-    { label: "Framework", to: "/framework",            icon: Compass,               color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" },
+    { label: "Framework", to: "/framework",            imageSrc: "/framework-icon.svg", color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" },
     { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
     { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "linear-gradient(160deg, #ECECEC 0%, #FCFCFC 62%, #FFFFFF 100%)", iconColor: "#3F3F46", badge: counts.beliefs || undefined },
@@ -283,7 +284,7 @@ export default function HomePage() {
             <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
-            <DockIcon icon={Compass}     color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
+            <DockIcon imageSrc="/framework-icon.svg" color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
             <button
               onClick={() => fileRef.current?.click()}
               aria-label="Change wallpaper"
@@ -340,30 +341,38 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
           className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
           style={{ background: app.color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 18px -10px rgba(0,0,0,0.55)" }}
         >
-          {isBible && (
+          {app.imageSrc ? (
+            <img src={app.imageSrc} alt="" className="w-[60px] h-[60px] object-cover rounded-[17px]" />
+          ) : (
             <>
-              <div className="absolute inset-x-[8px] top-[9px] text-[8px] leading-[0.95] font-semibold tracking-[0.06em] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-                HOLY
-                <br />
-                BIBLE
-              </div>
-              <div className="absolute left-[7px] right-[7px] bottom-[8px] h-[11px] rounded-b-[9px] rounded-t-[3px] bg-amber-50/90 border border-amber-100/70" />
-              <div className="absolute left-[11px] bottom-[10px] w-[10px] h-[9px] bg-rose-500 rounded-[2px]" style={{ clipPath: "polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)" }} />
+              {isBible && (
+                <>
+                  <div className="absolute inset-x-[8px] top-[9px] text-[8px] leading-[0.95] font-semibold tracking-[0.06em] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+                    HOLY
+                    <br />
+                    BIBLE
+                  </div>
+                  <div className="absolute left-[7px] right-[7px] bottom-[8px] h-[11px] rounded-b-[9px] rounded-t-[3px] bg-amber-50/90 border border-amber-100/70" />
+                  <div className="absolute left-[11px] bottom-[10px] w-[10px] h-[9px] bg-rose-500 rounded-[2px]" style={{ clipPath: "polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)" }} />
+                </>
+              )}
+
+              {isJournal && (
+                <>
+                  <div className="absolute top-[7px] left-1/2 -translate-x-1/2 w-[26px] h-[27px] bg-white/90 rounded-t-[4px] rounded-b-[1px]" />
+                  <div className="absolute top-[33px] left-1/2 -translate-x-1/2 w-[26px] h-[8px] bg-white/90" style={{ clipPath: "polygon(0 0,100% 0,50% 100%)" }} />
+                </>
+              )}
+
+              {Icon && (
+                <Icon
+                  className={`w-[30px] h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
+                  style={{ color: iconColor }}
+                  strokeWidth={2.1}
+                />
+              )}
             </>
           )}
-
-          {isJournal && (
-            <>
-              <div className="absolute top-[7px] left-1/2 -translate-x-1/2 w-[26px] h-[27px] bg-white/90 rounded-t-[4px] rounded-b-[1px]" />
-              <div className="absolute top-[33px] left-1/2 -translate-x-1/2 w-[26px] h-[8px] bg-white/90" style={{ clipPath: "polygon(0 0,100% 0,50% 100%)" }} />
-            </>
-          )}
-
-          <Icon
-            className={`w-[30px] h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
-            style={{ color: iconColor }}
-            strokeWidth={2.1}
-          />
         </div>
         {app.badge !== undefined && app.badge !== "" && (
           <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-[5px] rounded-full bg-[#FF3B30] text-white text-[11px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.4)] border-[1.5px] border-white flex items-center justify-center tabular-nums leading-none">
@@ -380,7 +389,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   );
 }
 
-function DockIcon({ icon: Icon, color, onClick, label }: { icon: LucideIcon; color: string; onClick: () => void; label: string }) {
+function DockIcon({ icon: Icon, imageSrc, color, onClick, label }: { icon?: LucideIcon; imageSrc?: string; color: string; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
@@ -388,7 +397,11 @@ function DockIcon({ icon: Icon, color, onClick, label }: { icon: LucideIcon; col
       className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
       style={{ background: color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 18px -12px rgba(0,0,0,0.55)" }}
     >
-      <Icon className="w-[26px] h-[26px] text-white" strokeWidth={2} />
+      {imageSrc ? (
+        <img src={imageSrc} alt="" className="w-[50px] h-[50px] object-cover rounded-[14px]" />
+      ) : Icon ? (
+        <Icon className="w-[26px] h-[26px] text-white" strokeWidth={2} />
+      ) : null}
     </button>
   );
 }
