@@ -196,6 +196,7 @@ export default function HomePage() {
 
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
+  const isLight = app.label === "Beliefs"; // light tile -> dark icon
   return (
     <button
       onClick={onClick}
@@ -204,14 +205,22 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
     >
       <div className="relative">
         <div
-          className={`w-[62px] h-[62px] rounded-[15px] bg-gradient-to-br ${app.gradient}
-            shadow-[0_6px_14px_-4px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-10px_18px_-10px_rgba(0,0,0,0.25)]
-            flex items-center justify-center
-            transition-transform duration-150 group-active:scale-90`}
+          className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
+          style={{
+            background: `linear-gradient(180deg, ${app.top} 0%, ${app.bottom} 100%)`,
+          }}
         >
-          <Icon className="w-[30px] h-[30px] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" strokeWidth={2.1} />
-          {/* glossy top highlight */}
-          <span className="pointer-events-none absolute inset-x-[6px] top-[3px] h-[10px] rounded-t-[12px] bg-white/25 blur-[2px]" />
+          <Icon
+            className={`w-[30px] h-[30px] ${isLight ? "text-zinc-700" : "text-white"}`}
+            strokeWidth={isLight ? 2.4 : 1.9}
+            style={
+              isLight
+                ? undefined
+                : { filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))" }
+            }
+          />
+          {/* inner rim highlight */}
+          <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/15" />
         </div>
         {app.badge && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow-md border border-white/70 flex items-center justify-center">
@@ -220,8 +229,8 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
         )}
       </div>
       <span
-        className="text-[11.5px] font-medium text-foreground/90 tracking-tight leading-none"
-        style={{ textShadow: "0 1px 2px rgba(255,255,255,0.6)" }}
+        className="text-[11.5px] font-medium text-foreground/90 tracking-tight leading-none mt-[3px]"
+        style={{ textShadow: "0 1px 2px rgba(255,255,255,0.55)" }}
       >
         {app.label}
       </span>
@@ -237,16 +246,20 @@ function DockIcon({
   onClick: () => void;
   label: string;
 }) {
+  // gradient prop kept as "from-X to-Y" pair; pull two tailwind colors via a quick map
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className={`w-[52px] h-[52px] rounded-[14px] bg-gradient-to-br ${gradient}
-        shadow-[0_4px_10px_-2px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.4)]
+      className={`ios-icon ios-icon-dock w-[50px] h-[50px] bg-gradient-to-b ${gradient.replace("from-", "from-").replace("to-", "to-")}
         flex items-center justify-center
-        transition-transform active:scale-90`}
+        transition-transform active:scale-[0.92]`}
     >
-      <Icon className="w-6 h-6 text-white drop-shadow" strokeWidth={2.2} />
+      <Icon
+        className="w-[26px] h-[26px] text-white"
+        strokeWidth={1.9}
+        style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))" }}
+      />
     </button>
   );
 }
