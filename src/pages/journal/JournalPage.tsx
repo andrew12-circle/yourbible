@@ -64,7 +64,9 @@ export default function JournalPage() {
     const n = q.toLowerCase();
     return entries.filter(
       (e) =>
-        (e.title ?? "").toLowerCase().includes(n) || e.body.toLowerCase().includes(n),
+        (e.title ?? "").toLowerCase().includes(n) ||
+        e.body.toLowerCase().includes(n) ||
+        (e.location_name ?? "").toLowerCase().includes(n),
     );
   }, [entries, q]);
 
