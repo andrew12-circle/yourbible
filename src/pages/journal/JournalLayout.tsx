@@ -2,9 +2,13 @@ import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 
+/**
+ * Compatibility layout used by sub-pages (composer, entry detail, calendar,
+ * mirror) that haven't been migrated to JournalShell yet. iOS-style nav bar.
+ */
 export default function JournalLayout({
   title,
-  back = "/home",
+  back = "/journal",
   right,
   children,
   largeTitle = true,
@@ -17,13 +21,11 @@ export default function JournalLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      {/* iOS-style translucent nav bar */}
       <header className="sticky top-0 z-20 backdrop-blur-2xl bg-background/70 border-b border-border/60">
         <div className="max-w-3xl mx-auto px-4 h-11 flex items-center gap-1">
           <Link
             to={back}
             className="-ml-2 px-1 h-9 flex items-center gap-0.5 text-primary text-[17px] font-normal"
-            aria-label="Back"
           >
             <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
             Back
@@ -36,7 +38,9 @@ export default function JournalLayout({
       </header>
       <main className="max-w-3xl mx-auto px-4 pt-3 pb-28">
         {largeTitle && (
-          <h1 className="text-[34px] leading-tight font-bold tracking-tight mb-3">{title}</h1>
+          <h1 className="text-[34px] leading-tight font-bold tracking-tight mb-3">
+            {title}
+          </h1>
         )}
         {children}
       </main>

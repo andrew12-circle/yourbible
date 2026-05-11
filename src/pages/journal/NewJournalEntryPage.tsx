@@ -13,6 +13,8 @@ import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { getDefaultJournalId } from "@/lib/journal/journals";
+import { getCurrentContext } from "@/lib/journal/context";
 
 interface BeliefOpt {
   id: string;
@@ -40,6 +42,12 @@ export default function NewJournalEntryPage() {
   const [beliefs, setBeliefs] = useState<BeliefOpt[]>([]);
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
+  const [journalId, setJournalId] = useState<string | null>(null);
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [weather, setWeather] = useState<string | null>(null);
+  const [weatherTempC, setWeatherTempC] = useState<number | null>(null);
+  const [weatherIcon, setWeatherIcon] = useState<string | null>(null);
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
@@ -50,6 +58,8 @@ export default function NewJournalEntryPage() {
   useEffect(() => {
     const v = params.get("verse");
     const r = params.get("ref");
+    const jid = params.get("journalId");
+    if (jid) setJournalId(jid);
     if (r) setVerseRef(r);
     if (v) {
       setTitle((t) => t || (r ? `Reflection on ${r}` : "Verse reflection"));
@@ -79,6 +89,12 @@ export default function NewJournalEntryPage() {
       setBeliefId(data.belief_id ?? "");
       setLocationName(data.location_name ?? "");
       setAnalyzeForMirror(!!data.analyze_for_mirror);
+      setJournalId(data.journal_id ?? null);
+      setLat(data.lat ?? null);
+      setLng(data.lng ?? null);
+      setWeather(data.weather ?? null);
+      setWeatherTempC(data.weather_temp_c ?? null);
+      setWeatherIcon(data.weather_icon ?? null);
       const dt = new Date(data.entry_at_ts);
       dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
       setEntryAt(dt.toISOString().slice(0, 16));
@@ -103,6 +119,27 @@ export default function NewJournalEntryPage() {
       .order("topic")
       .then(({ data }) => setBeliefs((data as BeliefOpt[]) ?? []));
   }, [user]);
+
+  // Default journal + auto-context on new entries
+  useEffect(() => {
+    if (editId || !user) return;
+    (async () => {
+      if (!journalId) {
+        const def = await getDefaultJournalId(user.id);
+        if (def) setJournalId(def);
+      }
+      if (lat == null && !locationName) {
+        const ctx = await getCurrentContext();
+        if (ctx.lat != null) setLat(ctx.lat);
+        if (ctx.lng != null) setLng(ctx.lng);
+        if (ctx.location_name && !locationName) setLocationName(ctx.location_name);
+        if (ctx.weather) setWeather(ctx.weather);
+        if (ctx.weather_temp_c != null) setWeatherTempC(ctx.weather_temp_c);
+        if (ctx.weather_icon) setWeatherIcon(ctx.weather_icon);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, user]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -154,6 +191,7 @@ export default function NewJournalEntryPage() {
     const ts = new Date(entryAt);
     const payload = {
       user_id: user.id,
+      journal_id: journalId,
       title: title.trim() || null,
       body: body,
       mood,
@@ -161,6 +199,11 @@ export default function NewJournalEntryPage() {
       verse_ref: verseRef.trim() || null,
       belief_id: beliefId || null,
       location_name: locationName.trim() || null,
+      lat,
+      lng,
+      weather,
+      weather_temp_c: weatherTempC,
+      weather_icon: weatherIcon,
       analyze_for_mirror: analyzeForMirror,
       entry_at_ts: ts.toISOString(),
       entry_at: ts.toISOString().slice(0, 10),

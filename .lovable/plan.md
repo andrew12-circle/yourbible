@@ -1,124 +1,190 @@
-## Goal
+# Day One-class Journal, fully interconnected
 
-Build a Day One-class **Journal** that's deeply tied to your beliefs, scripture, and chat — and that powers a "worldview mirror" report ("you say God is loving, but 47% of your entries assume abandonment").
-
-This is a multi-phase build. The plan ships value at the end of each phase so you're not waiting for everything.
+Replicate Day One's structure (multiple colored journals, big cover header, List/Calendar/Media/Map tabs, day-stamped rows, prompts, auto location/weather/map) and weave it through every other surface in the app — Reader, Framework beliefs, Chat, Daily, Study, Tensions, Influences, Mirror.
 
 ---
 
-## Data model (one migration, all phases)
+## 1. Data model (one migration)
 
-New tables (all RLS, `user_id = auth.uid()`):
+New tables:
+- `journals` — `id, user_id, name, color, icon, cover_kind ('color'|'photo'), cover_value, sort_order, is_default, source_kind ('manual'|'belief_layer'|'book'|'theme'), source_ref, created_at, updated_at`
+- `journal_prompts` — `id, user_id?, category, text, locale` (seeded with ~80 prompts; nullable user_id = global library)
+- `journal_entry_links` — `id, user_id, entry_id, target_kind ('verse'|'belief'|'tension'|'study'|'daily'|'chat_thread'|'artifact'), target_ref jsonb, created_at` (replaces the single `verse_ref` / `belief_id` columns; entry can link to many things)
 
-- **`journal_entries`** — `id, user_id, entry_at (date), entry_at_ts (timestamptz, for time-of-day), title?, body (text), mood (smallint -2..+2), weather?, location_name?, lat?, lng?, tags (text[]), verse_ref?, belief_id?, analyze (bool, default false), created_at, updated_at`
-- **`journal_photos`** — `id, user_id, entry_id, storage_path, width?, height?, created_at`. Storage bucket `journal-photos` (private, per-user folder).
-- **`journal_entry_scores`** — one row per analyzed entry: `entry_id, user_id, axes (jsonb: {love_fear, trust_abandonment, grace_guilt, hope_despair, agency_helplessness, gratitude_resentment …} each -1..+1), themes (text[]), assumptions (text[]), created_at`. Only populated when `entry.analyze = true`.
-- **`journal_mirror_reports`** — `id, user_id, range_start, range_end, kind ('weekly'|'on_demand'), aggregate (jsonb), conflicts (jsonb: array of {belief_id, belief_statement, axis, evidence_excerpts[], severity, summary}), created_at`.
+Modify `journal_entries`:
+- add `journal_id uuid not null` (default → user's "Journal" default row, backfilled in same migration)
+- add `pinned boolean default false`
+- add `prompt_id uuid null`
+- add `weather_temp_c numeric null`, `weather_icon text null` (split out from text `weather`)
+- keep `verse_ref` and `belief_id` for backward compatibility but treat `journal_entry_links` as source of truth going forward
 
-Indexes on `(user_id, entry_at desc)`, `(user_id, tags gin)`.
+Auto-create on first load (one-time, server-side via edge fn `journal-bootstrap`):
+- Default "Journal" (blue)
+- One per Framework layer the user has filled in (Theology / Anthropology / Ethics …) — color-coded
+- "Verse Notes" — auto-receives verse-side captures
+- "Daily" — auto-receives entries written from Daily reading
+- "Chat" — auto-receives entries created from a chat message ("Save to journal")
 
----
-
-## Phase 1 — Standalone journal that feels like Day One
-
-### Routes & UI
-- New top-level tile **Journal** on `/home` (and dock slot).
-- `/journal` — **Timeline**: reverse-chronological feed grouped by month, large hero photo per entry, mood dot, tags, location. Search bar (full-text on body+title+tags), tag filter chip row, year scrubber.
-- `/journal/calendar` — month grid with dots/photo thumbnails per day; tap → that day's entries.
-- `/journal/new` and `/journal/:id/edit` — composer with:
-  - Title (optional), rich-ish body (textarea + markdown — no heavy editor lib for v1)
-  - Mood picker (5-point), tag input (chips), date+time picker (defaults now)
-  - Photo attach (multi, drag-drop, mobile camera input)
-  - Location: "use my location" → reverse-geocode label (browser geolocation + Nominatim or skipped if denied)
-  - Weather: optional, fetched from a free endpoint at save time
-  - **"Link to"** picker: verse (opens chapter picker), belief (autocomplete from belief_nodes)
-  - **"Include in worldview mirror"** checkbox (off by default — your opt-in choice)
-- `/journal/:id` — read view with on-this-day strip ("3 entries on this date in past years"), edit/delete, "open verse," "open belief."
-- **Streaks** widget: current streak + longest streak based on distinct `entry_at` days.
-
-### Verse-side capture
-- In `ReaderPage` selection toolbar, add **Journal this** → navigates to `/journal/new?verse=<ref>&text=<excerpt>` with body pre-filled.
-
-### Storage
-- Bucket `journal-photos`, private, path `{user_id}/{entry_id}/{file}`.
-- Thumbnails generated client-side (canvas resize) before upload to keep timeline fast.
-
-### Done = Phase 1
-You can journal daily, attach photos, search, see calendar/streaks, and link entries to verses/beliefs.
+All new tables: RLS `auth.uid() = user_id`, proper indexes (`journal_id`, `entry_at_ts desc`, `pinned`, GIN on `tags`).
 
 ---
 
-## Phase 2 — The worldview mirror
+## 2. Day One UI (responsive)
 
-### Per-entry scoring (only if `analyze = true`)
-- New edge function `journal-score-entry` (Lovable AI Gateway, `google/gemini-2.5-flash` — cheap, fast).
-- Trigger: client calls it right after save when `analyze=true`. Also a **"Score this entry"** button on read view.
-- Returns the `axes`, `themes`, `assumptions` JSON via tool-calling (same pattern as `framework-detect-tensions`). Stored in `journal_entry_scores`.
+### Routes
+```
+/journal                       → split shell (sidebar + list + entry on ≥ md)
+/journal/j/:journalId          → list scoped to one journal
+/journal/j/:journalId/calendar
+/journal/j/:journalId/media    (photo grid)
+/journal/j/:journalId/map      (entries plotted on Mapbox-free Leaflet/OSM map)
+/journal/today                 → today + on-this-day strip
+/journal/prompts               → prompt library
+/journal/new?journalId=…&promptId=…&verse=…&belief=…
+/journal/:id                   → reader view
+/journal/:id/edit
+/journal/mirror                → existing mirror page (kept)
+```
 
-### Aggregate + conflict detection
-- New edge function `journal-mirror` (model: `google/gemini-2.5-pro`, the heavy reasoner).
-- Inputs: all scored entries in `range_start..range_end`, plus the user's `belief_nodes` (statement + answer + confidence).
-- Logic:
-  1. Compute aggregate axis distribution across entries (e.g. % of entries skewing toward fear vs love).
-  2. For each high-confidence belief, compare to the aggregate. Flag dissonances where the lived data contradicts the stated belief.
-  3. Pick representative excerpts (entry IDs + 1–2 sentence quotes) as evidence.
-- Output (stored in `journal_mirror_reports.conflicts`) is shaped exactly like your example:
-  > "You claim God is loving (confidence 90), but 47% of your entries assume abandonment, punishment, or fear-based guidance." + 3 quoted excerpts + suggested reflection prompt.
+### Shell layout
+```
+┌──────────────┬───────────────────────┬────────────────────────────┐
+│ JournalsRail │ EntryList             │ EntryReader                │
+│  • All       │  Big colored header   │  Title, body, photos       │
+│  • Journal   │  GOD                  │  Map (lat/lng)             │
+│  • GOD ●     │  2024 — 2026          │  Footer: location · 70°F · │
+│  • Thoughts  │  [List|Cal|Media|Map] │           journal name     │
+│  • + Add     │  Pinned …             │  Linked: verses · beliefs ·│
+│  • More      │  May 2026             │           tensions · chats │
+│  • Today     │   FRI                 │                            │
+│  • Prompts   │   08  Feeling Down …  │                            │
+└──────────────┴───────────────────────┴────────────────────────────┘
+```
+- ≥ md: three columns visible. < md: stacked, iPhone-style push navigation (rail → list → reader).
+- Use shadcn `SidebarProvider` for the rail with a collapse trigger.
+- Tabs (List · Calendar · Media · Map) under cover header.
+- Floating circular "+" FAB in cover color, bottom-right.
 
-### Surfaces
-- **`/journal/mirror`** page — list of past reports, current report card with conflicts as collapsible cards (axis bar, %, excerpts, "open entry," "open belief," "start a chat about this" → seeds a `chat_thread`).
-- **Weekly auto-run**: `pg_cron` job every Sunday 6pm user-local-ish (UTC for v1) calls `journal-mirror` for each user with ≥5 scored entries that week.
-- **On-demand button** "Run mirror now" on `/journal` and `/journal/mirror`.
-- Notification surface: a soft red dot on the Journal tile when a new mirror report has unread conflicts.
+### Cover header
+Big colored block (uses `journal.color`) with title in 36px bold, subtitle = year range computed from entries. Optional photo cover. White card slides up underneath holding the tab bar — exactly the Day One feel from the screenshots.
 
-### Done = Phase 2
-The "47% assume abandonment" insight ships, both automatically and on-demand.
+### Entry row
+```
+┌─────┬─────────────────────────────────────────┐
+│ FRI │ Feeling Down                            │
+│ 08  │ So it looks like I did fail a test…     │
+│     │ 6:02 PM · 200 Cavanaugh Ln · 70°F Clear │
+└─────┴─────────────────────────────────────────┘
+```
+Pinned section pinned to top with pin icon + heart for favorited entries.
 
----
-
-## Phase 3 — Polish & integration (post-MVP)
-
-- **On-this-day** widget on `/home` showing today's entries from prior years.
-- **"Journal this verse"** quick action from any verse note.
-- **Belief detail page**: show "evidence in your journal" — entries linked to or scored against this belief, with a mini axis bar.
-- **Chat handoff**: from a mirror conflict, "Talk to my Socratic partner about this" pre-loads context into a new `chat_thread`.
-- **Export**: download journal as JSON or Markdown zip (Day One parity).
-- **Search upgrades**: postgres `tsvector` index for full-text.
-
-(Photos/location/weather are in Phase 1, not punted to Phase 3 — that was your "Day One-class" ask.)
-
----
-
-## Files (rough)
-
-**Phase 1**
-- migration: tables + storage bucket + RLS
-- `src/pages/journal/JournalPage.tsx` (timeline)
-- `src/pages/journal/JournalCalendarPage.tsx`
-- `src/pages/journal/JournalEntryPage.tsx`
-- `src/pages/journal/NewJournalEntryPage.tsx`
-- `src/components/journal/EntryCard.tsx`, `MoodPicker.tsx`, `TagInput.tsx`, `PhotoUploader.tsx`, `OnThisDayStrip.tsx`, `StreakBadge.tsx`
-- `src/lib/journal/geolocation.ts`, `weather.ts`
-- `src/App.tsx` routes; `src/pages/HomePage.tsx` add tile + dock
-- `src/components/bible/SelectionToolbar.tsx` add "Journal this"
-
-**Phase 2**
-- `supabase/functions/journal-score-entry/index.ts`
-- `supabase/functions/journal-mirror/index.ts`
-- cron job (via insert tool, not migration)
-- `src/pages/journal/JournalMirrorPage.tsx`
-- `src/components/journal/ConflictCard.tsx`, `AxisBar.tsx`
+### Entry reader
+- Title (28px bold), serif body at comfortable measure
+- Inline photos (lightbox)
+- Mini-map under body (Leaflet + OpenStreetMap tiles, no key)
+- Footer chip strip: location · weather · journal name (colored)
+- "Linked" panel showing every connection — each links back to the source
 
 ---
 
-## Privacy guarantees baked in
+## 3. Interconnection — wire Journal into every surface
 
-- `analyze` defaults `false`. Scoring/mirror only ever reads entries with `analyze=true`. The toggle is visible in the composer and on the read view (you can flip it later).
-- `journal_entry_scores` cascade-deletes when an entry is deleted or `analyze` is flipped off.
-- All tables RLS; photos in private bucket scoped to `{user_id}/`.
+### Reader (Bible) → Journal
+- Selection toolbar already has "Journal this verse" — route now opens composer prefilled with `verse_ref` + auto-link, defaults to "Verse Notes" journal.
+- Verse sheet shows existing journal entries that mention that ref (collapsible "From your journal").
+
+### Framework / Belief detail → Journal
+- "Your journal" tab on Belief detail listing entries linked via `journal_entry_links` where `target_kind='belief'`.
+- "New entry about this belief" button → composer prefilled.
+- Belief layer detail surfaces the layer's auto-created journal.
+
+### Chat → Journal
+- Each assistant message gets a "Save to Journal" action → composer prefilled with the message body and a link to the chat thread.
+- Chat system prompt receives last 10 journal entries (where `analyze_for_mirror=true`) as context so it can reference them ("Last week you wrote…").
+
+### Daily reading → Journal
+- Daily page gets "Reflect in journal" button → composer prefilled with passage + reading prompt; auto-saves to "Daily" journal and links to that day's `daily_readings` row.
+
+### Study / Tensions / Influences → Journal
+- Each surfaces a "Related entries" strip pulled from `journal_entry_links`.
+- Tension detail offers "Wrestle with this in your journal".
+
+### Mirror → Journal (already partial)
+- Conflict cards deep-link into the offending entries (passes entry IDs through `aggregate.evidence_entry_ids`).
+- "Open all evidence" filters the list view.
+
+### Home tile
+- Streak + last entry preview + "Today's prompt" button.
 
 ---
 
-## Open question (cheap to defer)
+## 4. Auto location / weather / map
 
-Weather + reverse-geocoding both need a tiny external call. I'd use **Open-Meteo** (no key) for weather and **OpenStreetMap Nominatim** (no key, attribution required) for reverse-geocoding — both free, both fine for personal-scale use. Say the word and I'll bake them in; otherwise location is a free-text field in v1.
+- On composer mount, request `navigator.geolocation`.
+- Reverse-geocode via OSM Nominatim (`https://nominatim.openstreetmap.org/reverse`, no key, attribution shown in footer).
+- Weather via Open-Meteo (`https://api.open-meteo.com/v1/forecast`, no key) — store `weather_temp_c` + `weather_icon` (mapped from WMO code).
+- Both behind a single client helper `src/lib/journal/context.ts` with timeout + graceful failure.
+- Map render: Leaflet + OSM tiles, lazy-loaded only on entry reader and Map tab. Privacy: stays per-entry, never sent anywhere except where the user already opted into mirror analysis.
+
+---
+
+## 5. Prompts
+
+- Seed `journal_prompts` with curated faith-oriented prompts (gratitude, lament, doubt, scripture reflection, relationships, vocation…) plus generic Day One classics.
+- `/journal/prompts` shows categorized cards; tap → composer with `prompt_id` set.
+- "Today's prompt" picks one deterministically per (user, date).
+
+---
+
+## 6. Media / Map / Calendar tabs
+
+- **Media** — flat photo grid from `journal_photos` scoped to journal, grouped by month, lightbox on tap.
+- **Map** — Leaflet world map with marker clusters, click marker → entry preview popover.
+- **Calendar** — already exists; restyle to Day One month grid with day-cell thumbnails.
+
+---
+
+## 7. Edge functions
+
+- `journal-bootstrap` — idempotent: ensures default journals exist, creates layer/book journals on demand.
+- `journal-prompt-today` — picks the day's prompt.
+- `journal-score-entry` — keep as-is, runs on save when `analyze_for_mirror=true`.
+- `journal-mirror` — keep, extend to return `evidence_entry_ids` per conflict.
+- `framework-chat` — extend system prompt with recent journal context (opted-in entries only).
+
+---
+
+## 8. Phased rollout
+
+**Phase 1 — Foundation (this build)**
+- Migration (journals, links, prompts, columns), bootstrap fn, seed prompts.
+- New shell with rail + list + reader, multi-journal CRUD, cover header, tabs scaffolded (List + Calendar live; Media/Map tab placeholders).
+- Composer auto-captures geo + weather, supports multi-link, prompt selection.
+- Reader Verse-side capture rerouted to new composer with link.
+- Belief detail "Your journal" panel.
+- Home tile updated.
+
+**Phase 2 — Surfaces**
+- Media grid + Leaflet map tab + entry-reader mini-map.
+- Chat "Save to journal" + chat context injection.
+- Daily/Study/Tensions/Influences related-entries strips.
+- Mirror evidence deep-linking.
+
+**Phase 3 — Polish**
+- Prompt library page, today's prompt on home, on-this-day strip, search across journals, export per-journal as markdown zip.
+
+---
+
+## Technical notes
+
+- Reuse `app-theme` tokens; per-journal colors stored as Tailwind-compatible HSL strings on the `journals` row so every cover/header/FAB pulls from one source.
+- Backward compat: existing `verse_ref` / `belief_id` migrated into `journal_entry_links` rows in the same migration; columns kept readable to avoid breaking the current detail page until it switches.
+- Leaflet via `react-leaflet` + `leaflet` (small, no key, OSM tiles). Lazy-imported.
+- Nominatim usage requires a UA + ≤ 1 req/sec — acceptable for personal-scale; cache last lookup in `sessionStorage`.
+- All new client paths gated by `useAuth`, redirect to `/auth` if missing.
+
+---
+
+## Open question (non-blocking — defaulted)
+
+Map provider: Leaflet + OSM (free, no key, attribution in footer). If you'd rather use Mapbox/Apple-style tiles later we can swap by changing one file.
