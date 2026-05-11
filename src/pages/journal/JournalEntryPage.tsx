@@ -285,7 +285,7 @@ function guessChapter(ref: string): number {
 
 function LinkChip({ link }: { link: EntryLink }) {
   const ref = link.target_ref as Record<string, unknown>;
-  let label = link.target_kind;
+  let label: string = link.target_kind;
   let to = "/journal";
   switch (link.target_kind) {
     case "verse": {
