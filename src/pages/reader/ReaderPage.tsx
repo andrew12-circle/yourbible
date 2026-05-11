@@ -29,7 +29,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
-const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+function pageTypoClass(fontChoice: string | undefined) {
+  if (fontChoice === "sans") return `font-sans ${PAGE_TYPO_BASE}`;
+  if (fontChoice === "sf") {
+    // Inline SF stack via font-system class added in index.css; fall back to
+    // a plain class so the user clearly gets Apple's typeface here.
+    return `font-system ${PAGE_TYPO_BASE}`;
+  }
+  return `font-scripture ${PAGE_TYPO_BASE}`;
+}
 // Single-column reading flow — feels like a natural book page on any screen.
 const COLUMN_CLASS = "";
 
