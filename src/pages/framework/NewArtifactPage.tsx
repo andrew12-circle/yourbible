@@ -15,7 +15,7 @@ export default function NewArtifactPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState<Mode>("text");
+  const [mode, setMode] = useState<Mode>("youtube");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
@@ -24,6 +24,13 @@ export default function NewArtifactPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const requestedMode = params.get("mode");
+    if (requestedMode === "youtube" || requestedMode === "text" || requestedMode === "voice") {
+      setMode(requestedMode);
+    }
+  }, [params]);
 
   useEffect(() => {
     const seedVerse = params.get("verse");
@@ -154,10 +161,31 @@ export default function NewArtifactPage() {
   };
 
   const tabs: { id: Mode; label: string; icon: any }[] = [
-    { id: "text", label: "Text", icon: FileText },
     { id: "youtube", label: "YouTube", icon: Youtube },
+    { id: "text", label: "Text", icon: FileText },
     { id: "voice", label: "Voice", icon: Mic },
   ];
+
+  const getYouTubeEmbed = (input: string) => {
+    const value = input.trim();
+    if (!value) return null;
+    try {
+      const parsed = new URL(value);
+      if (parsed.hostname.includes("youtu.be")) {
+        const id = parsed.pathname.split("/").filter(Boolean)[0];
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      if (parsed.hostname.includes("youtube.com")) {
+        const id = parsed.searchParams.get("v");
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const embedUrl = getYouTubeEmbed(url);
 
   return (
     <FrameworkLayout title="New artifact" back="/framework/artifacts">
@@ -200,8 +228,28 @@ export default function NewArtifactPage() {
 
       {mode === "youtube" && (
         <>
+          <div className="rounded-lg border border-red-200/80 bg-red-50/60 p-4 mb-4">
+            <div className="flex items-center gap-2 text-red-700 mb-2">
+              <Youtube className="w-5 h-5" />
+              <span className="font-medium">YouTube capture</span>
+            </div>
+            <p className="text-xs text-red-700/80">
+              Paste a video URL to analyze captions and optionally preview the video here first.
+            </p>
+          </div>
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">YouTube URL</label>
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="mb-3" />
+          {embedUrl && (
+            <div className="mb-4 rounded-lg overflow-hidden border border-border bg-card">
+              <iframe
+                title="YouTube preview"
+                src={embedUrl}
+                className="w-full aspect-video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mb-5">
             Pulls the auto-generated captions and runs them through the analyzer. If captions aren't available you'll be asked to paste the transcript.
           </p>
