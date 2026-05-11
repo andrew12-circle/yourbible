@@ -26,6 +26,11 @@ import DigestPage from "./pages/framework/DigestPage";
 import ChatPage from "./pages/framework/ChatPage";
 import StudyPage from "./pages/framework/StudyPage";
 import DailyPage from "./pages/framework/DailyPage";
+import JournalPage from "./pages/journal/JournalPage";
+import JournalCalendarPage from "./pages/journal/JournalCalendarPage";
+import JournalEntryPage from "./pages/journal/JournalEntryPage";
+import NewJournalEntryPage from "./pages/journal/NewJournalEntryPage";
+import JournalMirrorPage from "./pages/journal/JournalMirrorPage";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +60,12 @@ const App = () => (
             <Route path="/framework/chat" element={<ChatPage />} />
             <Route path="/framework/study" element={<StudyPage />} />
             <Route path="/framework/daily" element={<DailyPage />} />
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/journal/calendar" element={<JournalCalendarPage />} />
+            <Route path="/journal/mirror" element={<JournalMirrorPage />} />
+            <Route path="/journal/new" element={<NewJournalEntryPage />} />
+            <Route path="/journal/:id" element={<JournalEntryPage />} />
+            <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
             <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />

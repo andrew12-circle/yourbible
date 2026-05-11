@@ -2,7 +2,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
-  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut,
+  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,6 +52,7 @@ export default function HomePage() {
     { label: "Daily",     to: "/framework/daily",   icon: Sun,                  gradient: "from-yellow-400 via-amber-400 to-orange-500" },
     { label: "Framework", to: "/framework",         icon: Compass,              gradient: "from-emerald-500 via-teal-500 to-cyan-600" },
     { label: "Chat",      to: "/framework/chat",    icon: MessageCircleQuestion, gradient: "from-sky-500 via-blue-500 to-indigo-600" },
+    { label: "Journal",   to: "/journal",           icon: NotebookPen,          gradient: "from-rose-400 via-pink-500 to-fuchsia-600" },
     { label: "Beliefs",   to: "/framework/beliefs", icon: ListChecks,           gradient: "from-violet-500 via-purple-500 to-fuchsia-600" },
     { label: "Tensions",  to: "/framework/tensions",icon: Sparkles,             gradient: "from-pink-500 via-rose-500 to-red-500" },
     { label: "Study",     to: "/framework/study",   icon: GraduationCap,        gradient: "from-indigo-500 via-blue-600 to-slate-700" },

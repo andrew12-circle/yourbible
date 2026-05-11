@@ -598,6 +598,175 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          analyze_for_mirror: boolean
+          belief_id: string | null
+          body: string
+          created_at: string
+          entry_at: string
+          entry_at_ts: string
+          id: string
+          lat: number | null
+          lng: number | null
+          location_name: string | null
+          mood: number | null
+          tags: string[]
+          title: string | null
+          updated_at: string
+          user_id: string
+          verse_ref: string | null
+          weather: string | null
+        }
+        Insert: {
+          analyze_for_mirror?: boolean
+          belief_id?: string | null
+          body?: string
+          created_at?: string
+          entry_at?: string
+          entry_at_ts?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          location_name?: string | null
+          mood?: number | null
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          verse_ref?: string | null
+          weather?: string | null
+        }
+        Update: {
+          analyze_for_mirror?: boolean
+          belief_id?: string | null
+          body?: string
+          created_at?: string
+          entry_at?: string
+          entry_at_ts?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          location_name?: string | null
+          mood?: number | null
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          verse_ref?: string | null
+          weather?: string | null
+        }
+        Relationships: []
+      }
+      journal_entry_scores: {
+        Row: {
+          assumptions: string[]
+          axes: Json
+          created_at: string
+          entry_id: string
+          id: string
+          themes: string[]
+          user_id: string
+        }
+        Insert: {
+          assumptions?: string[]
+          axes?: Json
+          created_at?: string
+          entry_id: string
+          id?: string
+          themes?: string[]
+          user_id: string
+        }
+        Update: {
+          assumptions?: string[]
+          axes?: Json
+          created_at?: string
+          entry_id?: string
+          id?: string
+          themes?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_mirror_reports: {
+        Row: {
+          aggregate: Json
+          conflicts: Json
+          created_at: string
+          id: string
+          kind: string
+          range_end: string
+          range_start: string
+          user_id: string
+        }
+        Insert: {
+          aggregate?: Json
+          conflicts?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          range_end: string
+          range_start: string
+          user_id: string
+        }
+        Update: {
+          aggregate?: Json
+          conflicts?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          range_end?: string
+          range_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      journal_photos: {
+        Row: {
+          created_at: string
+          entry_id: string
+          height: number | null
+          id: string
+          storage_path: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          height?: number | null
+          id?: string
+          storage_path: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          height?: number | null
+          id?: string
+          storage_path?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_photos_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           body: string
