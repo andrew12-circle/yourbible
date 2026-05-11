@@ -1,190 +1,110 @@
-# Day One-class Journal, fully interconnected
+# Reader Companion Pane — read, journal, dialogue, crystallize
 
-Replicate Day One's structure (multiple colored journals, big cover header, List/Calendar/Media/Map tabs, day-stamped rows, prompts, auto location/weather/map) and weave it through every other surface in the app — Reader, Framework beliefs, Chat, Daily, Study, Tensions, Influences, Mirror.
-
----
-
-## 1. Data model (one migration)
-
-New tables:
-- `journals` — `id, user_id, name, color, icon, cover_kind ('color'|'photo'), cover_value, sort_order, is_default, source_kind ('manual'|'belief_layer'|'book'|'theme'), source_ref, created_at, updated_at`
-- `journal_prompts` — `id, user_id?, category, text, locale` (seeded with ~80 prompts; nullable user_id = global library)
-- `journal_entry_links` — `id, user_id, entry_id, target_kind ('verse'|'belief'|'tension'|'study'|'daily'|'chat_thread'|'artifact'), target_ref jsonb, created_at` (replaces the single `verse_ref` / `belief_id` columns; entry can link to many things)
-
-Modify `journal_entries`:
-- add `journal_id uuid not null` (default → user's "Journal" default row, backfilled in same migration)
-- add `pinned boolean default false`
-- add `prompt_id uuid null`
-- add `weather_temp_c numeric null`, `weather_icon text null` (split out from text `weather`)
-- keep `verse_ref` and `belief_id` for backward compatibility but treat `journal_entry_links` as source of truth going forward
-
-Auto-create on first load (one-time, server-side via edge fn `journal-bootstrap`):
-- Default "Journal" (blue)
-- One per Framework layer the user has filled in (Theology / Anthropology / Ethics …) — color-coded
-- "Verse Notes" — auto-receives verse-side captures
-- "Daily" — auto-receives entries written from Daily reading
-- "Chat" — auto-receives entries created from a chat message ("Save to journal")
-
-All new tables: RLS `auth.uid() = user_id`, proper indexes (`journal_id`, `entry_at_ts desc`, `pinned`, GIN on `tags`).
+A single floating pane on the Bible reader (`/read/:book/:chapter`) that you can drag, snap, dock, or minimize. It carries three connected modes for the verse/passage you've selected: **Journal**, **Dialogue (AI)**, and **Crystallize (belief)**. Outside content comes from your own artifacts first, then optional web.
 
 ---
 
-## 2. Day One UI (responsive)
+## 1. The Companion Pane (UI)
 
-### Routes
-```
-/journal                       → split shell (sidebar + list + entry on ≥ md)
-/journal/j/:journalId          → list scoped to one journal
-/journal/j/:journalId/calendar
-/journal/j/:journalId/media    (photo grid)
-/journal/j/:journalId/map      (entries plotted on Mapbox-free Leaflet/OSM map)
-/journal/today                 → today + on-this-day strip
-/journal/prompts               → prompt library
-/journal/new?journalId=…&promptId=…&verse=…&belief=…
-/journal/:id                   → reader view
-/journal/:id/edit
-/journal/mirror                → existing mirror page (kept)
-```
+A new floating panel mounted on `ReaderPage`.
 
-### Shell layout
-```
-┌──────────────┬───────────────────────┬────────────────────────────┐
-│ JournalsRail │ EntryList             │ EntryReader                │
-│  • All       │  Big colored header   │  Title, body, photos       │
-│  • Journal   │  GOD                  │  Map (lat/lng)             │
-│  • GOD ●     │  2024 — 2026          │  Footer: location · 70°F · │
-│  • Thoughts  │  [List|Cal|Media|Map] │           journal name     │
-│  • + Add     │  Pinned …             │  Linked: verses · beliefs ·│
-│  • More      │  May 2026             │           tensions · chats │
-│  • Today     │   FRI                 │                            │
-│  • Prompts   │   08  Feeling Down …  │                            │
-└──────────────┴───────────────────────┴────────────────────────────┘
-```
-- ≥ md: three columns visible. < md: stacked, iPhone-style push navigation (rail → list → reader).
-- Use shadcn `SidebarProvider` for the rail with a collapse trigger.
-- Tabs (List · Calendar · Media · Map) under cover header.
-- Floating circular "+" FAB in cover color, bottom-right.
+- **Movable**: drag by the header. Snap zones: dock-right, dock-left, dock-bottom (slide-up), or free-float anywhere.
+- **Resizable**: corner handle. Remembers width/height/position per device in `localStorage`.
+- **States**: minimized pill (bottom-right), open card, full-sheet (mobile only).
+- **Header**: shows current scope chip — e.g., *John 1* or *John 1:14* — plus tabs `Journal · Dialogue · Belief`, a pin button, and a close.
+- **Scope binding**: if you've selected a verse via the existing `SelectionToolbar`, scope = that verse range; otherwise = whole chapter. A "Change scope" affordance lets you flip between them.
 
-### Cover header
-Big colored block (uses `journal.color`) with title in 36px bold, subtitle = year range computed from entries. Optional photo cover. White card slides up underneath holding the tab bar — exactly the Day One feel from the screenshots.
-
-### Entry row
-```
-┌─────┬─────────────────────────────────────────┐
-│ FRI │ Feeling Down                            │
-│ 08  │ So it looks like I did fail a test…     │
-│     │ 6:02 PM · 200 Cavanaugh Ln · 70°F Clear │
-└─────┴─────────────────────────────────────────┘
-```
-Pinned section pinned to top with pin icon + heart for favorited entries.
-
-### Entry reader
-- Title (28px bold), serif body at comfortable measure
-- Inline photos (lightbox)
-- Mini-map under body (Leaflet + OpenStreetMap tiles, no key)
-- Footer chip strip: location · weather · journal name (colored)
-- "Linked" panel showing every connection — each links back to the source
+A small **"Open Companion"** button (book + pen icon) is added to the reader top bar so it can be re-opened after closing.
 
 ---
 
-## 3. Interconnection — wire Journal into every surface
+## 2. Tab 1 — Journal
 
-### Reader (Bible) → Journal
-- Selection toolbar already has "Journal this verse" — route now opens composer prefilled with `verse_ref` + auto-link, defaults to "Verse Notes" journal.
-- Verse sheet shows existing journal entries that mention that ref (collapsible "From your journal").
+In-place writing tied to the current scope.
 
-### Framework / Belief detail → Journal
-- "Your journal" tab on Belief detail listing entries linked via `journal_entry_links` where `target_kind='belief'`.
-- "New entry about this belief" button → composer prefilled.
-- Belief layer detail surfaces the layer's auto-created journal.
-
-### Chat → Journal
-- Each assistant message gets a "Save to Journal" action → composer prefilled with the message body and a link to the chat thread.
-- Chat system prompt receives last 10 journal entries (where `analyze_for_mirror=true`) as context so it can reference them ("Last week you wrote…").
-
-### Daily reading → Journal
-- Daily page gets "Reflect in journal" button → composer prefilled with passage + reading prompt; auto-saves to "Daily" journal and links to that day's `daily_readings` row.
-
-### Study / Tensions / Influences → Journal
-- Each surfaces a "Related entries" strip pulled from `journal_entry_links`.
-- Tension detail offers "Wrestle with this in your journal".
-
-### Mirror → Journal (already partial)
-- Conflict cards deep-link into the offending entries (passes entry IDs through `aggregate.evidence_entry_ids`).
-- "Open all evidence" filters the list view.
-
-### Home tile
-- Streak + last entry preview + "Today's prompt" button.
+- Title, body, mood, tags (reuse pieces from `NewJournalEntryPage` but inline, not full page).
+- Auto-creates a `journal_entries` row with `verse_ref` set (e.g., `John 1:14`) and a `journal_entry_links` row of kind `verse` so it shows up on the verse later.
+- "Save & continue" keeps the entry open and switches to **Dialogue**.
+- An entry started in the pane auto-saves draft to `localStorage` keyed by `book/chapter/verse` so flipping verses doesn't lose work.
 
 ---
 
-## 4. Auto location / weather / map
+## 3. Tab 2 — Dialogue (AI)
 
-- On composer mount, request `navigator.geolocation`.
-- Reverse-geocode via OSM Nominatim (`https://nominatim.openstreetmap.org/reverse`, no key, attribution shown in footer).
-- Weather via Open-Meteo (`https://api.open-meteo.com/v1/forecast`, no key) — store `weather_temp_c` + `weather_icon` (mapped from WMO code).
-- Both behind a single client helper `src/lib/journal/context.ts` with timeout + graceful failure.
-- Map render: Leaflet + OSM tiles, lazy-loaded only on entry reader and Map tab. Privacy: stays per-entry, never sent anywhere except where the user already opted into mirror analysis.
+A focused multi-turn chat scoped to *this passage + this journal entry*.
 
----
-
-## 5. Prompts
-
-- Seed `journal_prompts` with curated faith-oriented prompts (gratitude, lament, doubt, scripture reflection, relationships, vocation…) plus generic Day One classics.
-- `/journal/prompts` shows categorized cards; tap → composer with `prompt_id` set.
-- "Today's prompt" picks one deterministically per (user, date).
+- System context = passage text + your journal draft + (optional) your existing belief on this topic if one is linked.
+- Behaves Socratically: asks follow-up questions to deepen your thinking, not verdicts.
+- A **"Bring in other perspectives"** action runs a tool that:
+  1. Searches your own `artifacts` + `artifact_claims` (semantic match on passage / topic) and surfaces relevant claims with the artifact title.
+  2. If you opt in (toggle), then runs a web search for tradition views and commentary on the passage.
+  Results appear as inline cards inside the chat that you can quote into your journal.
+- Conversation persists to `chat_threads` / `chat_messages` with a new `mode = "reader_dialogue"` and a `target_ref` JSON (`{book, chapter, verse, journal_entry_id}`).
 
 ---
 
-## 6. Media / Map / Calendar tabs
+## 4. Tab 3 — Crystallize (Belief)
 
-- **Media** — flat photo grid from `journal_photos` scoped to journal, grouped by month, lightbox on tap.
-- **Map** — Leaflet world map with marker clusters, click marker → entry preview popover.
-- **Calendar** — already exists; restyle to Day One month grid with day-cell thumbnails.
+When you're ready, AI distills the journal + dialogue into 1–3 candidate belief statements.
 
----
-
-## 7. Edge functions
-
-- `journal-bootstrap` — idempotent: ensures default journals exist, creates layer/book journals on demand.
-- `journal-prompt-today` — picks the day's prompt.
-- `journal-score-entry` — keep as-is, runs on save when `analyze_for_mirror=true`.
-- `journal-mirror` — keep, extend to return `evidence_entry_ids` per conflict.
-- `framework-chat` — extend system prompt with recent journal context (opted-in entries only).
+- Each candidate is editable. You pick layer (Foundations / Doctrine / etc.), confidence slider, tags.
+- **Save** writes a `belief_nodes` row, plus:
+  - `belief_scriptures` row with `ref = "John 1:14"` (`role = supports`).
+  - `belief_sources` row pointing back to the journal entry / chat thread.
+  - `journal_entry_links` row of kind `belief`.
+- **"Mark as core for this chapter"** checkbox: tags the belief with `core:John-1` so the chapter shows it as the anchor on next visit.
+- A new chapter header strip on `ReaderPage` shows: *"Your anchor belief for John 1: …"* when one exists.
 
 ---
 
-## 8. Phased rollout
+## 5. Outside content priority
 
-**Phase 1 — Foundation (this build)**
-- Migration (journals, links, prompts, columns), bootstrap fn, seed prompts.
-- New shell with rail + list + reader, multi-journal CRUD, cover header, tabs scaffolded (List + Calendar live; Media/Map tab placeholders).
-- Composer auto-captures geo + weather, supports multi-link, prompt selection.
-- Reader Verse-side capture rerouted to new composer with link.
-- Belief detail "Your journal" panel.
-- Home tile updated.
+The "Bring in other perspectives" tool always runs in this order:
 
-**Phase 2 — Surfaces**
-- Media grid + Leaflet map tab + entry-reader mini-map.
-- Chat "Save to journal" + chat context injection.
-- Daily/Study/Tensions/Influences related-entries strips.
-- Mirror evidence deep-linking.
+1. `artifacts` + `artifact_claims` you own — top 5 most relevant.
+2. (Optional toggle) Web search via existing edge function pattern, returning short snippets + links. Off by default.
+3. (Optional) Tradition views from `tradition_views` if any exist for the linked belief.
 
-**Phase 3 — Polish**
-- Prompt library page, today's prompt on home, on-this-day strip, search across journals, export per-journal as markdown zip.
+Each result has a "Quote into journal" and "Add as source" action.
 
 ---
 
-## Technical notes
+## 6. Navigation back from a belief
 
-- Reuse `app-theme` tokens; per-journal colors stored as Tailwind-compatible HSL strings on the `journals` row so every cover/header/FAB pulls from one source.
-- Backward compat: existing `verse_ref` / `belief_id` migrated into `journal_entry_links` rows in the same migration; columns kept readable to avoid breaking the current detail page until it switches.
-- Leaflet via `react-leaflet` + `leaflet` (small, no key, OSM tiles). Lazy-imported.
-- Nominatim usage requires a UA + ≤ 1 req/sec — acceptable for personal-scale; cache last lookup in `sessionStorage`.
-- All new client paths gated by `useAuth`, redirect to `/auth` if missing.
+Saved belief detail page (`BeliefDetailPage`) gets a "Where it came from" section listing the verse, the journal entry, and the chat thread, all clickable. Clicking the verse returns you to `/read/John/1` with the Companion pre-opened on Belief tab for that verse.
 
 ---
 
-## Open question (non-blocking — defaulted)
+## Technical details
 
-Map provider: Leaflet + OSM (free, no key, attribution in footer). If you'd rather use Mapbox/Apple-style tiles later we can swap by changing one file.
+**New files**
+- `src/components/reader/CompanionPane.tsx` — floating draggable shell, tab switcher, scope chip, position persistence.
+- `src/components/reader/CompanionJournalTab.tsx` — inline journal editor.
+- `src/components/reader/CompanionDialogueTab.tsx` — chat UI bound to a thread, renders tool cards.
+- `src/components/reader/CompanionBeliefTab.tsx` — candidate belief editor + save flow.
+- `src/lib/reader/companionStore.ts` — Zustand store for open state, scope, position, active tab, draft.
+- `supabase/functions/reader-dialogue/index.ts` — streaming chat endpoint with tools: `search_my_artifacts`, `web_perspectives` (gated), `propose_beliefs`. Uses Lovable AI Gateway via `@ai-sdk/openai-compatible` + `streamText` with `stopWhen: stepCountIs(50)`.
+
+**Edits**
+- `src/pages/reader/ReaderPage.tsx` — mount `<CompanionPane/>`, add toolbar button, optional anchor-belief header strip, pass current selection into the store.
+- `src/components/bible/SelectionToolbar.tsx` — add "Open in Companion" action.
+- `src/pages/framework/BeliefDetailPage.tsx` — "Where it came from" section.
+- `src/App.tsx` — no route changes needed.
+
+**Database** (one migration)
+- Add `target_ref jsonb` and widen `mode` to allow `"reader_dialogue"` on `chat_threads`.
+- Add `is_core boolean default false` and `core_scope text` (e.g., `John-1`) on `belief_nodes`, with an index on `(user_id, core_scope)`.
+- No other schema changes required — existing `belief_scriptures`, `belief_sources`, `journal_entries.verse_ref`, and `journal_entry_links` already cover the link graph.
+
+**AI**
+- Default model: `google/gemini-3-flash-preview` via Lovable AI Gateway.
+- Tools defined with Zod schemas. `propose_beliefs` returns `{ candidates: [{ statement, layer, confidence, tags, rationale }] }`.
+- The Crystallize tab calls `propose_beliefs` once on entry, then saves selected candidate(s) directly to the DB from the client.
+
+---
+
+## Out of scope for this pass
+
+- Verse-level inline notes "in flow" under each verse (you chose movable pane instead).
+- Audio dictation into the Journal tab (can come later — `voice-memos` bucket already exists).
+- Cross-chapter belief rollup view.

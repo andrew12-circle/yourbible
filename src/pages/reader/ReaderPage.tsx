@@ -21,8 +21,11 @@ import { PageFlip } from "@/components/bible/PageFlip";
 import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, NotebookPen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, NotebookPen, BookOpenText, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { CompanionPane } from "@/components/reader/CompanionPane";
+import { useCompanion } from "@/lib/reader/companionStore";
+import { supabase } from "@/integrations/supabase/client";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
@@ -202,6 +205,33 @@ export default function ReaderPage() {
 
   const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
+
+  // Companion pane integration
+  const openCompanion = useCompanion(s => s.openWith);
+  const companionOpen = useCompanion(s => s.open);
+  const [anchorBelief, setAnchorBelief] = useState<{ id: string; statement: string } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    setAnchorBelief(null);
+    supabase.from("belief_nodes")
+      .select("id,statement")
+      .eq("user_id", user.id)
+      .eq("core_scope", `${book.abbr}-${chapter}`)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => { if (data && data[0]) setAnchorBelief(data[0]); });
+  }, [user, book.abbr, chapter]);
+
+  const buildScope = (verses: number[]) => {
+    const text = (passage?.verses ?? [])
+      .filter(v => verses.length === 0 || verses.includes(v.number))
+      .map(v => `${v.number} ${v.text}`)
+      .join(" ");
+    return {
+      book: book.abbr, bookName: book.name, chapter, verses,
+      passageText: text.slice(0, 4000),
+    };
+  };
 
   // (long-press highlight removed — we now use native drag-selection)
 
@@ -813,6 +843,10 @@ export default function ReaderPage() {
             `/framework/artifacts/new?ref=${encodeURIComponent(refRange)}&verse=${encodeURIComponent(text)}`,
           );
         }}
+        onOpenCompanion={() => {
+          if (!tbSel) return;
+          openCompanion(buildScope(tbSel.verses), "journal");
+        }}
         onClose={() => clearWindowSelection()}
       />
 
@@ -856,6 +890,31 @@ export default function ReaderPage() {
           }}
         />
       )}
+
+      {/* Anchor belief banner for this chapter */}
+      {anchorBelief && !focusMode && (
+        <button
+          onClick={() => navigate(`/framework/beliefs/${anchorBelief.id}`)}
+          className="fixed top-14 left-1/2 -translate-x-1/2 z-30 max-w-[min(680px,92vw)] bg-paper border border-gold/50 rounded-full shadow-leather px-4 py-1.5 text-xs flex items-center gap-2 hover:bg-paper-warm transition"
+          title="Your anchor belief for this chapter"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-leather shrink-0" />
+          <span className="ink-text truncate">{anchorBelief.statement}</span>
+        </button>
+      )}
+
+      {/* Companion opener (when closed) */}
+      {!companionOpen && !focusMode && (
+        <button
+          onClick={() => openCompanion(buildScope([]), "journal")}
+          aria-label="Open Companion"
+          className="fixed bottom-5 right-5 z-40 bg-leather text-paper rounded-full w-12 h-12 shadow-leather flex items-center justify-center hover:scale-105 transition"
+        >
+          <BookOpenText className="w-5 h-5" />
+        </button>
+      )}
+
+      <CompanionPane />
     </div>
   );
 }

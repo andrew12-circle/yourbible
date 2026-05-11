@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
-import { Trash2, NotebookPen, PenLine, Network } from "lucide-react";
+import { Trash2, NotebookPen, PenLine, Network, BookOpenText } from "lucide-react";
 
 export type ToolbarSelection = {
   /** Bounding rect of the current text selection in viewport coords. */
@@ -22,6 +22,7 @@ interface Props {
   onClear: () => void;
   onNote: () => void;
   onTestFramework?: () => void;
+  onOpenCompanion?: () => void;
   onClose: () => void;
 }
 
@@ -36,6 +37,7 @@ export function SelectionToolbar({
   onClear,
   onNote,
   onTestFramework,
+  onOpenCompanion,
   onClose,
 }: Props) {
   const palette = getPalette(paletteId);
@@ -114,6 +116,15 @@ export function SelectionToolbar({
               className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
             >
               <Network className="w-4 h-4" />
+            </button>
+          )}
+          {onOpenCompanion && (
+            <button
+              onClick={onOpenCompanion}
+              title="Journal · Dialogue · Belief"
+              className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
+            >
+              <BookOpenText className="w-4 h-4" />
             </button>
           )}
           {(currentColor || currentlyUnderlined) && (

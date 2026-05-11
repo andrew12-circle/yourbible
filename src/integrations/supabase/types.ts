@@ -198,8 +198,10 @@ export type Database = {
         Row: {
           answer: string | null
           confidence: number
+          core_scope: string | null
           created_at: string
           id: string
+          is_core: boolean
           layer: string
           notes: string | null
           statement: string
@@ -211,8 +213,10 @@ export type Database = {
         Insert: {
           answer?: string | null
           confidence?: number
+          core_scope?: string | null
           created_at?: string
           id?: string
+          is_core?: boolean
           layer: string
           notes?: string | null
           statement: string
@@ -224,8 +228,10 @@ export type Database = {
         Update: {
           answer?: string | null
           confidence?: number
+          core_scope?: string | null
           created_at?: string
           id?: string
+          is_core?: boolean
           layer?: string
           notes?: string | null
           statement?: string
@@ -465,6 +471,7 @@ export type Database = {
           created_at: string
           id: string
           mode: string
+          target_ref: Json | null
           title: string
           updated_at: string
           user_id: string
@@ -473,6 +480,7 @@ export type Database = {
           created_at?: string
           id?: string
           mode?: string
+          target_ref?: Json | null
           title?: string
           updated_at?: string
           user_id: string
@@ -481,6 +489,7 @@ export type Database = {
           created_at?: string
           id?: string
           mode?: string
+          target_ref?: Json | null
           title?: string
           updated_at?: string
           user_id?: string
