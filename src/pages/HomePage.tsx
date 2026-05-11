@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
-  Lightbulb, Calendar as CalIcon, ImagePlus,
+  Lightbulb, Calendar as CalIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,12 +30,10 @@ export default function HomePage() {
   const [counts, setCounts] = useState<{ beliefs: number; tensions: number; chats: number; artifacts: number; journalToday: number }>({
     beliefs: 0, tensions: 0, chats: 0, artifacts: 0, journalToday: 0,
   });
-  const [wallpaper, setWallpaper] = useState<string | null>(
+  const [wallpaper] = useState<string | null>(
     typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null,
   );
   const [now, setNow] = useState<Date>(new Date());
-  const fileRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
@@ -97,6 +95,13 @@ export default function HomePage() {
     ?? (profile as { full_name?: string } | null)?.full_name
     ?? user.email?.split("@")[0] ?? "";
 
+  const initials = (name || user.email || "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("");
+
   // Hide journal-prompt badge once user wrote today
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
@@ -115,24 +120,7 @@ export default function HomePage() {
     { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
 
-  const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
-  const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   const fullDateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-
-  const onUploadWallpaper = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) { alert("Image too large (max 100 MB)"); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = reader.result as string;
-      try {
-        localStorage.setItem(WALLPAPER_KEY, url);
-      } catch {
-        alert("Wallpaper applied, but too large to save permanently on this device.");
-      }
-      setWallpaper(url);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const wallpaperStyle = wallpaper
     ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" as const }
@@ -146,33 +134,9 @@ export default function HomePage() {
       {/* Subtle dark overlay for legibility on photo wallpaper */}
       {wallpaper && <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30 pointer-events-none" />}
 
-      {/* iOS status bar */}
-      <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-        <div className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight tabular-nums">
-          <span>{timeStr}</span>
-          <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* Signal bars */}
-          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden>
-            <rect x="0"  y="7" width="3" height="4" rx="0.8" />
-            <rect x="4.5" y="5" width="3" height="6" rx="0.8" />
-            <rect x="9"  y="3" width="3" height="8" rx="0.8" />
-            <rect x="13.5" y="0" width="3" height="11" rx="0.8" />
-          </svg>
-          <span className="text-[11px] font-semibold ml-0.5">5G</span>
-          {/* WiFi */}
-          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden className="ml-1">
-            <path d="M1 4 Q8 -2 15 4" /><path d="M3 6.5 Q8 2.5 13 6.5" /><path d="M5.5 9 Q8 7 10.5 9" />
-            <circle cx="8" cy="11" r="0.9" fill="currentColor" />
-          </svg>
-          {/* Battery */}
-          <div className="ml-1.5 flex items-center">
-            <div className="relative w-[24px] h-[11px] rounded-[3px] border border-current opacity-95">
-              <div className="absolute inset-[1.5px] right-[3px] bg-current rounded-[1.5px]" style={{ width: "calc(100% - 5px)" }} />
-            </div>
-            <div className="w-[1.5px] h-[4px] bg-current rounded-r ml-[1px] opacity-95" />
-          </div>
+      <div className="relative z-20 flex items-center justify-end px-5 pt-4">
+        <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur border border-white/50 text-white font-semibold flex items-center justify-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+          {initials}
         </div>
       </div>
 
@@ -242,26 +206,11 @@ export default function HomePage() {
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
             <DockIcon icon={Compass}     color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
-            <button
-              onClick={() => fileRef.current?.click()}
-              aria-label="Change wallpaper"
-              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-              style={{ background: "linear-gradient(160deg, #2B2F42 0%, #3E445E 58%, #545C7F 100%)" }}
-            >
-              <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
-            </button>
+            <DockIcon icon={Settings}    color="linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" onClick={() => navigate("/settings")}        label="Settings" />
           </div>
           <div className="mx-auto mt-2 w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
       </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadWallpaper(f); e.currentTarget.value = ""; }}
-      />
     </div>
   );
 }
