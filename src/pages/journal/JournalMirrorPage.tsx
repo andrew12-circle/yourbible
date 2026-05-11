@@ -40,7 +40,7 @@ export default function JournalMirrorPage() {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(20);
-    setReports((data as Report[]) ?? []);
+    setReports(((data as unknown) as Report[]) ?? []);
     const { count } = await supabase
       .from("journal_entry_scores")
       .select("id", { count: "exact", head: true });
