@@ -1,5 +1,6 @@
-// Fetches a YouTube transcript (no API key required) and stores it on an artifact,
-// then triggers framework-analyze.
+// Fetches a YouTube transcript using Lovable AI (Gemini), then triggers framework-analyze.
+// Gemini natively understands YouTube URLs, which is far more reliable than scraping
+// captions (YouTube now blocks server-side caption fetching with PoToken requirements).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -7,119 +8,72 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function extractYouTubeId(url: string): string | null {
+function isYouTubeUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    if (u.hostname === "youtu.be") return u.pathname.slice(1);
-    if (u.hostname.includes("youtube.com")) {
-      if (u.searchParams.get("v")) return u.searchParams.get("v");
-      const m = u.pathname.match(/\/(embed|shorts|live)\/([^/?]+)/);
-      if (m) return m[2];
-    }
-    return null;
+    return u.hostname === "youtu.be" || u.hostname.endsWith("youtube.com");
   } catch {
-    return null;
+    return false;
   }
 }
 
-async function fetchYouTubeTranscript(videoId: string): Promise<{ text: string; title?: string } | null> {
-  // Use YouTube's InnerTube player API. More reliable than scraping the watch page,
-  // which often returns a consent wall to server-side / cloud IPs.
-  const UA =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+async function transcribeWithGemini(
+  url: string,
+  apiKey: string,
+): Promise<{ text: string; title?: string }> {
+  const prompt = `You are given a YouTube video. Transcribe the spoken English content verbatim.
+Rules:
+- Return ONLY a JSON object with this exact shape: {"title": string, "transcript": string}
+- "title" is the video's title (or your best inference if none).
+- "transcript" is the complete spoken transcript, no timestamps, no speaker labels unless clearly distinct.
+- Preserve sentence punctuation. Do not summarize.
+Video URL: ${url}`;
 
-  async function callPlayer(client: "ANDROID" | "WEB" | "IOS") {
-    const ctx: Record<string, any> = {
-      ANDROID: {
-        clientName: "ANDROID",
-        clientVersion: "19.09.37",
-        androidSdkVersion: 30,
-        hl: "en",
-        gl: "US",
-      },
-      WEB: { clientName: "WEB", clientVersion: "2.20240726.00.00", hl: "en", gl: "US" },
-      IOS: { clientName: "IOS", clientVersion: "19.09.3", hl: "en", gl: "US" },
-    }[client];
-    const r = await fetch(
-      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": UA,
-          "X-YouTube-Client-Name":
-            client === "ANDROID" ? "3" : client === "IOS" ? "5" : "1",
-          "X-YouTube-Client-Version": ctx.clientVersion,
-          "Accept-Language": "en-US,en;q=0.9",
-          Origin: "https://www.youtube.com",
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "text", text: prompt }],
         },
-        body: JSON.stringify({
-          videoId,
-          context: { client: ctx },
-          contentCheckOk: true,
-          racyCheckOk: true,
-        }),
-      },
-    );
-    if (!r.ok) return null;
-    return await r.json().catch(() => null);
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`AI gateway ${res.status}: ${body.slice(0, 300)}`);
   }
+  const data = await res.json();
+  const content: string = data?.choices?.[0]?.message?.content ?? "";
+  if (!content) throw new Error("Empty response from transcription model.");
 
-  let data: any = null;
-  for (const c of ["ANDROID", "WEB", "IOS"] as const) {
-    data = await callPlayer(c);
-    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    if (Array.isArray(tracks) && tracks.length) break;
+  // Try strict JSON, then fall back to extracting the first JSON object.
+  let parsed: { title?: string; transcript?: string } | null = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
+    }
   }
-
-  const title: string | undefined = data?.videoDetails?.title;
-  const tracks: any[] =
-    data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-
-  if (!tracks.length) return title ? { text: "", title } : null;
-
-  const pick =
-    tracks.find((t) => t.languageCode === "en" && t.kind !== "asr") ??
-    tracks.find((t) => (t.languageCode ?? "").startsWith("en") && t.kind !== "asr") ??
-    tracks.find((t) => t.languageCode === "en") ??
-    tracks.find((t) => (t.languageCode ?? "").startsWith("en")) ??
-    tracks[0];
-  if (!pick?.baseUrl) return title ? { text: "", title } : null;
-
-  // Prefer JSON3 format for cleaner parsing
-  const url = pick.baseUrl + (pick.baseUrl.includes("fmt=") ? "" : "&fmt=json3");
-  const res = await fetch(url, { headers: { "User-Agent": UA } });
-  const ct = res.headers.get("content-type") ?? "";
-  if (ct.includes("json")) {
-    const j = await res.json().catch(() => null);
-    const events = j?.events ?? [];
-    const text = events
-      .flatMap((e: any) => (e?.segs ?? []).map((s: any) => s.utf8 ?? ""))
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (text) return { text, title };
+  const transcript = (parsed?.transcript ?? "").trim();
+  const title = parsed?.title?.trim() || undefined;
+  if (!transcript) {
+    // If the model just gave plain text, treat it as transcript.
+    const fallback = content.trim();
+    if (fallback.length > 40) return { text: fallback, title };
+    throw new Error("Model returned no transcript. The video may be private, age-restricted, or have no spoken English.");
   }
-  const xml = await fetch(pick.baseUrl, { headers: { "User-Agent": UA } })
-    .then((r) => r.text())
-    .catch(() => "");
-  if (!xml) return title ? { text: "", title } : null;
-  const text = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)]
-    .map((m) =>
-      m[1]
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&#10;|\n/g, " ")
-        .replace(/<[^>]+>/g, "")
-        .trim(),
-    )
-    .filter(Boolean)
-    .join(" ");
-  if (!text) return title ? { text: "", title } : null;
-  return { text, title };
+  return { text: transcript, title };
 }
 
 Deno.serve(async (req) => {
@@ -128,6 +82,7 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
       global: { headers: { Authorization: auth } },
@@ -146,17 +101,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const videoId = extractYouTubeId(url);
-    if (!videoId) {
-      await supabase.from("artifacts").update({ status: "error", error: "Could not parse YouTube URL." }).eq("id", artifact_id);
+    if (!isYouTubeUrl(url)) {
+      await supabase.from("artifacts").update({ status: "error", error: "Not a valid YouTube URL." }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: "Bad YouTube URL" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const result = await fetchYouTubeTranscript(videoId);
-    if (!result) {
-      const msg = "No captions available for this video. Paste the transcript manually.";
+    if (!LOVABLE_API_KEY) {
+      const msg = "AI gateway not configured. Paste the transcript manually.";
+      await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let result: { text: string; title?: string };
+    try {
+      result = await transcribeWithGemini(url, LOVABLE_API_KEY);
+    } catch (e) {
+      const msg = `Could not transcribe video: ${String((e as Error).message ?? e)}. Paste the transcript manually.`;
       await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: msg }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
