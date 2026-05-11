@@ -43,6 +43,7 @@ export default function NewJournalEntryPage() {
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
   const [journalId, setJournalId] = useState<string | null>(null);
+  const [promptId, setPromptId] = useState<string | null>(null);
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [weather, setWeather] = useState<string | null>(null);
@@ -59,7 +60,10 @@ export default function NewJournalEntryPage() {
     const v = params.get("verse");
     const r = params.get("ref");
     const jid = params.get("journalId");
+    const pid = params.get("promptId");
+    const promptText = params.get("prompt");
     if (jid) setJournalId(jid);
+    if (pid) setPromptId(pid);
     if (r) setVerseRef(r);
     if (v) {
       setTitle((t) => t || (r ? `Reflection on ${r}` : "Verse reflection"));
@@ -68,6 +72,10 @@ export default function NewJournalEntryPage() {
           b ||
           `${r ? `${r}\n` : ""}"${v}"\n\n`,
       );
+    }
+    if (promptText && !v) {
+      setTitle((t) => t || promptText.slice(0, 80));
+      setBody((b) => b || `> ${promptText}\n\n`);
     }
   }, [params]);
 
@@ -198,6 +206,7 @@ export default function NewJournalEntryPage() {
       tags,
       verse_ref: verseRef.trim() || null,
       belief_id: beliefId || null,
+      prompt_id: promptId,
       location_name: locationName.trim() || null,
       lat,
       lng,
