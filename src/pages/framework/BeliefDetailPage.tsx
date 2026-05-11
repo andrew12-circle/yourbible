@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import RelatedJournalStrip from "@/components/journal/RelatedJournalStrip";
 
 interface Belief {
   id: string;
@@ -249,6 +250,15 @@ export default function BeliefDetailPage() {
           <Button size="sm" variant="outline" onClick={addSource}>Add</Button>
         </div>
       </section>
+
+      {id && (
+        <RelatedJournalStrip
+          kind="belief"
+          refMatch={{ id }}
+          newEntryHref={`/journal/new?belief_id=${id}`}
+          title="Journal entries on this belief"
+        />
+      )}
     </FrameworkLayout>
   );
 }
