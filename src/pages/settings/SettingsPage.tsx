@@ -88,15 +88,16 @@ export default function SettingsPage() {
         {/* Font */}
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Scripture font</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[
               { id: "serif", label: "Serif", sample: "Cormorant Garamond" },
               { id: "sans", label: "Sans", sample: "Inter" },
+              { id: "sf", label: "San Francisco", sample: "SF Pro" },
             ].map(f => (
               <button key={f.id} onClick={() => save({ font_choice: f.id })}
                 className={`p-4 rounded-md border-2 text-center transition-all bg-paper/70 ${profile.font_choice === f.id ? "border-gold" : "border-paper-edge"}`}>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</div>
-                <div className={`text-xl mt-1 ${f.id === "serif" ? "font-scripture" : "font-sans"}`}>For God so loved</div>
+                <div className={`text-xl mt-1 ${f.id === "serif" ? "font-scripture" : f.id === "sf" ? "font-system" : "font-sans"}`}>For God so loved</div>
                 <div className="text-[10px] text-muted-foreground mt-1">{f.sample}</div>
               </button>
             ))}
