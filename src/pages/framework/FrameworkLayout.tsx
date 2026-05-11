@@ -21,19 +21,19 @@ const NAV = [
 export default function FrameworkLayout({ children, title, back }: Props) {
   const { pathname } = useLocation();
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 text-foreground">
+      <header className="sticky top-0 z-30 border-b border-border/40 bg-background/70 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-5 py-4 flex items-center gap-3">
           <Link
             to={back ?? "/"}
-            className="p-2 -ml-2 rounded-md hover:bg-muted text-muted-foreground"
+            className="p-2 -ml-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
             aria-label="Back"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              My Framework
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Belief Architecture Engine
             </div>
             {title && (
               <h1 className="font-display text-xl truncate">{title}</h1>
@@ -46,7 +46,7 @@ export default function FrameworkLayout({ children, title, back }: Props) {
             <BookOpen className="w-3.5 h-3.5" /> Reader
           </Link>
         </div>
-        <nav className="max-w-4xl mx-auto px-4 pb-2 flex gap-1 text-sm">
+        <nav className="max-w-5xl mx-auto px-5 pb-3 flex gap-1.5 text-sm overflow-x-auto">
           {NAV.map((n) => {
             const active =
               n.to === "/framework"
@@ -58,10 +58,10 @@ export default function FrameworkLayout({ children, title, back }: Props) {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 transition-colors",
+                  "px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 transition-colors whitespace-nowrap",
                   active
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-muted",
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:bg-background hover:text-foreground",
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -71,7 +71,7 @@ export default function FrameworkLayout({ children, title, back }: Props) {
           })}
         </nav>
       </header>
-      <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-5xl mx-auto px-5 py-8">{children}</main>
     </div>
   );
 }

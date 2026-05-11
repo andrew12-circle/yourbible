@@ -54,14 +54,13 @@ export default function FrameworkDashboard() {
   const totalBeliefs = beliefs.length;
 
   return (
-    <FrameworkLayout title="My Framework">
-      <section className="mb-8">
-        <p className="text-sm text-muted-foreground max-w-prose mb-4">
-          A living map of what you actually believe — examined, sourced, and
-          tested against scripture. Start with the interview, then run sermons,
-          podcasts, and journal entries through the analyzer.
+    <FrameworkLayout title="Belief Architecture Engine">
+      <section className="mb-10 rounded-3xl border border-border/60 bg-card/70 backdrop-blur p-6 sm:p-7 shadow-sm">
+        <p className="text-base text-foreground/85 max-w-2xl mb-5 leading-relaxed">
+          Shape a clear model of what you believe. Capture convictions, pressure-test them against
+          scripture, and trace how teachings, relationships, and life moments are forming your worldview.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2.5">
           <Button onClick={() => setQuickOpen(true)}>
             <Sparkles className="w-4 h-4 mr-1" /> Capture a belief
           </Button>
@@ -75,12 +74,12 @@ export default function FrameworkDashboard() {
               <Plus className="w-4 h-4 mr-1" /> Add an artifact
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="bg-background/80" asChild>
             <Link to="/framework/beliefs">
               All beliefs ({totalBeliefs})
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="bg-background/80" asChild>
             <Link to="/framework/tensions">
               <AlertTriangle className="w-4 h-4 mr-1" />
               Tensions{openTensions ? ` (${openTensions})` : ""}
@@ -91,11 +90,11 @@ export default function FrameworkDashboard() {
 
       <QuickBeliefDialog open={quickOpen} onOpenChange={setQuickOpen} />
 
-      <section className="mb-10">
+      <section className="mb-12">
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
           Belief Interview
         </h2>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-4">
           {ALL_LAYERS.map((layer) => {
             const meta = LAYER_META[layer];
             const total = FRAMEWORK_QUESTIONS[layer].length;
@@ -105,7 +104,7 @@ export default function FrameworkDashboard() {
               <Link
                 key={layer}
                 to={`/framework/interview/${layer}`}
-                className="group block rounded-lg border border-border bg-card p-4 hover:border-foreground/30 transition"
+                className="group block rounded-2xl border border-border/70 bg-card/80 p-5 hover:border-foreground/30 hover:shadow-sm transition"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
@@ -119,15 +118,15 @@ export default function FrameworkDashboard() {
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition" />
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">{meta.subtitle}</p>
+                <p className="text-sm text-muted-foreground mb-4">{meta.subtitle}</p>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted/80 overflow-hidden">
                     <div
                       className="h-full"
                       style={{ width: `${pct}%`, background: meta.tone }}
                     />
                   </div>
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {answered}/{total}
                   </span>
                 </div>
@@ -142,7 +141,7 @@ export default function FrameworkDashboard() {
           <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Recent Artifacts
           </h2>
-          <Link to="/framework/artifacts" className="text-xs text-muted-foreground hover:text-foreground">
+          <Link to="/framework/artifacts" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             View all
           </Link>
         </div>
@@ -153,7 +152,7 @@ export default function FrameworkDashboard() {
             see how it lines up with what you believe.
           </div>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-card/70 overflow-hidden">
             {recentArtifacts.map((a) => (
               <li key={a.id}>
                 <Link
