@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ChevronRight, Plus, FileStack, AlertTriangle, Sparkles } from "lucide-react";
+import { ChevronRight, Plus, FileStack, AlertTriangle, Sparkles, CircleHelp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ALL_LAYERS, FRAMEWORK_QUESTIONS, LAYER_META } from "@/data/framework";
@@ -73,6 +73,11 @@ export default function FrameworkDashboard() {
           <Button asChild>
             <Link to="/framework/artifacts/new?mode=youtube">
               <Plus className="w-4 h-4 mr-1" /> Add an artifact
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/framework/artifacts/new?mode=text&template=question">
+              <CircleHelp className="w-4 h-4 mr-1" /> Question inbox
             </Link>
           </Button>
           <Button variant="outline" asChild>

@@ -35,6 +35,34 @@ export default function NewArtifactPage() {
   useEffect(() => {
     const seedVerse = params.get("verse");
     const seedRef = params.get("ref");
+    const template = params.get("template");
+
+    if (template === "question") {
+      setMode("text");
+      setTitle("Question under examination");
+      setText(
+        [
+          "Question:",
+          "",
+          "Why this matters to me:",
+          "",
+          "What I currently think:",
+          "",
+          "Evidence or sources to examine:",
+          "",
+          "Tensions / uncertainties:",
+          "",
+          "Consultation (prayer, counsel, scripture):",
+          "",
+          "Working conclusion:",
+          "",
+          "Belief statement I'm ready to commit:",
+          "",
+        ].join("\n"),
+      );
+      return;
+    }
+
     if (seedVerse) {
       setMode("text");
       setTitle(seedRef ? `Reflection on ${seedRef}` : "Verse reflection");
