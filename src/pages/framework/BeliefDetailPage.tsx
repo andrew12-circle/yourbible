@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import RelatedJournalStrip from "@/components/journal/RelatedJournalStrip";
 
 interface Belief {
   id: string;
