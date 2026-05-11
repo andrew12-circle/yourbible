@@ -88,13 +88,15 @@ export function CompanionJournalTab() {
         if (id) setEntryId(id);
       }
       if (id) {
-        // ensure a link row exists for this verse
-        await supabase.from("journal_entry_links").upsert({
+        // ensure a single verse-link row exists for this entry/scope
+        await supabase.from("journal_entry_links")
+          .delete().eq("entry_id", id).eq("target_kind", "verse");
+        await supabase.from("journal_entry_links").insert({
           user_id: user.id,
           entry_id: id,
           target_kind: "verse",
-          target_ref: { book: scope.book, chapter: scope.chapter, verses: scope.verses },
-        } as never, { onConflict: "id" } as never);
+          target_ref: { book: scope.book, chapter: scope.chapter, verses: scope.verses } as never,
+        });
       }
       try { localStorage.removeItem(draftKey(scope)); } catch { /* */ }
       toast({ title: "Saved", description: ref });
