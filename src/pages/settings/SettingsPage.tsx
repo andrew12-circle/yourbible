@@ -38,7 +38,17 @@ export default function SettingsPage() {
         {/* Live preview */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-paper-edge bg-paper/60 overflow-hidden shadow-soft">
           <div className="text-[10px] uppercase tracking-widest text-gold-deep px-5 pt-4">Preview</div>
-          <div className="p-6 font-scripture text-[18px] leading-[1.8]" style={{ fontFamily: profile.font_choice === "sans" ? "Inter, sans-serif" : undefined }}>
+          <div
+            className="p-6 font-scripture text-[18px] leading-[1.8]"
+            style={{
+              fontFamily:
+                profile.font_choice === "sans"
+                  ? "Inter, sans-serif"
+                  : profile.font_choice === "sf"
+                  ? '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif'
+                  : undefined,
+            }}
+          >
             <div className="font-display text-2xl text-leather mb-3">John 3</div>
             <p>
               <span className="verse-num">16</span>
