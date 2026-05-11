@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw, FileText } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Youtube, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -17,6 +17,25 @@ interface Artifact {
   raw_text: string;
   url?: string | null;
 }
+
+function getYouTubeEmbed(url?: string | null) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (parsed.hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 interface Claim {
   id: string;
   claim: string;
@@ -126,6 +145,14 @@ export default function ArtifactDetailPage() {
       .catch((e) => console.error(e));
   };
 
+  const embedUrl = a.kind === "youtube" ? getYouTubeEmbed(a.url) : null;
+
+  const copyTranscript = async () => {
+    if (!a.raw_text) return;
+    await navigator.clipboard.writeText(a.raw_text);
+    toast({ title: "Transcript copied" });
+  };
+
   const stageLabel: Record<string, string> = {
     fetching: a.kind === "youtube" ? "Watching the video and transcribing it…" : "Fetching content…",
     transcribing: "Transcribing audio…",
@@ -189,6 +216,42 @@ export default function ArtifactDetailPage() {
               <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript
             </Button>
           </div>
+        </div>
+      )}
+
+      {embedUrl && (
+        <section className="mb-5 rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-2 text-sm font-medium mb-2">
+            <Youtube className="w-4 h-4 text-red-600" /> Video
+          </div>
+          <iframe
+            title="YouTube video"
+            src={embedUrl}
+            className="w-full aspect-video rounded"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </section>
+      )}
+
+      {a.raw_text && (
+        <section className="mb-5 rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div>
+              <h2 className="text-sm font-medium">Full transcript</h2>
+              <p className="text-xs text-muted-foreground">This is the complete text used for AI analysis.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={copyTranscript}>
+              <Copy className="w-3.5 h-3.5 mr-1" /> Copy
+            </Button>
+          </div>
+          <pre className="whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded max-h-72 overflow-auto">{a.raw_text}</pre>
+        </section>
+      )}
+
+      {a.status === "ready" && claims.length > 0 && (
+        <div className="mb-4 rounded border border-border bg-muted/20 p-3 text-sm">
+          AI split this transcript into <span className="font-medium">{claims.length} key sections/claims</span> below so you can decide what to keep, reject, or revise in your belief framework.
         </div>
       )}
 
@@ -302,12 +365,6 @@ export default function ArtifactDetailPage() {
         </p>
       )}
 
-      <details className="mt-8 text-sm">
-        <summary className="cursor-pointer text-muted-foreground">Original text</summary>
-        <pre className="mt-2 whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded">
-          {a.raw_text}
-        </pre>
-      </details>
     </FrameworkLayout>
   );
 }
