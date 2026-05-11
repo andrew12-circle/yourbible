@@ -15,8 +15,10 @@ type AppIcon = {
   label: string;
   to: string;
   icon: LucideIcon;
-  /** Tailwind gradient classes for the icon tile */
-  gradient: string;
+  /** Top color (HSL or any CSS color) for the icon tile gradient */
+  top: string;
+  /** Bottom color for the icon tile gradient */
+  bottom: string;
   badge?: string;
 };
 
@@ -87,18 +89,19 @@ export default function HomePage() {
     ?? user.email?.split("@")[0]
     ?? "";
 
+  // Colors mirror Apple system app palettes (Books, Weather, Compass, Messages, Journal, Reminders, Mindfulness, Mail, Bedtime, Settings)
   const apps: AppIcon[] = [
-    { label: "Bible",     to: bibleTo,              icon: BookOpen,             gradient: "from-amber-700 via-orange-600 to-rose-700",     badge: lastRead?.replace("/", " ") },
-    { label: "Daily",     to: "/framework/daily",   icon: Sun,                  gradient: "from-yellow-400 via-amber-400 to-orange-500" },
-    { label: "Framework", to: "/framework",         icon: Compass,              gradient: "from-emerald-500 via-teal-500 to-cyan-600" },
-    { label: "Chat",      to: "/framework/chat",    icon: MessageCircleQuestion, gradient: "from-sky-500 via-blue-500 to-indigo-600" },
-    { label: "Journal",   to: "/journal",           icon: NotebookPen,          gradient: "from-rose-400 via-pink-500 to-fuchsia-600" },
-    { label: "Beliefs",   to: "/framework/beliefs", icon: ListChecks,           gradient: "from-violet-500 via-purple-500 to-fuchsia-600" },
-    { label: "Tensions",  to: "/framework/tensions",icon: Sparkles,             gradient: "from-pink-500 via-rose-500 to-red-500" },
-    { label: "Study",     to: "/framework/study",   icon: GraduationCap,        gradient: "from-indigo-500 via-blue-600 to-slate-700" },
-    { label: "Digest",    to: "/framework/digest",  icon: Mail,                 gradient: "from-lime-500 via-green-500 to-emerald-600" },
-    { label: "Sleep",     to: "/sleep",             icon: Moon,                 gradient: "from-slate-700 via-indigo-900 to-slate-900" },
-    { label: "Settings",  to: "/settings",          icon: Settings,             gradient: "from-zinc-400 via-slate-500 to-slate-600" },
+    { label: "Bible",     to: bibleTo,              icon: BookOpen,              top: "#FF8A4C", bottom: "#C0392B", badge: lastRead?.replace("/", " ") },
+    { label: "Daily",     to: "/framework/daily",   icon: Sun,                   top: "#5BC8FF", bottom: "#1E63DD" },
+    { label: "Framework", to: "/framework",         icon: Compass,               top: "#3B3B3D", bottom: "#0B0B0C" },
+    { label: "Chat",      to: "/framework/chat",    icon: MessageCircleQuestion, top: "#5DDB72", bottom: "#0FA958" },
+    { label: "Journal",   to: "/journal",           icon: NotebookPen,           top: "#FFB07A", bottom: "#E0552B" },
+    { label: "Beliefs",   to: "/framework/beliefs", icon: ListChecks,            top: "#F2F2F7", bottom: "#D1D1D6" },
+    { label: "Tensions",  to: "/framework/tensions",icon: Sparkles,              top: "#7DE3C2", bottom: "#0FA28C" },
+    { label: "Study",     to: "/framework/study",   icon: GraduationCap,         top: "#7C8AFF", bottom: "#3B45C7" },
+    { label: "Digest",    to: "/framework/digest",  icon: Mail,                  top: "#7CC8FF", bottom: "#1A6FF0" },
+    { label: "Sleep",     to: "/sleep",             icon: Moon,                  top: "#1B2A6B", bottom: "#020416" },
+    { label: "Settings",  to: "/settings",          icon: Settings,              top: "#C7C7CC", bottom: "#6E6E73" },
   ];
 
   const now = new Date();
