@@ -101,76 +101,90 @@ export default function HomePage() {
     { label: "Settings",  to: "/settings",          icon: Settings,             gradient: "from-zinc-400 via-slate-500 to-slate-600" },
   ];
 
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
   return (
-    <div className="min-h-screen relative overflow-hidden app-mesh">
-      <div className="relative max-w-3xl mx-auto px-6 pt-12 pb-24">
-        {/* Status-bar-ish header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">{greeting}</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{name || "Friend"}</h1>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="w-10 h-10 rounded-full bg-white/70 backdrop-blur-md border border-white/80 flex items-center justify-center text-foreground shadow-sm hover:bg-white transition"
-            aria-label="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+    <div className="min-h-screen relative overflow-hidden ios-wallpaper">
+      {/* iOS status bar */}
+      <div className="relative z-10 flex items-center justify-between px-7 pt-3 pb-1 text-foreground/90">
+        <span className="text-[15px] font-semibold tracking-tight tabular-nums">{timeStr}</span>
+        <button
+          onClick={() => signOut()}
+          className="text-[12px] font-medium text-foreground/60 hover:text-foreground transition"
+          aria-label="Sign out"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="relative max-w-md mx-auto px-6 pt-2 pb-32">
+        {/* Lock-screen style date / greeting */}
+        <div className="text-center mt-2 mb-7">
+          <p className="text-[13px] font-medium text-foreground/70 tracking-tight">{dateStr}</p>
+          <h1 className="mt-0.5 text-[34px] leading-[1.05] font-bold tracking-[-0.022em] text-foreground">
+            {greeting}{name ? `, ${name}` : ""}
+          </h1>
         </div>
 
-        {/* App grid — iOS style */}
-        <div className="grid grid-cols-4 gap-x-4 gap-y-6 sm:grid-cols-5 sm:gap-x-6 sm:gap-y-8">
+        {/* Today's prompt — iOS widget */}
+        {todayPrompt && (
+          <button
+            onClick={() =>
+              navigate(
+                `/journal/new?promptId=${todayPrompt.id}&prompt=${encodeURIComponent(todayPrompt.text)}`,
+              )
+            }
+            className="w-full text-left mb-5 p-4 rounded-[22px] bg-white/60 backdrop-blur-2xl border border-white/70 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.18)] active:scale-[0.985] transition"
+          >
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700 mb-1.5">
+              <Lightbulb className="w-3.5 h-3.5" /> Today's prompt
+            </div>
+            <p className="text-[15px] font-medium leading-snug text-foreground/90">
+              {todayPrompt.text}
+            </p>
+          </button>
+        )}
+
+        {onThisDayCount > 0 && (
+          <button
+            onClick={() => navigate("/journal/today")}
+            className="w-full text-left mb-5 p-4 rounded-[22px] bg-white/60 backdrop-blur-2xl border border-white/70 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.18)] active:scale-[0.985] transition"
+          >
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 mb-1.5">
+              <CalIcon className="w-3.5 h-3.5" /> On this day
+            </div>
+            <p className="text-[15px] font-medium leading-snug text-foreground/90">
+              {onThisDayCount} {onThisDayCount === 1 ? "entry" : "entries"} from past years
+            </p>
+          </button>
+        )}
+
+        {/* App grid — iOS Home Screen */}
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
           {apps.map((app) => (
             <AppButton key={app.label} app={app} onClick={() => navigate(app.to)} />
           ))}
         </div>
 
-        {/* Today's prompt + On this day */}
-        {(todayPrompt || onThisDayCount > 0) && (
-          <div className="mt-10 grid gap-3 sm:grid-cols-2">
-            {todayPrompt && (
-              <button
-                onClick={() =>
-                  navigate(
-                    `/journal/new?promptId=${todayPrompt.id}&prompt=${encodeURIComponent(todayPrompt.text)}`,
-                  )
-                }
-                className="text-left p-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/70 hover:shadow-md transition active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 mb-2">
-                  <Lightbulb className="w-3.5 h-3.5" /> Today's prompt
-                </div>
-                <p className="text-[15px] font-medium leading-snug text-foreground/90">
-                  {todayPrompt.text}
-                </p>
-              </button>
-            )}
-            {onThisDayCount > 0 && (
-              <button
-                onClick={() => navigate("/journal/today")}
-                className="text-left p-5 rounded-3xl bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200/70 hover:shadow-md transition active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 mb-2">
-                  <CalIcon className="w-3.5 h-3.5" /> On this day
-                </div>
-                <p className="text-[15px] font-medium leading-snug text-foreground/90">
-                  {onThisDayCount} {onThisDayCount === 1 ? "entry" : "entries"} from past years
-                </p>
-              </button>
-            )}
-          </div>
-        )}
-
+        {/* Page dots */}
+        <div className="fixed bottom-[112px] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
+          <span className="w-1.5 h-1.5 rounded-full bg-foreground/80" />
+          <span className="w-1.5 h-1.5 rounded-full bg-foreground/30" />
+          <span className="w-1.5 h-1.5 rounded-full bg-foreground/30" />
+        </div>
 
         {/* Dock */}
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
-          <div className="flex items-center justify-around gap-2 rounded-3xl bg-white/55 backdrop-blur-2xl border border-white/70 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.25)] p-3">
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-10">
+          <div className="flex items-center justify-around gap-1 rounded-[28px] bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.25)] px-3 py-2.5">
             <DockIcon icon={BookOpen}            gradient="from-amber-700 to-rose-700"   onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}                 gradient="from-yellow-400 to-orange-500" onClick={() => navigate("/framework/daily")} label="Daily" />
-            <DockIcon icon={MessageCircleQuestion} gradient="from-sky-500 to-indigo-600"   onClick={() => navigate("/framework/chat")}  label="Chat" />
+            <DockIcon icon={NotebookPen}         gradient="from-rose-400 to-fuchsia-600"  onClick={() => navigate("/journal")}          label="Journal" />
             <DockIcon icon={Compass}             gradient="from-emerald-500 to-cyan-600"  onClick={() => navigate("/framework")}        label="Framework" />
           </div>
+          {/* Home indicator */}
+          <div className="mx-auto mt-2 w-[120px] h-[5px] rounded-full bg-foreground/40" />
         </div>
       </div>
     </div>
@@ -182,27 +196,30 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="group flex flex-col items-center gap-1.5 focus:outline-none"
+      className="group flex flex-col items-center gap-[7px] focus:outline-none"
       aria-label={app.label}
     >
       <div className="relative">
         <div
-          className={`w-16 h-16 sm:w-[68px] sm:h-[68px] rounded-[22px] bg-gradient-to-br ${app.gradient}
-            shadow-[0_8px_20px_-6px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.4)]
+          className={`w-[62px] h-[62px] rounded-[15px] bg-gradient-to-br ${app.gradient}
+            shadow-[0_6px_14px_-4px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-10px_18px_-10px_rgba(0,0,0,0.25)]
             flex items-center justify-center
-            transition-transform duration-150 group-active:scale-90 group-hover:-translate-y-0.5`}
+            transition-transform duration-150 group-active:scale-90`}
         >
-          <Icon className="w-8 h-8 text-white drop-shadow" strokeWidth={2.2} />
-          {/* glossy highlight */}
-          <span className="pointer-events-none absolute inset-x-2 top-1 h-3 rounded-t-full bg-white/30 blur-[2px]" />
+          <Icon className="w-[30px] h-[30px] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" strokeWidth={2.1} />
+          {/* glossy top highlight */}
+          <span className="pointer-events-none absolute inset-x-[6px] top-[3px] h-[10px] rounded-t-[12px] bg-white/25 blur-[2px]" />
         </div>
         {app.badge && (
-          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-semibold shadow-md border border-white/60">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow-md border border-white/70 flex items-center justify-center">
             {app.badge}
           </span>
         )}
       </div>
-      <span className="text-[12px] font-medium text-foreground/90 tracking-tight">
+      <span
+        className="text-[11.5px] font-medium text-foreground/90 tracking-tight leading-none"
+        style={{ textShadow: "0 1px 2px rgba(255,255,255,0.6)" }}
+      >
         {app.label}
       </span>
     </button>
@@ -221,10 +238,10 @@ function DockIcon({
     <button
       onClick={onClick}
       aria-label={label}
-      className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient}
+      className={`w-[52px] h-[52px] rounded-[14px] bg-gradient-to-br ${gradient}
         shadow-[0_4px_10px_-2px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.4)]
         flex items-center justify-center
-        transition-transform active:scale-90 hover:-translate-y-0.5`}
+        transition-transform active:scale-90`}
     >
       <Icon className="w-6 h-6 text-white drop-shadow" strokeWidth={2.2} />
     </button>
