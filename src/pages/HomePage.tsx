@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, Compass, ListChecks, MessageCircleQuestion,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
-  Lightbulb, Calendar as CalIcon,
+  Lightbulb, Calendar as CalIcon, ImagePlus, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,21 +23,41 @@ type AppIcon = {
 };
 
 export default function HomePage() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [todayPrompt, setTodayPrompt] = useState<{ id: string; text: string } | null>(null);
   const [onThisDayCount, setOnThisDayCount] = useState(0);
   const [counts, setCounts] = useState<{ beliefs: number; tensions: number; chats: number; artifacts: number; journalToday: number }>({
     beliefs: 0, tensions: 0, chats: 0, artifacts: 0, journalToday: 0,
   });
-  const [wallpaper] = useState<string | null>(
+  const [wallpaper, setWallpaper] = useState<string | null>(
     typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null,
   );
+  const [wallpaperTint, setWallpaperTint] = useState(24);
+  const [wallpaperBlur, setWallpaperBlur] = useState(0);
+  const [showWallpaperControls, setShowWallpaperControls] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
+  const fileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!profile?.layout) return;
+    try {
+      const parsed = JSON.parse(profile.layout) as { homeWallpaper?: string; homeWallpaperTint?: number; homeWallpaperBlur?: number };
+      if (parsed.homeWallpaper) {
+        setWallpaper(parsed.homeWallpaper);
+        localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
+      }
+      if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
+      if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+    } catch {
+      // Keep defaults when legacy/plain layout values are present.
+    }
+  }, [profile?.layout]);
 
   useEffect(() => {
     if (!user) return;
@@ -95,13 +115,6 @@ export default function HomePage() {
     ?? (profile as { full_name?: string } | null)?.full_name
     ?? user.email?.split("@")[0] ?? "";
 
-  const initials = (name || user.email || "U")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("");
-
   // Hide journal-prompt badge once user wrote today
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
@@ -120,7 +133,42 @@ export default function HomePage() {
     { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
 
+  const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
+  const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   const fullDateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
+  const onUploadWallpaper = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { alert("Image too large (max 100 MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result as string;
+      try {
+        localStorage.setItem(WALLPAPER_KEY, url);
+      } catch {
+        alert("Wallpaper applied, but too large to save permanently on this device.");
+      }
+      setWallpaper(url);
+      void updateProfile({
+        layout: JSON.stringify({
+          homeWallpaper: url,
+          homeWallpaperTint: wallpaperTint,
+          homeWallpaperBlur: wallpaperBlur,
+        }),
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveWallpaperPresentation = (nextTint: number, nextBlur: number) => {
+    if (!wallpaper) return;
+    void updateProfile({
+      layout: JSON.stringify({
+        homeWallpaper: wallpaper,
+        homeWallpaperTint: nextTint,
+        homeWallpaperBlur: nextBlur,
+      }),
+    });
+  };
 
   const wallpaperStyle = wallpaper
     ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" as const }
@@ -133,10 +181,40 @@ export default function HomePage() {
     >
       {/* Subtle dark overlay for legibility on photo wallpaper */}
       {wallpaper && <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30 pointer-events-none" />}
+      {wallpaper && (
+        <>
+          <div className="absolute inset-0 pointer-events-none" style={{ backdropFilter: `blur(${wallpaperBlur}px)` }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(17, 24, 39, ${wallpaperTint / 100})` }} />
+        </>
+      )}
 
-      <div className="relative z-20 flex items-center justify-end px-5 pt-4">
-        <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur border border-white/50 text-white font-semibold flex items-center justify-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-          {initials}
+      {/* iOS status bar */}
+      <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+        <div className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight tabular-nums">
+          <span>{timeStr}</span>
+          <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {/* Signal bars */}
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden>
+            <rect x="0"  y="7" width="3" height="4" rx="0.8" />
+            <rect x="4.5" y="5" width="3" height="6" rx="0.8" />
+            <rect x="9"  y="3" width="3" height="8" rx="0.8" />
+            <rect x="13.5" y="0" width="3" height="11" rx="0.8" />
+          </svg>
+          <span className="text-[11px] font-semibold ml-0.5">5G</span>
+          {/* WiFi */}
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden className="ml-1">
+            <path d="M1 4 Q8 -2 15 4" /><path d="M3 6.5 Q8 2.5 13 6.5" /><path d="M5.5 9 Q8 7 10.5 9" />
+            <circle cx="8" cy="11" r="0.9" fill="currentColor" />
+          </svg>
+          {/* Battery */}
+          <div className="ml-1.5 flex items-center">
+            <div className="relative w-[24px] h-[11px] rounded-[3px] border border-current opacity-95">
+              <div className="absolute inset-[1.5px] right-[3px] bg-current rounded-[1.5px]" style={{ width: "calc(100% - 5px)" }} />
+            </div>
+            <div className="w-[1.5px] h-[4px] bg-current rounded-r ml-[1px] opacity-95" />
+          </div>
         </div>
       </div>
 
@@ -206,11 +284,46 @@ export default function HomePage() {
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
             <DockIcon icon={Compass}     color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
-            <DockIcon icon={Settings}    color="linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" onClick={() => navigate("/settings")}        label="Settings" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              aria-label="Change wallpaper"
+              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              style={{ background: "linear-gradient(160deg, #2B2F42 0%, #3E445E 58%, #545C7F 100%)" }}
+            >
+              <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
+            </button>
+            <button
+              onClick={() => setShowWallpaperControls((v) => !v)}
+              aria-label="Wallpaper tint controls"
+              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              style={{ background: "linear-gradient(160deg, #355070 0%, #4D6B90 58%, #6E8AB0 100%)" }}
+            >
+              <SlidersHorizontal className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
+            </button>
           </div>
+          {showWallpaperControls && wallpaper && (
+            <div className="mt-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/25 p-3 text-white">
+              <label className="block text-[11px] uppercase tracking-[0.12em] mb-1">Tint</label>
+              <input type="range" min={0} max={60} value={wallpaperTint} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperTint(v); saveWallpaperPresentation(v, wallpaperBlur);
+              }} className="w-full" />
+              <label className="block text-[11px] uppercase tracking-[0.12em] mt-3 mb-1">Blur</label>
+              <input type="range" min={0} max={14} value={wallpaperBlur} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperBlur(v); saveWallpaperPresentation(wallpaperTint, v);
+              }} className="w-full" />
+            </div>
+          )}
           <div className="mx-auto mt-2 w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadWallpaper(f); e.currentTarget.value = ""; }}
+      />
     </div>
   );
 }
@@ -218,6 +331,8 @@ export default function HomePage() {
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
   const iconColor = app.iconColor ?? "white";
+  const isBible = app.label === "Bible";
+  const isJournal = app.label === "Journal";
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-[7px] focus:outline-none" aria-label={app.label}>
       <div className="relative">
@@ -225,8 +340,27 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
           className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
           style={{ background: app.color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 18px -10px rgba(0,0,0,0.55)" }}
         >
+          {isBible && (
+            <>
+              <div className="absolute inset-x-[8px] top-[9px] text-[8px] leading-[0.95] font-semibold tracking-[0.06em] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+                HOLY
+                <br />
+                BIBLE
+              </div>
+              <div className="absolute left-[7px] right-[7px] bottom-[8px] h-[11px] rounded-b-[9px] rounded-t-[3px] bg-amber-50/90 border border-amber-100/70" />
+              <div className="absolute left-[11px] bottom-[10px] w-[10px] h-[9px] bg-rose-500 rounded-[2px]" style={{ clipPath: "polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)" }} />
+            </>
+          )}
+
+          {isJournal && (
+            <>
+              <div className="absolute top-[7px] left-1/2 -translate-x-1/2 w-[26px] h-[27px] bg-white/90 rounded-t-[4px] rounded-b-[1px]" />
+              <div className="absolute top-[33px] left-1/2 -translate-x-1/2 w-[26px] h-[8px] bg-white/90" style={{ clipPath: "polygon(0 0,100% 0,50% 100%)" }} />
+            </>
+          )}
+
           <Icon
-            className="w-[30px] h-[30px]"
+            className={`w-[30px] h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
             style={{ color: iconColor }}
             strokeWidth={2.1}
           />
