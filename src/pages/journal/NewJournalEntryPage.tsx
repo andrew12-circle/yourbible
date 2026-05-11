@@ -62,6 +62,10 @@ export default function NewJournalEntryPage() {
     const jid = params.get("journalId");
     const pid = params.get("promptId");
     const promptText = params.get("prompt");
+    const artifactTitle = params.get("artifactTitle");
+    const artifactUrl = params.get("artifactUrl");
+    const artifactTranscript = params.get("artifactTranscript");
+    const artifactClaims = params.get("artifactClaims");
     if (jid) setJournalId(jid);
     if (pid) setPromptId(pid);
     if (r) setVerseRef(r);
@@ -76,6 +80,33 @@ export default function NewJournalEntryPage() {
     if (promptText && !v) {
       setTitle((t) => t || promptText.slice(0, 80));
       setBody((b) => b || `> ${promptText}\n\n`);
+    }
+    if (artifactTranscript) {
+      const decodedTitle = artifactTitle ? decodeURIComponent(artifactTitle) : "YouTube artifact reflection";
+      const decodedUrl = artifactUrl ? decodeURIComponent(artifactUrl) : "";
+      const decodedTranscript = decodeURIComponent(artifactTranscript);
+      const decodedClaims = artifactClaims ? decodeURIComponent(artifactClaims) : "";
+      setTitle((t) => t || decodedTitle);
+      setBody((b) =>
+        b ||
+        [
+          decodedUrl ? `Source: ${decodedUrl}` : "",
+          "",
+          decodedClaims ? "Major key points extracted:" : "",
+          decodedClaims,
+          decodedClaims ? "" : "",
+          "Transcript:",
+          decodedTranscript,
+          "",
+          "Journal response:",
+          "- What challenged my current beliefs?",
+          "- What do I keep, reject, or revise?",
+          "- What should become a memory or action?",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+      setTags((ts) => (ts.length ? ts : ["artifact", "youtube"]));
     }
   }, [params]);
 
