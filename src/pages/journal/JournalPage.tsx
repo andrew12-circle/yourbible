@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Calendar, Plus, Search, Sparkles, Flame } from "lucide-react";
+import { CalendarDays, SquarePen, Search, Sparkles, Flame, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -98,127 +98,144 @@ export default function JournalPage() {
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
+  const totalEntries = entries.length;
+
   return (
     <JournalLayout
       title="Journal"
       right={
-        <div className="flex items-center gap-1">
-          <Link
-            to="/journal/mirror"
-            className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center text-amber-600"
-            title="Worldview mirror"
-          >
-            <Sparkles className="w-4 h-4" />
-          </Link>
+        <>
           <Link
             to="/journal/calendar"
-            className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-muted"
             title="Calendar"
           >
-            <Calendar className="w-4 h-4" />
+            <CalendarDays className="w-[22px] h-[22px]" strokeWidth={2} />
           </Link>
-          <Button size="sm" onClick={() => navigate("/journal/new")}>
-            <Plus className="w-4 h-4 mr-1" /> New
-          </Button>
-        </div>
+          <button
+            onClick={() => navigate("/journal/new")}
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-muted"
+            title="New entry"
+          >
+            <SquarePen className="w-[22px] h-[22px]" strokeWidth={2} />
+          </button>
+        </>
       }
     >
-      <div className="mb-5">
-        <div className="rounded-xl bg-gradient-to-br from-amber-100 to-rose-100 border border-border p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-white/70 flex items-center justify-center">
-            <Flame className="w-6 h-6 text-orange-600" />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Current streak</p>
-            <p className="text-xl font-display">
-              {streaks.current} day{streaks.current === 1 ? "" : "s"}
-              <span className="text-xs text-muted-foreground ml-2">best {streaks.best}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative mb-3">
+      {/* iOS-style search field */}
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search entries…"
-          className="pl-9"
+          placeholder="Search"
+          className="pl-9 h-10 rounded-xl bg-muted border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
         />
       </div>
 
+      {/* Stats strip — iOS Health/Fitness style cards */}
+      <div className="grid grid-cols-3 gap-2.5 mb-5">
+        <StatCard
+          icon={<Flame className="w-5 h-5" strokeWidth={2.2} />}
+          tint="from-orange-400 to-rose-500"
+          value={streaks.current}
+          label={`Day${streaks.current === 1 ? "" : "s"} streak`}
+        />
+        <StatCard
+          icon={<BookOpen className="w-5 h-5" strokeWidth={2.2} />}
+          tint="from-sky-400 to-blue-600"
+          value={totalEntries}
+          label={totalEntries === 1 ? "Entry" : "Entries"}
+        />
+        <Link to="/journal/mirror" className="block">
+          <StatCard
+            icon={<Sparkles className="w-5 h-5" strokeWidth={2.2} />}
+            tint="from-violet-400 to-fuchsia-500"
+            value="Mirror"
+            label="Worldview"
+            small
+          />
+        </Link>
+      </div>
+
+      {/* Tag filter chips — iOS pill style */}
       {allTags.length > 0 && (
-        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveTag(null)}
-            className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
-              !activeTag ? "bg-foreground text-background" : "bg-muted hover:bg-muted/70"
-            }`}
-          >
-            All
-          </button>
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+          <Chip active={!activeTag} onClick={() => setActiveTag(null)}>All</Chip>
           {allTags.map(([t, n]) => (
-            <button
-              key={t}
-              onClick={() => setActiveTag(activeTag === t ? null : t)}
-              className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
-                activeTag === t ? "bg-foreground text-background" : "bg-muted hover:bg-muted/70"
-              }`}
-            >
-              #{t} <span className="opacity-60">{n}</span>
-            </button>
+            <Chip key={t} active={activeTag === t} onClick={() => setActiveTag(activeTag === t ? null : t)}>
+              #{t} <span className="opacity-60 ml-0.5">{n}</span>
+            </Chip>
           ))}
         </div>
       )}
 
       {grouped.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="font-display text-lg">Your journal is quiet.</p>
-          <p className="text-sm mt-1">Tap <span className="font-medium">New</span> to write your first entry.</p>
+        <div className="text-center py-20">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20 mb-4">
+            <SquarePen className="w-7 h-7 text-white" strokeWidth={2.2} />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">Start writing</p>
+          <p className="text-[15px] text-muted-foreground mt-1">Capture today in a new entry.</p>
+          <Button onClick={() => navigate("/journal/new")} className="mt-5 rounded-full px-5 h-10">
+            New Entry
+          </Button>
         </div>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-7">
         {grouped.map(([month, list]) => (
           <section key={month}>
-            <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
+            <h2 className="text-[13px] font-semibold text-muted-foreground tracking-tight mb-2 px-1">
               {formatMonth(month)}
             </h2>
-            <div className="space-y-3">
+            <div className="rounded-2xl bg-card border border-border/60 shadow-sm overflow-hidden divide-y divide-border/50">
               {list.map((e) => (
                 <Link
                   key={e.id}
                   to={`/journal/${e.id}`}
-                  className="block rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition"
+                  className="flex gap-3 p-3 active:bg-muted/60 transition-colors"
                 >
-                  {photoUrls[e.id] && (
-                    <img src={photoUrls[e.id]} alt="" className="w-full h-44 object-cover" />
+                  {photoUrls[e.id] ? (
+                    <img
+                      src={photoUrls[e.id]}
+                      alt=""
+                      className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-muted to-muted/40 flex flex-col items-center justify-center flex-shrink-0">
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        {dayMonth(e.entry_at_ts).month}
+                      </span>
+                      <span className="text-xl font-bold leading-none -mt-0.5">
+                        {dayMonth(e.entry_at_ts).day}
+                      </span>
+                    </div>
                   )}
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      <span>{formatDate(e.entry_at_ts)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground mb-0.5">
+                      <span>{formatTime(e.entry_at_ts)}</span>
                       {e.mood !== null && moodMeta(e.mood) && (
                         <span className={moodMeta(e.mood)!.color}>· {moodMeta(e.mood)!.label}</span>
                       )}
-                      {e.location_name && <span>· {e.location_name}</span>}
-                      {e.analyze_for_mirror && (
-                        <Sparkles className="w-3 h-3 text-amber-500" />
-                      )}
+                      {e.location_name && <span className="truncate">· {e.location_name}</span>}
+                      {e.analyze_for_mirror && <Sparkles className="w-3 h-3 text-violet-500" />}
                     </div>
-                    {e.title && <h3 className="font-display text-base mb-1">{e.title}</h3>}
-                    <p className="text-sm text-foreground/80 line-clamp-3 font-serif">
+                    {e.title && (
+                      <h3 className="text-[15px] font-semibold tracking-tight truncate">{e.title}</h3>
+                    )}
+                    <p className="text-[14px] text-foreground/70 line-clamp-2 leading-snug">
                       {e.body || <span className="italic text-muted-foreground">No body</span>}
                     </p>
                     {(e.tags.length > 0 || e.verse_ref) && (
-                      <div className="flex flex-wrap gap-1 mt-2">
+                      <div className="flex flex-wrap gap-1 mt-1.5">
                         {e.verse_ref && (
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
                             {e.verse_ref}
                           </span>
                         )}
-                        {e.tags.map((t) => (
-                          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {e.tags.slice(0, 3).map((t) => (
+                          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
                             #{t}
                           </span>
                         ))}
@@ -231,23 +248,87 @@ export default function JournalPage() {
           </section>
         ))}
       </div>
+
+      {/* Floating compose button — iOS-style */}
+      <button
+        onClick={() => navigate("/journal/new")}
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="New entry"
+      >
+        <SquarePen className="w-6 h-6" strokeWidth={2.2} />
+      </button>
     </JournalLayout>
   );
+}
+
+function StatCard({
+  icon,
+  tint,
+  value,
+  label,
+  small,
+}: {
+  icon: React.ReactNode;
+  tint: string;
+  value: string | number;
+  label: string;
+  small?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-3 flex flex-col gap-2">
+      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tint} text-white flex items-center justify-center shadow-sm`}>
+        {icon}
+      </div>
+      <div>
+        <div className={`${small ? "text-[15px]" : "text-[22px]"} font-bold leading-none tracking-tight`}>
+          {value}
+        </div>
+        <div className="text-[11px] text-muted-foreground mt-1 leading-tight">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[13px] font-medium px-3 h-7 rounded-full whitespace-nowrap transition-colors ${
+        active ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/80 hover:bg-muted/70"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function dayMonth(ts: string) {
+  const d = new Date(ts);
+  return {
+    day: d.getDate(),
+    month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
+  };
+}
+
+function formatTime(ts: string) {
+  return new Date(ts).toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
-function formatDate(ts: string) {
-  return new Date(ts).toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function computeStreaks(dates: string[]) {
