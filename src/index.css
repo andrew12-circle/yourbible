@@ -562,6 +562,29 @@
   letter-spacing: -0.022em;
   font-weight: 600;
 }
+/* Force the SF stack everywhere inside the app theme — overrides the global
+   .font-display (Playfair) and any Inter inheritance so the whole product
+   reads as one Apple-style typeface. The Bible reader opts back into its
+   own typography by living outside .app-theme. */
+.app-theme,
+.app-theme * {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+.app-theme h1, .app-theme h2, .app-theme h3, .app-theme h4,
+.app-theme h5, .app-theme h6, .app-theme .font-display {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+/* Scripture / serif still allowed inside the app for explicit opt-ins
+   (e.g. journal body, artifact previews) — but only when authors apply
+   .font-scripture or .font-serif directly. */
+.app-theme .font-scripture {
+  font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
+}
+.app-theme .font-serif {
+  font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
+}
 
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
