@@ -891,6 +891,31 @@ export default function ReaderPage() {
           }}
         />
       )}
+
+      {/* Anchor belief banner for this chapter */}
+      {anchorBelief && !focusMode && (
+        <button
+          onClick={() => navigate(`/framework/beliefs/${anchorBelief.id}`)}
+          className="fixed top-14 left-1/2 -translate-x-1/2 z-30 max-w-[min(680px,92vw)] bg-paper border border-gold/50 rounded-full shadow-leather px-4 py-1.5 text-xs flex items-center gap-2 hover:bg-paper-warm transition"
+          title="Your anchor belief for this chapter"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-leather shrink-0" />
+          <span className="ink-text truncate">{anchorBelief.statement}</span>
+        </button>
+      )}
+
+      {/* Companion opener (when closed) */}
+      {!companionOpen && !focusMode && (
+        <button
+          onClick={() => openCompanion(buildScope([]), "journal")}
+          aria-label="Open Companion"
+          className="fixed bottom-5 right-5 z-40 bg-leather text-paper rounded-full w-12 h-12 shadow-leather flex items-center justify-center hover:scale-105 transition"
+        >
+          <BookOpenText className="w-5 h-5" />
+        </button>
+      )}
+
+      <CompanionPane />
     </div>
   );
 }
