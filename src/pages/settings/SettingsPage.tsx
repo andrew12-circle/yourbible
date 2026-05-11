@@ -38,7 +38,17 @@ export default function SettingsPage() {
         {/* Live preview */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-paper-edge bg-paper/60 overflow-hidden shadow-soft">
           <div className="text-[10px] uppercase tracking-widest text-gold-deep px-5 pt-4">Preview</div>
-          <div className="p-6 font-scripture text-[18px] leading-[1.8]" style={{ fontFamily: profile.font_choice === "sans" ? "Inter, sans-serif" : undefined }}>
+          <div
+            className="p-6 font-scripture text-[18px] leading-[1.8]"
+            style={{
+              fontFamily:
+                profile.font_choice === "sans"
+                  ? "Inter, sans-serif"
+                  : profile.font_choice === "sf"
+                  ? '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif'
+                  : undefined,
+            }}
+          >
             <div className="font-display text-2xl text-leather mb-3">John 3</div>
             <p>
               <span className="verse-num">16</span>
@@ -88,15 +98,16 @@ export default function SettingsPage() {
         {/* Font */}
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Scripture font</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[
               { id: "serif", label: "Serif", sample: "Cormorant Garamond" },
               { id: "sans", label: "Sans", sample: "Inter" },
+              { id: "sf", label: "San Francisco", sample: "SF Pro" },
             ].map(f => (
               <button key={f.id} onClick={() => save({ font_choice: f.id })}
                 className={`p-4 rounded-md border-2 text-center transition-all bg-paper/70 ${profile.font_choice === f.id ? "border-gold" : "border-paper-edge"}`}>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</div>
-                <div className={`text-xl mt-1 ${f.id === "serif" ? "font-scripture" : "font-sans"}`}>For God so loved</div>
+                <div className={`text-xl mt-1 ${f.id === "serif" ? "font-scripture" : f.id === "sf" ? "font-system" : "font-sans"}`}>For God so loved</div>
                 <div className="text-[10px] text-muted-foreground mt-1">{f.sample}</div>
               </button>
             ))}

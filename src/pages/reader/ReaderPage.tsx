@@ -29,7 +29,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
-const PAGE_TYPO_CLASS = "font-scripture text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+function pageTypoClass(fontChoice: string | undefined) {
+  if (fontChoice === "sans") return `font-sans ${PAGE_TYPO_BASE}`;
+  if (fontChoice === "sf") {
+    // Inline SF stack via font-system class added in index.css; fall back to
+    // a plain class so the user clearly gets Apple's typeface here.
+    return `font-system ${PAGE_TYPO_BASE}`;
+  }
+  return `font-scripture ${PAGE_TYPO_BASE}`;
+}
 // Single-column reading flow — feels like a natural book page on any screen.
 const COLUMN_CLASS = "";
 
@@ -663,7 +672,7 @@ export default function ReaderPage() {
           <article
             ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
             data-reading-area
-            className={`${PAGE_TYPO_CLASS} ${COLUMN_CLASS} selectable-text`}
+            className={`${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} selectable-text`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
@@ -784,7 +793,7 @@ export default function ReaderPage() {
           // real text column, height is from the article's top to the footer.
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, pageBox.h - 8)}
-          className={PAGE_TYPO_CLASS}
+          className={pageTypoClass(profile?.font_choice)}
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
           footerHeight={0}
