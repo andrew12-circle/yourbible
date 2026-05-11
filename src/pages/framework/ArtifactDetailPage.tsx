@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2, RefreshCw, FileText, Youtube, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,11 +24,11 @@ function getYouTubeEmbed(url?: string | null) {
     const parsed = new URL(url);
     if (parsed.hostname.includes("youtu.be")) {
       const id = parsed.pathname.split("/").filter(Boolean)[0];
-      return id ? `https://www.youtube.com/embed/${id}` : null;
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
     }
     if (parsed.hostname.includes("youtube.com")) {
       const id = parsed.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}` : null;
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
     }
   } catch {
     return null;
@@ -52,6 +52,7 @@ interface Claim {
 
 export default function ArtifactDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [a, setA] = useState<Artifact | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -146,11 +147,21 @@ export default function ArtifactDetailPage() {
   };
 
   const embedUrl = a.kind === "youtube" ? getYouTubeEmbed(a.url) : null;
+  const claimsDigest = claims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
 
   const copyTranscript = async () => {
     if (!a.raw_text) return;
     await navigator.clipboard.writeText(a.raw_text);
     toast({ title: "Transcript copied" });
+  };
+
+  const openJournalFromArtifact = () => {
+    const qs = new URLSearchParams();
+    if (a.title) qs.set("artifactTitle", encodeURIComponent(a.title));
+    if (a.url) qs.set("artifactUrl", encodeURIComponent(a.url));
+    if (a.raw_text) qs.set("artifactTranscript", encodeURIComponent(a.raw_text.slice(0, 12000)));
+    if (claimsDigest) qs.set("artifactClaims", encodeURIComponent(claimsDigest.slice(0, 6000)));
+    navigate(`/journal/new?${qs.toString()}`);
   };
 
   const stageLabel: Record<string, string> = {
@@ -241,9 +252,12 @@ export default function ArtifactDetailPage() {
               <h2 className="text-sm font-medium">Full transcript</h2>
               <p className="text-xs text-muted-foreground">This is the complete text used for AI analysis.</p>
             </div>
-            <Button size="sm" variant="outline" onClick={copyTranscript}>
-              <Copy className="w-3.5 h-3.5 mr-1" /> Copy
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={copyTranscript}>
+                <Copy className="w-3.5 h-3.5 mr-1" /> Copy
+              </Button>
+              <Button size="sm" onClick={openJournalFromArtifact}>Journal this</Button>
+            </div>
           </div>
           <pre className="whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded max-h-72 overflow-auto">{a.raw_text}</pre>
         </section>

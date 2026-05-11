@@ -201,11 +201,11 @@ export default function NewArtifactPage() {
       const parsed = new URL(value);
       if (parsed.hostname.includes("youtu.be")) {
         const id = parsed.pathname.split("/").filter(Boolean)[0];
-        return id ? `https://www.youtube.com/embed/${id}` : null;
+        return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
       }
       if (parsed.hostname.includes("youtube.com")) {
         const id = parsed.searchParams.get("v");
-        return id ? `https://www.youtube.com/embed/${id}` : null;
+        return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
       }
       return null;
     } catch {
