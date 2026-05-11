@@ -1,110 +1,83 @@
-# Reader Companion Pane — read, journal, dialogue, crystallize
+## Goal
 
-A single floating pane on the Bible reader (`/read/:book/:chapter`) that you can drag, snap, dock, or minimize. It carries three connected modes for the verse/passage you've selected: **Journal**, **Dialogue (AI)**, and **Crystallize (belief)**. Outside content comes from your own artifacts first, then optional web.
+Match the Day One desktop/iPad layout you screenshotted: three persistent columns — **Sidebar (journals & smart views) | Entry List (with view toggles + search) | Editor (inline)** — so reading and writing happen in the same screen with no navigation. Mobile collapses gracefully.
 
----
+## Current vs target
 
-## 1. The Companion Pane (UI)
+Today the journal is two columns (rail + a single content area), and opening or composing an entry navigates to a separate full‑screen page (`/journal/:id` or `/journal/new`). The screenshot shows everything inline: pick a journal on the left, pick an entry in the middle, edit it on the right.
 
-A new floating panel mounted on `ReaderPage`.
+## New layout
 
-- **Movable**: drag by the header. Snap zones: dock-right, dock-left, dock-bottom (slide-up), or free-float anywhere.
-- **Resizable**: corner handle. Remembers width/height/position per device in `localStorage`.
-- **States**: minimized pill (bottom-right), open card, full-sheet (mobile only).
-- **Header**: shows current scope chip — e.g., *John 1* or *John 1:14* — plus tabs `Journal · Dialogue · Belief`, a pin button, and a close.
-- **Scope binding**: if you've selected a verse via the existing `SelectionToolbar`, scope = that verse range; otherwise = whole chapter. A "Change scope" affordance lets you flip between them.
+```text
+┌─────────────┬──────────────────────┬──────────────────────────────┐
+│  SIDEBAR    │   ENTRY LIST         │   EDITOR                     │
+│             │                      │                              │
+│ ⚙           │  ▢ ☷ 📅   👁 🔍      │  …  ⛶  ▤   May 11, 10:42 +   │
+│ Today       │  ┌─────────────┐     │  ─────────────────────────── │
+│ Daily Chat  │  │ MON 11      │     │  H ▾  • 1. ☑ ❝ ▦ 📎 🏷 ✨    │
+│ Prompts     │  │ 10:42 · …   │     │                              │
+│ All Entries │  └─────────────┘     │  [rich-text editor body]     │
+│             │  Jul 2025            │                              │
+│ PERSONAL    │  · Sun 6 …           │                              │
+│ ▣ Journal   │  · Sat 5 …           │                              │
+│ ▣ GOD       │  · Fri 4 …           │                              │
+│ □ World …   │                      │                              │
+│             │                      │                              │
+│ SHARED      │                      │                              │
+│ + New …     │                      │  Journal · 64°F · 200 Cav…   │
+└─────────────┴──────────────────────┴──────────────────────────────┘
+```
 
-A small **"Open Companion"** button (book + pen icon) is added to the reader top bar so it can be re-opened after closing.
+Behavior:
+- Single route owns all three panes: `/journal`, `/journal/j/:journalId`, `/journal/j/:journalId/e/:entryId`, `/journal/e/:entryId`. URL drives selection so links/back button still work.
+- Clicking an entry in the middle list updates the right pane in place (no page transition).
+- "New entry" creates a draft row immediately and focuses the editor on the right (no separate `/journal/new` flight). The composer page stays available for deep-linking but the primary flow is inline.
+- The middle pane has the **List / Photos / Calendar** segmented toggle (icons in screenshot), a search icon that expands into the existing search input, and an "analyze for mirror" eye toggle scoped to the visible list.
+- The editor pane has the iOS/Day One toolbar row: heading dropdown, bullet, numbered, checklist, quote, table, attachment, tag, AI (`✨`). Clicking opens existing dialogs (mood, tags, photo upload) — we are not building a new rich text engine, just rearranging existing controls into a sticky toolbar over the body textarea.
+- Footer strip under the editor shows the journal name, weather, and location (already captured on entries).
+- Top of editor: date/time (click → date picker), `…` menu (export, delete, pin), full‑screen toggle, mini‑map toggle, **+** (new entry in current journal), and an ✕ that collapses the editor back to two panes.
 
----
+## Responsive rules
 
-## 2. Tab 1 — Journal
+- ≥ 1280 px: all three panes visible (matches screenshot).
+- 900 – 1279 px: sidebar collapses to icon rail; entry list + editor visible.
+- < 900 px (phone): one pane at a time with current iOS push navigation. Sidebar opens in the existing sheet. This preserves today's mobile experience.
 
-In-place writing tied to the current scope.
+## Pages and components to change
 
-- Title, body, mood, tags (reuse pieces from `NewJournalEntryPage` but inline, not full page).
-- Auto-creates a `journal_entries` row with `verse_ref` set (e.g., `John 1:14`) and a `journal_entry_links` row of kind `verse` so it shows up on the verse later.
-- "Save & continue" keeps the entry open and switches to **Dialogue**.
-- An entry started in the pane auto-saves draft to `localStorage` keyed by `book/chapter/verse` so flipping verses doesn't lose work.
+New:
+- `src/components/journal/JournalDeskLayout.tsx` — the 3‑column shell (sidebar slot, list slot, editor slot, responsive collapsing, resize handles persisted to localStorage).
+- `src/components/journal/EntryListPane.tsx` — extracted list + view toggle + search from `JournalPage.tsx`, emits `onSelect(entryId)`.
+- `src/components/journal/EntryEditorPane.tsx` — inline editor reusing the form fields from `NewJournalEntryPage`/`JournalEntryPage` (title, body, mood, tags, photos, verse_ref, belief link, analyze toggle), with the new sticky toolbar and footer strip. Autosaves on blur / debounce.
+- `src/components/journal/EditorToolbar.tsx` — the H / list / quote / table / attach / tag / AI bar.
 
----
+Edits:
+- `src/pages/journal/JournalPage.tsx` → renders `JournalDeskLayout` and wires `EntryListPane` + `EntryEditorPane`. Keeps `JournalShell` only for sub‑pages that still use the cover (mirror, prompts, calendar, media, map).
+- `src/pages/journal/JournalEntryPage.tsx` → on desktop, redirects to the inline route; on mobile, keeps the current full‑screen view.
+- `src/pages/journal/NewJournalEntryPage.tsx` → on desktop, creates a draft and routes to the inline editor; on mobile, stays as today.
+- `src/components/journal/JournalsRail.tsx` → add the **PERSONAL / SHARED** section headers, add `Daily Chat` smart view (links to `/framework/chat`), keep current items, add settings cog at the very top, move the "All Entries" item under the smart‑view group as in the screenshot. No data‑model changes — "shared" is a future flag, for now the section is an empty list with a `+ New Shared Journal` row that opens the same dialog with a `shared` tag (UI only).
+- `src/components/journal/JournalShell.tsx` → reused only by sub‑pages; main list page no longer renders the cover banner on desktop (matches screenshot which has no large cover).
 
-## 3. Tab 2 — Dialogue (AI)
+Out of scope:
+- True collaborative/shared journals (auth, RLS, invites). Just the UI section.
+- Replacing the textarea with a real rich‑text engine. Toolbar buttons insert markdown shortcuts into the existing body field; H, lists, quote, checklist, and table are markdown inserts. Attach/tag/AI reuse existing dialogs.
+- Bible reader Companion pane (already shipped — unrelated).
 
-A focused multi-turn chat scoped to *this passage + this journal entry*.
+## Technical notes
 
-- System context = passage text + your journal draft + (optional) your existing belief on this topic if one is linked.
-- Behaves Socratically: asks follow-up questions to deepen your thinking, not verdicts.
-- A **"Bring in other perspectives"** action runs a tool that:
-  1. Searches your own `artifacts` + `artifact_claims` (semantic match on passage / topic) and surfaces relevant claims with the artifact title.
-  2. If you opt in (toggle), then runs a web search for tradition views and commentary on the passage.
-  Results appear as inline cards inside the chat that you can quote into your journal.
-- Conversation persists to `chat_threads` / `chat_messages` with a new `mode = "reader_dialogue"` and a `target_ref` JSON (`{book, chapter, verse, journal_entry_id}`).
+- State: keep selection in the URL (`/journal/j/:journalId/e/:entryId`). A small `useJournalSelection()` hook reads params and exposes `selectJournal`, `selectEntry`, `clearEntry`.
+- Persistence: pane widths in `localStorage` (`yb.journal.panes = { sidebar, list }`). Reset button in the `…` menu.
+- Autosave: `EntryEditorPane` debounces updates to `journal_entries` (350 ms) and on blur, identical fields to `NewJournalEntryPage`. New drafts are inserted immediately on "+" so the row appears in the middle list and the URL updates to `/e/:id`.
+- Toolbar AI button reuses `journal-score-entry` (existing edge function) — no new function.
+- No database migration required.
 
----
+## QA checklist before sign‑off
 
-## 4. Tab 3 — Crystallize (Belief)
-
-When you're ready, AI distills the journal + dialogue into 1–3 candidate belief statements.
-
-- Each candidate is editable. You pick layer (Foundations / Doctrine / etc.), confidence slider, tags.
-- **Save** writes a `belief_nodes` row, plus:
-  - `belief_scriptures` row with `ref = "John 1:14"` (`role = supports`).
-  - `belief_sources` row pointing back to the journal entry / chat thread.
-  - `journal_entry_links` row of kind `belief`.
-- **"Mark as core for this chapter"** checkbox: tags the belief with `core:John-1` so the chapter shows it as the anchor on next visit.
-- A new chapter header strip on `ReaderPage` shows: *"Your anchor belief for John 1: …"* when one exists.
-
----
-
-## 5. Outside content priority
-
-The "Bring in other perspectives" tool always runs in this order:
-
-1. `artifacts` + `artifact_claims` you own — top 5 most relevant.
-2. (Optional toggle) Web search via existing edge function pattern, returning short snippets + links. Off by default.
-3. (Optional) Tradition views from `tradition_views` if any exist for the linked belief.
-
-Each result has a "Quote into journal" and "Add as source" action.
-
----
-
-## 6. Navigation back from a belief
-
-Saved belief detail page (`BeliefDetailPage`) gets a "Where it came from" section listing the verse, the journal entry, and the chat thread, all clickable. Clicking the verse returns you to `/read/John/1` with the Companion pre-opened on Belief tab for that verse.
-
----
-
-## Technical details
-
-**New files**
-- `src/components/reader/CompanionPane.tsx` — floating draggable shell, tab switcher, scope chip, position persistence.
-- `src/components/reader/CompanionJournalTab.tsx` — inline journal editor.
-- `src/components/reader/CompanionDialogueTab.tsx` — chat UI bound to a thread, renders tool cards.
-- `src/components/reader/CompanionBeliefTab.tsx` — candidate belief editor + save flow.
-- `src/lib/reader/companionStore.ts` — Zustand store for open state, scope, position, active tab, draft.
-- `supabase/functions/reader-dialogue/index.ts` — streaming chat endpoint with tools: `search_my_artifacts`, `web_perspectives` (gated), `propose_beliefs`. Uses Lovable AI Gateway via `@ai-sdk/openai-compatible` + `streamText` with `stopWhen: stepCountIs(50)`.
-
-**Edits**
-- `src/pages/reader/ReaderPage.tsx` — mount `<CompanionPane/>`, add toolbar button, optional anchor-belief header strip, pass current selection into the store.
-- `src/components/bible/SelectionToolbar.tsx` — add "Open in Companion" action.
-- `src/pages/framework/BeliefDetailPage.tsx` — "Where it came from" section.
-- `src/App.tsx` — no route changes needed.
-
-**Database** (one migration)
-- Add `target_ref jsonb` and widen `mode` to allow `"reader_dialogue"` on `chat_threads`.
-- Add `is_core boolean default false` and `core_scope text` (e.g., `John-1`) on `belief_nodes`, with an index on `(user_id, core_scope)`.
-- No other schema changes required — existing `belief_scriptures`, `belief_sources`, `journal_entries.verse_ref`, and `journal_entry_links` already cover the link graph.
-
-**AI**
-- Default model: `google/gemini-3-flash-preview` via Lovable AI Gateway.
-- Tools defined with Zod schemas. `propose_beliefs` returns `{ candidates: [{ statement, layer, confidence, tags, rationale }] }`.
-- The Crystallize tab calls `propose_beliefs` once on entry, then saves selected candidate(s) directly to the DB from the client.
-
----
-
-## Out of scope for this pass
-
-- Verse-level inline notes "in flow" under each verse (you chose movable pane instead).
-- Audio dictation into the Journal tab (can come later — `voice-memos` bucket already exists).
-- Cross-chapter belief rollup view.
+1. Open `/journal` on desktop → see sidebar + list + empty editor placeholder ("Select an entry or press + ").
+2. Click an entry → editor loads inline, URL updates to `/journal/j/<jid>/e/<eid>`.
+3. Press **+** → new draft appears at top of list and editor focuses the title.
+4. Type in body → row in middle list updates after debounce; refreshing the page restores the same selection.
+5. Resize between sidebar/list and list/editor — widths persist after reload.
+6. Shrink to tablet width → sidebar collapses to icons; further to phone → falls back to today's single‑pane flow.
+7. List / Photos / Calendar toggle in the middle pane swaps the middle content without losing the selected entry.
+8. Sidebar shows PERSONAL section with existing journals, SHARED section with the placeholder row, and the smart views (Today, Daily Chat, Prompts, All Entries).
