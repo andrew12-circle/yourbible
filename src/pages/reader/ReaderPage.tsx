@@ -23,11 +23,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, BookOpenText, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useAuth as _useAuth } from "@/contexts/AuthContext";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
-import { supabase as _supabase } from "@/integrations/supabase/client";
-import { useNavigate as _useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
