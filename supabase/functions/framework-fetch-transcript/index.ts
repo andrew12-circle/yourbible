@@ -29,14 +29,14 @@ Rules:
 - Preserve sentence punctuation. Do not summarize.
 Video URL: ${url}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "gemini-2.5-flash",
       messages: [
         {
           role: "user",
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
       global: { headers: { Authorization: auth } },
@@ -114,8 +114,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!LOVABLE_API_KEY) {
-      const msg = "AI gateway not configured. Paste the transcript manually.";
+    if (!GEMINI_API_KEY) {
+      const msg = "Gemini API key not configured. Paste the transcript manually.";
       await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: msg }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
 
     let result: { text: string; title?: string };
     try {
-      result = await transcribeWithGemini(url, LOVABLE_API_KEY);
+      result = await transcribeWithGemini(url, GEMINI_API_KEY);
     } catch (e) {
       const msg = `Could not transcribe video: ${String((e as Error).message ?? e)}. Paste the transcript manually.`;
       await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
