@@ -1,83 +1,58 @@
-## Goal
+# Quick Belief Capture
 
-Match the Day One desktop/iPad layout you screenshotted: three persistent columns — **Sidebar (journals & smart views) | Entry List (with view toggles + search) | Editor (inline)** — so reading and writing happen in the same screen with no navigation. Mobile collapses gracefully.
+Add a one-tap "I believe…" capture surface so you can drop a statement (e.g. while watching a webinar) and have it automatically slotted into the right place in your belief framework — expanding the architecture instead of forcing you to navigate it.
 
-## Current vs target
+## What you'll see
 
-Today the journal is two columns (rail + a single content area), and opening or composing an entry navigates to a separate full‑screen page (`/journal/:id` or `/journal/new`). The screenshot shows everything inline: pick a journal on the left, pick an entry in the middle, edit it on the right.
+- A new **"+ Add belief"** button on the Beliefs list page (and on the Framework dashboard).
+- It opens a small composer with one big textarea: *"I believe…"* plus an optional source field (e.g. "Webinar — John Doe, May 11").
+- When you press **Save**, AI classifies it in the background:
+  - picks the **layer** (Foundations / Life / Mechanics / Emotional)
+  - picks/creates a **topic** (e.g. "Prayer", "Holy Spirit")
+  - cleans the **statement** into a tight first-person sentence
+  - suggests a **confidence %** and a few **tags**
+  - looks for **related existing beliefs** and flags **agree / refines / conflicts**
+- You see a confirmation card with the AI's classification and a **"Looks right / Edit / Discard"** choice. On accept, it saves to `belief_nodes` and (if there's a conflict) to `belief_tensions`. If the related belief already exists, a `belief_link` is created instead of a duplicate.
 
-## New layout
+## Where it lives
 
-```text
-┌─────────────┬──────────────────────┬──────────────────────────────┐
-│  SIDEBAR    │   ENTRY LIST         │   EDITOR                     │
-│             │                      │                              │
-│ ⚙           │  ▢ ☷ 📅   👁 🔍      │  …  ⛶  ▤   May 11, 10:42 +   │
-│ Today       │  ┌─────────────┐     │  ─────────────────────────── │
-│ Daily Chat  │  │ MON 11      │     │  H ▾  • 1. ☑ ❝ ▦ 📎 🏷 ✨    │
-│ Prompts     │  │ 10:42 · …   │     │                              │
-│ All Entries │  └─────────────┘     │  [rich-text editor body]     │
-│             │  Jul 2025            │                              │
-│ PERSONAL    │  · Sun 6 …           │                              │
-│ ▣ Journal   │  · Sat 5 …           │                              │
-│ ▣ GOD       │  · Fri 4 …           │                              │
-│ □ World …   │                      │                              │
-│             │                      │                              │
-│ SHARED      │                      │                              │
-│ + New …     │                      │  Journal · 64°F · 200 Cav…   │
-└─────────────┴──────────────────────┴──────────────────────────────┘
-```
+- Floating composer accessible from:
+  - `/framework` dashboard (primary CTA tile)
+  - `/framework/beliefs` (header button)
+  - Home screen Beliefs app icon long-press → "Add belief" (optional, only if trivial)
 
-Behavior:
-- Single route owns all three panes: `/journal`, `/journal/j/:journalId`, `/journal/j/:journalId/e/:entryId`, `/journal/e/:entryId`. URL drives selection so links/back button still work.
-- Clicking an entry in the middle list updates the right pane in place (no page transition).
-- "New entry" creates a draft row immediately and focuses the editor on the right (no separate `/journal/new` flight). The composer page stays available for deep-linking but the primary flow is inline.
-- The middle pane has the **List / Photos / Calendar** segmented toggle (icons in screenshot), a search icon that expands into the existing search input, and an "analyze for mirror" eye toggle scoped to the visible list.
-- The editor pane has the iOS/Day One toolbar row: heading dropdown, bullet, numbered, checklist, quote, table, attachment, tag, AI (`✨`). Clicking opens existing dialogs (mood, tags, photo upload) — we are not building a new rich text engine, just rearranging existing controls into a sticky toolbar over the body textarea.
-- Footer strip under the editor shows the journal name, weather, and location (already captured on entries).
-- Top of editor: date/time (click → date picker), `…` menu (export, delete, pin), full‑screen toggle, mini‑map toggle, **+** (new entry in current journal), and an ✕ that collapses the editor back to two panes.
+## Technical Details
 
-## Responsive rules
+**New edge function: `framework-classify-belief`**
+- Input: `{ raw_text: string, source?: string }`
+- Pulls user's existing beliefs (id, layer, topic, statement) for context.
+- Calls Lovable AI Gateway (`google/gemini-2.5-pro`) with a tool-call schema:
+  ```
+  { layer, topic, statement, confidence, tags[],
+    related: [{ belief_id, relation: "agree"|"refines"|"conflicts" }],
+    is_duplicate_of: belief_id | null }
+  ```
+- Returns the classification to the client; no DB writes inside the function (keeps user in control).
 
-- ≥ 1280 px: all three panes visible (matches screenshot).
-- 900 – 1279 px: sidebar collapses to icon rail; entry list + editor visible.
-- < 900 px (phone): one pane at a time with current iOS push navigation. Sidebar opens in the existing sheet. This preserves today's mobile experience.
+**Client save flow**
+- On accept, insert into `belief_nodes` with `is_core=false`, `layer`, `topic`, `statement`, `answer=raw_text`, `confidence`, `tags`.
+- Insert a `belief_sources` row with `source_type='quick_capture'` (and `label = source` if provided).
+- For each `related` item: insert a `belief_links` row (`a_id=new`, `b_id=existing`, `relation`).
+- For each `conflicts` item: insert a `belief_tensions` row (`a_id=new`, `b_id=existing`, severity from AI, status `open`).
+- If `is_duplicate_of` is set, skip insert and instead show "This looks like an existing belief — open it?" with a link.
 
-## Pages and components to change
+**New files**
+- `supabase/functions/framework-classify-belief/index.ts`
+- `src/components/framework/QuickBeliefDialog.tsx` (composer + AI review card, reused everywhere)
+- `src/lib/framework/quickBelief.ts` (calls the function, handles accept/save)
 
-New:
-- `src/components/journal/JournalDeskLayout.tsx` — the 3‑column shell (sidebar slot, list slot, editor slot, responsive collapsing, resize handles persisted to localStorage).
-- `src/components/journal/EntryListPane.tsx` — extracted list + view toggle + search from `JournalPage.tsx`, emits `onSelect(entryId)`.
-- `src/components/journal/EntryEditorPane.tsx` — inline editor reusing the form fields from `NewJournalEntryPage`/`JournalEntryPage` (title, body, mood, tags, photos, verse_ref, belief link, analyze toggle), with the new sticky toolbar and footer strip. Autosaves on blur / debounce.
-- `src/components/journal/EditorToolbar.tsx` — the H / list / quote / table / attach / tag / AI bar.
+**Edited files**
+- `src/pages/framework/BeliefsListPage.tsx` — header "+ Add belief" button
+- `src/pages/framework/FrameworkDashboard.tsx` — primary "Capture a belief" tile
 
-Edits:
-- `src/pages/journal/JournalPage.tsx` → renders `JournalDeskLayout` and wires `EntryListPane` + `EntryEditorPane`. Keeps `JournalShell` only for sub‑pages that still use the cover (mirror, prompts, calendar, media, map).
-- `src/pages/journal/JournalEntryPage.tsx` → on desktop, redirects to the inline route; on mobile, keeps the current full‑screen view.
-- `src/pages/journal/NewJournalEntryPage.tsx` → on desktop, creates a draft and routes to the inline editor; on mobile, stays as today.
-- `src/components/journal/JournalsRail.tsx` → add the **PERSONAL / SHARED** section headers, add `Daily Chat` smart view (links to `/framework/chat`), keep current items, add settings cog at the very top, move the "All Entries" item under the smart‑view group as in the screenshot. No data‑model changes — "shared" is a future flag, for now the section is an empty list with a `+ New Shared Journal` row that opens the same dialog with a `shared` tag (UI only).
-- `src/components/journal/JournalShell.tsx` → reused only by sub‑pages; main list page no longer renders the cover banner on desktop (matches screenshot which has no large cover).
+**No schema changes.** All existing tables (`belief_nodes`, `belief_links`, `belief_tensions`, `belief_sources`) already support this.
 
-Out of scope:
-- True collaborative/shared journals (auth, RLS, invites). Just the UI section.
-- Replacing the textarea with a real rich‑text engine. Toolbar buttons insert markdown shortcuts into the existing body field; H, lists, quote, checklist, and table are markdown inserts. Attach/tag/AI reuse existing dialogs.
-- Bible reader Companion pane (already shipped — unrelated).
-
-## Technical notes
-
-- State: keep selection in the URL (`/journal/j/:journalId/e/:entryId`). A small `useJournalSelection()` hook reads params and exposes `selectJournal`, `selectEntry`, `clearEntry`.
-- Persistence: pane widths in `localStorage` (`yb.journal.panes = { sidebar, list }`). Reset button in the `…` menu.
-- Autosave: `EntryEditorPane` debounces updates to `journal_entries` (350 ms) and on blur, identical fields to `NewJournalEntryPage`. New drafts are inserted immediately on "+" so the row appears in the middle list and the URL updates to `/e/:id`.
-- Toolbar AI button reuses `journal-score-entry` (existing edge function) — no new function.
-- No database migration required.
-
-## QA checklist before sign‑off
-
-1. Open `/journal` on desktop → see sidebar + list + empty editor placeholder ("Select an entry or press + ").
-2. Click an entry → editor loads inline, URL updates to `/journal/j/<jid>/e/<eid>`.
-3. Press **+** → new draft appears at top of list and editor focuses the title.
-4. Type in body → row in middle list updates after debounce; refreshing the page restores the same selection.
-5. Resize between sidebar/list and list/editor — widths persist after reload.
-6. Shrink to tablet width → sidebar collapses to icons; further to phone → falls back to today's single‑pane flow.
-7. List / Photos / Calendar toggle in the middle pane swaps the middle content without losing the selected entry.
-8. Sidebar shows PERSONAL section with existing journals, SHARED section with the placeholder row, and the smart views (Today, Daily Chat, Prompts, All Entries).
+## Out of scope
+- Voice-to-text capture (can add later by reusing `framework-transcribe-audio`).
+- Bulk import from a webinar transcript (already covered by the Artifacts flow).
+- Re-running classification on existing beliefs.
