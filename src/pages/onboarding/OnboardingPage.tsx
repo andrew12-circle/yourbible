@@ -27,7 +27,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen paper-texture flex flex-col items-center justify-center px-6 py-10">
+    <div className="min-h-screen app-mesh flex flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-2xl">
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 mb-10">
