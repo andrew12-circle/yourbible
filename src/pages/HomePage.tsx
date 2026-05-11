@@ -233,14 +233,15 @@ export default function HomePage() {
         {/* Dock */}
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xl z-10">
           <div className="flex items-center justify-around gap-1 rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-3 py-2.5">
-            <DockIcon icon={BookOpen}    gradient="from-amber-500 to-rose-700"   onClick={() => navigate(bibleTo)}             label="Bible" />
-            <DockIcon icon={Sun}         gradient="from-yellow-400 to-orange-500" onClick={() => navigate("/framework/daily")} label="Daily" />
-            <DockIcon icon={NotebookPen} gradient="from-rose-400 to-fuchsia-600"  onClick={() => navigate("/journal")}          label="Journal" />
-            <DockIcon icon={Compass}     gradient="from-emerald-500 to-cyan-600"  onClick={() => navigate("/framework")}        label="Framework" />
+            <DockIcon icon={BookOpen}    color="#E84A3F" onClick={() => navigate(bibleTo)}             label="Bible" />
+            <DockIcon icon={Sun}         color="#1E88FF" onClick={() => navigate("/framework/daily")} label="Daily" />
+            <DockIcon icon={NotebookPen} color="#FF7A45" onClick={() => navigate("/journal")}          label="Journal" />
+            <DockIcon icon={Compass}     color="#1C1C1E" onClick={() => navigate("/framework")}        label="Framework" />
             <button
               onClick={() => fileRef.current?.click()}
               aria-label="Change wallpaper"
-              className="ios-icon ios-icon-dock w-[50px] h-[50px] bg-gradient-to-b from-zinc-700 to-zinc-900 flex items-center justify-center transition-transform active:scale-[0.92]"
+              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              style={{ background: "#3A3A3C" }}
             >
               <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
             </button>
@@ -290,12 +291,13 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   );
 }
 
-function DockIcon({ icon: Icon, gradient, onClick, label }: { icon: LucideIcon; gradient: string; onClick: () => void; label: string }) {
+function DockIcon({ icon: Icon, color, onClick, label }: { icon: LucideIcon; color: string; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className={`ios-icon ios-icon-dock w-[50px] h-[50px] ${gradient} flex items-center justify-center transition-transform active:scale-[0.92]`}
+      className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+      style={{ background: color }}
     >
       <Icon className="w-[26px] h-[26px] text-white" strokeWidth={2} />
     </button>
