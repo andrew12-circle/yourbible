@@ -398,10 +398,6 @@ export default function ReaderPage() {
     setPendingVerse(null);
   }, [pendingVerse, splits, isMobile]);
 
-  // Auth/onboarding gates — placed AFTER all hooks so hook order stays stable
-  if (!loading && !user) return <Navigate to="/auth" replace />;
-  if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
-
   // For desktop spreads we show TWO consecutive pages: chapterPage and chapterPage+1.
   // For mobile we show only one. So advance by 1 (mobile) or 2 (desktop).
   const pagesPerTurn = isMobile ? 1 : 2;
@@ -518,6 +514,10 @@ export default function ReaderPage() {
       if (pendingHide) window.clearTimeout(pendingHide);
     };
   }, []);
+
+  // Auth/onboarding gates must stay after every hook so hook order stays stable.
+  if (!loading && !user) return <Navigate to="/auth" replace />;
+  if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
 
   const clearWindowSelection = () => {
     const sel = window.getSelection();
