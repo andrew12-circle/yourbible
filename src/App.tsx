@@ -32,6 +32,8 @@ import JournalCalendarPage from "./pages/journal/JournalCalendarPage";
 import JournalEntryPage from "./pages/journal/JournalEntryPage";
 import NewJournalEntryPage from "./pages/journal/NewJournalEntryPage";
 import JournalMirrorPage from "./pages/journal/JournalMirrorPage";
+import JournalMediaPage from "./pages/journal/JournalMediaPage";
+import JournalMapPage from "./pages/journal/JournalMapPage";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +77,11 @@ const App = () => (
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/journal/j/:journalId" element={<JournalPage />} />
             <Route path="/journal/calendar" element={<JournalCalendarPage />} />
+            <Route path="/journal/j/:journalId/calendar" element={<JournalCalendarPage />} />
+            <Route path="/journal/media" element={<JournalMediaPage />} />
+            <Route path="/journal/j/:journalId/media" element={<JournalMediaPage />} />
+            <Route path="/journal/map" element={<JournalMapPage />} />
+            <Route path="/journal/j/:journalId/map" element={<JournalMapPage />} />
             <Route path="/journal/mirror" element={<JournalMirrorPage />} />
             <Route path="/journal/new" element={<NewJournalEntryPage />} />
             <Route path="/journal/:id" element={<JournalEntryPage />} />
