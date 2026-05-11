@@ -250,6 +250,15 @@ export default function BeliefDetailPage() {
           <Button size="sm" variant="outline" onClick={addSource}>Add</Button>
         </div>
       </section>
+
+      {id && (
+        <RelatedJournalStrip
+          kind="belief"
+          refMatch={{ id }}
+          newEntryHref={`/journal/new?belief_id=${id}`}
+          title="Journal entries on this belief"
+        />
+      )}
     </FrameworkLayout>
   );
 }
