@@ -513,3 +513,98 @@
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
 }
+
+/* ============================================================
+   App theme — clean Apple/iOS aesthetic for everything OUTSIDE
+   the Bible reader (auth, home, journal, framework, settings…).
+   White surfaces, system-blue accent, vivid app-icon palette.
+   The leather/paper Bible aesthetic is preserved by NOT applying
+   this class on /read routes.
+   ============================================================ */
+.app-theme {
+  --background: 0 0% 100%;
+  --foreground: 222 16% 8%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 16% 8%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 16% 8%;
+
+  /* iOS system blue */
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 16% 96%;
+  --secondary-foreground: 222 16% 12%;
+
+  --muted: 210 16% 96%;
+  --muted-foreground: 220 9% 46%;
+
+  --accent: 211 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 56%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 13% 92%;
+  --input: 220 13% 92%;
+  --ring: 211 100% 50%;
+
+  --radius: 0.875rem;
+
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+.app-theme h1, .app-theme h2, .app-theme h3, .app-theme h4 {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+
+/* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
+.app-mesh {
+  background-color: hsl(0 0% 100%);
+  background-image:
+    radial-gradient(at 12% 8%, hsl(212 100% 86% / 0.7) 0px, transparent 45%),
+    radial-gradient(at 88% 14%, hsl(330 100% 88% / 0.6) 0px, transparent 45%),
+    radial-gradient(at 76% 92%, hsl(160 80% 84% / 0.55) 0px, transparent 45%),
+    radial-gradient(at 18% 88%, hsl(48 100% 84% / 0.6) 0px, transparent 45%),
+    radial-gradient(at 50% 50%, hsl(265 90% 92% / 0.4) 0px, transparent 55%);
+}
+
+/* Compatibility shims — when app-theme is active, neutralize the
+   leftover leather/paper/gold styling from older pages so we don't
+   have to rewrite every screen. */
+.app-theme .paper-texture,
+.app-theme .real-paper,
+.app-theme .leather-texture {
+  background: transparent !important;
+}
+.app-theme .leather-texture::after,
+.app-theme .real-paper::after { display: none !important; }
+
+.app-theme .text-leather,
+.app-theme .text-leather-deep,
+.app-theme .text-leather-light { color: hsl(var(--foreground)) !important; }
+
+.app-theme .text-gold,
+.app-theme .text-gold-bright,
+.app-theme .text-gold-deep { color: hsl(var(--primary)) !important; }
+
+.app-theme .bg-leather,
+.app-theme .bg-leather-deep { background-color: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; }
+
+.app-theme .bg-gold,
+.app-theme .bg-gold-bright { background-color: hsl(var(--primary)) !important; }
+
+.app-theme .bg-paper,
+.app-theme [class*="bg-paper/"] { background-color: hsl(var(--card)) !important; }
+
+.app-theme .border-paper-edge,
+.app-theme .border-gold,
+.app-theme .border-leather { border-color: hsl(var(--border)) !important; }
+
+.app-theme .shadow-leather,
+.app-theme .shadow-gold { box-shadow: 0 12px 30px -12px hsl(220 40% 20% / 0.18) !important; }

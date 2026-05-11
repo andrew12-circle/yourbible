@@ -69,11 +69,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 paper-texture relative overflow-hidden">
-      {/* Decorative gold edges */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent" />
-
+    <div className="min-h-screen flex items-center justify-center px-6 app-mesh relative overflow-hidden">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -81,36 +77,38 @@ export default function AuthPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full leather-texture shadow-leather mb-5">
-            <BookOpen className="w-7 h-7 text-gold-bright" strokeWidth={1.5} />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[26px] mb-5
+            bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700
+            shadow-[0_18px_40px_-12px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(255,255,255,0.45)]">
+            <BookOpen className="w-9 h-9 text-white drop-shadow" strokeWidth={2} />
           </div>
-          <h1 className="font-display text-4xl text-leather mb-2">Your Bible</h1>
-          <p className="text-muted-foreground text-sm">A Bible that feels like yours.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">Your Bible</h1>
+          <p className="text-muted-foreground text-[15px]">A Bible that feels like yours.</p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4 bg-paper/60 backdrop-blur p-7 rounded-lg border border-paper-edge shadow-soft">
+        <form onSubmit={submit} className="space-y-4 bg-white/85 backdrop-blur-xl p-7 rounded-3xl border border-white/70 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.18)]">
           {mode === "signup" && (
             <div className="space-y-2">
               <Label htmlFor="name">Your name</Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Jane" autoComplete="name" />
+              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Jane" autoComplete="name" className="h-11 rounded-xl bg-secondary border-transparent" />
             </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
+            <Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" className="h-11 rounded-xl bg-secondary border-transparent" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+              autoComplete={mode === "signup" ? "new-password" : "current-password"} className="h-11 rounded-xl bg-secondary border-transparent" />
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11 leather-texture text-gold-bright hover:text-gold-bright shadow-leather border border-gold/30">
+          <Button type="submit" disabled={busy} className="w-full h-12 rounded-xl text-[15px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_10px_24px_-8px_hsl(var(--primary)/0.55)]">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Open my Bible" : "Begin"}
           </Button>
           <button
             type="button"
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="w-full text-xs text-muted-foreground hover:text-leather transition-colors pt-2"
+            className="w-full text-xs text-muted-foreground hover:text-primary transition-colors pt-2"
           >
             {mode === "signin" ? "New here? Create an account." : "Already have an account? Sign in."}
           </button>
@@ -118,15 +116,15 @@ export default function AuthPage() {
 
         <div className="mt-5">
           <div className="relative flex items-center my-4">
-            <div className="flex-1 h-px bg-paper-edge" />
+            <div className="flex-1 h-px bg-border" />
             <span className="px-3 text-[10px] uppercase tracking-widest text-muted-foreground">or</span>
-            <div className="flex-1 h-px bg-paper-edge" />
+            <div className="flex-1 h-px bg-border" />
           </div>
           <button
             type="button"
             onClick={signInWithApple}
             disabled={appleBusy}
-            className="w-full h-11 rounded-md bg-black text-white flex items-center justify-center gap-2 hover:bg-black/90 transition-colors disabled:opacity-60"
+            className="w-full h-12 rounded-xl bg-black text-white flex items-center justify-center gap-2 hover:bg-black/90 transition-colors disabled:opacity-60 font-medium"
           >
             {appleBusy ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -143,7 +141,7 @@ export default function AuthPage() {
             type="button"
             onClick={signInWithGoogle}
             disabled={googleBusy}
-            className="mt-3 w-full h-11 rounded-md bg-white text-black border border-paper-edge flex items-center justify-center gap-2 hover:bg-white/90 transition-colors disabled:opacity-60"
+            className="mt-3 w-full h-12 rounded-xl bg-white text-black border border-border flex items-center justify-center gap-2 hover:bg-secondary transition-colors disabled:opacity-60 font-medium"
           >
             {googleBusy ? (
               <Loader2 className="w-4 h-4 animate-spin" />

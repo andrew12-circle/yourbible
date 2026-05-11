@@ -62,22 +62,17 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-sky-200 via-indigo-200 to-rose-200">
-      {/* soft glow blobs */}
-      <div className="pointer-events-none absolute -top-32 -left-24 w-96 h-96 rounded-full bg-fuchsia-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute top-40 -right-24 w-96 h-96 rounded-full bg-amber-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 w-96 h-96 rounded-full bg-cyan-300/40 blur-3xl" />
-
+    <div className="min-h-screen relative overflow-hidden app-mesh">
       <div className="relative max-w-3xl mx-auto px-6 pt-12 pb-24">
         {/* Status-bar-ish header */}
-        <div className="flex items-center justify-between mb-8 text-white/90">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/70 drop-shadow">{greeting}</p>
-            <h1 className="text-2xl font-semibold text-white drop-shadow-md">{name || "Friend"}</h1>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">{greeting}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{name || "Friend"}</h1>
           </div>
           <button
             onClick={() => signOut()}
-            className="w-10 h-10 rounded-full bg-white/25 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-sm hover:bg-white/35 transition"
+            className="w-10 h-10 rounded-full bg-white/70 backdrop-blur-md border border-white/80 flex items-center justify-center text-foreground shadow-sm hover:bg-white transition"
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" />
@@ -93,7 +88,7 @@ export default function HomePage() {
 
         {/* Dock */}
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
-          <div className="flex items-center justify-around gap-2 rounded-3xl bg-white/30 backdrop-blur-2xl border border-white/40 shadow-lg p-3">
+          <div className="flex items-center justify-around gap-2 rounded-3xl bg-white/55 backdrop-blur-2xl border border-white/70 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.25)] p-3">
             <DockIcon icon={BookOpen}            gradient="from-amber-700 to-rose-700"   onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}                 gradient="from-yellow-400 to-orange-500" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={MessageCircleQuestion} gradient="from-sky-500 to-indigo-600"   onClick={() => navigate("/framework/chat")}  label="Chat" />
@@ -130,7 +125,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
           </span>
         )}
       </div>
-      <span className="text-[12px] font-medium text-white drop-shadow-md tracking-tight">
+      <span className="text-[12px] font-medium text-foreground/90 tracking-tight">
         {app.label}
       </span>
     </button>

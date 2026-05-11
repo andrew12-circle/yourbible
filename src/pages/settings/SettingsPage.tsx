@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
-  if (!profile) return <div className="min-h-screen paper-texture flex items-center justify-center">Loading…</div>;
+  if (!profile) return <div className="min-h-screen app-mesh flex items-center justify-center">Loading…</div>;
 
   const save = async (patch: Parameters<typeof updateProfile>[0]) => {
     setSaving(true);
@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const previewPalette = PALETTES.find(p => p.id === profile.highlight_palette) ?? PALETTES[0];
 
   return (
-    <div className="min-h-screen paper-texture pb-20">
+    <div className="min-h-screen app-mesh pb-20">
       <MarkerSvgFilter />
       <header className="sticky top-0 z-20 bg-paper/80 backdrop-blur-md border-b border-paper-edge">
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">
