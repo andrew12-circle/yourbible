@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export type LinkKind =
   | "verse"
@@ -12,14 +13,14 @@ export type LinkKind =
 
 export interface EntryLinkInput {
   kind: LinkKind;
-  ref: Record<string, unknown>;
+  ref: Json;
 }
 
 export interface EntryLink {
   id: string;
   entry_id: string;
   target_kind: LinkKind;
-  target_ref: Record<string, unknown>;
+  target_ref: Json;
   created_at: string;
 }
 
@@ -58,6 +59,6 @@ export async function findEntriesLinkedTo(
     .from("journal_entry_links")
     .select("entry_id")
     .eq("target_kind", kind)
-    .contains("target_ref", refMatch);
+    .contains("target_ref", refMatch as never);
   return (data ?? []).map((r: { entry_id: string }) => r.entry_id);
 }
