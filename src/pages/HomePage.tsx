@@ -15,8 +15,10 @@ type AppIcon = {
   label: string;
   to: string;
   icon: LucideIcon;
-  /** Tailwind gradient classes for the icon tile */
-  gradient: string;
+  /** Top color (HSL or any CSS color) for the icon tile gradient */
+  top: string;
+  /** Bottom color for the icon tile gradient */
+  bottom: string;
   badge?: string;
 };
 
@@ -87,18 +89,19 @@ export default function HomePage() {
     ?? user.email?.split("@")[0]
     ?? "";
 
+  // Colors mirror Apple system app palettes (Books, Weather, Compass, Messages, Journal, Reminders, Mindfulness, Mail, Bedtime, Settings)
   const apps: AppIcon[] = [
-    { label: "Bible",     to: bibleTo,              icon: BookOpen,             gradient: "from-amber-700 via-orange-600 to-rose-700",     badge: lastRead?.replace("/", " ") },
-    { label: "Daily",     to: "/framework/daily",   icon: Sun,                  gradient: "from-yellow-400 via-amber-400 to-orange-500" },
-    { label: "Framework", to: "/framework",         icon: Compass,              gradient: "from-emerald-500 via-teal-500 to-cyan-600" },
-    { label: "Chat",      to: "/framework/chat",    icon: MessageCircleQuestion, gradient: "from-sky-500 via-blue-500 to-indigo-600" },
-    { label: "Journal",   to: "/journal",           icon: NotebookPen,          gradient: "from-rose-400 via-pink-500 to-fuchsia-600" },
-    { label: "Beliefs",   to: "/framework/beliefs", icon: ListChecks,           gradient: "from-violet-500 via-purple-500 to-fuchsia-600" },
-    { label: "Tensions",  to: "/framework/tensions",icon: Sparkles,             gradient: "from-pink-500 via-rose-500 to-red-500" },
-    { label: "Study",     to: "/framework/study",   icon: GraduationCap,        gradient: "from-indigo-500 via-blue-600 to-slate-700" },
-    { label: "Digest",    to: "/framework/digest",  icon: Mail,                 gradient: "from-lime-500 via-green-500 to-emerald-600" },
-    { label: "Sleep",     to: "/sleep",             icon: Moon,                 gradient: "from-slate-700 via-indigo-900 to-slate-900" },
-    { label: "Settings",  to: "/settings",          icon: Settings,             gradient: "from-zinc-400 via-slate-500 to-slate-600" },
+    { label: "Bible",     to: bibleTo,              icon: BookOpen,              top: "#FF8A4C", bottom: "#C0392B", badge: lastRead?.replace("/", " ") },
+    { label: "Daily",     to: "/framework/daily",   icon: Sun,                   top: "#5BC8FF", bottom: "#1E63DD" },
+    { label: "Framework", to: "/framework",         icon: Compass,               top: "#3B3B3D", bottom: "#0B0B0C" },
+    { label: "Chat",      to: "/framework/chat",    icon: MessageCircleQuestion, top: "#5DDB72", bottom: "#0FA958" },
+    { label: "Journal",   to: "/journal",           icon: NotebookPen,           top: "#FFB07A", bottom: "#E0552B" },
+    { label: "Beliefs",   to: "/framework/beliefs", icon: ListChecks,            top: "#F2F2F7", bottom: "#D1D1D6" },
+    { label: "Tensions",  to: "/framework/tensions",icon: Sparkles,              top: "#7DE3C2", bottom: "#0FA28C" },
+    { label: "Study",     to: "/framework/study",   icon: GraduationCap,         top: "#7C8AFF", bottom: "#3B45C7" },
+    { label: "Digest",    to: "/framework/digest",  icon: Mail,                  top: "#7CC8FF", bottom: "#1A6FF0" },
+    { label: "Sleep",     to: "/sleep",             icon: Moon,                  top: "#1B2A6B", bottom: "#020416" },
+    { label: "Settings",  to: "/settings",          icon: Settings,              top: "#C7C7CC", bottom: "#6E6E73" },
   ];
 
   const now = new Date();
@@ -193,6 +196,7 @@ export default function HomePage() {
 
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
+  const isLight = app.label === "Beliefs"; // light tile -> dark icon
   return (
     <button
       onClick={onClick}
@@ -201,14 +205,22 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
     >
       <div className="relative">
         <div
-          className={`w-[62px] h-[62px] rounded-[15px] bg-gradient-to-br ${app.gradient}
-            shadow-[0_6px_14px_-4px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-10px_18px_-10px_rgba(0,0,0,0.25)]
-            flex items-center justify-center
-            transition-transform duration-150 group-active:scale-90`}
+          className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
+          style={{
+            background: `linear-gradient(180deg, ${app.top} 0%, ${app.bottom} 100%)`,
+          }}
         >
-          <Icon className="w-[30px] h-[30px] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" strokeWidth={2.1} />
-          {/* glossy top highlight */}
-          <span className="pointer-events-none absolute inset-x-[6px] top-[3px] h-[10px] rounded-t-[12px] bg-white/25 blur-[2px]" />
+          <Icon
+            className={`w-[30px] h-[30px] ${isLight ? "text-zinc-700" : "text-white"}`}
+            strokeWidth={isLight ? 2.4 : 1.9}
+            style={
+              isLight
+                ? undefined
+                : { filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))" }
+            }
+          />
+          {/* inner rim highlight */}
+          <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/15" />
         </div>
         {app.badge && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow-md border border-white/70 flex items-center justify-center">
@@ -217,8 +229,8 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
         )}
       </div>
       <span
-        className="text-[11.5px] font-medium text-foreground/90 tracking-tight leading-none"
-        style={{ textShadow: "0 1px 2px rgba(255,255,255,0.6)" }}
+        className="text-[11.5px] font-medium text-foreground/90 tracking-tight leading-none mt-[3px]"
+        style={{ textShadow: "0 1px 2px rgba(255,255,255,0.55)" }}
       >
         {app.label}
       </span>
@@ -234,16 +246,20 @@ function DockIcon({
   onClick: () => void;
   label: string;
 }) {
+  // gradient prop kept as "from-X to-Y" pair; pull two tailwind colors via a quick map
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className={`w-[52px] h-[52px] rounded-[14px] bg-gradient-to-br ${gradient}
-        shadow-[0_4px_10px_-2px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.4)]
+      className={`ios-icon ios-icon-dock w-[50px] h-[50px] bg-gradient-to-b ${gradient.replace("from-", "from-").replace("to-", "to-")}
         flex items-center justify-center
-        transition-transform active:scale-90`}
+        transition-transform active:scale-[0.92]`}
     >
-      <Icon className="w-6 h-6 text-white drop-shadow" strokeWidth={2.2} />
+      <Icon
+        className="w-[26px] h-[26px] text-white"
+        strokeWidth={1.9}
+        style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))" }}
+      />
     </button>
   );
 }

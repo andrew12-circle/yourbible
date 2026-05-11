@@ -586,6 +586,24 @@
   background-attachment: fixed;
 }
 
+/* iOS-style "squircle" app icon. Continuous corners via SVG-ish mask
+   approximation using a large border-radius percentage + subtle shadows
+   that match Apple's home-screen tiles. */
+.ios-icon {
+  position: relative;
+  border-radius: 26%; /* squircle approximation */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -8px 14px -8px rgba(0, 0, 0, 0.35) inset,
+    0 6px 14px -6px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.ios-icon-dock {
+  border-radius: 28%;
+}
+
 /* Compatibility shims — when app-theme is active, neutralize the
    leftover leather/paper/gold styling from older pages so we don't
    have to rewrite every screen. */
