@@ -16,8 +16,9 @@ type AppIcon = {
   label: string;
   to: string;
   icon: LucideIcon;
-  /** Solid flat fill color (matches modern iOS icon style). */
+  /** Rich icon background for a more native app-tile look. */
   color: string;
+  iconColor?: string;
   badge?: string | number;
 };
 
@@ -100,18 +101,18 @@ export default function HomePage() {
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
   const apps: AppIcon[] = [
-    { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "#E84A3F", badge: lastRead?.replace("/", " ") },
-    { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "#1E88FF" },
-    { label: "Framework", to: "/framework",            icon: Compass,               color: "#1C1C1E" },
-    { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "#22C55E", badge: counts.chats || undefined },
-    { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "#FF7A45", badge: promptBadge },
-    { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "#F5F5F7", badge: counts.beliefs || undefined },
-    { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: "#14B8A6", badge: counts.tensions || undefined },
-    { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "#5856D6" },
-    { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "#0A84FF" },
-    { label: "Library",   to: "/framework/influences", icon: BookOpen,              color: "#7C3AED", badge: counts.artifacts || undefined },
-    { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "#0B1437" },
-    { label: "Settings",  to: "/settings",             icon: Settings,              color: "#8E8E93" },
+    { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
+    { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
+    { label: "Framework", to: "/framework",            icon: Compass,               color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" },
+    { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
+    { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
+    { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "linear-gradient(160deg, #ECECEC 0%, #FCFCFC 62%, #FFFFFF 100%)", iconColor: "#3F3F46", badge: counts.beliefs || undefined },
+    { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: "linear-gradient(160deg, #0D9D96 0%, #18C6BE 58%, #61EAE4 100%)", badge: counts.tensions || undefined },
+    { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "linear-gradient(160deg, #4C46D1 0%, #6A63FF 58%, #8E8BFF 100%)" },
+    { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "linear-gradient(160deg, #0073EF 0%, #1A97FF 58%, #57B8FF 100%)" },
+    { label: "Library",   to: "/framework/influences", icon: BookOpen,              color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", badge: counts.artifacts || undefined },
+    { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "linear-gradient(160deg, #091134 0%, #122056 58%, #20357D 100%)" },
+    { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
 
   const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
@@ -119,11 +120,15 @@ export default function HomePage() {
   const fullDateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   const onUploadWallpaper = (file: File) => {
-    if (file.size > 6 * 1024 * 1024) { alert("Image too large (max 6 MB)"); return; }
+    if (file.size > 100 * 1024 * 1024) { alert("Image too large (max 100 MB)"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const url = reader.result as string;
-      localStorage.setItem(WALLPAPER_KEY, url);
+      try {
+        localStorage.setItem(WALLPAPER_KEY, url);
+      } catch {
+        alert("Wallpaper applied, but too large to save permanently on this device.");
+      }
       setWallpaper(url);
     };
     reader.readAsDataURL(file);
@@ -233,15 +238,15 @@ export default function HomePage() {
         {/* Dock */}
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xl z-10">
           <div className="flex items-center justify-around gap-1 rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-3 py-2.5">
-            <DockIcon icon={BookOpen}    color="#E84A3F" onClick={() => navigate(bibleTo)}             label="Bible" />
-            <DockIcon icon={Sun}         color="#1E88FF" onClick={() => navigate("/framework/daily")} label="Daily" />
-            <DockIcon icon={NotebookPen} color="#FF7A45" onClick={() => navigate("/journal")}          label="Journal" />
-            <DockIcon icon={Compass}     color="#1C1C1E" onClick={() => navigate("/framework")}        label="Framework" />
+            <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
+            <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
+            <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
+            <DockIcon icon={Compass}     color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
             <button
               onClick={() => fileRef.current?.click()}
               aria-label="Change wallpaper"
               className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-              style={{ background: "#3A3A3C" }}
+              style={{ background: "linear-gradient(160deg, #2B2F42 0%, #3E445E 58%, #545C7F 100%)" }}
             >
               <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
             </button>
@@ -263,17 +268,18 @@ export default function HomePage() {
 
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
-  const isLight = app.label === "Beliefs";
+  const iconColor = app.iconColor ?? "white";
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-[7px] focus:outline-none" aria-label={app.label}>
       <div className="relative">
         <div
           className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
-          style={{ background: app.color }}
+          style={{ background: app.color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 18px -10px rgba(0,0,0,0.55)" }}
         >
           <Icon
-            className={`w-[30px] h-[30px] ${isLight ? "text-zinc-700" : "text-white"}`}
-            strokeWidth={isLight ? 2.4 : 2}
+            className="w-[30px] h-[30px]"
+            style={{ color: iconColor }}
+            strokeWidth={2.1}
           />
         </div>
         {app.badge !== undefined && app.badge !== "" && (
@@ -297,7 +303,7 @@ function DockIcon({ icon: Icon, color, onClick, label }: { icon: LucideIcon; col
       onClick={onClick}
       aria-label={label}
       className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-      style={{ background: color }}
+      style={{ background: color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 18px -12px rgba(0,0,0,0.55)" }}
     >
       <Icon className="w-[26px] h-[26px] text-white" strokeWidth={2} />
     </button>
