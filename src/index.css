@@ -586,6 +586,12 @@
   font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
 }
 
+/* Reusable Apple system stack for elements that explicitly opt in (e.g.
+   the Bible reader when the user picks "San Francisco" as their font). */
+.font-system {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+}
+
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
   background-color: hsl(0 0% 100%);
