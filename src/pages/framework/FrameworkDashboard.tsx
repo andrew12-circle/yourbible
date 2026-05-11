@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ChevronRight, Plus, FileStack, AlertTriangle } from "lucide-react";
+import { ChevronRight, Plus, FileStack, AlertTriangle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ALL_LAYERS, FRAMEWORK_QUESTIONS, LAYER_META } from "@/data/framework";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
+import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
 
 interface BeliefRow {
   id: string;
@@ -21,6 +22,7 @@ export default function FrameworkDashboard() {
   >([]);
   const [openTensions, setOpenTensions] = useState(0);
   const [busy, setBusy] = useState(true);
+  const [quickOpen, setQuickOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -60,6 +62,9 @@ export default function FrameworkDashboard() {
           podcasts, and journal entries through the analyzer.
         </p>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setQuickOpen(true)}>
+            <Sparkles className="w-4 h-4 mr-1" /> Capture a belief
+          </Button>
           <Button asChild>
             <Link to="/framework/artifacts/new">
               <Plus className="w-4 h-4 mr-1" /> Add an artifact
@@ -78,6 +83,8 @@ export default function FrameworkDashboard() {
           </Button>
         </div>
       </section>
+
+      <QuickBeliefDialog open={quickOpen} onOpenChange={setQuickOpen} />
 
       <section className="mb-10">
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
