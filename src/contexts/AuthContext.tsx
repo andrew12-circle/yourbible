@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile: async () => { if (user) await loadProfile(user.id); },
     updateProfile: async (patch) => {
       if (!user) return { error: new Error("Not signed in") };
-      const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
+      const { error } = await supabase.from("profiles").update(patch as never).eq("user_id", user.id);
       if (error) return { error: new Error(error.message) };
       await loadProfile(user.id);
       return { error: null };
