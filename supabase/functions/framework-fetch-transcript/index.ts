@@ -1,12 +1,16 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Use real YouTube caption tracks only. Sending full YouTube videos to Gemini
-// can exceed Gemini's 1M-token input window and can produce unrelated text.
+// Prefer real YouTube caption tracks. If YouTube exposes no usable captions,
+// fall back to clipped Gemini transcription so long videos never hit the 1M-token limit.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_SEGMENT_SECONDS = 20 * 60;
+const GEMINI_MAX_DURATION_SECONDS = 3 * 60 * 60;
 
 function isYouTubeUrl(url: string): boolean {
   try {
@@ -166,6 +170,78 @@ function formatTime(seconds: number): string {
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function cleanGeminiTranscript(text: string): string {
+  return text
+    .replace(/^```(?:text)?/i, "")
+    .replace(/```$/i, "")
+    .replace(/\[(?:music|applause|laughter|silence|inaudible)[^\]]*\]/gi, " ")
+    .replace(/\((?:music|applause|laughter|silence|inaudible)[^)]*\)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function transcribeYouTubeSegment(url: string, startSeconds: number, endSeconds: number): Promise<string> {
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": GEMINI_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `Transcribe only the spoken words from ${formatTime(startSeconds)} to ${formatTime(endSeconds)} of this YouTube video. Return transcript text only. Do not summarize, invent, or add commentary.`,
+            },
+            {
+              file_data: { mime_type: "video/mp4", file_uri: url },
+              video_metadata: {
+                start_offset: { seconds: startSeconds },
+                end_offset: { seconds: endSeconds },
+                fps: 0.1,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 8192,
+        mediaResolution: "MEDIA_RESOLUTION_LOW",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Gemini segment ${formatTime(startSeconds)}-${formatTime(endSeconds)} failed: ${response.status} ${errorBody}`);
+  }
+
+  const json = await response.json();
+  const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join(" ") ?? "";
+  return cleanGeminiTranscript(text);
+}
+
+async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: number): Promise<string> {
+  const totalSeconds = Math.min(durationSeconds || GEMINI_SEGMENT_SECONDS, GEMINI_MAX_DURATION_SECONDS);
+  const segments: string[] = [];
+
+  for (let start = 0; start < totalSeconds; start += GEMINI_SEGMENT_SECONDS) {
+    const end = Math.min(start + GEMINI_SEGMENT_SECONDS, totalSeconds);
+    const segmentText = await transcribeYouTubeSegment(url, start, end);
+    if (segmentText) segments.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
+  }
+
+  const transcript = segments.join("\n\n").trim();
+  if (!transcript) throw new Error("Gemini returned an empty transcript for this video. Paste the transcript manually.");
+  return transcript;
+}
+
 async function transcribeYouTubeVideo(url: string): Promise<{ text: string; title?: string }> {
   const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
 
@@ -174,8 +250,8 @@ async function transcribeYouTubeVideo(url: string): Promise<{ text: string; titl
     return { text: captionResult.text, title: captionResult.title ?? metadata.title };
   }
 
-  const suffix = metadata.durationSeconds ? ` (${formatTime(metadata.durationSeconds)})` : "";
-  throw new Error(`No YouTube caption track was available for this video${suffix}. Paste the transcript manually.`);
+  const text = await transcribeYouTubeWithGeminiClips(url, metadata.durationSeconds);
+  return { text, title: metadata.title };
 }
 
 Deno.serve(async (req) => {
@@ -220,44 +296,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    let result: { text: string; title?: string };
-    try {
-      result = await transcribeYouTubeVideo(url);
-    } catch (e) {
-      const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
-      await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
-      return new Response(JSON.stringify({ error: msg }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const processTranscript = async () => {
+      try {
+        const result = await transcribeYouTubeVideo(url);
+        const { data: updated } = await supabase
+          .from("artifacts")
+          .update({
+            raw_text: result.text,
+            title: result.title ?? null,
+            status: "analyzing",
+            error: null,
+          })
+          .eq("id", artifact_id)
+          .eq("processing_token", processing_token)
+          .select("id")
+          .maybeSingle();
 
-    const { data: updated } = await supabase
-      .from("artifacts")
-      .update({
-        raw_text: result.text,
-        title: result.title ?? null,
-        status: "analyzing",
-        error: null,
-      })
-      .eq("id", artifact_id)
-      .eq("processing_token", processing_token)
-      .select("id")
-      .maybeSingle();
+        if (!updated) return;
 
-    if (!updated) {
-      return new Response(JSON.stringify({ ok: true, stale: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+        await fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
+          method: "POST",
+          headers: { Authorization: auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ artifact_id, processing_token }),
+        }).catch((e) => console.error("analyze kick err", e));
+      } catch (e) {
+        const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
+        console.error(msg);
+        await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+      }
+    };
 
-    // Kick off analyze
-    fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ artifact_id, processing_token }),
-    }).catch((e) => console.error("analyze kick err", e));
+    const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+    const transcriptJob = processTranscript();
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(transcriptJob);
 
-    return new Response(JSON.stringify({ ok: true, length: result.text.length }), {
+    return new Response(JSON.stringify({ ok: true, queued: true }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
