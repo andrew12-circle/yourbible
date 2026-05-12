@@ -7,6 +7,7 @@ import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
+import { coerceJournalEntryKind, ENTRY_KIND_META, type JournalEntryKind } from "@/lib/journal/entryKinds";
 
 interface Entry {
   id: string;
@@ -21,6 +22,7 @@ interface Entry {
   pinned: boolean;
   analyze_for_mirror: boolean;
   journal_id: string | null;
+  entry_kind: string | null;
 }
 
 type View = "list" | "photos" | "calendar";
@@ -31,12 +33,15 @@ export default function EntryListPane({
   onSelect,
   onNew,
   reloadKey,
+  entryKindFilter,
 }: {
   journalId: string | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
   reloadKey?: number;
+  /** When set, only entries of this faith-journal kind (still respects journalId when set). */
+  entryKindFilter?: JournalEntryKind | null;
 }) {
   const { user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -49,11 +54,19 @@ export default function EntryListPane({
     if (!user) return;
     let query = supabase
       .from("journal_entries")
-      .select("id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id")
+      .select(
+        "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
+      )
       .order("pinned", { ascending: false })
       .order("entry_at_ts", { ascending: false })
       .limit(300);
     if (journalId) query = query.eq("journal_id", journalId);
+    if (entryKindFilter) {
+      query = query.eq("entry_kind", entryKindFilter);
+    } else {
+      // Hide vents from the main journal feed — they live only on /journal/vent.
+      query = query.or("entry_kind.is.null,entry_kind.neq.vent");
+    }
     const { data } = await query;
     const list = (data as Entry[]) ?? [];
     setEntries(list);
@@ -80,7 +93,7 @@ export default function EntryListPane({
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user, journalId, reloadKey]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user, journalId, reloadKey, entryKindFilter]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return entries;
@@ -239,6 +252,7 @@ function EntryRow({
   const time = dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const mood = e.mood !== null ? moodMeta(e.mood) : null;
   const tempStr = e.weather_temp_c != null ? formatTemp(e.weather_temp_c) : null;
+  const faithKind = coerceJournalEntryKind(e.entry_kind);
 
   return (
     <button
@@ -262,6 +276,15 @@ function EntryRow({
             {e.title || firstLine(e.body) || <span className={`italic font-normal ${active ? "" : "text-muted-foreground"}`}>No title</span>}
           </h3>
           {e.analyze_for_mirror && <Sparkles className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-violet-500"}`} />}
+          {faithKind && (
+            <span
+              className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/12 text-primary"
+              }`}
+            >
+              {ENTRY_KIND_META[faithKind].label}
+            </span>
+          )}
         </div>
         <p className={`text-[12px] line-clamp-2 leading-snug ${active ? "opacity-85" : "text-muted-foreground"}`}>
           {e.title ? e.body : afterFirstLine(e.body)}

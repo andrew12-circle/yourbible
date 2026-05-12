@@ -1,24 +1,28 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
   children: ReactNode;
   title?: string;
   back?: string;
+  /** Optional main width; defaults to `max-w-4xl`. */
+  contentClassName?: string;
 }
 
 const NAV = [
   { to: "/framework", label: "Overview", icon: Sparkles },
-  { to: "/framework/beliefs", label: "Beliefs", icon: Network },
-  { to: "/framework/graph", label: "Graph", icon: Share2 },
-  { to: "/framework/tensions", label: "Tensions", icon: AlertTriangle },
-  { to: "/framework/influences", label: "Influences", icon: Users },
+  { to: "/framework/journey", label: "Journey", icon: Sprout },
+  { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
+  { to: "/framework/graph", label: "Graph", icon: Share2 },
+  { to: "/framework/beliefs", label: "Beliefs", icon: Network },
+  { to: "/framework/influences", label: "Influences", icon: Users },
+  { to: "/framework/tensions", label: "Tensions", icon: AlertTriangle },
 ];
 
-export default function FrameworkLayout({ children, title, back }: Props) {
+export default function FrameworkLayout({ children, title, back, contentClassName }: Props) {
   const { pathname } = useLocation();
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -81,7 +85,14 @@ export default function FrameworkLayout({ children, title, back }: Props) {
           </nav>
         </div>
       </header>
-      <main className="max-w-4xl mx-auto px-4 sm:px-5 py-8 sm:py-10">{children}</main>
+      <main
+        className={cn(
+          "mx-auto px-4 sm:px-5 py-8 sm:py-10",
+          contentClassName ?? "max-w-4xl",
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }

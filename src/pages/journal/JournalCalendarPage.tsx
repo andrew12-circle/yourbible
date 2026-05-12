@@ -27,6 +27,7 @@ export default function JournalCalendarPage() {
     supabase
       .from("journal_entries")
       .select("id,entry_at,title,mood")
+      .or("entry_kind.is.null,entry_kind.neq.vent")
       .gte("entry_at", start)
       .lte("entry_at", end)
       .order("entry_at_ts")

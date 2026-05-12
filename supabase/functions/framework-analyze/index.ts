@@ -1,7 +1,8 @@
 // Framework Analyze — extracts claims from an artifact and compares them
-// against the user's existing belief framework using the Lovable AI Gateway.
+// against the user's existing belief framework using Gemini (OpenAI-compat API).
+// Also extracts grounded knowledge entities and actionable teachings (with service role).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MODEL = "gemini-2.5-pro";
@@ -26,10 +27,100 @@ interface ClaimOut {
   bias_flags?: string[];
 }
 
+type EntityKindDb =
+  | "book"
+  | "person"
+  | "scripture"
+  | "dream_vision"
+  | "fear"
+  | "question"
+  | "project"
+  | "business";
+
+interface EntityBook {
+  title?: string;
+  author?: string;
+  snippet?: string;
+  confidence?: number;
+}
+interface EntityPerson {
+  name?: string;
+  role?: string;
+  snippet?: string;
+  confidence?: number;
+}
+interface EntityScripture {
+  ref?: string;
+  translation?: string;
+  snippet?: string;
+  confidence?: number;
+}
+interface EntityDream {
+  title?: string;
+  summary?: string;
+  snippet?: string;
+  confidence?: number;
+}
+interface EntitySimple {
+  title?: string;
+  snippet?: string;
+  confidence?: number;
+}
+interface EntityProject {
+  title?: string;
+  status?: string;
+  snippet?: string;
+  confidence?: number;
+}
+
+interface KnowledgeEntitiesPayload {
+  books?: EntityBook[];
+  people?: EntityPerson[];
+  scriptures?: EntityScripture[];
+  dreams_visions?: EntityDream[];
+  fears?: EntitySimple[];
+  questions?: EntitySimple[];
+  projects?: EntityProject[];
+  businesses?: EntitySimple[];
+}
+
+type TeachingCategory =
+  | "practice"
+  | "principle"
+  | "warning"
+  | "identity"
+  | "prayer"
+  | "discipline"
+  | "strategy"
+  | "question";
+
+interface TeachingOut {
+  title?: string;
+  summary?: string;
+  category?: string;
+  scriptures?: string[];
+  snippet?: string;
+  confidence?: number;
+}
+
+interface TeachingsPayload {
+  teachings?: TeachingOut[];
+}
+
 const SYSTEM = `You are a careful theology research assistant.
 Your job is NOT to declare what is true. Your job is to surface claims, compare them to the user's stated beliefs, and cite scriptures that support or challenge the claim.
 Be honest about uncertainty. Never speak as God or a prophet. Never push a denomination.
 Always return strict JSON matching the requested schema. No prose outside JSON.`;
+
+const ENTITY_SYSTEM = `You extract structured knowledge entities from a single artifact text for a personal knowledge base.
+You must never invent or guess entities. Be extremely conservative.
+Always return strict JSON via the tool call only. No prose outside JSON.`;
+
+const TEACHING_SYSTEM = `You extract actionable TEACHINGS from a single artifact (sermon, podcast, article, etc.) for a personal Christian framework app.
+Teachings are what the source proposes the listener should believe, practice, pray, avoid, or examine — distinct from neutral factual "claims".
+You must never invent teachings not grounded in the text. Each teaching MUST include a verbatim snippet copied from the artifact.
+For scriptures: only include a reference if that reference (or its verse text) clearly appears in the artifact text; otherwise use an empty array.
+Always return strict JSON via the tool call only. No prose outside JSON.`;
 
 function buildPrompt(text: string, beliefs: Belief[]) {
   const beliefSummary = beliefs.length
@@ -63,6 +154,88 @@ Task:
 Return ONLY valid JSON of shape:
 { "claims": ClaimOut[] }`;
 }
+
+function buildEntityPrompt(text: string) {
+  return `ARTIFACT TEXT (verbatim source; your snippets MUST be copied from this):
+"""
+${text.slice(0, 16000)}
+"""
+
+Extract structured knowledge entities that are DIRECTLY evidenced in the text above.
+
+Strict rules:
+- Only include entities directly evidenced in the text. Each entity MUST include a quoted \`snippet\` field: a contiguous substring copied VERBATIM from the artifact text (≤200 characters). If you cannot copy an exact substring, OMIT the entity.
+- \`confidence\` must be between 0.4 and 0.95 (use 0.4–0.6 when somewhat implicit; 0.8+ only when very explicit).
+- Books: plausible published work titles only; if author is unknown, omit \`author\` (never guess).
+- People: real individuals named or clearly identified; \`role\` only if stated (e.g. pastor, author); omit if unknown.
+- Scriptures: normalize \`ref\` to the form "Book Chapter:Verse" or "Book Chapter:Verse–Verse" (en dash between verse numbers when a range). \`translation\` only if the text names one; otherwise omit.
+- Dreams/visions: only when the text describes a dream or vision; \`summary\` must paraphrase only what the snippet supports.
+- Fears, questions, projects, businesses: short human-readable \`title\`; do not invent details not grounded in the snippet.
+- Do NOT output entities the user "might" have meant, hypotheticals, or filler.
+
+Return via the tool with this shape (arrays may be empty):
+{
+  "books": [{ "title": "...", "author": "...", "snippet": "...", "confidence": 0.0 }],
+  "people": [{ "name": "...", "role": "...", "snippet": "...", "confidence": 0.0 }],
+  "scriptures": [{ "ref": "John 3:16", "translation": "ESV", "snippet": "...", "confidence": 0.0 }],
+  "dreams_visions": [{ "title": "...", "summary": "...", "snippet": "...", "confidence": 0.0 }],
+  "fears": [{ "title": "...", "snippet": "...", "confidence": 0.0 }],
+  "questions": [{ "title": "...", "snippet": "...", "confidence": 0.0 }],
+  "projects": [{ "title": "...", "status": "...", "snippet": "...", "confidence": 0.0 }],
+  "businesses": [{ "title": "...", "snippet": "...", "confidence": 0.0 }]
+}`;
+}
+
+function buildTeachingPrompt(text: string) {
+  return `ARTIFACT TEXT (verbatim source; your snippet MUST be copied from this):
+"""
+${text.slice(0, 16000)}
+"""
+
+Extract 4–14 TEACHINGS the source proposes: practices, principles, warnings, identity postures, prayers, disciplines, strategies, or reflective questions.
+
+Strict rules:
+- Each teaching MUST include \`snippet\`: a contiguous substring copied VERBATIM from the artifact text (≤200 characters). If you cannot copy an exact substring, OMIT the teaching.
+- \`confidence\` must be between 0.4 and 0.95.
+- \`summary\`: 1–2 sentences in second person ("you") describing what the source is inviting you toward.
+- \`category\` must be one of: practice, principle, warning, identity, prayer, discipline, strategy, question.
+- \`scriptures\`: only verses explicitly present or clearly cited in the artifact; otherwise [].
+- \`title\`: short, specific (≤120 chars).
+
+Return via the tool with shape: { "teachings": [ { "title", "summary", "category", "scriptures", "snippet", "confidence" } ] }`;
+}
+
+const TEACHING_TOOL = {
+  type: "function",
+  function: {
+    name: "submit_teachings",
+    description: "Submit extracted teachings grounded in the artifact text.",
+    parameters: {
+      type: "object",
+      properties: {
+        teachings: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              summary: { type: "string" },
+              category: {
+                type: "string",
+                enum: ["practice", "principle", "warning", "identity", "prayer", "discipline", "strategy", "question"],
+              },
+              scriptures: { type: "array", items: { type: "string" } },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "summary", "category", "scriptures", "snippet", "confidence"],
+          },
+        },
+      },
+      required: ["teachings"],
+    },
+  },
+} as const;
 
 const TOOL = {
   type: "function",
@@ -109,6 +282,486 @@ const TOOL = {
   },
 } as const;
 
+const ENTITY_TOOL = {
+  type: "function",
+  function: {
+    name: "submit_knowledge_entities",
+    description: "Submit extracted knowledge entities grounded in the artifact text.",
+    parameters: {
+      type: "object",
+      properties: {
+        books: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              author: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+        people: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              role: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["name", "snippet", "confidence"],
+          },
+        },
+        scriptures: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              ref: { type: "string" },
+              translation: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["ref", "snippet", "confidence"],
+          },
+        },
+        dreams_visions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              summary: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+        fears: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+        projects: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              status: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+        businesses: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              snippet: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["title", "snippet", "confidence"],
+          },
+        },
+      },
+      required: [
+        "books",
+        "people",
+        "scriptures",
+        "dreams_visions",
+        "fears",
+        "questions",
+        "projects",
+        "businesses",
+      ],
+    },
+  },
+} as const;
+
+function normalizeTextForMatch(s: string) {
+  return s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function snippetIsGrounded(rawText: string, snippet: string): boolean {
+  const t = normalizeTextForMatch(rawText);
+  const sn = normalizeTextForMatch((snippet ?? "").trim());
+  if (!sn || sn.length > 200) return false;
+  return t.includes(sn);
+}
+
+function clampConfidence(n: unknown): number {
+  const x = typeof n === "number" && Number.isFinite(n) ? n : 0.5;
+  return Math.min(0.95, Math.max(0.4, x));
+}
+
+function emptyEntityCounts() {
+  return {
+    books: 0,
+    people: 0,
+    scriptures: 0,
+    dreams_visions: 0,
+    fears: 0,
+    questions: 0,
+    projects: 0,
+    businesses: 0,
+  };
+}
+
+const TEACHING_CATEGORIES = new Set<string>([
+  "practice",
+  "principle",
+  "warning",
+  "identity",
+  "prayer",
+  "discipline",
+  "strategy",
+  "question",
+]);
+
+function emptyTeachingCounts() {
+  return {
+    practice: 0,
+    principle: 0,
+    warning: 0,
+    identity: 0,
+    prayer: 0,
+    discipline: 0,
+    strategy: 0,
+    question: 0,
+  };
+}
+
+function parseTeachingCategory(raw: unknown): TeachingCategory | null {
+  if (typeof raw !== "string") return null;
+  const c = raw.trim().toLowerCase();
+  return TEACHING_CATEGORIES.has(c) ? (c as TeachingCategory) : null;
+}
+
+function scriptureRefLikelyInText(rawText: string, ref: string): boolean {
+  const t = normalizeTextForMatch(rawText).toLowerCase();
+  const r = normalizeTextForMatch(ref).trim().toLowerCase();
+  if (!r || r.length < 3) return false;
+  if (t.includes(r)) return true;
+  const compact = r.replace(/\s+/g, "");
+  return compact.length >= 4 && t.replace(/\s+/g, "").includes(compact);
+}
+
+function filterTeachingsScriptures(rawText: string, refs: unknown): string[] {
+  if (!Array.isArray(refs)) return [];
+  const out: string[] = [];
+  for (const x of refs) {
+    if (typeof x !== "string") continue;
+    const s = x.trim();
+    if (!s) continue;
+    if (!scriptureRefLikelyInText(rawText, s)) continue;
+    if (out.length < 12 && !out.some((y) => y.toLowerCase() === s.toLowerCase())) out.push(s.slice(0, 120));
+  }
+  return out;
+}
+
+async function persistTeachingsForArtifact(params: {
+  admin: SupabaseClient;
+  userId: string;
+  artifactId: string;
+  rawText: string;
+  teachings: TeachingOut[];
+}): Promise<{ counts: ReturnType<typeof emptyTeachingCounts>; inserted: number }> {
+  const { admin, userId, artifactId, rawText } = params;
+  const counts = emptyTeachingCounts();
+
+  await admin.from("teachings").delete().eq("artifact_id", artifactId).eq("status", "proposed");
+
+  const rows: {
+    user_id: string;
+    artifact_id: string;
+    title: string;
+    summary: string | null;
+    category: TeachingCategory;
+    scriptures: string[];
+    source_snippet: string;
+    confidence: number;
+    status: string;
+  }[] = [];
+
+  for (const tg of params.teachings.slice(0, 20)) {
+    const sn = (tg.snippet ?? "").trim();
+    if (!snippetIsGrounded(rawText, sn)) continue;
+    const title = (tg.title ?? "").trim().slice(0, 500);
+    if (!title) continue;
+    const cat = parseTeachingCategory(tg.category);
+    if (!cat) continue;
+    const summary = typeof tg.summary === "string" ? tg.summary.trim().slice(0, 1200) || null : null;
+    rows.push({
+      user_id: userId,
+      artifact_id: artifactId,
+      title,
+      summary,
+      category: cat,
+      scriptures: filterTeachingsScriptures(rawText, tg.scriptures),
+      source_snippet: sn.slice(0, 200),
+      confidence: clampConfidence(tg.confidence),
+      status: "proposed",
+    });
+    counts[cat]++;
+  }
+
+  if (rows.length > 0) {
+    const { error } = await admin.from("teachings").insert(rows);
+    if (error) console.error("teachings insert", error);
+  }
+
+  return { counts, inserted: rows.length };
+}
+
+function parseKnowledgeEntitiesPayload(raw: unknown): KnowledgeEntitiesPayload {
+  if (!raw || typeof raw !== "object") return {};
+  return raw as KnowledgeEntitiesPayload;
+}
+
+async function callGemini(
+  apiKey: string,
+  messages: { role: string; content: string }[],
+  tools: unknown[],
+  toolChoice: unknown,
+) {
+  return await fetch(GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages,
+      tools,
+      tool_choice: toolChoice,
+    }),
+  });
+}
+
+function parseToolCall(json: unknown, toolName: string): string | null {
+  const j = json as {
+    choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
+  };
+  const toolCalls = j?.choices?.[0]?.message?.tool_calls;
+  const match = toolCalls?.find((t) => t?.function?.name === toolName);
+  if (match?.function?.arguments) return match.function.arguments;
+  return null;
+}
+
+async function persistEntitiesForArtifact(params: {
+  admin: SupabaseClient;
+  userId: string;
+  artifactId: string;
+  rawText: string;
+  payload: KnowledgeEntitiesPayload;
+}) {
+  const { admin, userId, artifactId, rawText } = params;
+  const payload = params.payload;
+
+  await admin.from("entity_mentions").delete().eq("artifact_id", artifactId);
+
+  type WorkItem = {
+    kind: EntityKindDb;
+    title: string;
+    subtitle: string | null;
+    metadata: Record<string, unknown>;
+    snippet: string;
+    confidence: number;
+  };
+
+  const items: WorkItem[] = [];
+
+  const push = (w: Omit<WorkItem, "snippet" | "confidence"> & { snippet?: string; confidence?: number }) => {
+    const sn = (w.snippet ?? "").trim();
+    if (!snippetIsGrounded(rawText, sn)) return;
+    const title = w.title.trim().slice(0, 500);
+    if (!title) return;
+    items.push({
+      kind: w.kind,
+      title,
+      subtitle: w.subtitle,
+      metadata: w.metadata ?? {},
+      snippet: sn.slice(0, 200),
+      confidence: clampConfidence(w.confidence),
+    });
+  };
+
+  for (const b of payload.books ?? []) {
+    const title = (b.title ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "book",
+      title,
+      subtitle: (b.author ?? "").trim() || null,
+      metadata: {},
+      snippet: b.snippet,
+      confidence: b.confidence,
+    });
+  }
+  for (const p of payload.people ?? []) {
+    const title = (p.name ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "person",
+      title,
+      subtitle: (p.role ?? "").trim() || null,
+      metadata: {},
+      snippet: p.snippet,
+      confidence: p.confidence,
+    });
+  }
+  for (const s of payload.scriptures ?? []) {
+    const title = (s.ref ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "scripture",
+      title,
+      subtitle: (s.translation ?? "").trim() || null,
+      metadata: {},
+      snippet: s.snippet,
+      confidence: s.confidence,
+    });
+  }
+  for (const d of payload.dreams_visions ?? []) {
+    const title = (d.title ?? "").trim();
+    if (!title) continue;
+    const summary = (d.summary ?? "").trim();
+    push({
+      kind: "dream_vision",
+      title,
+      subtitle: null,
+      metadata: summary ? { summary } : {},
+      snippet: d.snippet,
+      confidence: d.confidence,
+    });
+  }
+  for (const f of payload.fears ?? []) {
+    const title = (f.title ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "fear",
+      title,
+      subtitle: null,
+      metadata: {},
+      snippet: f.snippet,
+      confidence: f.confidence,
+    });
+  }
+  for (const q of payload.questions ?? []) {
+    const title = (q.title ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "question",
+      title,
+      subtitle: null,
+      metadata: {},
+      snippet: q.snippet,
+      confidence: q.confidence,
+    });
+  }
+  for (const pr of payload.projects ?? []) {
+    const title = (pr.title ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "project",
+      title,
+      subtitle: (pr.status ?? "").trim() || null,
+      metadata: {},
+      snippet: pr.snippet,
+      confidence: pr.confidence,
+    });
+  }
+  for (const bu of payload.businesses ?? []) {
+    const title = (bu.title ?? "").trim();
+    if (!title) continue;
+    push({
+      kind: "business",
+      title,
+      subtitle: null,
+      metadata: {},
+      snippet: bu.snippet,
+      confidence: bu.confidence,
+    });
+  }
+
+  const mentionRows: {
+    user_id: string;
+    entity_id: string;
+    artifact_id: string;
+    snippet: string;
+    confidence: number;
+  }[] = [];
+
+  const counts = emptyEntityCounts();
+
+  for (const it of items) {
+    const { data: entityId, error: rpcErr } = await admin.rpc("merge_knowledge_entity", {
+      p_user_id: userId,
+      p_kind: it.kind,
+      p_title: it.title,
+      p_subtitle: it.subtitle ?? "",
+      p_metadata: it.metadata,
+      p_confidence: it.confidence,
+    });
+    if (rpcErr || !entityId) {
+      console.error("merge_knowledge_entity", rpcErr);
+      continue;
+    }
+    if (it.kind === "book") counts.books++;
+    else if (it.kind === "person") counts.people++;
+    else if (it.kind === "scripture") counts.scriptures++;
+    else if (it.kind === "dream_vision") counts.dreams_visions++;
+    else if (it.kind === "fear") counts.fears++;
+    else if (it.kind === "question") counts.questions++;
+    else if (it.kind === "project") counts.projects++;
+    else if (it.kind === "business") counts.businesses++;
+
+    mentionRows.push({
+      user_id: userId,
+      entity_id: entityId as string,
+      artifact_id: artifactId,
+      snippet: it.snippet,
+      confidence: it.confidence,
+    });
+  }
+
+  if (mentionRows.length > 0) {
+    const { error: insM } = await admin.from("entity_mentions").insert(mentionRows);
+    if (insM) console.error("entity_mentions insert", insM);
+  }
+
+  return { counts, mentionCount: mentionRows.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -116,6 +769,7 @@ Deno.serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
     const auth = req.headers.get("Authorization") ?? "";
@@ -149,22 +803,15 @@ Deno.serve(async (req) => {
 
     const prompt = buildPrompt(artifact.raw_text as string, (beliefs as Belief[]) ?? []);
 
-    const r = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: prompt },
-        ],
-        tools: [TOOL],
-        tool_choice: { type: "function", function: { name: "submit_claims" } },
-      }),
-    });
+    const r = await callGemini(
+      GEMINI_API_KEY,
+      [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: prompt },
+      ],
+      [TOOL],
+      { type: "function", function: { name: "submit_claims" } },
+    );
 
     if (r.status === 429 || r.status === 402) {
       const msg =
@@ -184,16 +831,22 @@ Deno.serve(async (req) => {
     }
 
     const json = await r.json();
-    const toolCall = json?.choices?.[0]?.message?.tool_calls?.[0];
+    const argsStr = parseToolCall(json, "submit_claims");
     let parsed: { claims: ClaimOut[] } = { claims: [] };
-    if (toolCall?.function?.arguments) {
-      try { parsed = JSON.parse(toolCall.function.arguments); }
-      catch (e) { console.error("parse fail", e); }
+    if (argsStr) {
+      try {
+        parsed = JSON.parse(argsStr);
+      } catch (e) {
+        console.error("parse fail", e);
+      }
     } else {
-      // Fallback: try to parse the message content directly.
       const content = json?.choices?.[0]?.message?.content;
       if (typeof content === "string") {
-        try { parsed = JSON.parse(content); } catch { /* ignore */ }
+        try {
+          parsed = JSON.parse(content);
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -235,15 +888,123 @@ Deno.serve(async (req) => {
       if (insErr) console.error("insert claims err", insErr);
     }
 
+    let entity_counts = emptyEntityCounts();
+    let entity_mentions_written = 0;
+    let teaching_counts = emptyTeachingCounts();
+    let teaching_rows_written = 0;
+
+    if (SERVICE_ROLE) {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+      try {
+        const er = await callGemini(
+          GEMINI_API_KEY,
+          [
+            { role: "system", content: ENTITY_SYSTEM },
+            { role: "user", content: buildEntityPrompt(artifact.raw_text as string) },
+          ],
+          [ENTITY_TOOL],
+          { type: "function", function: { name: "submit_knowledge_entities" } },
+        );
+        if (er.ok) {
+          const ej = await er.json();
+          const eArgs = parseToolCall(ej, "submit_knowledge_entities");
+          let entitiesParsed: KnowledgeEntitiesPayload = {};
+          if (eArgs) {
+            try {
+              entitiesParsed = parseKnowledgeEntitiesPayload(JSON.parse(eArgs));
+            } catch (e) {
+              console.error("entity parse fail", e);
+            }
+          }
+          const { data: gate2 } = await supabase
+            .from("artifacts")
+            .select("id")
+            .eq("id", artifact_id)
+            .eq("processing_token", processing_token)
+            .maybeSingle();
+          if (gate2) {
+            const res = await persistEntitiesForArtifact({
+              admin,
+              userId: artifact.user_id as string,
+              artifactId: artifact_id,
+              rawText: artifact.raw_text as string,
+              payload: entitiesParsed,
+            });
+            entity_counts = res.counts;
+            entity_mentions_written = res.mentionCount;
+          }
+        } else {
+          console.error("entity extraction gateway error:", er.status, await er.text());
+        }
+
+        const tr = await callGemini(
+          GEMINI_API_KEY,
+          [
+            { role: "system", content: TEACHING_SYSTEM },
+            { role: "user", content: buildTeachingPrompt(artifact.raw_text as string) },
+          ],
+          [TEACHING_TOOL],
+          { type: "function", function: { name: "submit_teachings" } },
+        );
+        if (tr.ok) {
+          const tj = await tr.json();
+          const tArgs = parseToolCall(tj, "submit_teachings");
+          let teachingsParsed: TeachingsPayload = {};
+          if (tArgs) {
+            try {
+              teachingsParsed = JSON.parse(tArgs) as TeachingsPayload;
+            } catch (e) {
+              console.error("teaching parse fail", e);
+            }
+          }
+          const { data: gate3 } = await supabase
+            .from("artifacts")
+            .select("id")
+            .eq("id", artifact_id)
+            .eq("processing_token", processing_token)
+            .maybeSingle();
+          if (gate3) {
+            const tres = await persistTeachingsForArtifact({
+              admin,
+              userId: artifact.user_id as string,
+              artifactId: artifact_id,
+              rawText: artifact.raw_text as string,
+              teachings: teachingsParsed.teachings ?? [],
+            });
+            teaching_counts = tres.counts;
+            teaching_rows_written = tres.inserted;
+          }
+        } else {
+          console.error("teaching extraction gateway error:", tr.status, await tr.text());
+        }
+      } catch (e) {
+        console.error("entity/teaching extraction failed:", e);
+      }
+    } else {
+      console.warn(
+        "SUPABASE_SERVICE_ROLE_KEY missing — skipping knowledge entity + teaching persistence",
+      );
+    }
+
     await supabase
       .from("artifacts")
       .update({ status: "ready", error: rows.length === 0 ? "No claims could be extracted." : null })
       .eq("id", artifact_id)
       .eq("processing_token", processing_token);
 
-    return new Response(JSON.stringify({ ok: true, count: rows.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        count: rows.length,
+        entity_counts,
+        entity_mentions_written,
+        teaching_counts,
+        teaching_rows_written,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
     console.error("framework-analyze error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {

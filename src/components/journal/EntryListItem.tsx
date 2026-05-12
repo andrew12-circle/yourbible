@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
+import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 
 export interface EntryListData {
   id: string;
@@ -16,6 +17,7 @@ export interface EntryListData {
   pinned: boolean;
   analyze_for_mirror: boolean;
   photo_url?: string;
+  entry_kind?: string | null;
 }
 
 export default function EntryListItem({ entry }: { entry: EntryListData }) {
@@ -27,6 +29,7 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
   const mood = entry.mood !== null ? moodMeta(entry.mood) : null;
   const tempStr =
     entry.weather_temp_c != null ? formatTemp(entry.weather_temp_c) : null;
+  const faithKind = coerceJournalEntryKind(entry.entry_kind);
 
   return (
     <Link
@@ -55,6 +58,11 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
           </h3>
           {entry.analyze_for_mirror && (
             <Sparkles className="w-3.5 h-3.5 text-violet-500 mt-1 flex-shrink-0" />
+          )}
+          {faithKind && (
+            <span className="mt-0.5 shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              {ENTRY_KIND_META[faithKind].label}
+            </span>
           )}
         </div>
         <p className="text-[14px] text-muted-foreground line-clamp-2 leading-snug">

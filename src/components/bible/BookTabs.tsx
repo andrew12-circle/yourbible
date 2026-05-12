@@ -40,7 +40,7 @@ const SECTION_TINT_DEEP: Record<BibleBook["section"], string> = {
  */
 const VISIBLE = 5;
 /** Per-tab extra outward stick-out (px) — never a perfect ladder */
-const STAGGER = [0, 5, 2, 7, 3];
+const STAGGER = [0, 6, 3, 9, 4];
 
 export function BookTabs({ current, onSelect, side = "right" }: Props) {
   const isLeft = side === "left";
@@ -73,7 +73,8 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
 
   return (
     <div
-      className="absolute inset-y-0 pointer-events-none flex flex-col justify-around py-6"
+      dir="ltr"
+      className="absolute inset-0 pointer-events-none flex flex-col justify-start gap-2 min-h-0"
       aria-label={`Book navigation — ${isLeft ? "previous" : "next"} books`}
       style={{
         // The wrapper in BookScene anchors us at the inner edge of the
@@ -87,13 +88,14 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
         const tint = SECTION_TINT[b.section];
         const tintDeep = SECTION_TINT_DEEP[b.section];
         const stagger = STAGGER[i % STAGGER.length];
-        const baseWidth = 28;
+        const baseWidth = 34;
         const tabWidth = baseWidth + stagger;
         const tabHeight = 138;
 
         return (
           <button
             key={b.abbr}
+            type="button"
             onClick={(e) => {
               const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
               // Anchor point: the tab's outer (visible) edge, vertically centered.
@@ -102,12 +104,11 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
               onSelect(b, { x, y, side: isLeft ? "left" : "right" });
             }}
             aria-label={`Go to ${SECTION_LABELS[b.section]} — ${b.name}`}
-            className="relative pointer-events-auto group transition-transform duration-200 hover:scale-[1.06]"
+            className={
+              "relative pointer-events-auto group focus-visible:outline focus-visible:outline-2 " +
+              "focus-visible:outline-offset-2 focus-visible:outline-[hsl(38_70%_45%/0.95)]"
+            }
             style={{
-              // Anchor the tab's INNER edge at the page surface (the
-              // wrapper sits there). The tab body extends OUTWARD over
-              // the gilt edge, sticking past it like a real thumb-index
-              // tab hooked onto the page block.
               [isLeft ? "right" : "left"]: 0,
               [isLeft ? "left" : "right"]: "auto",
               width: tabWidth,
@@ -115,40 +116,47 @@ export function BookTabs({ current, onSelect, side = "right" }: Props) {
               alignSelf: isLeft ? "flex-start" : "flex-end",
             }}
           >
-            {/* Tab body — outer (visible) edge is rounded, inner (hook)
-                edge is squared and tucked under the page so the tab reads
-                as physically attached to the page block. */}
+            <span
+              className={
+                "relative block h-full w-full transition-transform duration-200 ease-out " +
+                (isLeft ? "-translate-x-[5px] hover:scale-[1.04]" : "translate-x-[5px] hover:scale-[1.04]")
+              }
+              style={{ transformOrigin: isLeft ? "right center" : "left center" }}
+            >
+            {/* Tab body — outer edge rounded; inner edge meets paper with a
+                hairline crease shadow. */}
             <span
               className="absolute inset-0 block"
               style={{
-                backgroundImage: `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
-                // Round only the OUTER edge (the visible thumb-grip side
-                // that sticks out past the gilt). The inner edge is flush
-                // and squared where it meets / tucks under the page.
-                borderTopLeftRadius: isLeft ? 5 : 0,
-                borderBottomLeftRadius: isLeft ? 5 : 0,
-                borderTopRightRadius: isLeft ? 0 : 5,
-                borderBottomRightRadius: isLeft ? 0 : 5,
-                border: "1px solid hsl(28 22% 38% / 0.75)",
-                // Hide the inner border (the side tucking under the page)
-                // so the tab reads as continuous with the page beneath.
+                backgroundImage:
+                  `linear-gradient(180deg, hsl(0 0% 100% / 0.26) 0%, transparent 38%, transparent 62%, hsl(0 0% 0% / 0.07) 100%),` +
+                  `linear-gradient(${isLeft ? "270deg" : "90deg"}, ${tint} 0%, ${tintDeep} 100%)`,
+                borderTopLeftRadius: isLeft ? 6 : 0,
+                borderBottomLeftRadius: isLeft ? 6 : 0,
+                borderTopRightRadius: isLeft ? 0 : 6,
+                borderBottomRightRadius: isLeft ? 0 : 6,
+                border: "1px solid hsl(28 22% 36% / 0.78)",
                 [isLeft ? "borderRight" : "borderLeft"]: "none",
                 boxShadow:
-                  `inset 0 1px 0 hsl(0 0% 100% / 0.55),` +
-                  ` ${isLeft ? "-2px" : "2px"} 2px 4px hsl(0 0% 0% / 0.35)`,
+                  `${isLeft ? "inset -4px" : "inset 4px"} 0 5px -1px hsl(0 0% 0% / 0.22),` +
+                  `inset 0 1px 0 hsl(0 0% 100% / 0.5),` +
+                  `${isLeft ? "-3px" : "3px"} 3px 7px hsl(0 0% 0% / 0.28),` +
+                  `${isLeft ? "-1px" : "1px"} 5px 10px hsl(0 0% 0% / 0.12)`,
               }}
             />
             {/* Vertical full book name — black ink, larger, clearly legible */}
             <span
-              className="relative z-10 flex items-center justify-center h-full font-display tracking-[0.14em] text-[12px] font-bold whitespace-nowrap overflow-hidden px-1"
+              className="relative z-10 flex items-center justify-center h-full max-w-full min-h-0 font-display tracking-[0.14em] text-[12px] font-bold px-1 overflow-hidden"
               style={{
                 writingMode: "vertical-rl",
                 textOrientation: "mixed",
                 textTransform: "uppercase",
                 color: "hsl(0 0% 8%)",
               }}
+              title={b.name}
             >
               {b.name}
+            </span>
             </span>
           </button>
         );

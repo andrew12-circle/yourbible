@@ -20,7 +20,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const CURVE_SAMPLES = 16;
 const TOP_PAGE_DIP_PCT = 0.9;
 const STACK_FAN_DEEPEST_PCT = 1.6;
-const COVER_DIP_PCT = 2.4;
+/** Slightly shallower than the page arc so more leather stays visible at the top. */
+const COVER_DIP_PCT = 2.0;
 
 function dipFraction(distFromSpineNorm: number): number {
   return Math.sin((Math.min(1, Math.max(0, distFromSpineNorm)) * Math.PI) / 2);
@@ -120,10 +121,10 @@ export function BookScene({
   const isMobile = useIsMobile();
 
   // Side gilt thickness — the visible compressed mass of pages on each side.
-  // We taper this slightly toward the spine via gradients in stackBackground,
-  // so the band itself is a wedge of gilt that compresses toward the gutter.
-  const totalStack = isMobile ? 30 : 40;
-  const minStack = isMobile ? 16 : 22;
+  // Slightly wider on desktop so the fore-edge reads like a real thick Bible
+  // when viewed from the front (horizontal page lines need room to breathe).
+  const totalStack = isMobile ? 30 : 52;
+  const minStack = isMobile ? 16 : 30;
   const leftStack = Math.max(minStack, Math.round(totalStack * progress));
   const rightStack = Math.max(minStack, Math.round(totalStack * (1 - progress)));
 
@@ -163,7 +164,9 @@ export function BookScene({
         className="relative z-10 mx-auto"
         style={{ maxWidth: isMobile ? "100vw" : "min(1480px, 99vw)" }}
       >
-        <div className="pt-2 sm:pt-3 pb-3 relative">
+        <div
+          className="pb-3 relative pt-[max(2.25rem,calc(env(safe-area-inset-top,0px)+1.75rem))] sm:pt-[max(2.75rem,calc(env(safe-area-inset-top,0px)+2rem))]"
+        >
           {/* === Cast shadow on the table, follows the curved cover silhouette === */}
           {!isMobile && (
             <>
@@ -233,7 +236,7 @@ export function BookScene({
           >
             <div
               className={
-                "relative rounded-[10px] p-[12px] sm:p-[16px] " +
+                "relative rounded-[10px] px-[12px] pb-[12px] pt-[15px] sm:px-[16px] sm:pb-[16px] sm:pt-[22px] " +
                 (isMobile
                   ? "shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85),0_14px_28px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]"
                   : "shadow-[inset_0_2px_0_hsl(0_60%_30%/0.4),inset_0_-3px_8px_hsl(0_0%_0%/0.55)]")
@@ -292,17 +295,26 @@ export function BookScene({
                     "inset 0 0 0 1px hsl(0 0% 0% / 0.4), inset 0 0 24px hsl(0 0% 0% / 0.45)",
                 }}
               />
-              {/* Soft self-shadow cast by the raised leather cover edge onto the
-                  inset page block — stronger at top (light from above) and along
-                  sides, lighter at the bottom where the page meets the cover. */}
+              {/* Lip shadow: keep the top edge readable (leather “hinge” above the
+                  pages). A heavy top inset here read as a dark bar hiding the cover. */}
               <div
                 className="absolute inset-[10px] rounded-[6px] pointer-events-none"
                 style={{
                   boxShadow:
-                    "inset 0 10px 14px -2px hsl(0 0% 0% / 0.55), " +
-                    "inset 0 -5px 10px -2px hsl(0 0% 0% / 0.32), " +
-                    "inset 8px 0 12px -4px hsl(0 0% 0% / 0.40), " +
-                    "inset -8px 0 12px -4px hsl(0 0% 0% / 0.40)",
+                    "inset 0 2px 5px -1px hsl(0 0% 0% / 0.18), " +
+                    "inset 0 8px 18px -6px hsl(0 0% 0% / 0.14), " +
+                    "inset 0 -5px 10px -2px hsl(0 0% 0% / 0.30), " +
+                    "inset 9px 0 14px -4px hsl(0 0% 0% / 0.36), " +
+                    "inset -9px 0 14px -4px hsl(0 0% 0% / 0.36)",
+                }}
+              />
+              {/* Warm catch-light on the top cover margin only */}
+              <div
+                className="absolute left-[10px] right-[10px] top-[10px] h-[14px] sm:h-[18px] rounded-t-[6px] pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(180deg, hsl(12 35% 28% / 0.55) 0%, hsl(0 45% 18% / 0.12) 65%, transparent 100%)",
+                  mixBlendMode: "screen",
                 }}
               />
               {/* Hair-thin dark crease where the cover lip meets the paper */}
@@ -324,25 +336,41 @@ export function BookScene({
                   marginTop: 4,
                   marginBottom: 4,
                   boxShadow:
-                    "inset 0 0 60px hsl(30 30% 60% / 0.25), inset 0 0 0 1px hsl(var(--paper-edge))",
+                    "0 28px 48px -28px hsl(0 0% 0% / 0.45), " +
+                    "inset 0 0 72px hsl(30 30% 60% / 0.22), " +
+                    "inset 0 0 0 1px hsl(var(--paper-edge)), " +
+                    "inset 0 3px 14px hsl(0 0% 0% / 0.06)",
                   minHeight: "calc(100vh - 40px)",
                   perspective: isMobile ? undefined : "1800px",
                   perspectiveOrigin: "50% 50%",
                 }}
               >
-                {/* Side gilt page-stacks — wedge-shaped: thicker at the outer
-                    edge, compressed near the spine. */}
-                {(!isMobile || pageSide === "left") && (
+                {/* Side gilt (mobile): full-height bands beside the single page.
+                    Desktop gilt lives inside each page’s clip so the outer edge
+                    follows the same arched top as the paper — no seam/gap. */}
+                {isMobile && pageSide === "left" && (
                   <div
-                    className="absolute left-0 top-0 bottom-0 pointer-events-none z-[1]"
+                    className="absolute left-0 top-0 bottom-0 pointer-events-none z-[1] overflow-hidden rounded-tl-[6px] rounded-bl-[6px]"
                     style={{
                       width: leftStack,
-                      background: stackBackground("left"),
+                      boxShadow:
+                        "inset -3px 0 8px hsl(0 0% 0% / 0.28), 2px 0 8px -3px hsl(0 0% 0% / 0.2)",
                     }}
                   >
-                    {/* Soft compression shadow on the spine-facing side */}
                     <div
-                      className="absolute top-0 bottom-0 right-0 pointer-events-none"
+                      className="absolute inset-y-0 left-0 pointer-events-none z-[2]"
+                      style={{
+                        width: Math.min(4, Math.max(2, Math.round(leftStack * 0.12))),
+                        background: outerGiltFace("left"),
+                        boxShadow: "inset -1px 0 0 hsl(48 90% 88% / 0.35)",
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 pointer-events-none z-[1]"
+                      style={{ background: stackBackground("left") }}
+                    />
+                    <div
+                      className="absolute top-0 bottom-0 right-0 pointer-events-none z-[3]"
                       style={{
                         width: 10,
                         background:
@@ -351,16 +379,29 @@ export function BookScene({
                     />
                   </div>
                 )}
-                {(!isMobile || pageSide === "right") && (
+                {isMobile && pageSide === "right" && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 pointer-events-none z-[1]"
+                    className="absolute right-0 top-0 bottom-0 pointer-events-none z-[1] overflow-hidden rounded-tr-[6px] rounded-br-[6px]"
                     style={{
                       width: rightStack,
-                      background: stackBackground("right"),
+                      boxShadow:
+                        "inset 3px 0 8px hsl(0 0% 0% / 0.28), -2px 0 8px -3px hsl(0 0% 0% / 0.2)",
                     }}
                   >
                     <div
-                      className="absolute top-0 bottom-0 left-0 pointer-events-none"
+                      className="absolute inset-y-0 right-0 pointer-events-none z-[2]"
+                      style={{
+                        width: Math.min(4, Math.max(2, Math.round(rightStack * 0.12))),
+                        background: outerGiltFace("right"),
+                        boxShadow: "inset 1px 0 0 hsl(48 90% 88% / 0.35)",
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 pointer-events-none z-[1]"
+                      style={{ background: stackBackground("right") }}
+                    />
+                    <div
+                      className="absolute top-0 bottom-0 left-0 pointer-events-none z-[3]"
                       style={{
                         width: 10,
                         background:
@@ -395,6 +436,40 @@ export function BookScene({
                         className="relative h-full overflow-hidden"
                         style={{ clipPath: PAGE_ARC_CLIP_LEFT }}
                       >
+                        {/* Gilt inside the page clip so the outer top follows the
+                            same arch as the cream face (no rectangular strip gap). */}
+                        <div
+                          aria-hidden
+                          className="absolute top-0 bottom-0 pointer-events-none z-[1] overflow-hidden rounded-tl-[7px] rounded-bl-[7px] sm:rounded-tl-[9px] sm:rounded-bl-[9px]"
+                          style={{
+                            left: -leftStack,
+                            width: leftStack,
+                            boxShadow:
+                              "inset -3px 0 8px hsl(0 0% 0% / 0.28), " +
+                              "2px 0 10px -4px hsl(0 0% 0% / 0.22)",
+                          }}
+                        >
+                          <div
+                            className="absolute inset-y-0 left-0 pointer-events-none z-[2]"
+                            style={{
+                              width: Math.min(4, Math.max(2, Math.round(leftStack * 0.12))),
+                              background: outerGiltFace("left"),
+                              boxShadow: "inset -1px 0 0 hsl(48 90% 88% / 0.35)",
+                            }}
+                          />
+                          <div
+                            className="absolute inset-0 pointer-events-none z-[1]"
+                            style={{ background: stackBackground("left") }}
+                          />
+                          <div
+                            className="absolute top-0 bottom-0 right-0 pointer-events-none z-[3]"
+                            style={{
+                              width: 10,
+                              background:
+                                "linear-gradient(90deg, transparent 0%, hsl(0 0% 0% / 0.3) 100%)",
+                            }}
+                          />
+                        </div>
                         {leftPage}
                         <PageEdgeShading side="left" />
                       </div>
@@ -418,6 +493,38 @@ export function BookScene({
                         className="relative h-full overflow-hidden"
                         style={{ clipPath: PAGE_ARC_CLIP_RIGHT }}
                       >
+                        <div
+                          aria-hidden
+                          className="absolute top-0 bottom-0 pointer-events-none z-[1] overflow-hidden rounded-tr-[7px] rounded-br-[7px] sm:rounded-tr-[9px] sm:rounded-br-[9px]"
+                          style={{
+                            right: -rightStack,
+                            width: rightStack,
+                            boxShadow:
+                              "inset 3px 0 8px hsl(0 0% 0% / 0.28), " +
+                              "-2px 0 10px -4px hsl(0 0% 0% / 0.22)",
+                          }}
+                        >
+                          <div
+                            className="absolute inset-y-0 right-0 pointer-events-none z-[2]"
+                            style={{
+                              width: Math.min(4, Math.max(2, Math.round(rightStack * 0.12))),
+                              background: outerGiltFace("right"),
+                              boxShadow: "inset 1px 0 0 hsl(48 90% 88% / 0.35)",
+                            }}
+                          />
+                          <div
+                            className="absolute inset-0 pointer-events-none z-[1]"
+                            style={{ background: stackBackground("right") }}
+                          />
+                          <div
+                            className="absolute top-0 bottom-0 left-0 pointer-events-none z-[3]"
+                            style={{
+                              width: 10,
+                              background:
+                                "linear-gradient(270deg, transparent 0%, hsl(0 0% 0% / 0.3) 100%)",
+                            }}
+                          />
+                        </div>
                         {rightPage}
                         <PageEdgeShading side="right" />
                       </div>
@@ -507,7 +614,9 @@ export function BookScene({
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
                   style={{ left: 10 + leftStack }}
                 >
-                  {renderTabs("left")}
+                  <div className="h-full pt-14 pb-12 sm:pt-16 sm:pb-14 w-0 relative">
+                    {renderTabs("left")}
+                  </div>
                 </div>
               )}
               {renderTabs && (!isMobile || pageSide === "right") && (
@@ -515,7 +624,9 @@ export function BookScene({
                   className="absolute top-0 bottom-0 z-[7] pointer-events-none"
                   style={{ right: 10 + rightStack }}
                 >
-                  {renderTabs("right")}
+                  <div className="h-full pt-14 pb-12 sm:pt-16 sm:pb-14 w-0 relative">
+                    {renderTabs("right")}
+                  </div>
                 </div>
               )}
               {/* Ribbons */}
@@ -679,34 +790,66 @@ function PageStackArc({ edge }: { edge: "top" | "bottom" }) {
   );
 }
 
+/** Bright gilt “front face” on the outside of the page block (beyond sheet edges). */
+function outerGiltFace(side: "left" | "right"): string {
+  return side === "left"
+    ? "linear-gradient(90deg, hsl(46 85% 70%) 0%, hsl(42 72% 54%) 32%, hsl(34 52% 34%) 78%, hsl(20 28% 12%) 100%)"
+    : "linear-gradient(270deg, hsl(46 85% 70%) 0%, hsl(42 72% 54%) 32%, hsl(34 52% 34%) 78%, hsl(20 28% 12%) 100%)";
+}
+
 function stackBackground(side: "left" | "right") {
-  // Side gilt edge — the visible compressed mass of pages from outside.
-  // `outward` runs FROM the spine TO the outer edge; `inward` is the reverse.
-  const outward = side === "left" ? "270deg" : "90deg";
+  // Fore-edge: when you face the open Bible, each outer column is the **cut face**
+  // of the page block — horizontal “steps” (page edges) stacked top-to-bottom.
+  // Gradient runs along the column height so repeats = horizontal sheet lines.
+  const alongHeight = "180deg";
   const inward = side === "left" ? "90deg" : "270deg";
 
-  // Very fine "individual sheets" striations.
-  const sheets = `repeating-linear-gradient(${outward},
-    hsl(38 50% 56% / 0.95) 0 0.5px,
-    hsl(42 70% 68% / 0.85) 0.5px 1.1px,
-    hsl(34 45% 42% / 0.55) 1.1px 1.4px,
-    hsl(40 60% 60% / 0.85) 1.4px 2.2px)`;
+  // Coarse “leaves”: ~2.4px per sheet — bright top edge, paper body, soft groove.
+  const pageLeaves = `repeating-linear-gradient(${alongHeight},
+    hsl(44 52% 94%) 0px 0.35px,
+    hsl(38 36% 82%) 0.35px 1.1px,
+    hsl(42 40% 88%) 1.1px 1.85px,
+    hsl(30 28% 52% / 0.35) 1.85px 2.05px,
+    hsl(36 34% 76%) 2.05px 2.4px)`;
 
-  // Wider, irregular darker bands — uneven page heights / shadow lines.
-  const bands = `repeating-linear-gradient(${outward},
-    transparent 0 7px,
-    hsl(28 35% 28% / 0.22) 7px 7.4px,
-    transparent 7.4px 17px,
-    hsl(28 35% 28% / 0.14) 17px 17.3px)`;
+  // Secondary stack at a prime-ish period so lines don’t line up perfectly (more organic).
+  const pageLeaves2 = `repeating-linear-gradient(${alongHeight},
+    transparent 0 2.7px,
+    hsl(0 0% 0% / 0.07) 2.7px 2.85px,
+    transparent 2.85px 5.4px,
+    hsl(40 45% 96% / 0.4) 5.4px 5.55px,
+    transparent 5.55px 8.1px)`;
 
-  // Warm gold base, compressed (darker) toward the spine — wedge-feel.
-  const gilt = `linear-gradient(${inward},
-    hsl(38 78% 60%) 0%,
-    hsl(40 68% 52%) 30%,
-    hsl(34 50% 36%) 70%,
-    hsl(20 30% 14%) 100%)`;
+  // Mid-frequency shadow bands — groups of signatures / quires.
+  const quires = `repeating-linear-gradient(${alongHeight},
+    transparent 0 14px,
+    hsl(28 30% 22% / 0.18) 14px 15px,
+    transparent 15px 32px,
+    hsl(26 28% 18% / 0.12) 32px 33px)`;
 
-  return `${bands}, ${sheets}, ${gilt}`;
+  // Fine paper grain (still reads as texture, not primary “pages”).
+  const grain = `repeating-linear-gradient(88deg,
+    transparent 0 1px,
+    hsl(38 30% 70% / 0.06) 1px 1.5px,
+    transparent 1.5px 4px)`;
+
+  // Rounded fore-edge: brighter down the middle of the strip (cylindrical block).
+  const roundFace = `linear-gradient(${inward},
+    hsl(32 32% 24% / 0.55) 0%,
+    hsl(40 38% 52% / 0.15) 35%,
+    hsl(44 42% 72% / 0.22) 50%,
+    hsl(40 38% 52% / 0.15) 65%,
+    hsl(28 28% 18% / 0.5) 100%)`;
+
+  // Warm volume (darkest at spine / inner edge of strip).
+  const volume = `linear-gradient(${inward},
+    hsl(36 42% 38%) 0%,
+    hsl(38 40% 44%) 40%,
+    hsl(34 36% 34%) 78%,
+    hsl(22 24% 14%) 100%)`;
+
+  // First = topmost (CSS). Base volume last so sheet lines sit on top.
+  return `${grain}, ${pageLeaves}, ${pageLeaves2}, ${quires}, ${roundFace}, ${volume}`;
 }
 
 function PageEdgeShading({ side }: { side: "left" | "right" }) {

@@ -16,6 +16,13 @@ import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
+import {
+  coerceJournalEntryKind,
+  ENTRY_KIND_META,
+  kindToLifeSegment,
+  parseJournalEntryKindParam,
+  type JournalEntryKind,
+} from "@/lib/journal/entryKinds";
 
 interface BeliefOpt {
   id: string;
@@ -34,6 +41,7 @@ export default function NewJournalEntryPage() {
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  const [entryKind, setEntryKind] = useState<JournalEntryKind | null>(null);
   const [entryAt, setEntryAt] = useState<string>(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -112,7 +120,20 @@ export default function NewJournalEntryPage() {
       );
       setTags((ts) => (ts.length ? ts : ["artifact", "youtube"]));
     }
-  }, [params]);
+    const kindInit = parseJournalEntryKindParam(params.get("kind"));
+    if (kindInit) {
+      if (kindInit === "vent" && !editId) {
+        // Vents have a dedicated, deliberately minimal UI.
+        navigate("/journal/vent", { replace: true });
+        return;
+      }
+      setEntryKind(kindInit);
+      setTitle((t) => t || `New ${ENTRY_KIND_META[kindInit].newTitleHint}`);
+      if (kindInit !== "vent") {
+        setBody((b) => b || `${ENTRY_KIND_META[kindInit].placeholder}\n\n`);
+      }
+    }
+  }, [params, editId, navigate]);
 
   // After URL prefill: apply floating-panel expand handoff (route state + localStorage fallback)
   const handoffAppliedForKey = useRef<string | null>(null);
@@ -153,12 +174,14 @@ export default function NewJournalEntryPage() {
         .from("journal_entries")
         .select("*")
         .eq("id", editId)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (!data) return;
       setTitle(data.title ?? "");
       setBody(data.body ?? "");
       setMood(data.mood);
       setTags(data.tags ?? []);
+      setEntryKind(coerceJournalEntryKind((data as { entry_kind?: string | null }).entry_kind));
       setVerseRef(data.verse_ref ?? "");
       setBeliefId(data.belief_id ?? "");
       setLocationName(data.location_name ?? "");
@@ -279,14 +302,20 @@ export default function NewJournalEntryPage() {
       weather,
       weather_temp_c: weatherTempC,
       weather_icon: weatherIcon,
-      analyze_for_mirror: analyzeForMirror,
+      // Vents are private — never include in mirror analysis regardless of toggle state.
+      analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
       entry_at_ts: ts.toISOString(),
       entry_at: ts.toISOString().slice(0, 10),
+      entry_kind: entryKind,
     };
 
     let entryId = editId;
     if (editId) {
-      const { error } = await supabase.from("journal_entries").update(payload).eq("id", editId);
+      const { error } = await supabase
+        .from("journal_entries")
+        .update(payload)
+        .eq("id", editId)
+        .eq("user_id", user.id);
       if (error) {
         setBusy(false);
         toast({ title: "Save failed", description: error.message, variant: "destructive" });
@@ -333,8 +362,22 @@ export default function NewJournalEntryPage() {
     navigate(`/journal/${entryId}`);
   };
 
+  const lifeSegment = entryKind ? kindToLifeSegment(entryKind) : null;
+  const layoutBack = editId
+    ? `/journal/${editId}`
+    : entryKind === "vent"
+      ? "/journal/vent"
+      : lifeSegment
+        ? `/journal/life/${lifeSegment}`
+        : "/journal";
+  const layoutTitle = editId ? "Edit entry" : entryKind ? `New ${ENTRY_KIND_META[entryKind].label}` : "New entry";
+  const bodyPlaceholder = entryKind
+    ? ENTRY_KIND_META[entryKind].placeholder
+    : "What happened today? What are you carrying?";
+  const isVent = entryKind === "vent";
+
   return (
-    <JournalLayout title={editId ? "Edit entry" : "New entry"} back={editId ? `/journal/${editId}` : "/journal"}>
+    <JournalLayout title={layoutTitle} back={layoutBack}>
       <div className="space-y-5">
         <Input
           value={title}
@@ -343,11 +386,34 @@ export default function NewJournalEntryPage() {
           className="text-lg font-display"
         />
 
+        <section>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entry type</Label>
+          <p className="mt-1 mb-2 text-xs text-muted-foreground leading-relaxed">
+            Mark dreams, praise reports, or testimonies to find them under Faith journal. Vents stay private — hidden
+            from the main journal, the mirror, and My AI.
+          </p>
+          <select
+            value={entryKind ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setEntryKind(v ? coerceJournalEntryKind(v) : null);
+            }}
+            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            aria-label="Entry type"
+          >
+            <option value="">General journal</option>
+            <option value="dream">{ENTRY_KIND_META.dream.label}</option>
+            <option value="praise_report">{ENTRY_KIND_META.praise_report.label}</option>
+            <option value="testimony">{ENTRY_KIND_META.testimony.label}</option>
+            <option value="vent">{ENTRY_KIND_META.vent.label} (private)</option>
+          </select>
+        </section>
+
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={14}
-          placeholder="What happened today? What are you carrying?"
+          placeholder={bodyPlaceholder}
           className="font-serif text-[15px] leading-relaxed"
         />
 
@@ -474,11 +540,17 @@ export default function NewJournalEntryPage() {
             <div className="flex-1">
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="analyze" className="font-medium">Include in worldview mirror</Label>
-                <Switch id="analyze" checked={analyzeForMirror} onCheckedChange={setAnalyzeForMirror} />
+                <Switch
+                  id="analyze"
+                  checked={!isVent && analyzeForMirror}
+                  onCheckedChange={setAnalyzeForMirror}
+                  disabled={isVent}
+                />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                When on, Lovable AI scores this entry on axes like love/fear, trust/abandonment, grace/guilt.
-                Used in your weekly "mirror" report. Off by default — your private entries stay private.
+                {isVent
+                  ? "Vents are private — never analyzed by the mirror or referenced by My AI."
+                  : "When on, Lovable AI scores this entry on axes like love/fear, trust/abandonment, grace/guilt. Used in your weekly \"mirror\" report. Off by default — your private entries stay private."}
               </p>
             </div>
           </div>
@@ -492,7 +564,7 @@ export default function NewJournalEntryPage() {
               editId ? "Save changes" : "Save entry"
             )}
           </Button>
-          <Button variant="ghost" onClick={() => navigate(editId ? `/journal/${editId}` : "/journal")}>
+          <Button variant="ghost" onClick={() => navigate(layoutBack)}>
             Cancel
           </Button>
         </div>

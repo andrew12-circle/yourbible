@@ -9,8 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
-import FloatingJournalPanel from "@/components/journal/FloatingJournalPanel";
+import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
+import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import TranscriptPanel from "@/components/framework/TranscriptPanel";
+import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
+import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import { formatTranscriptClock, splitTranscript, type TranscriptSegment } from "@/lib/transcriptSplit";
 
 interface Artifact {
@@ -274,7 +277,6 @@ export default function ArtifactDetailPage() {
   const [quickBeliefOpen, setQuickBeliefOpen] = useState(false);
   const [quickBeliefText, setQuickBeliefText] = useState("");
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
-  const [floatingJournalOpen, setFloatingJournalOpen] = useState(false);
   const youtubePlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -486,6 +488,43 @@ export default function ArtifactDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youTubeVideoId]);
 
+  useEffect(() => {
+    if (!a?.id) {
+      useFloatingJournalStore.getState().setRouteArtifact(null);
+      return;
+    }
+    useFloatingJournalStore.getState().setRouteArtifact({
+      id: a.id,
+      title: a.title || "Untitled artifact",
+      kind: a.kind,
+    });
+    return () => {
+      useFloatingJournalStore.getState().setRouteArtifact(null);
+    };
+  }, [a?.id, a?.title, a?.kind]);
+
+  const canCapturePlaybackForJournal = Boolean(
+    embedUrl && playerReady && !playerFailed && a?.kind === "youtube",
+  );
+
+  useEffect(() => {
+    if (!a || a.kind !== "youtube") {
+      floatingJournalPlaybackRef.current = null;
+      useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
+      return;
+    }
+    floatingJournalPlaybackRef.current = () => {
+      const current = youtubePlayerRef.current?.getCurrentTime?.();
+      if (typeof current === "number" && Number.isFinite(current)) return Math.max(0, Math.floor(current));
+      return Math.max(0, Math.floor(videoStartSeconds));
+    };
+    useFloatingJournalStore.getState().setPlaybackCaptureAvailable(canCapturePlaybackForJournal);
+    return () => {
+      floatingJournalPlaybackRef.current = null;
+      useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
+    };
+  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, videoStartSeconds]);
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (!a) return <FrameworkLayout title="Artifact" back="/framework/artifacts">Loading…</FrameworkLayout>;
@@ -499,6 +538,8 @@ export default function ArtifactDetailPage() {
     const processingToken = createProcessingToken();
     await supabase.from("artifacts").update({ status: "analyzing", error: null, processing_token: processingToken }).eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
+    await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
+    await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
     setClaims([]);
     setA({ ...a, status: "analyzing", error: null });
     supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } }).catch((e) => {
@@ -526,6 +567,8 @@ export default function ArtifactDetailPage() {
       .update({ raw_text: pasteText.trim(), status: "analyzing", error: null, processing_token: processingToken })
       .eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
+    await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
+    await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
     setClaims([]);
     setA({ ...a, raw_text: pasteText.trim(), status: "analyzing", error: null });
     setPasteOpen(false);
@@ -648,6 +691,9 @@ export default function ArtifactDetailPage() {
     analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
   };
 
+  /** Approx. framework sticky header + main vertical padding for `lg` split-pane height. */
+  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-10rem)]";
+
   return (
     <FrameworkLayout title={a.title || "Untitled artifact"} back="/framework/artifacts">
       <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
@@ -664,6 +710,10 @@ export default function ArtifactDetailPage() {
         )}
       </div>
 
+      <div
+        className={`lg:grid lg:grid-cols-5 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
+      >
+        <div className="min-h-0 space-y-5 lg:col-span-3 lg:overflow-y-auto lg:pr-1">
       {a.kind === "youtube" && (() => {
         const meta: ArtifactMetadata = {
           ...(liveMeta ?? {}),
@@ -749,7 +799,7 @@ export default function ArtifactDetailPage() {
           <p className="text-xs text-muted-foreground">{stageHint[a.status]}</p>
           {a.status === "fetching" && elapsed > 90 && (
             <p className="text-xs text-amber-700 mt-2">
-              Taking longer than expected. Long videos can take several minutes. You can also paste the transcript yourself below.
+              Taking longer than expected. Long videos can take several minutes. You can also paste the transcript yourself.
             </p>
           )}
           {(a.status === "fetching" || a.status === "transcribing") && (
@@ -779,28 +829,30 @@ export default function ArtifactDetailPage() {
       )}
 
       {embedUrl && (
-        <section className="mb-5 rounded-lg border border-border bg-card p-3">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <Youtube className="w-4 h-4 text-red-600" /> Video
-            <span className="ml-auto text-xs font-normal text-muted-foreground">
-              {playerFailed ? "static embed" : playerReady ? playerState : "loading controls"}
-            </span>
-          </div>
-          {playerFailed ? (
-            <iframe
-              title="YouTube video"
-              src={embedUrl}
-              className="w-full aspect-video rounded"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          ) : (
-            <div className="aspect-video w-full overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full">
-              <div ref={youtubePlayerContainerRef} className="h-full w-full" />
+        <section className="mb-5 rounded-lg border border-border bg-card p-3 lg:mb-0">
+          <div className="lg:sticky lg:top-0 lg:z-10 lg:-mx-3 lg:rounded-t-lg lg:border-b lg:border-border lg:bg-card lg:px-3 lg:pt-3 lg:pb-3">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+              <Youtube className="w-4 h-4 text-red-600" /> Video
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                {playerFailed ? "static embed" : playerReady ? playerState : "loading controls"}
+              </span>
             </div>
-          )}
+            {playerFailed ? (
+              <iframe
+                title="YouTube video"
+                src={embedUrl}
+                className="w-full aspect-video rounded"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <div className="aspect-video w-full overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full">
+                <div ref={youtubePlayerContainerRef} className="h-full w-full" />
+              </div>
+            )}
+          </div>
 
-          <div className="mt-4 rounded-lg border border-border bg-muted/20 p-3">
+          <div className="mt-4 rounded-lg border border-border bg-muted/20 p-3 lg:mt-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <div>
                 <div className="text-sm font-medium">Capture while watching</div>
@@ -856,7 +908,7 @@ export default function ArtifactDetailPage() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setFloatingJournalOpen(true)}
+                      onClick={() => useFloatingJournalStore.getState().setPanelOpen(true)}
                       title="Mini journal (timestamp inserts when the player is ready)"
                     >
                       <NotebookPen className="mr-1 h-3.5 w-3.5" /> Journal here
@@ -895,7 +947,12 @@ export default function ArtifactDetailPage() {
           </div>
         </section>
       )}
+        </div>
 
+        <aside
+          className="mt-8 min-h-0 space-y-4 lg:col-span-2 lg:mt-0 lg:overflow-y-auto lg:overflow-x-hidden lg:pl-0.5"
+          aria-label="Transcript and AI claims"
+        >
       {a.raw_text && (
         <TranscriptPanel
           segments={transcriptSegments}
@@ -916,7 +973,7 @@ export default function ArtifactDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setFloatingJournalOpen(true)}
+              onClick={() => useFloatingJournalStore.getState().setPanelOpen(true)}
               title="Journal here without leaving this page"
             >
               <NotebookPen className="mr-1 h-3.5 w-3.5" /> Journal here
@@ -924,6 +981,10 @@ export default function ArtifactDetailPage() {
           }
         />
       )}
+
+      {a.status === "ready" && <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} />}
+
+      {a.status === "ready" && <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />}
 
       {a.status === "ready" && claims.length > 0 && (
         <div className="mb-4 rounded border border-border bg-muted/20 p-3 text-sm">
@@ -1077,6 +1138,8 @@ export default function ArtifactDetailPage() {
           );
         })}
       </div>
+        </aside>
+      </div>
 
       {polling && (
         <p className="mt-6 text-xs text-muted-foreground flex items-center gap-1">
@@ -1090,19 +1153,6 @@ export default function ArtifactDetailPage() {
         initialText={quickBeliefText}
         initialSource={quickBeliefSource}
       />
-
-      {floatingJournalOpen && user && (
-        <FloatingJournalPanel
-          userId={user.id}
-          artifactId={a.id}
-          artifactTitle={a.title || "Untitled artifact"}
-          artifactKind={a.kind}
-          getPlaybackSeconds={
-            a.kind === "youtube" && canCaptureMoments ? getCurrentPlaybackSeconds : undefined
-          }
-          onClose={() => setFloatingJournalOpen(false)}
-        />
-      )}
 
     </FrameworkLayout>
   );

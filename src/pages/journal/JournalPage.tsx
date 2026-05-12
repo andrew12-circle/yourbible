@@ -131,12 +131,14 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
       let query = supabase
         .from("journal_entries")
         .select(
-          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id",
+          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
         )
         .order("pinned", { ascending: false })
         .order("entry_at_ts", { ascending: false })
         .limit(300);
       if (journalId) query = query.eq("journal_id", journalId);
+      // Hide vents from the main journal list.
+      query = query.or("entry_kind.is.null,entry_kind.neq.vent");
       const { data } = await query;
       const list = (data as Entry[]) ?? [];
       setEntries(list);

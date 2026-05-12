@@ -330,28 +330,34 @@ export type Database = {
       belief_sources: {
         Row: {
           artifact_id: string | null
+          avatar_url: string | null
           belief_id: string
           created_at: string
           id: string
           label: string
+          metadata: Json
           source_type: string
           user_id: string
         }
         Insert: {
           artifact_id?: string | null
+          avatar_url?: string | null
           belief_id: string
           created_at?: string
           id?: string
           label: string
+          metadata?: Json
           source_type: string
           user_id: string
         }
         Update: {
           artifact_id?: string | null
+          avatar_url?: string | null
           belief_id?: string
           created_at?: string
           id?: string
           label?: string
+          metadata?: Json
           source_type?: string
           user_id?: string
         }
@@ -546,6 +552,68 @@ export type Database = {
         }
         Relationships: []
       }
+      my_ai_chats: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      my_ai_messages: {
+        Row: {
+          chat_id: string
+          citations: Json
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          citations?: Json
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          citations?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_readings: {
         Row: {
           belief_id: string | null
@@ -581,6 +649,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      entity_mentions: {
+        Row: {
+          artifact_id: string | null
+          belief_id: string | null
+          confidence: number | null
+          created_at: string
+          entity_id: string
+          id: string
+          journal_entry_id: string | null
+          snippet: string | null
+          user_id: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          belief_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          entity_id: string
+          id?: string
+          journal_entry_id?: string | null
+          snippet?: string | null
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string | null
+          belief_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          entity_id?: string
+          id?: string
+          journal_entry_id?: string | null
+          snippet?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_mentions_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_mentions_belief_id_fkey"
+            columns: ["belief_id"]
+            isOneToOne: false
+            referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_mentions_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_mentions_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       framework_digests: {
         Row: {
@@ -665,6 +798,7 @@ export type Database = {
           created_at: string
           entry_at: string
           entry_at_ts: string
+          entry_kind: string | null
           id: string
           journal_id: string | null
           lat: number | null
@@ -689,6 +823,7 @@ export type Database = {
           created_at?: string
           entry_at?: string
           entry_at_ts?: string
+          entry_kind?: string | null
           id?: string
           journal_id?: string | null
           lat?: number | null
@@ -713,6 +848,7 @@ export type Database = {
           created_at?: string
           entry_at?: string
           entry_at_ts?: string
+          entry_kind?: string | null
           id?: string
           journal_id?: string | null
           lat?: number | null
@@ -903,6 +1039,48 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_entities: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          kind: string
+          last_seen_at: string
+          metadata: Json
+          subtitle: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          kind: string
+          last_seen_at?: string
+          metadata?: Json
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          kind?: string
+          last_seen_at?: string
+          metadata?: Json
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       journals: {
         Row: {
           color: string
@@ -984,6 +1162,219 @@ export type Database = {
         }
         Relationships: []
       }
+      playbook_items: {
+        Row: {
+          created_at: string
+          id: string
+          related_belief_ids: string[]
+          scriptures: string[]
+          status: string
+          steps: Json
+          teaching_id: string
+          title: string
+          updated_at: string
+          user_id: string
+          watch_outs: string[]
+          why: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          scriptures?: string[]
+          status?: string
+          steps?: Json
+          teaching_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+          watch_outs?: string[]
+          why?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          scriptures?: string[]
+          status?: string
+          steps?: Json
+          teaching_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          watch_outs?: string[]
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playbook_items_teaching_id_fkey"
+            columns: ["teaching_id"]
+            isOneToOne: true
+            referencedRelation: "teachings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_connections: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          relationship: string
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          relationship?: string
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          relationship?: string
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
+      partner_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invitee_email: string
+          inviter_user_id: string
+          relationship: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_email: string
+          inviter_user_id: string
+          relationship?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_email?: string
+          inviter_user_id?: string
+          relationship?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      partner_share_settings: {
+        Row: {
+          connection_id: string
+          created_at: string
+          id: string
+          owner_user_id: string
+          share_mood_pulse: boolean
+          share_prayer_needs: boolean
+          share_recent_themes: boolean
+          share_summary: boolean
+          share_testimony: boolean
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          id?: string
+          owner_user_id: string
+          share_mood_pulse?: boolean
+          share_prayer_needs?: boolean
+          share_recent_themes?: boolean
+          share_summary?: boolean
+          share_testimony?: boolean
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          id?: string
+          owner_user_id?: string
+          share_mood_pulse?: boolean
+          share_prayer_needs?: boolean
+          share_recent_themes?: boolean
+          share_summary?: boolean
+          share_testimony?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_share_settings_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "partner_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_summaries: {
+        Row: {
+          connection_id: string
+          entry_count: number
+          generated_at: string
+          id: string
+          model: string | null
+          mood_pulse: Json | null
+          owner_user_id: string
+          prayer_points: string[]
+          recent_themes: string[]
+          season_label: string | null
+          summary: string
+        }
+        Insert: {
+          connection_id: string
+          entry_count?: number
+          generated_at?: string
+          id?: string
+          model?: string | null
+          mood_pulse?: Json | null
+          owner_user_id: string
+          prayer_points?: string[]
+          recent_themes?: string[]
+          season_label?: string | null
+          summary?: string
+        }
+        Update: {
+          connection_id?: string
+          entry_count?: number
+          generated_at?: string
+          id?: string
+          model?: string | null
+          mood_pulse?: Json | null
+          owner_user_id?: string
+          prayer_points?: string[]
+          recent_themes?: string[]
+          season_label?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_summaries_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "partner_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           cover: string
@@ -992,6 +1383,8 @@ export type Database = {
           font_choice: string
           highlight_palette: string
           id: string
+          identity_generated_at: string | null
+          identity_summary: Json | null
           layout: string
           onboarded: boolean
           page_tone: string
@@ -1005,6 +1398,8 @@ export type Database = {
           font_choice?: string
           highlight_palette?: string
           id?: string
+          identity_generated_at?: string | null
+          identity_summary?: Json | null
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -1018,6 +1413,8 @@ export type Database = {
           font_choice?: string
           highlight_palette?: string
           id?: string
+          identity_generated_at?: string | null
+          identity_summary?: Json | null
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -1059,6 +1456,65 @@ export type Database = {
         }
         Relationships: []
       }
+      teachings: {
+        Row: {
+          artifact_id: string | null
+          category: string
+          confidence: number | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          notes: string | null
+          scriptures: string[]
+          source_snippet: string | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          category: string
+          confidence?: number | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          notes?: string | null
+          scriptures?: string[]
+          source_snippet?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string | null
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          notes?: string | null
+          scriptures?: string[]
+          source_snippet?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachings_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tradition_views: {
         Row: {
           belief_id: string
@@ -1091,7 +1547,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_partner_invite: {
+        Args: { p_token: string }
+        Returns: string
+      }
+      partner_peer_displays: {
+        Args: Record<string, never>
+        Returns: {
+          connection_id: string
+          peer_display_name: string | null
+          peer_email: string | null
+          peer_user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

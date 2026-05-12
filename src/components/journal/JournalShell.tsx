@@ -25,6 +25,12 @@ interface Props {
   children: ReactNode;
   /** Override entry-count subtitle for "All Entries". */
   totalCount?: number;
+  /** Override cover title (default: journal name or "All Entries"). */
+  coverTitle?: string;
+  /** Mobile cover back link (default /home). */
+  backTo?: string;
+  /** FAB "new entry" URL (default `/journal/new` with optional journalId). */
+  composeHref?: string;
 }
 
 export default function JournalShell({
@@ -33,6 +39,9 @@ export default function JournalShell({
   subtitle,
   children,
   totalCount,
+  coverTitle,
+  backTo,
+  composeHref,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -136,9 +145,11 @@ export default function JournalShell({
         <div className="flex-1 min-w-0">
           <JournalCover
             journal={journal}
+            titleOverride={coverTitle}
             subtitle={sub}
             tabs={tabs}
             onOpenRail={() => setSheetOpen(true)}
+            backTo={backTo}
             right={
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,7 +180,10 @@ export default function JournalShell({
       {/* Floating compose */}
       <button
         onClick={() =>
-          navigate(`/journal/new${journalId ? `?journalId=${journalId}` : ""}`)
+          navigate(
+            composeHref ??
+              `/journal/new${journalId ? `?journalId=${journalId}` : ""}`,
+          )
         }
         className="fixed bottom-7 right-7 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40"
         style={{ background: fabColor, boxShadow: `0 12px 28px -8px ${fabColor}` }}

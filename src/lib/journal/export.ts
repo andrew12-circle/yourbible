@@ -22,6 +22,7 @@ export async function exportJournalAsZip(journal: Journal | null) {
     .select(
       "id,title,body,entry_at_ts,mood,tags,location_name,weather,weather_temp_c,verse_ref,pinned",
     )
+    .or("entry_kind.is.null,entry_kind.neq.vent")
     .order("entry_at_ts", { ascending: true });
   if (journal) q = q.eq("journal_id", journal.id);
   const { data: entries } = await q;

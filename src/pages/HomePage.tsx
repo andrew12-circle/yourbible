@@ -3,26 +3,52 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, BookOpen, ListChecks, MessageCircleQuestion,
-  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Network,
-  Lightbulb, Calendar as CalIcon, User,
+  Loader2, BookOpen, ListChecks, MessageCircleQuestion, MessageCircleHeart,
+  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
+  Lightbulb, Calendar as CalIcon, User, Youtube, HeartHandshake,
   type LucideIcon,
 } from "lucide-react";
+import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
-const PROFILE_PHOTO_KEY = "yb_profile_photo"; // data URL
 
 type AppIcon = {
   label: string;
-  to: string;
+  /** In-app route; omit when `onOpen` handles navigation externally. */
+  to?: string;
+  /** External / special open handler (e.g. deep link). */
+  onOpen?: () => void;
   icon?: LucideIcon;
   imageSrc?: string;
   /** Rich icon background for a more native app-tile look. */
   color: string;
   iconColor?: string;
   badge?: string | number;
+  /** Overrides default `aria-label` (label). */
+  ariaLabel?: string;
 };
+
+/** Prefer native YouTube app on mobile; otherwise open youtube.com in a new tab. */
+function openYouTubeAppOrWeb() {
+  if (typeof window === "undefined") return;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+
+  if (!isIOS && !isAndroid) {
+    window.open("https://www.youtube.com", "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  const scheme = isAndroid ? "vnd.youtube://" : "youtube://";
+  window.location.href = scheme;
+  window.setTimeout(() => {
+    if (document.visibilityState === "visible") {
+      window.open("https://www.youtube.com", "_blank", "noopener");
+    }
+  }, 600);
+}
 
 export default function HomePage() {
   const { user, profile, loading } = useAuth();
@@ -38,7 +64,7 @@ export default function HomePage() {
   const [wallpaperTint, setWallpaperTint] = useState(24);
   const [wallpaperBlur, setWallpaperBlur] = useState(0);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(
-    typeof window !== "undefined" ? localStorage.getItem(PROFILE_PHOTO_KEY) : null,
+    typeof window !== "undefined" ? localStorage.getItem(HOME_PROFILE_PHOTO_STORAGE_KEY) : null,
   );
   const [now, setNow] = useState<Date>(new Date());
 
@@ -59,7 +85,7 @@ export default function HomePage() {
       if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
       if (parsed.homeProfilePhoto) {
         setProfilePhoto(parsed.homeProfilePhoto);
-        localStorage.setItem(PROFILE_PHOTO_KEY, parsed.homeProfilePhoto);
+        localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, parsed.homeProfilePhoto);
       }
     } catch {
       // Keep defaults when legacy/plain layout values are present.
@@ -73,12 +99,23 @@ export default function HomePage() {
     (async () => {
       const [{ data: prompts }, { data: past }, { data: beliefs }, { data: tensions }, { data: chats }, { data: arts }, { data: jToday }] = await Promise.all([
         supabase.from("journal_prompts").select("id,text").limit(500),
-        supabase.from("journal_entries").select("entry_at_ts").lt("entry_at_ts", startOfDay.toISOString()).order("entry_at_ts", { ascending: false }).limit(500),
+        supabase
+          .from("journal_entries")
+          .select("entry_at_ts")
+          .or("entry_kind.is.null,entry_kind.neq.vent")
+          .lt("entry_at_ts", startOfDay.toISOString())
+          .order("entry_at_ts", { ascending: false })
+          .limit(500),
         supabase.from("belief_nodes").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("belief_tensions" as never).select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("chat_threads").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("artifacts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("entry_at_ts", startOfDay.toISOString()),
+        supabase
+          .from("journal_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .or("entry_kind.is.null,entry_kind.neq.vent")
+          .gte("entry_at_ts", startOfDay.toISOString()),
       ]);
       const list = prompts ?? [];
       if (list.length) {
@@ -128,15 +165,32 @@ export default function HomePage() {
   const apps: AppIcon[] = [
     { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
     { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
-    { label: "Framework", to: "/framework",            icon: Network,               color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)", iconColor: "#E2BC6F" },
+    { label: "Framework", to: "/framework",            icon: Brain,                 color: "#FF2D55", iconColor: "white" },
     { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
+    {
+      label: "Walking together",
+      to: "/partner",
+      icon: HeartHandshake,
+      color: "linear-gradient(160deg, #FB7185 0%, #F43F5E 52%, #BE123C 100%)",
+      iconColor: "white",
+      ariaLabel: "Walking together with a partner",
+    },
     { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "linear-gradient(160deg, #ECECEC 0%, #FCFCFC 62%, #FFFFFF 100%)", iconColor: "#3F3F46", badge: counts.beliefs || undefined },
     { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: "linear-gradient(160deg, #0D9D96 0%, #18C6BE 58%, #61EAE4 100%)", badge: counts.tensions || undefined },
     { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "linear-gradient(160deg, #4C46D1 0%, #6A63FF 58%, #8E8BFF 100%)" },
     { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "linear-gradient(160deg, #0073EF 0%, #1A97FF 58%, #57B8FF 100%)" },
     { label: "Library",   to: "/framework/influences", icon: BookOpen,              color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", badge: counts.artifacts || undefined },
     { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "linear-gradient(160deg, #091134 0%, #122056 58%, #20357D 100%)" },
+    { label: "YouTube",   onOpen: openYouTubeAppOrWeb, icon: Youtube,               color: "#FF2D2D", iconColor: "white", ariaLabel: "Open YouTube" },
+    {
+      label: "My AI",
+      to: "/my-ai",
+      icon: MessageCircleHeart,
+      color: "linear-gradient(155deg, #312E81 0%, #3730A3 45%, #475569 100%)",
+      iconColor: "white",
+      ariaLabel: "Open My AI",
+    },
     { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
 
@@ -223,7 +277,14 @@ export default function HomePage() {
         {/* App grid — responsive, iPhone (4 col) → iPad (6 col) */}
         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">
           {apps.map((app) => (
-            <AppButton key={app.label} app={app} onClick={() => navigate(app.to)} />
+            <AppButton
+              key={app.label}
+              app={app}
+              onClick={() => {
+                if (app.onOpen) app.onOpen();
+                else if (app.to) navigate(app.to);
+              }}
+            />
           ))}
         </div>
 
@@ -240,7 +301,7 @@ export default function HomePage() {
             <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
-            <DockIcon icon={Network} color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" iconColor="#E2BC6F" />
+            <DockIcon icon={Brain} color="#FF2D55" onClick={() => navigate("/framework")} label="Framework" iconColor="white" />
           </div>
           <div className="mx-auto mt-2 w-[96px] sm:w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
@@ -255,7 +316,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const isBible = app.label === "Bible";
   const isJournal = app.label === "Journal";
   return (
-    <button onClick={onClick} className="group flex flex-col items-center gap-1.5 sm:gap-[7px] focus:outline-none" aria-label={app.label}>
+    <button onClick={onClick} className="group flex flex-col items-center gap-1.5 sm:gap-[7px] focus:outline-none" aria-label={app.ariaLabel ?? app.label}>
       <div className="relative">
         <div
           className="ios-icon w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"

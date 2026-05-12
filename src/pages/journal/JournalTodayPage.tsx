@@ -31,8 +31,9 @@ export default function JournalTodayPage() {
       const { data: t } = await supabase
         .from("journal_entries")
         .select(
-          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror",
+          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,entry_kind",
         )
+        .or("entry_kind.is.null,entry_kind.neq.vent")
         .gte("entry_at_ts", startOfDay.toISOString())
         .lte("entry_at_ts", endOfDay.toISOString())
         .order("entry_at_ts", { ascending: false });
@@ -41,8 +42,9 @@ export default function JournalTodayPage() {
       const { data: all } = await supabase
         .from("journal_entries")
         .select(
-          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror",
+          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,entry_kind",
         )
+        .or("entry_kind.is.null,entry_kind.neq.vent")
         .lt("entry_at_ts", startOfDay.toISOString())
         .order("entry_at_ts", { ascending: false })
         .limit(500);

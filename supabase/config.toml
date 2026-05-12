@@ -1,4 +1,32 @@
 project_id = "hlfyyijdmnjmrihngeqa"
+
+[functions.import-chatgpt-export]
+verify_jwt = true
+
+[functions.import-pdf]
+verify_jwt = true
+
+[functions.import-text-file]
+verify_jwt = true
+
+[functions.framework-enrich-influence]
+verify_jwt = true
+
+[functions.framework-generate-identity]
+verify_jwt = true
+
+[functions.framework-analyze]
+verify_jwt = true
+
+[functions.generate-playbook-item]
+verify_jwt = true
+
+[functions.my-ai-chat]
+verify_jwt = true
+
+[functions.partner-refresh-summary]
+verify_jwt = true
+
 [functions.bible-passage]
 verify_jwt = false
 

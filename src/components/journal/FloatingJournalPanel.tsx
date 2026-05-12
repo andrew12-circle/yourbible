@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Minus, Maximize2, GripHorizontal, Loader2, Clock } from "lucide-react";
+import { X, Minus, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { toast } from "@/hooks/use-toast";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
+import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
+
+const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
 
 const DEFAULT_W = 360;
 const DEFAULT_H = 420;
@@ -21,8 +24,9 @@ function panelStorageKey(userId: string) {
   return `yb_journal_panel_v1_${userId}`;
 }
 
-function draftStorageKey(userId: string, artifactId: string) {
-  return `yb_journal_floating_draft_v1_${userId}_${artifactId}`;
+function draftStorageKey(userId: string, artifactId: string | undefined) {
+  const key = artifactId?.trim() || GLOBAL_FLOATING_DRAFT_KEY;
+  return `yb_journal_floating_draft_v1_${userId}_${key}`;
 }
 
 function formatPlaybackTimestamp(seconds: number) {
@@ -47,9 +51,10 @@ type PanelPersist = {
 
 export type FloatingJournalPanelProps = {
   userId: string;
-  artifactId: string;
-  artifactTitle: string;
-  artifactKind: string;
+  artifactId?: string;
+  artifactTitle?: string;
+  /** Defaults when omitted (no artifact route context). */
+  artifactKind?: string;
   /** When provided, "Insert timestamp" uses live playback position (e.g. YouTube IFrame API). */
   getPlaybackSeconds?: () => number | null;
   onClose: () => void;
@@ -59,11 +64,12 @@ export default function FloatingJournalPanel({
   userId,
   artifactId,
   artifactTitle,
-  artifactKind,
+  artifactKind = "text",
   getPlaybackSeconds,
   onClose,
 }: FloatingJournalPanelProps) {
   const navigate = useNavigate();
+  const tuckLauncherFromPanel = useFloatingJournalStore((s) => s.tuckLauncherFromPanel);
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftDebounceRef = useRef<number | null>(null);
@@ -366,11 +372,14 @@ export default function FloatingJournalPanel({
     });
   };
 
+  const saveTags =
+    !artifactId ? [] : artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"];
+
   const expandToFullEditor = () => {
     const payload: JournalExpandHandoffPayload = {
       title: title.trim() || artifactTitle || null,
       body,
-      tags: artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"],
+      tags: saveTags,
     };
     try {
       localStorage.setItem(JOURNAL_EXPAND_HANDOFF_KEY, JSON.stringify(payload));
@@ -407,7 +416,7 @@ export default function FloatingJournalPanel({
         title: title.trim() || null,
         body,
         mood: null as number | null,
-        tags: artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"],
+        tags: saveTags,
         verse_ref: null as string | null,
         belief_id: null as string | null,
         prompt_id: null as string | null,
@@ -428,14 +437,18 @@ export default function FloatingJournalPanel({
         return;
       }
       const entryId = data.id;
-      const { error: linkErr } = await supabase.from("journal_entry_links").insert({
-        user_id: userId,
-        entry_id: entryId,
-        target_kind: "artifact",
-        target_ref: { id: artifactId },
-      });
-      if (linkErr) {
-        toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
+      if (artifactId) {
+        const { error: linkErr } = await supabase.from("journal_entry_links").insert({
+          user_id: userId,
+          entry_id: entryId,
+          target_kind: "artifact",
+          target_ref: { id: artifactId },
+        });
+        if (linkErr) {
+          toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
+        } else {
+          toast({ title: "Journal entry saved" });
+        }
       } else {
         toast({ title: "Journal entry saved" });
       }
@@ -456,7 +469,7 @@ export default function FloatingJournalPanel({
       ref={rootRef}
       role="dialog"
       aria-labelledby="floating-journal-title"
-      className="fixed z-50 flex flex-col overflow-hidden rounded-xl border border-paper-edge/70 bg-paper/90 shadow-leather ring-1 ring-black/5 dark:border-border dark:bg-card dark:shadow-xl dark:ring-white/10"
+      className="fixed z-50 flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_14px_44px_-10px_rgba(15,23,42,0.22)] dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_18px_50px_-14px_rgba(0,0,0,0.65)]"
       style={{
         left: geom.x,
         top: geom.y,
@@ -467,21 +480,18 @@ export default function FloatingJournalPanel({
     >
       <header
         data-journal-panel-drag
-        className="leather-texture relative z-10 flex shrink-0 cursor-move select-none items-start gap-2 border-b border-black/15 px-3 py-2.5 text-paper dark:border-border dark:!bg-muted dark:[background-image:none] dark:[&::after]:hidden"
+        className="relative z-10 flex min-h-[44px] shrink-0 cursor-move select-none items-center gap-2 border-b border-primary/20 bg-primary px-3 py-2 text-primary-foreground dark:border-primary/30"
       >
-        <GripHorizontal
-          className="mt-0.5 h-4 w-4 shrink-0 text-paper/55 dark:text-muted-foreground"
-          aria-hidden
-        />
+        <GripHorizontal className="h-4 w-4 shrink-0 text-primary-foreground/85" aria-hidden />
         <div className="min-w-0 flex-1 pr-1">
-          <h2 id="floating-journal-title" className="font-display text-[15px] font-semibold leading-tight tracking-tight text-paper dark:text-foreground">
+          <h2
+            id="floating-journal-title"
+            className="font-display text-[15px] font-semibold leading-none tracking-tight text-primary-foreground"
+          >
             Journal
           </h2>
-          <p className="mt-0.5 truncate text-[11px] leading-snug text-paper/65 dark:text-muted-foreground">
-            {artifactTitle || "Artifact"}
-          </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-paper/50 dark:text-muted-foreground/90">
-            {dateLine}
+          <p className="mt-1 truncate text-[11px] leading-tight text-primary-foreground/80">
+            {artifactTitle?.trim() || (artifactId ? "Artifact" : "Quick note")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
@@ -489,7 +499,21 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-paper/90 hover:bg-white/10 hover:text-paper dark:text-foreground dark:hover:bg-muted"
+            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
+            aria-label="Tuck journal tab into screen edge"
+            title="Hide journal tab"
+            onClick={(e) => {
+              e.stopPropagation();
+              tuckLauncherFromPanel();
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
             aria-label={geom.minimized ? "Restore panel" : "Minimize panel"}
             onClick={(e) => {
               e.stopPropagation();
@@ -502,7 +526,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-paper/90 hover:bg-white/10 hover:text-paper dark:text-foreground dark:hover:bg-muted"
+            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
             aria-label="Open full journal editor"
             onClick={(e) => {
               e.stopPropagation();
@@ -515,7 +539,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-paper/90 hover:bg-white/10 hover:text-paper dark:text-foreground dark:hover:bg-muted"
+            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
             aria-label="Close and keep local draft"
             onClick={(e) => {
               e.stopPropagation();
@@ -528,15 +552,18 @@ export default function FloatingJournalPanel({
       </header>
 
       {!geom.minimized && (
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-paper dark:bg-muted/25">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-3.5">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card dark:bg-neutral-950">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2.5 sm:px-3.5 sm:pb-3.5">
+            <p className="mb-2 shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              {dateLine}
+            </p>
             {showTimestamp && (
               <div className="mb-2 flex shrink-0 flex-wrap gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 border-paper-edge/80 bg-paper/70 text-foreground shadow-none hover:bg-paper-warm/80 dark:border-border dark:bg-background/80"
+                  className="h-8 border-border bg-background text-foreground shadow-none hover:bg-muted/80 dark:border-neutral-700 dark:bg-neutral-900/80 dark:hover:bg-neutral-800/90"
                   onClick={insertTimestamp}
                 >
                   <Clock className="mr-1 h-3.5 w-3.5" />
@@ -548,16 +575,16 @@ export default function FloatingJournalPanel({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title (optional)"
-              className="mb-2 h-auto shrink-0 border-0 bg-transparent px-1 py-1.5 text-lg font-display shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
+              className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
             />
-            <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-paper-edge/60 bg-gradient-paper shadow-soft dark:border-border dark:bg-muted/40 dark:[background-image:none] dark:shadow-none">
-              {/* Ruled lines (~1.65em) aligned with leading-relaxed body copy */}
+            <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
+              {/* Ruled lines (~1.65em) — light mode only, very subtle */}
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-0 rounded-[inherit] dark:hidden"
                 style={{
                   backgroundImage:
-                    "linear-gradient(to bottom, hsl(var(--paper-edge) / 0.28) 1px, transparent 1px)",
+                    "linear-gradient(to bottom, hsl(var(--border) / 0.85) 1px, transparent 1px)",
                   backgroundSize: "100% 1.65em",
                   backgroundPosition: "0 0.4em",
                 }}
@@ -567,11 +594,11 @@ export default function FloatingJournalPanel({
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Write while you watch…"
-                className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-serif text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
+                className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-sans text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
                 rows={4}
               />
             </div>
-            <div className="mt-3 flex shrink-0 gap-2 border-t border-paper-edge/40 pt-3 dark:border-border/60">
+            <div className="mt-3 flex shrink-0 gap-2 border-t border-border pt-3 dark:border-neutral-800">
               <Button type="button" className="flex-1" onClick={saveEntry} disabled={saving}>
                 {saving ? (
                   <>
@@ -588,7 +615,7 @@ export default function FloatingJournalPanel({
             type="button"
             data-journal-panel-resize
             aria-label="Resize journal panel"
-            className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-nwse-resize touch-none rounded-tl-md border border-transparent bg-paper-edge/35 hover:bg-paper-edge/55 dark:bg-muted/50 dark:hover:bg-muted/75"
+            className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-nwse-resize touch-none rounded-tl-md border border-border bg-muted/50 hover:bg-muted dark:border-neutral-700 dark:bg-neutral-800/80 dark:hover:bg-neutral-700"
           />
         </div>
       )}

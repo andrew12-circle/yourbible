@@ -14,6 +14,7 @@ import ReaderPage from "./pages/reader/ReaderPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import SleepPage from "./pages/sleep/SleepPage";
 import FrameworkDashboard from "./pages/framework/FrameworkDashboard";
+import FaithJourneyPage from "./pages/framework/FaithJourneyPage";
 import InterviewPage from "./pages/framework/InterviewPage";
 import BeliefsListPage from "./pages/framework/BeliefsListPage";
 import BeliefDetailPage from "./pages/framework/BeliefDetailPage";
@@ -21,6 +22,8 @@ import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
 import NewArtifactPage from "./pages/framework/NewArtifactPage";
 import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
 import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
+import PlaybookPage from "./pages/framework/PlaybookPage";
+import PlaybookDetailPage from "./pages/framework/PlaybookDetailPage";
 import TensionsPage from "./pages/framework/TensionsPage";
 import InfluencesPage from "./pages/framework/InfluencesPage";
 import DigestPage from "./pages/framework/DigestPage";
@@ -36,7 +39,13 @@ import JournalMediaPage from "./pages/journal/JournalMediaPage";
 import JournalMapPage from "./pages/journal/JournalMapPage";
 import JournalPromptsPage from "./pages/journal/JournalPromptsPage";
 import JournalTodayPage from "./pages/journal/JournalTodayPage";
+import JournalLifePage from "./pages/journal/JournalLifePage";
+import JournalVentPage from "./pages/journal/JournalVentPage";
 import HomeIndicator from "./components/HomeIndicator";
+import GlobalJournalLauncher from "./components/journal/GlobalJournalLauncher";
+import MyAiPage from "./pages/myai/MyAiPage";
+import PartnerWalkPage from "./pages/partner/PartnerWalkPage";
+import PartnerAcceptPage from "./pages/partner/PartnerAcceptPage";
 
 const queryClient = new QueryClient();
 
@@ -62,11 +71,18 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/home" element={<HomePage />} />
+            <Route path="/my-ai" element={<MyAiPage />} />
+            <Route path="/my-ai/:chatId" element={<MyAiPage />} />
+            <Route path="/partner" element={<PartnerWalkPage />} />
+            <Route path="/partner/accept" element={<PartnerAcceptPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/read/:book/:chapter" element={<ReaderPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sleep" element={<SleepPage />} />
             <Route path="/framework" element={<FrameworkDashboard />} />
+            <Route path="/framework/journey" element={<FaithJourneyPage />} />
+            <Route path="/framework/playbook" element={<PlaybookPage />} />
+            <Route path="/framework/playbook/:id" element={<PlaybookDetailPage />} />
             <Route path="/framework/interview/:layer" element={<InterviewPage />} />
             <Route path="/framework/beliefs" element={<BeliefsListPage />} />
             <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
@@ -90,6 +106,9 @@ const App = () => (
             <Route path="/journal/mirror" element={<JournalMirrorPage />} />
             <Route path="/journal/prompts" element={<JournalPromptsPage />} />
             <Route path="/journal/today" element={<JournalTodayPage />} />
+            <Route path="/journal/life" element={<JournalLifePage />} />
+            <Route path="/journal/life/:kind" element={<JournalLifePage />} />
+            <Route path="/journal/vent" element={<JournalVentPage />} />
             <Route path="/journal/new" element={<NewJournalEntryPage />} />
             <Route path="/journal/:id" element={<JournalEntryPage />} />
             <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
@@ -99,6 +118,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <HomeIndicator />
+          <GlobalJournalLauncher />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

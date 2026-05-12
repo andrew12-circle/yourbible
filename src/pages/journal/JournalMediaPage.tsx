@@ -22,7 +22,10 @@ export default function JournalMediaPage() {
     if (!user) return;
     (async () => {
       // Get entries optionally scoped, then fetch their photos
-      let entryQ = supabase.from("journal_entries").select("id");
+      let entryQ = supabase
+        .from("journal_entries")
+        .select("id")
+        .or("entry_kind.is.null,entry_kind.neq.vent");
       if (journalId) entryQ = entryQ.eq("journal_id", journalId);
       const { data: entries } = await entryQ.limit(1000);
       const ids = (entries ?? []).map((e: { id: string }) => e.id);

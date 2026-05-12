@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { Mic, Square, Upload, Youtube, FileText } from "lucide-react";
+import { Mic, Square, Upload, Youtube, FileText, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -9,7 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
-type Mode = "text" | "youtube" | "voice";
+const ONE_MB = 1024 * 1024;
+
+function friendlyImportFnError(functionName: string, err: unknown): string {
+  const msg = err == null ? "" : typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : String(err);
+  if (/not found|404|Failed to fetch|FunctionsHttpError|ERR_NETWORK/i.test(msg)) {
+    return `${functionName} is unavailable. Apply pending Supabase migrations (artifact-uploads bucket), deploy the import edge functions, and try again. (${msg})`;
+  }
+  if (/Bucket not found|bucket|Storage/i.test(msg)) {
+    return `Storage is not set up for imports. Run migrations to create the artifact-uploads bucket, then try again. (${msg})`;
+  }
+  return msg;
+}
+
+type Mode = "text" | "youtube" | "voice" | "import";
 
 export default function NewArtifactPage() {
   const { user, loading } = useAuth();
@@ -28,7 +41,7 @@ export default function NewArtifactPage() {
 
   useEffect(() => {
     const requestedMode = params.get("mode");
-    if (requestedMode === "youtube" || requestedMode === "text" || requestedMode === "voice") {
+    if (requestedMode === "youtube" || requestedMode === "text" || requestedMode === "voice" || requestedMode === "import") {
       setMode(requestedMode);
     }
   }, [params]);
@@ -132,6 +145,143 @@ export default function NewArtifactPage() {
     navigate(`/framework/artifacts/${data.id}`);
   };
 
+  const uploadToArtifactBucket = async (file: File, ext: string) => {
+    const path = `${user.id}/${crypto.randomUUID()}${ext}`;
+    const { error: upErr } = await supabase.storage.from("artifact-uploads").upload(path, file, {
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+    if (upErr) throw new Error(upErr.message);
+    return path;
+  };
+
+  const invokeImport = async <T,>(name: string, body: Record<string, unknown>): Promise<T> => {
+    const { data, error } = await supabase.functions.invoke(name, { body });
+    if (error) throw new Error(friendlyImportFnError(name, error));
+    if (data && typeof data === "object" && "error" in data && typeof (data as { error?: unknown }).error === "string") {
+      throw new Error((data as { error: string }).error);
+    }
+    return data as T;
+  };
+
+  const submitChatGptExport = async (file: File) => {
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".json") && !lower.endsWith(".zip")) {
+      toast({ title: "Unsupported file", description: "Use conversations.json or a .zip export from ChatGPT.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const processingToken = createProcessingToken();
+    try {
+      const ext = lower.endsWith(".zip") ? ".zip" : ".json";
+      toast({ title: "Uploading export…", description: file.name });
+      const path = await uploadToArtifactBucket(file, ext);
+      toast({ title: "Importing conversations…", description: "This can take a minute for large exports." });
+      const res = await invokeImport<{
+        ok?: boolean;
+        first_artifact_id?: string;
+        imported?: number;
+        partial?: boolean;
+        message?: string | null;
+      }>("import-chatgpt-export", { storage_path: path, processing_token: processingToken });
+      if (!res?.ok) throw new Error("Import did not complete");
+      const n = res.imported ?? 0;
+      toast({
+        title: "Import started",
+        description: res.partial && res.message ? res.message : `Queued analysis for ${n} conversation${n === 1 ? "" : "s"}.`,
+      });
+      if (res.first_artifact_id) navigate(`/framework/artifacts/${res.first_artifact_id}`);
+      else navigate("/framework/artifacts");
+    } catch (e) {
+      toast({ title: "ChatGPT import failed", description: String(e), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPdfImport = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast({ title: "PDF only", description: "Choose a .pdf file.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const processingToken = createProcessingToken();
+    try {
+      toast({ title: "Uploading PDF…", description: file.name });
+      const path = await uploadToArtifactBucket(file, ".pdf");
+      toast({ title: "Extracting text…", description: "Starting analysis when ready." });
+      const res = await invokeImport<{ ok?: boolean; artifact_id?: string }>("import-pdf", {
+        storage_path: path,
+        processing_token: processingToken,
+        original_filename: file.name,
+      });
+      if (!res?.ok || !res.artifact_id) throw new Error("Import did not complete");
+      toast({ title: "PDF imported", description: "Analysis running in the background." });
+      navigate(`/framework/artifacts/${res.artifact_id}`);
+    } catch (e) {
+      toast({ title: "PDF import failed", description: String(e), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitTextFileImport = async (file: File) => {
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".txt") && !lower.endsWith(".md")) {
+      toast({ title: "Unsupported file", description: "Use .txt or .md.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const processingToken = createProcessingToken();
+    try {
+      if (file.size <= ONE_MB) {
+        const raw = await file.text();
+        if (!raw.trim()) {
+          toast({ title: "Empty file", variant: "destructive" });
+          return;
+        }
+        const { data, error } = await supabase
+          .from("artifacts")
+          .insert({
+            user_id: user.id,
+            title: file.name.replace(/\.(txt|md)$/i, "").slice(0, 500) || null,
+            kind: "text_file",
+            url: null,
+            raw_text: raw.trim(),
+            status: "analyzing",
+            processing_token: processingToken,
+            metadata: { source: "text_file", original_filename: file.name, import_via: "browser" },
+          })
+          .select("id")
+          .maybeSingle();
+        if (error || !data) throw new Error(error?.message ?? "Insert failed");
+        supabase.functions
+          .invoke("framework-analyze", { body: { artifact_id: data.id, processing_token: processingToken } })
+          .catch((err) => console.error(err));
+        toast({ title: "Text imported", description: "Analysis running in the background." });
+        navigate(`/framework/artifacts/${data.id}`);
+        return;
+      }
+
+      toast({ title: "Uploading large file…", description: file.name });
+      const ext = lower.endsWith(".md") ? ".md" : ".txt";
+      const path = await uploadToArtifactBucket(file, ext);
+      toast({ title: "Reading file…", description: "Starting analysis when ready." });
+      const res = await invokeImport<{ ok?: boolean; artifact_id?: string }>("import-text-file", {
+        storage_path: path,
+        processing_token: processingToken,
+        original_filename: file.name,
+      });
+      if (!res?.ok || !res.artifact_id) throw new Error("Import did not complete");
+      toast({ title: "Text imported", description: "Analysis running in the background." });
+      navigate(`/framework/artifacts/${res.artifact_id}`);
+    } catch (e) {
+      toast({ title: "Text import failed", description: String(e), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -195,10 +345,11 @@ export default function NewArtifactPage() {
     navigate(`/framework/artifacts/${data.id}`);
   };
 
-  const tabs: { id: Mode; label: string; icon: any }[] = [
+  const tabs: { id: Mode; label: string; icon: typeof Youtube }[] = [
     { id: "youtube", label: "YouTube", icon: Youtube },
     { id: "text", label: "Text", icon: FileText },
     { id: "voice", label: "Voice", icon: Mic },
+    { id: "import", label: "Import", icon: FileUp },
   ];
 
   const getYouTubeEmbed = (input: string) => {
@@ -242,8 +393,12 @@ export default function NewArtifactPage() {
         })}
       </div>
 
-      <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Title</label>
-      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional title" className="mb-4" />
+      {mode !== "import" && (
+        <>
+          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Title</label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional title" className="mb-4" />
+        </>
+      )}
 
       {mode === "text" && (
         <>
@@ -290,6 +445,82 @@ export default function NewArtifactPage() {
           </p>
           <Button onClick={submitYoutube} disabled={busy}>{busy ? "Fetching…" : "Fetch & analyze"}</Button>
         </>
+      )}
+
+      {mode === "import" && (
+        <div className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Upload files to private storage, then edge functions create artifacts and run the same analyzer as other sources.
+            Files over 1&nbsp;MB for text use a small server import — deploy{" "}
+            <code className="text-xs bg-muted px-1 rounded">import-text-file</code> with the bucket migration.
+          </p>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <FileText className="w-4 h-4" /> ChatGPT export
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">conversations.json or the full Data export .zip from ChatGPT.</p>
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer text-primary hover:underline">
+              <input
+                type="file"
+                accept=".json,.zip,application/json,application/zip"
+                className="hidden"
+                disabled={busy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void submitChatGptExport(f);
+                }}
+              />
+              Choose .json or .zip
+            </label>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <FileUp className="w-4 h-4" /> PDF
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">Books, papers, or articles as PDF (text extraction).</p>
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer text-primary hover:underline">
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                disabled={busy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void submitPdfImport(f);
+                }}
+              />
+              Choose PDF
+            </label>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Text / Markdown
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              .txt or .md up to 1&nbsp;MB is read in the browser; larger files upload then{" "}
+              <code className="text-xs bg-muted px-1 rounded">import-text-file</code>.
+            </p>
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer text-primary hover:underline">
+              <input
+                type="file"
+                accept=".txt,.md,text/plain,text/markdown"
+                className="hidden"
+                disabled={busy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void submitTextFileImport(f);
+                }}
+              />
+              Choose .txt or .md
+            </label>
+          </div>
+        </div>
       )}
 
       {mode === "voice" && (

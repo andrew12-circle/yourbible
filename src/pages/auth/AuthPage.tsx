@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,23 @@ import { toast } from "@/hooks/use-toast";
 import { BookOpen, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable";
 
+function safeAppNext(raw: string | null): string | null {
+  if (!raw) return null;
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    // keep raw
+  }
+  if (!decoded.startsWith("/") || decoded.startsWith("//")) return null;
+  return decoded;
+}
+
 export default function AuthPage() {
   const { user, signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const nextTarget = useMemo(() => safeAppNext(params.get("next")), [params]);
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +34,7 @@ export default function AuthPage() {
   const [appleBusy, setAppleBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
-  if (!loading && user) return <Navigate to="/" replace />;
+  if (!loading && user) return <Navigate to={nextTarget ?? "/"} replace />;
 
   const signInWithApple = async () => {
     setAppleBusy(true);
@@ -33,7 +47,7 @@ export default function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate("/");
+    navigate(nextTarget ?? "/");
   };
 
   const signInWithGoogle = async () => {
@@ -47,7 +61,7 @@ export default function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate("/");
+    navigate(nextTarget ?? "/");
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -64,7 +78,7 @@ export default function AuthPage() {
       toast({ title: "Welcome", description: "Let's set up your Bible." });
       navigate("/onboarding");
     } else {
-      navigate("/");
+      navigate(nextTarget ?? "/");
     }
   };
 

@@ -8,6 +8,8 @@ import {
   Layers,
   MessageCircle,
   Settings,
+  BookHeart,
+  Flame,
 } from "lucide-react";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +83,20 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           label="Prompts"
           active={pathname.startsWith("/journal/prompts")}
           accent="38 92% 50%"
+        />
+        <RailItem
+          to="/journal/life"
+          icon={<BookHeart className="w-4 h-4" />}
+          label="Faith journal"
+          active={pathname.startsWith("/journal/life")}
+          accent="330 75% 52%"
+        />
+        <RailItem
+          to="/journal/vent"
+          icon={<Flame className="w-4 h-4" />}
+          label="Vent space"
+          active={pathname.startsWith("/journal/vent")}
+          accent="0 70% 50%"
         />
         <RailItem
           to="/journal"

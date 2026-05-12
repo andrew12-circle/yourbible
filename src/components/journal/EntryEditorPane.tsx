@@ -18,6 +18,7 @@ import { MoodPicker } from "./MoodPicker";
 import { TagInput } from "./TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { formatTemp } from "@/lib/journal/context";
+import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 
 interface EntryRow {
   id: string;
@@ -33,6 +34,7 @@ interface EntryRow {
   weather: string | null;
   weather_temp_c: number | null;
   weather_icon: string | null;
+  entry_kind: string | null;
 }
 
 export default function EntryEditorPane({
@@ -67,7 +69,9 @@ export default function EntryEditorPane({
     (async () => {
       const { data } = await supabase
         .from("journal_entries")
-        .select("id,title,body,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon")
+        .select(
+          "id,title,body,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+        )
         .eq("id", entryId)
         .maybeSingle();
       setEntry((data as EntryRow | null) ?? null);
@@ -92,7 +96,8 @@ export default function EntryEditorPane({
       const { error } = await supabase
         .from("journal_entries")
         .update(patch)
-        .eq("id", entry.id);
+        .eq("id", entry.id)
+        .eq("user_id", user.id);
       setSaving(false);
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
       else onChanged();
@@ -144,7 +149,7 @@ export default function EntryEditorPane({
   const remove = async () => {
     if (!entry) return;
     if (!confirm("Delete this entry permanently?")) return;
-    await supabase.from("journal_entries").delete().eq("id", entry.id);
+    await supabase.from("journal_entries").delete().eq("id", entry.id).eq("user_id", user.id);
     onDeleted();
   };
 
@@ -155,9 +160,17 @@ export default function EntryEditorPane({
 
   const scoreNow = async () => {
     if (!entry) return;
+    if (entry.entry_kind === "vent") {
+      toast({ title: "Vents aren't analyzed", description: "This entry is private — the mirror stays away from it." });
+      return;
+    }
     setScoring(true);
     if (!entry.analyze_for_mirror) {
-      await supabase.from("journal_entries").update({ analyze_for_mirror: true }).eq("id", entry.id);
+      await supabase
+        .from("journal_entries")
+        .update({ analyze_for_mirror: true })
+        .eq("id", entry.id)
+        .eq("user_id", user.id);
     }
     const { error } = await supabase.functions.invoke("journal-score-entry", { body: { entry_id: entry.id } });
     setScoring(false);
@@ -299,6 +312,33 @@ export default function EntryEditorPane({
 
           {showMeta && (
             <div className="mt-6 space-y-4 pt-4 border-t border-border/40">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entry type</label>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                  Dreams, praise reports, and testimonies are grouped under Faith journal. Vents stay private — hidden
+                  from main feeds and never analyzed.
+                </p>
+                <select
+                  className="mt-2 h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
+                  value={entry.entry_kind ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const next = v ? coerceJournalEntryKind(v) : null;
+                    const patch: Partial<EntryRow> =
+                      next === "vent"
+                        ? { entry_kind: next, analyze_for_mirror: false }
+                        : { entry_kind: next };
+                    queueSave(patch);
+                  }}
+                  aria-label="Entry type"
+                >
+                  <option value="">General journal</option>
+                  <option value="dream">{ENTRY_KIND_META.dream.label}</option>
+                  <option value="praise_report">{ENTRY_KIND_META.praise_report.label}</option>
+                  <option value="testimony">{ENTRY_KIND_META.testimony.label}</option>
+                  <option value="vent">{ENTRY_KIND_META.vent.label} (private)</option>
+                </select>
+              </div>
               <div>
                 <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Mood</label>
                 <div className="mt-2"><MoodPicker value={entry.mood} onChange={(m) => queueSave({ mood: m })} /></div>

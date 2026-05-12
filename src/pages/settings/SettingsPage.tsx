@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
+import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
+import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
+import { PartnerSettingsSection } from "@/components/partner/PartnerSettingsSection";
 
 const WALLPAPER_KEY = "yb_home_wallpaper";
-const PROFILE_PHOTO_KEY = "yb_profile_photo";
 
 type HomeLayoutSettings = {
   homeWallpaper?: string;
@@ -23,7 +25,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
   const [wallpaper, setWallpaper] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null);
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem(PROFILE_PHOTO_KEY) : null);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(
+    typeof window !== "undefined" ? localStorage.getItem(HOME_PROFILE_PHOTO_STORAGE_KEY) : null,
+  );
   const [wallpaperTint, setWallpaperTint] = useState(24);
   const [wallpaperBlur, setWallpaperBlur] = useState(0);
   const wallpaperFileRef = useRef<HTMLInputElement>(null);
@@ -39,7 +43,7 @@ export default function SettingsPage() {
       }
       if (parsed.homeProfilePhoto) {
         setProfilePhoto(parsed.homeProfilePhoto);
-        localStorage.setItem(PROFILE_PHOTO_KEY, parsed.homeProfilePhoto);
+        localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, parsed.homeProfilePhoto);
       }
       if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
       if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
@@ -109,7 +113,7 @@ export default function SettingsPage() {
     reader.onload = () => {
       const url = reader.result as string;
       try {
-        localStorage.setItem(PROFILE_PHOTO_KEY, url);
+        localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, url);
         setProfilePhoto(url);
         void saveHomeLayout({ homeProfilePhoto: url });
       } catch {
@@ -308,6 +312,13 @@ export default function SettingsPage() {
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadWallpaper(f); e.currentTarget.value = ""; }}
           />
+        </section>
+
+        <PartnerSettingsSection />
+
+        <section>
+          <h2 className="font-display text-lg text-leather mb-3">Knowledge base</h2>
+          {user?.id ? <SeedTimelineCard userId={user.id} /> : null}
         </section>
 
         <div className="pt-8 border-t border-paper-edge flex items-center justify-between">

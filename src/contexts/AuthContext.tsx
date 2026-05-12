@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { parseIdentitySummaryPayload, type IdentitySummaryPayload } from "@/lib/framework/identitySummary";
+
+export type { IdentitySummaryPayload };
 
 export interface Profile {
   id: string;
@@ -12,6 +15,8 @@ export interface Profile {
   page_tone: string;
   layout: string;
   onboarded: boolean;
+  identity_summary: IdentitySummaryPayload | null;
+  identity_generated_at: string | null;
 }
 
 interface AuthCtx {
@@ -28,6 +33,21 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | undefined>(undefined);
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function profileFromDbRow(data: unknown): Profile | null {
+  if (!isRecord(data)) return null;
+  const base = data as unknown as Profile;
+  return {
+    ...base,
+    identity_summary: parseIdentitySummaryPayload(data.identity_summary),
+    identity_generated_at:
+      typeof data.identity_generated_at === "string" ? data.identity_generated_at : null,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -36,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (uid: string) => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
-    setProfile((data as Profile) ?? null);
+    setProfile(data ? profileFromDbRow(data) : null);
   };
 
   useEffect(() => {
@@ -83,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile: async (patch) => {
       if (!user) return;
       const { data } = await supabase.from("profiles").update(patch).eq("user_id", user.id).select().maybeSingle();
-      if (data) setProfile(data as Profile);
+      if (data) setProfile(profileFromDbRow(data));
     },
   }), [user, session, profile, loading]);
 

@@ -27,6 +27,7 @@ export default function JournalMapPage() {
       let q = supabase
         .from("journal_entries")
         .select("id,title,body,entry_at_ts,lat,lng,location_name")
+        .or("entry_kind.is.null,entry_kind.neq.vent")
         .not("lat", "is", null)
         .not("lng", "is", null)
         .order("entry_at_ts", { ascending: false })

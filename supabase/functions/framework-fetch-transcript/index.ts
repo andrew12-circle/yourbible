@@ -403,9 +403,13 @@ Deno.serve(async (req) => {
     const processTranscript = async () => {
       try {
         const result = await transcribeYouTubeVideo(url);
+        const uploaderName = result.metadata.channelTitle ?? null;
         const metadata = {
           source: "youtube",
-          channel_title: result.metadata.channelTitle ?? null,
+          title: result.metadata.title ?? null,
+          channel_title: uploaderName,
+          /** Same as oEmbed `author_name` / HTML owner when available; list UI falls back if older rows lack both. */
+          author_name: uploaderName,
           channel_url: result.metadata.channelUrl ?? null,
           thumbnail_url: result.metadata.thumbnailUrl ?? null,
           provider_name: result.metadata.providerName ?? "YouTube",

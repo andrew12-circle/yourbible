@@ -13,22 +13,22 @@ export const LAYER_META: Record<
   foundations: {
     title: "Core Foundations",
     subtitle: "God, Jesus, Holy Spirit, Scripture — the load-bearing walls.",
-    tone: "hsl(28 65% 45%)",
+    tone: "#2563EB",
   },
   life: {
     title: "Life Framework",
     subtitle: "Suffering, prayer, money, relationships — practical living.",
-    tone: "hsl(160 35% 38%)",
+    tone: "#10B981",
   },
   mechanics: {
     title: "Spiritual Mechanics",
     subtitle: "Dreams, angels, prophecy, discernment — how the unseen works.",
-    tone: "hsl(260 35% 45%)",
+    tone: "#8B5CF6",
   },
   emotional: {
     title: "Emotional Reality",
     subtitle: "Fears, formative voices, peace vs anxiety — what shaped you.",
-    tone: "hsl(0 50% 45%)",
+    tone: "#F43F5E",
   },
 };
 

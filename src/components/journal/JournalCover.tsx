@@ -6,6 +6,8 @@ import { Journal } from "@/lib/journal/journals";
 interface Props {
   journal: Journal | null; // null = aggregate "All Entries"
   subtitle?: string;
+  /** When set, replaces journal name / "All Entries" as the main cover title. */
+  titleOverride?: string;
   /** Tabs to render under the cover. Pass an array of {label, to, key, active}. */
   tabs?: { key: string; label: string; to: string; active?: boolean }[];
   /** Optional right-side header buttons. */
@@ -19,13 +21,14 @@ interface Props {
 export default function JournalCover({
   journal,
   subtitle,
+  titleOverride,
   tabs,
   right,
   onOpenRail,
   backTo = "/home",
 }: Props) {
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
-  const title = journal?.name ?? "All Entries";
+  const title = titleOverride ?? journal?.name ?? "All Entries";
 
   return (
     <header className="relative">
