@@ -172,7 +172,7 @@ export default function HomePage() {
   };
 
   const wallpaperStyle = wallpaper
-    ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" as const }
+    ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "scroll" as const }
     : undefined;
 
   return (
@@ -190,7 +190,7 @@ export default function HomePage() {
       )}
 
       {/* iOS status bar */}
-      <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+      <div className="relative z-20 flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
         <div className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight tabular-nums">
           <span>{timeStr}</span>
           <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
@@ -222,17 +222,17 @@ export default function HomePage() {
       {/* Sign-out — lock-screen style icon, top right inset */}
       <button
         onClick={() => signOut()}
-        className="absolute top-9 right-3 z-20 w-9 h-9 rounded-full bg-black/25 backdrop-blur flex items-center justify-center text-white/90 hover:bg-black/40 transition"
+        className="absolute top-[max(2.25rem,calc(env(safe-area-inset-top)+1.25rem))] right-3 z-20 w-9 h-9 rounded-full bg-black/25 backdrop-blur flex items-center justify-center text-white/90 hover:bg-black/40 transition"
         aria-label="Sign out"
       >
         <LogOut className="w-4 h-4" />
       </button>
 
-      <div className="relative z-10 max-w-3xl mx-auto px-6 pt-2 pb-32">
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 pt-2 pb-40 sm:pb-32">
         {/* Lock-screen style date / greeting */}
-        <div className="text-center mt-2 mb-7">
+        <div className="text-center mt-2 mb-5 sm:mb-7">
           <p className="text-[13px] font-medium text-white/85 tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{fullDateStr}</p>
-          <h1 className="mt-0.5 text-[34px] leading-[1.05] font-bold tracking-[-0.022em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+          <h1 className="mt-0.5 text-[28px] sm:text-[34px] leading-[1.05] font-bold tracking-[-0.022em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             {greeting}{name ? `, ${name}` : ""}
           </h1>
         </div>
@@ -265,22 +265,22 @@ export default function HomePage() {
         )}
 
         {/* App grid — responsive, iPhone (4 col) → iPad (6 col) */}
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-4 gap-y-6">
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">
           {apps.map((app) => (
             <AppButton key={app.label} app={app} onClick={() => navigate(app.to)} />
           ))}
         </div>
 
         {/* Page dots */}
-        <div className="fixed bottom-[112px] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
+        <div className="fixed bottom-[calc(104px+env(safe-area-inset-bottom))] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
           <span className="w-1.5 h-1.5 rounded-full bg-white/95 shadow" />
           <span className="w-1.5 h-1.5 rounded-full bg-white/45" />
           <span className="w-1.5 h-1.5 rounded-full bg-white/45" />
         </div>
 
         {/* Dock */}
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xl z-10">
-          <div className="flex items-center justify-around gap-1 rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-3 py-2.5">
+        <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] max-w-xl z-10">
+          <div className="flex items-center justify-around gap-1 rounded-[24px] sm:rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-2 sm:px-3 py-2 sm:py-2.5">
             <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
@@ -288,22 +288,22 @@ export default function HomePage() {
             <button
               onClick={() => fileRef.current?.click()}
               aria-label="Change wallpaper"
-              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
               style={{ background: "linear-gradient(160deg, #2B2F42 0%, #3E445E 58%, #545C7F 100%)" }}
             >
-              <ImagePlus className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
+              <ImagePlus className="w-[21px] h-[21px] sm:w-[24px] sm:h-[24px] text-white" strokeWidth={1.9} />
             </button>
             <button
               onClick={() => setShowWallpaperControls((v) => !v)}
               aria-label="Wallpaper tint controls"
-              className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+              className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
               style={{ background: "linear-gradient(160deg, #355070 0%, #4D6B90 58%, #6E8AB0 100%)" }}
             >
-              <SlidersHorizontal className="w-[24px] h-[24px] text-white" strokeWidth={1.9} />
+              <SlidersHorizontal className="w-[21px] h-[21px] sm:w-[24px] sm:h-[24px] text-white" strokeWidth={1.9} />
             </button>
           </div>
           {showWallpaperControls && wallpaper && (
-            <div className="mt-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/25 p-3 text-white">
+            <div className="mt-2 rounded-xl sm:rounded-2xl bg-black/40 backdrop-blur-xl border border-white/25 p-3 text-white">
               <label className="block text-[11px] uppercase tracking-[0.12em] mb-1">Tint</label>
               <input type="range" min={0} max={60} value={wallpaperTint} onChange={(e) => {
                 const v = Number(e.target.value); setWallpaperTint(v); saveWallpaperPresentation(v, wallpaperBlur);
@@ -314,7 +314,7 @@ export default function HomePage() {
               }} className="w-full" />
             </div>
           )}
-          <div className="mx-auto mt-2 w-[120px] h-[5px] rounded-full bg-white/70" />
+          <div className="mx-auto mt-2 w-[96px] sm:w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
       </div>
 
@@ -335,14 +335,14 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const isBible = app.label === "Bible";
   const isJournal = app.label === "Journal";
   return (
-    <button onClick={onClick} className="group flex flex-col items-center gap-[7px] focus:outline-none" aria-label={app.label}>
+    <button onClick={onClick} className="group flex flex-col items-center gap-1.5 sm:gap-[7px] focus:outline-none" aria-label={app.label}>
       <div className="relative">
         <div
-          className="ios-icon w-[60px] h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
+          className="ios-icon w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
           style={{ background: app.color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 18px -10px rgba(0,0,0,0.55)" }}
         >
           {app.imageSrc ? (
-            <img src={app.imageSrc} alt="" className="w-[60px] h-[60px] object-cover rounded-[17px]" />
+            <img src={app.imageSrc} alt="" className="w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] object-cover rounded-[15px] sm:rounded-[17px]" />
           ) : (
             <>
               {isBible && (
@@ -366,7 +366,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
 
               {Icon && (
                 <Icon
-                  className={`w-[30px] h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
+                  className={`w-[21px] h-[21px] sm:w-[30px] sm:h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
                   style={{ color: iconColor }}
                   strokeWidth={2.1}
                 />
@@ -381,7 +381,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
         )}
       </div>
       <span
-        className="text-[11.5px] font-medium text-white tracking-tight leading-none mt-[3px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
+        className="text-[10.5px] sm:text-[11.5px] font-medium text-white tracking-tight leading-none mt-[3px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
       >
         {app.label}
       </span>
@@ -394,13 +394,13 @@ function DockIcon({ icon: Icon, imageSrc, color, onClick, label }: { icon?: Luci
     <button
       onClick={onClick}
       aria-label={label}
-      className="ios-icon ios-icon-dock w-[50px] h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
+      className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
       style={{ background: color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 18px -12px rgba(0,0,0,0.55)" }}
     >
       {imageSrc ? (
-        <img src={imageSrc} alt="" className="w-[50px] h-[50px] object-cover rounded-[14px]" />
+        <img src={imageSrc} alt="" className="w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] object-cover rounded-[14px]" />
       ) : Icon ? (
-        <Icon className="w-[26px] h-[26px] text-white" strokeWidth={2} />
+        <Icon className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px] text-white" strokeWidth={2} />
       ) : null}
     </button>
   );
