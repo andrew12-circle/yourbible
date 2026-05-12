@@ -1,8 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type SketchTranscriptionResult =
-  | { ok: true; body: string; text?: string; skipped?: boolean }
-  | { ok: false; error: string };
+export type SketchTranscriptionResult = {
+  ok: boolean;
+  body?: string;
+  text?: string;
+  skipped?: boolean;
+  error?: string;
+};
 
 /** Calls the edge function that OCRs a journal sketch and appends text to the entry body. */
 export async function transcribeJournalSketch(opts: {
