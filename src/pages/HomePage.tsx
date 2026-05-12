@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, BookOpen, ListChecks, MessageCircleQuestion, MessageCircleHeart,
+  Loader2, BookOpen, ListChecks, MessageCircleQuestion, MessageCircleHeart, MessageCircle,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Lightbulb, Calendar as CalIcon, User, Youtube, HeartHandshake,
   type LucideIcon,
@@ -168,6 +168,14 @@ export default function HomePage() {
     { label: "Framework", to: "/framework",            icon: Brain,                 color: "#FF2D55", iconColor: "white" },
     { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
+    {
+      label: "Chat journal",
+      to: "/journal/chat",
+      icon: MessageCircle,
+      color: "linear-gradient(160deg, #0D9488 0%, #14B8A6 52%, #5EEAD4 100%)",
+      iconColor: "white",
+      ariaLabel: "Open chat journal",
+    },
     {
       label: "Walking together",
       to: "/partner",

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2 } from "lucide-react";
+import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -64,6 +67,9 @@ export default function NewJournalEntryPage() {
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Saving");
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const [dictInterim, setDictInterim] = useState("");
+  const [sketchOpen, setSketchOpen] = useState(false);
 
   // Pre-fill from verse capture
   useEffect(() => {
@@ -121,6 +127,10 @@ export default function NewJournalEntryPage() {
       setTags((ts) => (ts.length ? ts : ["artifact", "youtube"]));
     }
     const kindInit = parseJournalEntryKindParam(params.get("kind"));
+    if (kindInit === "chat" && !editId) {
+      navigate("/journal/chat", { replace: true });
+      return;
+    }
     if (kindInit) {
       if (kindInit === "vent" && !editId) {
         // Vents have a dedicated, deliberately minimal UI.
@@ -279,6 +289,7 @@ export default function NewJournalEntryPage() {
   };
 
   const save = async () => {
+    dictateRef.current?.stop();
     if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length) {
       toast({ title: "Write something or add a photo first", variant: "destructive" });
       return;
@@ -409,13 +420,27 @@ export default function NewJournalEntryPage() {
           </select>
         </section>
 
+        <div className="flex items-center justify-end gap-2">
+          <DictateButton
+            ref={dictateRef}
+            size="sm"
+            onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+            onInterim={setDictInterim}
+          />
+        </div>
+        {/* Sans: match .app-theme body stack; list previews already default sans. */}
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={14}
           placeholder={bodyPlaceholder}
-          className="font-serif text-[15px] leading-relaxed"
+          className="font-sans text-[15px] leading-relaxed"
         />
+        {dictInterim.trim() ? (
+          <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+            {dictInterim}
+          </p>
+        ) : null}
 
         {/* Photos */}
         <section>
@@ -451,7 +476,7 @@ export default function NewJournalEntryPage() {
             ))}
             <label className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:border-foreground hover:text-foreground transition">
               <Camera className="w-5 h-5" />
-              <span className="text-[10px] mt-1">Add</span>
+              <span className="text-[10px] mt-1">Photo</span>
               <input
                 type="file"
                 accept="image/*"
@@ -462,6 +487,14 @@ export default function NewJournalEntryPage() {
                 }
               />
             </label>
+            <button
+              type="button"
+              onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-foreground hover:text-foreground transition"
+            >
+              <PenLine className="w-5 h-5" />
+              <span className="text-[10px] mt-1">Sketch</span>
+            </button>
           </div>
         </section>
 
@@ -569,6 +602,14 @@ export default function NewJournalEntryPage() {
           </Button>
         </div>
       </div>
+      <SketchPad
+        open={sketchOpen}
+        onClose={() => setSketchOpen(false)}
+        onSave={(file) => {
+          setPendingFiles((arr) => [...arr, file]);
+        }}
+        filename={editId ? `sketch-${editId}` : undefined}
+      />
     </JournalLayout>
   );
 }

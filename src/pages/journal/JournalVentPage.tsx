@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Flame, Lock, Loader2, Trash2 } from "lucide-react";
 import JournalLayout from "./JournalLayout";
@@ -32,6 +34,8 @@ export default function JournalVentPage() {
   const [saving, setSaving] = useState(false);
   const [showRecent, setShowRecent] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const [dictInterim, setDictInterim] = useState("");
 
   const loadRecent = async () => {
     if (!user) return;
@@ -57,6 +61,7 @@ export default function JournalVentPage() {
 
   const save = async () => {
     if (!user) return;
+    dictateRef.current?.stop();
     if (!body.trim()) {
       toast({ title: "Type something first — even one line counts." });
       return;
@@ -115,14 +120,21 @@ export default function JournalVentPage() {
         </p>
       </div>
 
+      {/* Sans: match main journal composers under .app-theme. */}
       <Textarea
         ref={taRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Say it. No one has to read this. No one is grading this. What are you mad about? What hurts? What's not okay?"
         rows={14}
-        className="resize-y rounded-2xl border-border/70 bg-card font-serif text-[16px] leading-relaxed shadow-sm"
+        className="resize-y rounded-2xl border-border/70 bg-card font-sans text-[16px] leading-relaxed shadow-sm"
       />
+
+      {dictInterim.trim() ? (
+        <p className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+          {dictInterim}
+        </p>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
         <Lock className="h-3.5 w-3.5" aria-hidden />
@@ -132,7 +144,13 @@ export default function JournalVentPage() {
         </span>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <DictateButton
+          ref={dictateRef}
+          size="sm"
+          onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+          onInterim={setDictInterim}
+        />
         <Button onClick={save} disabled={saving || !body.trim()} className="flex-1 sm:flex-none">
           {saving ? (
             <>
@@ -207,10 +225,11 @@ function VentRowCard({ row, onDelete }: { row: VentRow; onDelete: () => void }) 
         onClick={() => setExpanded((v) => !v)}
         className="mt-1 block w-full text-left text-[14px] leading-relaxed text-foreground/85"
       >
+        {/* Sans: vent excerpts same family as composer + journal read view. */}
         {expanded ? (
-          <span className="whitespace-pre-wrap font-serif">{row.body}</span>
+          <span className="whitespace-pre-wrap font-sans">{row.body}</span>
         ) : (
-          <span className="line-clamp-3 font-serif">{preview}</span>
+          <span className="line-clamp-3 font-sans">{preview}</span>
         )}
       </button>
     </article>

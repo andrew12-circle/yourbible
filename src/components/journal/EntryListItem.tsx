@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Pin, Sparkles, MapPin } from "lucide-react";
+import { Pin, Sparkles, MapPin, MessageCircle } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
@@ -30,15 +30,17 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
   const tempStr =
     entry.weather_temp_c != null ? formatTemp(entry.weather_temp_c) : null;
   const faithKind = coerceJournalEntryKind(entry.entry_kind);
+  const isChat = entry.entry_kind === "chat";
+  const href = isChat ? `/journal/chat/${entry.id}` : `/journal/${entry.id}`;
 
   return (
     <Link
-      to={`/journal/${entry.id}`}
+      to={href}
       className="group flex gap-4 px-5 py-4 active:bg-muted/40 hover:bg-muted/20 transition-colors"
     >
       {/* Day One-style date stamp */}
       <div className="flex-shrink-0 w-11 text-center pt-0.5">
-        <div className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/80">
+        <div className="text-[10px] font-semibold tracking-[0.12em] text-red-500">
           {dow}
         </div>
         <div className="text-[26px] font-semibold leading-none tracking-tight mt-0.5 tabular-nums">
@@ -58,6 +60,9 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
           </h3>
           {entry.analyze_for_mirror && (
             <Sparkles className="w-3.5 h-3.5 text-violet-500 mt-1 flex-shrink-0" />
+          )}
+          {isChat && (
+            <MessageCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 mt-1 flex-shrink-0" aria-hidden />
           )}
           {faithKind && (
             <span className="mt-0.5 shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">

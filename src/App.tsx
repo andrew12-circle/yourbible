@@ -41,6 +41,7 @@ import JournalPromptsPage from "./pages/journal/JournalPromptsPage";
 import JournalTodayPage from "./pages/journal/JournalTodayPage";
 import JournalLifePage from "./pages/journal/JournalLifePage";
 import JournalVentPage from "./pages/journal/JournalVentPage";
+import JournalChatPage from "./pages/journal/JournalChatPage";
 import HomeIndicator from "./components/HomeIndicator";
 import GlobalJournalLauncher from "./components/journal/GlobalJournalLauncher";
 import MyAiPage from "./pages/myai/MyAiPage";
@@ -109,6 +110,8 @@ const App = () => (
             <Route path="/journal/life" element={<JournalLifePage />} />
             <Route path="/journal/life/:kind" element={<JournalLifePage />} />
             <Route path="/journal/vent" element={<JournalVentPage />} />
+            <Route path="/journal/chat" element={<JournalChatPage />} />
+            <Route path="/journal/chat/:entryId" element={<JournalChatPage />} />
             <Route path="/journal/new" element={<NewJournalEntryPage />} />
             <Route path="/journal/:id" element={<JournalEntryPage />} />
             <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />

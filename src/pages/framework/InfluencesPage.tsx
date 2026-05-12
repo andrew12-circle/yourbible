@@ -48,12 +48,31 @@ interface InfluenceGroup {
   meta: InfluenceMeta;
 }
 
-interface EnrichResponse {
-  avatar_url?: string;
+/** Edge function `framework-enrich-influence` — single-group response */
+interface EnrichInfluenceSingleResponse {
+  ok: boolean;
+  saved?: boolean;
+  detail?: string;
+  error?: string;
+  source_row_ids?: string[];
   bio?: string;
+  avatar_url?: string;
   source_url?: string;
   source?: EnrichSource;
+}
+
+interface EnrichInfluenceBulkResult {
+  source_row_ids: string[];
+  ok: boolean;
+  saved?: boolean;
   error?: string;
+  detail?: string;
+}
+
+interface EnrichInfluenceBulkResponse {
+  ok: boolean;
+  error?: string;
+  results: EnrichInfluenceBulkResult[];
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -77,10 +96,6 @@ function parseInfluenceMeta(raw: Json): InfluenceMeta {
     ...(enrichment_source ? { enrichment_source } : {}),
     ...(enriched_at ? { enriched_at } : {}),
   };
-}
-
-function metaToJson(m: InfluenceMeta): Json {
-  return m as Json;
 }
 
 function hashString(s: string): number {
@@ -116,12 +131,6 @@ function scopeLabel(sourceType: string): string {
   if (t === "experience") return "Experience";
   if (t === "book") return "Book";
   return sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
-}
-
-const ENRICH_GAP_MS = 550;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 export default function InfluencesPage() {
@@ -186,96 +195,46 @@ export default function InfluencesPage() {
     return Array.from(m.values()).sort((a, b) => b.beliefIds.length - a.beliefIds.length);
   }, [sources]);
 
-  const applyEnrichmentToRows = useCallback(
-    async (group: InfluenceGroup, payload: EnrichResponse): Promise<boolean> => {
-      if (!user) return false;
-      const { data: rows, error: qErr } = await supabase
-        .from("belief_sources")
-        .select("metadata,avatar_url")
-        .in("id", group.sourceRowIds)
-        .eq("user_id", user.id)
-        .limit(1);
-      if (qErr || !rows?.length) {
-        toast({
-          title: "Could not load sources",
-          description: qErr?.message ?? "No matching rows.",
-          variant: "destructive",
-        });
-        return false;
-      }
-      const baseMeta = parseInfluenceMeta(rows[0].metadata);
-      const newAvatar =
-        (typeof payload.avatar_url === "string" && payload.avatar_url.trim()) ||
-        (typeof rows[0].avatar_url === "string" && rows[0].avatar_url.trim()) ||
-        group.avatar_url ||
-        null;
-      const newBio =
-        (typeof payload.bio === "string" && payload.bio.trim()) || baseMeta.bio || "";
-      const newSourceUrl =
-        (typeof payload.source_url === "string" && payload.source_url.trim()) ||
-        baseMeta.source_url ||
-        "";
-      const enrichment_source = payload.source ?? baseMeta.enrichment_source;
-      const nextMeta: InfluenceMeta = {
-        ...baseMeta,
-        ...(newBio ? { bio: newBio } : {}),
-        ...(newSourceUrl ? { source_url: newSourceUrl } : {}),
-        ...(enrichment_source ? { enrichment_source } : {}),
-        enriched_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from("belief_sources")
-        .update({
-          avatar_url: newAvatar,
-          metadata: metaToJson(nextMeta),
-        })
-        .in("id", group.sourceRowIds)
-        .eq("user_id", user.id);
-
-      if (error) {
-        toast({ title: "Could not save profile", description: error.message, variant: "destructive" });
-        return false;
-      }
-      await reload();
-      return true;
-    },
-    [user, reload],
-  );
-
-  const invokeEnrich = useCallback(async (group: InfluenceGroup): Promise<EnrichResponse | null> => {
-    const { data, error } = await supabase.functions.invoke("framework-enrich-influence", {
-      body: { name: group.label, scope: group.type, hint: undefined },
-    });
-    if (error) {
-      toast({ title: "Enrichment failed", description: error.message, variant: "destructive" });
-      return null;
-    }
-    const payload = data as EnrichResponse;
-    if (payload?.error) {
-      toast({ title: "Enrichment failed", description: payload.error, variant: "destructive" });
-      return null;
-    }
-    return payload ?? null;
-  }, []);
-
   const enrichOne = useCallback(
     async (group: InfluenceGroup) => {
       setEnrichingKey(group.key);
       try {
-        const payload = await invokeEnrich(group);
-        if (!payload) return;
-        if (!payload.bio && !payload.avatar_url) {
-          toast({ title: "No public profile found", description: `Nothing turned up for “${group.label}”.` });
+        const { data, error } = await supabase.functions.invoke("framework-enrich-influence", {
+          body: { source_row_ids: group.sourceRowIds },
+        });
+        if (error) {
+          toast({
+            title: "Enrichment failed",
+            description: error.message,
+            variant: "destructive",
+          });
           return;
         }
-        const ok = await applyEnrichmentToRows(group, payload);
-        if (ok) toast({ title: "Profile updated", description: group.label });
+        const payload = data as EnrichInfluenceSingleResponse;
+        if (!payload?.ok) {
+          toast({
+            title: "Enrichment failed",
+            description: payload?.error ?? "Unknown error from enrich service.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!payload.saved) {
+          toast({
+            title: "No public profile found",
+            description:
+              payload.detail?.trim() ||
+              `Nothing turned up for “${group.label}”. Try again later or add details manually from a belief page.`,
+          });
+          return;
+        }
+        await reload();
+        toast({ title: "Profile updated", description: group.label });
       } finally {
         setEnrichingKey(null);
       }
     },
-    [invokeEnrich, applyEnrichmentToRows],
+    [reload],
   );
 
   const enrichMissingAvatars = useCallback(async () => {
@@ -289,19 +248,32 @@ export default function InfluencesPage() {
     let miss = 0;
     let fail = 0;
     try {
-      for (const g of targets) {
-        const payload = await invokeEnrich(g);
-        if (!payload) {
-          fail += 1;
-        } else if (!payload.bio && !payload.avatar_url) {
-          miss += 1;
-        } else {
-          const saved = await applyEnrichmentToRows(g, payload);
-          if (saved) ok += 1;
-          else fail += 1;
-        }
-        await sleep(ENRICH_GAP_MS);
+      const { data, error } = await supabase.functions.invoke("framework-enrich-influence", {
+        body: { groups: targets.map((g) => ({ source_row_ids: g.sourceRowIds })) },
+      });
+      if (error) {
+        toast({
+          title: "Enrichment failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
       }
+      const payload = data as EnrichInfluenceBulkResponse;
+      if (!payload?.ok) {
+        toast({
+          title: "Enrichment failed",
+          description: payload?.error ?? "Unknown error from enrich service.",
+          variant: "destructive",
+        });
+        return;
+      }
+      for (const r of payload.results ?? []) {
+        if (!r.ok) fail += 1;
+        else if (!r.saved) miss += 1;
+        else ok += 1;
+      }
+      await reload();
       toast({
         title: "Enrichment finished",
         description: `${ok} updated · ${miss} not found · ${fail} failed`,
@@ -309,7 +281,7 @@ export default function InfluencesPage() {
     } finally {
       setBulkEnriching(false);
     }
-  }, [grouped, invokeEnrich, applyEnrichmentToRows]);
+  }, [grouped, reload]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;

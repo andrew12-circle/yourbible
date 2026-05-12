@@ -13,6 +13,7 @@ import {
   classifyBelief,
   saveClassifiedBelief,
   type BeliefClassification,
+  type BeliefInfluenceAttachment,
 } from "@/lib/framework/quickBelief";
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
   onSaved?: (beliefId: string) => void;
   initialText?: string;
   initialSource?: string;
+  /** When set (e.g. YouTube channel), a matching row is filed under Influences on save. */
+  influenceAttachment?: BeliefInfluenceAttachment | null;
 }
 
 const RELATION_TONE: Record<string, string> = {
@@ -29,7 +32,14 @@ const RELATION_TONE: Record<string, string> = {
   conflicts: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
 };
 
-export default function QuickBeliefDialog({ open, onOpenChange, onSaved, initialText, initialSource }: Props) {
+export default function QuickBeliefDialog({
+  open,
+  onOpenChange,
+  onSaved,
+  initialText,
+  initialSource,
+  influenceAttachment,
+}: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -90,8 +100,16 @@ export default function QuickBeliefDialog({ open, onOpenChange, onSaved, initial
         source: source.trim() || undefined,
         classification: result,
         userId: user.id,
+        influenceAttachment: influenceAttachment ?? undefined,
       });
-      toast({ title: "Belief added", description: `Filed under ${LAYER_META[result.layer].title}.` });
+      const layerTitle = LAYER_META[result.layer].title;
+      const infName = influenceAttachment?.label?.trim();
+      toast({
+        title: "Belief added",
+        description: infName
+          ? `Filed under ${layerTitle}. ${infName} was added to your Influences (Library).`
+          : `Filed under ${layerTitle}.`,
+      });
       onSaved?.(id);
       close();
     } catch (e: any) {

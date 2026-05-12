@@ -132,6 +132,8 @@ export async function buildFrameworkRetrievalContext(
   userId: string,
   chatId: string,
   userMessage: string,
+  /** Omit this journal row from "Recent journals" so in-progress chat bodies do not dominate context. */
+  excludeJournalEntryId?: string | null,
 ): Promise<RetrievedContextPack> {
   const tokens = tokenizeForSearch(userMessage);
 
@@ -157,14 +159,19 @@ export async function buildFrameworkRetrievalContext(
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(80),
-    supabase
-      .from("journal_entries")
-      .select("id, title, body, entry_at_ts")
-      .eq("user_id", userId)
-      // Vents are private — the AI must not see them.
-      .or("entry_kind.is.null,entry_kind.neq.vent")
-      .order("entry_at_ts", { ascending: false })
-      .limit(8),
+    (() => {
+      let q = supabase
+        .from("journal_entries")
+        .select("id, title, body, entry_at_ts")
+        .eq("user_id", userId)
+        // Vents are private — the AI must not see them.
+        .or("entry_kind.is.null,entry_kind.neq.vent")
+        .order("entry_at_ts", { ascending: false })
+        .limit(8);
+      const ex = excludeJournalEntryId?.trim();
+      if (ex) q = q.neq("id", ex);
+      return q;
+    })(),
     supabase
       .from("artifacts")
       .select("id, title, kind, metadata, created_at")

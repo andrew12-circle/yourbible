@@ -1,12 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
-  BookMarked,
   CheckCircle2,
   FileStack,
   FileText,
+  MessageCircle,
   MessageSquare,
   Mic,
+  NotebookPen,
   PenLine,
   Sparkles,
   Users,
@@ -20,8 +21,11 @@ const MS_DAY = 24 * 60 * 60 * 1000;
 const VERSION_WINDOW_MS = 7 * MS_DAY;
 export const CLUSTER_WINDOW_MS = 18 * 60 * 60 * 1000;
 
-const JOURNAL_AMBER = "#D97706";
-const INFLUENCE_INDIGO = "#6366F1";
+/** Default journal entries (manual / non-chat journals). */
+export const JOURNEY_JOURNAL_DEFAULT_COLOR = "#0D9488";
+/** Entries stored under a journal whose `source_kind` is `chat` (My AI conversation journal). */
+export const JOURNEY_JOURNAL_AI_COLOR = "#7C3AED";
+const INFLUENCE_INDIGO = "#4F46E5";
 const TENSION_OPEN_AMBER = "#F59E0B";
 const TENSION_RESOLVED_GREEN = "#22C55E";
 
@@ -107,6 +111,9 @@ export type JournalRow = {
   body: string;
   entry_at_ts: string | null;
   created_at: string;
+  journal_id?: string | null;
+  /** Joined client-side from `journals.source_kind` for the row’s `journal_id`. */
+  journalSourceKind?: string | null;
 };
 
 export type ArtifactRow = {
@@ -218,17 +225,19 @@ export function buildJourneyEvents(input: {
   for (const j of input.journals) {
     const t = journalTimestamp(j.entry_at_ts, j.created_at);
     const title = (j.title && j.title.trim()) || truncate(j.body.replace(/\s+/g, " "), 56);
+    const isAiChat = j.journalSourceKind === "chat";
     events.push({
       kind: "journal",
       id: `journal:${j.id}`,
       timestamp: t,
       title,
-      subtitle: "Journal entry",
-      color: JOURNAL_AMBER,
-      icon: BookMarked,
+      subtitle: isAiChat ? "AI chat journal" : "Journal entry",
+      color: isAiChat ? JOURNEY_JOURNAL_AI_COLOR : JOURNEY_JOURNAL_DEFAULT_COLOR,
+      icon: isAiChat ? MessageCircle : NotebookPen,
       link: `/journal/${j.id}`,
       category: "journal",
       entryId: j.id,
+      journalVariant: isAiChat ? "ai_chat" : "default",
     });
   }
 

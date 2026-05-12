@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle, NotebookPen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,6 +12,8 @@ import {
   buildJourneyEvents,
   clusterJourneyEvents,
   filterEventsByCategories,
+  JOURNEY_JOURNAL_AI_COLOR,
+  JOURNEY_JOURNAL_DEFAULT_COLOR,
   uniqueInfluenceCount,
   type ArtifactRow,
   type BeliefNodeRow,
@@ -74,7 +76,7 @@ export default function FaithJourneyPage() {
         supabase.from("belief_versions").select("id,belief_id,created_at,snapshot").eq("user_id", user.id),
         supabase
           .from("journal_entries")
-          .select("id,title,body,entry_at_ts,created_at")
+          .select("id,title,body,entry_at_ts,created_at,journal_id")
           .eq("user_id", user.id)
           .or("entry_kind.is.null,entry_kind.neq.vent"),
         supabase.from("artifacts").select("id,title,kind,status,created_at").eq("user_id", user.id),
@@ -90,9 +92,26 @@ export default function FaithJourneyPage() {
         setSources([]);
         setTensions([]);
       } else {
+        const rawEntries = (j as (JournalRow & { journal_id?: string | null })[]) ?? [];
+        const journalIds = [...new Set(rawEntries.map((e) => e.journal_id).filter(Boolean))] as string[];
+        let sourceByJournalId: Record<string, string> = {};
+        if (journalIds.length > 0) {
+          const { data: jrows } = await supabase
+            .from("journals")
+            .select("id,source_kind")
+            .eq("user_id", user.id)
+            .in("id", journalIds);
+          for (const row of jrows ?? []) {
+            if (row.id && typeof row.source_kind === "string") sourceByJournalId[row.id] = row.source_kind;
+          }
+        }
+        const mergedJournals: JournalRow[] = rawEntries.map((e) => ({
+          ...e,
+          journalSourceKind: e.journal_id ? sourceByJournalId[e.journal_id] ?? null : null,
+        }));
         setBeliefs((b as BeliefNodeRow[]) ?? []);
         setVersions((v as BeliefVersionRow[]) ?? []);
-        setJournals((j as JournalRow[]) ?? []);
+        setJournals(mergedJournals);
         setArtifacts((a as ArtifactRow[]) ?? []);
         setSources((s as BeliefSourceRow[]) ?? []);
         setTensions((t as BeliefTensionRow[]) ?? []);
@@ -227,6 +246,17 @@ export default function FaithJourneyPage() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5" title="Written in your journal">
+              <NotebookPen className="h-3.5 w-3.5 shrink-0" style={{ color: JOURNEY_JOURNAL_DEFAULT_COLOR }} aria-hidden />
+              <span>Journal</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5" title="Saved from a My AI conversation">
+              <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: JOURNEY_JOURNAL_AI_COLOR }} aria-hidden />
+              <span>AI chat journal</span>
+            </span>
           </div>
 
           {showFilteredEmpty ? (

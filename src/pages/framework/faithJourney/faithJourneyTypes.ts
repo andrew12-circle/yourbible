@@ -31,6 +31,8 @@ export type JourneyEventBeliefRefined = JourneyEventCommon & {
 export type JourneyEventJournal = JourneyEventCommon & {
   kind: "journal";
   entryId: string;
+  /** Distinct from handwritten journal when the entry lives in a chat-sourced journal (`journals.source_kind === "chat"`). */
+  journalVariant?: "default" | "ai_chat";
 };
 
 export type JourneyEventArtifact = JourneyEventCommon & {

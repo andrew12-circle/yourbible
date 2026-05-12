@@ -577,7 +577,7 @@
   font-weight: 600;
 }
 /* Scripture / serif still allowed inside the app for explicit opt-ins
-   (e.g. journal body, artifact previews) — but only when authors apply
+   (e.g. artifact previews, mirror detail) — only when authors apply
    .font-scripture or .font-serif directly. */
 .app-theme .font-scripture {
   font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;

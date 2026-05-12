@@ -9,10 +9,13 @@ import type { JourneyCluster, JourneyEvent } from "./faithJourneyTypes";
 import { paddedTimeRangeFromClusters } from "./faithJourneyBuild";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
+const MS_WEEK = MS_DAY * 7;
 const PAD_X = 56;
 const PAD_Y = 48;
 const NODE_R = 20;
 const BRANCH_CONTROL = 52;
+const MIN_TICK_LABEL_GAP_PX = 48;
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
 const dateFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -31,6 +34,92 @@ function monthStartsBetween(minMs: number, maxMs: number): Date[] {
     d.setUTCMonth(d.getUTCMonth() + 1);
   }
   return out;
+}
+
+/** Monday 00:00 UTC on or before `minMs`, then weekly through range. */
+function weekStartsUtc(minMs: number, maxMs: number): Date[] {
+  const out: Date[] = [];
+  const d = new Date(minMs);
+  d.setUTCHours(0, 0, 0, 0);
+  const dow = d.getUTCDay();
+  const toMonday = (dow + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - toMonday);
+  while (d.getTime() + MS_WEEK < minMs) {
+    d.setUTCDate(d.getUTCDate() + 7);
+  }
+  const end = maxMs + MS_WEEK;
+  while (d.getTime() <= end) {
+    out.push(new Date(d));
+    d.setUTCDate(d.getUTCDate() + 7);
+  }
+  return out;
+}
+
+type AxisKind = "month" | "week";
+
+type AxisCandidate = { t: number; kind: AxisKind };
+
+function buildAxisCandidates(tMin: number, tMax: number, pxPerMs: number): AxisCandidate[] {
+  const pxPerWeek = pxPerMs * MS_WEEK;
+  const months = monthStartsBetween(tMin, tMax).map((dt) => ({ t: dt.getTime(), kind: "month" as const }));
+  const weeks =
+    pxPerWeek >= 38 ? weekStartsUtc(tMin, tMax).map((dt) => ({ t: dt.getTime(), kind: "week" as const })) : [];
+
+  const all = [...months, ...weeks].sort((a, b) => a.t - b.t);
+  const dedup: AxisCandidate[] = [];
+  const CLOSE = MS_DAY * 0.85;
+  for (const c of all) {
+    const prev = dedup[dedup.length - 1];
+    if (prev && Math.abs(c.t - prev.t) < CLOSE) {
+      if (c.kind === "month") dedup[dedup.length - 1] = c;
+      continue;
+    }
+    dedup.push(c);
+  }
+  return dedup;
+}
+
+type LabeledAxisTick = { t: number; label: string; kind: AxisKind };
+
+function pickLabeledAxisTicks(
+  candidates: AxisCandidate[],
+  mapT: (t: number) => number,
+  minPos: number,
+  maxPos: number,
+): LabeledAxisTick[] {
+  let lastPos = -1e9;
+  let lastYearShown: number | null = null;
+  const out: LabeledAxisTick[] = [];
+  for (const c of candidates) {
+    const pos = mapT(c.t);
+    if (pos < minPos || pos > maxPos) continue;
+    if (pos - lastPos < MIN_TICK_LABEL_GAP_PX) continue;
+    const d = new Date(c.t);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    let label: string;
+    if (c.kind === "week") {
+      label = `${d.getUTCDate()} ${MONTH_SHORT[m]}`;
+      if (lastYearShown !== y) label = `${label} ${y}`;
+    } else if (lastYearShown !== y) {
+      label = `${MONTH_SHORT[m]} ${y}`;
+    } else {
+      label = MONTH_SHORT[m]!;
+    }
+    out.push({ t: c.t, label, kind: c.kind });
+    lastPos = pos;
+    lastYearShown = y;
+  }
+  return out;
+}
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  if (!hex.startsWith("#") || hex.length !== 7) return hex;
+  const r = Number.parseInt(hex.slice(1, 3), 16);
+  const g = Number.parseInt(hex.slice(3, 5), 16);
+  const b = Number.parseInt(hex.slice(5, 7), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 interface Props {
@@ -88,7 +177,7 @@ export default function FaithJourneyTimeline({
     const pxPerMs = basePxPerMs * zoomFactor;
     const totalW = PAD_X * 2 + span * pxPerMs;
     const spineY = 132;
-    return { mode: "horizontal" as const, pxPerMs, totalW, totalH: 268, spineY, tMin, tMax, span };
+    return { mode: "horizontal" as const, pxPerMs, totalW, totalH: 288, spineY, tMin, tMax, span };
   }, [vertical, viewport.w, viewport.h, span, tMin, tMax, zoomFactor]);
 
   useEffect(() => {
@@ -113,15 +202,29 @@ export default function FaithJourneyTimeline({
     [layout],
   );
 
-  const ticks = useMemo(() => {
-    const months = monthStartsBetween(tMin, tMax);
-    return months
-      .map((d) => ({ t: d.getTime(), y: d.getUTCFullYear(), m: d.getUTCMonth() }))
-      .filter((x) => x.t >= tMin && x.t <= tMax);
-  }, [tMin, tMax]);
-
-  const pxPerMonth = layout.pxPerMs * (MS_DAY * 30.4);
-  const showMonthTicks = pxPerMonth >= 28;
+  const axisLabeledTicks = useMemo(() => {
+    if (layout.mode === "horizontal") {
+      const { pxPerMs, tMin: rangeMin, totalW } = layout;
+      const candidates = buildAxisCandidates(rangeMin, tMax, pxPerMs);
+      return pickLabeledAxisTicks(
+        candidates,
+        (t) => PAD_X + (t - rangeMin) * pxPerMs,
+        PAD_X - 14,
+        totalW - PAD_X + 14,
+      );
+    }
+    if (layout.mode === "vertical") {
+      const { pxPerMs, tMin: rangeMin, totalH } = layout;
+      const candidates = buildAxisCandidates(rangeMin, tMax, pxPerMs);
+      return pickLabeledAxisTicks(
+        candidates,
+        (t) => PAD_Y + (t - rangeMin) * pxPerMs,
+        PAD_Y - 14,
+        totalH - PAD_Y + 14,
+      );
+    }
+    return [];
+  }, [layout, tMin, tMax]);
 
   return (
     <div className="space-y-3">
@@ -174,21 +277,9 @@ export default function FaithJourneyTimeline({
             aria-hidden
           >
             {layout.mode === "horizontal" ? (
-              <HorizontalSpineAndTicks
-                spineY={layout.spineY}
-                totalW={layout.totalW}
-                ticks={ticks}
-                timeToX={timeToX}
-                showMonthTicks={showMonthTicks}
-              />
+              <HorizontalSpineAndTicks spineY={layout.spineY} totalW={layout.totalW} ticks={axisLabeledTicks} timeToX={timeToX} />
             ) : (
-              <VerticalSpineAndTicks
-                spineX={layout.spineX}
-                totalH={layout.totalH}
-                ticks={ticks}
-                timeToY={timeToY}
-                showMonthTicks={showMonthTicks}
-              />
+              <VerticalSpineAndTicks spineX={layout.spineX} totalH={layout.totalH} ticks={axisLabeledTicks} timeToY={timeToY} />
             )}
           </svg>
 
@@ -200,16 +291,17 @@ export default function FaithJourneyTimeline({
               const nx = cx;
               const ny = side === "a" ? layout.spineY - BRANCH_CONTROL - NODE_R : layout.spineY + BRANCH_CONTROL + NODE_R;
               const pathD = sproutPathHorizontal(cx, layout.spineY, nx, ny);
+              const stroke = rgbaFromHex(cluster.events[0]!.color, 0.42);
               return (
                 <div key={cluster.id}>
                   <svg
-                    className="absolute inset-0 pointer-events-none text-muted-foreground/35"
+                    className="absolute inset-0 pointer-events-none"
                     width="100%"
                     height="100%"
                     viewBox={`0 0 ${layout.totalW} ${layout.totalH}`}
                     preserveAspectRatio="none"
                   >
-                    <path d={pathD} fill="none" stroke="currentColor" strokeWidth={1.25} vectorEffect="non-scaling-stroke" />
+                    <path d={pathD} fill="none" stroke={stroke} strokeWidth={1.35} vectorEffect="non-scaling-stroke" />
                   </svg>
                   <ClusterNode
                     cluster={cluster}
@@ -234,16 +326,17 @@ export default function FaithJourneyTimeline({
             const nx = side === "a" ? layout.spineX - BRANCH_CONTROL - NODE_R - 8 : layout.spineX + BRANCH_CONTROL + NODE_R + 8;
             const ny = cy;
             const pathD = sproutPathVertical(layout.spineX, cy, nx, ny);
+            const stroke = rgbaFromHex(cluster.events[0]!.color, 0.42);
             return (
               <div key={cluster.id}>
                 <svg
-                  className="absolute inset-0 pointer-events-none text-muted-foreground/35"
+                  className="absolute inset-0 pointer-events-none"
                   width="100%"
                   height="100%"
                   viewBox={`0 0 ${layout.totalW} ${layout.totalH}`}
                   preserveAspectRatio="none"
                 >
-                  <path d={pathD} fill="none" stroke="currentColor" strokeWidth={1.25} vectorEffect="non-scaling-stroke" />
+                  <path d={pathD} fill="none" stroke={stroke} strokeWidth={1.35} vectorEffect="non-scaling-stroke" />
                 </svg>
                 <ClusterNode
                   cluster={cluster}
@@ -285,13 +378,11 @@ function HorizontalSpineAndTicks({
   totalW,
   ticks,
   timeToX,
-  showMonthTicks,
 }: {
   spineY: number;
   totalW: number;
-  ticks: { t: number; y: number; m: number }[];
+  ticks: LabeledAxisTick[];
   timeToX: (t: number) => number;
-  showMonthTicks: boolean;
 }) {
   const d = `M ${PAD_X} ${spineY} Q ${totalW / 2} ${spineY + 6} ${totalW - PAD_X} ${spineY}`;
   return (
@@ -299,23 +390,22 @@ function HorizontalSpineAndTicks({
       <path d={d} fill="none" stroke="currentColor" strokeWidth={1.5} className="text-border/70" />
       {ticks.map((tk) => {
         const x = timeToX(tk.t);
-        if (!showMonthTicks && tk.m !== 0) return null;
-        const isYear = tk.m === 0;
-        const h = isYear ? 14 : 8;
+        const isMonth = tk.kind === "month";
+        const h = isMonth ? 12 : 7;
+        const fs = isMonth ? 11 : 10;
         return (
-          <g key={`${tk.t}`}>
-            <line x1={x} x2={x} y1={spineY} y2={spineY + h} stroke="currentColor" strokeWidth={isYear ? 1.5 : 1} />
-            {isYear && (
-              <text
-                x={x}
-                y={spineY + 28}
-                textAnchor="middle"
-                className="fill-foreground/85 text-[11px] font-semibold"
-                style={{ fontFamily: "ui-sans-serif, system-ui" }}
-              >
-                {tk.y}
-              </text>
-            )}
+          <g key={`${tk.t}-${tk.kind}`}>
+            <line x1={x} x2={x} y1={spineY} y2={spineY + h} stroke="currentColor" strokeWidth={isMonth ? 1.35 : 1} />
+            <text
+              x={x}
+              y={spineY + 26}
+              textAnchor="middle"
+              className="fill-foreground/80 font-medium"
+              style={{ fontFamily: "ui-sans-serif, system-ui", fontSize: fs }}
+              transform={`rotate(-10 ${x} ${spineY + 26})`}
+            >
+              {tk.label}
+            </text>
           </g>
         );
       })}
@@ -328,37 +418,34 @@ function VerticalSpineAndTicks({
   totalH,
   ticks,
   timeToY,
-  showMonthTicks,
 }: {
   spineX: number;
   totalH: number;
-  ticks: { t: number; y: number; m: number }[];
+  ticks: LabeledAxisTick[];
   timeToY: (t: number) => number;
-  showMonthTicks: boolean;
 }) {
   const d = `M ${spineX} ${PAD_Y} Q ${spineX + 5} ${totalH / 2} ${spineX} ${totalH - PAD_Y}`;
   return (
     <>
       <path d={d} fill="none" stroke="currentColor" strokeWidth={1.5} className="text-border/70" />
-      {ticks.map((tk) => {
+      {ticks.map((tk, i) => {
         const y = timeToY(tk.t);
-        if (!showMonthTicks && tk.m !== 0) return null;
-        const isYear = tk.m === 0;
-        const w = isYear ? 14 : 8;
+        const isMonth = tk.kind === "month";
+        const w = isMonth ? 12 : 7;
+        const fs = isMonth ? 11 : 10;
+        const stagger = i % 2 === 1 ? 10 : 0;
         return (
-          <g key={`${tk.t}`}>
-            <line x1={spineX - w} x2={spineX} y1={y} y2={y} stroke="currentColor" strokeWidth={isYear ? 1.5 : 1} />
-            {isYear && (
-              <text
-                x={spineX - 22}
-                y={y + 4}
-                textAnchor="end"
-                className="fill-foreground/85 text-[11px] font-semibold"
-                style={{ fontFamily: "ui-sans-serif, system-ui" }}
-              >
-                {tk.y}
-              </text>
-            )}
+          <g key={`${tk.t}-${tk.kind}`}>
+            <line x1={spineX - w} x2={spineX} y1={y} y2={y} stroke="currentColor" strokeWidth={isMonth ? 1.35 : 1} />
+            <text
+              x={spineX - w - 6}
+              y={y + 3 + stagger}
+              textAnchor="end"
+              className="fill-foreground/80 font-medium"
+              style={{ fontFamily: "ui-sans-serif, system-ui", fontSize: fs }}
+            >
+              {tk.label}
+            </text>
           </g>
         );
       })}
@@ -381,6 +468,13 @@ function ClusterNode({
   const Icon = primary.icon;
   const multi = cluster.events.length > 1;
   const label = multi && !expanded ? `${cluster.events.length} moments` : truncateLabel(primary.title, 22);
+  const ring = rgbaFromHex(primary.color, 0.38);
+  const ariaMoment =
+    primary.kind === "journal"
+      ? primary.journalVariant === "ai_chat"
+        ? "AI chat journal"
+        : "Journal"
+      : null;
 
   return (
     <div className="absolute z-10 flex flex-col items-center gap-1" style={style}>
@@ -389,16 +483,19 @@ function ClusterNode({
           <button
             type="button"
             className={cn(
-              "group relative flex h-[42px] w-[42px] items-center justify-center rounded-full border border-white/60 bg-background shadow-[0_4px_20px_rgba(0,0,0,0.08)] outline-none transition-transform duration-200 ease-out",
+              "group relative flex h-[42px] w-[42px] items-center justify-center rounded-full border-2 bg-background/95 shadow-[0_4px_20px_rgba(0,0,0,0.08)] outline-none backdrop-blur-[1px] transition-transform duration-200 ease-out",
               "hover:scale-[1.08] hover:shadow-[0_8px_28px_rgba(0,0,0,0.1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             )}
-            style={{ color: primary.color }}
+            style={{ color: primary.color, borderColor: ring, boxShadow: `0 0 0 1px ${rgbaFromHex(primary.color, 0.12)} inset` }}
             onClick={(e) => {
               if (!multi) return;
               e.preventDefault();
               onToggle();
             }}
             aria-expanded={multi ? expanded : undefined}
+            aria-label={
+              multi ? `${cluster.events.length} moments on the timeline` : `${primary.title}${ariaMoment ? `, ${ariaMoment}` : ""}`
+            }
           >
             <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
             {multi && (
@@ -412,15 +509,20 @@ function ClusterNode({
           <div className="space-y-3">
             {cluster.events.map((ev) => (
               <div key={ev.id} className="border-b border-border/40 pb-3 last:border-0 last:pb-0">
-                <div className="text-sm font-medium leading-snug text-foreground">{ev.title}</div>
-                {ev.subtitle && <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{ev.subtitle}</div>}
-                <div className="mt-1 text-[11px] text-muted-foreground tabular-nums">{formatEventDate(ev.timestamp)}</div>
-                <Link
-                  to={ev.link}
-                  className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Open
-                </Link>
+                <div className="flex gap-2">
+                  <span className="mt-1 h-8 w-0.5 shrink-0 rounded-full" style={{ backgroundColor: ev.color }} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium leading-snug text-foreground">{ev.title}</div>
+                    {ev.subtitle && <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{ev.subtitle}</div>}
+                    <div className="mt-1 text-[11px] text-muted-foreground tabular-nums">{formatEventDate(ev.timestamp)}</div>
+                    <Link
+                      to={ev.link}
+                      className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Open
+                    </Link>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -442,10 +544,13 @@ function ExpandedStack({ events, style }: { events: JourneyEvent[]; style: CSSPr
           <li key={ev.id}>
             <Link
               to={ev.link}
-              className="block rounded-lg px-2 py-1.5 text-left text-[11px] text-foreground transition-colors hover:bg-muted/60"
+              className="flex gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] text-foreground transition-colors hover:bg-muted/60"
             >
-              <span className="line-clamp-2 font-medium">{ev.title}</span>
-              <span className="mt-0.5 block text-[10px] text-muted-foreground tabular-nums">{formatEventDate(ev.timestamp)}</span>
+              <span className="mt-0.5 h-6 w-0.5 shrink-0 rounded-full" style={{ backgroundColor: ev.color }} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 font-medium">{ev.title}</span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground tabular-nums">{formatEventDate(ev.timestamp)}</span>
+              </span>
             </Link>
           </li>
         ))}

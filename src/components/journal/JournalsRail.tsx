@@ -71,6 +71,13 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           accent="142 71% 45%"
         />
         <RailItem
+          to="/journal/chat"
+          icon={<MessageCircle className="w-4 h-4" />}
+          label="Chat journal"
+          active={pathname.startsWith("/journal/chat")}
+          accent="172 66% 40%"
+        />
+        <RailItem
           to="/framework/chat"
           icon={<MessageCircle className="w-4 h-4" />}
           label="Daily Chat"

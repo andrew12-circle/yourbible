@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
   Heading1, List as ListIcon, ListOrdered, CheckSquare, Quote,
-  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin,
+  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,9 @@ import { TagInput } from "./TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import SketchPad from "@/components/journal/SketchPad";
 
 interface EntryRow {
   id: string;
@@ -62,6 +65,10 @@ export default function EntryEditorPane({
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entryRef = useRef<EntryRow | null>(null);
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const [dictInterim, setDictInterim] = useState("");
+  const [sketchOpen, setSketchOpen] = useState(false);
 
   // Load entry
   useEffect(() => {
@@ -84,19 +91,31 @@ export default function EntryEditorPane({
     })();
   }, [entryId]);
 
+  useEffect(() => {
+    return () => dictateRef.current?.stop();
+  }, []);
+
+  useEffect(() => {
+    dictateRef.current?.stop();
+    setDictInterim("");
+  }, [entryId]);
+
   const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
 
   // Autosave on entry mutation
   const queueSave = (patch: Partial<EntryRow>) => {
-    if (!entry) return;
-    setEntry({ ...entry, ...patch });
+    const cur = entryRef.current;
+    if (!cur) return;
+    const merged = { ...cur, ...patch };
+    entryRef.current = merged;
+    setEntry(merged);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setSaving(true);
       const { error } = await supabase
         .from("journal_entries")
         .update(patch)
-        .eq("id", entry.id)
+        .eq("id", merged.id)
         .eq("user_id", user.id);
       setSaving(false);
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
@@ -107,10 +126,11 @@ export default function EntryEditorPane({
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
     const ta = bodyRef.current;
-    if (!ta || !entry) return;
+    const cur = entryRef.current;
+    if (!ta || !cur) return;
     const start = ta.selectionStart, end = ta.selectionEnd;
-    const sel = entry.body.slice(start, end) || placeholder;
-    const next = entry.body.slice(0, start) + before + sel + after + entry.body.slice(end);
+    const sel = cur.body.slice(start, end) || placeholder;
+    const next = cur.body.slice(0, start) + before + sel + after + cur.body.slice(end);
     queueSave({ body: next });
     requestAnimationFrame(() => {
       ta.focus();
@@ -148,6 +168,7 @@ export default function EntryEditorPane({
 
   const remove = async () => {
     if (!entry) return;
+    dictateRef.current?.stop();
     if (!confirm("Delete this entry permanently?")) return;
     await supabase.from("journal_entries").delete().eq("id", entry.id).eq("user_id", user.id);
     onDeleted();
@@ -160,6 +181,7 @@ export default function EntryEditorPane({
 
   const scoreNow = async () => {
     if (!entry) return;
+    dictateRef.current?.stop();
     if (entry.entry_kind === "vent") {
       toast({ title: "Vents aren't analyzed", description: "This entry is private — the mirror stays away from it." });
       return;
@@ -180,6 +202,7 @@ export default function EntryEditorPane({
   };
 
   if (!entry) {
+    entryRef.current = null;
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
         <NotebookText className="w-12 h-12 text-muted-foreground/40 mb-3" />
@@ -194,6 +217,8 @@ export default function EntryEditorPane({
       </div>
     );
   }
+
+  entryRef.current = entry;
 
   const dt = new Date(entry.entry_at_ts);
   const dateLabel = dt.toLocaleString(undefined, {
@@ -228,6 +253,11 @@ export default function EntryEditorPane({
             <DropdownMenuItem onClick={() => navigate(`/journal/${entry.id}/edit`)}>
               Open in full editor
             </DropdownMenuItem>
+            {entry.entry_kind === "chat" && (
+              <DropdownMenuItem onClick={() => navigate(`/journal/chat/${entry.id}`)}>
+                Open chat session
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={remove} className="text-destructive">
               <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -262,7 +292,20 @@ export default function EntryEditorPane({
         <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>
           <Paperclip className="w-4 h-4" />
         </TBtn>
+        <TBtn title="Sketch" onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}>
+          <PenLine className="w-4 h-4" />
+        </TBtn>
         <TBtn title="Tags" onClick={() => setShowMeta(true)}><Tag className="w-4 h-4" /></TBtn>
+        <DictateButton
+          ref={dictateRef}
+          size="sm"
+          onAppend={(chunk) => {
+            const cur = entryRef.current;
+            if (!cur) return;
+            queueSave({ body: mergeDictatedText(cur.body, chunk) });
+          }}
+          onInterim={setDictInterim}
+        />
         <TBtn title="AI score" onClick={scoreNow}>
           {scoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
         </TBtn>
@@ -302,13 +345,22 @@ export default function EntryEditorPane({
             </div>
           )}
 
+          {/* Sans: match .app-theme journal shell (FloatingJournalPanel uses font-sans). */}
           <Textarea
             ref={bodyRef}
             value={entry.body}
             onChange={(e) => queueSave({ body: e.target.value })}
             placeholder="What happened today? What are you carrying?"
-            className="min-h-[60vh] border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-serif text-[16px] leading-relaxed"
+            className="min-h-[60vh] border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed"
           />
+          {dictInterim.trim() ? (
+            <p
+              className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+              aria-live="polite"
+            >
+              {dictInterim}
+            </p>
+          ) : null}
 
           {showMeta && (
             <div className="mt-6 space-y-4 pt-4 border-t border-border/40">
@@ -351,6 +403,17 @@ export default function EntryEditorPane({
           )}
         </div>
       </div>
+
+      <SketchPad
+        open={sketchOpen}
+        onClose={() => setSketchOpen(false)}
+        onSave={async (file) => {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          await onPickPhotos(dt.files);
+        }}
+        filename={`sketch-${entry.id}`}
+      />
 
       {/* Footer strip */}
       <footer className="flex items-center gap-3 px-4 h-9 border-t border-border/60 text-[12px] text-muted-foreground flex-shrink-0">

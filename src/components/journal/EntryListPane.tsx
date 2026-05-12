@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw } from "lucide-react";
+import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ export default function EntryListPane({
 }: {
   journalId: string | null;
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, entryKind?: string | null) => void;
   onNew: () => void;
   reloadKey?: number;
   /** When set, only entries of this faith-journal kind (still respects journalId when set). */
@@ -184,7 +184,7 @@ export default function EntryListPane({
                         e={e}
                         active={selectedId === e.id}
                         photoUrl={photoUrls[e.id]}
-                        onClick={() => onSelect(e.id)}
+                        onClick={() => onSelect(e.id, e.entry_kind)}
                       />
                     </li>
                   ))}
@@ -253,6 +253,7 @@ function EntryRow({
   const mood = e.mood !== null ? moodMeta(e.mood) : null;
   const tempStr = e.weather_temp_c != null ? formatTemp(e.weather_temp_c) : null;
   const faithKind = coerceJournalEntryKind(e.entry_kind);
+  const isChat = e.entry_kind === "chat";
 
   return (
     <button
@@ -262,7 +263,7 @@ function EntryRow({
       }`}
     >
       <div className={`flex-shrink-0 w-10 text-center pt-0.5 ${active ? "text-primary-foreground" : ""}`}>
-        <div className={`text-[10px] font-semibold tracking-[0.12em] ${active ? "opacity-90" : "text-muted-foreground/80"}`}>
+        <div className={`text-[10px] font-semibold tracking-[0.12em] ${active ? "opacity-90" : "text-red-500"}`}>
           {dow}
         </div>
         <div className="text-[22px] font-semibold leading-none tracking-tight mt-0.5 tabular-nums">
@@ -276,6 +277,12 @@ function EntryRow({
             {e.title || firstLine(e.body) || <span className={`italic font-normal ${active ? "" : "text-muted-foreground"}`}>No title</span>}
           </h3>
           {e.analyze_for_mirror && <Sparkles className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-violet-500"}`} />}
+          {isChat && (
+            <MessageCircle
+              className={`w-3.5 h-3.5 mt-1 flex-shrink-0 ${active ? "text-primary-foreground" : "text-teal-600 dark:text-teal-400"}`}
+              aria-hidden
+            />
+          )}
           {faithKind && (
             <span
               className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${

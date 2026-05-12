@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2, RefreshCw, FileText, Youtube, ArrowRight, Quote, ExternalLink, Bookmark, StickyNote, Sparkles, NotebookPen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
+import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
@@ -579,6 +581,22 @@ export default function ArtifactDetailPage() {
   };
 
   const artifactMetadata = (a.metadata ?? {}) as ArtifactMetadata;
+  const mergedVideoMeta: ArtifactMetadata = { ...artifactMetadata, ...(liveMeta ?? {}) };
+  const quickBeliefInfluence: BeliefInfluenceAttachment | null =
+    a.kind === "youtube" && mergedVideoMeta.channel_title?.trim()
+      ? {
+          source_type: "podcast",
+          label: mergedVideoMeta.channel_title.trim().slice(0, 200),
+          artifact_id: a.id,
+          metadata: {
+            influence_origin: "youtube_belief_capture",
+            ...(mergedVideoMeta.channel_url ? { channel_url: mergedVideoMeta.channel_url } : {}),
+            ...(mergedVideoMeta.thumbnail_url ? { thumbnail_url: mergedVideoMeta.thumbnail_url } : {}),
+            provider_name: mergedVideoMeta.provider_name ?? "YouTube",
+            ...(a.title ? { artifact_title: a.title } : {}),
+          } as Json,
+        }
+      : null;
   const claimsDigest = claims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
   const canCaptureMoments = !!embedUrl && playerReady && !playerFailed;
 
@@ -1152,6 +1170,7 @@ export default function ArtifactDetailPage() {
         onOpenChange={setQuickBeliefOpen}
         initialText={quickBeliefText}
         initialSource={quickBeliefSource}
+        influenceAttachment={quickBeliefInfluence}
       />
 
     </FrameworkLayout>

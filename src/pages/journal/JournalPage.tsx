@@ -86,10 +86,12 @@ export default function JournalPage() {
               journalId={journalId}
               selectedId={entryId}
               reloadKey={reloadKey}
-              onSelect={(id) =>
-                journalId
-                  ? navigate(`/journal/j/${journalId}/e/${id}`)
-                  : navigate(`/journal/e/${id}`)
+              onSelect={(id, kind) =>
+                kind === "chat"
+                  ? navigate(`/journal/chat/${id}`)
+                  : journalId
+                    ? navigate(`/journal/j/${journalId}/e/${id}`)
+                    : navigate(`/journal/e/${id}`)
               }
               onNew={createNew}
             />

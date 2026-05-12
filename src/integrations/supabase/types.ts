@@ -556,6 +556,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          journal_entry_id: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -563,6 +564,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          journal_entry_id?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -570,11 +572,20 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          journal_entry_id?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: true
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       my_ai_messages: {
         Row: {

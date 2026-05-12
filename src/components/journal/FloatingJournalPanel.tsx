@@ -10,6 +10,8 @@ import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 
 const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
 
@@ -73,6 +75,8 @@ export default function FloatingJournalPanel({
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftDebounceRef = useRef<number | null>(null);
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const [dictInterim, setDictInterim] = useState("");
   const geomRef = useRef<PanelPersist>({
     x: 0,
     y: 0,
@@ -405,6 +409,7 @@ export default function FloatingJournalPanel({
       toast({ title: "Write something first", variant: "destructive" });
       return;
     }
+    dictateRef.current?.stop();
     setSaving(true);
     try {
       const journalId = await getDefaultJournalId(userId);
@@ -577,6 +582,15 @@ export default function FloatingJournalPanel({
               placeholder="Title (optional)"
               className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
             />
+            <div className="mb-2 flex shrink-0 items-center justify-end">
+              <DictateButton
+                ref={dictateRef}
+                size="sm"
+                className="text-foreground hover:text-foreground dark:text-foreground dark:hover:text-foreground"
+                onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+                onInterim={setDictInterim}
+              />
+            </div>
             <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
               {/* Ruled lines (~1.65em) — light mode only, very subtle */}
               <div
@@ -597,6 +611,14 @@ export default function FloatingJournalPanel({
                 className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-sans text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
                 rows={4}
               />
+              {dictInterim.trim() ? (
+                <p
+                  className="relative z-[1] px-3 pb-2 text-xs italic leading-relaxed text-muted-foreground/80"
+                  aria-live="polite"
+                >
+                  {dictInterim}
+                </p>
+              ) : null}
             </div>
             <div className="mt-3 flex shrink-0 gap-2 border-t border-border pt-3 dark:border-neutral-800">
               <Button type="button" className="flex-1" onClick={saveEntry} disabled={saving}>

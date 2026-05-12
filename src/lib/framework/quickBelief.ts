@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface BeliefClassification {
   layer: "foundations" | "life" | "mechanics" | "emotional";
@@ -19,16 +20,26 @@ export async function classifyBelief(rawText: string, source?: string) {
   return (data as any).classification as BeliefClassification;
 }
 
+/** Optional row filed under Influences (grouped `belief_sources` by type + label). */
+export interface BeliefInfluenceAttachment {
+  source_type: string;
+  label: string;
+  artifact_id?: string | null;
+  metadata?: Json;
+}
+
 export interface SaveBeliefOptions {
   rawText: string;
   source?: string;
   classification: BeliefClassification;
   userId: string;
+  /** e.g. YouTube channel when capturing a belief from a video / podcast episode */
+  influenceAttachment?: BeliefInfluenceAttachment | null;
 }
 
 /** Saves the belief, sources, links and tensions. Returns the new belief id. */
 export async function saveClassifiedBelief(opts: SaveBeliefOptions): Promise<string> {
-  const { rawText, source, classification: c, userId } = opts;
+  const { rawText, source, classification: c, userId, influenceAttachment } = opts;
 
   const { data: inserted, error: insErr } = await supabase
     .from("belief_nodes")
@@ -54,6 +65,23 @@ export async function saveClassifiedBelief(opts: SaveBeliefOptions): Promise<str
       source_type: "quick_capture",
       label: source.trim().slice(0, 200),
     });
+  }
+
+  if (influenceAttachment?.label?.trim()) {
+    const label = influenceAttachment.label.trim().slice(0, 200);
+    const st = (influenceAttachment.source_type ?? "podcast").trim().slice(0, 64) || "podcast";
+    const { error: infErr } = await supabase.from("belief_sources").insert({
+      user_id: userId,
+      belief_id: beliefId,
+      source_type: st,
+      label,
+      artifact_id: influenceAttachment.artifact_id ?? null,
+      metadata: (influenceAttachment.metadata ?? {}) as Json,
+    });
+    if (infErr) {
+      await supabase.from("belief_nodes").delete().eq("id", beliefId).eq("user_id", userId);
+      throw infErr;
+    }
   }
 
   const linkRows = c.related

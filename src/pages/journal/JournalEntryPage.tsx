@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -24,6 +24,7 @@ interface Entry {
   analyze_for_mirror: boolean;
   lat: number | null;
   lng: number | null;
+  entry_kind?: string | null;
 }
 interface Score {
   axes: Record<string, number>;
@@ -128,6 +129,16 @@ export default function JournalEntryPage() {
         )}
       </div>
 
+      {entry.entry_kind === "chat" && (
+        <Link
+          to={`/journal/chat/${entry.id}`}
+          className="mb-4 inline-flex items-center gap-2 rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-sm font-medium text-teal-800 dark:text-teal-200 hover:bg-teal-500/15"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Resume or continue this chat journal
+        </Link>
+      )}
+
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
 
       {photos.length > 0 && (
@@ -140,7 +151,8 @@ export default function JournalEntryPage() {
         </div>
       )}
 
-      <div className="font-serif text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
+      {/* Sans: match journal editors under .app-theme (Cormorant reserved for explicit scripture opt-in). */}
+      <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
         {entry.body || <span className="italic text-muted-foreground">No body</span>}
       </div>
 
