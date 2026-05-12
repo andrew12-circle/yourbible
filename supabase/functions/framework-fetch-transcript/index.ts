@@ -1,6 +1,7 @@
-// Fetches a YouTube transcript using Lovable AI (Gemini), then triggers framework-analyze.
-// Gemini natively understands YouTube URLs, which is far more reliable than scraping
-// captions (YouTube now blocks server-side caption fetching with PoToken requirements).
+// Fetches a YouTube transcript, then triggers framework-analyze.
+// Prefer real YouTube caption tracks. Gemini video transcription is only a
+// fallback for shorter videos because long videos can exceed Gemini's 1M-token
+// input window even when clipped with videoMetadata.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -18,17 +19,58 @@ function isYouTubeUrl(url: string): boolean {
 }
 
 const MODEL = "gemini-2.5-flash";
-const SEGMENT_SECONDS = 20 * 60;
-const MAX_SEGMENTS = 12;
+const GEMINI_VIDEO_MAX_SECONDS = 45 * 60;
 
 function decodeHtml(input: string): string {
   return input
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(Number.parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number.parseInt(n, 10)))
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .trim();
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") return u.pathname.split("/").filter(Boolean)[0] ?? null;
+    if (u.hostname.endsWith("youtube.com")) return u.searchParams.get("v") || u.pathname.match(/\/shorts\/([^/?#]+)/)?.[1] || null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function parseJsonObjectFromHtml(html: string, marker: string): unknown | null {
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex === -1) return null;
+  const start = html.indexOf("{", markerIndex);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < html.length; i += 1) {
+    const ch = html[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try { return JSON.parse(html.slice(start, i + 1)); } catch { return null; }
+      }
+    }
+  }
+  return null;
 }
 
 async function getYouTubeMetadata(url: string): Promise<{ title?: string; durationSeconds?: number }> {
