@@ -1067,88 +1067,10 @@ export type Database = {
         }
         Relationships: []
       }
-      life_priorities: {
-        Row: {
-          archived_at: string | null
-          color: string | null
-          daily_target_minutes: number
-          id: string
-          intention: string | null
-          key: string
-          label: string
-          rank: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          color?: string | null
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key: string
-          label: string
-          rank: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          color?: string | null
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key?: string
-          label?: string
-          rank?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      life_priority_logs: {
-        Row: {
-          created_at: string
-          id: string
-          log_date: string
-          minutes: number
-          note: string | null
-          priority_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          log_date: string
-          minutes?: number
-          note?: string | null
-          priority_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          log_date?: string
-          minutes?: number
-          note?: string | null
-          priority_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "life_priority_logs_priority_id_fkey"
-            columns: ["priority_id"]
-            isOneToOne: false
-            referencedRelation: "life_priorities"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       my_ai_chats: {
         Row: {
           created_at: string
           id: string
-          journal_entry_id: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -1156,7 +1078,6 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          journal_entry_id?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -1164,20 +1085,11 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          journal_entry_id?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
-            columns: ["journal_entry_id"]
-            isOneToOne: true
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       my_ai_messages: {
         Row: {
@@ -1467,7 +1379,6 @@ export type Database = {
         Row: {
           cover: string
           created_at: string
-          date_of_birth: string | null
           display_name: string | null
           font_choice: string
           highlight_palette: string
@@ -1483,7 +1394,6 @@ export type Database = {
         Insert: {
           cover?: string
           created_at?: string
-          date_of_birth?: string | null
           display_name?: string | null
           font_choice?: string
           highlight_palette?: string
@@ -1499,7 +1409,6 @@ export type Database = {
         Update: {
           cover?: string
           created_at?: string
-          date_of_birth?: string | null
           display_name?: string | null
           font_choice?: string
           highlight_palette?: string
@@ -1649,10 +1558,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
-      }
-      ensure_default_life_priorities: {
-        Args: Record<string, never>
-        Returns: undefined
       }
       partner_peer_displays: {
         Args: never
