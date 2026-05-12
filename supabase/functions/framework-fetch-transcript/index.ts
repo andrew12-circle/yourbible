@@ -72,20 +72,29 @@ function parseGeminiTranscript(content: string): { text: string; title?: string 
 async function transcribeWithGemini(
   url: string,
   apiKey: string,
+  options: { startSeconds?: number; endSeconds?: number; segmentLabel?: string } = {},
 ): Promise<{ text: string; title?: string }> {
-  const prompt = `You are given a YouTube video. Transcribe the spoken English content verbatim.
+  const isSegment = options.startSeconds !== undefined && options.endSeconds !== undefined;
+  const prompt = `You are given ${isSegment ? `one clipped segment (${options.segmentLabel}) of ` : ""}a YouTube video. Transcribe the spoken English content verbatim.
 Rules:
 - Return ONLY a JSON object with this exact shape: {"title": string, "transcript": string}
 - "title" is the video's title (or your best inference if none).
 - "transcript" is the complete spoken transcript, no timestamps, no speaker labels unless clearly distinct.
+- Do not describe visuals, comments, recommendations, or metadata.
 - Preserve sentence punctuation. Do not summarize.
 Video URL: ${url}`;
 
   // Use the native Gemini API — the OpenAI-compatible endpoint does NOT fetch
   // YouTube URLs and will hallucinate a transcript from the URL alone.
-  const model = "gemini-2.5-flash";
+  const filePart: Record<string, unknown> = { file_data: { file_uri: url, mime_type: "video/*" } };
+  if (isSegment) {
+    filePart.videoMetadata = {
+      startOffset: `${options.startSeconds}s`,
+      endOffset: `${options.endSeconds}s`,
+    };
+  }
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,7 +103,7 @@ Video URL: ${url}`;
           {
             role: "user",
             parts: [
-              { file_data: { file_uri: url } },
+              filePart,
               { text: prompt },
             ],
           },
@@ -123,25 +132,7 @@ Video URL: ${url}`;
     .trim();
   if (!content) throw new Error("Empty response from transcription model.");
 
-  // Try strict JSON, then fall back to extracting the first JSON object.
-  let parsed: { title?: string; transcript?: string } | null = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const m = content.match(/\{[\s\S]*\}/);
-    if (m) {
-      try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
-    }
-  }
-  const transcript = (parsed?.transcript ?? "").trim();
-  const title = parsed?.title?.trim() || undefined;
-  if (!transcript) {
-    // If the model just gave plain text, treat it as transcript.
-    const fallback = content.trim();
-    if (fallback.length > 40) return { text: fallback, title };
-    throw new Error("Model returned no transcript. The video may be private, age-restricted, or have no spoken English.");
-  }
-  return { text: transcript, title };
+  return parseGeminiTranscript(content);
 }
 
 Deno.serve(async (req) => {
