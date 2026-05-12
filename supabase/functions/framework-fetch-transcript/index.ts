@@ -166,30 +166,16 @@ function formatTime(seconds: number): string {
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
-async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ text: string; title?: string }> {
+async function transcribeYouTubeVideo(url: string): Promise<{ text: string; title?: string }> {
   const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
-  const durationSeconds = metadata.durationSeconds;
 
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
     return { text: captionResult.text, title: captionResult.title ?? metadata.title };
   }
 
-  if (!durationSeconds || durationSeconds <= GEMINI_VIDEO_MAX_SECONDS) {
-    try {
-      const result = await transcribeWithGemini(url, apiKey);
-      return { text: result.text, title: result.title ?? metadata.title };
-    } catch (e) {
-      const message = String((e as Error).message ?? e);
-      if (!message.includes("input token count exceeds") || !durationSeconds) throw e;
-    }
-  }
-
-  if (!durationSeconds) {
-    throw new Error("Captions were unavailable, and the video was too large for Gemini to transcribe safely.");
-  }
-
-  throw new Error(`Captions were unavailable, and this video is too long for Gemini to transcribe safely (${formatTime(durationSeconds)}).`);
+  const suffix = metadata.durationSeconds ? ` (${formatTime(metadata.durationSeconds)})` : "";
+  throw new Error(`No YouTube caption track was available for this video${suffix}. Paste the transcript manually.`);
 }
 
 Deno.serve(async (req) => {
@@ -198,7 +184,6 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
       global: { headers: { Authorization: auth } },
@@ -235,19 +220,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!GEMINI_API_KEY) {
-      const msg = "Gemini API key not configured. Paste the transcript manually.";
-      await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
-      return new Response(JSON.stringify({ error: msg }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     let result: { text: string; title?: string };
     try {
-      result = await transcribeYouTubeVideo(url, GEMINI_API_KEY);
+      result = await transcribeYouTubeVideo(url);
     } catch (e) {
-      const msg = `Could not transcribe video: ${String((e as Error).message ?? e)}. Paste the transcript manually.`;
+      const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
       await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: msg }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
