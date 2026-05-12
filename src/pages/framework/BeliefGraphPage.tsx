@@ -102,6 +102,10 @@ type GraphNode = {
   updatedAt?: string;
   confidence?: number;
   matchedBeliefGraphId?: string;
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
 };
 type GraphLink = {
   source: string;
