@@ -296,44 +296,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    let result: { text: string; title?: string };
-    try {
-      result = await transcribeYouTubeVideo(url);
-    } catch (e) {
-      const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
-      await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
-      return new Response(JSON.stringify({ error: msg }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const processTranscript = async () => {
+      try {
+        const result = await transcribeYouTubeVideo(url);
+        const { data: updated } = await supabase
+          .from("artifacts")
+          .update({
+            raw_text: result.text,
+            title: result.title ?? null,
+            status: "analyzing",
+            error: null,
+          })
+          .eq("id", artifact_id)
+          .eq("processing_token", processing_token)
+          .select("id")
+          .maybeSingle();
 
-    const { data: updated } = await supabase
-      .from("artifacts")
-      .update({
-        raw_text: result.text,
-        title: result.title ?? null,
-        status: "analyzing",
-        error: null,
-      })
-      .eq("id", artifact_id)
-      .eq("processing_token", processing_token)
-      .select("id")
-      .maybeSingle();
+        if (!updated) return;
 
-    if (!updated) {
-      return new Response(JSON.stringify({ ok: true, stale: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+        await fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
+          method: "POST",
+          headers: { Authorization: auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ artifact_id, processing_token }),
+        }).catch((e) => console.error("analyze kick err", e));
+      } catch (e) {
+        const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
+        console.error(msg);
+        await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+      }
+    };
 
-    // Kick off analyze
-    fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ artifact_id, processing_token }),
-    }).catch((e) => console.error("analyze kick err", e));
+    const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+    edgeRuntime?.waitUntil?.(processTranscript());
 
-    return new Response(JSON.stringify({ ok: true, length: result.text.length }), {
+    return new Response(JSON.stringify({ ok: true, queued: true }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
