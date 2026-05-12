@@ -113,12 +113,57 @@ export type Database = {
           },
         ]
       }
+      artifact_moments: {
+        Row: {
+          artifact_id: string
+          body: string | null
+          created_at: string
+          end_seconds: number | null
+          id: string
+          kind: string
+          label: string | null
+          start_seconds: number
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          body?: string | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          kind: string
+          label?: string | null
+          start_seconds: number
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          body?: string | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          kind?: string
+          label?: string | null
+          start_seconds?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_moments_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifacts: {
         Row: {
           created_at: string
           error: string | null
           id: string
           kind: string
+          metadata: Json
           processing_token: string | null
           raw_text: string
           status: string
@@ -132,6 +177,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind: string
+          metadata?: Json
           processing_token?: string | null
           raw_text: string
           status?: string
@@ -145,6 +191,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind?: string
+          metadata?: Json
           processing_token?: string | null
           raw_text?: string
           status?: string
@@ -283,28 +330,34 @@ export type Database = {
       belief_sources: {
         Row: {
           artifact_id: string | null
+          avatar_url: string | null
           belief_id: string
           created_at: string
           id: string
           label: string
+          metadata: Json
           source_type: string
           user_id: string
         }
         Insert: {
           artifact_id?: string | null
+          avatar_url?: string | null
           belief_id: string
           created_at?: string
           id?: string
           label: string
+          metadata?: Json
           source_type: string
           user_id: string
         }
         Update: {
           artifact_id?: string | null
+          avatar_url?: string | null
           belief_id?: string
           created_at?: string
           id?: string
           label?: string
+          metadata?: Json
           source_type?: string
           user_id?: string
         }
@@ -1330,6 +1383,8 @@ export type Database = {
           font_choice: string
           highlight_palette: string
           id: string
+          identity_generated_at: string | null
+          identity_summary: Json | null
           layout: string
           onboarded: boolean
           page_tone: string
@@ -1343,6 +1398,8 @@ export type Database = {
           font_choice?: string
           highlight_palette?: string
           id?: string
+          identity_generated_at?: string | null
+          identity_summary?: Json | null
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -1356,6 +1413,8 @@ export type Database = {
           font_choice?: string
           highlight_palette?: string
           id?: string
+          identity_generated_at?: string | null
+          identity_summary?: Json | null
           layout?: string
           onboarded?: boolean
           page_tone?: string
