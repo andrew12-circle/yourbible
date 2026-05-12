@@ -170,6 +170,78 @@ function formatTime(seconds: number): string {
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function cleanGeminiTranscript(text: string): string {
+  return text
+    .replace(/^```(?:text)?/i, "")
+    .replace(/```$/i, "")
+    .replace(/\[(?:music|applause|laughter|silence|inaudible)[^\]]*\]/gi, " ")
+    .replace(/\((?:music|applause|laughter|silence|inaudible)[^)]*\)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function transcribeYouTubeSegment(url: string, startSeconds: number, endSeconds: number): Promise<string> {
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": GEMINI_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `Transcribe only the spoken words from ${formatTime(startSeconds)} to ${formatTime(endSeconds)} of this YouTube video. Return transcript text only. Do not summarize, invent, or add commentary.`,
+            },
+            {
+              file_data: { mime_type: "video/mp4", file_uri: url },
+              video_metadata: {
+                start_offset: { seconds: startSeconds },
+                end_offset: { seconds: endSeconds },
+                fps: 0.1,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 8192,
+        mediaResolution: "MEDIA_RESOLUTION_LOW",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Gemini segment ${formatTime(startSeconds)}-${formatTime(endSeconds)} failed: ${response.status} ${errorBody}`);
+  }
+
+  const json = await response.json();
+  const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join(" ") ?? "";
+  return cleanGeminiTranscript(text);
+}
+
+async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: number): Promise<string> {
+  const totalSeconds = Math.min(durationSeconds || GEMINI_SEGMENT_SECONDS, GEMINI_MAX_DURATION_SECONDS);
+  const segments: string[] = [];
+
+  for (let start = 0; start < totalSeconds; start += GEMINI_SEGMENT_SECONDS) {
+    const end = Math.min(start + GEMINI_SEGMENT_SECONDS, totalSeconds);
+    const segmentText = await transcribeYouTubeSegment(url, start, end);
+    if (segmentText) segments.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
+  }
+
+  const transcript = segments.join("\n\n").trim();
+  if (!transcript) throw new Error("Gemini returned an empty transcript for this video. Paste the transcript manually.");
+  return transcript;
+}
+
 async function transcribeYouTubeVideo(url: string): Promise<{ text: string; title?: string }> {
   const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
 
@@ -178,8 +250,8 @@ async function transcribeYouTubeVideo(url: string): Promise<{ text: string; titl
     return { text: captionResult.text, title: captionResult.title ?? metadata.title };
   }
 
-  const suffix = metadata.durationSeconds ? ` (${formatTime(metadata.durationSeconds)})` : "";
-  throw new Error(`No YouTube caption track was available for this video${suffix}. Paste the transcript manually.`);
+  const text = await transcribeYouTubeWithGeminiClips(url, metadata.durationSeconds);
+  return { text, title: metadata.title };
 }
 
 Deno.serve(async (req) => {
