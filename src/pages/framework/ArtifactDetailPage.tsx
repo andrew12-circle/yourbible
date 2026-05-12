@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw, FileText, Youtube, Copy } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Youtube, Copy, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -36,6 +36,14 @@ function getYouTubeEmbed(url?: string | null) {
   return null;
 }
 
+interface MatchedBelief {
+  id: string;
+  topic: string;
+  statement: string;
+  answer: string | null;
+  confidence: number;
+}
+
 interface Claim {
   id: string;
   claim: string;
@@ -56,6 +64,7 @@ export default function ArtifactDetailPage() {
   const { user, loading } = useAuth();
   const [a, setA] = useState<Artifact | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [matchedBeliefs, setMatchedBeliefs] = useState<Record<string, MatchedBelief>>({});
   const [polling, setPolling] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef<number | null>(null);
@@ -70,8 +79,22 @@ export default function ArtifactDetailPage() {
       supabase.from("artifacts").select("id,title,kind,status,error,raw_text,url").eq("id", id).maybeSingle(),
       supabase.from("artifact_claims").select("*").eq("artifact_id", id).order("created_at"),
     ]);
+    const parsedClaims = ((cl as unknown) as Claim[]) ?? [];
+    const beliefIds = Array.from(new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean))) as string[];
+    let beliefMap: Record<string, MatchedBelief> = {};
+    if (beliefIds.length > 0) {
+      const { data: beliefs } = await supabase
+        .from("belief_nodes")
+        .select("id,topic,statement,answer,confidence")
+        .in("id", beliefIds);
+      beliefMap = (beliefs ?? []).reduce((acc, belief) => {
+        acc[belief.id] = belief as MatchedBelief;
+        return acc;
+      }, {} as Record<string, MatchedBelief>);
+    }
+    setMatchedBeliefs(beliefMap);
     setA(art as Artifact | null);
-    setClaims(((cl as unknown) as Claim[]) ?? []);
+    setClaims(parsedClaims);
   };
 
   useEffect(() => {
@@ -346,6 +369,25 @@ export default function ArtifactDetailPage() {
                 </span>
               ))}
             </div>
+
+            {(c.matched_belief_id && matchedBeliefs[c.matched_belief_id]) && (
+              <div className="mb-3 rounded-md border border-border bg-muted/30 p-3 text-xs space-y-2">
+                <div className="uppercase tracking-wider text-muted-foreground">Your current belief context</div>
+                <div>
+                  <p className="font-medium text-foreground">{matchedBeliefs[c.matched_belief_id].statement}</p>
+                  {matchedBeliefs[c.matched_belief_id].answer && (
+                    <p className="text-muted-foreground mt-1 line-clamp-3">{matchedBeliefs[c.matched_belief_id].answer}</p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-background border border-border">confidence {matchedBeliefs[c.matched_belief_id].confidence}%</span>
+                  <span className="text-muted-foreground inline-flex items-center gap-1">
+                    <ArrowRight className="w-3 h-3" />
+                    {c.match_relation === "agree" ? "reinforces what you already believe" : c.match_relation === "disagree" ? "challenges your current belief" : "partly overlaps with your current belief"}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {(c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0 && (
               <div className="grid sm:grid-cols-2 gap-3 mb-3 text-xs">
