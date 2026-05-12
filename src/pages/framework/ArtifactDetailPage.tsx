@@ -174,7 +174,7 @@ export default function ArtifactDetailPage() {
     analyzing: "Reading the transcript and pulling out claims…",
   };
   const stageHint: Record<string, string> = {
-    fetching: "Gemini is processing the YouTube video. This usually takes 20–90 seconds depending on length.",
+    fetching: "Looking for the video's official caption track. This usually takes a few seconds.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
     analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
   };
