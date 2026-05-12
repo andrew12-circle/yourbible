@@ -90,7 +90,7 @@ function parseSteps(raw: unknown): PlaybookStep[] {
         done: typeof o.done === "boolean" ? o.done : false,
       };
     })
-    .filter((x): x is PlaybookStep => x != null);
+    .filter((x) => x != null) as PlaybookStep[];
 }
 
 function normalizeTeaching(embed: TeachingEmbed | TeachingEmbed[] | null): TeachingEmbed | null {
@@ -180,7 +180,7 @@ export default function PlaybookPage() {
     const next = steps.map((s, i) => (i === index ? { ...s, done: !s.done } : s));
     const { error } = await supabase
       .from("playbook_items")
-      .update({ steps: next })
+      .update({ steps: next as unknown as never })
       .eq("id", row.id)
       .eq("user_id", user.id);
     if (error) {
