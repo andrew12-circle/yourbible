@@ -29,36 +29,46 @@ Rules:
 - Preserve sentence punctuation. Do not summarize.
 Video URL: ${url}`;
 
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: prompt }],
+  // Use the native Gemini API — the OpenAI-compatible endpoint does NOT fetch
+  // YouTube URLs and will hallucinate a transcript from the URL alone.
+  const model = "gemini-2.5-flash";
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { file_data: { file_uri: url } },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: {
+          response_mime_type: "application/json",
         },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+      }),
+    },
+  );
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     if (res.status === 402) {
-      throw new Error("Lovable AI credits are exhausted for this workspace. Add credits in Settings → Workspace → Usage, then try again — or paste the transcript manually below.");
+      throw new Error("Gemini API quota exhausted. Check your Google AI billing, then try again — or paste the transcript manually below.");
     }
     if (res.status === 429) {
-      throw new Error("AI is rate-limited right now. Wait a moment and try again, or paste the transcript manually below.");
+      throw new Error("Gemini API is rate-limited right now. Wait a moment and try again, or paste the transcript manually below.");
     }
-    throw new Error(`AI gateway ${res.status}: ${body.slice(0, 300)}`);
+    throw new Error(`Gemini API ${res.status}: ${body.slice(0, 300)}`);
   }
   const data = await res.json();
-  const content: string = data?.choices?.[0]?.message?.content ?? "";
+  const content: string = (data?.candidates?.[0]?.content?.parts ?? [])
+    .map((p: { text?: string }) => p?.text ?? "")
+    .join("")
+    .trim();
   if (!content) throw new Error("Empty response from transcription model.");
 
   // Try strict JSON, then fall back to extracting the first JSON object.
