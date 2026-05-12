@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
 
     let result: { text: string; title?: string };
     try {
-      result = await transcribeWithGemini(url, GEMINI_API_KEY);
+      result = await transcribeYouTubeVideo(url, GEMINI_API_KEY);
     } catch (e) {
       const msg = `Could not transcribe video: ${String((e as Error).message ?? e)}. Paste the transcript manually.`;
       await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
