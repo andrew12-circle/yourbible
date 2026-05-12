@@ -119,6 +119,7 @@ export type Database = {
           error: string | null
           id: string
           kind: string
+          processing_token: string | null
           raw_text: string
           status: string
           title: string | null
@@ -131,6 +132,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind: string
+          processing_token?: string | null
           raw_text: string
           status?: string
           title?: string | null
@@ -143,6 +145,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind?: string
+          processing_token?: string | null
           raw_text?: string
           status?: string
           title?: string | null
