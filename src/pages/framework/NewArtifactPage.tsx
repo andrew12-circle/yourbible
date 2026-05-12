@@ -24,6 +24,7 @@ export default function NewArtifactPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [busy, setBusy] = useState(false);
+  const createProcessingToken = () => crypto.randomUUID();
 
   useEffect(() => {
     const requestedMode = params.get("mode");
@@ -79,6 +80,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
+    const processingToken = createProcessingToken();
     const { data, error } = await supabase
       .from("artifacts")
       .insert({
@@ -88,6 +90,7 @@ export default function NewArtifactPage() {
         url: url.trim() || null,
         raw_text: text.trim(),
         status: "analyzing",
+        processing_token: processingToken,
       })
       .select("id")
       .maybeSingle();
@@ -96,7 +99,7 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message ?? "Unknown error", variant: "destructive" });
       return;
     }
-    supabase.functions.invoke("framework-analyze", { body: { artifact_id: data.id } }).catch((e) => {
+    supabase.functions.invoke("framework-analyze", { body: { artifact_id: data.id, processing_token: processingToken } }).catch((e) => {
       console.error(e);
     });
     navigate(`/framework/artifacts/${data.id}`);
@@ -108,6 +111,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
+    const processingToken = createProcessingToken();
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || null,
@@ -115,6 +119,7 @@ export default function NewArtifactPage() {
       url: url.trim(),
       raw_text: "",
       status: "fetching",
+      processing_token: processingToken,
     }).select("id").maybeSingle();
     if (error || !data) {
       setBusy(false);
@@ -122,7 +127,7 @@ export default function NewArtifactPage() {
       return;
     }
     supabase.functions.invoke("framework-fetch-transcript", {
-      body: { artifact_id: data.id, url: url.trim() },
+      body: { artifact_id: data.id, url: url.trim(), processing_token: processingToken },
     }).catch((e) => console.error(e));
     navigate(`/framework/artifacts/${data.id}`);
   };
@@ -160,12 +165,14 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
+    const processingToken = createProcessingToken();
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || `Voice memo ${new Date().toLocaleDateString()}`,
       kind: "voice",
       raw_text: "",
       status: "transcribing",
+      processing_token: processingToken,
     }).select("id").maybeSingle();
     if (error || !data) {
       setBusy(false);
@@ -183,7 +190,7 @@ export default function NewArtifactPage() {
       return;
     }
     supabase.functions.invoke("framework-transcribe-audio", {
-      body: { artifact_id: data.id, storage_path: path },
+      body: { artifact_id: data.id, storage_path: path, processing_token: processingToken },
     }).catch((e) => console.error(e));
     navigate(`/framework/artifacts/${data.id}`);
   };

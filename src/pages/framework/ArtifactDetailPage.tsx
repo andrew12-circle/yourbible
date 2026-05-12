@@ -62,6 +62,7 @@ export default function ArtifactDetailPage() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [savingPaste, setSavingPaste] = useState(false);
+  const createProcessingToken = () => crypto.randomUUID();
 
   const load = async () => {
     if (!id) return;
@@ -110,11 +111,12 @@ export default function ArtifactDetailPage() {
   };
 
   const reanalyze = async () => {
-    await supabase.from("artifacts").update({ status: "analyzing", error: null }).eq("id", a.id);
+    const processingToken = createProcessingToken();
+    await supabase.from("artifacts").update({ status: "analyzing", error: null, processing_token: processingToken }).eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
     setClaims([]);
     setA({ ...a, status: "analyzing", error: null });
-    supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id } }).catch((e) => {
+    supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } }).catch((e) => {
       console.error(e);
       toast({ title: "Could not start analysis", variant: "destructive" });
     });
@@ -122,19 +124,21 @@ export default function ArtifactDetailPage() {
 
   const retryFetch = async () => {
     if (!a.url) return;
-    await supabase.from("artifacts").update({ status: "fetching", error: null }).eq("id", a.id);
+    const processingToken = createProcessingToken();
+    await supabase.from("artifacts").update({ status: "fetching", error: null, processing_token: processingToken }).eq("id", a.id);
     setA({ ...a, status: "fetching", error: null });
     supabase.functions
-      .invoke("framework-fetch-transcript", { body: { artifact_id: a.id, url: a.url } })
+      .invoke("framework-fetch-transcript", { body: { artifact_id: a.id, url: a.url, processing_token: processingToken } })
       .catch((e) => console.error(e));
   };
 
   const submitPasted = async () => {
     if (!pasteText.trim()) return;
     setSavingPaste(true);
+    const processingToken = createProcessingToken();
     await supabase
       .from("artifacts")
-      .update({ raw_text: pasteText.trim(), status: "analyzing", error: null })
+      .update({ raw_text: pasteText.trim(), status: "analyzing", error: null, processing_token: processingToken })
       .eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
     setClaims([]);
@@ -142,7 +146,7 @@ export default function ArtifactDetailPage() {
     setPasteOpen(false);
     setSavingPaste(false);
     supabase.functions
-      .invoke("framework-analyze", { body: { artifact_id: a.id } })
+      .invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } })
       .catch((e) => console.error(e));
   };
 

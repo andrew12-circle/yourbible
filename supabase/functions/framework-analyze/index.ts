@@ -123,19 +123,24 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: auth } },
     });
 
-    const { artifact_id } = (await req.json()) as { artifact_id?: string };
-    if (!artifact_id) {
-      return new Response(JSON.stringify({ error: "artifact_id required" }), {
+    const { artifact_id, processing_token } = (await req.json()) as { artifact_id?: string; processing_token?: string };
+    if (!artifact_id || !processing_token) {
+      return new Response(JSON.stringify({ error: "artifact_id and processing_token required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { data: artifact, error: aErr } = await supabase
       .from("artifacts")
-      .select("id,user_id,raw_text")
+      .select("id,user_id,raw_text,processing_token")
       .eq("id", artifact_id)
       .maybeSingle();
     if (aErr || !artifact) throw new Error("Artifact not found");
+    if (artifact.processing_token !== processing_token) {
+      return new Response(JSON.stringify({ ok: true, stale: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: beliefs } = await supabase
       .from("belief_nodes")
@@ -211,6 +216,20 @@ Deno.serve(async (req) => {
       bias_flags: c.bias_flags ?? [],
     }));
 
+    const { data: gate } = await supabase
+      .from("artifacts")
+      .select("id")
+      .eq("id", artifact_id)
+      .eq("processing_token", processing_token)
+      .maybeSingle();
+    if (!gate) {
+      return new Response(JSON.stringify({ ok: true, stale: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    await supabase.from("artifact_claims").delete().eq("artifact_id", artifact_id);
+
     if (rows.length > 0) {
       const { error: insErr } = await supabase.from("artifact_claims").insert(rows);
       if (insErr) console.error("insert claims err", insErr);
@@ -219,7 +238,8 @@ Deno.serve(async (req) => {
     await supabase
       .from("artifacts")
       .update({ status: "ready", error: rows.length === 0 ? "No claims could be extracted." : null })
-      .eq("id", artifact_id);
+      .eq("id", artifact_id)
+      .eq("processing_token", processing_token);
 
     return new Response(JSON.stringify({ ok: true, count: rows.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

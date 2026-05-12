@@ -32,12 +32,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { artifact_id, storage_path } = (await req.json()) as {
+    const { artifact_id, storage_path, processing_token } = (await req.json()) as {
       artifact_id?: string;
       storage_path?: string;
+      processing_token?: string;
     };
-    if (!artifact_id || !storage_path) {
-      return new Response(JSON.stringify({ error: "artifact_id and storage_path required" }), {
+    if (!artifact_id || !storage_path || !processing_token) {
+      return new Response(JSON.stringify({ error: "artifact_id, storage_path, and processing_token required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -77,16 +78,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    await userClient.from("artifacts").update({
+    const { data: updated } = await userClient.from("artifacts").update({
       raw_text: text,
       status: "analyzing",
       error: null,
-    }).eq("id", artifact_id);
+    }).eq("id", artifact_id).eq("processing_token", processing_token).select("id").maybeSingle();
+
+    if (!updated) {
+      return new Response(JSON.stringify({ ok: true, stale: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
       method: "POST",
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ artifact_id }),
+      body: JSON.stringify({ artifact_id, processing_token }),
     }).catch((e) => console.error(e));
 
     return new Response(JSON.stringify({ ok: true, length: text.length }), {
