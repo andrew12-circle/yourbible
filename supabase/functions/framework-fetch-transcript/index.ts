@@ -1,12 +1,16 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Use real YouTube caption tracks only. Sending full YouTube videos to Gemini
-// can exceed Gemini's 1M-token input window and can produce unrelated text.
+// Prefer real YouTube caption tracks. If YouTube exposes no usable captions,
+// fall back to clipped Gemini transcription so long videos never hit the 1M-token limit.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_SEGMENT_SECONDS = 20 * 60;
+const GEMINI_MAX_DURATION_SECONDS = 3 * 60 * 60;
 
 function isYouTubeUrl(url: string): boolean {
   try {
