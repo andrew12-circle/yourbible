@@ -238,7 +238,12 @@ async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ te
   const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
   const durationSeconds = metadata.durationSeconds;
 
-  if (!durationSeconds || durationSeconds <= SEGMENT_SECONDS) {
+  const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
+  if (captionResult?.text) {
+    return { text: captionResult.text, title: captionResult.title ?? metadata.title };
+  }
+
+  if (!durationSeconds || durationSeconds <= GEMINI_VIDEO_MAX_SECONDS) {
     try {
       const result = await transcribeWithGemini(url, apiKey);
       return { text: result.text, title: result.title ?? metadata.title };
@@ -249,27 +254,10 @@ async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ te
   }
 
   if (!durationSeconds) {
-    throw new Error("This video is too long for a single Gemini request, and its duration could not be read. Paste the transcript manually.");
+    throw new Error("Captions were unavailable, and the video was too large for Gemini to transcribe safely.");
   }
 
-  const segments = Math.ceil(durationSeconds / SEGMENT_SECONDS);
-  if (segments > MAX_SEGMENTS) {
-    const maxMinutes = Math.floor((SEGMENT_SECONDS * MAX_SEGMENTS) / 60);
-    throw new Error(`This video is too long to transcribe automatically (${formatTime(durationSeconds)}). Automatic YouTube transcription supports up to about ${maxMinutes} minutes; paste the transcript manually.`);
-  }
-
-  const transcriptParts: string[] = [];
-  let title = metadata.title;
-  for (let i = 0; i < segments; i += 1) {
-    const start = i * SEGMENT_SECONDS;
-    const end = Math.min(durationSeconds, start + SEGMENT_SECONDS);
-    const segmentLabel = `${formatTime(start)}–${formatTime(end)}`;
-    const result = await transcribeWithGemini(url, apiKey, { startSeconds: start, endSeconds: end, segmentLabel });
-    if (!title && result.title) title = result.title;
-    transcriptParts.push(result.text);
-  }
-
-  return { text: transcriptParts.join("\n\n").trim(), title };
+  throw new Error(`Captions were unavailable, and this video is too long for Gemini to transcribe safely (${formatTime(durationSeconds)}).`);
 }
 
 Deno.serve(async (req) => {
