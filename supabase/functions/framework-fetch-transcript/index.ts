@@ -92,6 +92,56 @@ async function getYouTubeMetadata(url: string): Promise<{ title?: string; durati
   return { title, durationSeconds: duration };
 }
 
+async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: string; title?: string } | null> {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+
+  const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!watchRes.ok) return null;
+  const html = await watchRes.text();
+  const playerResponse = parseJsonObjectFromHtml(html, "ytInitialPlayerResponse") as {
+    videoDetails?: { title?: string };
+    captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string; kind?: string; name?: { simpleText?: string; runs?: Array<{ text?: string }> } }> } };
+  } | null;
+  const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  if (!tracks.length) return null;
+
+  const track = tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind !== "asr")
+    ?? tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en"))
+    ?? tracks[0];
+  if (!track?.baseUrl) return null;
+
+  const captionUrl = track.baseUrl.includes("fmt=") ? track.baseUrl : `${track.baseUrl}&fmt=json3`;
+  const captionRes = await fetch(captionUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!captionRes.ok) return null;
+  const body = await captionRes.text();
+
+  let lines: string[] = [];
+  try {
+    const json = JSON.parse(body) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
+    lines = (json.events ?? [])
+      .flatMap((event) => event.segs ?? [])
+      .map((seg) => seg.utf8 ?? "")
+      .filter((text) => text.trim() && text !== "\n");
+  } catch {
+    lines = [...body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, "")));
+  }
+
+  const text = lines.join(" ").replace(/\s+([,.!?;:])/g, "$1").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return { text, title: playerResponse?.videoDetails?.title };
+}
+
 function parseGeminiTranscript(content: string): { text: string; title?: string } {
   let parsed: { title?: string; transcript?: string } | null = null;
   try {
