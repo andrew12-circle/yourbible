@@ -552,82 +552,6 @@ export type Database = {
         }
         Relationships: []
       }
-<<<<<<< HEAD
-      my_ai_chats: {
-        Row: {
-          created_at: string
-          id: string
-          journal_entry_id: string | null
-          title: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          journal_entry_id?: string | null
-          title?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          journal_entry_id?: string | null
-          title?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
-            columns: ["journal_entry_id"]
-            isOneToOne: true
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      my_ai_messages: {
-        Row: {
-          chat_id: string
-          citations: Json
-          content: string
-          created_at: string
-          id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          chat_id: string
-          citations?: Json
-          content: string
-          created_at?: string
-          id?: string
-          role: string
-          user_id: string
-        }
-        Update: {
-          chat_id?: string
-          citations?: Json
-          content?: string
-          created_at?: string
-          id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "my_ai_messages_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "my_ai_chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-=======
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
       daily_readings: {
         Row: {
           belief_id: string | null
@@ -1101,18 +1025,6 @@ export type Database = {
         }
         Relationships: []
       }
-<<<<<<< HEAD
-      life_priorities: {
-        Row: {
-          archived_at: string | null
-          color: string | null
-          daily_target_minutes: number
-          id: string
-          intention: string | null
-          key: string
-          label: string
-          rank: number
-=======
       knowledge_entities: {
         Row: {
           confidence: number | null
@@ -1124,21 +1036,10 @@ export type Database = {
           metadata: Json
           subtitle: string | null
           title: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at: string
           user_id: string
         }
         Insert: {
-<<<<<<< HEAD
-          archived_at?: string | null
-          color?: string | null
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key: string
-          label: string
-          rank: number
-=======
           confidence?: number | null
           created_at?: string
           first_seen_at?: string
@@ -1148,21 +1049,10 @@ export type Database = {
           metadata?: Json
           subtitle?: string | null
           title: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at?: string
           user_id: string
         }
         Update: {
-<<<<<<< HEAD
-          archived_at?: string | null
-          color?: string | null
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key?: string
-          label?: string
-          rank?: number
-=======
           confidence?: number | null
           created_at?: string
           first_seen_at?: string
@@ -1172,13 +1062,50 @@ export type Database = {
           metadata?: Json
           subtitle?: string | null
           title?: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
-<<<<<<< HEAD
+      life_priorities: {
+        Row: {
+          archived_at: string | null
+          color: string | null
+          daily_target_minutes: number
+          id: string
+          intention: string | null
+          key: string
+          label: string
+          rank: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string | null
+          daily_target_minutes?: number
+          id?: string
+          intention?: string | null
+          key: string
+          label: string
+          rank: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string | null
+          daily_target_minutes?: number
+          id?: string
+          intention?: string | null
+          key?: string
+          label?: string
+          rank?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       life_priority_logs: {
         Row: {
           created_at: string
@@ -1187,44 +1114,70 @@ export type Database = {
           minutes: number
           note: string | null
           priority_id: string
-=======
-      my_ai_chats: {
-        Row: {
-          created_at: string
-          id: string
-          title: string | null
-          updated_at: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-<<<<<<< HEAD
           log_date: string
           minutes?: number
           note?: string | null
           priority_id: string
-=======
-          title?: string | null
-          updated_at?: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-<<<<<<< HEAD
           log_date?: string
           minutes?: number
           note?: string | null
           priority_id?: string
-=======
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "life_priority_logs_priority_id_fkey"
+            columns: ["priority_id"]
+            isOneToOne: false
+            referencedRelation: "life_priorities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      my_ai_chats: {
+        Row: {
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: true
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       my_ai_messages: {
         Row: {
@@ -1252,22 +1205,14 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id?: string
         }
         Relationships: [
           {
-<<<<<<< HEAD
-            foreignKeyName: "life_priority_logs_priority_id_fkey"
-            columns: ["priority_id"]
-            isOneToOne: false
-            referencedRelation: "life_priorities"
-=======
             foreignKeyName: "my_ai_messages_chat_id_fkey"
             columns: ["chat_id"]
             isOneToOne: false
             referencedRelation: "my_ai_chats"
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
             referencedColumns: ["id"]
           },
         ]

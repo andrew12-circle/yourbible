@@ -103,17 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => { await supabase.auth.signOut(); },
     refreshProfile: async () => { if (user) await loadProfile(user.id); },
     updateProfile: async (patch) => {
-<<<<<<< HEAD
       if (!user) return { error: new Error("Not signed in") };
       const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
       if (error) return { error: new Error(error.message) };
       await loadProfile(user.id);
       return { error: null };
-=======
-      if (!user) return;
-      const { data } = await supabase.from("profiles").update(patch as never).eq("user_id", user.id).select().maybeSingle();
-      if (data) setProfile(profileFromDbRow(data));
->>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
     },
   }), [user, session, profile, loading, loadProfile]);
 
