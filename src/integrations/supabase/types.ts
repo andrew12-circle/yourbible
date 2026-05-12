@@ -552,6 +552,7 @@ export type Database = {
         }
         Relationships: []
       }
+<<<<<<< HEAD
       my_ai_chats: {
         Row: {
           created_at: string
@@ -625,6 +626,8 @@ export type Database = {
           },
         ]
       }
+=======
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
       daily_readings: {
         Row: {
           belief_id: string | null
@@ -1050,48 +1053,6 @@ export type Database = {
         }
         Relationships: []
       }
-      knowledge_entities: {
-        Row: {
-          confidence: number | null
-          created_at: string
-          first_seen_at: string
-          id: string
-          kind: string
-          last_seen_at: string
-          metadata: Json
-          subtitle: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          confidence?: number | null
-          created_at?: string
-          first_seen_at?: string
-          id?: string
-          kind: string
-          last_seen_at?: string
-          metadata?: Json
-          subtitle?: string | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          confidence?: number | null
-          created_at?: string
-          first_seen_at?: string
-          id?: string
-          kind?: string
-          last_seen_at?: string
-          metadata?: Json
-          subtitle?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       journals: {
         Row: {
           color: string
@@ -1140,6 +1101,7 @@ export type Database = {
         }
         Relationships: []
       }
+<<<<<<< HEAD
       life_priorities: {
         Row: {
           archived_at: string | null
@@ -1150,10 +1112,24 @@ export type Database = {
           key: string
           label: string
           rank: number
+=======
+      knowledge_entities: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          kind: string
+          last_seen_at: string
+          metadata: Json
+          subtitle: string | null
+          title: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at: string
           user_id: string
         }
         Insert: {
+<<<<<<< HEAD
           archived_at?: string | null
           color?: string | null
           daily_target_minutes?: number
@@ -1162,10 +1138,22 @@ export type Database = {
           key: string
           label: string
           rank: number
+=======
+          confidence?: number | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          kind: string
+          last_seen_at?: string
+          metadata?: Json
+          subtitle?: string | null
+          title: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at?: string
           user_id: string
         }
         Update: {
+<<<<<<< HEAD
           archived_at?: string | null
           color?: string | null
           daily_target_minutes?: number
@@ -1174,11 +1162,23 @@ export type Database = {
           key?: string
           label?: string
           rank?: number
+=======
+          confidence?: number | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          kind?: string
+          last_seen_at?: string
+          metadata?: Json
+          subtitle?: string | null
+          title?: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
+<<<<<<< HEAD
       life_priority_logs: {
         Row: {
           created_at: string
@@ -1187,32 +1187,87 @@ export type Database = {
           minutes: number
           note: string | null
           priority_id: string
+=======
+      my_ai_chats: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+<<<<<<< HEAD
           log_date: string
           minutes?: number
           note?: string | null
           priority_id: string
+=======
+          title?: string | null
+          updated_at?: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+<<<<<<< HEAD
           log_date?: string
           minutes?: number
           note?: string | null
           priority_id?: string
+=======
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      my_ai_messages: {
+        Row: {
+          chat_id: string
+          citations: Json
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          citations?: Json
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          citations?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
           user_id?: string
         }
         Relationships: [
           {
+<<<<<<< HEAD
             foreignKeyName: "life_priority_logs_priority_id_fkey"
             columns: ["priority_id"]
             isOneToOne: false
             referencedRelation: "life_priorities"
+=======
+            foreignKeyName: "my_ai_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+>>>>>>> 2820f1fed2dc7f32ff6600daeb40b0fe09241bf6
             referencedColumns: ["id"]
           },
         ]
@@ -1249,59 +1304,6 @@ export type Database = {
           verse?: number
         }
         Relationships: []
-      }
-      playbook_items: {
-        Row: {
-          created_at: string
-          id: string
-          related_belief_ids: string[]
-          scriptures: string[]
-          status: string
-          steps: Json
-          teaching_id: string
-          title: string
-          updated_at: string
-          user_id: string
-          watch_outs: string[]
-          why: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          related_belief_ids?: string[]
-          scriptures?: string[]
-          status?: string
-          steps?: Json
-          teaching_id: string
-          title: string
-          updated_at?: string
-          user_id: string
-          watch_outs?: string[]
-          why?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          related_belief_ids?: string[]
-          scriptures?: string[]
-          status?: string
-          steps?: Json
-          teaching_id?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-          watch_outs?: string[]
-          why?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "playbook_items_teaching_id_fkey"
-            columns: ["teaching_id"]
-            isOneToOne: true
-            referencedRelation: "teachings"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       partner_connections: {
         Row: {
@@ -1459,6 +1461,59 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "partner_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playbook_items: {
+        Row: {
+          created_at: string
+          id: string
+          related_belief_ids: string[]
+          scriptures: string[]
+          status: string
+          steps: Json
+          teaching_id: string
+          title: string
+          updated_at: string
+          user_id: string
+          watch_outs: string[]
+          why: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          scriptures?: string[]
+          status?: string
+          steps?: Json
+          teaching_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+          watch_outs?: string[]
+          why?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          related_belief_ids?: string[]
+          scriptures?: string[]
+          status?: string
+          steps?: Json
+          teaching_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          watch_outs?: string[]
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playbook_items_teaching_id_fkey"
+            columns: ["teaching_id"]
+            isOneToOne: false
+            referencedRelation: "teachings"
             referencedColumns: ["id"]
           },
         ]
@@ -1638,8 +1693,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_partner_invite: {
-        Args: { p_token: string }
+      accept_partner_invite: { Args: { p_token: string }; Returns: string }
+      merge_knowledge_entity: {
+        Args: {
+          p_confidence: number
+          p_kind: string
+          p_metadata: Json
+          p_subtitle: string
+          p_title: string
+          p_user_id: string
+        }
         Returns: string
       }
       ensure_default_life_priorities: {
@@ -1647,11 +1710,11 @@ export type Database = {
         Returns: undefined
       }
       partner_peer_displays: {
-        Args: Record<string, never>
+        Args: never
         Returns: {
           connection_id: string
-          peer_display_name: string | null
-          peer_email: string | null
+          peer_display_name: string
+          peer_email: string
           peer_user_id: string
         }[]
       }

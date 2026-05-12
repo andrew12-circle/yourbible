@@ -385,7 +385,7 @@ export default function ArtifactDetailPage() {
         .update({ ...updatePatch, metadata: dbMeta })
         .eq("id", a.id);
       if (tryWithMetadata.error && Object.keys(updatePatch).length > 0) {
-        await supabase.from("artifacts").update(updatePatch).eq("id", a.id);
+        await supabase.from("artifacts").update(updatePatch as never).eq("id", a.id);
       }
 
       repairedRef.current = true;
@@ -789,7 +789,7 @@ export default function ArtifactDetailPage() {
                         .update({ ...patch, metadata: dbMeta })
                         .eq("id", a.id);
                       if (tryWithMetadata.error && Object.keys(patch).length > 0) {
-                        await supabase.from("artifacts").update(patch).eq("id", a.id);
+                        await supabase.from("artifacts").update(patch as never).eq("id", a.id);
                       }
                       if (meta.title) setA((prev) => (prev ? { ...prev, title: meta.title ?? prev.title } : prev));
                       toast({ title: "Video info refreshed" });

@@ -136,7 +136,9 @@ export default function PartnerWalkPage() {
             "your partner";
           const themes = sum?.recent_themes ?? [];
           const prayers = sum?.prayer_points ?? [];
-          const questions = buildCheckInQuestions(themes);
+          const questions = themes.length > 0
+            ? themes.slice(0, 3).map((t) => `How is ${t} showing up for you this week?`)
+            : [`What's God been stirring in you lately?`, `Where do you need encouragement?`, `What can I be praying about?`];
           const prayerPrompt =
             prayers.length > 0
               ? `Praying for ${name}: ${prayers.join(" · ")}`
