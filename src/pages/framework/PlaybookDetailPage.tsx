@@ -65,7 +65,7 @@ function parseSteps(raw: unknown): PlaybookStep[] {
         done: typeof o.done === "boolean" ? o.done : false,
       };
     })
-    .filter((x): x is PlaybookStep => x != null);
+    .filter((x) => x != null) as PlaybookStep[];
 }
 
 export default function PlaybookDetailPage() {
@@ -118,7 +118,7 @@ export default function PlaybookDetailPage() {
     if (!row || !user) return;
     const { error } = await supabase
       .from("playbook_items")
-      .update({ steps })
+      .update({ steps: steps as unknown as never })
       .eq("id", row.id)
       .eq("user_id", user.id);
     if (error) {
