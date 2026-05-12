@@ -18,8 +18,8 @@ function isYouTubeUrl(url: string): boolean {
 }
 
 const MODEL = "gemini-2.5-flash";
-const SEGMENT_SECONDS = 12 * 60;
-const MAX_SEGMENTS = 24;
+const SEGMENT_SECONDS = 20 * 60;
+const MAX_SEGMENTS = 12;
 
 function decodeHtml(input: string): string {
   return input
@@ -133,6 +133,51 @@ Video URL: ${url}`;
   if (!content) throw new Error("Empty response from transcription model.");
 
   return parseGeminiTranscript(content);
+}
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+}
+
+async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ text: string; title?: string }> {
+  const metadata = await getYouTubeMetadata(url).catch(() => ({}));
+  const durationSeconds = metadata.durationSeconds;
+
+  if (!durationSeconds || durationSeconds <= SEGMENT_SECONDS) {
+    try {
+      const result = await transcribeWithGemini(url, apiKey);
+      return { text: result.text, title: result.title ?? metadata.title };
+    } catch (e) {
+      const message = String((e as Error).message ?? e);
+      if (!message.includes("input token count exceeds") || !durationSeconds) throw e;
+    }
+  }
+
+  if (!durationSeconds) {
+    throw new Error("This video is too long for a single Gemini request, and its duration could not be read. Paste the transcript manually.");
+  }
+
+  const segments = Math.ceil(durationSeconds / SEGMENT_SECONDS);
+  if (segments > MAX_SEGMENTS) {
+    const maxMinutes = Math.floor((SEGMENT_SECONDS * MAX_SEGMENTS) / 60);
+    throw new Error(`This video is too long to transcribe automatically (${formatTime(durationSeconds)}). Automatic YouTube transcription supports up to about ${maxMinutes} minutes; paste the transcript manually.`);
+  }
+
+  const transcriptParts: string[] = [];
+  let title = metadata.title;
+  for (let i = 0; i < segments; i += 1) {
+    const start = i * SEGMENT_SECONDS;
+    const end = Math.min(durationSeconds, start + SEGMENT_SECONDS);
+    const segmentLabel = `${formatTime(start)}–${formatTime(end)}`;
+    const result = await transcribeWithGemini(url, apiKey, { startSeconds: start, endSeconds: end, segmentLabel });
+    if (!title && result.title) title = result.title;
+    transcriptParts.push(result.text);
+  }
+
+  return { text: transcriptParts.join("\n\n").trim(), title };
 }
 
 Deno.serve(async (req) => {
