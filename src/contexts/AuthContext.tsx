@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile: async () => { if (user) await loadProfile(user.id); },
     updateProfile: async (patch) => {
       if (!user) return;
-      const { data } = await supabase.from("profiles").update(patch).eq("user_id", user.id).select().maybeSingle();
+      const { data } = await supabase.from("profiles").update(patch as never).eq("user_id", user.id).select().maybeSingle();
       if (data) setProfile(profileFromDbRow(data));
     },
   }), [user, session, profile, loading]);
