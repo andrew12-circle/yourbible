@@ -17,6 +17,58 @@ function isYouTubeUrl(url: string): boolean {
   }
 }
 
+const MODEL = "gemini-2.5-flash";
+const SEGMENT_SECONDS = 12 * 60;
+const MAX_SEGMENTS = 24;
+
+function decodeHtml(input: string): string {
+  return input
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+
+async function getYouTubeMetadata(url: string): Promise<{ title?: string; durationSeconds?: number }> {
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!res.ok) return {};
+  const html = await res.text();
+  const duration = Number(html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/)?.[1] ?? 0) || undefined;
+  const rawTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/)?.[1]
+    ?? html.match(/"title"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/)?.[1];
+  let title: string | undefined;
+  if (rawTitle) {
+    try { title = decodeHtml(JSON.parse(`"${rawTitle}"`)); } catch { title = decodeHtml(rawTitle); }
+  }
+  return { title, durationSeconds: duration };
+}
+
+function parseGeminiTranscript(content: string): { text: string; title?: string } {
+  let parsed: { title?: string; transcript?: string } | null = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
+    }
+  }
+  const transcript = (parsed?.transcript ?? "").trim();
+  const title = parsed?.title?.trim() || undefined;
+  if (transcript) return { text: transcript, title };
+
+  const fallback = content.trim();
+  if (fallback.length > 40) return { text: fallback, title };
+  throw new Error("Model returned no transcript. The video may be private, age-restricted, or have no spoken English.");
+}
+
 async function transcribeWithGemini(
   url: string,
   apiKey: string,
