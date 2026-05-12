@@ -86,7 +86,7 @@ Video URL: ${url}`;
 
   // Use the native Gemini API — the OpenAI-compatible endpoint does NOT fetch
   // YouTube URLs and will hallucinate a transcript from the URL alone.
-  const filePart: Record<string, unknown> = { file_data: { file_uri: url, mime_type: "video/*" } };
+  const filePart: Record<string, unknown> = { fileData: { fileUri: url, mimeType: "video/*" } };
   if (isSegment) {
     filePart.videoMetadata = {
       startOffset: `${options.startSeconds}s`,
@@ -109,7 +109,7 @@ Video URL: ${url}`;
           },
         ],
         generationConfig: {
-          response_mime_type: "application/json",
+          responseMimeType: "application/json",
         },
       }),
     },
