@@ -144,120 +144,19 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: strin
   const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
   if (!tracks.length) return null;
 
-  const track = tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind !== "asr")
-    ?? tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en"))
-    ?? tracks[0];
-  if (!track?.baseUrl) return null;
+  const preferredTracks = [
+    ...tracks.filter((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind !== "asr"),
+    ...tracks.filter((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind === "asr"),
+    ...tracks.filter((t) => !t.languageCode?.toLowerCase().startsWith("en")),
+  ];
 
-  const captionUrl = track.baseUrl.includes("fmt=") ? track.baseUrl : `${track.baseUrl}&fmt=json3`;
-  const captionRes = await fetch(captionUrl, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
-  if (!captionRes.ok) return null;
-  const body = await captionRes.text();
-
-  let lines: string[] = [];
-  try {
-    const json = JSON.parse(body) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
-    lines = (json.events ?? [])
-      .flatMap((event) => event.segs ?? [])
-      .map((seg) => seg.utf8 ?? "")
-      .filter((text) => text.trim() && text !== "\n");
-  } catch {
-    lines = [...body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, "")));
+  for (const track of preferredTracks) {
+    if (!track.baseUrl) continue;
+    const text = await fetchCaptionTrack(track.baseUrl).catch(() => null);
+    if (text) return { text, title: playerResponse?.videoDetails?.title };
   }
 
-  const text = lines.join(" ").replace(/\s+([,.!?;:])/g, "$1").replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  return { text, title: playerResponse?.videoDetails?.title };
-}
-
-function parseGeminiTranscript(content: string): { text: string; title?: string } {
-  let parsed: { title?: string; transcript?: string } | null = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const m = content.match(/\{[\s\S]*\}/);
-    if (m) {
-      try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
-    }
-  }
-  const transcript = (parsed?.transcript ?? "").trim();
-  const title = parsed?.title?.trim() || undefined;
-  if (transcript) return { text: transcript, title };
-
-  const fallback = content.trim();
-  if (fallback.length > 40) return { text: fallback, title };
-  throw new Error("Model returned no transcript. The video may be private, age-restricted, or have no spoken English.");
-}
-
-async function transcribeWithGemini(
-  url: string,
-  apiKey: string,
-  options: { startSeconds?: number; endSeconds?: number; segmentLabel?: string } = {},
-): Promise<{ text: string; title?: string }> {
-  const isSegment = options.startSeconds !== undefined && options.endSeconds !== undefined;
-  const prompt = `You are given ${isSegment ? `one clipped segment (${options.segmentLabel}) of ` : ""}a YouTube video. Transcribe the spoken English content verbatim.
-Rules:
-- Return ONLY a JSON object with this exact shape: {"title": string, "transcript": string}
-- "title" is the video's title (or your best inference if none).
-- "transcript" is the complete spoken transcript, no timestamps, no speaker labels unless clearly distinct.
-- Do not describe visuals, comments, recommendations, or metadata.
-- Preserve sentence punctuation. Do not summarize.
-Video URL: ${url}`;
-
-  // Use the native Gemini API — the OpenAI-compatible endpoint does NOT fetch
-  // YouTube URLs and will hallucinate a transcript from the URL alone.
-  const filePart: Record<string, unknown> = { fileData: { fileUri: url, mimeType: "video/*" } };
-  if (isSegment) {
-    filePart.videoMetadata = {
-      startOffset: `${options.startSeconds}s`,
-      endOffset: `${options.endSeconds}s`,
-    };
-  }
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              filePart,
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    if (res.status === 402) {
-      throw new Error("Gemini API quota exhausted. Check your Google AI billing, then try again — or paste the transcript manually below.");
-    }
-    if (res.status === 429) {
-      throw new Error("Gemini API is rate-limited right now. Wait a moment and try again, or paste the transcript manually below.");
-    }
-    throw new Error(`Gemini API ${res.status}: ${body.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const content: string = (data?.candidates?.[0]?.content?.parts ?? [])
-    .map((p: { text?: string }) => p?.text ?? "")
-    .join("")
-    .trim();
-  if (!content) throw new Error("Empty response from transcription model.");
-
-  return parseGeminiTranscript(content);
+  return null;
 }
 
 function formatTime(seconds: number): string {
