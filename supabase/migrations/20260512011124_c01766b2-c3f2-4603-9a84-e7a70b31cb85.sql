@@ -1,0 +1,1 @@
+ALTER TABLE public.artifacts ADD COLUMN IF NOT EXISTS processing_token uuid;
