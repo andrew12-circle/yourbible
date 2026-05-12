@@ -1,7 +1,6 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Prefer real YouTube caption tracks. Gemini video transcription is only a
-// fallback for shorter videos because long videos can exceed Gemini's 1M-token
-// input window even when clipped with videoMetadata.
+// Use real YouTube caption tracks only. Sending full YouTube videos to Gemini
+// can exceed Gemini's 1M-token input window and can produce unrelated text.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -17,9 +16,6 @@ function isYouTubeUrl(url: string): boolean {
     return false;
   }
 }
-
-const MODEL = "gemini-2.5-flash";
-const GEMINI_VIDEO_MAX_SECONDS = 45 * 60;
 
 function decodeHtml(input: string): string {
   return input
@@ -71,6 +67,43 @@ function parseJsonObjectFromHtml(html: string, marker: string): unknown | null {
     }
   }
   return null;
+}
+
+function normalizeCaptionText(lines: string[]): string {
+  return lines
+    .map((line) => decodeHtml(line).replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchCaptionTrack(baseUrl: string): Promise<string | null> {
+  const captionUrl = baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=json3`;
+  const captionRes = await fetch(captionUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!captionRes.ok) return null;
+
+  const body = await captionRes.text();
+  try {
+    const json = JSON.parse(body) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
+    const lines = (json.events ?? [])
+      .flatMap((event) => event.segs ?? [])
+      .map((seg) => seg.utf8 ?? "")
+      .filter((text) => text.trim() && text !== "\n");
+    const text = normalizeCaptionText(lines);
+    return text || null;
+  } catch {
+    const lines = [...body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)]
+      .map((m) => m[1].replace(/<[^>]+>/g, ""));
+    const text = normalizeCaptionText(lines);
+    return text || null;
+  }
 }
 
 async function getYouTubeMetadata(url: string): Promise<{ title?: string; durationSeconds?: number }> {
