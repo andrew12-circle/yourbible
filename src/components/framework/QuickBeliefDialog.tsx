@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,6 +19,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: (beliefId: string) => void;
+  initialText?: string;
+  initialSource?: string;
 }
 
 const RELATION_TONE: Record<string, string> = {
@@ -27,7 +29,7 @@ const RELATION_TONE: Record<string, string> = {
   conflicts: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
 };
 
-export default function QuickBeliefDialog({ open, onOpenChange, onSaved }: Props) {
+export default function QuickBeliefDialog({ open, onOpenChange, onSaved, initialText, initialSource }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -36,6 +38,13 @@ export default function QuickBeliefDialog({ open, onOpenChange, onSaved }: Props
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<BeliefClassification | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setText(initialText ?? "");
+    setSource(initialSource ?? "");
+    setResult(null);
+  }, [open, initialText, initialSource]);
 
   function reset() {
     setText("");

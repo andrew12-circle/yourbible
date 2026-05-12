@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import { TagInput } from "@/components/journal/TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 
 interface BeliefOpt {
   id: string;
@@ -25,6 +26,7 @@ interface BeliefOpt {
 export default function NewJournalEntryPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
 
@@ -64,6 +66,7 @@ export default function NewJournalEntryPage() {
     const promptText = params.get("prompt");
     const artifactTitle = params.get("artifactTitle");
     const artifactUrl = params.get("artifactUrl");
+    const artifactTime = params.get("artifactTime");
     const artifactTranscript = params.get("artifactTranscript");
     const artifactClaims = params.get("artifactClaims");
     if (jid) setJournalId(jid);
@@ -91,6 +94,7 @@ export default function NewJournalEntryPage() {
         b ||
         [
           decodedUrl ? `Source: ${decodedUrl}` : "",
+          artifactTime ? `Timestamp: ${artifactTime}s` : "",
           "",
           decodedClaims ? "Major key points extracted:" : "",
           decodedClaims,
@@ -109,6 +113,37 @@ export default function NewJournalEntryPage() {
       setTags((ts) => (ts.length ? ts : ["artifact", "youtube"]));
     }
   }, [params]);
+
+  // After URL prefill: apply floating-panel expand handoff (route state + localStorage fallback)
+  const handoffAppliedForKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (editId) return;
+    const fromState = (location.state as { journalHandoff?: JournalExpandHandoffPayload } | null)?.journalHandoff;
+    let handoff: JournalExpandHandoffPayload | null = fromState ?? null;
+    if (!handoff) {
+      try {
+        const raw = localStorage.getItem(JOURNAL_EXPAND_HANDOFF_KEY);
+        if (raw) handoff = JSON.parse(raw) as JournalExpandHandoffPayload;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!handoff || typeof handoff.body !== "string") return;
+    if (handoffAppliedForKey.current === location.key) return;
+    handoffAppliedForKey.current = location.key;
+
+    setBody(handoff.body);
+    if (handoff.title?.trim()) setTitle(handoff.title);
+    if (handoff.tags?.length) setTags(handoff.tags);
+    try {
+      localStorage.removeItem(JOURNAL_EXPAND_HANDOFF_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (fromState) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+    }
+  }, [editId, location.key, location.pathname, location.search, location.state, navigate]);
 
   // Load existing entry
   useEffect(() => {

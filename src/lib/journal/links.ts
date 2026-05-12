@@ -62,3 +62,12 @@ export async function findEntriesLinkedTo(
     .contains("target_ref", refMatch as never);
   return (data ?? []).map((r: { entry_id: string }) => r.entry_id);
 }
+
+/** `localStorage` handoff when opening full journal editor from the floating panel. */
+export const JOURNAL_EXPAND_HANDOFF_KEY = "yb_journal_expand_handoff_v1";
+
+export type JournalExpandHandoffPayload = {
+  title: string | null;
+  body: string;
+  tags?: string[];
+};

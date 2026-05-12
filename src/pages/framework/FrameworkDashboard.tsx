@@ -54,53 +54,56 @@ export default function FrameworkDashboard() {
   const totalBeliefs = beliefs.length;
 
   return (
-    <FrameworkLayout title="My Framework">
-      <section className="mb-8">
-        <p className="text-sm text-muted-foreground max-w-prose mb-4">
+    <FrameworkLayout title="Overview">
+      <section className="mb-10 sm:mb-12">
+        <p className="text-[15px] sm:text-base text-muted-foreground leading-relaxed max-w-[34rem] mb-8 font-normal tracking-tight">
           A living map of what you actually believe — examined, sourced, and
           tested against scripture. Start with the interview, then run sermons,
           podcasts, and journal entries through the analyzer.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setQuickOpen(true)}>
-            <Sparkles className="w-4 h-4 mr-1" /> Capture a belief
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2.5">
+          <Button
+            onClick={() => setQuickOpen(true)}
+            className="rounded-xl shadow-sm w-full sm:w-auto shrink-0"
+          >
+            <Sparkles className="w-4 h-4" /> Capture a belief
           </Button>
-          <Button asChild>
-            <Link to="/framework/artifacts">
-              <FileStack className="w-4 h-4 mr-1" /> Artifacts
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/framework/artifacts/new?mode=youtube">
-              <Plus className="w-4 h-4 mr-1" /> Add an artifact
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/framework/artifacts/new?mode=text&template=question">
-              <CircleHelp className="w-4 h-4 mr-1" /> Question inbox
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/framework/beliefs">
-              All beliefs ({totalBeliefs})
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/framework/tensions">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              Tensions{openTensions ? ` (${openTensions})` : ""}
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2 sm:gap-2.5 w-full sm:flex-1 min-w-0 sm:min-w-[12rem]">
+            <Button variant="secondary" className="rounded-xl flex-1 min-w-[8.5rem] sm:flex-initial" asChild>
+              <Link to="/framework/artifacts">
+                <FileStack className="w-4 h-4" /> Artifacts
+              </Link>
+            </Button>
+            <Button variant="secondary" className="rounded-xl flex-1 min-w-[8.5rem] sm:flex-initial" asChild>
+              <Link to="/framework/artifacts/new?mode=youtube">
+                <Plus className="w-4 h-4" /> Add artifact
+              </Link>
+            </Button>
+            <Button variant="ghost" className="rounded-xl border border-border/50 bg-background/60 flex-1 min-w-[8.5rem] sm:flex-initial hover:bg-muted/60" asChild>
+              <Link to="/framework/artifacts/new?mode=text&template=question">
+                <CircleHelp className="w-4 h-4" /> Question inbox
+              </Link>
+            </Button>
+            <Button variant="ghost" className="rounded-xl border border-border/50 bg-background/60 flex-1 min-w-[8.5rem] sm:flex-initial hover:bg-muted/60" asChild>
+              <Link to="/framework/beliefs">All beliefs ({totalBeliefs})</Link>
+            </Button>
+            <Button variant="ghost" className="rounded-xl border border-border/50 bg-background/60 flex-1 min-w-[8.5rem] sm:flex-initial hover:bg-muted/60" asChild>
+              <Link to="/framework/tensions">
+                <AlertTriangle className="w-4 h-4" />
+                Tensions{openTensions ? ` (${openTensions})` : ""}
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
       <QuickBeliefDialog open={quickOpen} onOpenChange={setQuickOpen} />
 
-      <section className="mb-10">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
-          Belief Interview
+      <section className="mb-10 sm:mb-12 rounded-2xl border border-border/50 bg-card/40 p-5 sm:p-6 shadow-sm ring-1 ring-border/30">
+        <h2 className="text-[13px] font-medium text-foreground tracking-tight mb-6">
+          Belief interview
         </h2>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
           {ALL_LAYERS.map((layer) => {
             const meta = LAYER_META[layer];
             const total = FRAMEWORK_QUESTIONS[layer].length;
@@ -110,29 +113,34 @@ export default function FrameworkDashboard() {
               <Link
                 key={layer}
                 to={`/framework/interview/${layer}`}
-                className="group block rounded-lg border border-border bg-card p-4 hover:border-foreground/30 transition"
+                className="group block rounded-2xl border border-border/60 bg-background/80 p-5 shadow-sm hover:shadow-md hover:border-border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card/40"
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
                     <div
-                      className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+                      className="text-[11px] font-medium uppercase tracking-wide mb-1"
                       style={{ color: meta.tone }}
                     >
                       Layer
                     </div>
-                    <div className="font-display text-lg leading-tight">{meta.title}</div>
+                    <div className="text-lg font-semibold leading-snug tracking-tight text-foreground">
+                      {meta.title}
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition" />
+                  <ChevronRight
+                    className="w-4 h-4 shrink-0 text-muted-foreground/70 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-transform duration-200"
+                    aria-hidden
+                  />
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">{meta.subtitle}</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{meta.subtitle}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 rounded-full bg-muted/80 overflow-hidden">
                     <div
-                      className="h-full"
+                      className="h-full rounded-full transition-[width] duration-300 ease-out opacity-90"
                       style={{ width: `${pct}%`, background: meta.tone }}
                     />
                   </div>
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums font-medium shrink-0">
                     {answered}/{total}
                   </span>
                 </div>
@@ -142,31 +150,32 @@ export default function FrameworkDashboard() {
         </div>
       </section>
 
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Recent Artifacts
-          </h2>
-          <Link to="/framework/artifacts" className="text-xs text-muted-foreground hover:text-foreground">
+      <section className="rounded-2xl border border-border/50 bg-card/40 p-5 sm:p-6 shadow-sm ring-1 ring-border/30">
+        <div className="flex items-baseline justify-between gap-4 mb-5">
+          <h2 className="text-[13px] font-medium text-foreground tracking-tight">Recent artifacts</h2>
+          <Link
+            to="/framework/artifacts"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:rounded-sm"
+          >
             View all
           </Link>
         </div>
         {busy ? null : recentArtifacts.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            <FileStack className="w-5 h-5 mx-auto mb-2 opacity-60" />
+          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+            <FileStack className="w-5 h-5 mx-auto mb-3 text-muted-foreground/60" aria-hidden />
             Paste a sermon, podcast transcript, or your own journal entry and
             see how it lines up with what you believe.
           </div>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+          <ul className="flex flex-col gap-1.5">
             {recentArtifacts.map((a) => (
               <li key={a.id}>
                 <Link
                   to={`/framework/artifacts/${a.id}`}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-muted text-sm"
+                  className="flex items-center justify-between gap-4 rounded-xl border border-transparent px-4 py-3.5 text-sm bg-background/50 hover:bg-muted/40 hover:border-border/40 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card/40"
                 >
-                  <span className="truncate">{a.title || "Untitled"}</span>
-                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                  <span className="truncate font-medium text-foreground/90">{a.title || "Untitled"}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums capitalize shrink-0 font-medium">
                     {a.status}
                   </span>
                 </Link>

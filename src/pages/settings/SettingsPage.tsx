@@ -1,22 +1,76 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, LogOut, Check, ImagePlus, User } from "lucide-react";
+import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
+
+const WALLPAPER_KEY = "yb_home_wallpaper";
+const PROFILE_PHOTO_KEY = "yb_profile_photo";
+
+type HomeLayoutSettings = {
+  homeWallpaper?: string;
+  homeWallpaperTint?: number;
+  homeWallpaperBlur?: number;
+  homeProfilePhoto?: string;
+};
 
 export default function SettingsPage() {
   const { user, profile, updateProfile, signOut, loading } = useAuth();
   const [saving, setSaving] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
-  const [wallpaper, setWallpaper] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem("yb_home_wallpaper") : null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [wallpaper, setWallpaper] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem(PROFILE_PHOTO_KEY) : null);
+  const [wallpaperTint, setWallpaperTint] = useState(24);
+  const [wallpaperBlur, setWallpaperBlur] = useState(0);
+  const wallpaperFileRef = useRef<HTMLInputElement>(null);
+  const profilePhotoFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!profile?.layout) return;
+    try {
+      const parsed = JSON.parse(profile.layout) as HomeLayoutSettings;
+      if (parsed.homeWallpaper) {
+        setWallpaper(parsed.homeWallpaper);
+        localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
+      }
+      if (parsed.homeProfilePhoto) {
+        setProfilePhoto(parsed.homeProfilePhoto);
+        localStorage.setItem(PROFILE_PHOTO_KEY, parsed.homeProfilePhoto);
+      }
+      if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
+      if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+    } catch {
+      // Ignore legacy layout values that are not JSON.
+    }
+  }, [profile?.layout]);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!profile) return <div className="min-h-screen app-mesh flex items-center justify-center">Loading…</div>;
+
+  const currentLayout = (() => {
+    try {
+      return JSON.parse(profile.layout || "{}") as HomeLayoutSettings;
+    } catch {
+      return {};
+    }
+  })();
+
+  const saveHomeLayout = async (patch: HomeLayoutSettings) => {
+    await save({
+      layout: JSON.stringify({
+        ...currentLayout,
+        homeWallpaper: wallpaper ?? currentLayout.homeWallpaper,
+        homeProfilePhoto: profilePhoto ?? currentLayout.homeProfilePhoto,
+        homeWallpaperTint: wallpaperTint,
+        homeWallpaperBlur: wallpaperBlur,
+        ...patch,
+      }),
+    });
+  };
 
   const save = async (patch: Parameters<typeof updateProfile>[0]) => {
     setSaving(true);
@@ -39,14 +93,34 @@ export default function SettingsPage() {
     reader.onload = () => {
       const url = reader.result as string;
       try {
-        localStorage.setItem("yb_home_wallpaper", url);
+        localStorage.setItem(WALLPAPER_KEY, url);
         setWallpaper(url);
-        toast({ title: "Background updated" });
+        void saveHomeLayout({ homeWallpaper: url });
       } catch {
         toast({ title: "Applied temporarily", description: "Image is too large to save on this device." });
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const onUploadProfilePhoto = (file: File) => {
+    if (file.size > 20 * 1024 * 1024) { toast({ title: "Image too large", description: "Max size is 20 MB." }); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result as string;
+      try {
+        localStorage.setItem(PROFILE_PHOTO_KEY, url);
+        setProfilePhoto(url);
+        void saveHomeLayout({ homeProfilePhoto: url });
+      } catch {
+        toast({ title: "Applied temporarily", description: "Image is too large to save on this device." });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveWallpaperPresentation = (nextTint: number, nextBlur: number) => {
+    void saveHomeLayout({ homeWallpaperTint: nextTint, homeWallpaperBlur: nextBlur });
   };
 
   return (
@@ -90,8 +164,15 @@ export default function SettingsPage() {
           <h2 className="font-display text-lg text-leather mb-3">Profile settings</h2>
           <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-leather/20 border border-paper-edge flex items-center justify-center text-leather font-semibold">{initials || <User className="w-5 h-5" />}</div>
-              <div>
+              <button
+                type="button"
+                onClick={() => profilePhotoFileRef.current?.click()}
+                className="w-16 h-16 rounded-full bg-leather/20 border border-paper-edge overflow-hidden flex items-center justify-center text-leather font-semibold"
+                aria-label="Change profile photo"
+              >
+                {profilePhoto ? <img src={profilePhoto} alt="" className="w-full h-full object-cover" /> : initials || <User className="w-5 h-5" />}
+              </button>
+              <div className="min-w-0 flex-1">
                 <div className="text-sm text-muted-foreground">Profile name</div>
                 <input
                   className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -102,7 +183,15 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            <Button type="button" variant="outline" onClick={() => profilePhotoFileRef.current?.click()}>Change profile photo</Button>
             <div className="text-xs text-muted-foreground">Signed in as {user?.email}</div>
+            <input
+              ref={profilePhotoFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadProfilePhoto(f); e.currentTarget.value = ""; }}
+            />
           </div>
         </section>
 
@@ -184,20 +273,36 @@ export default function SettingsPage() {
 
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Background settings</h2>
-          <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-md border border-paper-edge bg-paper-warm overflow-hidden flex items-center justify-center">
-                {wallpaper ? <img src={wallpaper} alt="Current background" className="w-full h-full object-cover" /> : <ImagePlus className="w-5 h-5 text-muted-foreground" />}
+          <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-md border border-paper-edge bg-paper-warm overflow-hidden flex items-center justify-center">
+                  {wallpaper ? <img src={wallpaper} alt="Current background" className="w-full h-full object-cover" /> : <ImagePlus className="w-5 h-5 text-muted-foreground" />}
+                </div>
+                <div>
+                  <div className="font-display text-leather">Home background</div>
+                  <div className="text-xs text-muted-foreground">Choose a photo for your main screen.</div>
+                </div>
               </div>
-              <div>
-                <div className="font-display text-leather">Home background</div>
-                <div className="text-xs text-muted-foreground">Choose a photo for your main screen.</div>
-              </div>
+              <Button type="button" variant="outline" onClick={() => wallpaperFileRef.current?.click()}>Change</Button>
             </div>
-            <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>Change</Button>
+            <div className="rounded-md border border-paper-edge bg-background/55 p-3">
+              <div className="flex items-center gap-2 text-sm font-display text-leather mb-3">
+                <SlidersHorizontal className="w-4 h-4" />
+                Background appearance
+              </div>
+              <label className="block text-xs text-muted-foreground mb-1">Tint</label>
+              <input type="range" min={0} max={60} value={wallpaperTint} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperTint(v); saveWallpaperPresentation(v, wallpaperBlur);
+              }} className="w-full" />
+              <label className="block text-xs text-muted-foreground mt-3 mb-1">Blur</label>
+              <input type="range" min={0} max={14} value={wallpaperBlur} onChange={(e) => {
+                const v = Number(e.target.value); setWallpaperBlur(v); saveWallpaperPresentation(wallpaperTint, v);
+              }} className="w-full" />
+            </div>
           </div>
           <input
-            ref={fileRef}
+            ref={wallpaperFileRef}
             type="file"
             accept="image/*"
             className="hidden"

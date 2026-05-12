@@ -83,6 +83,75 @@ function normalizeCaptionText(lines: string[]): string {
     .trim();
 }
 
+function normalizeCaptionSegment(text: string): string {
+  return decodeHtml(text).replace(/\s+/g, " ").trim();
+}
+
+type Json3Seg = { utf8?: string; tOffsetMs?: number };
+type Json3Event = { tStartMs?: number; segs?: Json3Seg[] };
+
+/** One timed line per caption event, or per word-level seg when tOffsetMs is present (fixes single mega-event at 0:00). */
+function linesFromJson3Event(event: Json3Event): string[] {
+  const baseMs = Math.max(0, event.tStartMs ?? 0);
+  const segs = event.segs ?? [];
+  if (!segs.some((s) => normalizeCaptionSegment(s.utf8 ?? ""))) return [];
+
+  const hasWordLevelOffsets = segs.some((s) => typeof s.tOffsetMs === "number" && s.tOffsetMs > 0);
+  if (!hasWordLevelOffsets) {
+    const startSeconds = Math.floor(baseMs / 1000);
+    const stamp = formatTime(startSeconds);
+    const out: string[] = [];
+    for (const seg of segs) {
+      const t = normalizeCaptionSegment(seg.utf8 ?? "");
+      if (!t) continue;
+      out.push(`[${stamp}] ${t}`);
+    }
+    return out;
+  }
+
+  const out: string[] = [];
+  let lastMs = baseMs;
+  for (const seg of segs) {
+    const t = normalizeCaptionSegment(seg.utf8 ?? "");
+    if (!t) continue;
+    if (typeof seg.tOffsetMs === "number") lastMs = baseMs + seg.tOffsetMs;
+    const startSeconds = Math.floor(lastMs / 1000);
+    out.push(`[${formatTime(startSeconds)}] ${t}`);
+  }
+  return out;
+}
+
+/** Max merged body length so same-second word-level captions do not become one unreadable paragraph. */
+const SAME_STAMP_MERGE_MAX_CHARS = 140;
+
+/** Merge consecutive rows that share the same bracket stamp into one line only while the merged body stays short. */
+function collapseAdjacentSameTimestampLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/^\[([^\]]+)\]\s*(.*)$/s);
+    if (!m) {
+      if (line.trim()) out.push(line);
+      continue;
+    }
+    const stamp = m[1];
+    const body = m[2].trim();
+    const prev = out[out.length - 1];
+    const pm = prev?.match(/^\[([^\]]+)\]\s*(.*)$/s);
+    if (pm && pm[1] === stamp) {
+      const prevBody = pm[2].trim();
+      const merged = `${prevBody} ${body}`.trim();
+      if (merged.length <= SAME_STAMP_MERGE_MAX_CHARS) {
+        out[out.length - 1] = `[${stamp}] ${merged}`;
+      } else {
+        out.push(`[${stamp}] ${body}`);
+      }
+    } else {
+      out.push(`[${stamp}] ${body}`);
+    }
+  }
+  return out;
+}
+
 async function fetchCaptionTrack(baseUrl: string): Promise<string | null> {
   const captionUrl = baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=json3`;
   const captionRes = await fetch(captionUrl, {
@@ -95,38 +164,73 @@ async function fetchCaptionTrack(baseUrl: string): Promise<string | null> {
 
   const body = await captionRes.text();
   try {
-    const json = JSON.parse(body) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
-    const lines = (json.events ?? [])
-      .flatMap((event) => event.segs ?? [])
-      .map((seg) => seg.utf8 ?? "")
-      .filter((text) => text.trim() && text !== "\n");
-    const text = normalizeCaptionText(lines);
-    return text || null;
+    const json = JSON.parse(body) as { events?: Json3Event[] };
+    const raw = (json.events ?? []).flatMap((event) => linesFromJson3Event(event)).filter(Boolean);
+    const lines = collapseAdjacentSameTimestampLines(raw);
+    return lines.join("\n").trim() || null;
   } catch {
-    const lines = [...body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)]
-      .map((m) => m[1].replace(/<[^>]+>/g, ""));
-    const text = normalizeCaptionText(lines);
-    return text || null;
+    const lines = [...body.matchAll(/<text[^>]*start="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g)]
+      .map((m) => {
+        const startSeconds = Math.max(0, Math.floor(Number(m[1]) || 0));
+        const line = normalizeCaptionText([m[2].replace(/<[^>]+>/g, "")]);
+        return line ? `[${formatTime(startSeconds)}] ${line}` : "";
+      })
+      .filter(Boolean);
+    return lines.join("\n").trim() || null;
   }
 }
 
-async function getYouTubeMetadata(url: string): Promise<{ title?: string; durationSeconds?: number }> {
-  const res = await fetch(url, {
+type YouTubeMetadata = {
+  title?: string;
+  channelTitle?: string;
+  channelUrl?: string;
+  thumbnailUrl?: string;
+  providerName?: string;
+  durationSeconds?: number;
+};
+
+async function getYouTubeOEmbedMetadata(url: string): Promise<YouTubeMetadata> {
+  const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, {
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
       "Accept-Language": "en-US,en;q=0.9",
     },
   });
   if (!res.ok) return {};
+  const json = await res.json() as {
+    title?: string;
+    author_name?: string;
+    author_url?: string;
+    thumbnail_url?: string;
+    provider_name?: string;
+  };
+  return {
+    title: json.title,
+    channelTitle: json.author_name,
+    channelUrl: json.author_url,
+    thumbnailUrl: json.thumbnail_url,
+    providerName: json.provider_name,
+  };
+}
+
+async function getYouTubeMetadata(url: string): Promise<YouTubeMetadata> {
+  const oembed = await getYouTubeOEmbedMetadata(url).catch(() => ({}));
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!res.ok) return oembed;
   const html = await res.text();
   const duration = Number(html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/)?.[1] ?? 0) || undefined;
-  const rawTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/)?.[1]
-    ?? html.match(/"title"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/)?.[1];
-  let title: string | undefined;
-  if (rawTitle) {
-    try { title = decodeHtml(JSON.parse(`"${rawTitle}"`)); } catch { title = decodeHtml(rawTitle); }
-  }
-  return { title, durationSeconds: duration };
+  const channelTitle = html.match(/"ownerChannelName"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/)?.[1]
+    ?? html.match(/<link\s+itemprop="name"\s+content="([^"]+)"/)?.[1];
+  return {
+    ...oembed,
+    channelTitle: oembed.channelTitle ?? (channelTitle ? decodeHtml(channelTitle) : undefined),
+    durationSeconds: duration,
+  };
 }
 
 async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: string; title?: string } | null> {
@@ -242,16 +346,16 @@ async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: n
   return transcript;
 }
 
-async function transcribeYouTubeVideo(url: string): Promise<{ text: string; title?: string }> {
-  const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
+async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata }> {
+  const metadata = await getYouTubeMetadata(url).catch(() => ({}));
 
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
-    return { text: captionResult.text, title: captionResult.title ?? metadata.title };
+    return { text: captionResult.text, metadata: { ...metadata, title: metadata.title ?? captionResult.title } };
   }
 
   const text = await transcribeYouTubeWithGeminiClips(url, metadata.durationSeconds);
-  return { text, title: metadata.title };
+  return { text, metadata };
 }
 
 Deno.serve(async (req) => {
@@ -280,7 +384,7 @@ Deno.serve(async (req) => {
 
     const { data: artifact } = await supabase
       .from("artifacts")
-      .select("id,processing_token")
+      .select("id,title,processing_token")
       .eq("id", artifact_id)
       .maybeSingle();
     if (!artifact || artifact.processing_token !== processing_token) {
@@ -299,11 +403,21 @@ Deno.serve(async (req) => {
     const processTranscript = async () => {
       try {
         const result = await transcribeYouTubeVideo(url);
+        const metadata = {
+          source: "youtube",
+          channel_title: result.metadata.channelTitle ?? null,
+          channel_url: result.metadata.channelUrl ?? null,
+          thumbnail_url: result.metadata.thumbnailUrl ?? null,
+          provider_name: result.metadata.providerName ?? "YouTube",
+          duration_seconds: result.metadata.durationSeconds ?? null,
+          video_id: extractYouTubeVideoId(url),
+        };
         const { data: updated } = await supabase
           .from("artifacts")
           .update({
             raw_text: result.text,
-            title: result.title ?? null,
+            title: artifact.title || result.metadata.title || null,
+            metadata,
             status: "analyzing",
             error: null,
           })

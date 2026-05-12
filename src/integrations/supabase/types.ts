@@ -113,12 +113,57 @@ export type Database = {
           },
         ]
       }
+      artifact_moments: {
+        Row: {
+          artifact_id: string
+          body: string | null
+          created_at: string
+          end_seconds: number | null
+          id: string
+          kind: string
+          label: string | null
+          start_seconds: number
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          body?: string | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          kind: string
+          label?: string | null
+          start_seconds: number
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          body?: string | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          kind?: string
+          label?: string | null
+          start_seconds?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_moments_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifacts: {
         Row: {
           created_at: string
           error: string | null
           id: string
           kind: string
+          metadata: Json
           processing_token: string | null
           raw_text: string
           status: string
@@ -132,6 +177,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind: string
+          metadata?: Json
           processing_token?: string | null
           raw_text: string
           status?: string
@@ -145,6 +191,7 @@ export type Database = {
           error?: string | null
           id?: string
           kind?: string
+          metadata?: Json
           processing_token?: string | null
           raw_text?: string
           status?: string

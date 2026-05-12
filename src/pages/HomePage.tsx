@@ -1,16 +1,17 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, ListChecks, MessageCircleQuestion,
-  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, LogOut, NotebookPen,
-  Lightbulb, Calendar as CalIcon, ImagePlus, SlidersHorizontal,
+  Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Network,
+  Lightbulb, Calendar as CalIcon, User,
   type LucideIcon,
 } from "lucide-react";
 
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
+const PROFILE_PHOTO_KEY = "yb_profile_photo"; // data URL
 
 type AppIcon = {
   label: string;
@@ -24,7 +25,7 @@ type AppIcon = {
 };
 
 export default function HomePage() {
-  const { user, profile, loading, signOut, updateProfile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [todayPrompt, setTodayPrompt] = useState<{ id: string; text: string } | null>(null);
   const [onThisDayCount, setOnThisDayCount] = useState(0);
@@ -36,9 +37,10 @@ export default function HomePage() {
   );
   const [wallpaperTint, setWallpaperTint] = useState(24);
   const [wallpaperBlur, setWallpaperBlur] = useState(0);
-  const [showWallpaperControls, setShowWallpaperControls] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(
+    typeof window !== "undefined" ? localStorage.getItem(PROFILE_PHOTO_KEY) : null,
+  );
   const [now, setNow] = useState<Date>(new Date());
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -48,13 +50,17 @@ export default function HomePage() {
   useEffect(() => {
     if (!profile?.layout) return;
     try {
-      const parsed = JSON.parse(profile.layout) as { homeWallpaper?: string; homeWallpaperTint?: number; homeWallpaperBlur?: number };
+      const parsed = JSON.parse(profile.layout) as { homeWallpaper?: string; homeWallpaperTint?: number; homeWallpaperBlur?: number; homeProfilePhoto?: string };
       if (parsed.homeWallpaper) {
         setWallpaper(parsed.homeWallpaper);
         localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
       }
       if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
       if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+      if (parsed.homeProfilePhoto) {
+        setProfilePhoto(parsed.homeProfilePhoto);
+        localStorage.setItem(PROFILE_PHOTO_KEY, parsed.homeProfilePhoto);
+      }
     } catch {
       // Keep defaults when legacy/plain layout values are present.
     }
@@ -122,7 +128,7 @@ export default function HomePage() {
   const apps: AppIcon[] = [
     { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
     { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
-    { label: "Framework", to: "/framework",            imageSrc: "/framework-icon.svg", color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" },
+    { label: "Framework", to: "/framework",            icon: Network,               color: "linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)", iconColor: "#E2BC6F" },
     { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
     { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "linear-gradient(160deg, #ECECEC 0%, #FCFCFC 62%, #FFFFFF 100%)", iconColor: "#3F3F46", badge: counts.beliefs || undefined },
@@ -137,39 +143,7 @@ export default function HomePage() {
   const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
   const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   const fullDateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-
-  const onUploadWallpaper = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) { alert("Image too large (max 100 MB)"); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = reader.result as string;
-      try {
-        localStorage.setItem(WALLPAPER_KEY, url);
-      } catch {
-        alert("Wallpaper applied, but too large to save permanently on this device.");
-      }
-      setWallpaper(url);
-      void updateProfile({
-        layout: JSON.stringify({
-          homeWallpaper: url,
-          homeWallpaperTint: wallpaperTint,
-          homeWallpaperBlur: wallpaperBlur,
-        }),
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const saveWallpaperPresentation = (nextTint: number, nextBlur: number) => {
-    if (!wallpaper) return;
-    void updateProfile({
-      layout: JSON.stringify({
-        homeWallpaper: wallpaper,
-        homeWallpaperTint: nextTint,
-        homeWallpaperBlur: nextBlur,
-      }),
-    });
-  };
+  const profileInitial = (name || user.email || "U").trim()[0]?.toUpperCase() ?? "U";
 
   const wallpaperStyle = wallpaper
     ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "scroll" as const }
@@ -195,38 +169,20 @@ export default function HomePage() {
           <span>{timeStr}</span>
           <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          {/* Signal bars */}
-          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden>
-            <rect x="0"  y="7" width="3" height="4" rx="0.8" />
-            <rect x="4.5" y="5" width="3" height="6" rx="0.8" />
-            <rect x="9"  y="3" width="3" height="8" rx="0.8" />
-            <rect x="13.5" y="0" width="3" height="11" rx="0.8" />
-          </svg>
-          <span className="text-[11px] font-semibold ml-0.5">5G</span>
-          {/* WiFi */}
-          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden className="ml-1">
-            <path d="M1 4 Q8 -2 15 4" /><path d="M3 6.5 Q8 2.5 13 6.5" /><path d="M5.5 9 Q8 7 10.5 9" />
-            <circle cx="8" cy="11" r="0.9" fill="currentColor" />
-          </svg>
-          {/* Battery */}
-          <div className="ml-1.5 flex items-center">
-            <div className="relative w-[24px] h-[11px] rounded-[3px] border border-current opacity-95">
-              <div className="absolute inset-[1.5px] right-[3px] bg-current rounded-[1.5px]" style={{ width: "calc(100% - 5px)" }} />
-            </div>
-            <div className="w-[1.5px] h-[4px] bg-current rounded-r ml-[1px] opacity-95" />
-          </div>
-        </div>
+        <button
+          onClick={() => navigate("/settings")}
+          className="w-10 h-10 rounded-full bg-white/25 border border-white/45 backdrop-blur-xl overflow-hidden flex items-center justify-center text-white font-semibold shadow-[0_8px_22px_-12px_rgba(0,0,0,0.6)] active:scale-95 transition"
+          aria-label="Open profile and settings"
+        >
+          {profilePhoto ? (
+            <img src={profilePhoto} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="flex items-center justify-center">
+              {profileInitial || <User className="w-4 h-4" />}
+            </span>
+          )}
+        </button>
       </div>
-
-      {/* Sign-out — lock-screen style icon, top right inset */}
-      <button
-        onClick={() => signOut()}
-        className="absolute top-[max(2.25rem,calc(env(safe-area-inset-top)+1.25rem))] right-3 z-20 w-9 h-9 rounded-full bg-black/25 backdrop-blur flex items-center justify-center text-white/90 hover:bg-black/40 transition"
-        aria-label="Sign out"
-      >
-        <LogOut className="w-4 h-4" />
-      </button>
 
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 pt-2 pb-40 sm:pb-32">
         {/* Lock-screen style date / greeting */}
@@ -284,47 +240,11 @@ export default function HomePage() {
             <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
             <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
-            <DockIcon imageSrc="/framework-icon.svg" color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" />
-            <button
-              onClick={() => fileRef.current?.click()}
-              aria-label="Change wallpaper"
-              className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-              style={{ background: "linear-gradient(160deg, #2B2F42 0%, #3E445E 58%, #545C7F 100%)" }}
-            >
-              <ImagePlus className="w-[21px] h-[21px] sm:w-[24px] sm:h-[24px] text-white" strokeWidth={1.9} />
-            </button>
-            <button
-              onClick={() => setShowWallpaperControls((v) => !v)}
-              aria-label="Wallpaper tint controls"
-              className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-              style={{ background: "linear-gradient(160deg, #355070 0%, #4D6B90 58%, #6E8AB0 100%)" }}
-            >
-              <SlidersHorizontal className="w-[21px] h-[21px] sm:w-[24px] sm:h-[24px] text-white" strokeWidth={1.9} />
-            </button>
+            <DockIcon icon={Network} color="linear-gradient(160deg, #111827 0%, #222436 58%, #3B4262 100%)" onClick={() => navigate("/framework")}        label="Framework" iconColor="#E2BC6F" />
           </div>
-          {showWallpaperControls && wallpaper && (
-            <div className="mt-2 rounded-xl sm:rounded-2xl bg-black/40 backdrop-blur-xl border border-white/25 p-3 text-white">
-              <label className="block text-[11px] uppercase tracking-[0.12em] mb-1">Tint</label>
-              <input type="range" min={0} max={60} value={wallpaperTint} onChange={(e) => {
-                const v = Number(e.target.value); setWallpaperTint(v); saveWallpaperPresentation(v, wallpaperBlur);
-              }} className="w-full" />
-              <label className="block text-[11px] uppercase tracking-[0.12em] mt-3 mb-1">Blur</label>
-              <input type="range" min={0} max={14} value={wallpaperBlur} onChange={(e) => {
-                const v = Number(e.target.value); setWallpaperBlur(v); saveWallpaperPresentation(wallpaperTint, v);
-              }} className="w-full" />
-            </div>
-          )}
           <div className="mx-auto mt-2 w-[96px] sm:w-[120px] h-[5px] rounded-full bg-white/70" />
         </div>
       </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadWallpaper(f); e.currentTarget.value = ""; }}
-      />
     </div>
   );
 }
@@ -389,7 +309,7 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   );
 }
 
-function DockIcon({ icon: Icon, imageSrc, color, onClick, label }: { icon?: LucideIcon; imageSrc?: string; color: string; onClick: () => void; label: string }) {
+function DockIcon({ icon: Icon, imageSrc, color, onClick, label, iconColor = "white" }: { icon?: LucideIcon; imageSrc?: string; color: string; onClick: () => void; label: string; iconColor?: string }) {
   return (
     <button
       onClick={onClick}
@@ -400,7 +320,7 @@ function DockIcon({ icon: Icon, imageSrc, color, onClick, label }: { icon?: Luci
       {imageSrc ? (
         <img src={imageSrc} alt="" className="w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] object-cover rounded-[14px]" />
       ) : Icon ? (
-        <Icon className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px] text-white" strokeWidth={2} />
+        <Icon className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px]" style={{ color: iconColor }} strokeWidth={2} />
       ) : null}
     </button>
   );
