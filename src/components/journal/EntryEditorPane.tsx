@@ -22,6 +22,7 @@ import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKind
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
+import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 
 interface EntryRow {
   id: string;
@@ -139,8 +140,8 @@ export default function EntryEditorPane({
     });
   };
 
-  const onPickPhotos = async (files: FileList | null) => {
-    if (!files || !files.length || !entry || !user) return;
+  const onPickPhotos = async (files: FileList | null): Promise<{ storage_path: string }[] | undefined> => {
+    if (!files || !files.length || !entry || !user) return undefined;
     try {
       const uploaded = await uploadEntryPhotos(user.id, entry.id, Array.from(files));
       const { data } = await supabase
@@ -155,8 +156,10 @@ export default function EntryEditorPane({
         .select("id,storage_path");
       const urls = await getSignedPhotoUrls((data ?? []).map((p: { storage_path: string }) => p.storage_path));
       setPhotos((p) => [...p, ...((data ?? []).map((d: { id: string; storage_path: string }) => ({ ...d, url: urls[d.storage_path] })))]);
+      return (data ?? []).map((d: { storage_path: string }) => ({ storage_path: d.storage_path }));
     } catch (e) {
       toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
+      return undefined;
     }
   };
 
@@ -410,7 +413,34 @@ export default function EntryEditorPane({
         onSave={async (file) => {
           const dt = new DataTransfer();
           dt.items.add(file);
-          await onPickPhotos(dt.files);
+          const inserted = await onPickPhotos(dt.files);
+          const path = inserted?.[0]?.storage_path;
+          if (!path || !user || !entry) return;
+          toast({ title: "Reading your sketch…", description: "AI is transcribing your handwriting." });
+          const result = await transcribeJournalSketch({ entryId: entry.id, storagePath: path });
+          if (!result.ok) {
+            toast({
+              title: "Sketch saved",
+              description: result.error,
+              variant: "destructive",
+            });
+            return;
+          }
+          if (result.skipped) {
+            toast({ title: "Sketch saved", description: "This sketch was already transcribed." });
+            return;
+          }
+          const cur = entryRef.current;
+          if (cur?.id === entry.id) {
+            if (saveTimer.current) {
+              clearTimeout(saveTimer.current);
+              saveTimer.current = null;
+            }
+            entryRef.current = { ...cur, body: result.body };
+            setEntry({ ...entryRef.current });
+          }
+          onChanged();
+          toast({ title: "Sketch transcribed", description: "Text was added to your journal body." });
         }}
         filename={`sketch-${entry.id}`}
       />

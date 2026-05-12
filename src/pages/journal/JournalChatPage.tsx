@@ -36,7 +36,12 @@ import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
+const LS_VOICE_REPLIES = "journal_chat.voice_replies";
 
+/** Silence after last *final* speech chunk before auto-send (~1.2–1.8s band; mid-phrase pauses use interim text to hold). */
+const SILENCE_AFTER_FINAL_MS = 1500;
+
+type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
   id?: string;
   label: string;
@@ -61,6 +66,27 @@ function readIncludeGeneralDefault(): boolean {
   const v = localStorage.getItem(LS_INCLUDE_GENERAL);
   if (v === "0" || v === "false") return false;
   return true;
+}
+
+function readVoiceRepliesDefault(): boolean {
+  if (typeof window === "undefined") return false;
+  const v = localStorage.getItem(LS_VOICE_REPLIES);
+  if (v === "1" || v === "true") return true;
+  return false;
+}
+
+function stripMarkdownForTts(md: string): string {
+  let s = md;
+  s = s.replace(/```[\s\S]*?```/g, " ");
+  s = s.replace(/`([^`]+)`/g, "$1");
+  s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  s = s.replace(/^\s*#{1,6}\s+/gm, "");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "$1");
+  s = s.replace(/\*([^*]+)\*/g, "$1");
+  s = s.replace(/__([^_]+)__/g, "$1");
+  s = s.replace(/_([^_]+)_/g, "$1");
+  s = s.replace(/\s+/g, " ");
+  return s.trim();
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -164,7 +190,75 @@ export default function JournalChatPage() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
+  const [dictationListening, setDictationListening] = useState(false);
+  const [voiceReplies, setVoiceReplies] = useState(readVoiceRepliesDefault);
   const ignoreResult = useRef(false);
+
+  const sendingRef = useRef(false);
+  const inputRef = useRef("");
+  const dictInterimRef = useRef("");
+  const lastDictationFinalAtRef = useRef(0);
+  const voiceHadFinalSinceMicOnRef = useRef(false);
+  const includeGeneralRef = useRef(includeGeneral);
+  const voiceRepliesRef = useRef(voiceReplies);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsObjectUrlRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+  const sendRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
+
+  inputRef.current = input;
+  dictInterimRef.current = dictInterim;
+  includeGeneralRef.current = includeGeneral;
+  voiceRepliesRef.current = voiceReplies;
+
+  const stopJournalTts = useCallback(() => {
+    const a = ttsAudioRef.current;
+    ttsAudioRef.current = null;
+    if (a) {
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
+    }
+    const u = ttsObjectUrlRef.current;
+    ttsObjectUrlRef.current = null;
+    if (u) URL.revokeObjectURL(u);
+  }, []);
+
+  const playJournalAssistantTts = useCallback(
+    async (markdown: string) => {
+      if (!voiceRepliesRef.current) return;
+      const text = stripMarkdownForTts(markdown);
+      if (!text) return;
+      stopJournalTts();
+      try {
+        const { data, error } = await supabase.functions.invoke<ArrayBuffer>("sleep-tts", {
+          body: { text: text.slice(0, 4500) },
+          responseType: "arrayBuffer",
+        });
+        if (error) return;
+        if (!mountedRef.current || !voiceRepliesRef.current) return;
+        const buf = data as unknown;
+        if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) return;
+        const blob = new Blob([buf], { type: "audio/mpeg" });
+        const url = URL.createObjectURL(blob);
+        ttsObjectUrlRef.current = url;
+        const audio = new Audio(url);
+        ttsAudioRef.current = audio;
+        await audio.play().catch(() => {});
+      } catch {
+        /* ignore TTS failures */
+      }
+    },
+    [stopJournalTts],
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopJournalTts();
+    };
+  }, [stopJournalTts]);
 
   const loadSessions = useCallback(async () => {
     if (!user) return;
@@ -213,6 +307,11 @@ export default function JournalChatPage() {
     if (typeof window === "undefined") return;
     localStorage.setItem(LS_INCLUDE_GENERAL, includeGeneral ? "1" : "0");
   }, [includeGeneral]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LS_VOICE_REPLIES, voiceReplies ? "1" : "0");
+  }, [voiceReplies]);
 
   // Create entry + chat, then navigate to /journal/chat/:id (sessionStorage avoids Strict Mode double-create).
   useEffect(() => {
@@ -340,14 +439,13 @@ export default function JournalChatPage() {
       if (!(firstMsg?.length ?? 0)) {
         setBootstrapping(true);
         try {
-          const include = readIncludeGeneralDefault();
           const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
             body: {
               chat_id: cId,
               journal_entry_id: routeEntryId,
               mode: "journal",
               journal_bootstrap_opener: true,
-              include_general_knowledge: include,
+              include_general_knowledge: includeGeneralRef.current,
             },
           });
           if (cancelled) return;
@@ -355,6 +453,15 @@ export default function JournalChatPage() {
           const payload = data as MyAiInvokeOk | { error?: string } | null;
           if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
             throw new Error(payload.error);
+          }
+          if (
+            payload &&
+            typeof payload === "object" &&
+            "content" in payload &&
+            typeof (payload as MyAiInvokeOk).content === "string" &&
+            (payload as MyAiInvokeOk).content.trim()
+          ) {
+            void playJournalAssistantTts((payload as MyAiInvokeOk).content);
           }
         } catch (e) {
           if (!cancelled) {
@@ -370,11 +477,29 @@ export default function JournalChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [routeEntryId, user, navigate, loadMessages, loadSessions]);
+  }, [routeEntryId, user, navigate, loadMessages, loadSessions, playJournalAssistantTts]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending, bootstrapping]);
+
+  useEffect(() => {
+    if (!dictationListening || sending || bootstrapping || !routeEntryId || !chatId) return;
+    const id = window.setInterval(() => {
+      if (!voiceHadFinalSinceMicOnRef.current) return;
+      if (sendingRef.current) return;
+      if (dictInterimRef.current.trim()) return;
+      const t = inputRef.current.trim();
+      if (!t) return;
+      if (Date.now() - lastDictationFinalAtRef.current < SILENCE_AFTER_FINAL_MS) return;
+      void sendRef.current();
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [dictationListening, sending, bootstrapping, routeEntryId, chatId]);
+
+  useEffect(() => {
+    if (!voiceReplies) stopJournalTts();
+  }, [voiceReplies, stopJournalTts]);
 
   if (authLoading) {
     return (
@@ -409,15 +534,20 @@ export default function JournalChatPage() {
 
   const stop = () => {
     ignoreResult.current = true;
+    sendingRef.current = false;
     setSending(false);
+    stopJournalTts();
   };
 
   const send = async (textOverride?: string) => {
-    const text = (textOverride ?? input).trim();
-    if (!text || sending || !chatId || !routeEntryId) return;
+    const text = (textOverride ?? inputRef.current).trim();
+    if (!text || sendingRef.current || !chatId || !routeEntryId) return;
+    stopJournalTts();
     dictateRef.current?.stop();
+    voiceHadFinalSinceMicOnRef.current = false;
     ignoreResult.current = false;
     setInput("");
+    sendingRef.current = true;
     setSending(true);
 
     try {
@@ -447,12 +577,15 @@ export default function JournalChatPage() {
 
       await loadMessages(payload.chat_id);
       void loadSessions();
+      const reply = typeof payload.content === "string" ? payload.content : "";
+      if (reply.trim()) void playJournalAssistantTts(reply);
     } catch (e) {
       if (!ignoreResult.current) {
         toast({ title: "Message failed", description: String(e), variant: "destructive" });
         setInput(text);
       }
     } finally {
+      sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
       setTimeout(() => taRef.current?.focus(), 50);
@@ -460,7 +593,9 @@ export default function JournalChatPage() {
   };
 
   const retryLast = async () => {
-    if (!chatId || !routeEntryId || sending) return;
+    if (!chatId || !routeEntryId || sendingRef.current) return;
+    stopJournalTts();
+    sendingRef.current = true;
     setSending(true);
     ignoreResult.current = false;
     try {
@@ -479,9 +614,15 @@ export default function JournalChatPage() {
         throw new Error(payload.error);
       }
       await loadMessages(chatId);
+      const reply =
+        payload && typeof payload === "object" && typeof (payload as MyAiInvokeOk).content === "string"
+          ? (payload as MyAiInvokeOk).content
+          : "";
+      if (reply.trim()) void playJournalAssistantTts(reply);
     } catch (e) {
       toast({ title: "Retry failed", description: String(e), variant: "destructive" });
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -489,6 +630,7 @@ export default function JournalChatPage() {
   const endSession = async () => {
     if (!routeEntryId || ending) return;
     dictateRef.current?.stop();
+    stopJournalTts();
     setEnding(true);
     try {
       const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>("my-ai-chat", {
@@ -517,6 +659,8 @@ export default function JournalChatPage() {
     setSheetOpen(false);
     navigate("/journal/chat");
   };
+
+  sendRef.current = send;
 
   const rail = (
     <div className="flex h-full min-h-0 flex-col border-r border-border bg-card/80 backdrop-blur-sm">
@@ -591,6 +735,14 @@ export default function JournalChatPage() {
                     id="jc-outside"
                     checked={includeGeneral}
                     onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="jc-voice" className="text-sm">Voice replies (ElevenLabs)</Label>
+                  <Switch
+                    id="jc-voice"
+                    checked={voiceReplies}
+                    onCheckedChange={(v) => setVoiceReplies(Boolean(v))}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2">
@@ -724,8 +876,16 @@ export default function JournalChatPage() {
                   ref={dictateRef}
                   size="md"
                   className="h-11 w-11 shrink-0"
-                  onAppend={(chunk) => setInput((prev) => mergeDictatedText(prev, chunk))}
+                  onAppend={(chunk) => {
+                    setInput((prev) => mergeDictatedText(prev, chunk));
+                    lastDictationFinalAtRef.current = Date.now();
+                    voiceHadFinalSinceMicOnRef.current = true;
+                  }}
                   onInterim={setDictInterim}
+                  onListeningChange={(on) => {
+                    setDictationListening(on);
+                    if (on) voiceHadFinalSinceMicOnRef.current = false;
+                  }}
                 />
                 <Button
                   type="button"

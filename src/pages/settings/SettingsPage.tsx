@@ -24,6 +24,12 @@ export default function SettingsPage() {
   const { user, profile, updateProfile, signOut, loading } = useAuth();
   const [saving, setSaving] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
+  const [dobDraft, setDobDraft] = useState(profile?.date_of_birth ?? "");
+
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [wallpaper, setWallpaper] = useState<string | null>(typeof window !== "undefined" ? localStorage.getItem(WALLPAPER_KEY) : null);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(
     typeof window !== "undefined" ? localStorage.getItem(HOME_PROFILE_PHOTO_STORAGE_KEY) : null,
@@ -32,6 +38,10 @@ export default function SettingsPage() {
   const [wallpaperBlur, setWallpaperBlur] = useState(0);
   const wallpaperFileRef = useRef<HTMLInputElement>(null);
   const profilePhotoFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDobDraft(profile?.date_of_birth ?? "");
+  }, [profile?.date_of_birth]);
 
   useEffect(() => {
     if (!profile?.layout) return;
@@ -78,8 +88,12 @@ export default function SettingsPage() {
 
   const save = async (patch: Parameters<typeof updateProfile>[0]) => {
     setSaving(true);
-    await updateProfile(patch);
+    const { error } = await updateProfile(patch);
     setSaving(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Could not save", description: error.message });
+      return;
+    }
     toast({ title: "Saved" });
   };
 
@@ -186,6 +200,26 @@ export default function SettingsPage() {
                   placeholder="Your name"
                 />
               </div>
+            </div>
+            <div className="pt-1">
+              <div className="text-sm text-muted-foreground">Birth date</div>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-1">Used for “My life in weeks” on the home screen.</p>
+              <input
+                type="date"
+                max={todayIso()}
+                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={dobDraft}
+                onChange={(e) => setDobDraft(e.target.value)}
+                onBlur={() => {
+                  const next = dobDraft.trim() ? dobDraft.trim() : null;
+                  const prevRaw = profile.date_of_birth ?? null;
+                  const prev = prevRaw != null && String(prevRaw).trim() !== "" ? String(prevRaw).trim() : null;
+                  if (next !== prev) void save({ date_of_birth: next });
+                }}
+              />
+              <Link to="/life-weeks" className="text-xs text-gold-deep hover:underline mt-1.5 inline-block">
+                Open life in weeks poster
+              </Link>
             </div>
             <Button type="button" variant="outline" onClick={() => profilePhotoFileRef.current?.click()}>Change profile photo</Button>
             <div className="text-xs text-muted-foreground">Signed in as {user?.email}</div>

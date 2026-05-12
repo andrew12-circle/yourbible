@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { parseIdentitySummaryPayload, type IdentitySummaryPayload } from "@/lib/framework/identitySummary";
@@ -9,6 +9,8 @@ export interface Profile {
   id: string;
   user_id: string;
   display_name: string | null;
+  /** ISO `YYYY-MM-DD` from Postgres `date` */
+  date_of_birth?: string | null;
   cover: string;
   highlight_palette: string;
   font_choice: string;
@@ -28,7 +30,7 @@ interface AuthCtx {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  updateProfile: (patch: Partial<Profile>) => Promise<void>;
+  updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthCtx | undefined>(undefined);
@@ -54,10 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = async (uid: string) => {
+  const loadProfile = useCallback(async (uid: string) => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
     setProfile(data ? profileFromDbRow(data) : null);
-  };
+  }, []);
 
   useEffect(() => {
     // Listener FIRST, then session check
@@ -80,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [loadProfile]);
 
   const value = useMemo<AuthCtx>(() => ({
     user, session, profile, loading,
@@ -101,11 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => { await supabase.auth.signOut(); },
     refreshProfile: async () => { if (user) await loadProfile(user.id); },
     updateProfile: async (patch) => {
-      if (!user) return;
-      const { data } = await supabase.from("profiles").update(patch).eq("user_id", user.id).select().maybeSingle();
-      if (data) setProfile(profileFromDbRow(data));
+      if (!user) return { error: new Error("Not signed in") };
+      const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
+      if (error) return { error: new Error(error.message) };
+      await loadProfile(user.id);
+      return { error: null };
     },
-  }), [user, session, profile, loading]);
+  }), [user, session, profile, loading, loadProfile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

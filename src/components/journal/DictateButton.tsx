@@ -11,15 +11,20 @@ export type DictateButtonHandle = { stop: () => void };
 export type DictateButtonProps = {
   onAppend: (chunk: string) => void;
   onInterim?: (partial: string) => void;
+  /** Fires when the browser speech session starts/stops (for silence-based auto-send, etc.). */
+  onListeningChange?: (listening: boolean) => void;
   language?: string;
   size?: "sm" | "md";
   className?: string;
 };
 
 export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>(function DictateButton(
-  { onAppend, onInterim, language, size = "sm", className },
+  { onAppend, onInterim, onListeningChange, language, size = "sm", className },
   ref,
 ) {
+  const onListeningChangeRef = useRef(onListeningChange);
+  onListeningChangeRef.current = onListeningChange;
+
   const { supported, listening, error, stop, toggle } = useSpeechDictation({
     onAppend,
     onInterim,
@@ -27,6 +32,10 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   });
 
   useImperativeHandle(ref, () => ({ stop }), [stop]);
+
+  useEffect(() => {
+    onListeningChangeRef.current?.(listening);
+  }, [listening]);
 
   const lastToasted = useRef<string | null>(null);
   useEffect(() => {

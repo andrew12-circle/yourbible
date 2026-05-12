@@ -571,7 +571,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           Closing without saving discards the sketch
         </span>
         <span className="hidden sm:inline tabular-nums">
-          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo
+          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, handwriting can be transcribed into your entry
         </span>
       </footer>
     </div>

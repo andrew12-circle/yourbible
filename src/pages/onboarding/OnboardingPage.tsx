@@ -20,8 +20,12 @@ export default function OnboardingPage() {
 
   const finish = async () => {
     setBusy(true);
-    await updateProfile({ cover, highlight_palette: palette, onboarded: true });
+    const { error } = await updateProfile({ cover, highlight_palette: palette, onboarded: true });
     setBusy(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Couldn't finish setup", description: error.message });
+      return;
+    }
     toast({ title: "Your Bible is ready", description: "Open it whenever you'd like." });
     navigate("/");
   };

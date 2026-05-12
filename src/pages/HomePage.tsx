@@ -9,6 +9,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
+import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
+import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
@@ -255,6 +257,8 @@ export default function HomePage() {
           </h1>
         </div>
 
+        <LifePrioritiesPanel />
+
         {/* Today's prompt — iOS widget */}
         {todayPrompt && (
           <button
@@ -281,6 +285,8 @@ export default function HomePage() {
             </p>
           </button>
         )}
+
+        <LifeWeeksTile />
 
         {/* App grid — responsive, iPhone (4 col) → iPad (6 col) */}
         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">

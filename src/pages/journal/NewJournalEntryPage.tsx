@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
@@ -359,6 +360,34 @@ export default function NewJournalEntryPage() {
             height: u.height,
           })),
         );
+        let txError: string | undefined;
+        let transcribedCount = 0;
+        for (let i = 0; i < pendingFiles.length; i++) {
+          const f = pendingFiles[i];
+          const isSketch = f.type === "image/png" && /sketch-/i.test(f.name);
+          if (!isSketch) continue;
+          const path = uploaded[i]?.storage_path;
+          if (!path) continue;
+          setBusyLabel("Reading sketch");
+          const r = await transcribeJournalSketch({ entryId: entryId!, storagePath: path });
+          if (!r.ok) {
+            txError = r.error;
+            break;
+          }
+          if (!r.skipped) transcribedCount += 1;
+        }
+        if (txError) {
+          toast({
+            title: "Photos saved",
+            description: txError,
+            variant: "destructive",
+          });
+        } else if (transcribedCount > 0) {
+          toast({
+            title: "Sketch transcribed",
+            description: "Handwriting was added to your journal body.",
+          });
+        }
       } catch (e) {
         toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
       }

@@ -27,6 +27,9 @@ verify_jwt = true
 [functions.partner-refresh-summary]
 verify_jwt = true
 
+[functions.journal-sketch-to-text]
+verify_jwt = true
+
 [functions.bible-passage]
 verify_jwt = false
 

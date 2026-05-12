@@ -47,6 +47,8 @@ import GlobalJournalLauncher from "./components/journal/GlobalJournalLauncher";
 import MyAiPage from "./pages/myai/MyAiPage";
 import PartnerWalkPage from "./pages/partner/PartnerWalkPage";
 import PartnerAcceptPage from "./pages/partner/PartnerAcceptPage";
+import LifeWeeksPage from "./pages/life/LifeWeeksPage";
+import LifePrioritiesPage from "./pages/life/LifePrioritiesPage";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +82,8 @@ const App = () => (
             <Route path="/read/:book/:chapter" element={<ReaderPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sleep" element={<SleepPage />} />
+            <Route path="/life-weeks" element={<LifeWeeksPage />} />
+            <Route path="/life/priorities" element={<LifePrioritiesPage />} />
             <Route path="/framework" element={<FrameworkDashboard />} />
             <Route path="/framework/journey" element={<FaithJourneyPage />} />
             <Route path="/framework/playbook" element={<PlaybookPage />} />
