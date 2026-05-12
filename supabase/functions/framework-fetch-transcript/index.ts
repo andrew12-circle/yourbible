@@ -143,7 +143,7 @@ function formatTime(seconds: number): string {
 }
 
 async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ text: string; title?: string }> {
-  const metadata = await getYouTubeMetadata(url).catch(() => ({}));
+  const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
   const durationSeconds = metadata.durationSeconds;
 
   if (!durationSeconds || durationSeconds <= SEGMENT_SECONDS) {
