@@ -1,6 +1,7 @@
-// Fetches a YouTube transcript using Lovable AI (Gemini), then triggers framework-analyze.
-// Gemini natively understands YouTube URLs, which is far more reliable than scraping
-// captions (YouTube now blocks server-side caption fetching with PoToken requirements).
+// Fetches a YouTube transcript, then triggers framework-analyze.
+// Prefer real YouTube caption tracks. Gemini video transcription is only a
+// fallback for shorter videos because long videos can exceed Gemini's 1M-token
+// input window even when clipped with videoMetadata.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -18,17 +19,58 @@ function isYouTubeUrl(url: string): boolean {
 }
 
 const MODEL = "gemini-2.5-flash";
-const SEGMENT_SECONDS = 20 * 60;
-const MAX_SEGMENTS = 12;
+const GEMINI_VIDEO_MAX_SECONDS = 45 * 60;
 
 function decodeHtml(input: string): string {
   return input
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(Number.parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number.parseInt(n, 10)))
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .trim();
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") return u.pathname.split("/").filter(Boolean)[0] ?? null;
+    if (u.hostname.endsWith("youtube.com")) return u.searchParams.get("v") || u.pathname.match(/\/shorts\/([^/?#]+)/)?.[1] || null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function parseJsonObjectFromHtml(html: string, marker: string): unknown | null {
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex === -1) return null;
+  const start = html.indexOf("{", markerIndex);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < html.length; i += 1) {
+    const ch = html[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try { return JSON.parse(html.slice(start, i + 1)); } catch { return null; }
+      }
+    }
+  }
+  return null;
 }
 
 async function getYouTubeMetadata(url: string): Promise<{ title?: string; durationSeconds?: number }> {
@@ -48,6 +90,56 @@ async function getYouTubeMetadata(url: string): Promise<{ title?: string; durati
     try { title = decodeHtml(JSON.parse(`"${rawTitle}"`)); } catch { title = decodeHtml(rawTitle); }
   }
   return { title, durationSeconds: duration };
+}
+
+async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: string; title?: string } | null> {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+
+  const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!watchRes.ok) return null;
+  const html = await watchRes.text();
+  const playerResponse = parseJsonObjectFromHtml(html, "ytInitialPlayerResponse") as {
+    videoDetails?: { title?: string };
+    captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string; kind?: string; name?: { simpleText?: string; runs?: Array<{ text?: string }> } }> } };
+  } | null;
+  const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  if (!tracks.length) return null;
+
+  const track = tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind !== "asr")
+    ?? tracks.find((t) => t.languageCode?.toLowerCase().startsWith("en"))
+    ?? tracks[0];
+  if (!track?.baseUrl) return null;
+
+  const captionUrl = track.baseUrl.includes("fmt=") ? track.baseUrl : `${track.baseUrl}&fmt=json3`;
+  const captionRes = await fetch(captionUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!captionRes.ok) return null;
+  const body = await captionRes.text();
+
+  let lines: string[] = [];
+  try {
+    const json = JSON.parse(body) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
+    lines = (json.events ?? [])
+      .flatMap((event) => event.segs ?? [])
+      .map((seg) => seg.utf8 ?? "")
+      .filter((text) => text.trim() && text !== "\n");
+  } catch {
+    lines = [...body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, "")));
+  }
+
+  const text = lines.join(" ").replace(/\s+([,.!?;:])/g, "$1").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return { text, title: playerResponse?.videoDetails?.title };
 }
 
 function parseGeminiTranscript(content: string): { text: string; title?: string } {
@@ -146,7 +238,12 @@ async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ te
   const metadata: { title?: string; durationSeconds?: number } = await getYouTubeMetadata(url).catch(() => ({}));
   const durationSeconds = metadata.durationSeconds;
 
-  if (!durationSeconds || durationSeconds <= SEGMENT_SECONDS) {
+  const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
+  if (captionResult?.text) {
+    return { text: captionResult.text, title: captionResult.title ?? metadata.title };
+  }
+
+  if (!durationSeconds || durationSeconds <= GEMINI_VIDEO_MAX_SECONDS) {
     try {
       const result = await transcribeWithGemini(url, apiKey);
       return { text: result.text, title: result.title ?? metadata.title };
@@ -157,27 +254,10 @@ async function transcribeYouTubeVideo(url: string, apiKey: string): Promise<{ te
   }
 
   if (!durationSeconds) {
-    throw new Error("This video is too long for a single Gemini request, and its duration could not be read. Paste the transcript manually.");
+    throw new Error("Captions were unavailable, and the video was too large for Gemini to transcribe safely.");
   }
 
-  const segments = Math.ceil(durationSeconds / SEGMENT_SECONDS);
-  if (segments > MAX_SEGMENTS) {
-    const maxMinutes = Math.floor((SEGMENT_SECONDS * MAX_SEGMENTS) / 60);
-    throw new Error(`This video is too long to transcribe automatically (${formatTime(durationSeconds)}). Automatic YouTube transcription supports up to about ${maxMinutes} minutes; paste the transcript manually.`);
-  }
-
-  const transcriptParts: string[] = [];
-  let title = metadata.title;
-  for (let i = 0; i < segments; i += 1) {
-    const start = i * SEGMENT_SECONDS;
-    const end = Math.min(durationSeconds, start + SEGMENT_SECONDS);
-    const segmentLabel = `${formatTime(start)}–${formatTime(end)}`;
-    const result = await transcribeWithGemini(url, apiKey, { startSeconds: start, endSeconds: end, segmentLabel });
-    if (!title && result.title) title = result.title;
-    transcriptParts.push(result.text);
-  }
-
-  return { text: transcriptParts.join("\n\n").trim(), title };
+  throw new Error(`Captions were unavailable, and this video is too long for Gemini to transcribe safely (${formatTime(durationSeconds)}).`);
 }
 
 Deno.serve(async (req) => {
