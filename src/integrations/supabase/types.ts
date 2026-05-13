@@ -1071,6 +1071,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           color: string | null
+          created_at: string
           daily_target_minutes: number
           id: string
           intention: string | null
@@ -1083,18 +1084,20 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           color?: string | null
+          created_at?: string
           daily_target_minutes?: number
           id?: string
           intention?: string | null
           key: string
           label: string
-          rank: number
+          rank?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           archived_at?: string | null
           color?: string | null
+          created_at?: string
           daily_target_minutes?: number
           id?: string
           intention?: string | null
@@ -1169,15 +1172,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
-            columns: ["journal_entry_id"]
-            isOneToOne: true
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       my_ai_messages: {
         Row: {
@@ -1639,6 +1634,7 @@ export type Database = {
     }
     Functions: {
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
+      ensure_default_life_priorities: { Args: never; Returns: undefined }
       merge_knowledge_entity: {
         Args: {
           p_confidence: number
@@ -1649,10 +1645,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
-      }
-      ensure_default_life_priorities: {
-        Args: Record<string, never>
-        Returns: undefined
       }
       partner_peer_displays: {
         Args: never

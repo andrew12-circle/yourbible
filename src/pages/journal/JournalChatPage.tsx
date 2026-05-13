@@ -233,7 +233,6 @@ export default function JournalChatPage() {
       try {
         const { data, error } = await supabase.functions.invoke<ArrayBuffer>("sleep-tts", {
           body: { text: text.slice(0, 4500) },
-          responseType: "arrayBuffer",
         });
         if (error) return;
         if (!mountedRef.current || !voiceRepliesRef.current) return;
