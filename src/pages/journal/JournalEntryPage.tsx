@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle } from "lucide-react";
+import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -10,6 +10,12 @@ import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
 import { listEntryLinks, type EntryLink } from "@/lib/journal/links";
+import {
+  LISTENING_SECTIONS,
+  isListeningBody,
+  isListeningEmpty,
+  parseListeningBody,
+} from "@/lib/journal/listeningEntry";
 
 interface Entry {
   id: string;
@@ -101,6 +107,8 @@ export default function JournalEntryPage() {
   };
 
   const m = moodMeta(entry.mood);
+  const renderListening =
+    entry.entry_kind === "listening" || isListeningBody(entry.body);
 
   return (
     <JournalLayout
@@ -151,10 +159,14 @@ export default function JournalEntryPage() {
         </div>
       )}
 
-      {/* Sans: match journal editors under .app-theme (Cormorant reserved for explicit scripture opt-in). */}
-      <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
-        {entry.body || <span className="italic text-muted-foreground">No body</span>}
-      </div>
+      {renderListening ? (
+        <ListeningSectionsView body={entry.body} />
+      ) : (
+        /* Sans: match journal editors under .app-theme (Cormorant reserved for explicit scripture opt-in). */
+        <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
+          {entry.body || <span className="italic text-muted-foreground">No body</span>}
+        </div>
+      )}
 
       {entry.lat != null && entry.lng != null && (
         <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mb-6" />
@@ -240,6 +252,52 @@ export default function JournalEntryPage() {
         </div>
       </section>
     </JournalLayout>
+  );
+}
+
+function ListeningSectionsView({ body }: { body: string }) {
+  const sections = useMemo(() => parseListeningBody(body), [body]);
+  if (isListeningEmpty(sections)) {
+    return (
+      <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
+        {body || <span className="italic text-muted-foreground">No body</span>}
+      </div>
+    );
+  }
+  return (
+    <section
+      className="mb-6 rounded-xl border border-amber-200/70 bg-amber-50/60 p-3 dark:border-amber-700/40 dark:bg-amber-900/15"
+      aria-label="Listening entry"
+    >
+      <div className="mb-3 flex items-start gap-3">
+        <div className="rounded-full border border-amber-300 bg-amber-100/80 p-2 text-amber-700 dark:border-amber-600 dark:bg-amber-800/40 dark:text-amber-200">
+          <Ear className="h-4 w-4" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium leading-tight">Listening — heard from God</div>
+          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+            Thought · Words · Plan · Interpretation
+          </p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {LISTENING_SECTIONS.map((section) => {
+          const value = sections[section.key]?.trim();
+          if (!value) return null;
+          return (
+            <div
+              key={section.key}
+              className="rounded-lg border border-border bg-background/85 p-3"
+            >
+              <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                {section.label}
+              </div>
+              <div className="font-sans text-[15px] leading-relaxed whitespace-pre-wrap">{value}</div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -1,5 +1,5 @@
 /** Stored on `journal_entries.entry_kind` (null = ordinary journal entry). */
-export type JournalEntryKind = "dream" | "praise_report" | "testimony" | "vent" | "chat";
+export type JournalEntryKind = "dream" | "praise_report" | "testimony" | "vent" | "chat" | "listening";
 
 /** Faith-journal kinds (shown under /journal/life). */
 export type FaithJournalKind = "dream" | "praise_report" | "testimony";
@@ -64,6 +64,14 @@ export const ENTRY_KIND_META: Record<
     placeholder: "Your conversation is saved as you go. End the session when you are ready to turn it into a journal entry.",
     newTitleHint: "Reflection",
   },
+  listening: {
+    label: "Listening",
+    shortHint:
+      "Catch a thought from the Spirit, then take it from thought → words → plan → interpretation.",
+    placeholder:
+      "What did you hear, see, or sense? Catch it before it leaves — a word, a picture, a phrase.",
+    newTitleHint: "Heard",
+  },
 };
 
 /** `?kind=` on `/journal/new` */
@@ -75,13 +83,14 @@ export function parseJournalEntryKindParam(raw: string | null): JournalEntryKind
   if (v === "testimony") return "testimony";
   if (v === "vent") return "vent";
   if (v === "chat") return "chat";
+  if (v === "listening" || v === "heard" || v === "discernment") return "listening";
   return null;
 }
 
 export function coerceJournalEntryKind(raw: string | null | undefined): JournalEntryKind | null {
   if (
     raw === "dream" || raw === "praise_report" || raw === "testimony" || raw === "vent" ||
-    raw === "chat"
+    raw === "chat" || raw === "listening"
   ) {
     return raw;
   }

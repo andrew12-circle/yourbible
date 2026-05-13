@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine } from "lucide-react";
+import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -27,6 +27,15 @@ import {
   parseJournalEntryKindParam,
   type JournalEntryKind,
 } from "@/lib/journal/entryKinds";
+import {
+  LISTENING_SECTIONS,
+  composeListeningBody,
+  isListeningBody,
+  isListeningEmpty,
+  parseListeningBody,
+  type ListeningSectionKey,
+  type ListeningSections,
+} from "@/lib/journal/listeningEntry";
 
 interface BeliefOpt {
   id: string;
@@ -71,6 +80,13 @@ export default function NewJournalEntryPage() {
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
+  const [listeningSections, setListeningSections] = useState<ListeningSections>({
+    thought: "",
+    words: "",
+    plan: "",
+    interpretation: "",
+  });
+  const lastSyncedListeningKey = useRef<string | null>(null);
 
   // Pre-fill from verse capture
   useEffect(() => {
@@ -140,11 +156,36 @@ export default function NewJournalEntryPage() {
       }
       setEntryKind(kindInit);
       setTitle((t) => t || `New ${ENTRY_KIND_META[kindInit].newTitleHint}`);
-      if (kindInit !== "vent") {
+      if (kindInit !== "vent" && kindInit !== "listening") {
         setBody((b) => b || `${ENTRY_KIND_META[kindInit].placeholder}\n\n`);
       }
     }
   }, [params, editId, navigate]);
+
+  useEffect(() => {
+    if (entryKind !== "listening") return;
+    if (!isListeningEmpty(listeningSections)) return;
+    if (!body.trim()) return;
+    const parsed = parseListeningBody(body);
+    if (isListeningEmpty(parsed)) return;
+    setListeningSections(parsed);
+    lastSyncedListeningKey.current = JSON.stringify(parsed);
+    // Only re-hydrate sections when the kind switches; later edits flow through the per-section state below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryKind]);
+
+  useEffect(() => {
+    if (entryKind !== "listening") return;
+    const key = JSON.stringify(listeningSections);
+    if (key === lastSyncedListeningKey.current) return;
+    lastSyncedListeningKey.current = key;
+    const composed = composeListeningBody(listeningSections);
+    setBody(composed);
+  }, [listeningSections, entryKind]);
+
+  const setListeningSection = (key: ListeningSectionKey, value: string) => {
+    setListeningSections((prev) => ({ ...prev, [key]: value }));
+  };
 
   // After URL prefill: apply floating-panel expand handoff (route state + localStorage fallback)
   const handoffAppliedForKey = useRef<string | null>(null);
@@ -192,7 +233,13 @@ export default function NewJournalEntryPage() {
       setBody(data.body ?? "");
       setMood(data.mood);
       setTags(data.tags ?? []);
-      setEntryKind(coerceJournalEntryKind((data as { entry_kind?: string | null }).entry_kind));
+      const loadedKind = coerceJournalEntryKind((data as { entry_kind?: string | null }).entry_kind);
+      setEntryKind(loadedKind);
+      if (loadedKind === "listening" || isListeningBody(data.body)) {
+        const parsed = parseListeningBody(data.body);
+        setListeningSections(parsed);
+        lastSyncedListeningKey.current = JSON.stringify(parsed);
+      }
       setVerseRef(data.verse_ref ?? "");
       setBeliefId(data.belief_id ?? "");
       setLocationName(data.location_name ?? "");
@@ -415,6 +462,8 @@ export default function NewJournalEntryPage() {
     ? ENTRY_KIND_META[entryKind].placeholder
     : "What happened today? What are you carrying?";
   const isVent = entryKind === "vent";
+  const isListening = entryKind === "listening";
+  const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
     <JournalLayout title={layoutTitle} back={layoutBack}>
@@ -445,31 +494,77 @@ export default function NewJournalEntryPage() {
             <option value="dream">{ENTRY_KIND_META.dream.label}</option>
             <option value="praise_report">{ENTRY_KIND_META.praise_report.label}</option>
             <option value="testimony">{ENTRY_KIND_META.testimony.label}</option>
+            <option value="listening">{ENTRY_KIND_META.listening.label} — thought → words → plan → interpret</option>
             <option value="vent">{ENTRY_KIND_META.vent.label} (private)</option>
           </select>
         </section>
 
-        <div className="flex items-center justify-end gap-2">
-          <DictateButton
-            ref={dictateRef}
-            size="sm"
-            onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
-            onInterim={setDictInterim}
-          />
-        </div>
-        {/* Sans: match .app-theme body stack; list previews already default sans. */}
-        <Textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={14}
-          placeholder={bodyPlaceholder}
-          className="font-sans text-[15px] leading-relaxed"
-        />
-        {dictInterim.trim() ? (
-          <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-            {dictInterim}
-          </p>
-        ) : null}
+        {isListening ? (
+          <section
+            className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-700/40 dark:bg-amber-900/20"
+            aria-label="Listening entry — four-stage flow"
+          >
+            <div className="mb-3 flex items-start gap-3">
+              <div className="rounded-full border border-amber-300 bg-amber-100/80 p-2 text-amber-700 dark:border-amber-600 dark:bg-amber-800/40 dark:text-amber-200">
+                <Ear className="h-4 w-4" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium leading-tight">Listening — heard from God</div>
+                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                  {ENTRY_KIND_META.listening.shortHint}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {LISTENING_SECTIONS.map((section) => (
+                <div key={section.key} className="rounded-lg border border-border bg-background/80 p-3">
+                  <Label
+                    htmlFor={`listening-${section.key}`}
+                    className="text-[11px] uppercase tracking-wider text-muted-foreground"
+                  >
+                    {section.label}
+                  </Label>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/85">
+                    {section.hint}
+                  </p>
+                  <Textarea
+                    id={`listening-${section.key}`}
+                    value={listeningSections[section.key]}
+                    onChange={(e) => setListeningSection(section.key, e.target.value)}
+                    rows={section.rows}
+                    placeholder={section.placeholder}
+                    className="mt-2 font-sans text-[15px] leading-relaxed"
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="flex items-center justify-end gap-2">
+              <DictateButton
+                ref={dictateRef}
+                size="sm"
+                onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+                onInterim={setDictInterim}
+              />
+            </div>
+            {/* Sans: match .app-theme body stack; list previews already default sans. */}
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={14}
+              placeholder={bodyPlaceholder}
+              className="font-sans text-[15px] leading-relaxed"
+            />
+            {dictInterim.trim() ? (
+              <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+                {dictInterim}
+              </p>
+            ) : null}
+          </>
+        )}
 
         {/* Photos */}
         <section>
