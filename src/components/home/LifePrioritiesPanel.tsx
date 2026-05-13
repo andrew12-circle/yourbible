@@ -378,45 +378,45 @@ export function LifePrioritiesPanel() {
 
   return (
     <>
-      <section className="w-full text-left mb-4 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)]">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-800">
-                <Activity className="w-3.5 h-3.5" aria-hidden /> Today's priorities
+      <section className="w-full text-left mb-3 p-3 sm:p-3.5 rounded-[18px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)]">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+              <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-800">
+                <Activity className="w-3 h-3" aria-hidden /> Today's priorities
               </div>
               {!loading && priorities.length > 0 && (
-                <Badge variant="outline" className="text-[11px] font-medium border-zinc-400/70 bg-white/60 text-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-100">
+                <Badge variant="outline" className="text-[10px] font-medium border-zinc-400/70 bg-white/60 text-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-100 px-1.5 py-0">
                   {lanesLoggedToday} of {priorities.length} today
                 </Badge>
               )}
             </div>
-            <p className="text-[13px] text-zinc-600 dark:text-zinc-300 leading-snug">{focusPhrase}</p>
+            <p className="text-[12px] text-zinc-600 dark:text-zinc-300 leading-snug line-clamp-2">{focusPhrase}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" className="shrink-0 h-8 gap-1 border-zinc-300 bg-white/70 text-zinc-800" onClick={() => setSheetOpen(true)} disabled={loading}>
-            <Settings2 className="w-3.5 h-3.5" />
+          <Button type="button" variant="outline" size="sm" className="shrink-0 h-7 gap-1 border-zinc-300 bg-white/70 text-zinc-800 text-xs px-2" onClick={() => setSheetOpen(true)} disabled={loading}>
+            <Settings2 className="w-3 h-3" />
             Edit
           </Button>
         </div>
 
         {showEveningBanner && (
-          <p className="mb-3 text-[13px] leading-snug text-zinc-700 dark:text-zinc-200 rounded-lg bg-zinc-900/5 dark:bg-white/5 px-3 py-2 border border-zinc-200/60 dark:border-zinc-600/60">
+          <p className="mb-2 text-[12px] leading-snug text-zinc-700 dark:text-zinc-200 rounded-md bg-zinc-900/5 dark:bg-white/5 px-2.5 py-1.5 border border-zinc-200/60 dark:border-zinc-600/60">
             Want to mark how today went? Light taps count — no need to capture everything.
           </p>
         )}
         {showMorningBanner && (
-          <div className="mb-3 rounded-lg bg-zinc-900/5 dark:bg-white/5 px-3 py-2 border border-zinc-200/60 dark:border-zinc-600/60 space-y-2">
-            <p className="text-[13px] leading-snug text-zinc-700 dark:text-zinc-200">Set your intentions for the day — pick what matters before the noise arrives.</p>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="mb-2 rounded-md bg-zinc-900/5 dark:bg-white/5 px-2.5 py-1.5 border border-zinc-200/60 dark:border-zinc-600/60 space-y-1.5">
+            <p className="text-[12px] leading-snug text-zinc-700 dark:text-zinc-200">Set your intentions for the day — pick what matters before the noise arrives.</p>
+            <div className="flex flex-wrap gap-1">
               {priorities.map((p) => {
                 const pk = parseKey(p);
                 const frag = intentionFragments(p.intention)[0] ?? p.intention ?? p.label;
                 return (
-                  <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-600 pl-2 pr-2 py-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", accentDot(p.color, pk))} aria-hidden />
+                  <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-600 pl-1.5 pr-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-200">
+                    <span className={cn("w-1 h-1 rounded-full shrink-0", accentDot(p.color, pk))} aria-hidden />
                     <span className="font-medium">{p.label}</span>
                     <span className="text-zinc-500">·</span>
-                    <span className="truncate max-w-[140px]">{frag}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-[120px]">{frag}</span>
                   </span>
                 );
               })}
@@ -425,14 +425,14 @@ export function LifePrioritiesPanel() {
         )}
 
         {loading ? (
-          <div className="flex items-center gap-2 text-zinc-500 py-6 justify-center">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Gathering your lanes…</span>
+          <div className="flex items-center gap-2 text-zinc-500 py-4 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-xs">Gathering your lanes…</span>
           </div>
         ) : priorities.length === 0 ? (
-          <p className="text-sm text-zinc-600 py-3">No active priorities yet.</p>
+          <p className="text-xs text-zinc-600 py-2">No active priorities yet.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
             {priorities.map((p) => {
               const pk = parseKey(p);
               const Icon = ICONS[pk];
@@ -445,79 +445,74 @@ export function LifePrioritiesPanel() {
               }
               const gentleNeglect =
                 !logged && touchedLast7 <= 2 ? `Quiet here lately · touched ${touchedLast7} of the last 7 days.` : !logged ? "Still open today." : null;
+              const rowTitle = [p.label, p.intention, gentleNeglect].filter(Boolean).join(" — ");
 
               return (
                 <li
                   key={p.id}
+                  title={rowTitle}
                   className={cn(
-                    "rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-950/50 border-l-[3px]",
+                    "rounded-lg border border-zinc-200/90 bg-white/80 px-2 py-1.5 shadow-sm dark:border-zinc-700 dark:bg-zinc-950/50 border-l-[3px]",
                     accentBorder(p.color, pk),
                   )}
                 >
-                  <div className="flex gap-3">
-                    <div className="flex flex-col items-center gap-1 shrink-0 w-8">
-                      <span className="text-[11px] font-semibold text-zinc-500 tabular-nums">{p.rank}</span>
-                      <Icon className="w-5 h-5 text-zinc-800 dark:text-zinc-100" strokeWidth={2} />
+                  <div className="flex items-center gap-2 min-h-[2.25rem]">
+                    <div className="flex items-center gap-1 shrink-0 w-7 justify-center">
+                      <span className="text-[9px] font-semibold text-zinc-500 tabular-nums leading-none">{p.rank}</span>
+                      <Icon className="w-4 h-4 text-zinc-800 dark:text-zinc-100" strokeWidth={2} />
                     </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-50 leading-tight">{p.label}</p>
-                          {p.intention && <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">{p.intention}</p>}
-                          {gentleNeglect && <p className="text-[11px] text-zinc-500 mt-1 leading-snug">{gentleNeglect}</p>}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleLane(p.id)}
-                          className={cn(
-                            "shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition border",
-                            logged
-                              ? "bg-emerald-600/90 border-emerald-700 text-white shadow-sm"
-                              : "bg-zinc-100/90 border-zinc-300 text-zinc-800 dark:bg-zinc-900 dark:border-zinc-600 dark:text-zinc-100",
-                          )}
-                        >
-                          {logged ? "Done today" : "Log today"}
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] uppercase tracking-wide text-zinc-500">Last 7 days</span>
-                        <div className="flex gap-1 flex-1 min-w-0">
-                          {weekDates.map((d) => {
-                            const hit = daysSet.has(d);
-                            return (
-                              <div key={d} className="flex-1 min-w-[6px] flex justify-center" title={d}>
-                                <span
-                                  className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    hit ? accentDot(p.color, pk) : "bg-zinc-300/90 dark:bg-zinc-600",
-                                  )}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {logged && (
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <span className="text-[11px] text-zinc-500">{minutesToday > 0 ? `${minutesToday} min logged` : "No minutes logged yet"}</span>
-                          <div className="flex flex-wrap gap-1">
-                            {MINUTE_PRESETS.map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                onClick={() => addMinutes(p.id, m)}
-                                className="rounded-full border border-zinc-300/90 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-zinc-800 dark:bg-zinc-900 dark:border-zinc-600 dark:text-zinc-100 active:scale-[0.97]"
-                              >
-                                +{m} min
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] leading-tight text-zinc-900 dark:text-zinc-50 truncate">
+                        <span className="font-semibold">{p.label}</span>
+                        {p.intention ? <span className="font-normal text-zinc-500 dark:text-zinc-400"> · {p.intention}</span> : null}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleLane(p.id)}
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold transition border",
+                        logged
+                          ? "bg-emerald-600/90 border-emerald-700 text-white shadow-sm"
+                          : "bg-zinc-100/90 border-zinc-300 text-zinc-800 dark:bg-zinc-900 dark:border-zinc-600 dark:text-zinc-100",
                       )}
+                    >
+                      {logged ? "Done" : "Log"}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1 pl-8 pr-0.5">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-400 shrink-0">7d</span>
+                    <div className="flex gap-0.5 flex-1 justify-end min-w-0">
+                      {weekDates.map((d) => {
+                        const hit = daysSet.has(d);
+                        return (
+                          <span key={d} title={d} className="flex justify-center">
+                            <span
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                hit ? accentDot(p.color, pk) : "bg-zinc-300/90 dark:bg-zinc-600",
+                              )}
+                            />
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
+                  {logged && (
+                    <div className="flex flex-wrap items-center gap-1 mt-1 pl-8">
+                      <span className="text-[10px] text-zinc-500 shrink-0">{minutesToday > 0 ? `${minutesToday} min` : "0 min"}</span>
+                      {MINUTE_PRESETS.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => addMinutes(p.id, m)}
+                          className="rounded-full border border-zinc-300/90 bg-white/80 px-1.5 py-0 text-[10px] font-medium text-zinc-800 dark:bg-zinc-900 dark:border-zinc-600 dark:text-zinc-100 active:scale-[0.97]"
+                        >
+                          +{m}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -526,9 +521,9 @@ export function LifePrioritiesPanel() {
 
         <Link
           to="/life/priorities"
-          className="mt-4 flex items-center justify-center gap-1 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:underline"
+          className="mt-2 flex items-center justify-center gap-0.5 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:underline"
         >
-          30-day overview <ChevronRight className="w-4 h-4" />
+          30-day overview <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </section>
 

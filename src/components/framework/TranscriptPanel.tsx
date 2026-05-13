@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -72,8 +72,10 @@ export default function TranscriptPanel({
   const [search, setSearch] = useState("");
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [playbackTick, setPlaybackTick] = useState(0);
+  const [followPlayback, setFollowPlayback] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastAutoScrolledId = useRef<string | null>(null);
+  const programmaticScrollRef = useRef(false);
 
   const displaySegments = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -100,19 +102,48 @@ export default function TranscriptPanel({
   );
 
   useEffect(() => {
-    if (!playerReady || searchActive || !activeSegmentId || !highlightActive) return;
+    if (!playerReady || searchActive || !activeSegmentId || !highlightActive || !followPlayback) return;
     if (lastAutoScrolledId.current === activeSegmentId) return;
     lastAutoScrolledId.current = activeSegmentId;
-    const el = scrollContainerRef.current?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
-    el?.scrollIntoView({ block: "nearest", behavior: "auto" });
-  }, [playerReady, searchActive, activeSegmentId, highlightActive]);
+    const container = scrollContainerRef.current;
+    const el = container?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
+    if (!container || !el) return;
+    const containerHeight = container.clientHeight;
+    const offsetTop = el.offsetTop - container.offsetTop;
+    const target = Math.max(0, offsetTop - containerHeight / 2 + el.offsetHeight / 2);
+    programmaticScrollRef.current = true;
+    container.scrollTop = target;
+    window.requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, [playerReady, searchActive, activeSegmentId, highlightActive, followPlayback]);
 
   useEffect(() => {
     if (!searchActive) lastAutoScrolledId.current = null;
   }, [searchActive]);
 
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      if (programmaticScrollRef.current) return;
+      setFollowPlayback(false);
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const seekFromSegment = useCallback(
+    (seconds: number) => {
+      setFollowPlayback(true);
+      lastAutoScrolledId.current = null;
+      onSeek(seconds);
+    },
+    [onSeek],
+  );
+
   return (
-    <section className="mb-5 rounded-lg border border-border bg-card p-4">
+    <section className="mb-5 rounded-lg border border-border bg-card p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
       <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-medium">Working transcript</h2>
@@ -168,11 +199,37 @@ export default function TranscriptPanel({
         >
           {showTimestamps ? "Hide timestamps" : "Show timestamps"}
         </Button>
+        {timed && playerReady && (
+          <Button
+            type="button"
+            size="sm"
+            variant={followPlayback ? "secondary" : "outline"}
+            className="h-8 rounded-full px-3 text-xs font-medium"
+            onClick={() => {
+              setFollowPlayback((v) => {
+                const next = !v;
+                if (next) lastAutoScrolledId.current = null;
+                return next;
+              });
+            }}
+            title={followPlayback ? "Auto-scrolling with playback" : "Manual scroll · auto-scroll paused"}
+          >
+            {followPlayback ? (
+              <>
+                <Pause className="mr-1 h-3.5 w-3.5" /> Following
+              </>
+            ) : (
+              <>
+                <Play className="mr-1 h-3.5 w-3.5" /> Follow playback
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       <div
         ref={scrollContainerRef}
-        className="max-h-[60vh] overflow-y-auto overflow-x-hidden rounded-md border border-border/60 bg-muted/15"
+        className="max-h-[60vh] overflow-y-auto overflow-x-hidden rounded-md border border-border/60 bg-muted/15 lg:max-h-none lg:min-h-0 lg:flex-1"
       >
         <div className="divide-y divide-border/50">
           {displaySegments.map((segment) => {
@@ -201,13 +258,13 @@ export default function TranscriptPanel({
                 role={canSeek ? "button" : undefined}
                 tabIndex={canSeek ? 0 : undefined}
                 onClick={() => {
-                  if (canSeek) onSeek(segment.startSeconds!);
+                  if (canSeek) seekFromSegment(segment.startSeconds!);
                 }}
                 onKeyDown={(e) => {
                   if (!canSeek) return;
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onSeek(segment.startSeconds!);
+                    seekFromSegment(segment.startSeconds!);
                   }
                 }}
               >

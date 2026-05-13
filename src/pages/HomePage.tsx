@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, BookOpen, ListChecks, MessageCircleQuestion, MessageCircleHeart, MessageCircle,
@@ -69,6 +69,15 @@ export default function HomePage() {
     typeof window !== "undefined" ? localStorage.getItem(HOME_PROFILE_PHOTO_STORAGE_KEY) : null,
   );
   const [now, setNow] = useState<Date>(new Date());
+  const widgetsRef = useRef<HTMLDivElement>(null);
+  const weeksStripRef = useRef<HTMLDivElement>(null);
+  const pagerRef = useRef<HTMLDivElement>(null);
+  type PageDef = { type: "apps"; indexes: number[] } | { type: "widgets" };
+  const [pages, setPages] = useState<PageDef[]>([
+    { type: "apps", indexes: [] },
+    { type: "widgets" },
+  ]);
+  const [activePage, setActivePage] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -140,28 +149,8 @@ export default function HomePage() {
     })();
   }, [user]);
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin opacity-50" /></div>;
-  }
-  if (!user) return <Navigate to="/auth" replace />;
-  if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
-
   const lastRead = typeof window !== "undefined" ? localStorage.getItem(LAST_READ_KEY) : null;
   const bibleTo = lastRead ? `/read/${lastRead}` : "/read/Jhn/1";
-
-  const greeting = (() => {
-    const h = now.getHours();
-    if (h < 5) return "Peace tonight";
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
-  })();
-
-  const name = (profile as { display_name?: string; full_name?: string } | null)?.display_name
-    ?? (profile as { full_name?: string } | null)?.full_name
-    ?? user.email?.split("@")[0] ?? "";
-
-  // Hide journal-prompt badge once user wrote today
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
   const apps: AppIcon[] = [
@@ -203,6 +192,85 @@ export default function HomePage() {
     },
     { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
+
+  const appCount = apps.length;
+  useLayoutEffect(() => {
+    const calc = () => {
+      const vh = window.innerHeight;
+      const w = window.innerWidth;
+      const reserveTop = 130;
+      const reserveBottom = 170;
+      const cols = w < 640 ? 4 : w < 768 ? 5 : 6;
+      const rowH = w < 640 ? 86 : 102;
+      const avail = vh - reserveTop - reserveBottom;
+      const rowsPerPage = Math.max(2, Math.floor(avail / rowH));
+      const perPage = Math.max(cols, rowsPerPage * cols);
+      const weeksH = weeksStripRef.current?.offsetHeight ?? 96;
+      const availFirst = Math.max(rowH * 2, avail - weeksH - 12);
+      const rowsFirst = Math.max(2, Math.floor(availFirst / rowH));
+      const firstPerPage = Math.min(appCount, Math.max(cols, rowsFirst * cols));
+      const indices: number[] = Array.from({ length: appCount }, (_, i) => i);
+      const result: PageDef[] = [];
+      result.push({ type: "apps", indexes: indices.slice(0, firstPerPage) });
+      result.push({ type: "widgets" });
+      let i = firstPerPage;
+      while (i < appCount) {
+        result.push({ type: "apps", indexes: indices.slice(i, i + perPage) });
+        i += perPage;
+      }
+      setPages(result);
+    };
+    calc();
+    const ro = weeksStripRef.current ? new ResizeObserver(calc) : null;
+    if (weeksStripRef.current && ro) ro.observe(weeksStripRef.current);
+    window.addEventListener("resize", calc);
+    window.addEventListener("orientationchange", calc);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", calc);
+      window.removeEventListener("orientationchange", calc);
+    };
+  }, [appCount]);
+
+  useEffect(() => {
+    if (activePage >= pages.length && pages.length > 0) {
+      setActivePage(0);
+      if (pagerRef.current) pagerRef.current.scrollLeft = 0;
+    }
+  }, [pages.length, activePage]);
+
+  const onPagerScroll = () => {
+    if (!pagerRef.current) return;
+    const w = pagerRef.current.clientWidth;
+    if (w <= 0) return;
+    const idx = Math.round(pagerRef.current.scrollLeft / w);
+    if (idx !== activePage) setActivePage(idx);
+  };
+
+  const goToPage = (i: number) => {
+    if (!pagerRef.current) return;
+    pagerRef.current.scrollTo({ left: i * pagerRef.current.clientWidth, behavior: "smooth" });
+  };
+
+  const pageCount = Math.max(1, pages.length);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin opacity-50" /></div>;
+  }
+  if (!user) return <Navigate to="/auth" replace />;
+  if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
+
+  const greeting = (() => {
+    const h = now.getHours();
+    if (h < 5) return "Peace tonight";
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  const name = (profile as { display_name?: string; full_name?: string } | null)?.display_name
+    ?? (profile as { full_name?: string } | null)?.full_name
+    ?? user.email?.split("@")[0] ?? "";
 
   const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
   const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -248,65 +316,105 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 pt-2 pb-40 sm:pb-32">
+      <div className="relative z-10 max-w-3xl mx-auto pt-2 pb-40 sm:pb-32">
         {/* Lock-screen style date / greeting */}
-        <div className="text-center mt-2 mb-5 sm:mb-7">
+        <div className="text-center mt-2 mb-3 sm:mb-4 px-4 sm:px-6">
           <p className="text-[13px] font-medium text-white/85 tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{fullDateStr}</p>
           <h1 className="mt-0.5 text-[28px] sm:text-[34px] leading-[1.05] font-bold tracking-[-0.022em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             {greeting}{name ? `, ${name}` : ""}
           </h1>
         </div>
 
-        <LifePrioritiesPanel />
-
-        {/* Today's prompt — iOS widget */}
-        {todayPrompt && (
-          <button
-            onClick={() => navigate(`/journal/new?promptId=${todayPrompt.id}&prompt=${encodeURIComponent(todayPrompt.text)}`)}
-            className="w-full text-left mb-4 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition"
-          >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700 mb-1.5">
-              <Lightbulb className="w-3.5 h-3.5" /> Today's prompt
+        <div
+          ref={pagerRef}
+          onScroll={onPagerScroll}
+          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
+          style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}
+        >
+          {pages.map((page, pageIdx) => (
+            <div
+              key={pageIdx}
+              className={`w-full shrink-0 snap-start px-4 sm:px-6 ${
+                page.type === "widgets" || (page.type === "apps" && pageIdx === 0) ? "overflow-y-auto" : ""
+              }`}
+              style={
+                page.type === "widgets" || (page.type === "apps" && pageIdx === 0)
+                  ? { maxHeight: "calc(100dvh - 200px)" }
+                  : undefined
+              }
+            >
+              {page.type === "widgets" ? (
+                <div ref={widgetsRef}>
+                  <LifePrioritiesPanel />
+                  {todayPrompt && (
+                    <button
+                      onClick={() => navigate(`/journal/new?promptId=${todayPrompt.id}&prompt=${encodeURIComponent(todayPrompt.text)}`)}
+                      className="w-full text-left mb-3 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700 mb-1.5">
+                        <Lightbulb className="w-3.5 h-3.5" /> Today's prompt
+                      </div>
+                      <p className="text-[15px] font-medium leading-snug text-zinc-900">{todayPrompt.text}</p>
+                    </button>
+                  )}
+                  {onThisDayCount > 0 && (
+                    <button
+                      onClick={() => navigate("/journal/today")}
+                      className="w-full text-left mb-3 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 mb-1.5">
+                        <CalIcon className="w-3.5 h-3.5" /> On this day
+                      </div>
+                      <p className="text-[15px] font-medium leading-snug text-zinc-900">
+                        {onThisDayCount} {onThisDayCount === 1 ? "entry" : "entries"} from past years
+                      </p>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {pageIdx === 0 && (
+                    <div ref={weeksStripRef} className="[&_button]:mb-3">
+                      <LifeWeeksTile />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">
+                    {page.indexes.map((i) => {
+                      const app = apps[i];
+                      return (
+                        <AppButton
+                          key={app.label}
+                          app={app}
+                          onClick={() => {
+                            if (app.onOpen) app.onOpen();
+                            else if (app.to) navigate(app.to);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
-            <p className="text-[15px] font-medium leading-snug text-zinc-900">{todayPrompt.text}</p>
-          </button>
-        )}
-
-        {onThisDayCount > 0 && (
-          <button
-            onClick={() => navigate("/journal/today")}
-            className="w-full text-left mb-5 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition"
-          >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 mb-1.5">
-              <CalIcon className="w-3.5 h-3.5" /> On this day
-            </div>
-            <p className="text-[15px] font-medium leading-snug text-zinc-900">
-              {onThisDayCount} {onThisDayCount === 1 ? "entry" : "entries"} from past years
-            </p>
-          </button>
-        )}
-
-        <LifeWeeksTile />
-
-        {/* App grid — responsive, iPhone (4 col) → iPad (6 col) */}
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">
-          {apps.map((app) => (
-            <AppButton
-              key={app.label}
-              app={app}
-              onClick={() => {
-                if (app.onOpen) app.onOpen();
-                else if (app.to) navigate(app.to);
-              }}
-            />
           ))}
         </div>
 
         {/* Page dots */}
         <div className="fixed bottom-[calc(104px+env(safe-area-inset-bottom))] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
-          <span className="w-1.5 h-1.5 rounded-full bg-white/95 shadow" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/45" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/45" />
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goToPage(i)}
+              aria-label={`Page ${i + 1} of ${pageCount}`}
+              aria-current={i === activePage ? "page" : undefined}
+              className={`rounded-full transition-all ${
+                i === activePage
+                  ? "w-2 h-2 bg-white/95 shadow"
+                  : "w-1.5 h-1.5 bg-white/45 hover:bg-white/70"
+              }`}
+            />
+          ))}
         </div>
 
         {/* Dock */}

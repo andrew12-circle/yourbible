@@ -6,6 +6,12 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 
 const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MODEL = "gemini-2.5-pro";
+/** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
+const ANALYSIS_TEXT_CAP = 200_000;
+/** Max persisted claims from a single artifact. Bumped from 12 to give long videos full coverage. */
+const MAX_PERSISTED_CLAIMS = 40;
+/** Max persisted teachings from a single artifact. Bumped from 20. */
+const MAX_PERSISTED_TEACHINGS = 30;
 
 interface Belief {
   id: string;
@@ -132,17 +138,21 @@ function buildPrompt(text: string, beliefs: Belief[]) {
         .join("\n")
     : "(none yet — every claim should be marked match_relation:'new', matched_belief_id:null)";
 
+  const clipped = text.slice(0, ANALYSIS_TEXT_CAP);
+  const wasClipped = text.length > ANALYSIS_TEXT_CAP;
+
   return `USER'S CURRENT BELIEFS:
 ${beliefSummary}
 
 ARTIFACT TEXT (sermon / podcast / lyrics / journal):
 """
-${text.slice(0, 16000)}
-"""
+${clipped}
+"""${wasClipped ? "\n\n(Note: the artifact text was very long and was truncated to fit context. Cover the supplied text as fully as possible.)" : ""}
 
 Task:
-1. Extract 3 to 8 of the most load-bearing CLAIMS from the artifact (1–2 sentences each).
-2. For each claim, fill in:
+1. Extract 12 to 30 of the most load-bearing CLAIMS from the artifact (1–2 sentences each). DISTRIBUTE COVERAGE across the beginning, middle, AND end of the transcript — do NOT cluster claims only in the opening minutes. For long sources, prefer 20–30 claims; for short sources, 8–15.
+2. Order the claims roughly by their position in the transcript (earliest first).
+3. For each claim, fill in:
    - tone: one of peace, fear, urgency, shame, hope, conviction, neutral, anger, comfort
    - doctrine_tags: 1–3 short tags (e.g. "soteriology", "suffering", "prosperity", "spiritual gifts")
    - scripture_supports: 0–3 verses that support the claim, with a one-line note
@@ -158,7 +168,7 @@ Return ONLY valid JSON of shape:
 function buildEntityPrompt(text: string) {
   return `ARTIFACT TEXT (verbatim source; your snippets MUST be copied from this):
 """
-${text.slice(0, 16000)}
+${text.slice(0, ANALYSIS_TEXT_CAP)}
 """
 
 Extract structured knowledge entities that are DIRECTLY evidenced in the text above.
@@ -189,10 +199,10 @@ Return via the tool with this shape (arrays may be empty):
 function buildTeachingPrompt(text: string) {
   return `ARTIFACT TEXT (verbatim source; your snippet MUST be copied from this):
 """
-${text.slice(0, 16000)}
+${text.slice(0, ANALYSIS_TEXT_CAP)}
 """
 
-Extract 4–14 TEACHINGS the source proposes: practices, principles, warnings, identity postures, prayers, disciplines, strategies, or reflective questions.
+Extract 8–22 TEACHINGS the source proposes: practices, principles, warnings, identity postures, prayers, disciplines, strategies, or reflective questions. DISTRIBUTE coverage across the beginning, middle, AND end of the transcript — do not cluster teachings only in the opening minutes.
 
 Strict rules:
 - Each teaching MUST include \`snippet\`: a contiguous substring copied VERBATIM from the artifact text (≤200 characters). If you cannot copy an exact substring, OMIT the teaching.
@@ -511,7 +521,7 @@ async function persistTeachingsForArtifact(params: {
     status: string;
   }[] = [];
 
-  for (const tg of params.teachings.slice(0, 20)) {
+  for (const tg of params.teachings.slice(0, MAX_PERSISTED_TEACHINGS)) {
     const sn = (tg.snippet ?? "").trim();
     if (!snippetIsGrounded(rawText, sn)) continue;
     const title = (tg.title ?? "").trim().slice(0, 500);
@@ -851,7 +861,7 @@ Deno.serve(async (req) => {
     }
 
     const validBeliefIds = new Set(((beliefs as Belief[]) ?? []).map((b) => b.id));
-    const rows = (parsed.claims ?? []).slice(0, 12).map((c) => ({
+    const rows = (parsed.claims ?? []).slice(0, MAX_PERSISTED_CLAIMS).map((c) => ({
       user_id: artifact.user_id,
       artifact_id,
       claim: c.claim,

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, Maximize2, Minus, Plus } from "lucide-react";
 import {
   LIFE_WEEKS_TOTAL,
   computeLifeWeekIndex,
@@ -53,7 +53,30 @@ export default function LifeWeeksPage() {
   const [draftDob, setDraftDob] = useState("");
   const [saving, setSaving] = useState(false);
   const [missingDobColumn, setMissingDobColumn] = useState(false);
+  /**
+   * Chart sizing modes:
+   *  - "fit": preserve aspect ratio, bounded by viewport so the whole poster shows on one screen
+   *  - number: explicit zoom multiplier of the SVG's native pixel size, container scrolls
+   */
+  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>("fit");
   const dobMax = todayIsoMax();
+
+  const zoomIn = () => {
+    setZoom((z) => {
+      if (z === "fit") return 1;
+      if (z === 1) return 1.5;
+      if (z === 1.5) return 2;
+      return 3;
+    });
+  };
+  const zoomOut = () => {
+    setZoom((z) => {
+      if (z === 3) return 2;
+      if (z === 2) return 1.5;
+      if (z === 1.5) return 1;
+      return "fit";
+    });
+  };
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60_000);
@@ -152,11 +175,11 @@ export default function LifeWeeksPage() {
         <h1 className="text-base font-semibold tracking-tight">My life in weeks</h1>
       </header>
 
-      <div className="max-w-lg mx-auto px-3 sm:px-4 pt-4 space-y-4">
+      <div className="mx-auto w-full max-w-5xl px-3 sm:px-4 pt-4 space-y-4">
         {missingDobColumn && (
           <div
             role="alert"
-            className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-100"
+            className="mx-auto max-w-lg rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-100"
           >
             This database is missing{" "}
             <code className="rounded bg-black/10 px-1 py-0.5 text-xs dark:bg-white/10">profiles.date_of_birth</code>.
@@ -168,7 +191,7 @@ export default function LifeWeeksPage() {
           </div>
         )}
         {!dob && (
-          <section className={`p-4 sm:p-5 ${POSTER_CLASS}`}>
+          <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
             <p className="text-sm leading-relaxed mb-3">
               Add your birthdate to see a 120-year week grid (6,240 weeks). It stays on your profile.
             </p>
@@ -197,7 +220,7 @@ export default function LifeWeeksPage() {
         )}
 
         {dob && indexState && (
-          <section className={`p-4 sm:p-5 ${POSTER_CLASS}`}>
+          <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
             <p className="text-sm tabular-nums leading-snug">
               <span className="font-semibold">{weeksLived.toLocaleString()} weeks</span> lived ·{" "}
               <span className="font-semibold">{weeksRemaining.toLocaleString()} weeks</span> remaining ·{" "}
@@ -207,21 +230,78 @@ export default function LifeWeeksPage() {
         )}
 
         {dob && !indexState && (
-          <section className={`p-4 sm:p-5 ${POSTER_CLASS}`}>
+          <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
             <p className="text-sm text-muted-foreground">Could not compute weeks from this date. Try correcting it below.</p>
           </section>
         )}
 
         {dob && indexState && (
-          <div className="overflow-x-auto -mx-1 px-1 pb-2">
-            <div className={`inline-block min-w-0 p-3 sm:p-5 ${POSTER_CLASS}`}>
-              <svg
-                role="img"
-                aria-label="My life in weeks: 120 rows by 52 columns"
-                viewBox={`0 0 ${gridW} ${gridH}`}
-                className="h-auto w-full min-w-[min(100%,320px)] max-w-full text-zinc-900 dark:text-zinc-100"
-                style={{ maxHeight: "min(85vh, 1200px)" }}
+          <div className="space-y-2">
+            <div className="flex items-center justify-end gap-1.5 px-1">
+              <Button
+                type="button"
+                variant={zoom === "fit" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setZoom("fit")}
+                aria-pressed={zoom === "fit"}
+                className="h-8 gap-1.5 px-2.5"
               >
+                <Maximize2 className="w-3.5 h-3.5" />
+                Fit
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={zoomOut}
+                disabled={zoom === "fit"}
+                aria-label="Zoom out"
+                className="h-8 w-8"
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <span className="text-xs tabular-nums text-muted-foreground w-12 text-center">
+                {zoom === "fit" ? "fit" : `${zoom}×`}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={zoomIn}
+                disabled={zoom === 3}
+                aria-label="Zoom in"
+                className="h-8 w-8"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className={`mx-auto w-full overflow-auto p-3 sm:p-5 ${POSTER_CLASS}`}>
+              {/*
+                Two sizing modes share one SVG:
+                  - "fit": wrapper div uses aspect-ratio + viewport bound; SVG is width/height "100%".
+                  - zoom number: SVG gets pixel width/height; outer div scrolls in both axes.
+              */}
+              <div
+                className={zoom === "fit" ? "mx-auto" : "inline-block"}
+                style={
+                  zoom === "fit"
+                    ? {
+                        aspectRatio: `${gridW} / ${gridH}`,
+                        maxWidth: "100%",
+                        maxHeight: "calc(100dvh - 220px)",
+                      }
+                    : undefined
+                }
+              >
+                <svg
+                  role="img"
+                  aria-label="My life in weeks: 120 rows by 52 columns"
+                  viewBox={`0 0 ${gridW} ${gridH}`}
+                  preserveAspectRatio="xMidYMid meet"
+                  width={zoom === "fit" ? "100%" : gridW * zoom}
+                  height={zoom === "fit" ? "100%" : gridH * zoom}
+                  className="block text-zinc-900 dark:text-zinc-100"
+                >
                 <title>MY LIFE IN WEEKS</title>
                 <text
                   x={gridW / 2}
@@ -339,11 +419,12 @@ export default function LifeWeeksPage() {
                 </text>
               </svg>
             </div>
+            </div>
           </div>
         )}
 
         {dob && (
-          <section className={`p-4 sm:p-5 ${POSTER_CLASS}`}>
+          <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
             <Label htmlFor="life-dob-edit" className="text-xs uppercase tracking-wide text-muted-foreground">
               Update birth date
             </Label>

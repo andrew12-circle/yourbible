@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw, FileText, Youtube, ArrowRight, Quote, ExternalLink, Bookmark, StickyNote, Sparkles, NotebookPen } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Youtube, ArrowRight, Quote, ExternalLink, Bookmark, StickyNote, Sparkles, NotebookPen, Maximize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
@@ -281,6 +281,8 @@ export default function ArtifactDetailPage() {
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
   const youtubePlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
+  const videoSlotRef = useRef<HTMLDivElement | null>(null);
+  const [pipMode, setPipMode] = useState(false);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const repairedRef = useRef(false);
   const createProcessingToken = () => crypto.randomUUID();
@@ -489,6 +491,21 @@ export default function ArtifactDetailPage() {
     // Create the player once per video; seeking is handled imperatively.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youTubeVideoId]);
+
+  useEffect(() => {
+    if (!embedUrl) {
+      setPipMode(false);
+      return;
+    }
+    const target = videoSlotRef.current;
+    if (!target) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setPipMode(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    io.observe(target);
+    return () => io.disconnect();
+  }, [embedUrl]);
 
   useEffect(() => {
     if (!a?.id) {
@@ -729,9 +746,9 @@ export default function ArtifactDetailPage() {
       </div>
 
       <div
-        className={`lg:grid lg:grid-cols-5 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
+        className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
       >
-        <div className="min-h-0 space-y-5 lg:col-span-3 lg:overflow-y-auto lg:pr-1">
+        <div className="min-h-0 space-y-5 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
       {a.kind === "youtube" && (() => {
         const meta: ArtifactMetadata = {
           ...(liveMeta ?? {}),
@@ -855,19 +872,46 @@ export default function ArtifactDetailPage() {
                 {playerFailed ? "static embed" : playerReady ? playerState : "loading controls"}
               </span>
             </div>
-            {playerFailed ? (
-              <iframe
-                title="YouTube video"
-                src={embedUrl}
-                className="w-full aspect-video rounded"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            ) : (
-              <div className="aspect-video w-full overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full">
-                <div ref={youtubePlayerContainerRef} className="h-full w-full" />
+            <div ref={videoSlotRef} className="relative aspect-video w-full">
+              <div
+                className={
+                  pipMode
+                    ? "fixed bottom-4 right-4 z-50 w-[260px] sm:w-[300px] aspect-video rounded-xl overflow-hidden shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15 bg-black [&>iframe]:h-full [&>iframe]:w-full"
+                    : "absolute inset-0 overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full"
+                }
+              >
+                {playerFailed ? (
+                  <iframe
+                    title="YouTube video"
+                    src={embedUrl}
+                    className="h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div ref={youtubePlayerContainerRef} className="h-full w-full" />
+                )}
+                {pipMode && (
+                  <button
+                    type="button"
+                    onClick={() => videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    aria-label="Restore video to original position"
+                    className="absolute top-1.5 right-1.5 z-10 rounded-full bg-black/70 p-1 text-white shadow hover:bg-black/90"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-            )}
+              {pipMode && (
+                <button
+                  type="button"
+                  onClick={() => videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="absolute inset-0 flex items-center justify-center rounded bg-muted/70 text-xs text-muted-foreground transition hover:bg-muted"
+                >
+                  <span className="rounded-full border bg-background/90 px-3 py-1 shadow">Tap to bring video back</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 rounded-lg border border-border bg-muted/20 p-3 lg:mt-4">
@@ -964,40 +1008,6 @@ export default function ArtifactDetailPage() {
             </div>
           </div>
         </section>
-      )}
-        </div>
-
-        <aside
-          className="mt-8 min-h-0 space-y-4 lg:col-span-2 lg:mt-0 lg:overflow-y-auto lg:overflow-x-hidden lg:pl-0.5"
-          aria-label="Transcript and AI claims"
-        >
-      {a.raw_text && (
-        <TranscriptPanel
-          segments={transcriptSegments}
-          timed={transcriptTimedLayout}
-          coarseTimestampsOnly={transcriptCoarseOnly}
-          embedAvailable={Boolean(embedUrl) && !playerFailed}
-          playerReady={playerReady}
-          getPlaybackSeconds={getCurrentPlaybackSeconds}
-          onSeek={seekVideoToSeconds}
-          onCopy={copyTranscript}
-          onJournal={() => openJournalFromArtifact()}
-          onRetryFetch={a.kind === "youtube" && a.url ? retryFetch : undefined}
-          retryDisabled={inFlight}
-          setSegmentRef={(id, el) => {
-            transcriptRefs.current[id] = el;
-          }}
-          extraHeaderActions={
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => useFloatingJournalStore.getState().setPanelOpen(true)}
-              title="Journal here without leaving this page"
-            >
-              <NotebookPen className="mr-1 h-3.5 w-3.5" /> Journal here
-            </Button>
-          }
-        />
       )}
 
       {a.status === "ready" && <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} />}
@@ -1156,6 +1166,40 @@ export default function ArtifactDetailPage() {
           );
         })}
       </div>
+        </div>
+
+        <aside
+          className="mt-8 min-h-0 lg:col-span-4 lg:mt-0 lg:flex lg:h-full lg:flex-col lg:overflow-hidden lg:pl-0.5"
+          aria-label="Transcript"
+        >
+          {a.raw_text && (
+            <TranscriptPanel
+              segments={transcriptSegments}
+              timed={transcriptTimedLayout}
+              coarseTimestampsOnly={transcriptCoarseOnly}
+              embedAvailable={Boolean(embedUrl) && !playerFailed}
+              playerReady={playerReady}
+              getPlaybackSeconds={getCurrentPlaybackSeconds}
+              onSeek={seekVideoToSeconds}
+              onCopy={copyTranscript}
+              onJournal={() => openJournalFromArtifact()}
+              onRetryFetch={a.kind === "youtube" && a.url ? retryFetch : undefined}
+              retryDisabled={inFlight}
+              setSegmentRef={(id, el) => {
+                transcriptRefs.current[id] = el;
+              }}
+              extraHeaderActions={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => useFloatingJournalStore.getState().setPanelOpen(true)}
+                  title="Journal here without leaving this page"
+                >
+                  <NotebookPen className="mr-1 h-3.5 w-3.5" /> Journal here
+                </Button>
+              }
+            />
+          )}
         </aside>
       </div>
 
