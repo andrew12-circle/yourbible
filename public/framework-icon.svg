@@ -1,13 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Cognitive Theology Engine icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Faith Habit Tracker app icon">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0b1d4b"/>
-      <stop offset="100%" stop-color="#020b22"/>
+      <stop offset="0%" stop-color="#0E2A47"/>
+      <stop offset="100%" stop-color="#163A5F"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4D58D"/>
+      <stop offset="100%" stop-color="#E1B866"/>
     </linearGradient>
   </defs>
-  <rect x="8" y="8" width="496" height="496" rx="92" fill="url(#bg)"/>
-  <circle cx="256" cy="214" r="136" fill="none" stroke="#d8b36a" stroke-width="12"/>
-  <path d="M256 130v170M171 215h170" stroke="#e2bc6f" stroke-width="28" stroke-linecap="round"/>
-  <path d="M136 328h240l-20 42H156z" fill="#e7d9bb" stroke="#d8b36a" stroke-width="6"/>
-  <text x="256" y="430" fill="#e2bc6f" font-size="52" text-anchor="middle" font-family="serif" letter-spacing="8">CTE</text>
+
+  <rect x="40" y="40" width="944" height="944" rx="220" fill="url(#bg)"/>
+
+  <!-- Subtle 7-day habit grid -->
+  <g opacity="0.18" fill="#FFFFFF">
+    <rect x="220" y="190" width="80" height="80" rx="18"/>
+    <rect x="332" y="190" width="80" height="80" rx="18"/>
+    <rect x="444" y="190" width="80" height="80" rx="18"/>
+    <rect x="556" y="190" width="80" height="80" rx="18"/>
+    <rect x="668" y="190" width="80" height="80" rx="18"/>
+
+    <rect x="220" y="302" width="80" height="80" rx="18"/>
+    <rect x="332" y="302" width="80" height="80" rx="18"/>
+    <rect x="444" y="302" width="80" height="80" rx="18"/>
+    <rect x="556" y="302" width="80" height="80" rx="18"/>
+    <rect x="668" y="302" width="80" height="80" rx="18"/>
+  </g>
+
+  <!-- Progress path: connected habits -->
+  <path d="M250 235 L362 235 L474 347 L586 347 L698 235" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g fill="#F7E7C0" stroke="#E1B866" stroke-width="10">
+    <circle cx="250" cy="235" r="24"/>
+    <circle cx="362" cy="235" r="24"/>
+    <circle cx="474" cy="347" r="24"/>
+    <circle cx="586" cy="347" r="24"/>
+    <circle cx="698" cy="235" r="24"/>
+  </g>
+
+  <!-- Cross/check centerpiece -->
+  <circle cx="512" cy="630" r="176" fill="#0A1F36" stroke="url(#gold)" stroke-width="18"/>
+  <path d="M512 540V730M420 630H604" stroke="#F4D58D" stroke-width="30" stroke-linecap="round"/>
+  <path d="M430 655 L488 714 L608 588" fill="none" stroke="#7EE081" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Bottom label bars to suggest routine stack -->
+  <rect x="270" y="845" width="484" height="24" rx="12" fill="#CFA657" opacity="0.95"/>
+  <rect x="320" y="888" width="384" height="20" rx="10" fill="#E8C881" opacity="0.9"/>
 </svg>
