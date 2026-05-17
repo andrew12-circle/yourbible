@@ -70,6 +70,8 @@ export default function EntryEditorPane({
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
+  const [privacyFog, setPrivacyFog] = useState(false);
+  const [privacyReveal, setPrivacyReveal] = useState(false);
 
   // Load entry
   useEffect(() => {
@@ -228,6 +230,10 @@ export default function EntryEditorPane({
     month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
   });
 
+  const ta = bodyRef.current;
+  const cursor = ta?.selectionStart ?? entry.body.length;
+  const maskedBody = fogTextExceptActiveWord(entry.body, cursor);
+
   return (
     <>
       {/* Header */}
@@ -299,6 +305,23 @@ export default function EntryEditorPane({
           <PenLine className="w-4 h-4" />
         </TBtn>
         <TBtn title="Tags" onClick={() => setShowMeta(true)}><Tag className="w-4 h-4" /></TBtn>
+        <TBtn
+          title={privacyFog ? "Disable privacy fog" : "Enable privacy fog"}
+          onClick={() => {
+            setPrivacyFog((v) => !v);
+            setPrivacyReveal(false);
+          }}
+        >
+          <span className="text-xs font-semibold">{privacyFog ? "Fog On" : "Fog"}</span>
+        </TBtn>
+        {privacyFog && (
+          <TBtn
+            title={privacyReveal ? "Hide text" : "Reveal text"}
+            onClick={() => setPrivacyReveal((v) => !v)}
+          >
+            <span className="text-xs font-semibold">{privacyReveal ? "Hide" : "Reveal"}</span>
+          </TBtn>
+        )}
         <DictateButton
           ref={dictateRef}
           size="sm"
@@ -349,13 +372,26 @@ export default function EntryEditorPane({
           )}
 
           {/* Sans: match .app-theme journal shell (FloatingJournalPanel uses font-sans). */}
-          <Textarea
-            ref={bodyRef}
-            value={entry.body}
-            onChange={(e) => queueSave({ body: e.target.value })}
-            placeholder="What happened today? What are you carrying?"
-            className="min-h-[60vh] border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed"
-          />
+          <div className="relative">
+            <Textarea
+              ref={bodyRef}
+              value={entry.body}
+              onChange={(e) => queueSave({ body: e.target.value })}
+              onSelect={() => privacyFog && setEntry((cur) => (cur ? { ...cur } : cur))}
+              placeholder="What happened today? What are you carrying?"
+              className={`min-h-[60vh] border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed bg-transparent relative z-10 ${
+                privacyFog && !privacyReveal ? "text-transparent caret-foreground" : ""
+              }`}
+            />
+            {privacyFog && !privacyReveal && (
+              <pre
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-20 m-0 whitespace-pre-wrap break-words font-sans text-[16px] leading-relaxed text-foreground"
+              >
+                {maskedBody || " "}
+              </pre>
+            )}
+          </div>
           {dictInterim.trim() ? (
             <p
               className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
@@ -466,6 +502,28 @@ export default function EntryEditorPane({
       </footer>
     </>
   );
+}
+
+function fogTextExceptActiveWord(text: string, cursorIndex: number): string {
+  if (!text) return text;
+  const safeCursor = Math.max(0, Math.min(cursorIndex, text.length));
+  const isWordChar = (ch: string) => /[A-Za-z0-9_]/.test(ch);
+
+  let start = safeCursor;
+  while (start > 0 && isWordChar(text[start - 1])) start -= 1;
+  let end = safeCursor;
+  while (end < text.length && isWordChar(text[end])) end += 1;
+
+  if (start === end) {
+    return text.replace(/\S/g, "•");
+  }
+
+  let out = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    out += i >= start && i < end ? c : /\S/.test(c) ? "•" : c;
+  }
+  return out;
 }
 
 function TBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
