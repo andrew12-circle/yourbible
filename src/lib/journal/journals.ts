@@ -97,6 +97,17 @@ export async function createJournal(
   return (data as Journal) ?? null;
 }
 
+function journalUpdateErrorMessage(message: string): string {
+  if (/cover_focal_[xy]/i.test(message)) {
+    return (
+      "Cover position could not be saved. Apply the database migration " +
+      "supabase/migrations/20260518040000_journal_cover_focal.sql " +
+      "(e.g. run `supabase db push` against your project)."
+    );
+  }
+  return message;
+}
+
 export async function updateJournal(
   id: string,
   patch: Partial<
@@ -113,7 +124,19 @@ export async function updateJournal(
     >
   >,
 ) {
-  await supabase.from("journals").update(patch).eq("id", id);
+  const { data, error } = await supabase
+    .from("journals")
+    .update(patch)
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(journalUpdateErrorMessage(error.message));
+  }
+  if (!data) {
+    throw new Error("Journal not found or you don't have permission to update it.");
+  }
 }
 
 export async function deleteJournal(id: string) {

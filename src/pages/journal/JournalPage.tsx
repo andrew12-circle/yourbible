@@ -9,6 +9,7 @@ import JournalDeskLayout from "@/components/journal/JournalDeskLayout";
 import EntryListPane from "@/components/journal/EntryListPane";
 import EntryEditorPane from "@/components/journal/EntryEditorPane";
 import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
+import AllEntriesOverviewPane from "@/components/journal/AllEntriesOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 import { Input } from "@/components/ui/input";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
@@ -109,7 +110,13 @@ export default function JournalPage() {
           </div>
         }
         editor={
-          activeJournal && !entryId ? (
+          !entryId && !journalId ? (
+            <AllEntriesOverviewPane
+              journals={journals}
+              reloadKey={reloadKey}
+              onNew={createNew}
+            />
+          ) : activeJournal && !entryId ? (
             <JournalOverviewPane
               journal={activeJournal}
               reloadKey={reloadKey}

@@ -19,6 +19,10 @@ export interface Profile {
   onboarded: boolean;
   identity_summary: IdentitySummaryPayload | null;
   identity_generated_at: string | null;
+  all_entries_cover_kind?: "none" | "photo";
+  all_entries_cover_value?: string | null;
+  all_entries_cover_focal_x?: number;
+  all_entries_cover_focal_y?: number;
 }
 
 interface AuthCtx {

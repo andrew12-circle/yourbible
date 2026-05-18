@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   journal: Journal | null;
@@ -31,10 +32,19 @@ export default function JournalSettingsDialog({ journal, open, onOpenChange, onS
   const save = async () => {
     if (!journal || !name.trim()) return;
     setSaving(true);
-    await updateJournal(journal.id, { name: name.trim(), color });
-    setSaving(false);
-    onOpenChange(false);
-    onSaved();
+    try {
+      await updateJournal(journal.id, { name: name.trim(), color });
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      toast({
+        title: "Couldn't save journal settings",
+        description: String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
