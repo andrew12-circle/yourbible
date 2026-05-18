@@ -24,6 +24,7 @@ import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
   coerceJournalEntryKind,
@@ -72,6 +73,7 @@ export default function NewJournalEntryPage() {
   const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
+  const kbInset = useKeyboardInset();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -949,7 +951,11 @@ export default function NewJournalEntryPage() {
       {/* Bottom toolbar / chat composer (fixed) */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-xl"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+        style={{
+          paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+          transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
+          transition: "transform 120ms ease-out",
+        }}
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 pt-2">
           {inlineChatMode ? (

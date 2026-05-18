@@ -35,6 +35,7 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -173,6 +174,7 @@ export default function JournalChatPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
+  const kbInset = useKeyboardInset();
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -835,7 +837,11 @@ export default function JournalChatPage() {
           {/* Floating composer — fixed to viewport so it always stays in view */}
           <div
             className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pt-6 sm:px-5 md:left-[260px]"
-            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+            style={{
+              paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
+              transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
+              transition: "transform 120ms ease-out",
+            }}
           >
             <div className="pointer-events-auto mx-auto max-w-2xl">
               {(messages.some((m) => m.role === "assistant") || sending) && (
