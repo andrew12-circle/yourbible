@@ -35,7 +35,7 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -175,6 +175,8 @@ export default function JournalChatPage() {
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
   const kbInset = useKeyboardInset();
+  const [composerFocused, setComposerFocused] = useState(false);
+  useLockBodyScrollWhenKeyboardActive(composerFocused);
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -602,7 +604,7 @@ export default function JournalChatPage() {
       sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
-      setTimeout(() => taRef.current?.focus(), 50);
+      setTimeout(() => taRef.current?.focus({ preventScroll: true }), 50);
     }
   };
 
@@ -883,6 +885,8 @@ export default function JournalChatPage() {
                 <Textarea
                   ref={taRef}
                   value={input}
+                  onFocus={() => setComposerFocused(true)}
+                  onBlur={() => setComposerFocused(false)}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
