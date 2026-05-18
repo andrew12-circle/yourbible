@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 
-export type DictateButtonHandle = { stop: () => void };
+export type DictateButtonHandle = { stop: () => void; toggle: () => void };
 
 export type DictateButtonProps = {
   onAppend: (chunk: string) => void;
@@ -31,7 +31,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     language,
   });
 
-  useImperativeHandle(ref, () => ({ stop }), [stop]);
+  useImperativeHandle(ref, () => ({ stop, toggle }), [stop, toggle]);
 
   useEffect(() => {
     onListeningChangeRef.current?.(listening);

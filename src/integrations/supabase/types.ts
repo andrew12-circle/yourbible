@@ -55,6 +55,7 @@ export type Database = {
           claim: string
           created_at: string
           doctrine_tags: string[]
+          embedding: string | null
           id: string
           match_relation: string | null
           matched_belief_id: string | null
@@ -72,6 +73,7 @@ export type Database = {
           claim: string
           created_at?: string
           doctrine_tags?: string[]
+          embedding?: string | null
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           claim?: string
           created_at?: string
           doctrine_tags?: string[]
+          embedding?: string | null
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -253,6 +256,7 @@ export type Database = {
           confidence: number
           core_scope: string | null
           created_at: string
+          embedding: string | null
           id: string
           is_core: boolean
           layer: string
@@ -268,6 +272,7 @@ export type Database = {
           confidence?: number
           core_scope?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           is_core?: boolean
           layer: string
@@ -283,6 +288,7 @@ export type Database = {
           confidence?: number
           core_scope?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           is_core?: boolean
           layer?: string
@@ -591,6 +597,42 @@ export type Database = {
         }
         Relationships: []
       }
+      embedding_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          id: string
+          processed_at: string | null
+          row_id: string
+          status: string
+          table_name: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          row_id: string
+          status?: string
+          table_name: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          row_id?: string
+          status?: string
+          table_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entity_mentions: {
         Row: {
           artifact_id: string | null
@@ -737,6 +779,7 @@ export type Database = {
           belief_id: string | null
           body: string
           created_at: string
+          embedding: string | null
           entry_at: string
           entry_at_ts: string
           entry_kind: string | null
@@ -748,6 +791,7 @@ export type Database = {
           mood: number | null
           pinned: boolean
           prompt_id: string | null
+          summary: string | null
           tags: string[]
           title: string | null
           updated_at: string
@@ -762,6 +806,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
           entry_kind?: string | null
@@ -773,6 +818,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          summary?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
@@ -787,6 +833,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
           entry_kind?: string | null
@@ -798,6 +845,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          summary?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
@@ -1032,6 +1080,7 @@ export type Database = {
         Row: {
           confidence: number | null
           created_at: string
+          embedding: string | null
           first_seen_at: string
           id: string
           kind: string
@@ -1045,6 +1094,7 @@ export type Database = {
         Insert: {
           confidence?: number | null
           created_at?: string
+          embedding?: string | null
           first_seen_at?: string
           id?: string
           kind: string
@@ -1058,6 +1108,7 @@ export type Database = {
         Update: {
           confidence?: number | null
           created_at?: string
+          embedding?: string | null
           first_seen_at?: string
           id?: string
           kind?: string
@@ -1177,12 +1228,76 @@ export type Database = {
         }
         Relationships: []
       }
+      my_ai_message_candidates: {
+        Row: {
+          candidate_index: number
+          chat_id: string
+          citations: Json
+          content: string
+          created_at: string
+          id: string
+          judge_rationale: string | null
+          scores: Json
+          temperature: number
+          total_score: number | null
+          user_id: string
+          was_winner: boolean
+          winning_message_id: string | null
+        }
+        Insert: {
+          candidate_index: number
+          chat_id: string
+          citations?: Json
+          content: string
+          created_at?: string
+          id?: string
+          judge_rationale?: string | null
+          scores?: Json
+          temperature: number
+          total_score?: number | null
+          user_id: string
+          was_winner?: boolean
+          winning_message_id?: string | null
+        }
+        Update: {
+          candidate_index?: number
+          chat_id?: string
+          citations?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          judge_rationale?: string | null
+          scores?: Json
+          temperature?: number
+          total_score?: number | null
+          user_id?: string
+          was_winner?: boolean
+          winning_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_message_candidates_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "my_ai_message_candidates_winning_message_id_fkey"
+            columns: ["winning_message_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       my_ai_messages: {
         Row: {
           chat_id: string
           citations: Json
           content: string
           created_at: string
+          embedding: string | null
           id: string
           role: string
           user_id: string
@@ -1192,6 +1307,7 @@ export type Database = {
           citations?: Json
           content: string
           created_at?: string
+          embedding?: string | null
           id?: string
           role: string
           user_id: string
@@ -1201,6 +1317,7 @@ export type Database = {
           citations?: Json
           content?: string
           created_at?: string
+          embedding?: string | null
           id?: string
           role?: string
           user_id?: string
@@ -1631,13 +1748,150 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cognitive_state: {
+        Row: {
+          core_frameworks: Json
+          created_at: string
+          current_season: string
+          evolution_summary: string
+          inputs_signature: string | null
+          last_swept_at: string | null
+          model: string | null
+          recurring_themes: Json
+          unresolved_tensions: Json
+          updated_at: string
+          user_id: string
+          voice_signature: string
+          worldview_summary: string
+        }
+        Insert: {
+          core_frameworks?: Json
+          created_at?: string
+          current_season?: string
+          evolution_summary?: string
+          inputs_signature?: string | null
+          last_swept_at?: string | null
+          model?: string | null
+          recurring_themes?: Json
+          unresolved_tensions?: Json
+          updated_at?: string
+          user_id: string
+          voice_signature?: string
+          worldview_summary?: string
+        }
+        Update: {
+          core_frameworks?: Json
+          created_at?: string
+          current_season?: string
+          evolution_summary?: string
+          inputs_signature?: string | null
+          last_swept_at?: string | null
+          model?: string | null
+          recurring_themes?: Json
+          unresolved_tensions?: Json
+          updated_at?: string
+          user_id?: string
+          voice_signature?: string
+          worldview_summary?: string
+        }
+        Relationships: []
+      }
+      user_cognitive_state_versions: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
+      enqueue_embedding_job: {
+        Args: { p_row_id: string; p_table: string; p_user_id: string }
+        Returns: undefined
+      }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
+      match_artifact_claims: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          artifact_id: string
+          claim: string
+          created_at: string
+          id: string
+          similarity: number
+          verdict: string
+        }[]
+      }
+      match_assistant_messages: {
+        Args: {
+          exclude_chat_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          similarity: number
+        }[]
+      }
+      match_beliefs: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          confidence: number
+          id: string
+          is_core: boolean
+          layer: string
+          similarity: number
+          statement: string
+          topic: string
+          updated_at: string
+        }[]
+      }
+      match_entities: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          id: string
+          kind: string
+          last_seen_at: string
+          similarity: number
+          subtitle: string
+          title: string
+        }[]
+      }
+      match_journals: {
+        Args: {
+          exclude_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          body: string
+          entry_at_ts: string
+          id: string
+          similarity: number
+          summary: string
+          title: string
+        }[]
+      }
       merge_knowledge_entity: {
         Args: {
           p_confidence: number

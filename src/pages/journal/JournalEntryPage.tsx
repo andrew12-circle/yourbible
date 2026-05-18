@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
 import { Button } from "@/components/ui/button";
+import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
@@ -48,6 +49,7 @@ export default function JournalEntryPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
   const [links, setLinks] = useState<EntryLink[]>([]);
+  const [openingAi, setOpeningAi] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -106,9 +108,38 @@ export default function JournalEntryPage() {
     toast({ title: "Entry scored" });
   };
 
+  const askAiToRespond = async () => {
+    if (!entry || !user || openingAi) return;
+    setOpeningAi(true);
+    try {
+      await supabase
+        .from("journal_entries")
+        .update({ entry_kind: "chat" })
+        .eq("id", entry.id)
+        .eq("user_id", user.id);
+      const { data: existing } = await supabase
+        .from("my_ai_chats")
+        .select("id")
+        .eq("journal_entry_id", entry.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!existing?.id) {
+        await supabase
+          .from("my_ai_chats")
+          .insert({ user_id: user.id, journal_entry_id: entry.id, title: entry.title ?? null });
+      }
+      navigate(`/journal/chat/${entry.id}`);
+    } catch (e) {
+      toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
+    } finally {
+      setOpeningAi(false);
+    }
+  };
+
   const m = moodMeta(entry.mood);
   const renderListening =
     entry.entry_kind === "listening" || isListeningBody(entry.body);
+  const isChatEntry = entry.entry_kind === "chat";
 
   return (
     <JournalLayout
@@ -125,6 +156,19 @@ export default function JournalEntryPage() {
         </div>
       }
     >
+      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-3 gap-2"
+          onClick={askAiToRespond}
+          disabled={openingAi}
+        >
+          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+          Ask AI to respond to this entry
+        </Button>
+      )}
+
       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex flex-wrap items-center gap-2">
         <span>{new Date(entry.entry_at_ts).toLocaleString(undefined, {
           weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
@@ -137,14 +181,10 @@ export default function JournalEntryPage() {
         )}
       </div>
 
-      {entry.entry_kind === "chat" && (
-        <Link
-          to={`/journal/chat/${entry.id}`}
-          className="mb-4 inline-flex items-center gap-2 rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-sm font-medium text-teal-800 dark:text-teal-200 hover:bg-teal-500/15"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Resume or continue this chat journal
-        </Link>
+      {isChatEntry && (
+        <div className="mb-3 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+          <MessageCircle className="h-3 w-3" /> Journaled with AI
+        </div>
       )}
 
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
@@ -161,6 +201,12 @@ export default function JournalEntryPage() {
 
       {renderListening ? (
         <ListeningSectionsView body={entry.body} />
+      ) : isChatEntry ? (
+        <div className="font-sans text-[16px] leading-relaxed mb-6 prose prose-sm dark:prose-invert max-w-none prose-hr:my-4 prose-p:my-2">
+          {entry.body
+            ? <ReactMarkdown>{entry.body}</ReactMarkdown>
+            : <span className="italic text-muted-foreground">No body</span>}
+        </div>
       ) : (
         /* Sans: match journal editors under .app-theme (Cormorant reserved for explicit scripture opt-in). */
         <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">

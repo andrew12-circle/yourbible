@@ -14,9 +14,10 @@ import {
   MessageCircle,
   MessageSquare,
   RefreshCw,
-  Send,
+  Plus,
   Settings2,
   Square,
+  AudioLines,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
+import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -182,6 +184,8 @@ export default function JournalChatPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
+  const kbInset = useKeyboardInset();
+  const [composerFocused, setComposerFocused] = useState(false);
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -198,6 +202,7 @@ export default function JournalChatPage() {
   const [ending, setEnding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const composerLockScrollYRef = useRef<number | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
@@ -218,6 +223,7 @@ export default function JournalChatPage() {
   const prevRouteEntryIdRef = useRef<string | undefined>(undefined);
   const [claimFocusSession, setClaimFocusSession] = useState<ClaimFocusSession | null>(null);
   const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
+  useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
@@ -404,7 +410,7 @@ export default function JournalChatPage() {
     (async () => {
       const { data: entry, error: enErr } = await supabase
         .from("journal_entries")
-        .select("id,title,entry_kind,analyze_for_mirror")
+        .select("id,title,body,entry_kind,analyze_for_mirror")
         .eq("id", routeEntryId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -460,20 +466,36 @@ export default function JournalChatPage() {
         setBootstrapping(true);
         const handoff = readAndClearClaimChatHandoff();
         try {
+          const seedBody = typeof (entry as { body?: string }).body === "string"
+            ? (entry as { body?: string }).body!.trim()
+            : "";
+          const invokeBody = (() => {
+            const base = seedBody
+              ? {
+                  chat_id: cId,
+                  journal_entry_id: routeEntryId,
+                  mode: "journal" as const,
+                  message: seedBody,
+                  include_general_knowledge: includeGeneralRef.current,
+                }
+              : {
+                  chat_id: cId,
+                  journal_entry_id: routeEntryId,
+                  mode: "journal" as const,
+                  journal_bootstrap_opener: true,
+                  include_general_knowledge: includeGeneralRef.current,
+                };
+            if (!seedBody && handoff) {
+              return {
+                ...base,
+                journal_bootstrap_artifact_claim_id: handoff.claimId,
+                journal_bootstrap_transcript_excerpt: handoff.transcriptExcerpt ?? null,
+              };
+            }
+            return base;
+          })();
           const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
-            body: {
-              chat_id: cId,
-              journal_entry_id: routeEntryId,
-              mode: "journal",
-              journal_bootstrap_opener: true,
-              include_general_knowledge: includeGeneralRef.current,
-              ...(handoff
-                ? {
-                    journal_bootstrap_artifact_claim_id: handoff.claimId,
-                    journal_bootstrap_transcript_excerpt: handoff.transcriptExcerpt ?? null,
-                  }
-                : {}),
-            },
+            body: invokeBody,
           });
           if (cancelled) return;
           if (error) throw new Error(error.message);
@@ -659,7 +681,10 @@ export default function JournalChatPage() {
       sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
-      setTimeout(() => taRef.current?.focus(), 50);
+      setTimeout(() => {
+        composerLockScrollYRef.current = window.scrollY;
+        taRef.current?.focus({ preventScroll: true });
+      }, 50);
     }
   };
 
@@ -771,7 +796,7 @@ export default function JournalChatPage() {
   const showLoadingShell = !routeEntryId || !chatId;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-[100dvh] overflow-hidden flex-col bg-background">
       <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background/90 px-3 py-2 backdrop-blur-md">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/journal")} aria-label="Back to journal">
           <ArrowLeft className="h-5 w-5" />
@@ -886,8 +911,8 @@ export default function JournalChatPage() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside className="hidden w-[260px] shrink-0 md:flex">{rail}</aside>
 
-        <section className="flex min-w-0 flex-1 flex-col">
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
+        <section className="relative flex min-w-0 flex-1 flex-col">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-40 sm:px-5">
             {showLoadingShell && (
               <div className="flex justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground opacity-60" />
@@ -901,16 +926,16 @@ export default function JournalChatPage() {
             )}
 
             {!showLoadingShell && !loadingMessages && (
-              <div className="mx-auto max-w-2xl space-y-4 pb-4">
+              <div className="mx-auto max-w-2xl space-y-3 pb-4">
                 {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
                   <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
                     {m.role === "user" ? (
-                      <div className="max-w-[88%] rounded-2xl rounded-tr-md bg-primary px-3.5 py-2.5 text-sm text-primary-foreground shadow-sm whitespace-pre-wrap">
+                      <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-3 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
                         {m.content}
                       </div>
                     ) : (
-                      <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/70 bg-card px-3.5 py-2.5 text-sm shadow-sm">
-                        <div className="prose prose-sm max-w-none dark:prose-invert text-foreground">
+                      <div className="max-w-full px-1 py-1 text-[13px]">
+                        <div className="prose prose-sm max-w-none dark:prose-invert text-foreground prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed">
                           {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
                         </div>
                         <CitationChips citations={parseCitationsJson(m.citations)} />
@@ -920,71 +945,85 @@ export default function JournalChatPage() {
                 ))}
 
                 {(sending || bootstrapping) && (
-                  <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/70 bg-card px-3.5 py-2.5 text-sm shadow-sm">
-                    <div className="prose prose-sm max-w-none text-muted-foreground">
-                      <TypingDots />
-                    </div>
+                  <div className="px-1 py-1 text-muted-foreground">
+                    <TypingDots />
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-md sm:px-5">
-            <div className="mx-auto flex max-w-2xl flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  disabled={sending || !messages.some((m) => m.role === "assistant")}
-                  onClick={() => void retryLast()}
-                >
-                  <RefreshCw className="mr-1 h-3 w-3" /> Retry last
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  disabled={!sending}
-                  onClick={stop}
-                >
-                  <Square className="mr-1 h-3 w-3" /> Stop
-                </Button>
-              </div>
-              <div className="flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <PolishedTextarea
-                    ref={taRef}
-                    polishResetKey={routeEntryId ?? chatId ?? "journal-chat"}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        if (!sending) void send();
-                      }
-                    }}
-                    rows={2}
-                    disabled={sending || bootstrapping || showLoadingShell}
-                    placeholder={sending || bootstrapping ? "Thinking…" : "Write freely…"}
-                    className="min-h-[52px] resize-none bg-background"
-                  />
-                  {dictInterim.trim() ? (
-                    <p
-                      className="mt-1 text-xs italic leading-relaxed text-muted-foreground/80"
-                      aria-live="polite"
+          {/* Floating composer — fixed to viewport so it always stays in view */}
+          <div
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pt-6 sm:px-5 md:left-[260px]"
+            style={{
+              paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
+              transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
+              transition: "transform 120ms ease-out",
+            }}
+          >
+            <div className="pointer-events-auto mx-auto max-w-2xl">
+              {(messages.some((m) => m.role === "assistant") || sending) && (
+                <div className="mb-2 flex justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-full bg-background/90 px-3 text-xs shadow-sm backdrop-blur"
+                    disabled={sending || !messages.some((m) => m.role === "assistant")}
+                    onClick={() => void retryLast()}
+                  >
+                    <RefreshCw className="mr-1 h-3 w-3" /> Retry last
+                  </Button>
+                  {sending && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-full bg-background/90 px-3 text-xs shadow-sm backdrop-blur"
+                      onClick={stop}
                     >
-                      {dictInterim}
-                    </p>
-                  ) : null}
+                      <Square className="mr-1 h-3 w-3" /> Stop
+                    </Button>
+                  )}
                 </div>
+              )}
+              <div className="flex items-end gap-2 rounded-[28px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                  aria-label="Add"
+                  disabled
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+                <PolishedTextarea
+                  polishResetKey={routeEntryId ?? chatId ?? "journal-chat"}
+                  ref={taRef}
+                  value={input}
+                  onPointerDown={() => {
+                    composerLockScrollYRef.current = window.scrollY;
+                  }}
+                  onFocus={() => setComposerFocused(true)}
+                  onBlur={() => setComposerFocused(false)}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!sending) void send();
+                    }
+                  }}
+                  rows={1}
+                  disabled={sending || bootstrapping || showLoadingShell}
+                  placeholder={sending || bootstrapping ? "Thinking…" : `Message ${entryTitle.trim() || "session"}`}
+                  className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
                 <DictateButton
                   ref={dictateRef}
                   size="md"
-                  className="h-11 w-11 shrink-0"
+                  className="h-9 w-9 shrink-0 rounded-full"
                   onAppend={(chunk) => {
                     setInput((prev) => mergeDictatedText(prev, chunk));
                     lastDictationFinalAtRef.current = Date.now();
@@ -999,13 +1038,26 @@ export default function JournalChatPage() {
                 <Button
                   type="button"
                   size="icon"
-                  className="h-11 w-11 shrink-0"
-                  disabled={sending || bootstrapping || showLoadingShell || !input.trim()}
-                  onClick={() => void send()}
+                  variant={voiceReplies ? "default" : "ghost"}
+                  className={cn(
+                    "h-9 w-9 shrink-0 rounded-full",
+                    voiceReplies ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                  aria-label="Toggle voice replies"
+                  aria-pressed={voiceReplies}
+                  onClick={() => setVoiceReplies((v) => !v)}
                 >
-                  <Send className="h-4 w-4" />
+                  <AudioLines className="h-5 w-5" />
                 </Button>
               </div>
+              {dictInterim.trim() ? (
+                <p
+                  className="mt-1.5 px-3 text-xs italic leading-relaxed text-muted-foreground/80"
+                  aria-live="polite"
+                >
+                  {dictInterim}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>
