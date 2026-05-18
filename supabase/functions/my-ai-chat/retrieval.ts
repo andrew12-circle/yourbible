@@ -126,6 +126,12 @@ export async function buildFrameworkRetrievalContext(
     supabase.from("belief_tensions").select("id, a_id, b_id, summary, severity, status").eq("user_id", userId).eq("status", "open").order("severity", { ascending: false }).limit(20),
   ]);
 
+  const { data: cogState } = await supabase
+    .from("user_cognitive_state")
+    .select("worldview_summary, evolution_summary, recurring_themes, unresolved_tensions, current_season, voice_signature, core_frameworks, last_swept_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
   // Score beliefs: 0.55 sem + 0.20 recency + 0.15 confidence/core + 0.10 keyword
   const beliefHits: BeliefHit[] = ((bRes && !bRes.error) ? (bRes.data ?? []) : []) as BeliefHit[];
   const scoredBeliefs = beliefHits.map((b) => {
@@ -254,6 +260,24 @@ export async function buildFrameworkRetrievalContext(
     .join("\n");
 
   const sections: string[] = [
+    "## Living cognitive state (compressed identity from last nightly sweep — this is the user's voice and current season; honor it)\n" + (cogState
+      ? (() => {
+          const lines: string[] = [];
+          if (typeof cogState.current_season === "string" && cogState.current_season.trim()) lines.push(`Current season: ${cogState.current_season}`);
+          if (typeof cogState.worldview_summary === "string" && cogState.worldview_summary.trim()) lines.push(`Worldview: ${cogState.worldview_summary}`);
+          if (typeof cogState.evolution_summary === "string" && cogState.evolution_summary.trim()) lines.push(`Recent evolution: ${cogState.evolution_summary}`);
+          if (Array.isArray(cogState.recurring_themes) && cogState.recurring_themes.length) lines.push(`Recurring themes: ${(cogState.recurring_themes as unknown[]).filter((x) => typeof x === "string").join(", ")}`);
+          if (Array.isArray(cogState.core_frameworks) && cogState.core_frameworks.length) lines.push(`Core frameworks: ${(cogState.core_frameworks as unknown[]).filter((x) => typeof x === "string").join(" · ")}`);
+          if (Array.isArray(cogState.unresolved_tensions) && cogState.unresolved_tensions.length) {
+            lines.push("Unresolved tensions they're sitting in:");
+            for (const t of cogState.unresolved_tensions as unknown[]) {
+              if (typeof t === "string") lines.push(`- ${t}`);
+            }
+          }
+          if (typeof cogState.voice_signature === "string" && cogState.voice_signature.trim()) lines.push(`Voice signature (match this cadence): ${cogState.voice_signature}`);
+          return lines.length ? lines.join("\n") : "(empty)";
+        })()
+      : "(not generated yet — speak from raw context below)"),
     "## Identity summary (profiles.identity_summary)\n" + identityJson,
     "## Most-relevant beliefs (cite with [belief:uuid])\n" + (beliefLines.length ? beliefLines.join("\n") : "(none)"),
     "## Belief trajectories — EARLIER → LATER (use to name evolution; do not invent transitions not shown here)\n" + (temporalLines.length ? temporalLines.join("\n") : "(none recorded)"),
