@@ -679,10 +679,9 @@ Deno.serve(async (req) => {
     const userPayload =
       `${contextPack.contextBlock}\n\n---\nUser message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
 
-    const gem = await callGeminiJson(systemText, userPayload, GEMINI_API_KEY);
-    if (!gem.ok) return jsonResponse({ error: gem.err ?? "Gemini failed" }, 502);
-
-    const { reply, citations } = parseAssistantPayload(gem.rawText);
+    const ranked = await generateRankedReply(systemText, userPayload, GEMINI_API_KEY, message);
+    if ("error" in ranked) return jsonResponse({ error: ranked.error }, 502);
+    const { reply, citations } = { reply: ranked.winner.reply, citations: ranked.winner.citations };
 
     const { data: asstRow, error: asstErr } = await supabase
       .from("my_ai_messages")
@@ -698,6 +697,36 @@ Deno.serve(async (req) => {
 
     if (asstErr || !asstRow) {
       return jsonResponse({ error: asstErr?.message ?? "Failed to save assistant message" }, 502);
+    }
+
+    // Persist candidates (winner + losers) for future rubric tuning. Fire-and-forget.
+    try {
+      const candRows = ranked.candidates.map((c) => ({
+        user_id: userId,
+        chat_id: chatId,
+        winning_message_id: asstRow.id as string,
+        candidate_index: c.cand.index,
+        temperature: c.cand.temperature,
+        content: c.cand.reply,
+        citations: c.cand.citations,
+        scores: c.score
+          ? {
+            specificity: c.score.specificity,
+            continuity: c.score.continuity,
+            non_genericness: c.score.non_genericness,
+            voice_match: c.score.voice_match,
+            emotional_resonance: c.score.emotional_resonance,
+          }
+          : {},
+        total_score: c.score?.total ?? null,
+        was_winner: c.isWinner,
+        judge_rationale: c.score?.rationale ?? null,
+      }));
+      if (candRows.length > 0) {
+        await supabase.from("my_ai_message_candidates").insert(candRows);
+      }
+    } catch (_e) {
+      /* non-fatal */
     }
 
     const { data: chatRow } = await supabase
