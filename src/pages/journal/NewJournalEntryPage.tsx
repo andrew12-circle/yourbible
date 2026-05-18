@@ -674,7 +674,8 @@ export default function NewJournalEntryPage() {
     : "What happened today? What are you carrying?";
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
-  const canReplyWithAi = !isVent && entryKind !== "chat";
+  const canReplyWithAi = !isVent && !isListening;
+  const inlineChatMode = replyWithAi && canReplyWithAi;
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
