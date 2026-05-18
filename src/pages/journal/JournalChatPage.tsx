@@ -605,7 +605,10 @@ export default function JournalChatPage() {
       sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
-      setTimeout(() => taRef.current?.focus({ preventScroll: true }), 50);
+      setTimeout(() => {
+        composerLockScrollYRef.current = window.scrollY;
+        taRef.current?.focus({ preventScroll: true });
+      }, 50);
     }
   };
 
@@ -886,6 +889,9 @@ export default function JournalChatPage() {
                 <Textarea
                   ref={taRef}
                   value={input}
+                  onPointerDown={() => {
+                    composerLockScrollYRef.current = window.scrollY;
+                  }}
                   onFocus={() => setComposerFocused(true)}
                   onBlur={() => setComposerFocused(false)}
                   onChange={(e) => setInput(e.target.value)}
