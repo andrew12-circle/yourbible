@@ -752,6 +752,23 @@ export default function NewJournalEntryPage() {
           </div>
         </section>
 
+        {canReplyWithAi && (
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-teal-500 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="reply-with-ai" className="font-medium">Have AI reply when I save</Label>
+                  <Switch id="reply-with-ai" checked={replyWithAi} onCheckedChange={setReplyWithAi} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Opens a conversation grounded in your beliefs, past journals, identity, and artifacts. Vents stay private and are never shared with AI.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         <div className="flex items-center gap-3 pt-2">
           <Button onClick={save} disabled={busy} className="flex-1 sm:flex-none">
             {busy ? (
