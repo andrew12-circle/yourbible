@@ -825,7 +825,7 @@ export default function NewJournalEntryPage() {
                   <div className="flex items-end gap-2">
                     <DictateButton
                       ref={dictateRef}
-                      size="icon"
+                      size="sm"
                       onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
                       onInterim={setDictInterim}
                     />
@@ -873,18 +873,6 @@ export default function NewJournalEntryPage() {
               </>
             )}
           </>
-        )}
-
-        {inlineChatMode && (
-          <details className="group rounded-lg border border-border bg-card/50">
-            <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-sm text-muted-foreground select-none list-none">
-              <span>Entry details (photos, mood, tags, location…)</span>
-              <ChevronDown className="w-4 h-4 transition group-open:rotate-180" />
-            </summary>
-            <div className="px-3 pb-3 pt-1 space-y-5">
-              <ChatExtrasMarker />
-            </div>
-          </details>
         )}
 
         <div className={inlineChatMode ? "hidden" : "contents"}>
