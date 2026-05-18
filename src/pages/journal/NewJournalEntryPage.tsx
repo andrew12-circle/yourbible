@@ -128,6 +128,9 @@ export default function NewJournalEntryPage() {
     interpretation: "",
   });
   const lastSyncedListeningKey = useRef<string | null>(null);
+  useLockBodyScrollWhenKeyboardActive(
+    replyWithAi && entryKind !== "vent" && entryKind !== "listening" && composerFocused,
+  );
 
   // Auto-scroll the chat transcript to the latest message (like ChatGPT)
   useEffect(() => {
@@ -691,7 +694,6 @@ export default function NewJournalEntryPage() {
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
-  useLockBodyScrollWhenKeyboardActive(inlineChatMode && composerFocused);
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   const dateLabel = useMemo(() => {
