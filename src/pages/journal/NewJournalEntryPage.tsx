@@ -24,7 +24,7 @@ import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
   coerceJournalEntryKind,
@@ -119,6 +119,7 @@ export default function NewJournalEntryPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [journalName, setJournalName] = useState<string>("Journal");
+  const [composerFocused, setComposerFocused] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
@@ -690,6 +691,7 @@ export default function NewJournalEntryPage() {
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
+  useLockBodyScrollWhenKeyboardActive(inlineChatMode && composerFocused);
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   const dateLabel = useMemo(() => {
@@ -970,6 +972,8 @@ export default function NewJournalEntryPage() {
               </button>
               <Textarea
                 value={body}
+                onFocus={() => setComposerFocused(true)}
+                onBlur={() => setComposerFocused(false)}
                 onChange={(e) => setBody(e.target.value)}
                 rows={1}
                 placeholder={aiBusy ? "Thinking…" : "Message"}
