@@ -145,6 +145,8 @@ async function callGeminiJson(
   systemText: string,
   userPayload: string,
   apiKey: string,
+  temperature = 0.42,
+  maxOutputTokens = 4096,
 ): Promise<{ rawText: string; ok: boolean; err?: string }> {
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
@@ -158,8 +160,8 @@ async function callGeminiJson(
         systemInstruction: { parts: [{ text: systemText }] },
         contents: [{ role: "user", parts: [{ text: userPayload }] }],
         generationConfig: {
-          temperature: 0.42,
-          maxOutputTokens: 4096,
+          temperature,
+          maxOutputTokens,
           responseMimeType: "application/json",
         },
       }),
@@ -202,6 +204,141 @@ function parseAssistantPayload(rawText: string): { reply: string; citations: Cit
   const fallbackGeneral = looksLikeGeneralKnowledgeFallback(reply);
   citations = dedupeCitations([...citations, ...bracketCites, ...fallbackGeneral]);
   return { reply, citations };
+}
+
+type Candidate = {
+  index: number;
+  temperature: number;
+  reply: string;
+  citations: Citation[];
+};
+
+type JudgeScore = {
+  specificity: number;
+  continuity: number;
+  non_genericness: number;
+  voice_match: number;
+  emotional_resonance: number;
+  total: number;
+  rationale?: string;
+};
+
+const RUBRIC_KEYS = [
+  "specificity",
+  "continuity",
+  "non_genericness",
+  "voice_match",
+  "emotional_resonance",
+] as const;
+
+async function generateRankedReply(
+  systemText: string,
+  userPayload: string,
+  apiKey: string,
+  userMessage: string,
+): Promise<
+  {
+    winner: Candidate;
+    candidates: { cand: Candidate; score: JudgeScore | null; isWinner: boolean }[];
+  } | { error: string }
+> {
+  const temps = [0.4, 0.7, 0.9];
+  const results = await Promise.all(
+    temps.map((t) => callGeminiJson(systemText, userPayload, apiKey, t)),
+  );
+  const candidates: Candidate[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (!r.ok || !r.rawText) continue;
+    const parsed = parseAssistantPayload(r.rawText);
+    if (!parsed.reply.trim()) continue;
+    candidates.push({ index: i, temperature: temps[i], reply: parsed.reply, citations: parsed.citations });
+  }
+  if (candidates.length === 0) {
+    return { error: results.find((r) => !r.ok)?.err ?? "All candidates failed" };
+  }
+  if (candidates.length === 1) {
+    return {
+      winner: candidates[0],
+      candidates: [{ cand: candidates[0], score: null, isWinner: true }],
+    };
+  }
+
+  const judgeSys =
+    `You are a strict rubric judge for a persistent cognitive companion. Score each candidate 1-10 on:
+- specificity: names actual bracket-tagged rows ([belief:uuid] etc.) and concrete particulars from context, not generalities
+- continuity: references the user's evolution, recurring themes, or named transitions instead of treating this as a fresh turn
+- non_genericness: avoids therapist filler ("it sounds like", "you've been on a journey", "thank you for sharing")
+- voice_match: matches the user's voice_signature in vocabulary and cadence
+- emotional_resonance: lands the actual emotional register of the user's message
+Return ONLY JSON with shape:
+{"scores":[{"index":0,"specificity":N,"continuity":N,"non_genericness":N,"voice_match":N,"emotional_resonance":N,"rationale":"one short sentence"}, ...],"winner_index":N}`;
+
+  const judgeUser = `User message:\n${userMessage}\n\nCandidates:\n${
+    candidates
+      .map((c) => `--- candidate ${c.index} (temp ${c.temperature}) ---\n${c.reply}`)
+      .join("\n\n")
+  }`;
+
+  const judgeRes = await callGeminiJson(judgeSys, judgeUser, apiKey, 0.1, 1024);
+
+  const scoresByIndex = new Map<number, JudgeScore>();
+  let winnerIndex = candidates[0].index;
+
+  if (judgeRes.ok && judgeRes.rawText) {
+    try {
+      const parsed: unknown = JSON.parse(stripJsonFence(judgeRes.rawText));
+      if (isRecord(parsed)) {
+        const arr = parsed.scores;
+        if (Array.isArray(arr)) {
+          for (const row of arr) {
+            if (!isRecord(row)) continue;
+            const idx = typeof row.index === "number" ? row.index : -1;
+            if (idx < 0) continue;
+            const get = (k: string) => {
+              const v = row[k];
+              return typeof v === "number" ? Math.max(0, Math.min(10, v)) : 0;
+            };
+            const sc: JudgeScore = {
+              specificity: get("specificity"),
+              continuity: get("continuity"),
+              non_genericness: get("non_genericness"),
+              voice_match: get("voice_match"),
+              emotional_resonance: get("emotional_resonance"),
+              total: 0,
+              rationale: typeof row.rationale === "string" ? row.rationale.slice(0, 400) : undefined,
+            };
+            sc.total = RUBRIC_KEYS.reduce((s, k) => s + sc[k], 0);
+            scoresByIndex.set(idx, sc);
+          }
+        }
+        if (typeof parsed.winner_index === "number" && candidates.some((c) => c.index === parsed.winner_index)) {
+          winnerIndex = parsed.winner_index;
+        } else {
+          let best = -Infinity;
+          for (const c of candidates) {
+            const s = scoresByIndex.get(c.index);
+            if (s && s.total > best) {
+              best = s.total;
+              winnerIndex = c.index;
+            }
+          }
+        }
+      }
+    } catch {
+      /* keep default winner */
+    }
+  }
+
+  const winner = candidates.find((c) => c.index === winnerIndex) ?? candidates[0];
+  return {
+    winner,
+    candidates: candidates.map((c) => ({
+      cand: c,
+      score: scoresByIndex.get(c.index) ?? null,
+      isWinner: c.index === winner.index,
+    })),
+  };
 }
 
 Deno.serve(async (req) => {
