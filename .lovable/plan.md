@@ -1,52 +1,43 @@
-# Journal-with-AI-reply
+# Inline AI Journal (chat-while-you-write)
 
-## Goal
-When journaling, flip a switch labeled "Reply with AI" — on save, the AI (already wired to your full context: identity, beliefs, journals, artifacts, entities, partner digest) replies inline. You can keep writing back, just like ChatGPT, but it never forgets. Switch off = silent journal, no reply.
+## What changes
 
-## Good news: most of this already exists
-- The `my-ai-chat` edge function already supports `mode:"journal"`, journal-bound chat threads (`my_ai_chats.journal_entry_id`), a `journal_bootstrap_opener` flow, and a `finalize_journal_entry_id` that writes the transcript back into `journal_entries.body`.
-- Retrieval (`retrieval.ts`) already pulls identity summary, beliefs, recent journals (vents excluded), artifacts, knowledge entities, and partner walking digest. Vents stay private.
-- `JournalChatPage.tsx` at `/journal/chat` is the full chat-journal UI (entry_kind=`chat`).
+Right now the "Reply with AI" toggle waits until you tap Save, then bounces you to a separate chat page. You want it to feel like ChatGPT *inside* the journal editor: you write, hit "Send to AI" (or just Send when the toggle is on), the AI replies inline beneath your entry, you keep going, and when you finally tap Save the whole back-and-forth is saved as one journal entry.
 
-What's missing is the **bridge** from a regular journal entry into that AI conversation, with a toggle.
+## How it will work
 
-## Plan
+1. **Toggle stays where it is** on the New Entry page ("Reply with AI" in the Privacy section). When ON, the editor switches into a conversational mode.
 
-### 1. Add "Reply with AI" toggle to `NewJournalEntryPage.tsx`
-- New `Switch` near the existing `analyze_for_mirror` toggle, labeled **"Have AI reply when I save"** with subtext "Uses your beliefs, past journals, identity, and artifacts. Vents stay private."
-- Default = off. Persist last choice to localStorage (`journal.reply_with_ai`).
-- Disabled / hidden for `entry_kind === "vent"` (vents are private by contract).
-- Hidden when `entry_kind === "chat"` (already a chat).
+2. **Editor becomes a conversation panel:**
+   - Your title + metadata (mood, tags, verse, location, photos) stay at the top — unchanged.
+   - The single body textarea is replaced by a stacked transcript: your turns on one side, AI replies on the other, rendered with markdown like the existing chat.
+   - A composer at the bottom (textarea + Send button + the existing Dictate / Sketch buttons) adds your next turn. Pressing Send appends your turn to the transcript and streams the AI reply underneath.
+   - Each turn is just text + timestamp held in local state until you Save.
 
-### 2. On save, branch:
-- **Toggle off (default):** existing behavior — save entry, navigate to `/journal/:id`.
-- **Toggle on:** after `journal_entries` row is saved:
-  1. `update` row to set `entry_kind = "chat"` (so retrieval/finalize treat it correctly and we reuse the chat-journal contract).
-  2. `insert` into `my_ai_chats` with `journal_entry_id = entryId`, `user_id`, title from entry title.
-  3. Navigate to `/journal/chat/:entryId` (existing chat page) with the freshly-written body pre-seeded as the first user message.
+3. **AI call** reuses the existing `my-ai-chat` edge function (same retrieval over beliefs, past journals, identity, artifacts) — no new backend. We pass the full local transcript on every send so it has full context, exactly like the standalone chat page.
 
-### 3. Small extension to `JournalChatPage` to accept a "seed first user message"
-- When opening with an entry that already has a `body` and zero `my_ai_messages`, post that body as the first user turn (via existing `my-ai-chat` invoke, no bootstrap opener), then render the AI reply. This makes the flow feel like: "I wrote my journal → AI responded to what I wrote."
-- If body is empty, fall back to the existing bootstrap opener.
+4. **Saving = one journal entry containing the whole conversation:**
+   - On Save, we create a `journal_entries` row with `entry_kind = "chat"`, body = a serialized transcript (Markdown with `**You:** …` / `**AI:** …` blocks, ordered by timestamp) so it's readable anywhere the journal renders plain text.
+   - We also create a paired `my_ai_chats` row with `journal_entry_id = entry.id` and insert every turn into `my_ai_messages` (role `user` / `assistant`). That way the same conversation is reopenable on the chat page later with full fidelity.
+   - Photos, tags, mood, verse, belief link, prompt id, weather, location — all attach to the same single entry, same as today.
 
-### 4. Entry-point hint on `/journal/:id` (read view)
-- If a regular saved entry has no chat attached, show a small **"Ask AI to respond to this entry"** button that runs the same conversion (set entry_kind=chat, create chat row, seed body as first message, route to `/journal/chat/:id`). Lets you opt in retroactively.
+5. **Toggle OFF = today's behavior unchanged.** Plain textarea, plain save, no chat row created. Switching the toggle off mid-draft keeps whatever text is in the composer as the body.
 
-### 5. Nothing changes for the silent path
-- Toggle off → identical to today. No AI calls, no chat row, no extra cost.
+6. **Editing an existing entry:** if you open a saved chat-journal in the editor, it loads the transcript back into the conversation panel (read from `my_ai_messages` when present, falling back to parsing the body). New turns append; Save updates both the entry body and the message rows.
 
-## Technical notes
-- No new tables or migrations. Reuses `journal_entries.entry_kind='chat'` + `my_ai_chats.journal_entry_id` + `my_ai_messages` already in place.
-- Reuses `supabase.functions.invoke("my-ai-chat", { body: { mode:"journal", chat_id, message, journal_entry_id } })`.
-- Vent privacy preserved: retrieval already filters `entry_kind.neq.vent`; the toggle is hidden for vents so they can't be converted.
-- Finalize-on-leave behavior (writing transcript back to `journal_entries.body`) is already implemented in `JournalChatPage` via `finalize_journal_entry_id`.
+7. **Vents stay private** — toggle is hidden for `entry_kind === "vent"`, same rule as today.
 
-## Files touched
-- `src/pages/journal/NewJournalEntryPage.tsx` — add toggle, branch on save, conversion logic.
-- `src/pages/journal/JournalChatPage.tsx` — seed-first-user-message path when entry body exists and no messages yet.
-- `src/pages/journal/JournalEntryPage.tsx` — "Ask AI to respond" button on existing entries.
+## Out of scope
 
-## Out of scope (ask if you want them)
-- Auto-reply on *every* entry without a toggle.
-- Streaming responses (current flow is request/response, which is fine).
-- A separate "AI conversations" inbox view (chat-journals already show up in your journal list with `entry_kind=chat`).
+- Streaming token-by-token rendering (we'll show a "thinking…" indicator and drop the reply in when it returns, matching the current chat page).
+- Auto-AI on every entry without the toggle.
+- Per-turn edit/delete inside the transcript before save (turns are append-only in the composer; you can clear the whole draft).
+- Changing the standalone `/journal/chat/:id` page — it keeps working and will open these saved conversations.
+
+## Files to touch
+
+- `src/pages/journal/NewJournalEntryPage.tsx` — add transcript state, conversation UI when toggle is on, save path that writes entry + chat + messages.
+- `src/pages/journal/JournalEntryPage.tsx` — render chat-kind entries as a transcript (read `my_ai_messages` if present) instead of raw body text.
+- Small shared helper in `src/lib/journal/` for serializing/parsing the transcript markdown so the body field stays human-readable.
+
+No migrations. No new tables. No edge function changes.
