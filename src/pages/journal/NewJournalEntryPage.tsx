@@ -284,6 +284,21 @@ export default function NewJournalEntryPage() {
       dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
       setEntryAt(dt.toISOString().slice(0, 16));
 
+      if (loadedKind === "chat") {
+        setInlineEntryId(editId);
+        setReplyWithAi(true);
+        const { data: chatRow } = await supabase
+          .from("my_ai_chats")
+          .select("id")
+          .eq("journal_entry_id", editId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (chatRow?.id) {
+          setChatId(chatRow.id);
+          await loadChatTurns(chatRow.id);
+        }
+      }
+
       const { data: photos } = await supabase
         .from("journal_photos")
         .select("id,storage_path")
