@@ -1693,6 +1693,70 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
+      match_artifact_claims: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          artifact_id: string
+          claim: string
+          created_at: string
+          id: string
+          similarity: number
+          verdict: string
+        }[]
+      }
+      match_assistant_messages: {
+        Args: {
+          exclude_chat_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          similarity: number
+        }[]
+      }
+      match_beliefs: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          confidence: number
+          id: string
+          is_core: boolean
+          layer: string
+          similarity: number
+          statement: string
+          topic: string
+          updated_at: string
+        }[]
+      }
+      match_entities: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          id: string
+          kind: string
+          last_seen_at: string
+          similarity: number
+          subtitle: string
+          title: string
+        }[]
+      }
+      match_journals: {
+        Args: {
+          exclude_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          body: string
+          entry_at_ts: string
+          id: string
+          similarity: number
+          summary: string
+          title: string
+        }[]
+      }
       merge_knowledge_entity: {
         Args: {
           p_confidence: number
