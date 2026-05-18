@@ -1225,6 +1225,69 @@ export type Database = {
         }
         Relationships: []
       }
+      my_ai_message_candidates: {
+        Row: {
+          candidate_index: number
+          chat_id: string
+          citations: Json
+          content: string
+          created_at: string
+          id: string
+          judge_rationale: string | null
+          scores: Json
+          temperature: number
+          total_score: number | null
+          user_id: string
+          was_winner: boolean
+          winning_message_id: string | null
+        }
+        Insert: {
+          candidate_index: number
+          chat_id: string
+          citations?: Json
+          content: string
+          created_at?: string
+          id?: string
+          judge_rationale?: string | null
+          scores?: Json
+          temperature: number
+          total_score?: number | null
+          user_id: string
+          was_winner?: boolean
+          winning_message_id?: string | null
+        }
+        Update: {
+          candidate_index?: number
+          chat_id?: string
+          citations?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          judge_rationale?: string | null
+          scores?: Json
+          temperature?: number
+          total_score?: number | null
+          user_id?: string
+          was_winner?: boolean
+          winning_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_message_candidates_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "my_ai_message_candidates_winning_message_id_fkey"
+            columns: ["winning_message_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       my_ai_messages: {
         Row: {
           chat_id: string
