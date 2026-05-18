@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMBEDDING_MODEL = "text-embedding-004";
+const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMS = 768;
 const MAX_TEXT_CHARS = 8000;
 const BATCH_MAX = 25;
