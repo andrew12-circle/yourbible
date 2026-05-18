@@ -451,6 +451,39 @@ export default function NewJournalEntryPage() {
       );
     }
 
+    if (replyWithAi && canReplyWithAi && entryId) {
+      try {
+        localStorage.setItem("journal.reply_with_ai", "1");
+      } catch { /* ignore */ }
+      setBusyLabel("Opening AI reply");
+      try {
+        // Mark as chat so JournalChatPage will load it and the finalize flow applies.
+        await supabase
+          .from("journal_entries")
+          .update({ entry_kind: "chat" })
+          .eq("id", entryId)
+          .eq("user_id", user.id);
+        // Attach a chat thread if one doesn't already exist.
+        const { data: existing } = await supabase
+          .from("my_ai_chats")
+          .select("id")
+          .eq("journal_entry_id", entryId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!existing?.id) {
+          await supabase
+            .from("my_ai_chats")
+            .insert({ user_id: user.id, journal_entry_id: entryId, title: title.trim() || null });
+        }
+      } catch (e) {
+        toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
+      }
+      navigate(`/journal/chat/${entryId}`);
+      return;
+    } else if (!replyWithAi) {
+      try { localStorage.setItem("journal.reply_with_ai", "0"); } catch { /* ignore */ }
+    }
+
     navigate(`/journal/${entryId}`);
   };
 
