@@ -35,6 +35,7 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -173,6 +174,7 @@ export default function JournalChatPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
+  const kbInset = useKeyboardInset();
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);

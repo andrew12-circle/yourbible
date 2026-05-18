@@ -24,6 +24,7 @@ import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
   coerceJournalEntryKind,
@@ -72,6 +73,7 @@ export default function NewJournalEntryPage() {
   const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
+  const kbInset = useKeyboardInset();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
