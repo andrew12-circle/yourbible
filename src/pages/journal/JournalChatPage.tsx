@@ -887,7 +887,7 @@ export default function JournalChatPage() {
                   rows={1}
                   disabled={sending || bootstrapping || showLoadingShell}
                   placeholder={sending || bootstrapping ? "Thinking…" : `Message ${entryTitle.trim() || "session"}`}
-                  className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[14px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <DictateButton
                   ref={dictateRef}
