@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { toast } from "@/hooks/use-toast";
 
 const ONE_MB = 1024 * 1024;
@@ -405,7 +405,8 @@ export default function NewArtifactPage() {
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Source URL (optional)</label>
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="mb-4" />
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Content</label>
-          <Textarea
+          <PolishedTextarea
+            polishResetKey="artifact-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={14}

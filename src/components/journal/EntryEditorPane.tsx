@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Journal } from "@/lib/journal/journals";
@@ -349,8 +349,9 @@ export default function EntryEditorPane({
           )}
 
           {/* Sans: match .app-theme journal shell (FloatingJournalPanel uses font-sans). */}
-          <Textarea
+          <PolishedTextarea
             ref={bodyRef}
+            polishResetKey={entry.id}
             value={entry.body}
             onChange={(e) => queueSave({ body: e.target.value })}
             placeholder="What happened today? What are you carrying?"

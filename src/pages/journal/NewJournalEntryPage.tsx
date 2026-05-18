@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
@@ -466,7 +467,7 @@ export default function NewJournalEntryPage() {
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
-    <JournalLayout title={layoutTitle} back={layoutBack}>
+    <JournalLayout title={layoutTitle} back={layoutBack} right={<AiWritingAssistToggle compact />}>
       <div className="space-y-5">
         <Input
           value={title}
@@ -528,7 +529,8 @@ export default function NewJournalEntryPage() {
                   <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/85">
                     {section.hint}
                   </p>
-                  <Textarea
+                  <PolishedTextarea
+                    polishResetKey={section.key}
                     id={`listening-${section.key}`}
                     value={listeningSections[section.key]}
                     onChange={(e) => setListeningSection(section.key, e.target.value)}
@@ -551,7 +553,8 @@ export default function NewJournalEntryPage() {
               />
             </div>
             {/* Sans: match .app-theme body stack; list previews already default sans. */}
-            <Textarea
+            <PolishedTextarea
+              polishResetKey={editId ?? "journal-new"}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={14}

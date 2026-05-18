@@ -22,6 +22,10 @@ type RequestBody = {
   mode?: "chat" | "journal";
   journal_entry_id?: string | null;
   journal_bootstrap_opener?: boolean;
+  /** When bootstrapping, scope the opener to this artifact_claim row (must belong to the user). */
+  journal_bootstrap_artifact_claim_id?: string | null;
+  /** Optional transcript excerpt from the client (e.g. "Source in transcript"); capped server-side. */
+  journal_bootstrap_transcript_excerpt?: string | null;
   finalize_journal_entry_id?: string | null;
   retry_last?: boolean;
 };
@@ -365,20 +369,118 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Bootstrap only allowed before the first user message" }, 400);
       }
 
-      const openerSeed =
+      const claimIdRaw = typeof body.journal_bootstrap_artifact_claim_id === "string"
+        ? body.journal_bootstrap_artifact_claim_id.trim()
+        : "";
+      const claimBootstrap = /^[0-9a-f-]{36}$/i.test(claimIdRaw) ? claimIdRaw : null;
+
+      const excerptRaw = typeof body.journal_bootstrap_transcript_excerpt === "string"
+        ? body.journal_bootstrap_transcript_excerpt.trim()
+        : "";
+      const transcriptExcerpt = excerptRaw ? excerptRaw.slice(0, 4000) : "";
+
+      let claimFocusBlock = "";
+      let openerSeed =
         "(The user just opened a new journaling session. No user message yet. Write a brief warm opener: acknowledge anything relevant from the context if it fits, invite them to share what feels alive or heavy today, mirror their possible tone without assuming facts you do not have, and end with one gentle question. Keep it concise.)";
+
+      if (claimBootstrap) {
+        const { data: claimRow, error: clErr } = await supabase
+          .from("artifact_claims")
+          .select(
+            "id, artifact_id, claim, tone, doctrine_tags, bias_flags, scripture_supports, scripture_challenges, match_relation, matched_belief_id, user_id",
+          )
+          .eq("id", claimBootstrap)
+          .maybeSingle();
+        if (clErr) return jsonResponse({ error: clErr.message }, 502);
+        if (!claimRow || claimRow.user_id !== userId) {
+          return jsonResponse({ error: "Claim not found" }, 404);
+        }
+
+        const { data: artRow, error: artErr } = await supabase
+          .from("artifacts")
+          .select("id, title, kind, url, user_id")
+          .eq("id", claimRow.artifact_id as string)
+          .maybeSingle();
+        if (artErr) return jsonResponse({ error: artErr.message }, 502);
+        if (!artRow || artRow.user_id !== userId) {
+          return jsonResponse({ error: "Artifact not found for claim" }, 404);
+        }
+
+        let beliefBlock = "";
+        const mb = typeof claimRow.matched_belief_id === "string" ? claimRow.matched_belief_id.trim() : "";
+        if (mb && /^[0-9a-f-]{36}$/i.test(mb)) {
+          const { data: bel, error: bErr } = await supabase
+            .from("belief_nodes")
+            .select("topic, statement, layer")
+            .eq("id", mb)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!bErr && bel) {
+            const topic = typeof bel.topic === "string" ? bel.topic : "";
+            const statement = typeof bel.statement === "string" ? bel.statement : "";
+            const layer = typeof bel.layer === "string" ? bel.layer : "";
+            beliefBlock =
+              `\n## Their matched belief (from framework)\n- Topic: ${topic}\n- Layer: ${layer}\n- Statement: ${statement}\n`;
+          }
+        }
+
+        const tagsLine = Array.isArray(claimRow.doctrine_tags)
+          ? (claimRow.doctrine_tags as string[]).filter((t) => typeof t === "string" && t.trim()).join(", ")
+          : "";
+        const biasLine = Array.isArray(claimRow.bias_flags)
+          ? (claimRow.bias_flags as string[]).filter((t) => typeof t === "string" && t.trim()).join(", ")
+          : "";
+        const tone = typeof claimRow.tone === "string" ? claimRow.tone : "";
+        const rel = typeof claimRow.match_relation === "string" ? claimRow.match_relation : "";
+        const claimText = typeof claimRow.claim === "string" ? claimRow.claim : "";
+        const artTitle = typeof artRow.title === "string" ? artRow.title : "";
+        const artKind = typeof artRow.kind === "string" ? artRow.kind : "";
+        const artUrl = typeof artRow.url === "string" ? artRow.url : "";
+
+        const supJson = (v: unknown) => {
+          try {
+            return JSON.stringify(v ?? []);
+          } catch {
+            return "[]";
+          }
+        };
+
+        claimFocusBlock = [
+          "## Session focus: one claim from their artifact",
+          `Artifact: ${artTitle || "(untitled)"} (${artKind})`,
+          artUrl ? `URL: ${artUrl}` : "",
+          `[artifact:${artRow.id}]`,
+          "",
+          "### Claim text (verbatim)",
+          claimText,
+          "",
+          tone ? `Tone (analysis): ${tone}` : "",
+          tagsLine ? `Doctrine tags: ${tagsLine}` : "",
+          biasLine ? `Bias / framing flags: ${biasLine}` : "",
+          rel ? `Match vs their framework: ${rel}` : "",
+          `Supports (JSON): ${supJson(claimRow.scripture_supports)}`,
+          `Challenges (JSON): ${supJson(claimRow.scripture_challenges)}`,
+          beliefBlock.trimEnd(),
+          transcriptExcerpt
+            ? `\n### Transcript excerpt near this moment (may be partial)\n${transcriptExcerpt}`
+            : "",
+        ].filter(Boolean).join("\n");
+
+        openerSeed =
+          "(The user opened this chat from ONE specific claim extracted from a video/article artifact — see \"Session focus\" above. No user message yet. Write a concise warm opener: name the claim in your own words (short), acknowledge why digging deeper here matters, invite them to share how they lean (agree / uneasy / disagree) and what they want to explore (scripture, history, practical life, emotional resonance). Offer to help them stress-test or research without preaching. End with ONE clear question. Do not invent that they watched the whole video.)";
+      }
 
       const contextPack = await buildFrameworkRetrievalContext(
         supabase,
         userId,
         chatId,
-        openerSeed,
+        openerSeed + "\n" + claimFocusBlock,
         journalEntryId,
       );
       const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
       const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix);
       const userPayload =
-        `${contextPack.contextBlock}\n\n---\n${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
+        `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
 
       const gem = await callGeminiJson(systemText, userPayload, GEMINI_API_KEY);
       if (!gem.ok) return jsonResponse({ error: gem.err ?? "Gemini failed" }, 502);
@@ -405,6 +507,37 @@ Deno.serve(async (req) => {
         "user_id",
         userId,
       );
+
+      if (claimBootstrap && claimFocusBlock) {
+        const { data: jCur, error: jgErr } = await supabase
+          .from("journal_entries")
+          .select("tags")
+          .eq("id", journalEntryId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!jgErr && jCur) {
+          const prevTags = Array.isArray(jCur.tags)
+            ? (jCur.tags as string[]).filter((t): t is string => typeof t === "string" && t.length > 0)
+            : [];
+          const nextTags = [...new Set([...prevTags, "chat-journal", "artifact-claim"])].slice(0, 16);
+          const { data: claimTitleRow } = await supabase
+            .from("artifact_claims")
+            .select("claim")
+            .eq("id", claimBootstrap)
+            .maybeSingle();
+          const ct = typeof claimTitleRow?.claim === "string" ? claimTitleRow.claim.trim() : "";
+          const titleSlice = ct ? ct.slice(0, 100) : "Artifact claim — chat";
+          await supabase
+            .from("journal_entries")
+            .update({
+              title: titleSlice,
+              tags: nextTags,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", journalEntryId)
+            .eq("user_id", userId);
+        }
+      }
 
       return jsonResponse({
         chat_id: chatId,

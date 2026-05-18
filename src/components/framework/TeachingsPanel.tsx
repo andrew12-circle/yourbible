@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 
@@ -114,6 +114,7 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [playbookByTeaching, setPlaybookByTeaching] = useState<Record<string, string>>({});
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!user || !artifactId) return;
@@ -203,6 +204,11 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
       return;
     }
     setRows((prev) => prev.map((x) => (x.id === row.id ? { ...x, notes: notes.trim() || null } : x)));
+    setNotesDrafts((d) => {
+      const next = { ...d };
+      delete next[row.id];
+      return next;
+    });
   };
 
   const generatePlaybook = async (row: TeachingRow) => {
@@ -338,15 +344,18 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
                           </Button>
                         </div>
                         <div className="pt-1">
-                          <Textarea
+                          <PolishedTextarea
+                            polishResetKey={row.id}
                             rows={2}
                             placeholder="Your notes (optional)"
-                            defaultValue={row.notes ?? ""}
+                            value={notesDrafts[row.id] ?? row.notes ?? ""}
+                            onChange={(e) =>
+                              setNotesDrafts((d) => ({ ...d, [row.id]: e.target.value }))
+                            }
                             className="text-sm resize-none bg-background/60"
-                            onBlur={(e) => {
-                              const next = e.target.value;
-                              if (next === (row.notes ?? "")) return;
-                              void saveNotes(row, next);
+                            onAfterBlurAssist={(v) => {
+                              if (v === (row.notes ?? "")) return;
+                              void saveNotes(row, v);
                             }}
                           />
                         </div>

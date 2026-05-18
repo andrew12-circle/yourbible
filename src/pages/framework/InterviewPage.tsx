@@ -11,7 +11,7 @@ import {
 } from "@/data/framework";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/hooks/use-toast";
 
@@ -156,7 +156,8 @@ export default function InterviewPage() {
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
             Your answer
           </label>
-          <Textarea
+          <PolishedTextarea
+            polishResetKey={q.prompt}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             placeholder="Be honest. 'I'm not sure' is a valid answer — note what you're unsure about."
@@ -179,7 +180,8 @@ export default function InterviewPage() {
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
             Where this came from (optional)
           </label>
-          <Textarea
+          <PolishedTextarea
+            polishResetKey={q.prompt}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="A pastor, a verse, an experience, a fear, a book…"

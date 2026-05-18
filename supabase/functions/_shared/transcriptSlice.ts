@@ -1,22 +1,20 @@
-/** Client-side transcript parsing for artifact detail (YouTube captions vs Gemini range chunks). */
+/**
+ * Transcript parsing + time-window slicing for edge functions (mirrors client `transcriptSplit.ts`).
+ */
 
 export interface TranscriptSegment {
   id: string;
   label: string;
   text: string;
   startSeconds: number | null;
-  /** Blank line in source — extra vertical space between blocks */
   isParagraphBreak?: boolean;
-  /** Same on-screen second / stamp as previous row — subtle continuation styling */
   isContinuation?: boolean;
-  /** Interpolated from a coarse `[start-end]` chunk; seek time is approximate */
   timestampEstimated?: boolean;
 }
 
 export interface TranscriptSplitResult {
   segments: TranscriptSegment[];
   timed: boolean;
-  /** True when at least one row uses interpolated times (typical Gemini clip fallback). */
   coarseTimestampsOnly: boolean;
 }
 
@@ -28,16 +26,6 @@ function timestampToSeconds(value: string) {
   return parts[0] ?? null;
 }
 
-/** Display clock for transcript rows (`m:ss` or `h:mm:ss`). */
-export function formatTranscriptClock(seconds: number) {
-  const rounded = Math.max(0, Math.floor(seconds));
-  const h = Math.floor(rounded / 3600);
-  const m = Math.floor((rounded % 3600) / 60);
-  const s = rounded % 60;
-  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
-}
-
-/** Inner part of `[...]` must look like YouTube/Gemini times, not arbitrary brackets */
 function looksLikeTimedBracketInner(inner: string): boolean {
   const v = inner.trim();
   return /^\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?$/.test(v);
@@ -59,10 +47,8 @@ function parseTimedBracketInner(inner: string): { label: string; startSeconds: n
   return { label: v, startSeconds, endSeconds: null };
 }
 
-/** Split one physical line at `[m:ss]` / `[h:mm:ss]` boundaries (captions stored as a single-line blob). */
 const TIMED_LINE_BOUNDARY_RE = /(?=\[\s*\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?\]\s*)/;
 
-/** True if body text already contains caption-style inline timestamps */
 function bodyHasInlineTimestamps(body: string): boolean {
   return /\[\s*\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?\]\s*/.test(body);
 }
@@ -258,34 +244,41 @@ export function splitTranscript(rawText: string): TranscriptSplitResult {
   };
 }
 
-/**
- * Collects trimmed segment texts whose timed span overlaps an inclusive wall-clock window
- * `[rangeStartSec, rangeEndSec]`. Each segment is treated as `[startSeconds, nextStart)`;
- * the final timed row uses an open end toward +∞.
- */
-export function collectTranscriptTextOverlappingInclusiveRange(
+/** Segment rows whose `startSeconds` lies in `[rangeStartSec, rangeEndExclusiveSec)`. */
+export function collectTranscriptTextsStartingInHalfOpenRange(
   segments: TranscriptSegment[],
   rangeStartSec: number,
-  rangeEndSec: number,
+  rangeEndExclusiveSec: number | null,
 ): string[] {
+  const re = rangeEndExclusiveSec == null || !Number.isFinite(rangeEndExclusiveSec)
+    ? Number.POSITIVE_INFINITY
+    : rangeEndExclusiveSec;
   const rs = Math.max(0, rangeStartSec);
-  const re = Math.max(rs, rangeEndSec);
   const timed = segments.filter(
     (s): s is TranscriptSegment & { startSeconds: number } =>
       !s.isParagraphBreak && s.startSeconds != null && Number.isFinite(s.startSeconds),
   );
-  if (!timed.length) return [];
-
   const out: string[] = [];
-  for (let i = 0; i < timed.length; i++) {
-    const seg = timed[i];
-    const S = seg.startSeconds;
-    const next = timed[i + 1];
-    const E = next?.startSeconds != null && Number.isFinite(next.startSeconds) ? next.startSeconds : Number.POSITIVE_INFINITY;
-    if (S <= re && E > rs) {
+  for (const seg of timed) {
+    if (seg.startSeconds >= rs && seg.startSeconds < re) {
       const t = seg.text.trim();
       if (t) out.push(t);
     }
   }
   return out;
+}
+
+/** When timestamps are absent, approximate a wall-clock slice using duration metadata. */
+export function sliceTextByDurationFraction(
+  fullText: string,
+  windowStartSec: number,
+  windowEndExclusiveSec: number,
+  durationSeconds: number,
+): string {
+  const D = Math.max(1, Math.floor(durationSeconds));
+  const len = fullText.length;
+  const endCap = Math.min(windowEndExclusiveSec, D);
+  const a = Math.min(len, Math.max(0, Math.floor((windowStartSec / D) * len)));
+  const b = Math.min(len, Math.max(a + 1, Math.floor((endCap / D) * len)));
+  return fullText.slice(a, b).trim();
 }

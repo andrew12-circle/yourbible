@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -22,7 +22,8 @@ export function NoteDialog({ open, reference, initialBody, onClose, onSave, onDe
           <div className="text-[10px] uppercase tracking-widest text-gold-deep">Note</div>
           <DialogTitle className="font-display text-leather">{reference}</DialogTitle>
         </DialogHeader>
-        <Textarea
+        <PolishedTextarea
+          polishResetKey={reference}
           value={body} onChange={e => setBody(e.target.value)} rows={6}
           placeholder="What does this verse mean to you right now…" autoFocus
           className="font-scripture text-base bg-paper/70"

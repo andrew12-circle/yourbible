@@ -51,6 +51,7 @@ export type Database = {
         Row: {
           artifact_id: string
           bias_flags: string[]
+          chapter_start_seconds: number | null
           claim: string
           created_at: string
           doctrine_tags: string[]
@@ -67,6 +68,7 @@ export type Database = {
         Insert: {
           artifact_id: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim: string
           created_at?: string
           doctrine_tags?: string[]
@@ -83,6 +85,7 @@ export type Database = {
         Update: {
           artifact_id?: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim?: string
           created_at?: string
           doctrine_tags?: string[]

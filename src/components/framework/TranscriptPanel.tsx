@@ -47,10 +47,12 @@ export interface TranscriptPanelProps {
   onSeek: (seconds: number) => void;
   onCopy: () => void;
   onJournal: () => void;
+  /** Label for the full-page journal button (distinct from in-page “Study journal”). */
+  fullPageJournalLabel?: string;
   onRetryFetch?: () => void;
   retryDisabled?: boolean;
   setSegmentRef?: (id: string, el: HTMLDivElement | null) => void;
-  /** e.g. “Journal here” floating panel trigger */
+  /** e.g. “Study journal” floating panel trigger */
   extraHeaderActions?: ReactNode;
 }
 
@@ -64,6 +66,7 @@ export default function TranscriptPanel({
   onSeek,
   onCopy,
   onJournal,
+  fullPageJournalLabel = "Journal this",
   onRetryFetch,
   retryDisabled,
   setSegmentRef,
@@ -144,21 +147,35 @@ export default function TranscriptPanel({
 
   return (
     <section className="mb-5 rounded-lg border border-border bg-card p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-sm font-medium">Working transcript</h2>
-          <p className="text-xs text-muted-foreground">
+      <div className="mb-3 flex w-full min-w-0 flex-col gap-3 border-b border-border/60 pb-3">
+        <div className="w-full min-w-0 space-y-1">
+          <h2 className="w-full min-w-0 text-sm font-semibold tracking-tight text-foreground">Working transcript</h2>
+          <p className="w-full min-w-0 text-xs leading-relaxed text-muted-foreground">
             {timed
               ? "Click a line to jump in the player. Timestamps marked ~ are spread across the clip and are approximate."
               : "Readable sections. Claim cards below can jump to the closest matching section."}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onCopy}>
-            <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onCopy}
+            className="h-9 shrink-0"
+            aria-label="Copy transcript to clipboard"
+          >
+            <Copy className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
+            <span className="hidden sm:inline">Copy</span>
           </Button>
-          <Button size="sm" onClick={onJournal}>
-            Journal this
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onJournal}
+            className="h-9 shrink-0"
+            aria-label={fullPageJournalLabel}
+          >
+            <span className="sm:hidden">Journal</span>
+            <span className="hidden sm:inline">{fullPageJournalLabel}</span>
           </Button>
           {extraHeaderActions}
         </div>
@@ -182,12 +199,12 @@ export default function TranscriptPanel({
         </div>
       )}
 
-      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="mb-2 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search transcript…"
-          className="h-9 font-sans text-sm sm:max-w-xs"
+          className="h-9 min-w-0 flex-1 font-sans text-sm sm:max-w-md"
           aria-label="Search transcript"
         />
         <Button
@@ -250,10 +267,10 @@ export default function TranscriptPanel({
                 ref={(el) => bindRef(segment.id, el)}
                 data-transcript-row={segment.id}
                 className={cn(
-                  "group flex gap-2 px-2 py-2.5 transition-colors sm:gap-3 sm:px-3",
+                  "group flex gap-2 px-3 py-2.5 transition-colors sm:gap-3",
                   canSeek && "cursor-pointer hover:bg-muted/45",
                   isActive && "bg-primary/8 ring-1 ring-inset ring-primary/20",
-                  segment.isContinuation && "pl-2 border-l-2 border-muted-foreground/20 sm:pl-3",
+                  segment.isContinuation && "border-l-2 border-muted-foreground/20 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
                 tabIndex={canSeek ? 0 : undefined}
@@ -269,12 +286,12 @@ export default function TranscriptPanel({
                 }}
               >
                 {showTimestamps && (
-                  <div className="flex w-[4.5rem] shrink-0 justify-end pt-0.5 sm:w-[5.25rem]">
+                  <div className="flex w-[4.5rem] shrink-0 items-start justify-end sm:w-[5.25rem]">
                     {timed && stamp ? (
                       <span
                         className={cn(
-                          "inline-flex min-w-[3.25rem] justify-end rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground",
-                          segment.timestampEstimated && "italic text-muted-foreground/90",
+                          "inline-flex min-h-[1.375rem] min-w-[3.5rem] max-w-full items-center justify-center rounded-full border border-border/80 bg-muted px-2 py-1 text-center text-[11px] font-medium tabular-nums leading-none text-foreground/90",
+                          segment.timestampEstimated && "italic text-foreground/85",
                         )}
                       >
                         {stamp}

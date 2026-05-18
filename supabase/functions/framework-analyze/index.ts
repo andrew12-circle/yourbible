@@ -3,13 +3,35 @@
 // Also extracts grounded knowledge entities and actionable teachings (with service role).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import type { YoutubeChapter } from "../_shared/youtubeChapters.ts";
+import {
+  collectTranscriptTextsStartingInHalfOpenRange,
+  sliceTextByDurationFraction,
+  splitTranscript,
+  type TranscriptSegment,
+} from "../_shared/transcriptSlice.ts";
 
 const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MODEL = "gemini-2.5-pro";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
-/** Max persisted claims from a single artifact. Bumped from 12 to give long videos full coverage. */
-const MAX_PERSISTED_CLAIMS = 40;
+
+function envInt(name: string, fallback: number): number {
+  const raw = Deno.env.get(name);
+  if (!raw) return fallback;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * Hard cap on persisted rows per artifact (DB + UI cost). Default 120 supports ~10 chapters × ~12 claims
+ * while staying bounded; raise via `FRAMEWORK_ANALYZE_MAX_CLAIMS` if your workspace needs more.
+ */
+const MAX_PERSISTED_CLAIMS = envInt("FRAMEWORK_ANALYZE_MAX_CLAIMS", 120);
+/** When no YouTube chapters exist, optional second pass uses this spacing (seconds). Override: `FRAMEWORK_ANALYZE_CHUNK_SPACING_SEC`. */
+const CHUNK_SPACING_SECONDS = envInt("FRAMEWORK_ANALYZE_CHUNK_SPACING_SEC", 540);
+/** Minimum video duration (seconds) before we add the optional timed chunk pass (no-chapters path). */
+const MIN_DURATION_FOR_CHUNK_PASS_SEC = envInt("FRAMEWORK_ANALYZE_MIN_DURATION_CHUNK_PASS_SEC", 1500);
 /** Max persisted teachings from a single artifact. Bumped from 20. */
 const MAX_PERSISTED_TEACHINGS = 30;
 
@@ -113,6 +135,69 @@ interface TeachingsPayload {
   teachings?: TeachingOut[];
 }
 
+interface ClaimWithChapter extends ClaimOut {
+  chapter_start_seconds?: number | null;
+}
+
+function parseYoutubeChaptersFromMetadata(metadata: unknown): YoutubeChapter[] {
+  if (!metadata || typeof metadata !== "object") return [];
+  const raw = (metadata as Record<string, unknown>).youtube_chapters;
+  if (!Array.isArray(raw)) return [];
+  const out: YoutubeChapter[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const title = typeof r.title === "string" ? r.title.trim() : "";
+    const ss = typeof r.start_seconds === "number" ? r.start_seconds : Number(r.start_seconds);
+    if (!title || !Number.isFinite(ss)) continue;
+    out.push({ title, start_seconds: Math.floor(ss) });
+  }
+  out.sort((a, b) => a.start_seconds - b.start_seconds);
+  const dedup: YoutubeChapter[] = [];
+  for (const c of out) {
+    const last = dedup[dedup.length - 1];
+    if (last && last.start_seconds === c.start_seconds) continue;
+    dedup.push(c);
+  }
+  return dedup;
+}
+
+function parseDurationSeconds(metadata: unknown): number | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const d = (metadata as Record<string, unknown>).duration_seconds;
+  if (typeof d === "number" && Number.isFinite(d) && d > 0) return Math.floor(d);
+  const n = Number(d);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+function transcriptSliceForWindow(params: {
+  rawText: string;
+  segments: TranscriptSegment[];
+  timed: boolean;
+  windowStartSec: number;
+  windowEndExclusiveSec: number | null;
+  durationSeconds: number | null;
+}): string {
+  const { rawText, segments, timed, windowStartSec, windowEndExclusiveSec, durationSeconds } = params;
+  let body = "";
+  if (timed) {
+    body = collectTranscriptTextsStartingInHalfOpenRange(
+      segments,
+      windowStartSec,
+      windowEndExclusiveSec,
+    ).join("\n").trim();
+  }
+  if (!body && durationSeconds != null && durationSeconds > 0) {
+    body = sliceTextByDurationFraction(
+      rawText,
+      windowStartSec,
+      windowEndExclusiveSec ?? durationSeconds,
+      durationSeconds,
+    );
+  }
+  return body.slice(0, ANALYSIS_TEXT_CAP);
+}
+
 const SYSTEM = `You are a careful theology research assistant.
 Your job is NOT to declare what is true. Your job is to surface claims, compare them to the user's stated beliefs, and cite scriptures that support or challenge the claim.
 Be honest about uncertainty. Never speak as God or a prophet. Never push a denomination.
@@ -128,7 +213,7 @@ You must never invent teachings not grounded in the text. Each teaching MUST inc
 For scriptures: only include a reference if that reference (or its verse text) clearly appears in the artifact text; otherwise use an empty array.
 Always return strict JSON via the tool call only. No prose outside JSON.`;
 
-function buildPrompt(text: string, beliefs: Belief[]) {
+function buildFullArtifactPrompt(text: string, beliefs: Belief[], minClaims: number, maxClaims: number) {
   const beliefSummary = beliefs.length
     ? beliefs
         .map(
@@ -150,7 +235,7 @@ ${clipped}
 """${wasClipped ? "\n\n(Note: the artifact text was very long and was truncated to fit context. Cover the supplied text as fully as possible.)" : ""}
 
 Task:
-1. Extract 12 to 30 of the most load-bearing CLAIMS from the artifact (1–2 sentences each). DISTRIBUTE COVERAGE across the beginning, middle, AND end of the transcript — do NOT cluster claims only in the opening minutes. For long sources, prefer 20–30 claims; for short sources, 8–15.
+1. Extract ${minClaims} to ${maxClaims} of the most load-bearing CLAIMS from the artifact (1–2 sentences each). DISTRIBUTE COVERAGE across the beginning, middle, AND end of the transcript — do NOT cluster claims only in the opening minutes.
 2. Order the claims roughly by their position in the transcript (earliest first).
 3. For each claim, fill in:
    - tone: one of peace, fear, urgency, shame, hope, conviction, neutral, anger, comfort
@@ -160,6 +245,81 @@ Task:
    - matched_belief_id: the user belief id this claim most closely relates to, or null
    - match_relation: "agree" if the user's belief agrees with the claim, "disagree" if it conflicts, "new" if there is no clear matching belief
    - bias_flags: 0–3 short flags such as "fear-based framing", "guilt appeal", "out-of-context proof-text", "emotional manipulation", "denominational assumption" — only when clearly present
+
+Return ONLY valid JSON of shape:
+{ "claims": ClaimOut[] }`;
+}
+
+function buildChapterSlicePrompt(
+  sliceText: string,
+  beliefs: Belief[],
+  chapterTitle: string,
+  chapterStartSeconds: number,
+  nextChapterStartSeconds: number | null,
+  minClaims: number,
+  maxClaims: number,
+) {
+  const beliefSummary = beliefs.length
+    ? beliefs
+        .map(
+          (b) =>
+            `- id=${b.id} | layer=${b.layer} | topic=${b.topic} | statement="${b.statement}" | answer="${(b.answer ?? "").slice(0, 280)}" | confidence=${b.confidence}`,
+        )
+        .join("\n")
+    : "(none yet — every claim should be marked match_relation:'new', matched_belief_id:null)";
+
+  const clipped = sliceText.slice(0, ANALYSIS_TEXT_CAP);
+  const wasClipped = sliceText.length > ANALYSIS_TEXT_CAP;
+  const windowNote =
+    nextChapterStartSeconds != null
+      ? `This slice covers transcript time roughly ${chapterStartSeconds}s up to (but not including) ${nextChapterStartSeconds}s.`
+      : `This slice begins at ${chapterStartSeconds}s through the end of the talk.`;
+
+  return `USER'S CURRENT BELIEFS:
+${beliefSummary}
+
+YOUTUBE CHAPTER SPINE (one section of the longer artifact):
+- Chapter title: "${chapterTitle.replace(/"/g, '\\"')}"
+- ${windowNote}
+
+TRANSCRIPT SLICE FOR THIS CHAPTER ONLY:
+"""
+${clipped}
+"""${wasClipped ? "\n\n(Note: slice was truncated for context — cover the supplied slice as fully as possible.)" : ""}
+
+Task:
+1. Extract ${minClaims} to ${maxClaims} load-bearing CLAIMS grounded ONLY in this slice (1–2 sentences each). Stay specific to this chapter; do not invent content from other parts of the video.
+2. Order claims by their order within this slice (earliest first).
+3. For each claim, fill in the same fields as in the full-artifact task (tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags).
+
+Return ONLY valid JSON of shape:
+{ "claims": ClaimOut[] }`;
+}
+
+function buildTimedChunkPrompt(sliceText: string, beliefs: Belief[], windowLabel: string, minClaims: number, maxClaims: number) {
+  const beliefSummary = beliefs.length
+    ? beliefs
+        .map(
+          (b) =>
+            `- id=${b.id} | layer=${b.layer} | topic=${b.topic} | statement="${b.statement}" | answer="${(b.answer ?? "").slice(0, 280)}" | confidence=${b.confidence}`,
+        )
+        .join("\n")
+    : "(none yet — every claim should be marked match_relation:'new', matched_belief_id:null)";
+
+  const clipped = sliceText.slice(0, ANALYSIS_TEXT_CAP);
+
+  return `USER'S CURRENT BELIEFS:
+${beliefSummary}
+
+ADDITIONAL TRANSCRIPT WINDOW (${windowLabel}) — use when the full-pass may have under-covered the middle or late portions:
+"""
+${clipped}
+"""
+
+Task:
+1. Extract ${minClaims} to ${maxClaims} NEW load-bearing CLAIMS found primarily in this window. Skip near-duplicates of claims you would expect from an earlier full-pass on the entire transcript; focus on additional theses, qualifications, or applications that appear here.
+2. Order by position within this window.
+3. Same per-claim fields as the full-artifact extraction task.
 
 Return ONLY valid JSON of shape:
 { "claims": ClaimOut[] }`;
@@ -772,6 +932,81 @@ async function persistEntitiesForArtifact(params: {
   return { counts, mentionCount: mentionRows.length };
 }
 
+function parseSubmitClaimsFromResponse(json: unknown): ClaimOut[] {
+  const argsStr = parseToolCall(json, "submit_claims");
+  if (argsStr) {
+    try {
+      const parsed = JSON.parse(argsStr) as { claims?: ClaimOut[] };
+      return parsed.claims ?? [];
+    } catch (e) {
+      console.error("parse fail", e);
+    }
+  }
+  const j = json as { choices?: { message?: { content?: string } }[] };
+  const content = j?.choices?.[0]?.message?.content;
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content) as { claims?: ClaimOut[] };
+      return parsed.claims ?? [];
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
+
+type ClaimGeminiResult =
+  | { kind: "ok"; json: unknown }
+  | { kind: "rate_limit" }
+  | { kind: "billing" }
+  | { kind: "gateway_err"; status: number; body: string };
+
+async function geminiSubmitClaims(
+  GEMINI_API_KEY: string,
+  userPrompt: string,
+): Promise<ClaimGeminiResult> {
+  const r = await callGemini(
+    GEMINI_API_KEY,
+    [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: userPrompt },
+    ],
+    [TOOL],
+    { type: "function", function: { name: "submit_claims" } },
+  );
+  if (r.status === 429) return { kind: "rate_limit" };
+  if (r.status === 402) return { kind: "billing" };
+  if (!r.ok) {
+    const t = await r.text();
+    console.error("AI gateway error:", r.status, t);
+    return { kind: "gateway_err", status: r.status, body: t };
+  }
+  return { kind: "ok", json: await r.json() };
+}
+
+/** Returns a finished HTTP Response on rate limit / billing; throws on gateway error; `null` when OK to continue. */
+async function abortClaimsIfBadGateway(
+  supabase: SupabaseClient,
+  artifact_id: string,
+  gw: ClaimGeminiResult,
+): Promise<Response | null> {
+  if (gw.kind === "ok") return null;
+  if (gw.kind === "rate_limit" || gw.kind === "billing") {
+    const msg =
+      gw.kind === "rate_limit"
+        ? "Rate limited — try again in a moment."
+        : "AI credits exhausted. Add credits in Settings → Workspace → Usage.";
+    const status = gw.kind === "rate_limit" ? 429 : 402;
+    await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+    return new Response(JSON.stringify({ error: msg }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  await supabase.from("artifacts").update({ status: "error", error: "AI gateway error" }).eq("id", artifact_id);
+  throw new Error("AI gateway error");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -796,7 +1031,7 @@ Deno.serve(async (req) => {
 
     const { data: artifact, error: aErr } = await supabase
       .from("artifacts")
-      .select("id,user_id,raw_text,processing_token")
+      .select("id,user_id,raw_text,processing_token,metadata")
       .eq("id", artifact_id)
       .maybeSingle();
     if (aErr || !artifact) throw new Error("Artifact not found");
@@ -811,57 +1046,109 @@ Deno.serve(async (req) => {
       .select("id,layer,topic,statement,answer,confidence")
       .eq("user_id", artifact.user_id);
 
-    const prompt = buildPrompt(artifact.raw_text as string, (beliefs as Belief[]) ?? []);
+    const rawText = artifact.raw_text as string;
+    const beliefsList = (beliefs as Belief[]) ?? [];
+    const metadata = (artifact as { metadata?: unknown }).metadata;
+    const chapters = parseYoutubeChaptersFromMetadata(metadata);
+    const durationSeconds = parseDurationSeconds(metadata);
+    const { segments, timed } = splitTranscript(rawText);
 
-    const r = await callGemini(
-      GEMINI_API_KEY,
-      [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: prompt },
-      ],
-      [TOOL],
-      { type: "function", function: { name: "submit_claims" } },
-    );
+    const collected: ClaimWithChapter[] = [];
 
-    if (r.status === 429 || r.status === 402) {
-      const msg =
-        r.status === 429
-          ? "Rate limited — try again in a moment."
-          : "AI credits exhausted. Add credits in Settings → Workspace → Usage.";
-      await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
-      return new Response(JSON.stringify({ error: msg }), {
-        status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!r.ok) {
-      const t = await r.text();
-      console.error("AI gateway error:", r.status, t);
-      await supabase.from("artifacts").update({ status: "error", error: "AI gateway error" }).eq("id", artifact_id);
-      throw new Error("AI gateway error");
-    }
-
-    const json = await r.json();
-    const argsStr = parseToolCall(json, "submit_claims");
-    let parsed: { claims: ClaimOut[] } = { claims: [] };
-    if (argsStr) {
-      try {
-        parsed = JSON.parse(argsStr);
-      } catch (e) {
-        console.error("parse fail", e);
+    if (chapters.length >= 1) {
+      const perChapMin = 5;
+      const perChapMax = 12;
+      console.log(`framework-analyze: chapter spine chapters=${chapters.length}`);
+      for (let ci = 0; ci < chapters.length; ci++) {
+        const ch = chapters[ci];
+        const nextCh = chapters[ci + 1];
+        const sliceText = transcriptSliceForWindow({
+          rawText,
+          segments,
+          timed,
+          windowStartSec: ch.start_seconds,
+          windowEndExclusiveSec: nextCh?.start_seconds ?? null,
+          durationSeconds,
+        });
+        if (sliceText.trim().length < 80) {
+          console.log(`framework-analyze: skip sparse chapter idx=${ci} start=${ch.start_seconds}`);
+          continue;
+        }
+        const userPrompt = buildChapterSlicePrompt(
+          sliceText,
+          beliefsList,
+          ch.title,
+          ch.start_seconds,
+          nextCh?.start_seconds ?? null,
+          perChapMin,
+          perChapMax,
+        );
+        const gw = await geminiSubmitClaims(GEMINI_API_KEY, userPrompt);
+        const bad = await abortClaimsIfBadGateway(supabase, artifact_id, gw);
+        if (bad) return bad;
+        const claims = parseSubmitClaimsFromResponse((gw as { kind: "ok"; json: unknown }).json);
+        for (const c of claims) {
+          collected.push({ ...c, chapter_start_seconds: ch.start_seconds });
+        }
+        console.log(`framework-analyze: chapter ${ci + 1}/${chapters.length} claims=${claims.length}`);
+      }
+      if (collected.length === 0) {
+        console.warn("framework-analyze: chapter spine produced 0 claims; falling back to full pass");
+        const userPrompt = buildFullArtifactPrompt(rawText, beliefsList, 14, 36);
+        const gw = await geminiSubmitClaims(GEMINI_API_KEY, userPrompt);
+        const bad = await abortClaimsIfBadGateway(supabase, artifact_id, gw);
+        if (bad) return bad;
+        const claims = parseSubmitClaimsFromResponse((gw as { kind: "ok"; json: unknown }).json);
+        for (const c of claims) collected.push({ ...c, chapter_start_seconds: null });
       }
     } else {
-      const content = json?.choices?.[0]?.message?.content;
-      if (typeof content === "string") {
-        try {
-          parsed = JSON.parse(content);
-        } catch {
-          /* ignore */
+      const userPrompt = buildFullArtifactPrompt(rawText, beliefsList, 18, 45);
+      const gw = await geminiSubmitClaims(GEMINI_API_KEY, userPrompt);
+      const bad = await abortClaimsIfBadGateway(supabase, artifact_id, gw);
+      if (bad) return bad;
+      const claims = parseSubmitClaimsFromResponse((gw as { kind: "ok"; json: unknown }).json);
+      for (const c of claims) collected.push({ ...c, chapter_start_seconds: null });
+      console.log(`framework-analyze: no-chapters full pass claims=${claims.length}`);
+
+      const useChunkPass =
+        timed &&
+        durationSeconds != null &&
+        durationSeconds >= MIN_DURATION_FOR_CHUNK_PASS_SEC;
+      if (useChunkPass) {
+        const D = durationSeconds;
+        for (let t = 0; t < D; t += CHUNK_SPACING_SECONDS) {
+          const end = Math.min(t + CHUNK_SPACING_SECONDS, D);
+          const sliceText = transcriptSliceForWindow({
+            rawText,
+            segments,
+            timed: true,
+            windowStartSec: t,
+            windowEndExclusiveSec: end,
+            durationSeconds: D,
+          });
+          if (sliceText.trim().length < 200) continue;
+          const chunkPrompt = buildTimedChunkPrompt(
+            sliceText,
+            beliefsList,
+            `${t}s–${end}s`,
+            4,
+            10,
+          );
+          const gwc = await geminiSubmitClaims(GEMINI_API_KEY, chunkPrompt);
+          const badc = await abortClaimsIfBadGateway(supabase, artifact_id, gwc);
+          if (badc) return badc;
+          const chunkClaims = parseSubmitClaimsFromResponse((gwc as { kind: "ok"; json: unknown }).json);
+          for (const c of chunkClaims) collected.push({ ...c, chapter_start_seconds: null });
+          console.log(`framework-analyze: chunk pass ${t}-${end}s claims=${chunkClaims.length}`);
         }
       }
     }
 
-    const validBeliefIds = new Set(((beliefs as Belief[]) ?? []).map((b) => b.id));
-    const rows = (parsed.claims ?? []).slice(0, MAX_PERSISTED_CLAIMS).map((c) => ({
+    const validBeliefIds = new Set(beliefsList.map((b) => b.id));
+    const rows = collected
+      .filter((c) => typeof c.claim === "string" && c.claim.trim().length > 0)
+      .slice(0, MAX_PERSISTED_CLAIMS)
+      .map((c) => ({
       user_id: artifact.user_id,
       artifact_id,
       claim: c.claim,
@@ -877,7 +1164,12 @@ Deno.serve(async (req) => {
         c.match_relation ??
         (c.matched_belief_id && validBeliefIds.has(c.matched_belief_id) ? "agree" : "new"),
       bias_flags: c.bias_flags ?? [],
+      chapter_start_seconds: c.chapter_start_seconds ?? null,
     }));
+
+    console.log(
+      `framework-analyze: persisted_claims=${rows.length} cap=${MAX_PERSISTED_CLAIMS} chapters=${chapters.length} timed=${timed}`,
+    );
 
     const { data: gate } = await supabase
       .from("artifacts")

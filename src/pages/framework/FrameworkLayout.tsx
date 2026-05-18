@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface Props {
   back?: string;
   /** Optional main width; defaults to `max-w-4xl`. */
   contentClassName?: string;
+  /** Optional header row/nav max-width; defaults to `max-w-4xl`. Use with a wide `contentClassName` so the sticky header aligns with the page. */
+  headerContentClassName?: string;
 }
 
 const NAV = [
@@ -22,12 +25,13 @@ const NAV = [
   { to: "/framework/tensions", label: "Tensions", icon: AlertTriangle },
 ];
 
-export default function FrameworkLayout({ children, title, back, contentClassName }: Props) {
+export default function FrameworkLayout({ children, title, back, contentClassName, headerContentClassName }: Props) {
   const { pathname } = useLocation();
+  const headerMax = headerContentClassName ?? "max-w-4xl";
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
-        <div className="max-w-4xl mx-auto px-4 sm:px-5 py-3.5 flex items-center gap-3">
+        <div className={cn("mx-auto px-4 sm:px-5 py-3.5 flex items-center gap-3", headerMax)}>
           <Link
             to={back ?? "/"}
             className="p-2 -ml-2 rounded-xl text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -45,15 +49,23 @@ export default function FrameworkLayout({ children, title, back, contentClassNam
               </h1>
             )}
           </div>
-          <Link
-            to="/read/Jhn/1"
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <BookOpen className="w-3.5 h-3.5 opacity-80" aria-hidden />
-            Reader
-          </Link>
+          <div className="flex shrink-0 items-start gap-2 sm:gap-3">
+            <div className="hidden pt-0.5 sm:block">
+              <AiWritingAssistToggle compact />
+            </div>
+            <Link
+              to="/read/Jhn/1"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <BookOpen className="w-3.5 h-3.5 opacity-80" aria-hidden />
+              Reader
+            </Link>
+          </div>
         </div>
-        <div className="max-w-4xl mx-auto px-4 sm:px-5 pb-3">
+        <div className={cn("mx-auto px-4 sm:px-5 pb-3 sm:hidden", headerMax)}>
+          <AiWritingAssistToggle compact />
+        </div>
+        <div className={cn("mx-auto px-4 sm:px-5 pb-3", headerMax)}>
           <nav
             className="flex w-full overflow-x-auto gap-1 p-1 rounded-2xl bg-muted/40 ring-1 ring-border/50 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             aria-label="Framework sections"

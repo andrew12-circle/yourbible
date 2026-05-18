@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Sparkles, Save, RefreshCw } from "lucide-react";
@@ -188,7 +188,8 @@ export function CompanionBeliefTab() {
         </Button>
       </div>
 
-      <Textarea
+      <PolishedTextarea
+        polishResetKey={active}
         value={c.statement}
         onChange={(e) => updateActive({ statement: e.target.value })}
         rows={3}

@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LAYER_META, FrameworkLayer } from "@/data/framework";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
@@ -144,7 +144,8 @@ export default function BeliefDetailPage() {
 
       <div className="rounded-lg border border-border bg-card p-5 mb-6">
         <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Answer</label>
-        <Textarea
+        <PolishedTextarea
+          polishResetKey={b.id}
           value={b.answer ?? ""}
           onChange={(e) => setB({ ...b, answer: e.target.value })}
           rows={6}
@@ -160,7 +161,8 @@ export default function BeliefDetailPage() {
           className="mb-5"
         />
         <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Notes</label>
-        <Textarea
+        <PolishedTextarea
+          polishResetKey={b.id}
           value={b.notes ?? ""}
           onChange={(e) => setB({ ...b, notes: e.target.value })}
           rows={2}

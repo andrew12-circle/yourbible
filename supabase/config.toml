@@ -24,10 +24,22 @@ verify_jwt = true
 [functions.my-ai-chat]
 verify_jwt = true
 
+[functions.claim-research-pack]
+verify_jwt = true
+
 [functions.partner-refresh-summary]
 verify_jwt = true
 
 [functions.journal-sketch-to-text]
+verify_jwt = true
+
+[functions.ai-text-polish]
+verify_jwt = true
+
+[functions.framework-fetch-transcript]
+verify_jwt = true
+
+[functions.framework-sync-youtube-chapters]
 verify_jwt = true
 
 [functions.bible-passage]

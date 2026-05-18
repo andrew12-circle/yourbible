@@ -1,0 +1,22 @@
+Browserslist: browsers data (caniuse-lite) is 11 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+7:08:57 PM [vite] Internal server error:   x Expected ';', '}' or <eof>
+      ,-[C:/Users/andre/OneDrive/Desktop/yourbible/src/pages/framework/ArtifactDetailPage.tsx:1059:1]
+ 1056 |       .catch((e) => console.error(e));
+ 1057 |   };
+ 1058 | 
+ 1059 |  BeliefInfluenceAttachment | null =
+      :  ^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^ ^
+      :                  `-- This is the expression part of an expression statement
+ 1060 |     a.kind === "youtube" && mergedVideoMeta.channel_title?.trim()
+ 1061 |       ? {
+ 1061 |           source_type: "podcast",
+      `----
+
+
+Caused by:
+    Syntax Error
+  Plugin: vite:react-swc
+  File: C:/Users/andre/OneDrive/Desktop/yourbible/src/pages/framework/ArtifactDetailPage.tsx
+  

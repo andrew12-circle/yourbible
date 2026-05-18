@@ -27,13 +27,15 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { toast } from "@/hooks/use-toast";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -52,6 +54,14 @@ type MsgRow = {
   role: "user" | "assistant" | "system";
   content: string;
   citations: Json;
+};
+
+type ClaimFocusSession = {
+  claimId: string;
+  artifactId: string;
+  claimPreview: string;
+  matchedBeliefId: string | null;
+  artifactTitle: string | null;
 };
 
 type MyAiInvokeOk = {
@@ -205,11 +215,22 @@ export default function JournalChatPage() {
   const ttsObjectUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const sendRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
+  const prevRouteEntryIdRef = useRef<string | undefined>(undefined);
+  const [claimFocusSession, setClaimFocusSession] = useState<ClaimFocusSession | null>(null);
+  const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
   includeGeneralRef.current = includeGeneral;
   voiceRepliesRef.current = voiceReplies;
+
+  useEffect(() => {
+    const prev = prevRouteEntryIdRef.current;
+    if (prev !== undefined && prev !== routeEntryId) {
+      setClaimFocusSession(null);
+    }
+    prevRouteEntryIdRef.current = routeEntryId;
+  }, [routeEntryId]);
 
   const stopJournalTts = useCallback(() => {
     const a = ttsAudioRef.current;
@@ -437,6 +458,7 @@ export default function JournalChatPage() {
       }
       if (!(firstMsg?.length ?? 0)) {
         setBootstrapping(true);
+        const handoff = readAndClearClaimChatHandoff();
         try {
           const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
             body: {
@@ -445,6 +467,12 @@ export default function JournalChatPage() {
               mode: "journal",
               journal_bootstrap_opener: true,
               include_general_knowledge: includeGeneralRef.current,
+              ...(handoff
+                ? {
+                    journal_bootstrap_artifact_claim_id: handoff.claimId,
+                    journal_bootstrap_transcript_excerpt: handoff.transcriptExcerpt ?? null,
+                  }
+                : {}),
             },
           });
           if (cancelled) return;
@@ -462,7 +490,32 @@ export default function JournalChatPage() {
           ) {
             void playJournalAssistantTts((payload as MyAiInvokeOk).content);
           }
+          if (!cancelled && handoff) {
+            const [{ data: row }, { data: art }] = await Promise.all([
+              supabase.from("artifact_claims").select("claim, matched_belief_id").eq("id", handoff.claimId).maybeSingle(),
+              supabase.from("artifacts").select("title").eq("id", handoff.artifactId).maybeSingle(),
+            ]);
+            if (!cancelled) {
+              const claimStr = typeof row?.claim === "string" ? row.claim : "";
+              setClaimFocusSession({
+                claimId: handoff.claimId,
+                artifactId: handoff.artifactId,
+                claimPreview: claimStr ? claimStr.slice(0, 220) : "Claim",
+                matchedBeliefId: typeof row?.matched_belief_id === "string" ? row.matched_belief_id : null,
+                artifactTitle: typeof art?.title === "string" ? art.title : null,
+              });
+              const { data: entRefresh } = await supabase
+                .from("journal_entries")
+                .select("title")
+                .eq("id", routeEntryId)
+                .maybeSingle();
+              if (!cancelled && typeof entRefresh?.title === "string" && entRefresh.title.trim()) {
+                setEntryTitle(entRefresh.title.trim());
+              }
+            }
+          }
         } catch (e) {
+          if (handoff) setClaimChatHandoff(handoff);
           if (!cancelled) {
             toast({ title: "Could not start conversation", description: String(e), variant: "destructive" });
           }
@@ -529,6 +582,25 @@ export default function JournalChatPage() {
       .update({ analyze_for_mirror: v, updated_at: new Date().toISOString() })
       .eq("id", routeEntryId)
       .eq("user_id", user.id);
+  };
+
+  const applyClaimVerdict = async (verdict: "keep" | "reject" | "updated") => {
+    if (!user || !claimFocusSession) return;
+    setClaimVerdictBusy(true);
+    try {
+      const { error } = await supabase
+        .from("artifact_claims")
+        .update({ verdict })
+        .eq("id", claimFocusSession.claimId)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      const label = verdict === "keep" ? "Marked keep" : verdict === "reject" ? "Marked reject" : "Marked updated";
+      toast({ title: label, description: "You can keep chatting or return to the artifact when you're ready." });
+    } catch (e) {
+      toast({ title: "Could not update claim", description: String(e), variant: "destructive" });
+    } finally {
+      setClaimVerdictBusy(false);
+    }
   };
 
   const stop = () => {
@@ -713,7 +785,8 @@ export default function JournalChatPage() {
             className="h-9 max-w-md border-border/80 text-[15px] font-semibold tracking-tight"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <AiWritingAssistToggle compact />
           <Button type="button" variant="outline" size="sm" className="text-xs" disabled={ending} onClick={() => void endSession()}>
             {ending ? "Saving…" : "End session"}
           </Button>
@@ -773,6 +846,42 @@ export default function JournalChatPage() {
           </SheetContent>
         </Sheet>
       </header>
+
+      {claimFocusSession && routeEntryId && (
+        <div className="shrink-0 border-b border-primary/25 bg-primary/[0.07] px-3 py-3 sm:px-5">
+          <div className="mx-auto max-w-2xl space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Researching one claim</div>
+            <p className="text-sm leading-snug text-foreground">{claimFocusSession.claimPreview}</p>
+            {claimFocusSession.artifactTitle && (
+              <p className="text-xs text-muted-foreground">From: {claimFocusSession.artifactTitle}</p>
+            )}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/framework/artifacts/${claimFocusSession.artifactId}`}>Back to artifact</Link>
+              </Button>
+              {claimFocusSession.matchedBeliefId && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={`/framework/beliefs/${claimFocusSession.matchedBeliefId}`}>Open matched belief</Link>
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={claimVerdictBusy}
+                onClick={() => void applyClaimVerdict("updated")}
+              >
+                Mark claim updated
+              </Button>
+              <Button size="sm" variant="ghost" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("keep")}>
+                Mark keep
+              </Button>
+              <Button size="sm" variant="ghost" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("reject")}>
+                Mark reject
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside className="hidden w-[260px] shrink-0 md:flex">{rail}</aside>
@@ -847,8 +956,9 @@ export default function JournalChatPage() {
               </div>
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
-                  <Textarea
+                  <PolishedTextarea
                     ref={taRef}
+                    polishResetKey={routeEntryId ?? chatId ?? "journal-chat"}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {

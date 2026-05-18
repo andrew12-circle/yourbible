@@ -227,6 +227,7 @@ export default function ChatPage() {
               rows={2}
               placeholder={streaming ? "Streaming…" : "Press Enter to send, Shift+Enter for newline"}
               disabled={streaming}
+              spellCheck
               className="resize-none"
             />
             <Button onClick={send} disabled={streaming || !input.trim()} size="icon">

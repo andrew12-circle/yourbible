@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Loader2, Save, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -114,7 +114,8 @@ export function CompanionJournalTab() {
         placeholder="A title for this thought (optional)"
         className="bg-paper border-paper-edge text-sm"
       />
-      <Textarea
+      <PolishedTextarea
+        polishResetKey={entryId ?? (scope ? draftKey(scope) : "companion-journal")}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={`What is this passage stirring in you?\n\nWrite freely — your thoughts, questions, doubts, sparks.`}

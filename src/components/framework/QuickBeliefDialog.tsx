@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,7 +134,8 @@ export default function QuickBeliefDialog({
 
         {!result ? (
           <div className="space-y-3">
-            <Textarea
+            <PolishedTextarea
+              key={open ? "belief-capture-open" : "belief-capture-closed"}
               autoFocus
               placeholder="I believe…"
               value={text}

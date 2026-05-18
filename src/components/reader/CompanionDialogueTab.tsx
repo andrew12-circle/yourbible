@@ -3,7 +3,7 @@ import { useCompanion, scopeRef } from "@/lib/reader/companionStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Loader2, Send, Library, Globe, BookOpen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -197,7 +197,8 @@ export function CompanionDialogueTab() {
           </Button>
         </div>
         <div className="flex gap-1.5">
-          <Textarea
+          <PolishedTextarea
+            polishResetKey={threadId ?? "companion-dialogue"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

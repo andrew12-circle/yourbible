@@ -2,6 +2,7 @@
 // Prefer real YouTube caption tracks. If YouTube exposes no usable captions,
 // fall back to clipped Gemini transcription so long videos never hit the 1M-token limit.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { parseYoutubeChaptersFromDescription } from "../_shared/youtubeChapters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,7 +234,28 @@ async function getYouTubeMetadata(url: string): Promise<YouTubeMetadata> {
   };
 }
 
-async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: string; title?: string } | null> {
+async function fetchDescriptionViaDataApi(videoId: string): Promise<string | null> {
+  const key = Deno.env.get("YOUTUBE_DATA_API_KEY");
+  if (!key) return null;
+  const u = new URL("https://www.googleapis.com/youtube/v3/videos");
+  u.searchParams.set("part", "snippet");
+  u.searchParams.set("id", videoId);
+  u.searchParams.set("key", key);
+  const res = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+  if (!res.ok) return null;
+  const json = await res.json() as { items?: Array<{ snippet?: { description?: string } }> };
+  const desc = json?.items?.[0]?.snippet?.description;
+  return typeof desc === "string" && desc.trim() ? desc : null;
+}
+
+type WatchCaptionBundle = {
+  text: string | null;
+  title?: string;
+  description?: string;
+  chapters_source?: "youtube_data_api_v3" | "watch_player_response";
+};
+
+async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionBundle | null> {
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) return null;
 
@@ -246,11 +268,30 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: strin
   if (!watchRes.ok) return null;
   const html = await watchRes.text();
   const playerResponse = parseJsonObjectFromHtml(html, "ytInitialPlayerResponse") as {
-    videoDetails?: { title?: string };
+    videoDetails?: { title?: string; shortDescription?: string };
     captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string; kind?: string; name?: { simpleText?: string; runs?: Array<{ text?: string }> } }> } };
   } | null;
+  const descriptionFromPlayer = typeof playerResponse?.videoDetails?.shortDescription === "string"
+    ? playerResponse.videoDetails.shortDescription
+    : undefined;
+
+  let descriptionForChapters = descriptionFromPlayer;
+  let chaptersSource: WatchCaptionBundle["chapters_source"] = "watch_player_response";
+  const apiDesc = await fetchDescriptionViaDataApi(videoId).catch(() => null);
+  if (apiDesc) {
+    descriptionForChapters = apiDesc;
+    chaptersSource = "youtube_data_api_v3";
+  }
+
   const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-  if (!tracks.length) return null;
+  if (!tracks.length) {
+    return {
+      text: null,
+      title: playerResponse?.videoDetails?.title,
+      description: descriptionForChapters,
+      chapters_source: chaptersSource,
+    };
+  }
 
   const preferredTracks = [
     ...tracks.filter((t) => t.languageCode?.toLowerCase().startsWith("en") && t.kind !== "asr"),
@@ -261,10 +302,22 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<{ text: strin
   for (const track of preferredTracks) {
     if (!track.baseUrl) continue;
     const text = await fetchCaptionTrack(track.baseUrl).catch(() => null);
-    if (text) return { text, title: playerResponse?.videoDetails?.title };
+    if (text) {
+      return {
+        text,
+        title: playerResponse?.videoDetails?.title,
+        description: descriptionForChapters,
+        chapters_source: chaptersSource,
+      };
+    }
   }
 
-  return null;
+  return {
+    text: null,
+    title: playerResponse?.videoDetails?.title,
+    description: descriptionForChapters,
+    chapters_source: chaptersSource,
+  };
 }
 
 function formatTime(seconds: number): string {
@@ -346,16 +399,20 @@ async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: n
   return transcript;
 }
 
-async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata }> {
+async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata; chaptersBundle: WatchCaptionBundle | null }> {
   const metadata = await getYouTubeMetadata(url).catch(() => ({}));
 
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
-    return { text: captionResult.text, metadata: { ...metadata, title: metadata.title ?? captionResult.title } };
+    return {
+      text: captionResult.text,
+      metadata: { ...metadata, title: metadata.title ?? captionResult.title },
+      chaptersBundle: captionResult,
+    };
   }
 
   const text = await transcribeYouTubeWithGeminiClips(url, metadata.durationSeconds);
-  return { text, metadata };
+  return { text, metadata, chaptersBundle: captionResult };
 }
 
 Deno.serve(async (req) => {
@@ -384,7 +441,7 @@ Deno.serve(async (req) => {
 
     const { data: artifact } = await supabase
       .from("artifacts")
-      .select("id,title,processing_token")
+      .select("id,title,processing_token,metadata")
       .eq("id", artifact_id)
       .maybeSingle();
     if (!artifact || artifact.processing_token !== processing_token) {
@@ -404,7 +461,21 @@ Deno.serve(async (req) => {
       try {
         const result = await transcribeYouTubeVideo(url);
         const uploaderName = result.metadata.channelTitle ?? null;
+        const vid = extractYouTubeVideoId(url);
+        let desc = result.chaptersBundle?.description ?? "";
+        let chaptersSource = result.chaptersBundle?.chapters_source ?? "none";
+        if (!desc.trim() && vid) {
+          const apiOnly = await fetchDescriptionViaDataApi(vid).catch(() => null);
+          if (apiOnly) {
+            desc = apiOnly;
+            chaptersSource = "youtube_data_api_v3";
+          }
+        }
+        const youtube_chapters = parseYoutubeChaptersFromDescription(desc);
+        if (!youtube_chapters.length) chaptersSource = "none";
+        const prevMeta = (artifact.metadata as Record<string, unknown> | null | undefined) ?? {};
         const metadata = {
+          ...prevMeta,
           source: "youtube",
           title: result.metadata.title ?? null,
           channel_title: uploaderName,
@@ -415,6 +486,8 @@ Deno.serve(async (req) => {
           provider_name: result.metadata.providerName ?? "YouTube",
           duration_seconds: result.metadata.durationSeconds ?? null,
           video_id: extractYouTubeVideoId(url),
+          youtube_chapters,
+          youtube_chapters_source: chaptersSource,
         };
         const { data: updated } = await supabase
           .from("artifacts")

@@ -3,9 +3,9 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Flame, Lock, Loader2, Trash2 } from "lucide-react";
-import JournalLayout from "./JournalLayout";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -109,7 +109,7 @@ export default function JournalVentPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <JournalLayout title="Vent space" back="/journal" largeTitle>
+    <JournalLayout title="Vent space" back="/journal" largeTitle right={<AiWritingAssistToggle compact />}>
       <div className="-mt-2 mb-5 flex items-start gap-3 rounded-2xl border border-zinc-800/15 bg-zinc-900/[0.04] p-4 text-[14px] leading-relaxed text-foreground/85 dark:border-white/10 dark:bg-white/[0.04]">
         <Flame className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" aria-hidden />
         <p className="min-w-0">
@@ -121,8 +121,10 @@ export default function JournalVentPage() {
       </div>
 
       {/* Sans: match main journal composers under .app-theme. */}
-      <Textarea
+      <PolishedTextarea
         ref={taRef}
+        allowAiPolish={false}
+        polishResetKey="vent"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Say it. No one has to read this. No one is grading this. What are you mad about? What hurts? What's not okay?"

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,14 @@ export default function PlaybookDetailPage() {
   const [row, setRow] = useState<PlaybookDetail | null>(undefined);
   const [beliefs, setBeliefs] = useState<Record<string, { topic: string; statement: string }>>({});
   const [busy, setBusy] = useState(false);
+  const [whyLocal, setWhyLocal] = useState("");
+  const [watchLocal, setWatchLocal] = useState("");
+
+  useEffect(() => {
+    if (row === undefined || row === null) return;
+    setWhyLocal(row.why ?? "");
+    setWatchLocal(row.watch_outs.join("\n"));
+  }, [row?.id, row?.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps -- sync drafts only when row id/version from server changes
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -254,15 +262,14 @@ export default function PlaybookDetailPage() {
       </div>
 
       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Why this matters</p>
-      <Textarea
-        key={row.id + row.updated_at}
-        defaultValue={row.why ?? ""}
+      <PolishedTextarea
+        polishResetKey={row.id}
+        value={whyLocal}
+        onChange={(e) => setWhyLocal(e.target.value)}
         rows={5}
         className="mb-8 text-sm leading-relaxed"
-        onBlur={(e) => {
-          const v = e.target.value;
-          if (v === (row.why ?? "")) return;
-          void saveWhy(v);
+        onAfterBlurAssist={(v) => {
+          if (v !== (row.why ?? "")) void saveWhy(v);
         }}
       />
 
@@ -314,14 +321,14 @@ export default function PlaybookDetailPage() {
       </ul>
 
       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Watch-outs</p>
-      <Textarea
-        key={`wo-${row.id}`}
-        defaultValue={row.watch_outs.join("\n")}
+      <PolishedTextarea
+        polishResetKey={row.id}
+        value={watchLocal}
+        onChange={(e) => setWatchLocal(e.target.value)}
         rows={4}
         className="mb-8 text-sm"
         placeholder="One per line"
-        onBlur={(e) => {
-          const v = e.target.value;
+        onAfterBlurAssist={(v) => {
           if (v === row.watch_outs.join("\n")) return;
           void saveWatchOuts(v);
         }}

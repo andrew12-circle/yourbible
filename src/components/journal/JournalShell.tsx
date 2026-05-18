@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { exportJournalAsZip } from "@/lib/journal/export";
 import { toast } from "@/hooks/use-toast";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
 interface Props {
   /** Currently scoped journal (null = aggregate). */
@@ -151,7 +152,9 @@ export default function JournalShell({
             onOpenRail={() => setSheetOpen(true)}
             backTo={backTo}
             right={
-              <DropdownMenu>
+              <div className="flex items-center gap-2">
+                <AiWritingAssistToggle compact tone="onCover" />
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     className="p-2 rounded-full hover:bg-white/15"
@@ -171,6 +174,7 @@ export default function JournalShell({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             }
           />
           <main className="pb-32">{children}</main>

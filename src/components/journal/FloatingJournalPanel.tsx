@@ -4,12 +4,14 @@ import { X, Minus, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft } from
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { toast } from "@/hooks/use-toast";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
+import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
+import FloatingJournalResearchChatTab from "@/components/journal/FloatingJournalResearchChatTab";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 
@@ -72,6 +74,8 @@ export default function FloatingJournalPanel({
 }: FloatingJournalPanelProps) {
   const navigate = useNavigate();
   const tuckLauncherFromPanel = useFloatingJournalStore((s) => s.tuckLauncherFromPanel);
+  const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
+  const [panelTab, setPanelTab] = useState<"write" | "chat">("write");
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftDebounceRef = useRef<number | null>(null);
@@ -113,6 +117,58 @@ export default function FloatingJournalPanel({
       }),
     [],
   );
+
+  useEffect(() => {
+    if (!floatingClaimResearch) {
+      setPanelTab("write");
+      return;
+    }
+    setTitle(floatingClaimResearch.journalTitle);
+    setBody(floatingClaimResearch.claimMarkdown);
+    setPanelTab(floatingClaimResearch.initialTab ?? "chat");
+  }, [floatingClaimResearch]);
+
+  useEffect(() => {
+    if (!artifactId) return;
+    floatingJournalInsertRef.current = {
+      artifactId,
+      append: (markdown: string) => {
+        const ta = textareaRef.current;
+        const focused = ta && document.activeElement === ta;
+        const s = focused ? ta.selectionStart : null;
+        const e = focused ? ta.selectionEnd : null;
+        setBody((prev) => {
+          if (s != null && e != null) {
+            const next = `${prev.slice(0, s)}${markdown}${prev.slice(e)}`;
+            const pos = s + markdown.length;
+            requestAnimationFrame(() => {
+              const el = textareaRef.current;
+              if (!el) return;
+              el.focus();
+              el.setSelectionRange(pos, pos);
+            });
+            return next;
+          }
+          const sep =
+            prev.length === 0 ? "" : prev.endsWith("\n\n") ? "" : prev.endsWith("\n") ? "\n" : "\n\n";
+          const next = `${prev}${sep}${markdown}`;
+          requestAnimationFrame(() => {
+            const el = textareaRef.current;
+            if (!el) return;
+            el.focus();
+            const pos = next.length;
+            el.setSelectionRange(pos, pos);
+          });
+          return next;
+        });
+      },
+    };
+    return () => {
+      if (floatingJournalInsertRef.current?.artifactId === artifactId) {
+        floatingJournalInsertRef.current = null;
+      }
+    };
+  }, [artifactId]);
 
   const persistPanel = useCallback(
     (next: PanelPersist) => {
@@ -172,12 +228,13 @@ export default function FloatingJournalPanel({
     };
   }, [title, body, userId, artifactId]);
 
-  // Focus when expanded
+  // Focus when expanded (write tab only)
   useEffect(() => {
     if (geom.minimized) return;
+    if (floatingClaimResearch && panelTab === "chat") return;
     const t = window.setTimeout(() => textareaRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
-  }, [geom.minimized]);
+  }, [geom.minimized, floatingClaimResearch, panelTab]);
 
   const syncGeom = useCallback(
     (patch: Partial<PanelPersist>) => {
@@ -401,6 +458,7 @@ export default function FloatingJournalPanel({
       /* ignore */
     }
     persistPanel(geomRef.current);
+    useFloatingJournalStore.getState().setFloatingClaimResearch(null);
     onClose();
   };
 
@@ -468,6 +526,84 @@ export default function FloatingJournalPanel({
   };
 
   const showTimestamp = typeof getPlaybackSeconds === "function";
+
+  const writeTabEditor = (
+    <>
+      <p className="mb-2 shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        {dateLine}
+      </p>
+      {showTimestamp && (
+        <div className="mb-2 flex shrink-0 flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 border-border bg-background text-foreground shadow-none hover:bg-muted/80 dark:border-neutral-700 dark:bg-neutral-900/80 dark:hover:bg-neutral-800/90"
+            onClick={insertTimestamp}
+          >
+            <Clock className="mr-1 h-3.5 w-3.5" />
+            Insert timestamp
+          </Button>
+        </div>
+      )}
+      <Input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Title (optional)"
+        className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
+      />
+      <div className="mb-2 flex shrink-0 items-center justify-end">
+        <DictateButton
+          ref={dictateRef}
+          size="sm"
+          className="text-foreground hover:text-foreground dark:text-foreground dark:hover:text-foreground"
+          onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+          onInterim={setDictInterim}
+        />
+      </div>
+      <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit] dark:hidden"
+          style={{
+            backgroundImage:
+              "linear-gradient(to bottom, hsl(var(--border) / 0.85) 1px, transparent 1px)",
+            backgroundSize: "100% 1.65em",
+            backgroundPosition: "0 0.4em",
+          }}
+        />
+        <PolishedTextarea
+          ref={textareaRef}
+          polishResetKey={artifactId ?? "floating-journal"}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write while you watch…"
+          className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-sans text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
+          rows={4}
+        />
+        {dictInterim.trim() ? (
+          <p
+            className="relative z-[1] px-3 pb-2 text-xs italic leading-relaxed text-muted-foreground/80"
+            aria-live="polite"
+          >
+            {dictInterim}
+          </p>
+        ) : null}
+      </div>
+      <div className="mt-3 flex shrink-0 gap-2 border-t border-border pt-3 dark:border-neutral-800">
+        <Button type="button" className="flex-1" onClick={saveEntry} disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Save"
+          )}
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <div
@@ -559,79 +695,39 @@ export default function FloatingJournalPanel({
       {!geom.minimized && (
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card dark:bg-neutral-950">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2.5 sm:px-3.5 sm:pb-3.5">
-            <p className="mb-2 shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              {dateLine}
-            </p>
-            {showTimestamp && (
-              <div className="mb-2 flex shrink-0 flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 border-border bg-background text-foreground shadow-none hover:bg-muted/80 dark:border-neutral-700 dark:bg-neutral-900/80 dark:hover:bg-neutral-800/90"
-                  onClick={insertTimestamp}
-                >
-                  <Clock className="mr-1 h-3.5 w-3.5" />
-                  Insert timestamp
-                </Button>
-              </div>
+            {floatingClaimResearch ? (
+              <>
+                <div className="mb-2 flex shrink-0 gap-1 rounded-lg border border-border bg-muted/35 p-1 dark:bg-muted/20">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={panelTab === "write" ? "secondary" : "ghost"}
+                    className="h-8 flex-1 text-xs"
+                    onClick={() => setPanelTab("write")}
+                  >
+                    Write
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={panelTab === "chat" ? "secondary" : "ghost"}
+                    className="h-8 flex-1 text-xs"
+                    onClick={() => setPanelTab("chat")}
+                  >
+                    Chat
+                  </Button>
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  {panelTab === "write" ? (
+                    writeTabEditor
+                  ) : (
+                    <FloatingJournalResearchChatTab userId={userId} research={floatingClaimResearch} />
+                  )}
+                </div>
+              </>
+            ) : (
+              writeTabEditor
             )}
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Title (optional)"
-              className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
-            />
-            <div className="mb-2 flex shrink-0 items-center justify-end">
-              <DictateButton
-                ref={dictateRef}
-                size="sm"
-                className="text-foreground hover:text-foreground dark:text-foreground dark:hover:text-foreground"
-                onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
-                onInterim={setDictInterim}
-              />
-            </div>
-            <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
-              {/* Ruled lines (~1.65em) — light mode only, very subtle */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-[inherit] dark:hidden"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(to bottom, hsl(var(--border) / 0.85) 1px, transparent 1px)",
-                  backgroundSize: "100% 1.65em",
-                  backgroundPosition: "0 0.4em",
-                }}
-              />
-              <Textarea
-                ref={textareaRef}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Write while you watch…"
-                className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-sans text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
-                rows={4}
-              />
-              {dictInterim.trim() ? (
-                <p
-                  className="relative z-[1] px-3 pb-2 text-xs italic leading-relaxed text-muted-foreground/80"
-                  aria-live="polite"
-                >
-                  {dictInterim}
-                </p>
-              ) : null}
-            </div>
-            <div className="mt-3 flex shrink-0 gap-2 border-t border-border pt-3 dark:border-neutral-800">
-              <Button type="button" className="flex-1" onClick={saveEntry} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  "Save"
-                )}
-              </Button>
-            </div>
           </div>
           <button
             type="button"
