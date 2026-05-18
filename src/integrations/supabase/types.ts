@@ -1577,6 +1577,10 @@ export type Database = {
       }
       profiles: {
         Row: {
+          all_entries_cover_focal_x: number
+          all_entries_cover_focal_y: number
+          all_entries_cover_kind: string
+          all_entries_cover_value: string | null
           cover: string
           created_at: string
           date_of_birth: string | null
@@ -1593,6 +1597,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          all_entries_cover_focal_x?: number
+          all_entries_cover_focal_y?: number
+          all_entries_cover_kind?: string
+          all_entries_cover_value?: string | null
           cover?: string
           created_at?: string
           date_of_birth?: string | null
@@ -1609,6 +1617,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          all_entries_cover_focal_x?: number
+          all_entries_cover_focal_y?: number
+          all_entries_cover_kind?: string
+          all_entries_cover_value?: string | null
           cover?: string
           created_at?: string
           date_of_birth?: string | null
