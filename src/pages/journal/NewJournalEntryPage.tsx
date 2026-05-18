@@ -949,7 +949,11 @@ export default function NewJournalEntryPage() {
       {/* Bottom toolbar / chat composer (fixed) */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-xl"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+        style={{
+          paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+          transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
+          transition: "transform 120ms ease-out",
+        }}
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 pt-2">
           {inlineChatMode ? (
