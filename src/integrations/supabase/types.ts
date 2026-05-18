@@ -51,7 +51,6 @@ export type Database = {
         Row: {
           artifact_id: string
           bias_flags: string[]
-          chapter_start_seconds: number | null
           claim: string
           created_at: string
           doctrine_tags: string[]
@@ -69,7 +68,6 @@ export type Database = {
         Insert: {
           artifact_id: string
           bias_flags?: string[]
-          chapter_start_seconds?: number | null
           claim: string
           created_at?: string
           doctrine_tags?: string[]
@@ -87,7 +85,6 @@ export type Database = {
         Update: {
           artifact_id?: string
           bias_flags?: string[]
-          chapter_start_seconds?: number | null
           claim?: string
           created_at?: string
           doctrine_tags?: string[]
@@ -1031,8 +1028,6 @@ export type Database = {
       journals: {
         Row: {
           color: string
-          cover_focal_x: number
-          cover_focal_y: number
           cover_kind: string
           cover_value: string | null
           created_at: string
@@ -1048,8 +1043,6 @@ export type Database = {
         }
         Insert: {
           color?: string
-          cover_focal_x?: number
-          cover_focal_y?: number
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
@@ -1065,8 +1058,6 @@ export type Database = {
         }
         Update: {
           color?: string
-          cover_focal_x?: number
-          cover_focal_y?: number
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
@@ -1586,10 +1577,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          all_entries_cover_focal_x: number
-          all_entries_cover_focal_y: number
-          all_entries_cover_kind: string
-          all_entries_cover_value: string | null
           cover: string
           created_at: string
           date_of_birth: string | null
@@ -1606,10 +1593,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          all_entries_cover_focal_x?: number
-          all_entries_cover_focal_y?: number
-          all_entries_cover_kind?: string
-          all_entries_cover_value?: string | null
           cover?: string
           created_at?: string
           date_of_birth?: string | null
@@ -1626,10 +1609,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          all_entries_cover_focal_x?: number
-          all_entries_cover_focal_y?: number
-          all_entries_cover_kind?: string
-          all_entries_cover_value?: string | null
           cover?: string
           created_at?: string
           date_of_birth?: string | null
