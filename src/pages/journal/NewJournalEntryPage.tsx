@@ -747,7 +747,7 @@ export default function NewJournalEntryPage() {
   void listeningCanSave;
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
+    <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
       {/* Day One style header */}
       <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
