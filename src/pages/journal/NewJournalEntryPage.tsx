@@ -3,8 +3,9 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear } from "lucide-react";
+import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,24 @@ interface BeliefOpt {
   id: string;
   topic: string;
   statement: string;
+}
+
+interface InlineChatTurn {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft?: string): string {
+  const lines: string[] = [];
+  for (const t of turns) {
+    const label = t.role === "assistant" ? "**AI**" : "**You**";
+    lines.push(`${label}:\n\n${t.content.trim()}\n`);
+  }
+  if (trailingUserDraft && trailingUserDraft.trim()) {
+    lines.push(`**You**:\n\n${trailingUserDraft.trim()}\n`);
+  }
+  return lines.join("\n---\n\n").trim();
 }
 
 export default function NewJournalEntryPage() {
