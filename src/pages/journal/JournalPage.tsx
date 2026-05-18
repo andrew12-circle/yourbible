@@ -8,6 +8,7 @@ import JournalsRail from "@/components/journal/JournalsRail";
 import JournalDeskLayout from "@/components/journal/JournalDeskLayout";
 import EntryListPane from "@/components/journal/EntryListPane";
 import EntryEditorPane from "@/components/journal/EntryEditorPane";
+import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 import { Input } from "@/components/ui/input";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
@@ -76,6 +77,8 @@ export default function JournalPage() {
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
+  const activeJournal = journalId ? journals.find((j) => j.id === journalId) ?? null : null;
+
   if (isDesktop) {
     return (
       <JournalDeskLayout
@@ -106,19 +109,28 @@ export default function JournalPage() {
           </div>
         }
         editor={
-          <EntryEditorPane
-            entryId={entryId}
-            journals={journals}
-            onChanged={() => setReloadKey((k) => k + 1)}
-            onClose={() =>
-              journalId ? navigate(`/journal/j/${journalId}`) : navigate("/journal")
-            }
-            onNew={createNew}
-            onDeleted={() => {
-              setReloadKey((k) => k + 1);
-              navigate(journalId ? `/journal/j/${journalId}` : "/journal");
-            }}
-          />
+          activeJournal && !entryId ? (
+            <JournalOverviewPane
+              journal={activeJournal}
+              reloadKey={reloadKey}
+              onNew={createNew}
+              onJournalChange={() => setReloadKey((k) => k + 1)}
+            />
+          ) : (
+            <EntryEditorPane
+              entryId={entryId}
+              journals={journals}
+              onChanged={() => setReloadKey((k) => k + 1)}
+              onClose={() =>
+                journalId ? navigate(`/journal/j/${journalId}`) : navigate("/journal")
+              }
+              onNew={createNew}
+              onDeleted={() => {
+                setReloadKey((k) => k + 1);
+                navigate(journalId ? `/journal/j/${journalId}` : "/journal");
+              }}
+            />
+          )
         }
       />
     );

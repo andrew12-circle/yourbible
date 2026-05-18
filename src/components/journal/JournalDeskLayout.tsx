@@ -80,7 +80,7 @@ export default function JournalDeskLayout({
   return (
     <div className="h-screen w-full flex bg-background overflow-hidden">
       <aside
-        className="h-full overflow-y-auto bg-muted/20 border-r border-border/60 flex-shrink-0"
+        className="h-full overflow-y-auto bg-muted border-r border-border/60 flex-shrink-0"
         style={{ width: w.sidebar }}
       >
         {sidebar}

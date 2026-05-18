@@ -8,6 +8,8 @@ export interface Journal {
   icon: string;
   cover_kind: "color" | "photo";
   cover_value: string | null;
+  cover_focal_x: number;
+  cover_focal_y: number;
   sort_order: number;
   is_default: boolean;
   source_kind: string;
@@ -95,7 +97,22 @@ export async function createJournal(
   return (data as Journal) ?? null;
 }
 
-export async function updateJournal(id: string, patch: Partial<Pick<Journal, "name" | "color" | "icon" | "sort_order">>) {
+export async function updateJournal(
+  id: string,
+  patch: Partial<
+    Pick<
+      Journal,
+      | "name"
+      | "color"
+      | "icon"
+      | "sort_order"
+      | "cover_kind"
+      | "cover_value"
+      | "cover_focal_x"
+      | "cover_focal_y"
+    >
+  >,
+) {
   await supabase.from("journals").update(patch).eq("id", id);
 }
 

@@ -1031,6 +1031,8 @@ export type Database = {
       journals: {
         Row: {
           color: string
+          cover_focal_x: number
+          cover_focal_y: number
           cover_kind: string
           cover_value: string | null
           created_at: string
@@ -1046,6 +1048,8 @@ export type Database = {
         }
         Insert: {
           color?: string
+          cover_focal_x?: number
+          cover_focal_y?: number
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
@@ -1061,6 +1065,8 @@ export type Database = {
         }
         Update: {
           color?: string
+          cover_focal_x?: number
+          cover_focal_y?: number
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
