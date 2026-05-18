@@ -967,7 +967,7 @@ export default function NewJournalEntryPage() {
                 onChange={(e) => setBody(e.target.value)}
                 rows={1}
                 placeholder={aiBusy ? "Thinking…" : "Message"}
-                className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[14px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
