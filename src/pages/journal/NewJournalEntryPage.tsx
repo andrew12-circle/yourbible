@@ -3,7 +3,7 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send } from "lucide-react";
+import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,6 +107,7 @@ export default function NewJournalEntryPage() {
   const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
@@ -117,6 +118,16 @@ export default function NewJournalEntryPage() {
     interpretation: "",
   });
   const lastSyncedListeningKey = useRef<string | null>(null);
+
+  // Auto-scroll the chat transcript to the latest message (like ChatGPT)
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      chatBottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
+  }, [chatTurns.length, aiBusy]);
 
   // Pre-fill from verse capture
   useEffect(() => {
