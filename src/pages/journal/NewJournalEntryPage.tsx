@@ -763,19 +763,86 @@ export default function NewJournalEntryPage() {
                 onInterim={setDictInterim}
               />
             </div>
-            {/* Sans: match .app-theme body stack; list previews already default sans. */}
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={14}
-              placeholder={bodyPlaceholder}
-              className="font-sans text-[15px] leading-relaxed"
-            />
-            {dictInterim.trim() ? (
-              <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-                {dictInterim}
-              </p>
-            ) : null}
+            {inlineChatMode ? (
+              <div className="space-y-3">
+                {chatTurns.length > 0 && (
+                  <div
+                    ref={chatScrollRef}
+                    className="max-h-[55vh] overflow-y-auto rounded-lg border border-border bg-card/40 p-3 space-y-3"
+                  >
+                    {chatTurns.map((t) => (
+                      <div
+                        key={t.id}
+                        className={
+                          t.role === "user"
+                            ? "ml-auto max-w-[88%] rounded-2xl rounded-tr-sm bg-primary/10 px-3 py-2 text-[15px] leading-relaxed"
+                            : "mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                        }
+                      >
+                        {t.role === "assistant" ? (
+                          <ReactMarkdown>{t.content}</ReactMarkdown>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{t.content}</div>
+                        )}
+                      </div>
+                    ))}
+                    {aiBusy && (
+                      <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
+                        Thinking…
+                      </div>
+                    )}
+                  </div>
+                )}
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={chatTurns.length ? 4 : 8}
+                  placeholder={chatTurns.length ? "Reply to the AI, or just keep journaling…" : bodyPlaceholder}
+                  className="font-sans text-[15px] leading-relaxed"
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                      e.preventDefault();
+                      void sendToAi();
+                    }
+                  }}
+                />
+                {dictInterim.trim() ? (
+                  <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+                    {dictInterim}
+                  </p>
+                ) : null}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    AI sees your beliefs, past journals, identity & artifacts. ⌘/Ctrl + Enter to send.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void sendToAi()}
+                    disabled={aiBusy || !body.trim()}
+                  >
+                    {aiBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                    Send to AI
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Sans: match .app-theme body stack; list previews already default sans. */}
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={14}
+                  placeholder={bodyPlaceholder}
+                  className="font-sans text-[15px] leading-relaxed"
+                />
+                {dictInterim.trim() ? (
+                  <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+                    {dictInterim}
+                  </p>
+                ) : null}
+              </>
+            )}
           </>
         )}
 
