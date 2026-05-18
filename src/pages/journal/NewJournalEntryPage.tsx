@@ -629,15 +629,11 @@ export default function NewJournalEntryPage() {
     }
 
     if (isInlineChat) {
-      try { localStorage.setItem("journal.reply_with_ai", "1"); } catch { /* ignore */ }
       navigate(`/journal/${entryId}`);
       return;
     }
 
     if (replyWithAi && canReplyWithAi && entryId) {
-      try {
-        localStorage.setItem("journal.reply_with_ai", "1");
-      } catch { /* ignore */ }
       setBusyLabel("Opening AI reply");
       try {
         // Mark as chat so JournalChatPage will load it and the finalize flow applies.
@@ -663,8 +659,6 @@ export default function NewJournalEntryPage() {
       }
       navigate(`/journal/chat/${entryId}`);
       return;
-    } else if (!replyWithAi) {
-      try { localStorage.setItem("journal.reply_with_ai", "0"); } catch { /* ignore */ }
     }
 
     navigate(`/journal/${entryId}`);
