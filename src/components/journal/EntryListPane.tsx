@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +8,13 @@ import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META, type JournalEntryKind } from "@/lib/journal/entryKinds";
+import SwipeableEntryRow from "./SwipeableEntryRow";
+import {
+  deleteJournalEntry,
+  setJournalEntryMirrorFlag,
+  setJournalEntryPinned,
+} from "@/lib/journal/entryActions";
+import { toast } from "@/hooks/use-toast";
 
 interface Entry {
   id: string;
@@ -32,6 +39,7 @@ export default function EntryListPane({
   selectedId,
   onSelect,
   onNew,
+  onDeleted,
   reloadKey,
   entryKindFilter,
 }: {
@@ -39,6 +47,7 @@ export default function EntryListPane({
   selectedId: string | null;
   onSelect: (id: string, entryKind?: string | null) => void;
   onNew: () => void;
+  onDeleted?: (id: string) => void;
   reloadKey?: number;
   /** When set, only entries of this faith-journal kind (still respects journalId when set). */
   entryKindFilter?: JournalEntryKind | null;
@@ -94,6 +103,53 @@ export default function EntryListPane({
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user, journalId, reloadKey, entryKindFilter]);
+
+  const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }, []);
+
+  const handlePin = useCallback(
+    async (id: string, pinned: boolean) => {
+      if (!user) return;
+      const next = !pinned;
+      patchEntry(id, { pinned: next });
+      const { error } = await setJournalEntryPinned(id, user.id, next);
+      if (error) {
+        patchEntry(id, { pinned });
+        toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" });
+      }
+    },
+    [user, patchEntry],
+  );
+
+  const handleFlag = useCallback(
+    async (id: string, flagged: boolean) => {
+      if (!user) return;
+      const next = !flagged;
+      patchEntry(id, { analyze_for_mirror: next });
+      const { error } = await setJournalEntryMirrorFlag(id, user.id, next);
+      if (error) {
+        patchEntry(id, { analyze_for_mirror: flagged });
+        toast({ title: "Couldn't update flag", description: error.message, variant: "destructive" });
+      }
+    },
+    [user, patchEntry],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      if (!confirm("Delete this entry permanently?")) return;
+      const { error } = await deleteJournalEntry(id, user.id);
+      if (error) {
+        toast({ title: "Couldn't delete entry", description: error.message, variant: "destructive" });
+        return;
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      onDeleted?.(id);
+    },
+    [user, onDeleted],
+  );
 
   const filtered = useMemo(() => {
     if (!q.trim()) return entries;
@@ -185,6 +241,9 @@ export default function EntryListPane({
                         active={selectedId === e.id}
                         photoUrl={photoUrls[e.id]}
                         onClick={() => onSelect(e.id, e.entry_kind)}
+                        onPin={() => handlePin(e.id, e.pinned)}
+                        onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
+                        onDelete={() => handleDelete(e.id)}
                       />
                     </li>
                   ))}
@@ -244,8 +303,16 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
 }
 
 function EntryRow({
-  e, active, photoUrl, onClick,
-}: { e: Entry; active: boolean; photoUrl?: string; onClick: () => void }) {
+  e, active, photoUrl, onClick, onPin, onFlag, onDelete,
+}: {
+  e: Entry;
+  active: boolean;
+  photoUrl?: string;
+  onClick: () => void;
+  onPin: () => void;
+  onFlag: () => void;
+  onDelete: () => void;
+}) {
   const dt = new Date(e.entry_at_ts);
   const dow = dt.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
   const day = dt.getDate();
@@ -255,8 +322,9 @@ function EntryRow({
   const faithKind = coerceJournalEntryKind(e.entry_kind);
   const isChat = e.entry_kind === "chat";
 
-  return (
+  const content = (
     <button
+      type="button"
       onClick={onClick}
       className={`w-full text-left flex gap-3 px-4 py-3 border-b border-border/40 transition-colors ${
         active ? "bg-primary text-primary-foreground" : "hover:bg-muted/30"
@@ -317,6 +385,18 @@ function EntryRow({
         <img src={photoUrl} alt="" className="flex-shrink-0 w-12 h-12 rounded-md object-cover bg-muted" />
       )}
     </button>
+  );
+
+  return (
+    <SwipeableEntryRow
+      pinned={e.pinned}
+      flagged={e.analyze_for_mirror}
+      onPin={onPin}
+      onFlag={onFlag}
+      onDelete={onDelete}
+    >
+      {content}
+    </SwipeableEntryRow>
   );
 }
 

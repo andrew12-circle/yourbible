@@ -4,11 +4,10 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send, ChevronDown,
+  Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
   ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, Plus, FileText, Lightbulb,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,29 +42,18 @@ import {
   type ListeningSectionKey,
   type ListeningSections,
 } from "@/lib/journal/listeningEntry";
+import {
+  composeChatTranscript,
+  loadInlineChatTurns,
+  type InlineChatTurn,
+} from "@/lib/journal/inlineJournalChat";
+import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
+import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 
 interface BeliefOpt {
   id: string;
   topic: string;
   statement: string;
-}
-
-interface InlineChatTurn {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft?: string): string {
-  const lines: string[] = [];
-  for (const t of turns) {
-    const label = t.role === "assistant" ? "**AI**" : "**You**";
-    lines.push(`${label}:\n\n${t.content.trim()}\n`);
-  }
-  if (trailingUserDraft && trailingUserDraft.trim()) {
-    lines.push(`**You**:\n\n${trailingUserDraft.trim()}\n`);
-  }
-  return lines.join("\n---\n\n").trim();
 }
 
 export default function NewJournalEntryPage() {
@@ -409,16 +397,7 @@ export default function NewJournalEntryPage() {
   };
 
   const loadChatTurns = async (cId: string) => {
-    const { data } = await supabase
-      .from("my_ai_messages")
-      .select("id,role,content,created_at")
-      .eq("chat_id", cId)
-      .order("created_at", { ascending: true });
-    setChatTurns(
-      ((data as { id: string; role: string; content: string }[]) ?? [])
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-    );
+    setChatTurns(await loadInlineChatTurns(cId));
   };
 
   const ensureChatEntry = async (): Promise<{ entryId: string; chatId: string } | null> => {
@@ -861,38 +840,15 @@ export default function NewJournalEntryPage() {
             </div>
           </section>
         ) : inlineChatMode ? (
-          <div ref={chatScrollRef} className="flex-1 -mx-3 sm:-mx-5 px-3 sm:px-5 overflow-y-auto pt-1 space-y-3">
-            {body.trim() && chatTurns.length === 0 && (
-              <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-md bg-primary text-primary-foreground px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap shadow-sm">
-                {body}
-              </div>
-            )}
-            {chatTurns.map((t) => (
-              <div
-                key={t.id}
-                className={
-                  t.role === "user"
-                    ? "ml-auto max-w-[85%] rounded-2xl rounded-tr-md bg-primary text-primary-foreground px-3 py-2 text-[13px] leading-relaxed shadow-sm whitespace-pre-wrap"
-                    : "max-w-full px-1 py-1 text-[13px] prose prose-sm dark:prose-invert prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed"
-                }
-              >
-                {t.role === "assistant" ? <ReactMarkdown>{t.content}</ReactMarkdown> : <div>{t.content}</div>}
-              </div>
-            ))}
-            {aiBusy && (
-              <div className="px-1 py-1 inline-flex items-center gap-1.5 text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: "120ms" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: "240ms" }} />
-              </div>
-            )}
-            {dictInterim.trim() ? (
-              <p className="text-xs italic leading-relaxed text-muted-foreground/80 px-1" aria-live="polite">
-                {dictInterim}
-              </p>
-            ) : null}
-            <div ref={chatBottomRef} />
-          </div>
+          <InlineJournalChatTranscript
+            scrollRef={chatScrollRef}
+            bottomRef={chatBottomRef}
+            turns={chatTurns}
+            aiBusy={aiBusy}
+            seedUserText={body}
+            dictInterim={dictInterim}
+            className="flex-1 -mx-3 sm:-mx-5 px-3 sm:px-5 overflow-y-auto"
+          />
         ) : (
           <>
             <PolishedTextarea
@@ -970,52 +926,19 @@ export default function NewJournalEntryPage() {
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 pt-2">
           {inlineChatMode ? (
-            <div className="flex items-end gap-2 rounded-[28px] border border-border bg-background px-2 py-1.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setReplyWithAi(false)}
-                className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-                aria-label="Back to writing"
-              >
-                <Plus className="h-5 w-5 rotate-45" />
-              </button>
-              <Textarea
-                value={body}
-                onPointerDown={() => {
-                  composerLockScrollYRef.current = window.scrollY;
-                }}
-                onFocus={() => setComposerFocused(true)}
-                onBlur={() => setComposerFocused(false)}
-                onChange={(e) => setBody(e.target.value)}
-                rows={1}
-                placeholder={aiBusy ? "Thinking…" : "Message"}
-                className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void sendToAi();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={triggerAudio}
-                className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-                aria-label="Dictate"
-              >
-                <Mic className="h-5 w-5" />
-              </button>
-              <Button
-                type="button"
-                size="icon"
-                onClick={() => void sendToAi()}
-                disabled={aiBusy || !body.trim()}
-                className="h-9 w-9 shrink-0 rounded-full"
-                aria-label="Send"
-              >
-                {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
+            <InlineJournalChatComposer
+              value={body}
+              onChange={setBody}
+              onSend={() => void sendToAi()}
+              onExit={() => setReplyWithAi(false)}
+              onDictate={triggerAudio}
+              onPointerDown={() => {
+                composerLockScrollYRef.current = window.scrollY;
+              }}
+              onFocus={() => setComposerFocused(true)}
+              onBlur={() => setComposerFocused(false)}
+              aiBusy={aiBusy}
+            />
           ) : (
             <div className="rounded-2xl border border-border bg-background shadow-sm">
               <div className="grid grid-cols-5 gap-1 p-1.5">

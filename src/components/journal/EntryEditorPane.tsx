@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
   Heading1, List as ListIcon, ListOrdered, CheckSquare, Quote,
-  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine,
+  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle,
 } from "lucide-react";
+import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
+import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
+import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
+import { composeChatTranscript } from "@/lib/journal/inlineJournalChat";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -70,6 +74,8 @@ export default function EntryEditorPane({
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
+  const [replyWithAi, setReplyWithAi] = useState(false);
+  const [chatDraft, setChatDraft] = useState("");
 
   // Load entry
   useEffect(() => {
@@ -82,7 +88,10 @@ export default function EntryEditorPane({
         )
         .eq("id", entryId)
         .maybeSingle();
-      setEntry((data as EntryRow | null) ?? null);
+      const row = (data as EntryRow | null) ?? null;
+      setEntry(row);
+      setReplyWithAi(row?.entry_kind === "chat");
+      setChatDraft("");
       const { data: ph } = await supabase
         .from("journal_photos")
         .select("id,storage_path")
@@ -99,9 +108,10 @@ export default function EntryEditorPane({
   useEffect(() => {
     dictateRef.current?.stop();
     setDictInterim("");
+    setChatDraft("");
   }, [entryId]);
 
-  const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
+  const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
 
   // Autosave on entry mutation
   const queueSave = (patch: Partial<EntryRow>) => {
@@ -123,6 +133,58 @@ export default function EntryEditorPane({
       else onChanged();
     }, 400);
   };
+  queueSaveRef.current = queueSave;
+
+  const canReplyWithAi =
+    !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
+  const inlineChatMode = replyWithAi && canReplyWithAi;
+
+  const persistChatTranscript = useCallback((body: string) => {
+    queueSaveRef.current({ body, entry_kind: "chat" });
+  }, []);
+
+  const {
+    chatTurns,
+    aiBusy,
+    chatScrollRef,
+    chatBottomRef,
+    ensureSession,
+    sendMessage,
+    scrollToBottom,
+  } = useInlineJournalChat({
+    userId: user?.id,
+    entryId: entry?.id ?? null,
+    journalId: entry?.journal_id,
+    title: entry?.title,
+    active: inlineChatMode,
+    onPersistTranscript: persistChatTranscript,
+  });
+
+  const openChatMode = async () => {
+    if (!canReplyWithAi) {
+      toast({ title: "Not available for this entry type" });
+      return;
+    }
+    setReplyWithAi(true);
+    await ensureSession();
+    scrollToBottom();
+  };
+
+  const exitChatMode = () => {
+    if (chatTurns.length > 0) {
+      persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
+    }
+    setReplyWithAi(false);
+    setChatDraft("");
+  };
+
+  const handleChatSend = async () => {
+    const text = chatDraft;
+    const ok = await sendMessage(text);
+    if (ok) setChatDraft("");
+  };
+
+  const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
 
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
@@ -299,10 +361,21 @@ export default function EntryEditorPane({
           <PenLine className="w-4 h-4" />
         </TBtn>
         <TBtn title="Tags" onClick={() => setShowMeta(true)}><Tag className="w-4 h-4" /></TBtn>
+        <TBtn
+          title={inlineChatMode ? "Back to writing" : "Chat with AI"}
+          onClick={() => (inlineChatMode ? exitChatMode() : void openChatMode())}
+          className={inlineChatMode ? "text-primary bg-primary/10" : undefined}
+        >
+          <MessageCircle className="w-4 h-4" />
+        </TBtn>
         <DictateButton
           ref={dictateRef}
           size="sm"
           onAppend={(chunk) => {
+            if (replyWithAi) {
+              setChatDraft((d) => mergeDictatedText(d, chunk));
+              return;
+            }
             const cur = entryRef.current;
             if (!cur) return;
             queueSave({ body: mergeDictatedText(cur.body, chunk) });
@@ -323,16 +396,16 @@ export default function EntryEditorPane({
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-8 py-6">
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        <div className="max-w-2xl mx-auto px-8 py-6 w-full flex-1 flex flex-col min-h-0">
           <Input
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
             placeholder="Title"
-            className="text-[22px] font-semibold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50"
+            className="text-[22px] font-semibold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0"
           />
 
-          {photos.length > 0 && (
+          {photos.length > 0 && !inlineChatMode && (
             <div className={`my-4 grid gap-2 ${photos.length === 1 ? "" : "grid-cols-2"}`}>
               {photos.map((p) => (
                 <div key={p.id} className="relative group rounded-lg overflow-hidden">
@@ -348,25 +421,37 @@ export default function EntryEditorPane({
             </div>
           )}
 
-          {/* Sans: match .app-theme journal shell (FloatingJournalPanel uses font-sans). */}
-          <PolishedTextarea
-            ref={bodyRef}
-            polishResetKey={entry.id}
-            value={entry.body}
-            onChange={(e) => queueSave({ body: e.target.value })}
-            placeholder="What happened today? What are you carrying?"
-            className="min-h-[60vh] border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed"
-          />
-          {dictInterim.trim() ? (
-            <p
-              className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
-              aria-live="polite"
-            >
-              {dictInterim}
-            </p>
-          ) : null}
+          {inlineChatMode ? (
+            <InlineJournalChatTranscript
+              scrollRef={chatScrollRef}
+              bottomRef={chatBottomRef}
+              turns={chatTurns}
+              aiBusy={aiBusy}
+              dictInterim={dictInterim}
+              className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2"
+            />
+          ) : (
+            <>
+              <PolishedTextarea
+                ref={bodyRef}
+                polishResetKey={entry.id}
+                value={entry.body}
+                onChange={(e) => queueSave({ body: e.target.value })}
+                placeholder="What happened today? What are you carrying?"
+                className="min-h-[40vh] flex-1 border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed"
+              />
+              {dictInterim.trim() ? (
+                <p
+                  className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+                  aria-live="polite"
+                >
+                  {dictInterim}
+                </p>
+              ) : null}
+            </>
+          )}
 
-          {showMeta && (
+          {showMeta && !inlineChatMode && (
             <div className="mt-6 space-y-4 pt-4 border-t border-border/40">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entry type</label>
@@ -407,6 +492,22 @@ export default function EntryEditorPane({
           )}
         </div>
       </div>
+
+      {inlineChatMode && (
+        <div className="flex-shrink-0 border-t border-border/60 px-6 py-3 bg-background">
+          <div className="max-w-2xl mx-auto">
+            <InlineJournalChatComposer
+              value={chatDraft}
+              onChange={setChatDraft}
+              onSend={() => void handleChatSend()}
+              onExit={exitChatMode}
+              onDictate={() => dictateRef.current?.toggle()}
+              aiBusy={aiBusy}
+              rounded="card"
+            />
+          </div>
+        </div>
+      )}
 
       <SketchPad
         open={sketchOpen}
@@ -469,14 +570,25 @@ export default function EntryEditorPane({
   );
 }
 
-function TBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+function TBtn({
+  title,
+  onClick,
+  children,
+  className,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <button
       title={title}
       onClick={onClick}
-      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+      className={`p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground ${className ?? ""}`}
     >
       {children}
     </button>
   );
 }
+

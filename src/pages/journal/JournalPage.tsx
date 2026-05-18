@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,12 @@ import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { ensureDefaultJournal, getDefaultJournalId, Journal } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
+import {
+  deleteJournalEntry,
+  setJournalEntryMirrorFlag,
+  setJournalEntryPinned,
+} from "@/lib/journal/entryActions";
+import { toast } from "@/hooks/use-toast";
 
 interface Entry extends EntryListData {
   journal_id: string | null;
@@ -86,14 +92,16 @@ export default function JournalPage() {
               journalId={journalId}
               selectedId={entryId}
               reloadKey={reloadKey}
-              onSelect={(id, kind) =>
-                kind === "chat"
-                  ? navigate(`/journal/chat/${id}`)
-                  : journalId
-                    ? navigate(`/journal/j/${journalId}/e/${id}`)
-                    : navigate(`/journal/e/${id}`)
+              onSelect={(id) =>
+                journalId
+                  ? navigate(`/journal/j/${journalId}/e/${id}`)
+                  : navigate(`/journal/e/${id}`)
               }
               onNew={createNew}
+              onDeleted={() => {
+                setReloadKey((k) => k + 1);
+                navigate(journalId ? `/journal/j/${journalId}` : "/journal");
+              }}
             />
           </div>
         }
@@ -119,7 +127,7 @@ export default function JournalPage() {
   return <MobileJournalList journalId={journalId} />;
 }
 
-/** Legacy mobile list (kept identical to the original behavior). */
+/** Mobile list with swipe actions on each row. */
 function MobileJournalList({ journalId }: { journalId: string | null }) {
   const { user } = useAuth();
 
@@ -127,45 +135,93 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
 
-  useEffect(() => {
+  const loadEntries = useCallback(async () => {
     if (!user) return;
-    (async () => {
-      let query = supabase
-        .from("journal_entries")
-        .select(
-          "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
-        )
-        .order("pinned", { ascending: false })
-        .order("entry_at_ts", { ascending: false })
-        .limit(300);
-      if (journalId) query = query.eq("journal_id", journalId);
-      // Hide vents from the main journal list.
-      query = query.or("entry_kind.is.null,entry_kind.neq.vent");
-      const { data } = await query;
-      const list = (data as Entry[]) ?? [];
-      setEntries(list);
+    let query = supabase
+      .from("journal_entries")
+      .select(
+        "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
+      )
+      .order("pinned", { ascending: false })
+      .order("entry_at_ts", { ascending: false })
+      .limit(300);
+    if (journalId) query = query.eq("journal_id", journalId);
+    query = query.or("entry_kind.is.null,entry_kind.neq.vent");
+    const { data } = await query;
+    const list = (data as Entry[]) ?? [];
+    setEntries(list);
 
-      // First photo per entry
-      const ids = list.map((e) => e.id);
-      if (ids.length) {
-        const { data: photos } = await supabase
-          .from("journal_photos")
-          .select("entry_id,storage_path,created_at")
-          .in("entry_id", ids)
-          .order("created_at");
-        const firstByEntry: Record<string, string> = {};
-        (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-          if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-        });
-        const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-        const byEntry: Record<string, string> = {};
-        for (const [eid, p] of Object.entries(firstByEntry)) {
-          if (urls[p]) byEntry[eid] = urls[p];
-        }
-        setPhotoUrls(byEntry);
+    const ids = list.map((e) => e.id);
+    if (ids.length) {
+      const { data: photos } = await supabase
+        .from("journal_photos")
+        .select("entry_id,storage_path,created_at")
+        .in("entry_id", ids)
+        .order("created_at");
+      const firstByEntry: Record<string, string> = {};
+      (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
+        if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
+      });
+      const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
+      const byEntry: Record<string, string> = {};
+      for (const [eid, p] of Object.entries(firstByEntry)) {
+        if (urls[p]) byEntry[eid] = urls[p];
       }
-    })();
+      setPhotoUrls(byEntry);
+    } else {
+      setPhotoUrls({});
+    }
   }, [user, journalId]);
+
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
+
+  const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }, []);
+
+  const handlePin = useCallback(
+    async (id: string, pinned: boolean) => {
+      if (!user) return;
+      const next = !pinned;
+      patchEntry(id, { pinned: next });
+      const { error } = await setJournalEntryPinned(id, user.id, next);
+      if (error) {
+        patchEntry(id, { pinned });
+        toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" });
+      }
+    },
+    [user, patchEntry],
+  );
+
+  const handleFlag = useCallback(
+    async (id: string, flagged: boolean) => {
+      if (!user) return;
+      const next = !flagged;
+      patchEntry(id, { analyze_for_mirror: next });
+      const { error } = await setJournalEntryMirrorFlag(id, user.id, next);
+      if (error) {
+        patchEntry(id, { analyze_for_mirror: flagged });
+        toast({ title: "Couldn't update flag", description: error.message, variant: "destructive" });
+      }
+    },
+    [user, patchEntry],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      if (!confirm("Delete this entry permanently?")) return;
+      const { error } = await deleteJournalEntry(id, user.id);
+      if (error) {
+        toast({ title: "Couldn't delete entry", description: error.message, variant: "destructive" });
+        return;
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+    },
+    [user],
+  );
 
   const filtered = useMemo(() => {
     if (!q.trim()) return entries;
@@ -224,6 +280,9 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
               <EntryListItem
                 key={e.id}
                 entry={{ ...e, photo_url: photoUrls[e.id] }}
+                onPin={() => handlePin(e.id, e.pinned)}
+                onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
+                onDelete={() => handleDelete(e.id)}
               />
             ))}
           </div>
@@ -240,6 +299,9 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
               <EntryListItem
                 key={e.id}
                 entry={{ ...e, photo_url: photoUrls[e.id] }}
+                onPin={() => handlePin(e.id, e.pinned)}
+                onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
+                onDelete={() => handleDelete(e.id)}
               />
             ))}
           </div>

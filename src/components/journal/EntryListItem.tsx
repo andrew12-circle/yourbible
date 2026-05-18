@@ -3,6 +3,7 @@ import { Pin, Sparkles, MapPin, MessageCircle } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import SwipeableEntryRow from "./SwipeableEntryRow";
 
 export interface EntryListData {
   id: string;
@@ -20,7 +21,14 @@ export interface EntryListData {
   entry_kind?: string | null;
 }
 
-export default function EntryListItem({ entry }: { entry: EntryListData }) {
+interface Props {
+  entry: EntryListData;
+  onPin?: () => void;
+  onFlag?: () => void;
+  onDelete?: () => void;
+}
+
+export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props) {
   const dt = new Date(entry.entry_at_ts);
   const dow = dt.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
   const day = dt.getDate();
@@ -33,7 +41,7 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
   const isChat = entry.entry_kind === "chat";
   const href = isChat ? `/journal/chat/${entry.id}` : `/journal/${entry.id}`;
 
-  return (
+  const row = (
     <Link
       to={href}
       className="group flex gap-4 px-5 py-4 active:bg-muted/40 hover:bg-muted/20 transition-colors"
@@ -99,6 +107,20 @@ export default function EntryListItem({ entry }: { entry: EntryListData }) {
         />
       )}
     </Link>
+  );
+
+  if (!onPin && !onFlag && !onDelete) return row;
+
+  return (
+    <SwipeableEntryRow
+      pinned={entry.pinned}
+      flagged={entry.analyze_for_mirror}
+      onPin={onPin!}
+      onFlag={onFlag!}
+      onDelete={onDelete!}
+    >
+      {row}
+    </SwipeableEntryRow>
   );
 }
 

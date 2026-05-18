@@ -1,13 +1,19 @@
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { ChevronRight, NotebookPen } from "lucide-react";
+import { ChevronLeft, NotebookPen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import FloatingJournalPanel from "@/components/journal/FloatingJournalPanel";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import { cn } from "@/lib/utils";
 
+function isJournalRoute(pathname: string) {
+  return pathname === "/journal" || pathname.startsWith("/journal/");
+}
+
 function journalLauncherHidden(pathname: string) {
   return (
+    isJournalRoute(pathname) ||
     pathname === "/" ||
     pathname === "/home" ||
     pathname.startsWith("/auth") ||
@@ -27,6 +33,13 @@ export default function GlobalJournalLauncher() {
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
   const hidden = !user || journalLauncherHidden(pathname);
+
+  useEffect(() => {
+    if (isJournalRoute(pathname) && panelOpen) {
+      setPanelOpen(false);
+    }
+  }, [pathname, panelOpen, setPanelOpen]);
+
   if (hidden) return null;
 
   const getPlaybackSeconds =
@@ -40,9 +53,9 @@ export default function GlobalJournalLauncher() {
     <>
       <div
         className={cn(
-          "fixed left-0 z-[45] flex -translate-y-1/2 flex-col items-stretch shadow-md transition-[width] duration-200 ease-out",
-          "top-[40vh] rounded-r-lg border border-l-0 border-primary/25 bg-primary text-primary-foreground",
-          launcherTucked ? "w-1 overflow-hidden" : "w-[10px] hover:w-9 group/journaltab",
+          "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
+          "top-1/2 rounded-l-xl border border-r-0 border-primary/20 bg-primary text-primary-foreground shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
+          launcherTucked ? "w-1 overflow-hidden" : "w-11",
         )}
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
@@ -54,7 +67,7 @@ export default function GlobalJournalLauncher() {
             onClick={() => setLauncherTucked(false)}
             className="flex min-h-[88px] w-full items-center justify-center py-2 text-primary-foreground/90 hover:text-primary-foreground"
           >
-            <ChevronRight className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
+            <ChevronLeft className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
           </button>
         ) : (
           <button
@@ -64,13 +77,10 @@ export default function GlobalJournalLauncher() {
             onClick={() => togglePanel()}
             className={cn(
               "flex min-h-[88px] w-full flex-col items-center justify-center gap-0.5 py-2",
-              "text-primary-foreground hover:bg-white/10",
+              "text-primary-foreground hover:bg-white/10 active:bg-white/15",
             )}
           >
-            <NotebookPen
-              className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover/journaltab:scale-110"
-              aria-hidden
-            />
+            <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />
           </button>
         )}
       </div>
