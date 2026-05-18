@@ -156,6 +156,19 @@ export default function JournalEntryPage() {
         </div>
       }
     >
+      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-3 gap-2"
+          onClick={askAiToRespond}
+          disabled={openingAi}
+        >
+          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+          Ask AI to respond to this entry
+        </Button>
+      )}
+
       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex flex-wrap items-center gap-2">
         <span>{new Date(entry.entry_at_ts).toLocaleString(undefined, {
           weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
@@ -172,19 +185,6 @@ export default function JournalEntryPage() {
         <div className="mb-3 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
           <MessageCircle className="h-3 w-3" /> Journaled with AI
         </div>
-      )}
-
-      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-4 gap-2"
-          onClick={askAiToRespond}
-          disabled={openingAi}
-        >
-          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-          Ask AI to respond to this entry
-        </Button>
       )}
 
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
