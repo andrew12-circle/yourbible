@@ -383,7 +383,7 @@ export default function JournalChatPage() {
     (async () => {
       const { data: entry, error: enErr } = await supabase
         .from("journal_entries")
-        .select("id,title,entry_kind,analyze_for_mirror")
+        .select("id,title,body,entry_kind,analyze_for_mirror")
         .eq("id", routeEntryId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -438,14 +438,26 @@ export default function JournalChatPage() {
       if (!(firstMsg?.length ?? 0)) {
         setBootstrapping(true);
         try {
+          const seedBody = typeof (entry as { body?: string }).body === "string"
+            ? (entry as { body?: string }).body!.trim()
+            : "";
+          const invokeBody = seedBody
+            ? {
+                chat_id: cId,
+                journal_entry_id: routeEntryId,
+                mode: "journal" as const,
+                message: seedBody,
+                include_general_knowledge: includeGeneralRef.current,
+              }
+            : {
+                chat_id: cId,
+                journal_entry_id: routeEntryId,
+                mode: "journal" as const,
+                journal_bootstrap_opener: true,
+                include_general_knowledge: includeGeneralRef.current,
+              };
           const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
-            body: {
-              chat_id: cId,
-              journal_entry_id: routeEntryId,
-              mode: "journal",
-              journal_bootstrap_opener: true,
-              include_general_knowledge: includeGeneralRef.current,
-            },
+            body: invokeBody,
           });
           if (cancelled) return;
           if (error) throw new Error(error.message);

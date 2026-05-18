@@ -48,6 +48,7 @@ export default function JournalEntryPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
   const [links, setLinks] = useState<EntryLink[]>([]);
+  const [openingAi, setOpeningAi] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -106,6 +107,34 @@ export default function JournalEntryPage() {
     toast({ title: "Entry scored" });
   };
 
+  const askAiToRespond = async () => {
+    if (!entry || !user || openingAi) return;
+    setOpeningAi(true);
+    try {
+      await supabase
+        .from("journal_entries")
+        .update({ entry_kind: "chat" })
+        .eq("id", entry.id)
+        .eq("user_id", user.id);
+      const { data: existing } = await supabase
+        .from("my_ai_chats")
+        .select("id")
+        .eq("journal_entry_id", entry.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!existing?.id) {
+        await supabase
+          .from("my_ai_chats")
+          .insert({ user_id: user.id, journal_entry_id: entry.id, title: entry.title ?? null });
+      }
+      navigate(`/journal/chat/${entry.id}`);
+    } catch (e) {
+      toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
+    } finally {
+      setOpeningAi(false);
+    }
+  };
+
   const m = moodMeta(entry.mood);
   const renderListening =
     entry.entry_kind === "listening" || isListeningBody(entry.body);
@@ -145,6 +174,19 @@ export default function JournalEntryPage() {
           <MessageCircle className="h-4 w-4" />
           Resume or continue this chat journal
         </Link>
+      )}
+
+      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-4 gap-2"
+          onClick={askAiToRespond}
+          disabled={openingAi}
+        >
+          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+          Ask AI to respond to this entry
+        </Button>
       )}
 
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}

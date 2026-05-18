@@ -65,6 +65,11 @@ export default function NewJournalEntryPage() {
   const [beliefs, setBeliefs] = useState<BeliefOpt[]>([]);
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
+  const [replyWithAi, setReplyWithAi] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const v = localStorage.getItem("journal.reply_with_ai");
+    return v === "1" || v === "true";
+  });
   const [journalId, setJournalId] = useState<string | null>(null);
   const [promptId, setPromptId] = useState<string | null>(null);
   const [lat, setLat] = useState<number | null>(null);
@@ -446,6 +451,39 @@ export default function NewJournalEntryPage() {
       );
     }
 
+    if (replyWithAi && canReplyWithAi && entryId) {
+      try {
+        localStorage.setItem("journal.reply_with_ai", "1");
+      } catch { /* ignore */ }
+      setBusyLabel("Opening AI reply");
+      try {
+        // Mark as chat so JournalChatPage will load it and the finalize flow applies.
+        await supabase
+          .from("journal_entries")
+          .update({ entry_kind: "chat" })
+          .eq("id", entryId)
+          .eq("user_id", user.id);
+        // Attach a chat thread if one doesn't already exist.
+        const { data: existing } = await supabase
+          .from("my_ai_chats")
+          .select("id")
+          .eq("journal_entry_id", entryId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!existing?.id) {
+          await supabase
+            .from("my_ai_chats")
+            .insert({ user_id: user.id, journal_entry_id: entryId, title: title.trim() || null });
+        }
+      } catch (e) {
+        toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
+      }
+      navigate(`/journal/chat/${entryId}`);
+      return;
+    } else if (!replyWithAi) {
+      try { localStorage.setItem("journal.reply_with_ai", "0"); } catch { /* ignore */ }
+    }
+
     navigate(`/journal/${entryId}`);
   };
 
@@ -463,6 +501,7 @@ export default function NewJournalEntryPage() {
     : "What happened today? What are you carrying?";
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
+  const canReplyWithAi = !isVent && entryKind !== "chat";
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
@@ -712,6 +751,23 @@ export default function NewJournalEntryPage() {
             </div>
           </div>
         </section>
+
+        {canReplyWithAi && (
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-teal-500 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="reply-with-ai" className="font-medium">Have AI reply when I save</Label>
+                  <Switch id="reply-with-ai" checked={replyWithAi} onCheckedChange={setReplyWithAi} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Opens a conversation grounded in your beliefs, past journals, identity, and artifacts. Vents stay private and are never shared with AI.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="flex items-center gap-3 pt-2">
           <Button onClick={save} disabled={busy} className="flex-1 sm:flex-none">
