@@ -3,8 +3,9 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear } from "lucide-react";
+import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,24 @@ interface BeliefOpt {
   id: string;
   topic: string;
   statement: string;
+}
+
+interface InlineChatTurn {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft?: string): string {
+  const lines: string[] = [];
+  for (const t of turns) {
+    const label = t.role === "assistant" ? "**AI**" : "**You**";
+    lines.push(`${label}:\n\n${t.content.trim()}\n`);
+  }
+  if (trailingUserDraft && trailingUserDraft.trim()) {
+    lines.push(`**You**:\n\n${trailingUserDraft.trim()}\n`);
+  }
+  return lines.join("\n---\n\n").trim();
 }
 
 export default function NewJournalEntryPage() {
@@ -82,6 +101,12 @@ export default function NewJournalEntryPage() {
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Saving");
+  // Inline AI conversation (chat-while-you-write)
+  const [inlineEntryId, setInlineEntryId] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
@@ -259,6 +284,21 @@ export default function NewJournalEntryPage() {
       dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
       setEntryAt(dt.toISOString().slice(0, 16));
 
+      if (loadedKind === "chat") {
+        setInlineEntryId(editId);
+        setReplyWithAi(true);
+        const { data: chatRow } = await supabase
+          .from("my_ai_chats")
+          .select("id")
+          .eq("journal_entry_id", editId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (chatRow?.id) {
+          setChatId(chatRow.id);
+          await loadChatTurns(chatRow.id);
+        }
+      }
+
       const { data: photos } = await supabase
         .from("journal_photos")
         .select("id,storage_path")
@@ -341,20 +381,147 @@ export default function NewJournalEntryPage() {
     await supabase.from("journal_photos").delete().eq("id", photoId);
   };
 
+  const loadChatTurns = async (cId: string) => {
+    const { data } = await supabase
+      .from("my_ai_messages")
+      .select("id,role,content,created_at")
+      .eq("chat_id", cId)
+      .order("created_at", { ascending: true });
+    setChatTurns(
+      ((data as { id: string; role: string; content: string }[]) ?? [])
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+    );
+  };
+
+  const ensureChatEntry = async (): Promise<{ entryId: string; chatId: string } | null> => {
+    if (!user) return null;
+    let eId = inlineEntryId ?? editId ?? null;
+    let cId = chatId;
+    const ts = new Date(entryAt);
+
+    if (!eId) {
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: user.id,
+          journal_id: journalId,
+          title: title.trim() || null,
+          body: "",
+          mood,
+          tags,
+          verse_ref: verseRef.trim() || null,
+          belief_id: beliefId || null,
+          prompt_id: promptId,
+          location_name: locationName.trim() || null,
+          lat, lng, weather, weather_temp_c: weatherTempC, weather_icon: weatherIcon,
+          analyze_for_mirror: false,
+          entry_at_ts: ts.toISOString(),
+          entry_at: ts.toISOString().slice(0, 10),
+          entry_kind: "chat",
+        })
+        .select("id")
+        .maybeSingle();
+      if (error || !data) {
+        toast({ title: "Couldn't start AI chat", description: error?.message, variant: "destructive" });
+        return null;
+      }
+      eId = data.id;
+      setInlineEntryId(eId);
+    } else if (editId) {
+      // Make sure existing entry is marked as chat
+      await supabase
+        .from("journal_entries")
+        .update({ entry_kind: "chat" })
+        .eq("id", eId)
+        .eq("user_id", user.id);
+    }
+
+    if (!cId) {
+      const { data: existing } = await supabase
+        .from("my_ai_chats")
+        .select("id")
+        .eq("journal_entry_id", eId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existing?.id) {
+        cId = existing.id;
+      } else {
+        const { data: created, error: cErr } = await supabase
+          .from("my_ai_chats")
+          .insert({ user_id: user.id, journal_entry_id: eId, title: title.trim() || null })
+          .select("id")
+          .maybeSingle();
+        if (cErr || !created) {
+          toast({ title: "Couldn't start AI chat", description: cErr?.message, variant: "destructive" });
+          return null;
+        }
+        cId = created.id;
+      }
+      setChatId(cId);
+    }
+    return { entryId: eId!, chatId: cId! };
+  };
+
+  const sendToAi = async () => {
+    const text = body.trim();
+    if (!text || aiBusy) return;
+    dictateRef.current?.stop();
+    setAiBusy(true);
+    try {
+      const ensured = await ensureChatEntry();
+      if (!ensured) return;
+      // Optimistically render the user turn
+      const tempId = `tmp-${Date.now()}`;
+      setChatTurns((prev) => [...prev, { id: tempId, role: "user", content: text }]);
+      setBody("");
+      const { data, error } = await supabase.functions.invoke("my-ai-chat", {
+        body: {
+          chat_id: ensured.chatId,
+          message: text,
+          mode: "journal",
+          journal_entry_id: ensured.entryId,
+          include_general_knowledge: true,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { error?: string; chat_id?: string } | null;
+      if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
+      await loadChatTurns(ensured.chatId);
+      setTimeout(() => {
+        chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+      }, 50);
+    } catch (e) {
+      toast({ title: "AI reply failed", description: String(e), variant: "destructive" });
+      setBody((b) => (b ? b : text));
+      // Drop optimistic user turn on failure
+      setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const save = async () => {
     dictateRef.current?.stop();
-    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length) {
+    const hasChat = chatTurns.length > 0;
+    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length && !hasChat) {
       toast({ title: "Write something or add a photo first", variant: "destructive" });
       return;
     }
     setBusy(true);
     setBusyLabel("Saving");
     const ts = new Date(entryAt);
+
+    // Inline AI chat mode: the entry already exists, body holds composed transcript
+    const isInlineChat = !!inlineEntryId && hasChat;
+    const composedBody = isInlineChat ? composeChatTranscript(chatTurns, body) : body;
+    const finalKind = isInlineChat ? "chat" : entryKind;
+
     const payload = {
       user_id: user.id,
       journal_id: journalId,
       title: title.trim() || null,
-      body: body,
+      body: composedBody,
       mood,
       tags,
       verse_ref: verseRef.trim() || null,
@@ -370,15 +537,15 @@ export default function NewJournalEntryPage() {
       analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
       entry_at_ts: ts.toISOString(),
       entry_at: ts.toISOString().slice(0, 10),
-      entry_kind: entryKind,
+      entry_kind: finalKind,
     };
 
-    let entryId = editId;
-    if (editId) {
+    let entryId = editId ?? inlineEntryId ?? null;
+    if (entryId) {
       const { error } = await supabase
         .from("journal_entries")
         .update(payload)
-        .eq("id", editId)
+        .eq("id", entryId)
         .eq("user_id", user.id);
       if (error) {
         setBusy(false);
@@ -451,6 +618,12 @@ export default function NewJournalEntryPage() {
       );
     }
 
+    if (isInlineChat) {
+      try { localStorage.setItem("journal.reply_with_ai", "1"); } catch { /* ignore */ }
+      navigate(`/journal/${entryId}`);
+      return;
+    }
+
     if (replyWithAi && canReplyWithAi && entryId) {
       try {
         localStorage.setItem("journal.reply_with_ai", "1");
@@ -501,7 +674,8 @@ export default function NewJournalEntryPage() {
     : "What happened today? What are you carrying?";
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
-  const canReplyWithAi = !isVent && entryKind !== "chat";
+  const canReplyWithAi = !isVent && !isListening;
+  const inlineChatMode = replyWithAi && canReplyWithAi;
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
@@ -589,19 +763,86 @@ export default function NewJournalEntryPage() {
                 onInterim={setDictInterim}
               />
             </div>
-            {/* Sans: match .app-theme body stack; list previews already default sans. */}
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={14}
-              placeholder={bodyPlaceholder}
-              className="font-sans text-[15px] leading-relaxed"
-            />
-            {dictInterim.trim() ? (
-              <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-                {dictInterim}
-              </p>
-            ) : null}
+            {inlineChatMode ? (
+              <div className="space-y-3">
+                {chatTurns.length > 0 && (
+                  <div
+                    ref={chatScrollRef}
+                    className="max-h-[55vh] overflow-y-auto rounded-lg border border-border bg-card/40 p-3 space-y-3"
+                  >
+                    {chatTurns.map((t) => (
+                      <div
+                        key={t.id}
+                        className={
+                          t.role === "user"
+                            ? "ml-auto max-w-[88%] rounded-2xl rounded-tr-sm bg-primary/10 px-3 py-2 text-[15px] leading-relaxed"
+                            : "mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                        }
+                      >
+                        {t.role === "assistant" ? (
+                          <ReactMarkdown>{t.content}</ReactMarkdown>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{t.content}</div>
+                        )}
+                      </div>
+                    ))}
+                    {aiBusy && (
+                      <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
+                        Thinking…
+                      </div>
+                    )}
+                  </div>
+                )}
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={chatTurns.length ? 4 : 8}
+                  placeholder={chatTurns.length ? "Reply to the AI, or just keep journaling…" : bodyPlaceholder}
+                  className="font-sans text-[15px] leading-relaxed"
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                      e.preventDefault();
+                      void sendToAi();
+                    }
+                  }}
+                />
+                {dictInterim.trim() ? (
+                  <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+                    {dictInterim}
+                  </p>
+                ) : null}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    AI sees your beliefs, past journals, identity & artifacts. ⌘/Ctrl + Enter to send.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void sendToAi()}
+                    disabled={aiBusy || !body.trim()}
+                  >
+                    {aiBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                    Send to AI
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Sans: match .app-theme body stack; list previews already default sans. */}
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={14}
+                  placeholder={bodyPlaceholder}
+                  className="font-sans text-[15px] leading-relaxed"
+                />
+                {dictInterim.trim() ? (
+                  <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
+                    {dictInterim}
+                  </p>
+                ) : null}
+              </>
+            )}
           </>
         )}
 
@@ -758,11 +999,11 @@ export default function NewJournalEntryPage() {
               <Sparkles className="w-5 h-5 text-teal-500 mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="reply-with-ai" className="font-medium">Have AI reply when I save</Label>
+                  <Label htmlFor="reply-with-ai" className="font-medium">Journal with AI</Label>
                   <Switch id="reply-with-ai" checked={replyWithAi} onCheckedChange={setReplyWithAi} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Opens a conversation grounded in your beliefs, past journals, identity, and artifacts. Vents stay private and are never shared with AI.
+                  Reply back to you inline as you write, like ChatGPT — grounded in your beliefs, past journals, identity, and artifacts. The whole back-and-forth saves as one journal entry. Vents stay private and are never shared with AI.
                 </p>
               </div>
             </div>
