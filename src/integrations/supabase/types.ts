@@ -1682,6 +1682,75 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cognitive_state: {
+        Row: {
+          core_frameworks: Json
+          created_at: string
+          current_season: string
+          evolution_summary: string
+          inputs_signature: string | null
+          last_swept_at: string | null
+          model: string | null
+          recurring_themes: Json
+          unresolved_tensions: Json
+          updated_at: string
+          user_id: string
+          voice_signature: string
+          worldview_summary: string
+        }
+        Insert: {
+          core_frameworks?: Json
+          created_at?: string
+          current_season?: string
+          evolution_summary?: string
+          inputs_signature?: string | null
+          last_swept_at?: string | null
+          model?: string | null
+          recurring_themes?: Json
+          unresolved_tensions?: Json
+          updated_at?: string
+          user_id: string
+          voice_signature?: string
+          worldview_summary?: string
+        }
+        Update: {
+          core_frameworks?: Json
+          created_at?: string
+          current_season?: string
+          evolution_summary?: string
+          inputs_signature?: string | null
+          last_swept_at?: string | null
+          model?: string | null
+          recurring_themes?: Json
+          unresolved_tensions?: Json
+          updated_at?: string
+          user_id?: string
+          voice_signature?: string
+          worldview_summary?: string
+        }
+        Relationships: []
+      }
+      user_cognitive_state_versions: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
