@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
@@ -116,6 +117,195 @@ function CitationChips({ citations }: { citations: Citation[] }) {
         );
       })}
     </div>
+  );
+}
+
+function MemoryIndicator({ citations }: { citations: Citation[] }) {
+  if (!citations.length) return null;
+  const types = new Set(citations.map((c) => c.source_type));
+  const deep =
+    types.has("identity") ||
+    types.has("influence") ||
+    (types.has("belief") && (types.has("journal") || types.has("artifact"))) ||
+    citations.length >= 4;
+  if (!deep) return null;
+  return (
+    <div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-violet-600/80 dark:text-violet-300/80">
+      <Brain className="h-3 w-3" />
+      <span>Memory active · {citations.length} threads</span>
+    </div>
+  );
+}
+
+type CognitiveState = {
+  worldview_summary: string | null;
+  evolution_summary: string | null;
+  current_season: string | null;
+  voice_signature: string | null;
+  recurring_themes: string[] | null;
+  unresolved_tensions: string[] | null;
+  core_frameworks: Json | null;
+  updated_at: string | null;
+};
+
+function CognitiveStateDialog({
+  open,
+  onOpenChange,
+  userId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  userId: string;
+}) {
+  const [state, setState] = useState<CognitiveState | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setMissing(false);
+      const { data, error } = await supabase
+        .from("user_cognitive_state")
+        .select("worldview_summary,evolution_summary,current_season,voice_signature,recurring_themes,unresolved_tensions,core_frameworks,updated_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        toast({ title: "Couldn't load state", description: error.message, variant: "destructive" });
+      }
+      if (!data) setMissing(true);
+      setState((data as CognitiveState | null) ?? null);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, userId]);
+
+  const frameworks = (() => {
+    const cf = state?.core_frameworks;
+    if (!cf) return [];
+    if (Array.isArray(cf)) {
+      return cf.flatMap((x) => {
+        if (typeof x === "string") return [{ name: x, description: "" }];
+        if (isRecord(x)) {
+          const name = typeof x.name === "string" ? x.name : null;
+          const desc = typeof x.description === "string" ? x.description : "";
+          return name ? [{ name, description: desc }] : [];
+        }
+        return [];
+      });
+    }
+    return [];
+  })();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-violet-600 dark:text-violet-300" />
+            What My AI knows about you
+          </DialogTitle>
+          <DialogDescription>
+            A living model of your worldview, voice, and evolution. Updated nightly from your beliefs, journals, and artifacts.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : missing || !state ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No cognitive state yet. It will be built after your next sweep.
+          </p>
+        ) : (
+          <div className="space-y-5 text-sm">
+            {state.current_season && (
+              <section>
+                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Current season</h3>
+                <p className="rounded-lg border border-border/70 bg-muted/30 p-3 italic">{state.current_season}</p>
+              </section>
+            )}
+
+            {state.worldview_summary && (
+              <section>
+                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Worldview</h3>
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown>{state.worldview_summary}</ReactMarkdown>
+                </div>
+              </section>
+            )}
+
+            {state.evolution_summary && (
+              <section>
+                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Evolution</h3>
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown>{state.evolution_summary}</ReactMarkdown>
+                </div>
+              </section>
+            )}
+
+            {state.voice_signature && (
+              <section>
+                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Voice signature</h3>
+                <p className="rounded-lg border border-border/70 bg-muted/30 p-3 text-muted-foreground">{state.voice_signature}</p>
+              </section>
+            )}
+
+            {state.recurring_themes && state.recurring_themes.length > 0 && (
+              <section>
+                <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recurring themes</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {state.recurring_themes.map((t, i) => (
+                    <span key={i} className="rounded-full border border-primary/25 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {state.unresolved_tensions && state.unresolved_tensions.length > 0 && (
+              <section>
+                <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Unresolved tensions</h3>
+                <ul className="space-y-1.5">
+                  {state.unresolved_tensions.map((t, i) => (
+                    <li key={i} className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[13px]">
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {frameworks.length > 0 && (
+              <section>
+                <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Core frameworks</h3>
+                <ul className="space-y-1.5">
+                  {frameworks.map((f, i) => (
+                    <li key={i} className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                      <div className="font-medium">{f.name}</div>
+                      {f.description && <div className="text-[12px] text-muted-foreground">{f.description}</div>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {state.updated_at && (
+              <p className="pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                Updated {new Date(state.updated_at).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
