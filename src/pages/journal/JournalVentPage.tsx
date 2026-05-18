@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import JournalLayout from "@/pages/journal/JournalLayout";
 
 interface VentRow {
   id: string;
