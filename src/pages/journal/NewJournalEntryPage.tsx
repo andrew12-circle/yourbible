@@ -65,6 +65,11 @@ export default function NewJournalEntryPage() {
   const [beliefs, setBeliefs] = useState<BeliefOpt[]>([]);
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
+  const [replyWithAi, setReplyWithAi] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const v = localStorage.getItem("journal.reply_with_ai");
+    return v === "1" || v === "true";
+  });
   const [journalId, setJournalId] = useState<string | null>(null);
   const [promptId, setPromptId] = useState<string | null>(null);
   const [lat, setLat] = useState<number | null>(null);
@@ -463,6 +468,7 @@ export default function NewJournalEntryPage() {
     : "What happened today? What are you carrying?";
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
+  const canReplyWithAi = !isVent && entryKind !== "chat";
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   return (
