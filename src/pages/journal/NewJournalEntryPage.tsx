@@ -691,15 +691,15 @@ export default function NewJournalEntryPage() {
 
   return (
     <JournalLayout title={layoutTitle} back={layoutBack}>
-      <div className="space-y-5">
+      <div className={inlineChatMode ? "space-y-4" : "space-y-5"}>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title (optional)"
-          className="text-lg font-display"
+          className={inlineChatMode ? "text-base font-display" : "text-lg font-display"}
         />
 
-        <section>
+        <section className={inlineChatMode ? "hidden" : undefined}>
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entry type</Label>
           <p className="mt-1 mb-2 text-xs text-muted-foreground leading-relaxed">
             Mark dreams, praise reports, or testimonies to find them under Faith journal. Vents stay private — hidden
@@ -766,75 +766,93 @@ export default function NewJournalEntryPage() {
           </section>
         ) : (
           <>
-            <div className="flex items-center justify-end gap-2">
-              <DictateButton
-                ref={dictateRef}
-                size="sm"
-                onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
-                onInterim={setDictInterim}
-              />
-            </div>
-            {inlineChatMode ? (
-              <div className="space-y-3">
-                {chatTurns.length > 0 && (
-                  <div
-                    ref={chatScrollRef}
-                    className="max-h-[55vh] overflow-y-auto rounded-lg border border-border bg-card/40 p-3 space-y-3"
-                  >
-                    {chatTurns.map((t) => (
-                      <div
-                        key={t.id}
-                        className={
-                          t.role === "user"
-                            ? "ml-auto max-w-[88%] rounded-2xl rounded-tr-sm bg-primary/10 px-3 py-2 text-[15px] leading-relaxed"
-                            : "mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed prose prose-sm dark:prose-invert max-w-none"
-                        }
-                      >
-                        {t.role === "assistant" ? (
-                          <ReactMarkdown>{t.content}</ReactMarkdown>
-                        ) : (
-                          <div className="whitespace-pre-wrap">{t.content}</div>
-                        )}
-                      </div>
-                    ))}
-                    {aiBusy && (
-                      <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
-                        Thinking…
-                      </div>
-                    )}
-                  </div>
-                )}
-                <Textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={chatTurns.length ? 4 : 8}
-                  placeholder={chatTurns.length ? "Reply to the AI, or just keep journaling…" : bodyPlaceholder}
-                  className="font-sans text-[15px] leading-relaxed"
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                      e.preventDefault();
-                      void sendToAi();
-                    }
-                  }}
+            {!inlineChatMode && (
+              <div className="flex items-center justify-end gap-2">
+                <DictateButton
+                  ref={dictateRef}
+                  size="sm"
+                  onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+                  onInterim={setDictInterim}
                 />
-                {dictInterim.trim() ? (
-                  <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-                    {dictInterim}
-                  </p>
-                ) : null}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    AI sees your beliefs, past journals, identity & artifacts. ⌘/Ctrl + Enter to send.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void sendToAi()}
-                    disabled={aiBusy || !body.trim()}
-                  >
-                    {aiBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                    Send to AI
-                  </Button>
+              </div>
+            )}
+            {inlineChatMode ? (
+              <div className="-mx-4 flex flex-col" style={{ minHeight: "calc(100dvh - 180px)" }}>
+                <div
+                  ref={chatScrollRef}
+                  className="flex-1 overflow-y-auto px-4 pt-2 pb-4 space-y-3"
+                >
+                  {chatTurns.length === 0 && (
+                    <div className="mt-10 text-center text-sm text-muted-foreground px-6">
+                      Start journaling below. Your AI knows your beliefs, past entries, identity & artifacts.
+                    </div>
+                  )}
+                  {chatTurns.map((t) => (
+                    <div
+                      key={t.id}
+                      className={
+                        t.role === "user"
+                          ? "ml-auto max-w-[85%] rounded-2xl rounded-tr-md bg-primary text-primary-foreground px-3.5 py-2 text-[15px] leading-relaxed shadow-sm"
+                          : "mr-auto max-w-[92%] rounded-2xl rounded-tl-md bg-muted px-3.5 py-2 text-[15px] leading-relaxed prose prose-sm dark:prose-invert"
+                      }
+                    >
+                      {t.role === "assistant" ? (
+                        <ReactMarkdown>{t.content}</ReactMarkdown>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{t.content}</div>
+                      )}
+                    </div>
+                  ))}
+                  {aiBusy && (
+                    <div className="mr-auto rounded-2xl rounded-tl-md bg-muted px-3.5 py-2.5 inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: "120ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: "240ms" }} />
+                    </div>
+                  )}
+                  {dictInterim.trim() ? (
+                    <p className="text-sm italic leading-relaxed text-muted-foreground/80 px-1" aria-live="polite">
+                      {dictInterim}
+                    </p>
+                  ) : null}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                <div
+                  className="sticky bottom-0 z-10 border-t border-border/60 bg-background/85 backdrop-blur-xl px-3 pt-2"
+                  style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+                >
+                  <div className="flex items-end gap-2">
+                    <DictateButton
+                      ref={dictateRef}
+                      size="icon"
+                      onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+                      onInterim={setDictInterim}
+                    />
+                    <Textarea
+                      value={body}
+                      onChange={(e) => setBody(e.target.value)}
+                      rows={1}
+                      placeholder={chatTurns.length ? "Message" : bodyPlaceholder}
+                      className="min-h-[40px] max-h-[40vh] resize-none rounded-2xl font-sans text-[15px] leading-relaxed py-2"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void sendToAi();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => void sendToAi()}
+                      disabled={aiBusy || !body.trim()}
+                      className="rounded-full shrink-0"
+                      aria-label="Send"
+                    >
+                      {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -857,6 +875,19 @@ export default function NewJournalEntryPage() {
           </>
         )}
 
+        {inlineChatMode && (
+          <details className="group rounded-lg border border-border bg-card/50">
+            <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-sm text-muted-foreground select-none list-none">
+              <span>Entry details (photos, mood, tags, location…)</span>
+              <ChevronDown className="w-4 h-4 transition group-open:rotate-180" />
+            </summary>
+            <div className="px-3 pb-3 pt-1 space-y-5">
+              <ChatExtrasMarker />
+            </div>
+          </details>
+        )}
+
+        <div className={inlineChatMode ? "hidden" : "contents"}>
         {/* Photos */}
         <section>
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">Photos</Label>
@@ -1020,8 +1051,9 @@ export default function NewJournalEntryPage() {
             </div>
           </section>
         )}
+        </div>
 
-        <div className="flex items-center gap-3 pt-2">
+        <div className={inlineChatMode ? "hidden" : "flex items-center gap-3 pt-2"}>
           <Button onClick={save} disabled={busy} className="flex-1 sm:flex-none">
             {busy ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {busyLabel}…</>
@@ -1033,6 +1065,21 @@ export default function NewJournalEntryPage() {
             Cancel
           </Button>
         </div>
+
+        {inlineChatMode && (
+          <div className="flex items-center gap-3 pt-2">
+            <Button onClick={save} disabled={busy} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              {busy ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {busyLabel}…</>
+              ) : (
+                "Save conversation as entry"
+              )}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setReplyWithAi(false)}>
+              Switch to plain journal
+            </Button>
+          </div>
+        )}
       </div>
       <SketchPad
         open={sketchOpen}
