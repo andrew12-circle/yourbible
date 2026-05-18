@@ -720,7 +720,7 @@ export default function JournalChatPage() {
   const showLoadingShell = !routeEntryId || !chatId;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-[100dvh] overflow-hidden flex-col bg-background">
       <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background/90 px-3 py-2 backdrop-blur-md">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/journal")} aria-label="Back to journal">
           <ArrowLeft className="h-5 w-5" />
