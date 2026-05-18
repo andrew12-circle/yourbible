@@ -120,6 +120,7 @@ export default function NewJournalEntryPage() {
   const [dateOpen, setDateOpen] = useState(false);
   const [journalName, setJournalName] = useState<string>("Journal");
   const [composerFocused, setComposerFocused] = useState(false);
+  const composerLockScrollYRef = useRef<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
@@ -130,6 +131,7 @@ export default function NewJournalEntryPage() {
   const lastSyncedListeningKey = useRef<string | null>(null);
   useLockBodyScrollWhenKeyboardActive(
     replyWithAi && entryKind !== "vent" && entryKind !== "listening" && composerFocused,
+    composerLockScrollYRef,
   );
 
   // Auto-scroll the chat transcript to the latest message (like ChatGPT)
@@ -974,6 +976,9 @@ export default function NewJournalEntryPage() {
               </button>
               <Textarea
                 value={body}
+                onPointerDown={() => {
+                  composerLockScrollYRef.current = window.scrollY;
+                }}
                 onFocus={() => setComposerFocused(true)}
                 onBlur={() => setComposerFocused(false)}
                 onChange={(e) => setBody(e.target.value)}
