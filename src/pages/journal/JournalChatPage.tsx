@@ -176,7 +176,6 @@ export default function JournalChatPage() {
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
   const kbInset = useKeyboardInset();
   const [composerFocused, setComposerFocused] = useState(false);
-  useLockBodyScrollWhenKeyboardActive(composerFocused);
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -193,6 +192,7 @@ export default function JournalChatPage() {
   const [ending, setEnding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const composerLockScrollYRef = useRef<number | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
@@ -210,6 +210,7 @@ export default function JournalChatPage() {
   const ttsObjectUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const sendRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
+  useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
