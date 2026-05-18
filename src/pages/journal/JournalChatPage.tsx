@@ -35,7 +35,7 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -175,6 +175,7 @@ export default function JournalChatPage() {
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
   const kbInset = useKeyboardInset();
+  const [composerFocused, setComposerFocused] = useState(false);
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -191,6 +192,7 @@ export default function JournalChatPage() {
   const [ending, setEnding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const composerLockScrollYRef = useRef<number | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
@@ -208,6 +210,7 @@ export default function JournalChatPage() {
   const ttsObjectUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const sendRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
+  useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
@@ -602,7 +605,10 @@ export default function JournalChatPage() {
       sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
-      setTimeout(() => taRef.current?.focus(), 50);
+      setTimeout(() => {
+        composerLockScrollYRef.current = window.scrollY;
+        taRef.current?.focus({ preventScroll: true });
+      }, 50);
     }
   };
 
@@ -714,7 +720,7 @@ export default function JournalChatPage() {
   const showLoadingShell = !routeEntryId || !chatId;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-[100dvh] overflow-hidden flex-col bg-background">
       <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background/90 px-3 py-2 backdrop-blur-md">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/journal")} aria-label="Back to journal">
           <ArrowLeft className="h-5 w-5" />
@@ -883,6 +889,11 @@ export default function JournalChatPage() {
                 <Textarea
                   ref={taRef}
                   value={input}
+                  onPointerDown={() => {
+                    composerLockScrollYRef.current = window.scrollY;
+                  }}
+                  onFocus={() => setComposerFocused(true)}
+                  onBlur={() => setComposerFocused(false)}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
