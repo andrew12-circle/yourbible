@@ -101,6 +101,12 @@ export default function NewJournalEntryPage() {
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Saving");
+  // Inline AI conversation (chat-while-you-write)
+  const [inlineEntryId, setInlineEntryId] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
