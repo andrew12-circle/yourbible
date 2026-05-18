@@ -38,7 +38,7 @@ export async function removeJournalCoverFile(storagePath: string) {
   await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
 }
 
-export const DEFAULT_COVER_FOCAL = { x: 50, y: 50 } as const;
+export const DEFAULT_COVER_FOCAL: { x: number; y: number } = { x: 50, y: 50 };
 
 export function clampCoverFocal(value: number): number {
   return Math.min(100, Math.max(0, value));
