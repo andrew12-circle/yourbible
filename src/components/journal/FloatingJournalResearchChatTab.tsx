@@ -499,10 +499,10 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
       if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
         throw new Error(payload.error);
       }
-      if (!payload || typeof payload !== "object" || !payload.sections) {
+      if (!payload || typeof payload !== "object" || !("sections" in payload) || !payload.sections) {
         throw new Error("Unexpected response from research pack");
       }
-      setPackData(payload);
+      setPackData(payload as ResearchPackResp);
       toast({ title: "Research pack ready" });
     } catch (e) {
       toast({ title: "Research pack failed", description: String(e), variant: "destructive" });
