@@ -832,8 +832,11 @@ export default function JournalChatPage() {
             )}
           </div>
 
-          {/* Floating composer */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-3 pb-4 pt-6 sm:px-5">
+          {/* Floating composer — fixed to viewport so it always stays in view */}
+          <div
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pt-6 sm:px-5 md:left-[260px]"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+          >
             <div className="pointer-events-auto mx-auto max-w-2xl">
               {(messages.some((m) => m.role === "assistant") || sending) && (
                 <div className="mb-2 flex justify-center gap-2">
