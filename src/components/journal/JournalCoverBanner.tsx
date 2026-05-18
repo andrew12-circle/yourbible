@@ -56,16 +56,22 @@ export default function JournalCoverBanner({
     cover_focal_y: focalY,
   });
 
+  const dragHandlers = repositioning
+    ? {
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel: onPointerUp,
+      }
+    : undefined;
+
   return (
     <div
       ref={frameRef}
       className={`relative h-44 sm:h-52 flex-shrink-0 overflow-hidden ${
         repositioning ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""
       }`}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...dragHandlers}
     >
       <img
         src={coverUrl}
@@ -83,9 +89,8 @@ export default function JournalCoverBanner({
         </div>
       )}
       <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-black/10 ${
-          repositioning ? "pointer-events-none" : ""
-        }`}
+        className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/55 via-black/20 to-black/10"
+        aria-hidden
       />
       {children}
     </div>

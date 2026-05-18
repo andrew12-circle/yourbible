@@ -438,6 +438,8 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
         coverUrl ? (
 
+          <div className="relative flex-shrink-0">
+
           <JournalCoverBanner
 
             coverUrl={coverUrl}
@@ -451,22 +453,6 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
             onFocalChange={(x, y) => setDraftFocal({ x, y })}
 
           >
-
-            <OverviewHeader
-
-              onNew={onNew}
-
-              onAddCover={() => coverInputRef.current?.click()}
-
-              onRepositionCover={startReposition}
-
-              hasCoverPhoto
-
-              repositioning={repositioning}
-
-              overlay
-
-            />
 
             {repositioning ? (
 
@@ -519,6 +505,24 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
             )}
 
           </JournalCoverBanner>
+
+            <OverviewHeader
+
+              onNew={onNew}
+
+              onAddCover={() => coverInputRef.current?.click()}
+
+              onRepositionCover={startReposition}
+
+              hasCoverPhoto
+
+              repositioning={repositioning}
+
+              overlay
+
+            />
+
+          </div>
 
         ) : (
 
@@ -692,7 +696,10 @@ function GradientBanner({
 
     >
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent" />
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/50 via-black/15 to-transparent"
+        aria-hidden
+      />
 
       <OverviewHeader
         onNew={onNew}
@@ -702,7 +709,9 @@ function GradientBanner({
         overlay={overlay}
       />
 
-      <div className={`relative px-8 pb-8 ${overlay ? "absolute bottom-0 left-0 right-0 pb-6" : "pt-24"}`}>
+      <div
+        className={`px-8 pb-8 ${overlay ? "pointer-events-none absolute bottom-0 left-0 right-0 z-[1] pb-6" : "relative pt-24"}`}
+      >
 
         <AllEntriesIdentity large inverted />
 
@@ -752,7 +761,9 @@ function OverviewHeader({
 
       className={`flex items-center justify-between gap-3 ${
 
-        overlay ? "absolute top-0 left-0 right-0 z-10 px-6 pt-5" : "px-8 pt-6"
+        overlay
+          ? "pointer-events-auto absolute top-0 left-0 right-0 z-20 px-6 pt-5"
+          : "px-8 pt-6"
 
       }`}
 
@@ -763,7 +774,7 @@ function OverviewHeader({
         <DropdownMenuTrigger asChild>
 
           <Button
-
+            type="button"
             variant={overlay ? "secondary" : "outline"}
 
             size="sm"
@@ -817,7 +828,7 @@ function OverviewHeader({
 
 
       <Button
-
+        type="button"
         onClick={onNew}
 
         size="sm"
