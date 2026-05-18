@@ -54,6 +54,7 @@ export type Database = {
           claim: string
           created_at: string
           doctrine_tags: string[]
+          embedding: string | null
           id: string
           match_relation: string | null
           matched_belief_id: string | null
@@ -70,6 +71,7 @@ export type Database = {
           claim: string
           created_at?: string
           doctrine_tags?: string[]
+          embedding?: string | null
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -86,6 +88,7 @@ export type Database = {
           claim?: string
           created_at?: string
           doctrine_tags?: string[]
+          embedding?: string | null
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -250,6 +253,7 @@ export type Database = {
           confidence: number
           core_scope: string | null
           created_at: string
+          embedding: string | null
           id: string
           is_core: boolean
           layer: string
@@ -265,6 +269,7 @@ export type Database = {
           confidence?: number
           core_scope?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           is_core?: boolean
           layer: string
@@ -280,6 +285,7 @@ export type Database = {
           confidence?: number
           core_scope?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           is_core?: boolean
           layer?: string
@@ -588,6 +594,42 @@ export type Database = {
         }
         Relationships: []
       }
+      embedding_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          id: string
+          processed_at: string | null
+          row_id: string
+          status: string
+          table_name: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          row_id: string
+          status?: string
+          table_name: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          row_id?: string
+          status?: string
+          table_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entity_mentions: {
         Row: {
           artifact_id: string | null
@@ -734,6 +776,7 @@ export type Database = {
           belief_id: string | null
           body: string
           created_at: string
+          embedding: string | null
           entry_at: string
           entry_at_ts: string
           entry_kind: string | null
@@ -745,6 +788,7 @@ export type Database = {
           mood: number | null
           pinned: boolean
           prompt_id: string | null
+          summary: string | null
           tags: string[]
           title: string | null
           updated_at: string
@@ -759,6 +803,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
           entry_kind?: string | null
@@ -770,6 +815,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          summary?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
@@ -784,6 +830,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
           entry_kind?: string | null
@@ -795,6 +842,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          summary?: string | null
           tags?: string[]
           title?: string | null
           updated_at?: string
@@ -1029,6 +1077,7 @@ export type Database = {
         Row: {
           confidence: number | null
           created_at: string
+          embedding: string | null
           first_seen_at: string
           id: string
           kind: string
@@ -1042,6 +1091,7 @@ export type Database = {
         Insert: {
           confidence?: number | null
           created_at?: string
+          embedding?: string | null
           first_seen_at?: string
           id?: string
           kind: string
@@ -1055,6 +1105,7 @@ export type Database = {
         Update: {
           confidence?: number | null
           created_at?: string
+          embedding?: string | null
           first_seen_at?: string
           id?: string
           kind?: string
@@ -1180,6 +1231,7 @@ export type Database = {
           citations: Json
           content: string
           created_at: string
+          embedding: string | null
           id: string
           role: string
           user_id: string
@@ -1189,6 +1241,7 @@ export type Database = {
           citations?: Json
           content: string
           created_at?: string
+          embedding?: string | null
           id?: string
           role: string
           user_id: string
@@ -1198,6 +1251,7 @@ export type Database = {
           citations?: Json
           content?: string
           created_at?: string
+          embedding?: string | null
           id?: string
           role?: string
           user_id?: string
@@ -1634,6 +1688,10 @@ export type Database = {
     }
     Functions: {
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
+      enqueue_embedding_job: {
+        Args: { p_row_id: string; p_table: string; p_user_id: string }
+        Returns: undefined
+      }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
       merge_knowledge_entity: {
         Args: {
