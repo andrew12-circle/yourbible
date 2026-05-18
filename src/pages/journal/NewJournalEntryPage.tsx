@@ -3,16 +3,20 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send, ChevronDown } from "lucide-react";
+import {
+  Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, Send, ChevronDown,
+  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, Plus, FileText, Lightbulb,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
-import JournalLayout from "./JournalLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
@@ -110,6 +114,10 @@ export default function NewJournalEntryPage() {
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [journalName, setJournalName] = useState<string>("Journal");
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
