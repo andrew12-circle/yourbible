@@ -503,18 +503,25 @@ export default function NewJournalEntryPage() {
 
   const save = async () => {
     dictateRef.current?.stop();
-    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length) {
+    const hasChat = chatTurns.length > 0;
+    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length && !hasChat) {
       toast({ title: "Write something or add a photo first", variant: "destructive" });
       return;
     }
     setBusy(true);
     setBusyLabel("Saving");
     const ts = new Date(entryAt);
+
+    // Inline AI chat mode: the entry already exists, body holds composed transcript
+    const isInlineChat = !!inlineEntryId && hasChat;
+    const composedBody = isInlineChat ? composeChatTranscript(chatTurns, body) : body;
+    const finalKind = isInlineChat ? "chat" : entryKind;
+
     const payload = {
       user_id: user.id,
       journal_id: journalId,
       title: title.trim() || null,
-      body: body,
+      body: composedBody,
       mood,
       tags,
       verse_ref: verseRef.trim() || null,
@@ -530,15 +537,15 @@ export default function NewJournalEntryPage() {
       analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
       entry_at_ts: ts.toISOString(),
       entry_at: ts.toISOString().slice(0, 10),
-      entry_kind: entryKind,
+      entry_kind: finalKind,
     };
 
-    let entryId = editId;
-    if (editId) {
+    let entryId = editId ?? inlineEntryId ?? null;
+    if (entryId) {
       const { error } = await supabase
         .from("journal_entries")
         .update(payload)
-        .eq("id", editId)
+        .eq("id", entryId)
         .eq("user_id", user.id);
       if (error) {
         setBusy(false);
@@ -609,6 +616,12 @@ export default function NewJournalEntryPage() {
       supabase.functions.invoke("journal-score-entry", { body: { entry_id: entryId } }).catch((e) =>
         console.error("score err", e),
       );
+    }
+
+    if (isInlineChat) {
+      try { localStorage.setItem("journal.reply_with_ai", "1"); } catch { /* ignore */ }
+      navigate(`/journal/${entryId}`);
+      return;
     }
 
     if (replyWithAi && canReplyWithAi && entryId) {
