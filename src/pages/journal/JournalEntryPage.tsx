@@ -176,6 +176,19 @@ export default function JournalEntryPage() {
         </Link>
       )}
 
+      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-4 gap-2"
+          onClick={askAiToRespond}
+          disabled={openingAi}
+        >
+          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+          Ask AI to respond to this entry
+        </Button>
+      )}
+
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
 
       {photos.length > 0 && (
