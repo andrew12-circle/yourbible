@@ -343,6 +343,7 @@ export default function MyAiPage() {
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -557,7 +558,18 @@ export default function MyAiPage() {
             <div className="h-[100dvh]">{rail}</div>
           </SheetContent>
         </Sheet>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          aria-label="What My AI knows about you"
+          onClick={() => setStateOpen(true)}
+        >
+          <Brain className="h-5 w-5" />
+        </Button>
       </header>
+
+      <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside className="hidden w-[260px] shrink-0 md:flex">{rail}</aside>
@@ -619,6 +631,7 @@ export default function MyAiPage() {
                     </div>
                   ) : (
                     <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/70 bg-card px-3.5 py-2.5 text-sm shadow-sm">
+                      <MemoryIndicator citations={parseCitationsJson(m.citations)} />
                       <div className="prose prose-sm max-w-none dark:prose-invert text-foreground">
                         {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
                       </div>
