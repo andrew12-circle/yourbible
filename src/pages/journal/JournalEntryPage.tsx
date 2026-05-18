@@ -213,11 +213,6 @@ export default function JournalEntryPage() {
           {entry.body || <span className="italic text-muted-foreground">No body</span>}
         </div>
       )}
-      {false && (
-        // legacy block kept removed
-      ) : (
-        null
-      )}
 
       {entry.lat != null && entry.lng != null && (
         <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mb-6" />
