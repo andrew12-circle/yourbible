@@ -366,6 +366,126 @@ export default function NewJournalEntryPage() {
     await supabase.from("journal_photos").delete().eq("id", photoId);
   };
 
+  const loadChatTurns = async (cId: string) => {
+    const { data } = await supabase
+      .from("my_ai_messages")
+      .select("id,role,content,created_at")
+      .eq("chat_id", cId)
+      .order("created_at", { ascending: true });
+    setChatTurns(
+      ((data as { id: string; role: string; content: string }[]) ?? [])
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+    );
+  };
+
+  const ensureChatEntry = async (): Promise<{ entryId: string; chatId: string } | null> => {
+    if (!user) return null;
+    let eId = inlineEntryId ?? editId ?? null;
+    let cId = chatId;
+    const ts = new Date(entryAt);
+
+    if (!eId) {
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: user.id,
+          journal_id: journalId,
+          title: title.trim() || null,
+          body: "",
+          mood,
+          tags,
+          verse_ref: verseRef.trim() || null,
+          belief_id: beliefId || null,
+          prompt_id: promptId,
+          location_name: locationName.trim() || null,
+          lat, lng, weather, weather_temp_c: weatherTempC, weather_icon: weatherIcon,
+          analyze_for_mirror: false,
+          entry_at_ts: ts.toISOString(),
+          entry_at: ts.toISOString().slice(0, 10),
+          entry_kind: "chat",
+        })
+        .select("id")
+        .maybeSingle();
+      if (error || !data) {
+        toast({ title: "Couldn't start AI chat", description: error?.message, variant: "destructive" });
+        return null;
+      }
+      eId = data.id;
+      setInlineEntryId(eId);
+    } else if (editId) {
+      // Make sure existing entry is marked as chat
+      await supabase
+        .from("journal_entries")
+        .update({ entry_kind: "chat" })
+        .eq("id", eId)
+        .eq("user_id", user.id);
+    }
+
+    if (!cId) {
+      const { data: existing } = await supabase
+        .from("my_ai_chats")
+        .select("id")
+        .eq("journal_entry_id", eId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existing?.id) {
+        cId = existing.id;
+      } else {
+        const { data: created, error: cErr } = await supabase
+          .from("my_ai_chats")
+          .insert({ user_id: user.id, journal_entry_id: eId, title: title.trim() || null })
+          .select("id")
+          .maybeSingle();
+        if (cErr || !created) {
+          toast({ title: "Couldn't start AI chat", description: cErr?.message, variant: "destructive" });
+          return null;
+        }
+        cId = created.id;
+      }
+      setChatId(cId);
+    }
+    return { entryId: eId!, chatId: cId! };
+  };
+
+  const sendToAi = async () => {
+    const text = body.trim();
+    if (!text || aiBusy) return;
+    dictateRef.current?.stop();
+    setAiBusy(true);
+    try {
+      const ensured = await ensureChatEntry();
+      if (!ensured) return;
+      // Optimistically render the user turn
+      const tempId = `tmp-${Date.now()}`;
+      setChatTurns((prev) => [...prev, { id: tempId, role: "user", content: text }]);
+      setBody("");
+      const { data, error } = await supabase.functions.invoke("my-ai-chat", {
+        body: {
+          chat_id: ensured.chatId,
+          message: text,
+          mode: "journal",
+          journal_entry_id: ensured.entryId,
+          include_general_knowledge: true,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { error?: string; chat_id?: string } | null;
+      if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
+      await loadChatTurns(ensured.chatId);
+      setTimeout(() => {
+        chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+      }, 50);
+    } catch (e) {
+      toast({ title: "AI reply failed", description: String(e), variant: "destructive" });
+      setBody((b) => (b ? b : text));
+      // Drop optimistic user turn on failure
+      setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const save = async () => {
     dictateRef.current?.stop();
     if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length) {
