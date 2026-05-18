@@ -999,11 +999,11 @@ export default function NewJournalEntryPage() {
               <Sparkles className="w-5 h-5 text-teal-500 mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="reply-with-ai" className="font-medium">Have AI reply when I save</Label>
+                  <Label htmlFor="reply-with-ai" className="font-medium">Journal with AI</Label>
                   <Switch id="reply-with-ai" checked={replyWithAi} onCheckedChange={setReplyWithAi} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Opens a conversation grounded in your beliefs, past journals, identity, and artifacts. Vents stay private and are never shared with AI.
+                  Reply back to you inline as you write, like ChatGPT — grounded in your beliefs, past journals, identity, and artifacts. The whole back-and-forth saves as one journal entry. Vents stay private and are never shared with AI.
                 </p>
               </div>
             </div>
