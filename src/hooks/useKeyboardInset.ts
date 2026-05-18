@@ -34,11 +34,11 @@ export function useKeyboardInset(): number {
  * Lock the document while the composer is focused so only the fixed composer
  * follows the visual viewport / keyboard inset.
  */
-export function useLockBodyScrollWhenKeyboardActive(active: boolean): void {
+export function useLockBodyScrollWhenKeyboardActive(active: boolean, lockScrollYRef?: { current: number | null }): void {
   useEffect(() => {
     if (!active || typeof window === "undefined") return;
 
-    const scrollY = window.scrollY;
+    const scrollY = Math.max(0, lockScrollYRef?.current ?? window.scrollY);
     const bodyStyle = document.body.style;
     const rootStyle = document.documentElement.style;
     const prev = {
@@ -80,5 +80,5 @@ export function useLockBodyScrollWhenKeyboardActive(active: boolean): void {
       rootStyle.overscrollBehavior = prev.rootOverscroll;
       window.scrollTo(0, scrollY);
     };
-  }, [active]);
+  }, [active, lockScrollYRef]);
 }
