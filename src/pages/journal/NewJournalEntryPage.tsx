@@ -84,11 +84,10 @@ export default function NewJournalEntryPage() {
   const [beliefs, setBeliefs] = useState<BeliefOpt[]>([]);
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
-  const [replyWithAi, setReplyWithAi] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const v = localStorage.getItem("journal.reply_with_ai");
-    return v === "1" || v === "true";
-  });
+  // Default OFF for every new entry. Users explicitly opt-in per entry via the
+  // "Journal with AI" toggle. We intentionally do NOT remember this across entries
+  // so a normal journal stays a normal journal unless asked.
+  const [replyWithAi, setReplyWithAi] = useState<boolean>(false);
   const [journalId, setJournalId] = useState<string | null>(null);
   const [promptId, setPromptId] = useState<string | null>(null);
   const [lat, setLat] = useState<number | null>(null);
