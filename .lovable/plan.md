@@ -1,89 +1,186 @@
 ## Goal
 
-Make creating a journal entry feel exactly like Day One: a clean, full-height writing surface with a date/meta header on top, a Done button, and a slim bottom toolbar of attachment actions. Add a "Chat with AI" action to that toolbar that flips the bar in place into the message composer so the AI conversation happens right inside the journal entry — no separate page.
+Build a **structured spiritual reflection and discernment system** centered on dreams — not a "dream interpretation" app.
 
-## Reference vs. today
+The experience should help users capture, reflect, compare with Scripture, and track patterns over time so they can discern wisely instead of reacting emotionally.
 
-Day One (target):
-- Big date/time header, three-dot menu and "Done" on the right
-- Single meta line: journal name • location • weather
-- Full-bleed writing area, no labeled sections
-- Bottom toolbar of icon+label tiles: Photos · Templates · Prompts · Audio
-- "More" expander reveals: Suggestions, Tag, Camera, Video, Draw, Scan to PDF, Scan Text, File
+## Product posture (non-negotiable)
 
-Today's `NewJournalEntryPage.tsx`:
-- Generic "New entry" header with a back arrow
-- Title input, Entry Type select, then a Textarea
-- Long stacked sections (Photos grid, Mood, Tags, When/Where, Linked verse/belief, Mirror toggle, "Journal with AI" toggle)
-- AI chat only appears after flipping the "Journal with AI" switch buried at the bottom
+- Do **not** present mystical or fortune-teller style outputs.
+- Do **not** claim certainty (e.g., never say "God said…").
+- Frame AI as:
+  - reflection guide,
+  - pattern recognizer,
+  - Scripture-alignment assistant,
+  - spiritual journaling companion.
 
-## What to build
+Preferred language:
+- "This resembles biblical patterns found in…"
+- "Consider praying through…"
+- "Possible themes to discern over time…"
 
-### 1. Day One–style entry shell
+## System architecture
 
-Rebuild the layout of `src/pages/journal/NewJournalEntryPage.tsx` (also reused for `/journal/:id/edit`):
+### 1) Dream Capture Layer (frictionless)
 
-- New top header (replaces `JournalLayout` header for this page):
-  - Left: large date + time (from `entryAt`), tappable to open a date picker sheet
-  - Right: three-dot menu (`MoreHorizontal`) + "Done" button (saves and exits)
-- Meta line under header: journal name • location • weather (tappable to edit location)
-- Inline, optional title (placeholder "Title", borderless, large display font — only shown when typed or focused)
-- Full-height body Textarea:
-  - Borderless, transparent background, fills remaining viewport
-  - Auto-grows; placeholder uses the existing kind-aware hint
-  - Dictation interim text floats above the bottom bar
-- Bottom toolbar (sticky, safe-area aware) — four primary tiles:
-  - Photos (opens file picker — existing flow)
-  - Templates (placeholder sheet, non-functional v1)
-  - Prompts (opens existing prompt picker / journal-prompts route)
-  - Audio (triggers existing `DictateButton`)
-  - Chat with AI (new tile — flips bar into composer, see step 3)
-- "More" chevron beneath the tiles opens a sheet with: Tag, Camera, Sketch (existing), Mood, When, Where, Linked verse, Linked belief, Entry type, Mirror toggle. This is where today's stacked sections move so the writing surface stays clean.
+Primary moment: immediately upon waking.
 
-### 2. Move existing fields into the "More" sheet
+Inputs:
+- Voice recording
+- Typed journal
+- Half-awake quick capture mode
+- Timestamp
+- Sleep quality
+- Emotion selector
+- Intensity slider
 
-All current sections still exist, just relocated into the More sheet (a `Sheet` from the bottom):
-- Mood, Tags, Date/time, Location, Linked verse, Linked belief, Entry type, "Include in worldview mirror"
+Capture prompts:
+- "What happened first?"
+- "Who appeared?"
+- "What emotions stood out?"
+- "What symbols repeated?"
+- "Did anything feel holy, fearful, chaotic, peaceful, or urgent?"
 
-The "Journal with AI" toggle is removed — replaced by the new toolbar action.
+UX principle:
+- Capture must feel as fast as voice notes + minimal taps.
+- Reflection can deepen later; capture speed is priority at wake-up.
 
-### 3. "Chat with AI" flip-in-place
+### 2) Symbol Extraction Engine
 
-Tapping the Chat with AI tile:
-- Calls existing `ensureChatEntry()` to create/load the entry + `my_ai_chats` row
-- Replaces the bottom toolbar with the same floating pill composer used in `JournalChatPage` (plus icon, textarea, mic, voice toggle, send)
-- Renders the chat transcript directly above the composer, inside the same scroll surface as the body text
-  - When the entry already has body text, that body shows as the first user-side message in the thread
-  - Subsequent turns stream below
-- A small "Back to writing" affordance (e.g. an `X` on the composer or a chip above it) restores the standard toolbar without losing draft text
-- "Done" in the header still saves the chat-mode entry (entry_kind = 'chat') with the transcript persisted, same path as today
+AI parses dream entries into structured signals:
+- people
+- places
+- colors
+- numbers
+- animals
+- weather
+- actions
+- repeated imagery
+- emotional tone
 
-### 4. Reuse, don't duplicate
+Canonical output shape:
 
-- Extract the composer pill (textarea + plus + mic + voice + send + Retry/Stop chips) from `JournalChatPage.tsx` into a shared `JournalChatComposer` component under `src/components/journal/`, used by both pages
-- Reuse the existing `ensureChatEntry`, `loadChatTurns`, `sendToAi`, dictation, and TTS logic — only the surrounding layout changes
-- Keep the standalone `JournalChatPage` for opening existing chat entries from the list; the new inline flow just means a brand-new entry no longer has to redirect to `/journal/chat`
+```json
+{
+  "symbols": ["ocean", "father", "storm", "door", "white clothing"],
+  "emotions": ["fear", "urgency", "peace at end"],
+  "themes": ["transition", "warning", "authority"]
+}
+```
 
-### 5. Out of scope (v1)
+Then link results to:
+- related Scriptures,
+- prior journal entries,
+- recurring symbol patterns,
+- trusted teachings/resources.
 
-- Templates and Suggestions tiles are visible but show a "Coming soon" toast
-- Video, Scan to PDF, Scan Text, File from Day One's More menu are not added yet (not in your current feature set)
+### 3) Discernment Framework (guided flow)
 
-## Technical notes
+The app should guide users through a repeatable process:
 
-- File touched: `src/pages/journal/NewJournalEntryPage.tsx` (major rewrite of the JSX render tree; data/save logic largely unchanged)
-- New file: `src/components/journal/JournalChatComposer.tsx` (extracted floating pill)
-- New file: `src/components/journal/EntryMoreSheet.tsx` (Sheet wrapping the relocated fields)
-- Use existing shadcn `Sheet`, `Popover`, `Button`, `Textarea`
-- Header date tap opens a `Sheet` with the existing `datetime-local` input
-- Body Textarea: `min-h-[60dvh]` and `flex-1` inside a `flex flex-col min-h-[calc(100dvh-...)]` shell so it always fills the screen above the toolbar
-- Toolbar uses the same `fixed inset-x-0 bottom-0` pattern + `env(safe-area-inset-bottom)` we just shipped for the chat composer, so it never scrolls away on mobile
-- Routing unchanged: `/journal/new`, `/journal/:id/edit`, `/journal/chat/:id` still work; the kind=chat redirect can stay as a fallback
+#### Step 1 — Source check
+Questions:
+- Did this produce fear or clarity?
+- Condemnation or conviction?
+- Confusion or direction?
 
-## Acceptance check
+Scriptural anchors:
+- James 3
+- 1 Corinthians 14:33
+- Galatians 5
 
-- Opening `/journal/new` shows: big date header, Done button, meta line, empty writing surface, bottom tile bar — no visible Mood/Tags/Privacy stack
-- Typing fills the body; the bottom bar stays pinned, no scrolling needed to reach it
-- Tapping "Chat with AI" turns the bottom bar into the floating message pill; AI replies appear above it inside the same view
-- Tapping "More" reveals all the previously-stacked options
-- "Done" saves and returns to the entry view as today
+#### Step 2 — Symbol review
+Questions:
+- Which symbols stood out most?
+- Personal symbols or biblical symbols?
+- Have these appeared before?
+
+#### Step 3 — Archetype analysis
+Common archetypes:
+- father, child, stranger, king, enemy, mentor
+- house, vehicle, storm, ladder, snake
+
+Purpose:
+- Pattern recognition, not occult interpretation.
+
+#### Step 4 — Scripture alignment
+Guardrail:
+- Never output absolute divine claims.
+- Always map themes to biblical patterns and passages.
+
+#### Step 5 — Reflection
+Prompts:
+- What may require prayer?
+- What action, if any, should be taken?
+- Is there anything to surrender?
+- Does this align with wisdom and Scripture?
+
+#### Step 6 — Outcome tracking
+Follow-up prompts (later):
+- Did anything related happen?
+- Was insight gained?
+- Did circumstances change?
+- Was this symbolic, emotional, spiritual, or unresolved stress?
+
+## Long-term advantage
+
+Over months/years, the system should surface:
+- recurring themes,
+- emotional cycles,
+- spiritual struggles,
+- repeated symbols,
+- answered prayers,
+- major life transitions,
+- fear loops,
+- breakthrough periods.
+
+This becomes:
+- a spiritual timeline,
+- an emotional intelligence system,
+- a theological growth map,
+- a subconscious reflection engine.
+
+## Core feature ideas
+
+### Dream Connections
+- "Similar dream from 7 months ago"
+- Auto-linked entries by symbol/theme/archetype overlap.
+
+### Scripture Correlation
+- Theme pathways tied to biblical dream/discernment narratives:
+  - Joseph
+  - Daniel
+  - Jacob
+  - Pharaoh
+  - Peter
+  - warnings, visions, discernment motifs
+
+### AI Reflection Mode
+- Ask clarifying questions
+- Surface patterns
+- Highlight contradictions/tensions
+- Suggest Scripture
+- Support discernment, not conclusions
+
+### Night Watch Mode (before sleep)
+- Prayer prompts
+- Worship audio
+- Scripture meditation
+- Gratitude and release-anxiety journaling
+
+## UX direction
+
+Most Bible apps are passive reading.
+
+This system should feel like **active spiritual formation** through:
+- intentional reflection,
+- scriptural grounding,
+- longitudinal pattern awareness.
+
+## Positioning statement
+
+Not:
+- "A dream interpretation app"
+
+Instead:
+- "A spiritual operating system for reflection, discernment, growth, and biblical alignment."
