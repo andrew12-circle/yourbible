@@ -51,11 +51,30 @@ export async function edgeFunctionErrorMessage(
   }
 
   if (error instanceof FunctionsFetchError) {
-    return `${functionName} is unreachable. Check your network and that the function is deployed.`;
+    return formatEdgeUnreachable(functionName);
   }
 
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    if (/failed to send a request to the edge function/i.test(error.message)) {
+      return formatEdgeUnreachable(functionName);
+    }
+    return error.message;
+  }
   return String(error);
+}
+
+function formatEdgeUnreachable(functionName: string): string {
+  return `${functionName} is not deployed or unreachable. Deploy: npx supabase functions deploy ${functionName} --project-ref itmcsyrnpcnrwviigppe`;
+}
+
+/** True when the edge function responded (even with 4xx) — false when fetch/relay failed. */
+export function isEdgeFunctionReachable(error: unknown): boolean {
+  if (error instanceof FunctionsHttpError) return true;
+  if (error instanceof FunctionsRelayError || error instanceof FunctionsFetchError) return false;
+  if (error instanceof Error && /failed to send a request to the edge function/i.test(error.message)) {
+    return false;
+  }
+  return true;
 }
 
 function formatKnownEdgeError(message: string): string {
@@ -67,6 +86,9 @@ function formatKnownEdgeError(message: string): string {
   }
   if (/GEMINI_API_KEY is not configured/i.test(message)) {
     return `${message} Set it in Supabase Edge Function secrets: supabase secrets set GEMINI_API_KEY=... AI_PROVIDER=gemini --project-ref <ref>, then redeploy my-ai-chat.`;
+  }
+  if (/ELEVENLABS_API_KEY missing/i.test(message)) {
+    return `${message} Set it with: npx supabase secrets set ELEVENLABS_API_KEY=your_key --project-ref itmcsyrnpcnrwviigppe then redeploy journal-voice-to-text.`;
   }
   if (/Invalid journal_entry_id for journal chat/i.test(message)) {
     return `${message} Save the entry and open chat mode again.`;

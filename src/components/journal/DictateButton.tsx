@@ -5,6 +5,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "@/hooks/use-toast";
 import { useMediaRecorderDictation } from "@/hooks/useMediaRecorderDictation";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
+import {
+  isJournalVoiceEdgeUnavailable,
+  probeJournalVoiceEdge,
+} from "@/lib/journal/voiceDictation";
 import { cn } from "@/lib/utils";
 
 export type DictateButtonHandle = { stop: () => void; toggle: () => void };
@@ -54,6 +58,8 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   }, [listening, transcribing]);
 
   const lastToasted = useRef<string | null>(null);
+  const switchingRef = useRef(false);
+
   useEffect(() => {
     if (!error || error === lastToasted.current) return;
     lastToasted.current = error;
@@ -63,18 +69,50 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
       error.includes("service not allowed") ||
       error.includes("snag");
 
-    if (!useMedia && isNetworkish && media.supported && userId) {
+    if (useMedia && isJournalVoiceEdgeUnavailable(error)) {
       try {
-        localStorage.setItem(LS_MEDIA_FALLBACK, "1");
+        localStorage.removeItem(LS_MEDIA_FALLBACK);
       } catch {
         /* ignore */
       }
-      setPreferMedia(true);
-      speech.stop();
+      setPreferMedia(false);
+      const canRetrySpeech = speech.supported;
       toast({
-        title: "Switching dictation mode",
-        description: "Live captions failed — tap the mic to record, then tap again to transcribe.",
+        title: "Voice transcription unavailable",
+        description: canRetrySpeech
+          ? `${error} Live dictation will be used next time you tap the mic.`
+          : error,
+        variant: "destructive",
       });
+      return;
+    }
+
+    if (!useMedia && isNetworkish && media.supported && userId && !switchingRef.current) {
+      switchingRef.current = true;
+      void (async () => {
+        const edgeOk = await probeJournalVoiceEdge();
+        switchingRef.current = false;
+        if (!edgeOk) {
+          toast({
+            title: "Record-and-transcribe unavailable",
+            description:
+              "journal-voice-to-text is not deployed. Run: npx supabase functions deploy journal-voice-to-text --project-ref itmcsyrnpcnrwviigppe and set ELEVENLABS_API_KEY. Live dictation will keep trying.",
+            variant: "destructive",
+          });
+          return;
+        }
+        try {
+          localStorage.setItem(LS_MEDIA_FALLBACK, "1");
+        } catch {
+          /* ignore */
+        }
+        setPreferMedia(true);
+        speech.stop();
+        toast({
+          title: "Switching dictation mode",
+          description: "Live captions failed — tap the mic to record, then tap again to transcribe.",
+        });
+      })();
       return;
     }
 
