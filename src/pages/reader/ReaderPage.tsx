@@ -390,12 +390,14 @@ export default function ReaderPage() {
   // ---- Native text selection → toolbar (apply via toolbar actions only) ----
   useEffect(() => {
     let pendingHide: number | null = null;
+    let syncRaf: number | null = null;
+    let selecting = false;
 
     const computeSelection = (): ToolbarSelection | null => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
-      const text = sel.toString().trim();
-      if (!text) return null;
+      // Do not gate on sel.toString() — iOS/Safari often report an empty string
+      // while the user is still dragging handles or extending a touch selection.
       return toolbarSelectionFromRange(sel.getRangeAt(0), verseLengths);
     };
 
@@ -406,9 +408,13 @@ export default function ReaderPage() {
       }
       const next = computeSelection();
       if (!next) {
+        // While the user is actively selecting, ignore transient collapsed /
+        // empty-geometry frames so the toolbar doesn't flash away mid-drag.
+        if (selecting) return;
         // Small delay so picking a swatch (which momentarily clears selection
         // through React re-render) doesn't immediately hide the toolbar.
         pendingHide = window.setTimeout(() => {
+          if (selecting) return;
           if (!computeSelection()) setTbSel(null);
         }, 120);
         return;
@@ -416,29 +422,49 @@ export default function ReaderPage() {
       setTbSel(next);
     };
 
-    const onSelChange = () => syncToolbar();
+    const scheduleSync = () => {
+      if (syncRaf != null) cancelAnimationFrame(syncRaf);
+      syncRaf = requestAnimationFrame(() => {
+        syncRaf = null;
+        syncToolbar();
+      });
+    };
 
-    const shouldIgnoreSelectionEnd = (target: EventTarget | null) =>
+    const shouldIgnoreSelectionTarget = (target: EventTarget | null) =>
       (target as HTMLElement | null)?.closest(
         ".verse-num, [data-selection-toolbar], [data-page-footer]",
       );
 
+    const isReadingAreaTarget = (target: EventTarget | null) =>
+      !!(target as HTMLElement | null)?.closest("[data-reading-area]") &&
+      !shouldIgnoreSelectionTarget(target);
+
+    const onSelectionStart = (e: Event) => {
+      if (isReadingAreaTarget(e.target)) selecting = true;
+    };
+
     const onSelectionEnd = (e: Event) => {
-      if (shouldIgnoreSelectionEnd(e.target)) return;
-      // Touch browsers finalize the selection after pointerup/touchend.
+      selecting = false;
+      if (shouldIgnoreSelectionTarget(e.target)) return;
+      // Touch browsers may finalize selection geometry after touchend.
       requestAnimationFrame(() => {
         requestAnimationFrame(syncToolbar);
       });
     };
 
-    document.addEventListener("selectionchange", onSelChange);
+    document.addEventListener("selectionchange", scheduleSync);
+    document.addEventListener("pointerdown", onSelectionStart);
+    document.addEventListener("touchstart", onSelectionStart, { passive: true });
     document.addEventListener("pointerup", onSelectionEnd);
     document.addEventListener("touchend", onSelectionEnd, { passive: true });
     return () => {
-      document.removeEventListener("selectionchange", onSelChange);
+      document.removeEventListener("selectionchange", scheduleSync);
+      document.removeEventListener("pointerdown", onSelectionStart);
+      document.removeEventListener("touchstart", onSelectionStart);
       document.removeEventListener("pointerup", onSelectionEnd);
       document.removeEventListener("touchend", onSelectionEnd);
       if (pendingHide) window.clearTimeout(pendingHide);
+      if (syncRaf != null) cancelAnimationFrame(syncRaf);
     };
   }, [verseLengths]);
 

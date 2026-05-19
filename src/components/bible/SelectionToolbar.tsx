@@ -95,10 +95,11 @@ export function SelectionToolbar({
     <AnimatePresence>
       {open && (
         <motion.div
+          layout
           initial={{ opacity: 0, y: 6, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 6, scale: 0.96 }}
-          transition={{ duration: 0.15 }}
+          transition={{ duration: 0.15, layout: { duration: 0.12 } }}
           // Stop pointer events from clearing the browser selection when
           // the user clicks a tool — `onMouseDown preventDefault` keeps
           // the document selection alive while we read it.
