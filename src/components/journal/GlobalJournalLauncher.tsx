@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { ChevronLeft, NotebookPen } from "lucide-react";
+import { ChevronLeft, NotebookPen, Ribbon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import FloatingJournalPanel from "@/components/journal/FloatingJournalPanel";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
@@ -92,7 +92,11 @@ export default function GlobalJournalLauncher() {
                 : "text-primary-foreground hover:bg-white/10 active:bg-white/15",
             )}
           >
-            <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />
+            {readerJournal ? (
+              <Ribbon className="h-5 w-5 shrink-0 text-[#9b1d20]" strokeWidth={2} aria-hidden />
+            ) : (
+              <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />
+            )}
           </button>
         )}
       </div>

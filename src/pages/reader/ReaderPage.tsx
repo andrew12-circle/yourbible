@@ -20,7 +20,7 @@ import { PageFlip } from "@/components/bible/PageFlip";
 import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2, NotebookPen, BookOpenText, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
@@ -164,7 +164,6 @@ export default function ReaderPage() {
 
   // Companion pane integration
   const openCompanion = useCompanion(s => s.openWith);
-  const companionOpen = useCompanion(s => s.open);
   const [anchorBelief, setAnchorBelief] = useState<{ id: string; statement: string } | null>(null);
   useEffect(() => {
     if (!user) return;
@@ -812,17 +811,6 @@ export default function ReaderPage() {
         >
           <Sparkles className="w-3.5 h-3.5 text-leather shrink-0" />
           <span className="ink-text truncate">{anchorBelief.statement}</span>
-        </button>
-      )}
-
-      {/* Companion opener (when closed) */}
-      {!companionOpen && !focusMode && (
-        <button
-          onClick={() => openCompanion(buildScope([]), "journal")}
-          aria-label="Open Companion"
-          className="fixed bottom-5 right-5 z-40 bg-leather text-paper rounded-full w-12 h-12 shadow-leather flex items-center justify-center hover:scale-105 transition"
-        >
-          <BookOpenText className="w-5 h-5" />
         </button>
       )}
 

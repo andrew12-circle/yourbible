@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Minus, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft } from "lucide-react";
+import { Minus, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +77,6 @@ export default function FloatingJournalPanel({
   onClose,
 }: FloatingJournalPanelProps) {
   const navigate = useNavigate();
-  const tuckLauncherFromPanel = useFloatingJournalStore((s) => s.tuckLauncherFromPanel);
   const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
   const [panelTab, setPanelTab] = useState<"write" | "chat">("write");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -690,11 +689,11 @@ export default function FloatingJournalPanel({
             size="icon"
             variant="ghost"
             className={headerIconClass}
-            aria-label="Tuck journal tab into screen edge"
-            title="Hide journal tab"
+            aria-label={readerTheme ? "Back to Bible" : "Close journal panel"}
+            title={readerTheme ? "Back to Bible" : "Close"}
             onClick={(e) => {
               e.stopPropagation();
-              tuckLauncherFromPanel();
+              handleClose();
             }}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -705,12 +704,13 @@ export default function FloatingJournalPanel({
             variant="ghost"
             className={headerIconClass}
             aria-label={geom.minimized ? "Restore panel" : "Minimize panel"}
+            title={geom.minimized ? "Restore" : "Minimize"}
             onClick={(e) => {
               e.stopPropagation();
               toggleMinimize();
             }}
           >
-            <Minus className="h-4 w-4" />
+            {geom.minimized ? <Square className="h-3.5 w-3.5" /> : <Minus className="h-4 w-4" />}
           </Button>
           <Button
             type="button"
@@ -718,25 +718,13 @@ export default function FloatingJournalPanel({
             variant="ghost"
             className={headerIconClass}
             aria-label="Open full journal editor"
+            title="Expand"
             onClick={(e) => {
               e.stopPropagation();
               expandToFullEditor();
             }}
           >
             <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className={headerIconClass}
-            aria-label="Close and keep local draft"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
-          >
-            <X className="h-4 w-4" />
           </Button>
         </div>
       </header>
