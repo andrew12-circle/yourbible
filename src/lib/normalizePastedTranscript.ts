@@ -31,16 +31,17 @@ function collapseInlineWhitespace(text: string): string {
 /** True when paste looks like YouTube transcript UI copy (mashed timestamps). */
 export function looksLikeYoutubeShowTranscriptPaste(text: string): boolean {
   return (
-    /\d:\d{2}\d{1,2}\s*seconds\b/i.test(text) ||
-    /\d:\d{2}\d+\s*minute\b/i.test(text) ||
-    /\d:\d{2}:\d{2}\d{1,2}\s*seconds\b/i.test(text)
+    /\d+:\d{2}\d{1,2}\s*seconds/i.test(text) ||
+    /\d+:\d{2}\d+\s*minute/i.test(text) ||
+    /\d+:\d{2}:\d{2}\d{1,2}\s*seconds/i.test(text) ||
+    /^\s*\d+:\d{2}(?::\d{2})?\s*$/m.test(text)
   );
 }
 
 /** Fix `0:2222 seconds` / `1:031 minute, 3 seconds` mashed cues anywhere in the blob. */
 function fixYoutubeMashedTimestamps(text: string): string {
   let out = text.replace(
-    /(\d+):(\d{2}):(\d{2})(\d{1,2})\s*seconds\b/gi,
+    /(\d+):(\d{2}):(\d{2})(\d{1,2})\s*seconds/gi,
     (match, h, m, ss, dup) => {
       if (parseInt(ss, 10) !== parseInt(dup, 10)) return match;
       const total = parseInt(h, 10) * 3600 + parseInt(m, 10) * 60 + parseInt(ss, 10);
@@ -49,7 +50,7 @@ function fixYoutubeMashedTimestamps(text: string): string {
   );
 
   out = out.replace(
-    /(\d+):(\d{2})(\d{1,2})\s*seconds\b/gi,
+    /(\d+):(\d{2})(\d{1,2})\s*seconds/gi,
     (match, m, ss, dup) => {
       if (parseInt(ss, 10) !== parseInt(dup, 10)) return match;
       const total = parseInt(m, 10) * 60 + parseInt(ss, 10);
@@ -58,7 +59,7 @@ function fixYoutubeMashedTimestamps(text: string): string {
   );
 
   out = out.replace(
-    /(\d+):(\d{2})(\d+)\s*minute,?\s*(\d+)\s*seconds\b/gi,
+    /(\d+):(\d{2})(\d+)\s*minute,?\s*(\d+)\s*seconds/gi,
     (match, m, ss, minLabel, secLabel) => {
       if (parseInt(m, 10) !== parseInt(minLabel, 10)) return match;
       if (parseInt(ss, 10) !== parseInt(secLabel, 10)) return match;
@@ -135,11 +136,12 @@ export function normalizePastedTranscript(raw: string): string {
   if (!trimmed) return "";
 
   let text = trimmed;
-  if (looksLikeYoutubeShowTranscriptPaste(text)) {
+  const needsYoutubeFix = looksLikeYoutubeShowTranscriptPaste(text);
+  if (needsYoutubeFix) {
     text = fixYoutubeMashedTimestamps(text);
-    if (/\n\s*\d+:\d{2}\s*\n\s*\d+\s*seconds?/i.test(text)) {
-      text = mergeNewlineSeparatedYoutubeCues(text);
-    }
+  }
+  if (needsYoutubeFix || /^\s*\d+:\d{2}(?::\d{2})?\s*$/m.test(text)) {
+    text = mergeNewlineSeparatedYoutubeCues(text);
   }
 
   const parts = splitPreservingParagraphs(text);
