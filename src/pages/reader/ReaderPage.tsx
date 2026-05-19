@@ -101,7 +101,7 @@ export default function ReaderPage() {
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
-  /** Default highlighter color — used on drag-release and toolbar swatches. */
+  /** Default highlighter color for toolbar swatches. */
   const [activeHighlightColor, setActiveHighlightColor] = useState<string>(() => {
     try {
       return localStorage.getItem(LS_HIGHLIGHT_COLOR_KEY) ?? "";
@@ -109,7 +109,7 @@ export default function ReaderPage() {
       return "";
     }
   });
-  /** highlight = drag applies marker; underline = pen via toolbar only. */
+  /** Last mark kind chosen from the selection toolbar. */
   const [markTool, setMarkTool] = useState<"highlight" | "underline">("highlight");
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
@@ -387,7 +387,7 @@ export default function ReaderPage() {
     setMarkTool("highlight");
   };
 
-  // ---- Native drag-selection → toolbar + auto highlighter ----
+  // ---- Native text selection → toolbar (apply via toolbar actions only) ----
   useEffect(() => {
     const root = document;
     let pendingHide: number | null = null;
@@ -414,15 +414,12 @@ export default function ReaderPage() {
       };
     };
 
-    const onSelChange = () => {
-      // Update toolbar live as the user drags.
+    const syncToolbar = () => {
       if (pendingHide) {
         window.clearTimeout(pendingHide);
         pendingHide = null;
       }
       const next = computeSelection();
-      // Only show toolbar after the user has actually selected something
-      // (more than zero chars). Clearing selection hides it.
       if (!next) {
         // Small delay so picking a swatch (which momentarily clears selection
         // through React re-render) doesn't immediately hide the toolbar.
@@ -432,31 +429,9 @@ export default function ReaderPage() {
       setTbSel(next);
     };
 
-    root.addEventListener("selectionchange", onSelChange);
-    return () => {
-      root.removeEventListener("selectionchange", onSelChange);
-      if (pendingHide) window.clearTimeout(pendingHide);
-    };
-  }, [verseLengths]);
-
-  // Drag-release: apply the active highlighter color to the selected ranges.
-  useEffect(() => {
-    const applyHighlightFromSelection = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
-      const range = sel.getRangeAt(0);
-      if (!isRangeInReadingArea(range)) return;
-      const ranges = selectionToVerseRanges(range, verseLengths);
-      if (!ranges?.length) return;
-
-      void setMarkRanges(ranges, highlightColor, "highlight", verseLengths).then(() => {
-        sel.removeAllRanges();
-        setTbSel(null);
-      });
-    };
+    const onSelChange = () => syncToolbar();
 
     const onPointerUp = (e: PointerEvent) => {
-      if (markTool !== "highlight") return;
       const target = e.target as HTMLElement | null;
       if (
         target?.closest(
@@ -465,15 +440,21 @@ export default function ReaderPage() {
       ) {
         return;
       }
-
-      // Touch browsers finalize the selection after pointerup — read on next frame.
+      // Touch browsers finalize the selection after pointerup — re-sync toolbar
+      // on the next frame without auto-applying a highlight.
       requestAnimationFrame(() => {
-        requestAnimationFrame(applyHighlightFromSelection);
+        requestAnimationFrame(syncToolbar);
       });
     };
+
+    root.addEventListener("selectionchange", onSelChange);
     document.addEventListener("pointerup", onPointerUp);
-    return () => document.removeEventListener("pointerup", onPointerUp);
-  }, [markTool, verseLengths, highlightColor, setMarkRanges]);
+    return () => {
+      root.removeEventListener("selectionchange", onSelChange);
+      document.removeEventListener("pointerup", onPointerUp);
+      if (pendingHide) window.clearTimeout(pendingHide);
+    };
+  }, [verseLengths]);
 
   // Auth/onboarding gates must stay after every hook so hook order stays stable.
   if (!loading && !user) return <Navigate to="/auth" replace />;
