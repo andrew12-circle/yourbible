@@ -12,7 +12,16 @@ export interface Highlight {
   color: string;
   label: string | null;
   kind: MarkKind;
+  /** Character range in verse text; both null = whole verse. */
+  start_offset: number | null;
+  end_offset: number | null;
 }
+
+export type MarkRange = {
+  verse: number;
+  start: number;
+  end: number;
+};
 export interface Note {
   id: string; book: string; chapter: number; verse: number; body: string;
 }
@@ -33,7 +42,14 @@ export function useChapterData(book: string, chapter: number) {
       supabase.from("notes").select("*").eq("user_id", user.id).eq("book", book).eq("chapter", chapter),
     ]);
     // Old rows have no `kind` — treat them as highlights.
-    setHighlights(((h ?? []) as Highlight[]).map(x => ({ ...x, kind: x.kind ?? "highlight" })));
+    setHighlights(
+      ((h ?? []) as Highlight[]).map(x => ({
+        ...x,
+        kind: x.kind ?? "highlight",
+        start_offset: x.start_offset ?? null,
+        end_offset: x.end_offset ?? null,
+      })),
+    );
     setNotes((n ?? []) as Note[]);
   }, [user, book, chapter]);
 
@@ -55,10 +71,57 @@ export function useChapterData(book: string, chapter: number) {
     } else if (existing && color) {
       await supabase.from("highlights").update({ color }).eq("id", existing.id);
     } else if (color) {
-      await supabase
-        .from("highlights")
-        .insert({ user_id: user.id, book, chapter, verse, color, kind });
+      await supabase.from("highlights").insert({
+        user_id: user.id,
+        book,
+        chapter,
+        verse,
+        color,
+        kind,
+        start_offset: null,
+        end_offset: null,
+      });
     }
+    reload();
+  };
+
+  /**
+   * Apply highlight/underline spans from a text selection (per-verse offsets).
+   * Replaces existing marks of the same kind on touched verses.
+   */
+  const setMarkRanges = async (
+    ranges: MarkRange[],
+    color: string,
+    kind: MarkKind = "highlight",
+    verseLengths?: Map<number, number>,
+  ) => {
+    if (!user || ranges.length === 0) return;
+    const verses = [...new Set(ranges.map(r => r.verse))];
+    await supabase
+      .from("highlights")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("book", book)
+      .eq("chapter", chapter)
+      .eq("kind", kind)
+      .in("verse", verses);
+
+    const rows = ranges.map(r => {
+      const len = verseLengths?.get(r.verse);
+      const isWhole =
+        len != null && r.start <= 0 && r.end >= len;
+      return {
+        user_id: user.id,
+        book,
+        chapter,
+        verse: r.verse,
+        color,
+        kind,
+        start_offset: isWhole ? null : r.start,
+        end_offset: isWhole ? null : r.end,
+      };
+    });
+    await supabase.from("highlights").insert(rows);
     reload();
   };
 
@@ -81,7 +144,14 @@ export function useChapterData(book: string, chapter: number) {
     } else {
       // Upsert one row per verse.
       const rows = verses.map(v => ({
-        user_id: user.id, book, chapter, verse: v, color, kind,
+        user_id: user.id,
+        book,
+        chapter,
+        verse: v,
+        color,
+        kind,
+        start_offset: null,
+        end_offset: null,
       }));
       await supabase
         .from("highlights")
@@ -109,7 +179,17 @@ export function useChapterData(book: string, chapter: number) {
     reload();
   };
 
-  return { highlights, notes, setHighlight, setMark, setMarks, upsertNote, deleteNote, reload };
+  return {
+    highlights,
+    notes,
+    setHighlight,
+    setMark,
+    setMarks,
+    setMarkRanges,
+    upsertNote,
+    deleteNote,
+    reload,
+  };
 }
 
 export function useBookmarks() {

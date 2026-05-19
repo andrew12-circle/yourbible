@@ -18,7 +18,14 @@ import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
 import { SwipePage } from "@/components/bible/SwipePage";
-import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
+import { useChapterData, useBookmarks } from "@/hooks/useUserData";
+import { getPalette } from "@/lib/bible/palettes";
+import {
+  highlightIntervalsForVerse,
+  isRangeInReadingArea,
+  selectionToVerseRanges,
+  sliceTextByHighlights,
+} from "@/lib/bible/verseSelection";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
@@ -29,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
+const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
 function pageTypoClass(fontChoice: string | undefined) {
   if (fontChoice === "sans") return `font-sans ${PAGE_TYPO_BASE}`;
@@ -87,6 +95,16 @@ export default function ReaderPage() {
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
+  /** Default highlighter color — used on drag-release and toolbar swatches. */
+  const [activeHighlightColor, setActiveHighlightColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem(LS_HIGHLIGHT_COLOR_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  /** highlight = drag applies marker; underline = pen via toolbar only. */
+  const [markTool, setMarkTool] = useState<"highlight" | "underline">("highlight");
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   // Reading text-size scale (persisted). Clamp into a sane range.
@@ -122,7 +140,8 @@ export default function ReaderPage() {
     };
   }, [book.abbr, chapter]);
 
-  const { highlights, notes, setMark, setMarks, upsertNote, deleteNote } = useChapterData(book.abbr, chapter);
+  const { highlights, notes, setMark, setMarks, setMarkRanges, upsertNote, deleteNote } =
+    useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 
   // Companion pane integration
@@ -248,6 +267,15 @@ export default function ReaderPage() {
   // Reset when chapter / size changes
   useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, singlePage, fontScale]);
   const verses = passage?.verses ?? [];
+  const verseLengths = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const v of verses) m.set(v.number, v.text.length);
+    return m;
+  }, [verses]);
+  const highlightColor =
+    activeHighlightColor ||
+    getPalette(profile?.highlight_palette ?? "classic").colors[0]?.cssVar ||
+    "--hl-amber";
   const totalPagesInChapter = Math.max(1, splits.length - 1);
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -339,49 +367,33 @@ export default function ReaderPage() {
   };
 
   const noteFor = (n: number) => notes.find(x => x.verse === n);
-  const hlFor = (n: number) =>
-    highlights.find(x => x.verse === n && (x.kind ?? "highlight") === "highlight");
+  const hlsFor = (n: number) =>
+    highlights.filter(x => x.verse === n && (x.kind ?? "highlight") === "highlight");
+  const hlFor = (n: number) => hlsFor(n)[0];
   const ulFor = (n: number) =>
     highlights.find(x => x.verse === n && x.kind === "underline");
 
-  // ---- Native drag-selection → toolbar ----
-  // Listens for a stable, non-empty selection inside our reading area, then
-  // pops the SelectionToolbar over it. The toolbar applies the chosen tool
-  // to every verse the selection spans.
+  const persistHighlightColor = (cssVar: string) => {
+    setActiveHighlightColor(cssVar);
+    try {
+      localStorage.setItem(LS_HIGHLIGHT_COLOR_KEY, cssVar);
+    } catch { /* ignore */ }
+    setMarkTool("highlight");
+  };
+
+  // ---- Native drag-selection → toolbar + auto highlighter ----
   useEffect(() => {
     const root = document;
     let pendingHide: number | null = null;
-
-    const findVerseFromNode = (node: Node | null): number | null => {
-      let el: HTMLElement | null =
-        node instanceof HTMLElement
-          ? node
-          : (node?.parentElement ?? null);
-      while (el) {
-        const v = el.dataset?.verse;
-        if (v) return Number(v);
-        el = el.parentElement;
-      }
-      return null;
-    };
 
     const computeSelection = (): ToolbarSelection | null => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
       const range = sel.getRangeAt(0);
-      // Only react to selections whose ENTIRE extent lives inside our reading
-      // area — keeps the toolbar from popping over copied UI text, etc.
-      const container = (range.commonAncestorContainer instanceof HTMLElement
-        ? range.commonAncestorContainer
-        : range.commonAncestorContainer.parentElement) as HTMLElement | null;
-      if (!container || !container.closest("[data-reading-area]")) return null;
-      const startVerse = findVerseFromNode(range.startContainer);
-      const endVerse = findVerseFromNode(range.endContainer);
-      if (startVerse == null || endVerse == null) return null;
-      const lo = Math.min(startVerse, endVerse);
-      const hi = Math.max(startVerse, endVerse);
-      const verses: number[] = [];
-      for (let n = lo; n <= hi; n++) verses.push(n);
+      if (!isRangeInReadingArea(range)) return null;
+      const ranges = selectionToVerseRanges(range, verseLengths);
+      if (!ranges) return null;
+      const versesInSel = [...new Set(ranges.map(r => r.verse))].sort((a, b) => a - b);
       const rect = range.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) return null;
       return {
@@ -391,7 +403,8 @@ export default function ReaderPage() {
           right: rect.right,
           bottom: rect.bottom,
         },
-        verses,
+        verses: versesInSel,
+        ranges,
       };
     };
 
@@ -418,7 +431,27 @@ export default function ReaderPage() {
       root.removeEventListener("selectionchange", onSelChange);
       if (pendingHide) window.clearTimeout(pendingHide);
     };
-  }, []);
+  }, [verseLengths]);
+
+  // Drag-release: apply the active highlighter color to the selected ranges.
+  useEffect(() => {
+    const onPointerUp = (e: PointerEvent) => {
+      if (markTool !== "highlight") return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".verse-num, [data-selection-toolbar]")) return;
+
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      if (!isRangeInReadingArea(range)) return;
+      const ranges = selectionToVerseRanges(range, verseLengths);
+      if (!ranges?.length) return;
+
+      void setMarkRanges(ranges, highlightColor, "highlight", verseLengths);
+    };
+    document.addEventListener("pointerup", onPointerUp);
+    return () => document.removeEventListener("pointerup", onPointerUp);
+  }, [markTool, verseLengths, highlightColor, setMarkRanges]);
 
   // Auth/onboarding gates must stay after every hook so hook order stays stable.
   if (!loading && !user) return <Navigate to="/auth" replace />;
@@ -432,11 +465,17 @@ export default function ReaderPage() {
 
   const applyHighlightToSelection = async (cssVar: string) => {
     if (!tbSel) return;
-    await setMarks(tbSel.verses, cssVar, "highlight");
+    persistHighlightColor(cssVar);
+    if (tbSel.ranges.length > 0) {
+      await setMarkRanges(tbSel.ranges, cssVar, "highlight", verseLengths);
+    } else {
+      await setMarks(tbSel.verses, cssVar, "highlight");
+    }
     clearWindowSelection();
   };
   const applyUnderlineToSelection = async () => {
     if (!tbSel) return;
+    setMarkTool("underline");
     // Toggle: if every verse already underlined, clear; else apply.
     const allUnderlined = tbSel.verses.every(v => !!ulFor(v));
     await setMarks(tbSel.verses, allUnderlined ? null : "--leather", "underline");
@@ -476,41 +515,70 @@ export default function ReaderPage() {
   );
 
   const renderVerse = (v: PassageVerse) => {
-    const hl = hlFor(v.number);
     const ul = ulFor(v.number);
     const note = noteFor(v.number);
     const segments =
       redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
-    const body = segments.map((s, i) =>
-      s.isJesus ? (
-        <span key={i} className="red-letter">{s.text}</span>
-      ) : (
-        <span key={i}>{s.text}</span>
-      ),
-    );
+    const hlMarks = hlsFor(v.number);
+    const intervals = highlightIntervalsForVerse(v.text.length, hlMarks);
+    const textParts = sliceTextByHighlights(v.text, intervals);
+    const mv = markerVariant(book.abbr, chapter, v.number);
 
-    // Compose mark classes — both highlight and underline can be present.
-    const markClasses: string[] = [];
-    const styleVars: React.CSSProperties = {};
-    if (hl) {
-      markClasses.push(
-        `marker-hl v${markerVariant(book.abbr, chapter, v.number)}`,
-      );
-      (styleVars as Record<string, string>)["--hl-color"] = `var(${hl.color})`;
+    const segBounds: { start: number; end: number; seg: JesusSegment }[] = [];
+    let acc = 0;
+    for (const s of segments) {
+      segBounds.push({ start: acc, end: acc + s.text.length, seg: s });
+      acc += s.text.length;
     }
-    if (ul) {
-      markClasses.push("pen-underline");
-      (styleVars as Record<string, string>)["--ink-color"] =
-        `var(${ul.color || "--leather"})`;
+
+    const bodyNodes: React.ReactNode[] = [];
+    let global = 0;
+    for (let pi = 0; pi < textParts.length; pi++) {
+      const part = textParts[pi];
+      const pStart = global;
+      const pEnd = global + part.text.length;
+      global = pEnd;
+      for (let si = 0; si < segBounds.length; si++) {
+        const { start: sStart, end: sEnd, seg } = segBounds[si];
+        const oStart = Math.max(pStart, sStart);
+        const oEnd = Math.min(pEnd, sEnd);
+        if (oEnd <= oStart) continue;
+        const chunk = v.text.slice(oStart, oEnd);
+        let inner: React.ReactNode = chunk;
+        if (part.color) {
+          inner = (
+            <span
+              className={`marker-hl v${mv}`}
+              style={{ ["--hl-color" as string]: `var(${part.color})` }}
+            >
+              {chunk}
+            </span>
+          );
+        }
+        bodyNodes.push(
+          seg.isJesus ? (
+            <span key={`${pi}-${si}`} className="red-letter">
+              {inner}
+            </span>
+          ) : (
+            <span key={`${pi}-${si}`}>{inner}</span>
+          ),
+        );
+      }
     }
-    const wrappedBody =
-      markClasses.length > 0 ? (
-        <span className={markClasses.join(" ")} style={styleVars}>
-          {body}
-        </span>
-      ) : (
-        body
-      );
+
+    const bodyStyle: React.CSSProperties = ul
+      ? { ["--ink-color" as string]: `var(${ul.color || "--leather"})` }
+      : {};
+    const wrappedBody = (
+      <span
+        data-verse-body={v.number}
+        className={ul ? "pen-underline" : undefined}
+        style={bodyStyle}
+      >
+        {bodyNodes}
+      </span>
+    );
 
     return (
       <span key={v.number} data-verse={v.number}>
@@ -735,10 +803,12 @@ export default function ReaderPage() {
         paletteId={profile?.highlight_palette ?? "classic"}
         selection={tbSel}
         currentColor={tbSel ? hlFor(tbSel.verses[0])?.color ?? null : null}
+        activeColor={highlightColor}
         currentlyUnderlined={
           !!tbSel && tbSel.verses.every(v => !!ulFor(v))
         }
         onPickHighlight={applyHighlightToSelection}
+        onActiveColorChange={persistHighlightColor}
         onPickUnderline={applyUnderlineToSelection}
         onClear={clearMarksOnSelection}
         onNote={noteOnSelection}

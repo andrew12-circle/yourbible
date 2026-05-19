@@ -737,9 +737,11 @@ export type Database = {
           chapter: number
           color: string
           created_at: string
+          end_offset: number | null
           id: string
           kind: string
           label: string | null
+          start_offset: number | null
           updated_at: string
           user_id: string
           verse: number
@@ -749,9 +751,11 @@ export type Database = {
           chapter: number
           color: string
           created_at?: string
+          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
+          start_offset?: number | null
           updated_at?: string
           user_id: string
           verse: number
@@ -761,9 +765,11 @@ export type Database = {
           chapter?: number
           color?: string
           created_at?: string
+          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
+          start_offset?: number | null
           updated_at?: string
           user_id?: string
           verse?: number

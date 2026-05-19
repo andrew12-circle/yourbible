@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
+import type { VerseRange } from "@/lib/bible/verseSelection";
 import { Trash2, NotebookPen, PenLine, Network, BookOpenText } from "lucide-react";
 
 export type ToolbarSelection = {
@@ -7,6 +8,8 @@ export type ToolbarSelection = {
   rect: { left: number; top: number; right: number; bottom: number };
   /** Verse numbers covered by the selection (inclusive). */
   verses: number[];
+  /** Character ranges per verse for partial highlights. */
+  ranges: VerseRange[];
 };
 
 interface Props {
@@ -16,8 +19,10 @@ interface Props {
   /** Currently applied color/kind on the *first* verse of the selection (so we
    *  can show the selected swatch). */
   currentColor?: string | null;
+  activeColor?: string | null;
   currentlyUnderlined?: boolean;
   onPickHighlight: (cssVar: string) => void;
+  onActiveColorChange?: (cssVar: string) => void;
   onPickUnderline: () => void;
   onClear: () => void;
   onNote: () => void;
@@ -31,8 +36,10 @@ export function SelectionToolbar({
   paletteId,
   selection,
   currentColor,
+  activeColor,
   currentlyUnderlined,
   onPickHighlight,
+  onActiveColorChange,
   onPickUnderline,
   onClear,
   onNote,
@@ -74,16 +81,20 @@ export function SelectionToolbar({
           // the document selection alive while we read it.
           onMouseDown={(e) => e.preventDefault()}
           onPointerDown={(e) => e.preventDefault()}
+          data-selection-toolbar
           className="fixed z-50 bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
           style={{ left, top, width: TOOLBAR_W }}
         >
           {palette.colors.map((c) => (
             <button
               key={c.cssVar}
-              onClick={() => onPickHighlight(c.cssVar)}
+              onClick={() => {
+                onActiveColorChange?.(c.cssVar);
+                onPickHighlight(c.cssVar);
+              }}
               title={`${c.name}${c.meaning ? ` · ${c.meaning}` : ""}`}
               className={`w-7 h-7 rounded-full border-2 transition-all ${
-                currentColor === c.cssVar && !currentlyUnderlined
+                (activeColor ?? currentColor) === c.cssVar && !currentlyUnderlined
                   ? "border-leather scale-110"
                   : "border-paper hover:scale-105"
               }`}
