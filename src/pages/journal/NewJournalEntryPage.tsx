@@ -47,6 +47,7 @@ import {
   loadInlineChatTurns,
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
+import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 
@@ -490,7 +491,9 @@ export default function NewJournalEntryPage() {
           include_general_knowledge: true,
         },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        throw new Error(await edgeFunctionErrorMessage("my-ai-chat", error, data));
+      }
       const payload = data as { error?: string; chat_id?: string } | null;
       if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
       await loadChatTurns(ensured.chatId);

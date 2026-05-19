@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { getEmbedding } from "../_shared/aiProvider.ts";
 
 const MAX_CONTEXT_CHARS = 14_000;
 const BODY_PREVIEW = 700;
-const EMBEDDING_MODEL = "gemini-embedding-001";
-const EMBEDDING_DIMS = 768;
 
 // Recency half-life in days for the recency boost component.
 const RECENCY_HALF_LIFE_DAYS = 60;
@@ -38,28 +37,6 @@ function ageDays(ts: string | null | undefined): number {
 }
 function recencyScore(ts: string | null | undefined): number {
   return Math.pow(0.5, ageDays(ts) / RECENCY_HALF_LIFE_DAYS);
-}
-
-async function embedQuery(text: string, geminiKey: string): Promise<number[] | null> {
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
-        body: JSON.stringify({
-          model: `models/${EMBEDDING_MODEL}`,
-          content: { parts: [{ text: text.slice(0, 6000) }] },
-          taskType: "RETRIEVAL_QUERY",
-          outputDimensionality: EMBEDDING_DIMS,
-        }),
-      },
-    );
-    if (!res.ok) return null;
-    const j = await res.json() as { embedding?: { values?: number[] } };
-    const v = j?.embedding?.values;
-    return Array.isArray(v) && v.length === EMBEDDING_DIMS ? v : null;
-  } catch { return null; }
 }
 
 function vecLiteral(v: number[]): string { return `[${v.join(",")}]`; }
@@ -102,8 +79,7 @@ export async function buildFrameworkRetrievalContext(
   excludeJournalEntryId?: string | null,
 ): Promise<RetrievedContextPack> {
   const tokens = tokenize(userMessage);
-  const geminiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
-  const queryVec = geminiKey ? await embedQuery(userMessage, geminiKey) : null;
+  const queryVec = await getEmbedding(userMessage);
   const qLit = queryVec ? vecLiteral(queryVec) : null;
 
   // Parallel fetch: profile + recent assistant chat history (always needed) + semantic hits + recent fallbacks.

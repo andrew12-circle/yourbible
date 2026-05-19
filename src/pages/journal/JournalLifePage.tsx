@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { BookOpenCheck, ChevronRight, CloudMoon, PartyPopper } from "lucide-react";
+import { BookOpenCheck, ChevronRight, CloudMoon, NotebookPen, PartyPopper } from "lucide-react";
 import JournalShell from "@/components/journal/JournalShell";
 import JournalLayout from "./JournalLayout";
 import EntryListItem, { type EntryListData } from "@/components/journal/EntryListItem";
@@ -38,33 +38,54 @@ export default function JournalLifePage() {
 function Hub() {
   return (
     <JournalLayout title="Faith journal" back="/journal" largeTitle>
-      <p className="text-muted-foreground text-[15px] leading-relaxed mb-6">
+      <p className="text-[15px] text-muted-foreground leading-relaxed -mt-1 mb-5">
         Dreams, praise reports, and testimonies live here as journal entries. Mark the type when you write (or pick
         it on the full composer). Your testimony naturally changes over time—each entry is a snapshot you can revisit.
       </p>
-      <div className="space-y-3">
-        <LifeHubCard
-          to="/journal/life/dream"
-          icon={<CloudMoon className="h-6 w-6" aria-hidden />}
-          title="Dream journal"
-          description={ENTRY_KIND_META.dream.shortHint}
-          gradient="from-indigo-950/92 via-indigo-800/85 to-indigo-600/75"
-        />
-        <LifeHubCard
-          to="/journal/life/praise"
-          icon={<PartyPopper className="h-6 w-6" aria-hidden />}
-          title="Praise reports"
-          description={ENTRY_KIND_META.praise_report.shortHint}
-          gradient="from-amber-950/90 via-amber-800/82 to-amber-600/72"
-        />
-        <LifeHubCard
-          to="/journal/life/testimony"
-          icon={<BookOpenCheck className="h-6 w-6" aria-hidden />}
-          title="Testimonies"
-          description={ENTRY_KIND_META.testimony.shortHint}
-          gradient="from-emerald-950/90 via-emerald-800/84 to-emerald-600/74"
-        />
-      </div>
+
+      <Link
+        to="/journal/new"
+        className="flex items-center gap-3 p-4 mb-6 rounded-2xl border border-dashed border-border bg-card/50 hover:border-foreground/25 hover:bg-card transition"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(330_75%_52%/_0.12)]">
+          <NotebookPen className="h-5 w-5 text-[hsl(330_75%_52%)]" aria-hidden />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-foreground">Write a faith entry</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground leading-snug">
+            Open the composer — choose dream, praise, or testimony as you write
+          </p>
+        </div>
+      </Link>
+
+      <section>
+        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+          Collections
+        </h2>
+        <div className="space-y-2">
+          <LifeHubCard
+            to="/journal/life/dream"
+            icon={<CloudMoon className="h-4 w-4" aria-hidden />}
+            title="Dream journal"
+            description={ENTRY_KIND_META.dream.shortHint}
+            iconClassName="bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+          />
+          <LifeHubCard
+            to="/journal/life/praise"
+            icon={<PartyPopper className="h-4 w-4" aria-hidden />}
+            title="Praise reports"
+            description={ENTRY_KIND_META.praise_report.shortHint}
+            iconClassName="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+          />
+          <LifeHubCard
+            to="/journal/life/testimony"
+            icon={<BookOpenCheck className="h-4 w-4" aria-hidden />}
+            title="Testimonies"
+            description={ENTRY_KIND_META.testimony.shortHint}
+            iconClassName="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+          />
+        </div>
+      </section>
     </JournalLayout>
   );
 }
@@ -74,29 +95,27 @@ function LifeHubCard({
   icon,
   title,
   description,
-  gradient,
+  iconClassName,
 }: {
   to: string;
   icon: ReactNode;
   title: string;
   description: string;
-  gradient: string;
+  iconClassName: string;
 }) {
   return (
     <Link
       to={to}
-      className={
-        "flex items-center gap-4 rounded-2xl border border-white/10 bg-gradient-to-br p-4 text-white shadow-md " +
-        "transition active:scale-[0.99] hover:opacity-95 " +
-        gradient
-      }
+      className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 transition hover:border-foreground/25 hover:shadow-md active:scale-[0.99]"
     >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <h2 className="text-[17px] font-semibold tracking-tight">{title}</h2>
-        <p className="mt-0.5 text-[13px] leading-snug text-white/85">{description}</p>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}>
+        {icon}
       </div>
-      <ChevronRight className="h-5 w-5 shrink-0 text-white/70" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
+        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{description}</p>
+      </div>
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground" aria-hidden />
     </Link>
   );
 }

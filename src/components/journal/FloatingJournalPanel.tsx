@@ -14,6 +14,7 @@ import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef
 import FloatingJournalResearchChatTab from "@/components/journal/FloatingJournalResearchChatTab";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { cn } from "@/lib/utils";
 
 const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
 
@@ -61,6 +62,8 @@ export type FloatingJournalPanelProps = {
   artifactKind?: string;
   /** When provided, "Insert timestamp" uses live playback position (e.g. YouTube IFrame API). */
   getPlaybackSeconds?: () => number | null;
+  /** Navy + gold chrome for Bible reader (`/read/*`). */
+  readerTheme?: boolean;
   onClose: () => void;
 };
 
@@ -70,6 +73,7 @@ export default function FloatingJournalPanel({
   artifactTitle,
   artifactKind = "text",
   getPlaybackSeconds,
+  readerTheme = false,
   onClose,
 }: FloatingJournalPanelProps) {
   const navigate = useNavigate();
@@ -527,6 +531,13 @@ export default function FloatingJournalPanel({
 
   const showTimestamp = typeof getPlaybackSeconds === "function";
 
+  const headerIconClass = cn(
+    "h-8 w-8 shrink-0",
+    readerTheme
+      ? "text-gold hover:bg-gold/15 hover:text-gold-bright"
+      : "text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10",
+  );
+
   const writeTabEditor = (
     <>
       <p className="mb-2 shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
@@ -590,8 +601,22 @@ export default function FloatingJournalPanel({
           </p>
         ) : null}
       </div>
-      <div className="mt-3 flex shrink-0 gap-2 border-t border-border pt-3 dark:border-neutral-800">
-        <Button type="button" className="flex-1" onClick={saveEntry} disabled={saving}>
+      <div
+        className={cn(
+          "mt-3 flex shrink-0 gap-2 border-t pt-3",
+          readerTheme ? "border-gold/20" : "border-border dark:border-neutral-800",
+        )}
+      >
+        <Button
+          type="button"
+          className={cn(
+            "flex-1",
+            readerTheme &&
+              "bg-navy text-gold hover:bg-navy-deep hover:text-gold-bright border border-gold/25 shadow-none",
+          )}
+          onClick={saveEntry}
+          disabled={saving}
+        >
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -610,7 +635,12 @@ export default function FloatingJournalPanel({
       ref={rootRef}
       role="dialog"
       aria-labelledby="floating-journal-title"
-      className="fixed z-50 flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_14px_44px_-10px_rgba(15,23,42,0.22)] dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_18px_50px_-14px_rgba(0,0,0,0.65)]"
+      className={cn(
+        "fixed z-50 flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_14px_44px_-10px_rgba(15,23,42,0.22)]",
+        readerTheme
+          ? "border-gold/25 shadow-leather"
+          : "border-border dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_18px_50px_-14px_rgba(0,0,0,0.65)]",
+      )}
       style={{
         left: geom.x,
         top: geom.y,
@@ -621,17 +651,36 @@ export default function FloatingJournalPanel({
     >
       <header
         data-journal-panel-drag
-        className="relative z-10 flex min-h-[44px] shrink-0 cursor-move select-none items-center gap-2 border-b border-primary/20 bg-primary px-3 py-2 text-primary-foreground dark:border-primary/30"
+        className={cn(
+          "relative z-10 flex min-h-[44px] shrink-0 cursor-move select-none items-center gap-2 border-b px-3 py-2",
+          readerTheme
+            ? "border-gold/25 bg-navy text-gold-bright"
+            : "border-primary/20 bg-primary text-primary-foreground dark:border-primary/30",
+        )}
       >
-        <GripHorizontal className="h-4 w-4 shrink-0 text-primary-foreground/85" aria-hidden />
+        <GripHorizontal
+          className={cn(
+            "h-4 w-4 shrink-0",
+            readerTheme ? "text-gold/85" : "text-primary-foreground/85",
+          )}
+          aria-hidden
+        />
         <div className="min-w-0 flex-1 pr-1">
           <h2
             id="floating-journal-title"
-            className="font-display text-[15px] font-semibold leading-none tracking-tight text-primary-foreground"
+            className={cn(
+              "font-display text-[15px] font-semibold leading-none tracking-tight",
+              readerTheme ? "text-gold-bright" : "text-primary-foreground",
+            )}
           >
             Journal
           </h2>
-          <p className="mt-1 truncate text-[11px] leading-tight text-primary-foreground/80">
+          <p
+            className={cn(
+              "mt-1 truncate text-[11px] leading-tight",
+              readerTheme ? "text-gold/80" : "text-primary-foreground/80",
+            )}
+          >
             {artifactTitle?.trim() || (artifactId ? "Artifact" : "Quick note")}
           </p>
         </div>
@@ -640,7 +689,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
+            className={headerIconClass}
             aria-label="Tuck journal tab into screen edge"
             title="Hide journal tab"
             onClick={(e) => {
@@ -654,7 +703,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
+            className={headerIconClass}
             aria-label={geom.minimized ? "Restore panel" : "Minimize panel"}
             onClick={(e) => {
               e.stopPropagation();
@@ -667,7 +716,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
+            className={headerIconClass}
             aria-label="Open full journal editor"
             onClick={(e) => {
               e.stopPropagation();
@@ -680,7 +729,7 @@ export default function FloatingJournalPanel({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 shrink-0 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10"
+            className={headerIconClass}
             aria-label="Close and keep local draft"
             onClick={(e) => {
               e.stopPropagation();
@@ -740,3 +789,6 @@ export default function FloatingJournalPanel({
     </div>
   );
 }
+
+
+

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
+  FileUp,
   ImagePlus,
   Link2,
   Loader2,
@@ -35,6 +36,7 @@ interface Props {
   reloadKey?: number;
   onNew: () => void;
   onJournalChange: () => void;
+  onImportDayOne?: () => void;
 }
 
 const EMPTY_STATS: JournalOverviewStats = {
@@ -50,6 +52,7 @@ export default function JournalOverviewPane({
   reloadKey = 0,
   onNew,
   onJournalChange,
+  onImportDayOne,
 }: Props) {
   const { user } = useAuth();
   const [stats, setStats] = useState<JournalOverviewStats>(EMPTY_STATS);
@@ -58,10 +61,10 @@ export default function JournalOverviewPane({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [repositioning, setRepositioning] = useState(false);
-  const [draftFocal, setDraftFocal] = useState(DEFAULT_COVER_FOCAL);
+  const [savedFocal, setSavedFocal] = useState(() => journalCoverFocal(journal));
+  const [draftFocal, setDraftFocal] = useState(() => journalCoverFocal(journal));
   const [savingFocal, setSavingFocal] = useState(false);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
-  const savedFocal = journalCoverFocal(journal);
 
   const loadStats = useCallback(async () => {
     if (!user) return;
@@ -110,9 +113,18 @@ export default function JournalOverviewPane({
   }, [loadCover]);
 
   useEffect(() => {
+    const focal = journalCoverFocal(journal);
     setRepositioning(false);
-    setDraftFocal(journalCoverFocal(journal));
-  }, [journal.id, journal.cover_focal_x, journal.cover_focal_y]);
+    setSavedFocal(focal);
+    setDraftFocal(focal);
+  }, [journal.id]);
+
+  useEffect(() => {
+    if (repositioning) return;
+    const focal = journalCoverFocal(journal);
+    setSavedFocal(focal);
+    setDraftFocal(focal);
+  }, [journal.cover_focal_x, journal.cover_focal_y, repositioning]);
 
   const copyJournalUrl = async () => {
     const url = `${window.location.origin}/journal/j/${journal.id}`;
@@ -173,8 +185,9 @@ export default function JournalOverviewPane({
         cover_focal_x: draftFocal.x,
         cover_focal_y: draftFocal.y,
       });
-      onJournalChange();
+      setSavedFocal(draftFocal);
       setRepositioning(false);
+      await Promise.resolve(onJournalChange());
       toast({ title: "Cover position saved" });
     } catch (e) {
       toast({
@@ -204,12 +217,16 @@ export default function JournalOverviewPane({
               onAddCover={() => coverInputRef.current?.click()}
               onRepositionCover={startReposition}
               onCopyUrl={copyJournalUrl}
+              onImportDayOne={onImportDayOne}
               hasCoverPhoto
               repositioning={repositioning}
               overlay
             />
             {repositioning ? (
-              <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-6 pb-5">
+              <div
+                className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-center gap-2 px-6 pb-5 pointer-events-auto"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
                 <Button
                   variant="secondary"
                   size="sm"
@@ -248,6 +265,7 @@ export default function JournalOverviewPane({
               onSettings={() => setSettingsOpen(true)}
               onAddCover={() => coverInputRef.current?.click()}
               onCopyUrl={copyJournalUrl}
+              onImportDayOne={onImportDayOne}
               overlay
             />
             <div className="absolute bottom-0 left-0 right-0 px-8 pb-6">
@@ -267,6 +285,7 @@ export default function JournalOverviewPane({
             onSettings={() => setSettingsOpen(true)}
             onAddCover={() => coverInputRef.current?.click()}
             onCopyUrl={copyJournalUrl}
+            onImportDayOne={onImportDayOne}
           />
           <div className="mt-10">
             <JournalIdentity journal={journal} large />
@@ -325,6 +344,7 @@ function OverviewHeader({
   onAddCover,
   onRepositionCover,
   onCopyUrl,
+  onImportDayOne,
   hasCoverPhoto,
   repositioning,
   overlay,
@@ -334,6 +354,7 @@ function OverviewHeader({
   onAddCover: () => void;
   onRepositionCover?: () => void;
   onCopyUrl: () => void;
+  onImportDayOne?: () => void;
   hasCoverPhoto?: boolean;
   repositioning?: boolean;
   overlay?: boolean;
@@ -378,6 +399,12 @@ function OverviewHeader({
             <Link2 className="w-4 h-4 mr-2" />
             Copy Journal URL
           </DropdownMenuItem>
+          {onImportDayOne && (
+            <DropdownMenuItem onClick={onImportDayOne}>
+              <FileUp className="w-4 h-4 mr-2" />
+              Import from Day One
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

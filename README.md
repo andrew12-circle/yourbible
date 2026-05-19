@@ -30,14 +30,15 @@ Vite serves the app on port `8080` by default.
 The frontend expects these Vite variables:
 
 ```sh
-VITE_SUPABASE_PROJECT_ID=
+VITE_SUPABASE_PROJECT_ID=your_project_ref
+VITE_SUPABASE_URL=https://your_project_ref.supabase.co
+# Publishable key (sb_publishable_…) or legacy anon JWT (eyJ…) from Dashboard → Settings → API Keys
 VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_SUPABASE_URL=
 ```
 
-The current project includes a `.env` for the connected Supabase/Lovable
-project. If you recreate the environment, copy `.env.example` to `.env` and fill
-in the matching project values.
+Copy `.env.example` to `.env` and paste keys from the same Supabase project.
+Copy the full publishable key carefully (easy to confuse `0` and `O`). Legacy
+anon JWT in the same variable also works with `@supabase/supabase-js`.
 
 ## Useful commands
 

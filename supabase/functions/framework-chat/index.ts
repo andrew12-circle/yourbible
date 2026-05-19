@@ -18,7 +18,13 @@ const MODE_PROMPTS: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const KEY = Deno.env.get("GEMINI_API_KEY")!;
+    const KEY = Deno.env.get("GEMINI_API_KEY")?.trim() ?? "";
+    if (!KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured." }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";

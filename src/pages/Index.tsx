@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
@@ -13,7 +14,7 @@ const Index = () => {
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
-  if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
+  if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
   return <Navigate to="/home" replace />;
 };
 

@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
+import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -147,7 +148,7 @@ export default function SettingsPage() {
       <header className="sticky top-0 z-20 bg-paper/80 backdrop-blur-md border-b border-paper-edge">
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">
           <Link to="/"><Button variant="ghost" size="icon" className="text-leather"><ChevronLeft className="w-5 h-5" /></Button></Link>
-          <h1 className="font-display text-xl text-leather">My Bible</h1>
+          <h1 className="font-display text-xl text-leather">Sacred & Modern</h1>
         </div>
       </header>
 
@@ -241,15 +242,16 @@ export default function SettingsPage() {
         {/* Cover */}
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Cover</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
             {COVERS.map(c => (
-              <button key={c.id} onClick={() => save({ cover: c.id })}
-                className={`relative aspect-[3/4] rounded-md overflow-hidden border-2 transition-all ${profile.cover === c.id ? "border-gold shadow-gold" : "border-paper-edge"}`}
-                style={{ background: c.swatch }}>
-                <div className="absolute inset-1.5 border border-gold/40 rounded-sm" />
-                <div className="absolute bottom-1 left-2 text-[10px] text-gold-bright font-display">{c.label}</div>
-                {profile.cover === c.id && <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-gold flex items-center justify-center"><Check className="w-3 h-3 text-leather-deep" strokeWidth={3} /></div>}
-              </button>
+              <LeatherCoverCard
+                key={c.id}
+                cover={c}
+                selected={profile.cover === c.id}
+                onClick={() => save({ cover: c.id })}
+                layout="compact"
+                className="rounded-md"
+              />
             ))}
           </div>
         </section>

@@ -66,32 +66,33 @@ export default function JournalCoverBanner({
     : undefined;
 
   return (
-    <div
-      ref={frameRef}
-      className={`relative h-44 sm:h-52 flex-shrink-0 overflow-hidden ${
-        repositioning ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""
-      }`}
-      {...dragHandlers}
-    >
-      <img
-        src={coverUrl}
-        alt=""
-        draggable={false}
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-        style={{ objectPosition }}
-      />
-      {repositioning && (
-        <div
-          className="absolute inset-0 z-[5] flex items-center justify-center bg-black/25 pointer-events-none"
-          aria-hidden
-        >
-          <p className="text-sm font-medium text-white/90 drop-shadow-sm">Drag to reposition</p>
-        </div>
-      )}
+    <div ref={frameRef} className="relative h-44 sm:h-52 flex-shrink-0 overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/55 via-black/20 to-black/10"
-        aria-hidden
-      />
+        className={`absolute inset-0 ${
+          repositioning ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""
+        }`}
+        {...dragHandlers}
+      >
+        <img
+          src={coverUrl}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{ objectPosition }}
+        />
+        {repositioning && (
+          <div
+            className="absolute inset-0 z-[5] flex items-center justify-center bg-black/25 pointer-events-none"
+            aria-hidden
+          >
+            <p className="text-sm font-medium text-white/90 drop-shadow-sm">Drag to reposition</p>
+          </div>
+        )}
+        <div
+          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/55 via-black/20 to-black/10"
+          aria-hidden
+        />
+      </div>
       {children}
     </div>
   );

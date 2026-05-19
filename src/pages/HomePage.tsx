@@ -1,5 +1,6 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -258,7 +259,7 @@ export default function HomePage() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin opacity-50" /></div>;
   }
   if (!user) return <Navigate to="/auth" replace />;
-  if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
+  if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
   const greeting = (() => {
     const h = now.getHours();

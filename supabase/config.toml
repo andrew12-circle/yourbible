@@ -1,6 +1,9 @@
-project_id = "hlfyyijdmnjmrihngeqa"
+project_id = "itmcsyrnpcnrwviigppe"
 
 [functions.import-chatgpt-export]
+verify_jwt = true
+
+[functions.import-day-one]
 verify_jwt = true
 
 [functions.import-pdf]

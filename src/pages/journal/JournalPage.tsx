@@ -22,6 +22,7 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
+import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
 
 interface Entry extends EntryListData {
   journal_id: string | null;
@@ -38,6 +39,7 @@ export default function JournalPage() {
   // Desktop: 3-pane shell
   const [journals, setJournals] = useState<Journal[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [dayOneImportOpen, setDayOneImportOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -82,12 +84,14 @@ export default function JournalPage() {
 
   if (isDesktop) {
     return (
+      <>
       <JournalDeskLayout
         sidebar={
           <JournalsRail
             journals={journals}
             activeJournalId={journalId}
             onChange={() => setReloadKey((k) => k + 1)}
+            onImportDayOne={() => setDayOneImportOpen(true)}
           />
         }
         list={
@@ -115,13 +119,20 @@ export default function JournalPage() {
               journals={journals}
               reloadKey={reloadKey}
               onNew={createNew}
+              onImportDayOne={() => setDayOneImportOpen(true)}
             />
           ) : activeJournal && !entryId ? (
             <JournalOverviewPane
               journal={activeJournal}
               reloadKey={reloadKey}
               onNew={createNew}
-              onJournalChange={() => setReloadKey((k) => k + 1)}
+              onImportDayOne={() => setDayOneImportOpen(true)}
+              onJournalChange={async () => {
+                if (!user) return;
+                const list = await ensureDefaultJournal(user.id);
+                setJournals(list);
+                setReloadKey((k) => k + 1);
+              }}
             />
           ) : (
             <EntryEditorPane
@@ -140,6 +151,17 @@ export default function JournalPage() {
           )
         }
       />
+      <DayOneImportDialog
+        open={dayOneImportOpen}
+        onOpenChange={setDayOneImportOpen}
+        journals={journals}
+        defaultJournalId={journalId}
+        onImported={(id) => {
+          setReloadKey((k) => k + 1);
+          if (id) navigate(`/journal/j/${id}`);
+        }}
+      />
+      </>
     );
   }
 

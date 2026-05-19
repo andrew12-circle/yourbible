@@ -20,6 +20,8 @@ import {
 
   Plus,
 
+  FileUp,
+
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +84,8 @@ interface Props {
 
   onNew: () => void;
 
+  onImportDayOne?: () => void;
+
 }
 
 
@@ -108,7 +112,7 @@ const ALL_ENTRIES_TINT = "hsl(211 100% 50% / 0.14)";
 
 
 
-export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew }: Props) {
+export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew, onImportDayOne }: Props) {
 
   const { user, profile, refreshProfile } = useAuth();
 
@@ -128,7 +132,13 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
   const [repositioning, setRepositioning] = useState(false);
 
-  const [draftFocal, setDraftFocal] = useState(DEFAULT_COVER_FOCAL);
+  const [savedFocal, setSavedFocal] = useState(() =>
+    allEntriesCoverFocal(allEntriesCoverFromProfile(profile ?? undefined)),
+  );
+
+  const [draftFocal, setDraftFocal] = useState(() =>
+    allEntriesCoverFocal(allEntriesCoverFromProfile(profile ?? undefined)),
+  );
 
   const [savingFocal, setSavingFocal] = useState(false);
 
@@ -137,8 +147,6 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
 
   const coverSettings = allEntriesCoverFromProfile(profile ?? undefined);
-
-  const savedFocal = allEntriesCoverFocal(coverSettings);
 
   const hasCoverBanner = hasAllEntriesCoverPhoto(coverSettings);
 
@@ -294,9 +302,27 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
   useEffect(() => {
 
+    const focal = allEntriesCoverFocal(coverSettings);
+
     setRepositioning(false);
 
-    setDraftFocal(allEntriesCoverFocal(coverSettings));
+    setSavedFocal(focal);
+
+    setDraftFocal(focal);
+
+  }, [profile?.all_entries_cover_kind, profile?.all_entries_cover_value]);
+
+
+
+  useEffect(() => {
+
+    if (repositioning) return;
+
+    const focal = allEntriesCoverFocal(coverSettings);
+
+    setSavedFocal(focal);
+
+    setDraftFocal(focal);
 
   }, [
 
@@ -304,9 +330,7 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
     profile?.all_entries_cover_focal_y,
 
-    profile?.all_entries_cover_kind,
-
-    profile?.all_entries_cover_value,
+    repositioning,
 
   ]);
 
@@ -402,9 +426,11 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
       });
 
-      await refreshProfile();
+      setSavedFocal(draftFocal);
 
       setRepositioning(false);
+
+      await refreshProfile();
 
       toast({ title: "Cover position saved" });
 
@@ -456,7 +482,10 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
             {repositioning ? (
 
-              <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-6 pb-5">
+              <div
+                className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-center gap-2 px-6 pb-5 pointer-events-auto"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
 
                 <Button
 
@@ -514,6 +543,8 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
               onRepositionCover={startReposition}
 
+              onImportDayOne={onImportDayOne}
+
               hasCoverPhoto
 
               repositioning={repositioning}
@@ -530,6 +561,7 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
             onNew={onNew}
             onAddCover={() => coverInputRef.current?.click()}
             onRepositionCover={startReposition}
+            onImportDayOne={onImportDayOne}
             hasCoverPhoto
             overlay
           />
@@ -538,7 +570,7 @@ export default function AllEntriesOverviewPane({ journals, reloadKey = 0, onNew 
 
       ) : (
 
-        <GradientBanner onNew={onNew} onAddCover={() => coverInputRef.current?.click()} />
+        <GradientBanner onNew={onNew} onAddCover={() => coverInputRef.current?.click()} onImportDayOne={onImportDayOne} />
 
       )}
 
@@ -666,12 +698,14 @@ function GradientBanner({
   onNew,
   onAddCover,
   onRepositionCover,
+  onImportDayOne,
   hasCoverPhoto,
   overlay,
 }: {
   onNew: () => void;
   onAddCover: () => void;
   onRepositionCover?: () => void;
+  onImportDayOne?: () => void;
   hasCoverPhoto?: boolean;
   overlay?: boolean;
 }) {
@@ -705,6 +739,7 @@ function GradientBanner({
         onNew={onNew}
         onAddCover={onAddCover}
         onRepositionCover={onRepositionCover}
+        onImportDayOne={onImportDayOne}
         hasCoverPhoto={hasCoverPhoto}
         overlay={overlay}
       />
@@ -733,6 +768,8 @@ function OverviewHeader({
 
   onRepositionCover,
 
+  onImportDayOne,
+
   hasCoverPhoto,
 
   repositioning,
@@ -746,6 +783,8 @@ function OverviewHeader({
   onAddCover: () => void;
 
   onRepositionCover?: () => void;
+
+  onImportDayOne?: () => void;
 
   hasCoverPhoto?: boolean;
 
@@ -816,6 +855,18 @@ function OverviewHeader({
               <Move className="w-4 h-4 mr-2" />
 
               Reposition Cover
+
+            </DropdownMenuItem>
+
+          )}
+
+          {onImportDayOne && (
+
+            <DropdownMenuItem onClick={onImportDayOne}>
+
+              <FileUp className="w-4 h-4 mr-2" />
+
+              Import from Day One
 
             </DropdownMenuItem>
 

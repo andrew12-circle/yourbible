@@ -1,3 +1,6 @@
+-- Required for partner_invites.token default (gen_random_bytes)
+create extension if not exists pgcrypto with schema extensions;
+
 -- knowledge_entities
 create table if not exists public.knowledge_entities (
   id uuid primary key default gen_random_uuid(),
@@ -197,7 +200,7 @@ CREATE TABLE IF NOT EXISTS public.partner_invites (
   inviter_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   invitee_email text NOT NULL,
   relationship text NOT NULL DEFAULT 'friend' CHECK (relationship IN ('spouse','friend','mentor','family','other')),
-  token text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(24),'hex'),
+  token text NOT NULL UNIQUE DEFAULT encode(extensions.gen_random_bytes(24),'hex'),
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','revoked','expired')),
   created_at timestamptz NOT NULL DEFAULT now(),
   accepted_at timestamptz NULL,

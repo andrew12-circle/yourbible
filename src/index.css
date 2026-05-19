@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   Your Bible — Premium leather aesthetic
+   Sacred & Modern — Premium leather aesthetic
    Warm cream paper · cordovan leather · gold accents
    All colors HSL.
    ============================================================ */
@@ -36,6 +36,11 @@
     --gold: 38 58% 52%;
     --gold-bright: 42 78% 62%;
     --gold-deep: 32 48% 38%;
+
+    /* Reader journal chrome — dark navy */
+    --navy: 220 42% 20%;
+    --navy-deep: 220 48% 14%;
+    --navy-light: 220 35% 28%;
 
     --secondary: 36 24% 86%;
     --secondary-foreground: 24 18% 14%;
@@ -267,6 +272,89 @@
       repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.04) 0 1px, transparent 1px 5px);
     pointer-events: none;
     mix-blend-mode: overlay;
+  }
+
+  /* Bible cover swatches — simulated leather for onboarding & settings */
+  .leather-cover-card {
+    /* --lc-* set inline per cover via coverLeatherStyle() */
+    isolation: isolate;
+    box-shadow:
+      inset 0 1px 0 hsl(var(--lc-highlight) / 0.28),
+      inset 0 -3px 10px hsl(var(--lc-deep) / 0.55),
+      0 6px 20px -6px hsl(0 0% 0% / 0.4);
+    background:
+      linear-gradient(90deg, hsl(var(--lc-deep) / 0.75) 0%, hsl(var(--lc-deep) / 0.2) 7%, transparent 11%),
+      radial-gradient(ellipse 85% 45% at 24% 10%, hsl(var(--lc-light) / 0.5) 0%, transparent 58%),
+      radial-gradient(ellipse 65% 55% at 78% 92%, hsl(var(--lc-deep) / 0.7) 0%, transparent 62%),
+      radial-gradient(ellipse 40% 30% at 88% 18%, hsl(var(--lc-mid) / 0.35) 0%, transparent 70%),
+      linear-gradient(
+        152deg,
+        hsl(var(--lc-deep)) 0%,
+        hsl(var(--lc-base)) 32%,
+        hsl(var(--lc-mid)) 52%,
+        hsl(var(--lc-base)) 72%,
+        hsl(var(--lc-deep)) 100%
+      );
+  }
+
+  .leather-cover-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.2;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9 1.1' numOctaves='4' seed='12'/><feColorMatrix type='saturate' values='0.15'/></filter><rect width='100%25' height='100%25' filter='url(%23g)' opacity='0.9'/></svg>");
+    background-size: 160px 160px;
+    mix-blend-mode: soft-light;
+  }
+
+  .leather-cover-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background-image:
+      repeating-linear-gradient(118deg, hsl(0 0% 0% / 0.06) 0 0.5px, transparent 0.5px 10px),
+      repeating-linear-gradient(62deg, hsl(0 0% 100% / 0.04) 0 0.5px, transparent 0.5px 14px);
+    mix-blend-mode: overlay;
+  }
+
+  .leather-cover--foil-gold {
+    box-shadow:
+      inset 0 1px 0 hsl(43 70% 58% / 0.35),
+      inset 0 -3px 10px hsl(0 0% 0% / 0.65),
+      inset 0 0 0 2px hsl(43 72% 52% / 0.28),
+      0 6px 20px -6px hsl(0 0% 0% / 0.5);
+  }
+
+  .leather-cover-stitch {
+    position: absolute;
+    inset: 7px;
+    z-index: 1;
+    border-radius: 4px;
+    pointer-events: none;
+    border: 1px dashed hsl(var(--lc-stitch) / 0.45);
+    box-shadow:
+      inset 0 0 0 1px hsl(0 0% 0% / 0.15),
+      inset 0 0 12px hsl(var(--lc-deep) / 0.2);
+    opacity: 0.65;
+  }
+
+  .leather-cover-frame {
+    position: absolute;
+    inset: 5px;
+    z-index: 1;
+    border-radius: 5px;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px hsl(var(--lc-stitch) / 0.22);
+  }
+
+  /* Fallback if inline vars missing — match palettes.ts COVER_LEATHER */
+  .leather-cover-card[data-cover="obsidian"] .leather-cover-stitch {
+    border-color: hsl(43 72% 58% / 0.55);
   }
 
   .gold-foil {

@@ -166,7 +166,10 @@ export default function EntryEditorPane({
       return;
     }
     setReplyWithAi(true);
-    await ensureSession();
+    const ensured = await ensureSession();
+    if (ensured && entryRef.current?.entry_kind !== "chat") {
+      queueSave({ entry_kind: "chat" });
+    }
     scrollToBottom();
   };
 

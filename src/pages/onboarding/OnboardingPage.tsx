@@ -3,89 +3,190 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
+import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { BookOpen, Brain, Check, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
+const STEPS = 3;
+
+const SPACES = [
+  {
+    icon: BookOpen,
+    title: "Reader",
+    description: "A beautiful Bible with highlights, notes, and ribbons. Pick a translation anytime in the reader.",
+  },
+  {
+    icon: NotebookPen,
+    title: "Journal",
+    description: "Daily prompts, life chapters, and a place to process what you're walking through.",
+  },
+  {
+    icon: Brain,
+    title: "Framework",
+    description: "Map beliefs, tensions, and influences — your faith in your own words.",
+  },
+] as const;
+
 export default function OnboardingPage() {
-  const { user, profile, updateProfile, loading } = useAuth();
+  const { user, profile, updateProfile, refreshProfile, loading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [cover, setCover] = useState(profile?.cover ?? "cordovan");
   const [palette, setPalette] = useState(profile?.highlight_palette ?? "classic");
   const [busy, setBusy] = useState(false);
 
-  if (!loading && !user) return <Navigate to="/auth" replace />;
-  if (!loading && profile?.onboarded) return <Navigate to="/" replace />;
+  if (loading) {
+    return (
+      <motion.div className="min-h-screen app-mesh flex items-center justify-center">
+        <motion.div className="text-sm text-muted-foreground">Loading…</motion.div>
+      </motion.div>
+    );
+  }
+  if (!user) return <Navigate to="/auth" replace />;
+  if (profile?.onboarded) return <Navigate to="/home" replace />;
 
   const finish = async () => {
     setBusy(true);
-    const { error } = await updateProfile({ cover, highlight_palette: palette, onboarded: true });
-    setBusy(false);
-    if (error) {
-      toast({ variant: "destructive", title: "Couldn't finish setup", description: error.message });
-      return;
+    try {
+      if (!profile) await refreshProfile();
+      const { error, profile: saved } = await updateProfile({
+        cover,
+        highlight_palette: palette,
+        onboarded: true,
+      });
+      if (error) {
+        toast({ variant: "destructive", title: "Couldn't finish setup", description: error.message });
+        return;
+      }
+      if (!saved?.onboarded) {
+        toast({
+          variant: "destructive",
+          title: "Couldn't finish setup",
+          description: "Your profile didn't save. Check your connection and try again.",
+        });
+        return;
+      }
+      toast({ title: "You're all set", description: "Sacred & Modern is ready whenever you are." });
+      navigate("/home", { replace: true });
+    } finally {
+      setBusy(false);
     }
-    toast({ title: "Your Bible is ready", description: "Open it whenever you'd like." });
-    navigate("/");
   };
 
   return (
     <div className="min-h-screen app-mesh flex flex-col items-center justify-center px-6 py-10">
-      <div className="w-full max-w-2xl">
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-10">
-          {[0, 1].map(i => (
-            <div key={i} className={`h-1 w-12 rounded-full transition-colors ${i <= step ? "bg-leather" : "bg-paper-edge"}`} />
+      <motion.div className="w-full max-w-2xl" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div className="flex items-center justify-center gap-2 mb-10">
+          {Array.from({ length: STEPS }, (_, i) => (
+            <motion.div
+              key={i}
+              layout
+              className={`h-1 rounded-full transition-all ${i <= step ? "bg-leather w-12" : "bg-paper-edge w-8"}`}
+            />
           ))}
-        </div>
+        </motion.div>
 
         <AnimatePresence mode="wait">
           {step === 0 && (
-            <motion.div key="cover" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.4 }}>
-              <h2 className="font-display text-3xl text-leather text-center mb-2">Choose your cover</h2>
-              <p className="text-center text-muted-foreground text-sm mb-8">A Bible should feel like yours from the moment you open it.</p>
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.4 }}
+            >
+              <p className="text-center text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">Welcome</p>
+              <h2 className="font-display text-3xl text-leather text-center mb-2">Sacred & Modern</h2>
+              <p className="text-center text-muted-foreground text-sm mb-8 max-w-md mx-auto leading-relaxed">
+                Scripture, journaling, and a framework for your faith — one home for the sacred and the everyday.
+              </p>
 
-              <div className="grid grid-cols-2 gap-5">
-                {COVERS.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setCover(c.id)}
-                    className={`group relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${cover === c.id ? "border-gold shadow-gold scale-[1.02]" : "border-paper-edge"}`}
-                    style={{ background: c.swatch }}
+              <motion.div
+                className="space-y-3"
+                initial="hidden"
+                animate="visible"
+                variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+              >
+                {SPACES.map(({ icon: Icon, title, description }) => (
+                  <motion.div
+                    key={title}
+                    variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+                    className="flex gap-4 p-4 rounded-xl border border-paper-edge bg-paper/70"
                   >
-                    {/* Gold edge frame */}
-                    <div className="absolute inset-2 border border-gold/40 rounded" />
-                    <div className="absolute inset-0 flex items-end p-4 bg-gradient-to-t from-black/50 to-transparent">
-                      <div className="text-left">
-                        <div className="text-gold-bright font-display text-lg">{c.label}</div>
-                        <div className="text-white/70 text-xs">{c.tagline}</div>
-                      </div>
+                    <div className="shrink-0 w-11 h-11 rounded-xl bg-leather/10 flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-leather" strokeWidth={1.75} />
                     </div>
-                    {cover === c.id && (
-                      <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gold flex items-center justify-center">
-                        <Check className="w-4 h-4 text-leather-deep" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
+                    <div>
+                      <div className="font-display text-lg text-leather">{title}</div>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+                    </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
+
+              <p className="text-center text-xs text-muted-foreground mt-6">
+                Next: personalize your reader cover and highlight colors. You can change these anytime in Settings.
+              </p>
 
               <div className="flex justify-end mt-8">
-                <Button onClick={() => setStep(1)} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">Continue</Button>
+                <Button onClick={() => setStep(1)} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
+                  Continue
+                </Button>
               </div>
             </motion.div>
           )}
 
           {step === 1 && (
-            <motion.div key="palette" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.4 }}>
-              <h2 className="font-display text-3xl text-leather text-center mb-2">Choose a highlight palette</h2>
-              <p className="text-center text-muted-foreground text-sm mb-8">You can name and reassign each color later.</p>
+            <motion.div
+              key="cover"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h2 className="font-display text-3xl text-leather text-center mb-2">Your reader cover</h2>
+              <p className="text-center text-muted-foreground text-sm mb-8">
+                How your Bible looks when you open the reader. Translation is chosen in the reader menu.
+              </p>
+
+              <motion.div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[min(52vh,520px)] overflow-y-auto pr-1 -mr-1">
+                {COVERS.map(c => (
+                  <LeatherCoverCard
+                    key={c.id}
+                    cover={c}
+                    selected={cover === c.id}
+                    onClick={() => setCover(c.id)}
+                    layout="full"
+                  />
+                ))}
+              </motion.div>
+
+              <div className="flex justify-between mt-8">
+                <Button variant="ghost" type="button" onClick={() => setStep(0)}>Back</Button>
+                <Button type="button" onClick={() => setStep(2)} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
+                  Continue
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div
+              key="palette"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h2 className="font-display text-3xl text-leather text-center mb-2">Highlight palette</h2>
+              <p className="text-center text-muted-foreground text-sm mb-8">Colors for marking verses — rename and reassign later.</p>
 
               <div className="space-y-4">
                 {PALETTES.map(p => (
                   <button
                     key={p.id}
+                    type="button"
                     onClick={() => setPalette(p.id)}
                     className={`w-full text-left p-5 rounded-lg border-2 transition-all bg-paper/70 ${palette === p.id ? "border-gold shadow-gold" : "border-paper-edge hover:border-leather/30"}`}
                   >
@@ -95,12 +196,14 @@ export default function OnboardingPage() {
                         <div className="text-xs text-muted-foreground">{p.tagline}</div>
                       </div>
                       {palette === p.id && (
-                        <div className="w-6 h-6 rounded-full bg-gold flex items-center justify-center"><Check className="w-3.5 h-3.5 text-leather-deep" strokeWidth={3} /></div>
+                        <div className="w-6 h-6 rounded-full bg-gold flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5 text-leather-deep" strokeWidth={3} />
+                        </div>
                       )}
                     </div>
                     <div className="flex gap-2">
                       {p.colors.map(col => (
-                        <div key={col.name} className="flex-1 h-7 rounded" style={{ background: `hsl(var(${col.cssVar}))` }} title={col.name} />
+                        <motion.div key={col.name} className="flex-1 h-7 rounded" style={{ background: `hsl(var(${col.cssVar}))` }} title={col.name} />
                       ))}
                     </div>
                   </button>
@@ -108,15 +211,15 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex justify-between mt-8">
-                <Button variant="ghost" onClick={() => setStep(0)}>Back</Button>
-                <Button disabled={busy} onClick={finish} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
-                  {busy ? "Setting up…" : "Open my Bible"}
+                <Button variant="ghost" type="button" onClick={() => setStep(1)}>Back</Button>
+                <Button type="button" disabled={busy} onClick={finish} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
+                  {busy ? "Setting up…" : "Enter Sacred & Modern"}
                 </Button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </div>
   );
 }

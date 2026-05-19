@@ -10,6 +10,7 @@ import {
   Settings,
   BookHeart,
   Flame,
+  FileUp,
 } from "lucide-react";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,9 +25,10 @@ interface Props {
   activeJournalId: string | null;
   /** When set, the rail is rendered in a sheet/drawer (mobile). */
   inSheet?: boolean;
+  onImportDayOne?: () => void;
 }
 
-export default function JournalsRail({ journals, onChange, activeJournalId, inSheet }: Props) {
+export default function JournalsRail({ journals, onChange, activeJournalId, inSheet, onImportDayOne }: Props) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -153,6 +155,16 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           <p className="px-3 py-2 text-[13px] text-muted-foreground">
             No personal journals yet.
           </p>
+        )}
+        {onImportDayOne && (
+          <button
+            type="button"
+            onClick={onImportDayOne}
+            className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] text-muted-foreground hover:bg-muted/50 hover:text-foreground mt-1"
+          >
+            <FileUp className="w-4 h-4" />
+            Import from Day One
+          </button>
         )}
       </nav>
 

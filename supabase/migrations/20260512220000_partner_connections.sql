@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.partner_invites (
   invitee_email text NOT NULL,
   relationship text NOT NULL DEFAULT 'friend'
     CHECK (relationship IN ('spouse', 'friend', 'mentor', 'family', 'other')),
-  token text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(24), 'hex'),
+  token text NOT NULL UNIQUE DEFAULT encode(extensions.gen_random_bytes(24), 'hex'),
   status text NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
   created_at timestamptz NOT NULL DEFAULT now(),

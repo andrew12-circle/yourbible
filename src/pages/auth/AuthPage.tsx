@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { postAuthPath } from "@/lib/auth/onboardingGate";
 import { toast } from "@/hooks/use-toast";
 import { BookOpen, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable";
@@ -22,7 +23,7 @@ function safeAppNext(raw: string | null): string | null {
 }
 
 export default function AuthPage() {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, profile, signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const nextTarget = useMemo(() => safeAppNext(params.get("next")), [params]);
@@ -34,7 +35,7 @@ export default function AuthPage() {
   const [appleBusy, setAppleBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
-  if (!loading && user) return <Navigate to={nextTarget ?? "/"} replace />;
+  if (!loading && user) return <Navigate to={postAuthPath(profile, nextTarget)} replace />;
 
   const signInWithApple = async () => {
     setAppleBusy(true);
@@ -47,7 +48,7 @@ export default function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate(nextTarget ?? "/");
+    navigate("/");
   };
 
   const signInWithGoogle = async () => {
@@ -61,25 +62,39 @@ export default function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate(nextTarget ?? "/");
+    navigate("/");
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const fn = mode === "signin" ? signIn(email, password) : signUp(email, password, name);
-    const { error } = await fn;
+    if (mode === "signin") {
+      const { error, profile: signedInProfile } = await signIn(email, password);
+      setBusy(false);
+      if (error) {
+        toast({ variant: "destructive", title: "Couldn't continue", description: error.message });
+        return;
+      }
+      navigate(postAuthPath(signedInProfile, nextTarget));
+      return;
+    }
+
+    const { error, sessionCreated } = await signUp(email, password, name);
     setBusy(false);
     if (error) {
       toast({ variant: "destructive", title: "Couldn't continue", description: error.message });
       return;
     }
-    if (mode === "signup") {
-      toast({ title: "Welcome", description: "Let's set up your Bible." });
-      navigate("/onboarding");
-    } else {
-      navigate(nextTarget ?? "/");
+    if (!sessionCreated) {
+      toast({
+        title: "Check your email",
+        description: "Confirm your address, then sign in to finish setup.",
+      });
+      setMode("signin");
+      return;
     }
+    toast({ title: "Welcome", description: "Let's set up Sacred & Modern." });
+    navigate("/onboarding");
   };
 
   return (
@@ -96,8 +111,8 @@ export default function AuthPage() {
             shadow-[0_18px_40px_-12px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(255,255,255,0.45)]">
             <BookOpen className="w-9 h-9 text-white drop-shadow" strokeWidth={2} />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">Your Bible</h1>
-          <p className="text-muted-foreground text-[15px]">A Bible that feels like yours.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">Sacred & Modern</h1>
+          <p className="text-muted-foreground text-[15px]">Where sacred meets modern.</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4 bg-white/85 backdrop-blur-xl p-7 rounded-3xl border border-white/70 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.18)]">
@@ -117,7 +132,7 @@ export default function AuthPage() {
               autoComplete={mode === "signup" ? "new-password" : "current-password"} className="h-11 rounded-xl bg-secondary border-transparent" />
           </div>
           <Button type="submit" disabled={busy} className="w-full h-12 rounded-xl text-[15px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_10px_24px_-8px_hsl(var(--primary)/0.55)]">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Open my Bible" : "Begin"}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Begin"}
           </Button>
           <button
             type="button"

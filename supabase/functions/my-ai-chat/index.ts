@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { callChatJson, getChatConfig } from "../_shared/aiProvider.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { buildJournalChatSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
 
@@ -6,8 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const GEMINI_MODEL = "gemini-2.5-flash";
 
 type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
@@ -39,22 +38,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function extractGeminiText(data: unknown): string {
-  if (!isRecord(data)) return "";
-  const candidates = data.candidates;
-  if (!Array.isArray(candidates) || candidates.length === 0) return "";
-  const first = candidates[0];
-  if (!isRecord(first)) return "";
-  const content = first.content;
-  if (!isRecord(content)) return "";
-  const parts = content.parts;
-  if (!Array.isArray(parts)) return "";
-  return parts
-    .map((p) => (isRecord(p) && typeof p.text === "string" ? p.text : ""))
-    .join("")
-    .trim();
 }
 
 function stripJsonFence(text: string): string {
@@ -145,44 +128,6 @@ function escapeMd(s: string): string {
   return s.replace(/\r\n/g, "\n").replace(/\*\*/g, "\\*\\*");
 }
 
-async function callGeminiJson(
-  systemText: string,
-  userPayload: string,
-  apiKey: string,
-  temperature = 0.42,
-  maxOutputTokens = 4096,
-): Promise<{ rawText: string; ok: boolean; err?: string }> {
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemText }] },
-        contents: [{ role: "user", parts: [{ text: userPayload }] }],
-        generationConfig: {
-          temperature,
-          maxOutputTokens,
-          responseMimeType: "application/json",
-        },
-      }),
-    },
-  );
-  if (!geminiRes.ok) {
-    const errText = await geminiRes.text().catch(() => "");
-    return {
-      rawText: "",
-      ok: false,
-      err: `Gemini request failed (${geminiRes.status}): ${errText.slice(0, 500)}`,
-    };
-  }
-  const geminiJson: unknown = await geminiRes.json().catch(() => null);
-  return { rawText: extractGeminiText(geminiJson), ok: true };
-}
-
 function parseAssistantPayload(rawText: string): { reply: string; citations: Citation[] } {
   let reply = rawText;
   let citations: Citation[] = [];
@@ -238,7 +183,6 @@ const RUBRIC_KEYS = [
 async function generateRankedReply(
   systemText: string,
   userPayload: string,
-  apiKey: string,
   userMessage: string,
 ): Promise<
   {
@@ -248,7 +192,7 @@ async function generateRankedReply(
 > {
   const temps = [0.4, 0.7, 0.9];
   const results = await Promise.all(
-    temps.map((t) => callGeminiJson(systemText, userPayload, apiKey, t)),
+    temps.map((t) => callChatJson(systemText, userPayload, t)),
   );
   const candidates: Candidate[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -284,7 +228,7 @@ Return ONLY JSON with shape:
       .join("\n\n")
   }`;
 
-  const judgeRes = await callGeminiJson(judgeSys, judgeUser, apiKey, 0.1, 1024);
+  const judgeRes = await callChatJson(judgeSys, judgeUser, 0.1, 1024);
 
   const scoresByIndex = new Map<number, JudgeScore>();
   let winnerIndex = candidates[0].index;
@@ -351,7 +295,7 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const chatCfg = getChatConfig();
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
@@ -419,11 +363,11 @@ Deno.serve(async (req) => {
       let tagsOut: string[] = Array.isArray(entry.tags) ? [...entry.tags] : [];
       let summaryBlock = "";
 
-      if (GEMINI_API_KEY && transcript.trim()) {
+      if (!("error" in chatCfg) && transcript.trim()) {
         const sumSys =
           `You summarize a private faith-aware journaling conversation. Return a single JSON object only (no fences), keys: "title" (short string, <= 80 chars), "tags" (array of 3-8 short lowercase kebab-case theme strings), "summary" (one paragraph, <= 900 chars, warm and specific).`;
         const sumUser = `Transcript (markdown):\n\n${transcript.slice(0, 24_000)}`;
-        const sumRes = await callGeminiJson(sumSys, sumUser, GEMINI_API_KEY);
+        const sumRes = await callChatJson(sumSys, sumUser);
         if (sumRes.ok && sumRes.rawText) {
           try {
             const j: unknown = JSON.parse(stripJsonFence(sumRes.rawText));
@@ -463,8 +407,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, entry_id: finalizeId, title: titleOut, tags: tagsOut });
     }
 
-    if (!GEMINI_API_KEY) {
-      return jsonResponse({ error: "GEMINI_API_KEY is not configured." }, 502);
+    if ("error" in chatCfg) {
+      return jsonResponse({ error: chatCfg.error }, 502);
     }
 
     // --- Bootstrap: first assistant opener (no user message) ---
@@ -619,10 +563,10 @@ Deno.serve(async (req) => {
       const userPayload =
         `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
 
-      const gem = await callGeminiJson(systemText, userPayload, GEMINI_API_KEY);
-      if (!gem.ok) return jsonResponse({ error: gem.err ?? "Gemini failed" }, 502);
+      const chatRes = await callChatJson(systemText, userPayload);
+      if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
 
-      const { reply, citations } = parseAssistantPayload(gem.rawText);
+      const { reply, citations } = parseAssistantPayload(chatRes.rawText);
 
       const { data: asstRow, error: asstErr } = await supabase
         .from("my_ai_messages")
@@ -740,9 +684,23 @@ Deno.serve(async (req) => {
       if (!existing || existing.user_id !== userId) {
         return jsonResponse({ error: "Forbidden" }, 403);
       }
-      if (mode === "journal" && journalEntryId && existing.journal_entry_id &&
-        existing.journal_entry_id !== journalEntryId) {
-        return jsonResponse({ error: "journal_entry_id does not match this chat" }, 403);
+      if (mode === "journal" && journalEntryId) {
+        if (existing.journal_entry_id && existing.journal_entry_id !== journalEntryId) {
+          return jsonResponse({ error: "journal_entry_id does not match this chat" }, 403);
+        }
+        if (!existing.journal_entry_id) {
+          const { error: linkErr } = await supabase
+            .from("my_ai_chats")
+            .update({ journal_entry_id: journalEntryId })
+            .eq("id", chatId)
+            .eq("user_id", userId);
+          if (linkErr) return jsonResponse({ error: linkErr.message }, 502);
+        }
+        await supabase
+          .from("journal_entries")
+          .update({ entry_kind: "chat" })
+          .eq("id", journalEntryId)
+          .eq("user_id", userId);
       }
     } else {
       const insertRow: { user_id: string; journal_entry_id?: string } = { user_id: userId };
@@ -812,7 +770,7 @@ Deno.serve(async (req) => {
     const userPayload =
       `${contextPack.contextBlock}\n\n---\nUser message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
 
-    const ranked = await generateRankedReply(systemText, userPayload, GEMINI_API_KEY, message);
+    const ranked = await generateRankedReply(systemText, userPayload, message);
     if ("error" in ranked) return jsonResponse({ error: ranked.error }, 502);
     const { reply, citations } = { reply: ranked.winner.reply, citations: ranked.winner.citations };
 

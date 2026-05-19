@@ -110,7 +110,8 @@ export function useInlineJournalChat({
         scrollToBottom();
         return true;
       } catch (e) {
-        toast({ title: "AI reply failed", description: String(e), variant: "destructive" });
+        const description = e instanceof Error ? e.message : String(e);
+        toast({ title: "AI reply failed", description, variant: "destructive" });
         setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
         return false;
       } finally {

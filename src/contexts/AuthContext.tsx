@@ -25,16 +25,23 @@ export interface Profile {
   all_entries_cover_focal_y?: number;
 }
 
+export type SignUpResult = {
+  error: Error | null;
+  /** False when Supabase requires email confirmation before a session exists. */
+  sessionCreated: boolean;
+  profile: Profile | null;
+};
+
 interface AuthCtx {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<SignUpResult>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; profile: Profile | null }>;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-  updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null }>;
+  refreshProfile: () => Promise<Profile | null>;
+  updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null; profile: Profile | null }>;
 }
 
 const AuthContext = createContext<AuthCtx | undefined>(undefined);
@@ -60,58 +67,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (uid: string) => {
+  const loadProfile = useCallback(async (uid: string): Promise<Profile | null> => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
-    setProfile(data ? profileFromDbRow(data) : null);
+    const next = data ? profileFromDbRow(data) : null;
+    setProfile(next);
+    return next;
   }, []);
 
   useEffect(() => {
-    // Listener FIRST, then session check
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    let cancelled = false;
+
+    const applySession = async (sess: Session | null) => {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
-        // Defer to avoid deadlock with Supabase client
-        setTimeout(() => loadProfile(sess.user.id), 0);
+        await loadProfile(sess.user.id);
       } else {
         setProfile(null);
       }
+      if (!cancelled) setLoading(false);
+    };
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      setLoading(true);
+      void applySession(sess);
     });
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) loadProfile(s.user.id);
-      setLoading(false);
-    });
+    void (async () => {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (!cancelled) await applySession(s);
+    })();
 
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const value = useMemo<AuthCtx>(() => ({
     user, session, profile, loading,
     signUp: async (email, password, displayName) => {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email, password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/onboarding`,
           data: displayName ? { display_name: displayName } : undefined,
         },
       });
-      return { error: error ? new Error(error.message) : null };
+      if (error) return { error: new Error(error.message), sessionCreated: false, profile: null };
+      const created = Boolean(data.session);
+      const loaded = data.session?.user ? await loadProfile(data.session.user.id) : null;
+      return { error: null, sessionCreated: created, profile: loaded };
     },
     signIn: async (email, password) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error: error ? new Error(error.message) : null };
+      if (error) return { error: new Error(error.message), profile: null };
+      const { data: { session: s } } = await supabase.auth.getSession();
+      const loaded = s?.user ? await loadProfile(s.user.id) : null;
+      return { error: null, profile: loaded };
     },
     signOut: async () => { await supabase.auth.signOut(); },
-    refreshProfile: async () => { if (user) await loadProfile(user.id); },
+    refreshProfile: async () => (user ? loadProfile(user.id) : null),
     updateProfile: async (patch) => {
-      if (!user) return { error: new Error("Not signed in") };
-      const { error } = await supabase.from("profiles").update(patch as never).eq("user_id", user.id);
-      if (error) return { error: new Error(error.message) };
-      await loadProfile(user.id);
-      return { error: null };
+      if (!user) return { error: new Error("Not signed in"), profile: null };
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(patch as never)
+        .eq("user_id", user.id)
+        .select()
+        .maybeSingle();
+      if (error) return { error: new Error(error.message), profile: null };
+
+      let row = data;
+      if (!row) {
+        const { data: inserted, error: insertError } = await supabase
+          .from("profiles")
+          .insert({ user_id: user.id, ...patch } as never)
+          .select()
+          .maybeSingle();
+        if (insertError) return { error: new Error(insertError.message), profile: null };
+        row = inserted;
+      }
+
+      const next = row ? profileFromDbRow(row) : null;
+      setProfile(next);
+      return { error: null, profile: next };
     },
   }), [user, session, profile, loading, loadProfile]);
 

@@ -42,6 +42,8 @@ export default function GlobalJournalLauncher() {
 
   if (hidden) return null;
 
+  const readerJournal = pathname.startsWith("/read/");
+
   const getPlaybackSeconds =
     routeArtifact?.kind === "youtube" && playbackCaptureAvailable
       ? () => floatingJournalPlaybackRef.current?.() ?? null
@@ -54,7 +56,10 @@ export default function GlobalJournalLauncher() {
       <div
         className={cn(
           "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
-          "top-1/2 rounded-l-xl border border-r-0 border-primary/20 bg-primary text-primary-foreground shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
+          "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
+          readerJournal
+            ? "border-gold/25 bg-navy text-gold-bright"
+            : "border-primary/20 bg-primary text-primary-foreground",
           launcherTucked ? "w-1 overflow-hidden" : "w-11",
         )}
         style={{ WebkitTapHighlightColor: "transparent" }}
@@ -65,7 +70,12 @@ export default function GlobalJournalLauncher() {
             aria-label="Show journal tab"
             title="Show journal tab"
             onClick={() => setLauncherTucked(false)}
-            className="flex min-h-[88px] w-full items-center justify-center py-2 text-primary-foreground/90 hover:text-primary-foreground"
+            className={cn(
+              "flex min-h-[88px] w-full items-center justify-center py-2",
+              readerJournal
+                ? "text-gold/90 hover:text-gold-bright"
+                : "text-primary-foreground/90 hover:text-primary-foreground",
+            )}
           >
             <ChevronLeft className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
           </button>
@@ -77,7 +87,9 @@ export default function GlobalJournalLauncher() {
             onClick={() => togglePanel()}
             className={cn(
               "flex min-h-[88px] w-full flex-col items-center justify-center gap-0.5 py-2",
-              "text-primary-foreground hover:bg-white/10 active:bg-white/15",
+              readerJournal
+                ? "text-gold-bright hover:bg-gold/10 active:bg-gold/15"
+                : "text-primary-foreground hover:bg-white/10 active:bg-white/15",
             )}
           >
             <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />
@@ -93,6 +105,7 @@ export default function GlobalJournalLauncher() {
           artifactTitle={routeArtifact?.title}
           artifactKind={routeArtifact?.kind}
           getPlaybackSeconds={getPlaybackSeconds}
+          readerTheme={readerJournal}
           onClose={() => setPanelOpen(false)}
         />
       )}

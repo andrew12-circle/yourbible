@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SquarePen, MoreHorizontal, Download, Loader2 } from "lucide-react";
+import { SquarePen, MoreHorizontal, Download, Loader2, FileUp } from "lucide-react";
+import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import JournalsRail from "./JournalsRail";
 import JournalCover from "./JournalCover";
@@ -50,6 +51,7 @@ export default function JournalShell({
   const [yearRange, setYearRange] = useState<string | undefined>(undefined);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dayOneImportOpen, setDayOneImportOpen] = useState(false);
 
   const reload = async () => {
     if (!user) return;
@@ -168,6 +170,10 @@ export default function JournalShell({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setDayOneImportOpen(true)}>
+                    <FileUp className="w-4 h-4 mr-2" />
+                    Import from Day One
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={onExport} disabled={exporting}>
                     <Download className="w-4 h-4 mr-2" />
                     Export as Markdown (.zip)
@@ -195,6 +201,17 @@ export default function JournalShell({
       >
         <SquarePen className="w-6 h-6" strokeWidth={2.2} />
       </button>
+
+      <DayOneImportDialog
+        open={dayOneImportOpen}
+        onOpenChange={setDayOneImportOpen}
+        journals={journals}
+        defaultJournalId={journalId}
+        onImported={(id) => {
+          void reload();
+          if (id) navigate(`/journal/j/${id}`);
+        }}
+      />
     </div>
   );
 }

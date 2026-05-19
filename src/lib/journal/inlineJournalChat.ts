@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 
 export type InlineChatTurn = {
   id: string;
@@ -43,11 +44,15 @@ export async function ensureInlineJournalChatSession(
 ): Promise<{ entryId: string; chatId: string } | null> {
   const { userId, entryId, journalId, title, existingChatId } = params;
 
-  await supabase
+  const { error: kindErr } = await supabase
     .from("journal_entries")
     .update({ entry_kind: "chat" })
     .eq("id", entryId)
     .eq("user_id", userId);
+  if (kindErr) {
+    toast({ title: "Couldn't enable chat mode", description: kindErr.message, variant: "destructive" });
+    return null;
+  }
 
   let chatId = existingChatId ?? null;
   if (!chatId) {
@@ -94,7 +99,9 @@ export async function sendInlineJournalChatMessage(params: {
       include_general_knowledge: true,
     },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(await edgeFunctionErrorMessage("my-ai-chat", error, data));
+  }
   const payload = data as { error?: string } | null;
   if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
 }

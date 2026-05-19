@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import { BookTabs } from "@/components/bible/BookTabs";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
 import { SelectionToolbar, type ToolbarSelection } from "@/components/bible/SelectionToolbar";
@@ -14,12 +14,11 @@ import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
-import { ChapterPicker } from "@/components/bible/ChapterPicker";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
 import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, BookOpenText, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -42,6 +41,16 @@ function pageTypoClass(fontChoice: string | undefined) {
 // Single-column reading flow — feels like a natural book page on any screen.
 const COLUMN_CLASS = "";
 
+const PAGE_MARGIN_OUTER = "clamp(1.125rem, 4vmin, 2.25rem)";
+/** Gutter toward spine / center — extra room on desktop spreads. */
+const PAGE_MARGIN_GUTTER = "clamp(2.25rem, 8vmin, 4.5rem)";
+
+function pageHorizontalPadding(side: "left" | "right"): React.CSSProperties {
+  return side === "left"
+    ? { paddingLeft: PAGE_MARGIN_OUTER, paddingRight: PAGE_MARGIN_GUTTER }
+    : { paddingLeft: PAGE_MARGIN_GUTTER, paddingRight: PAGE_MARGIN_OUTER };
+}
+
 // Deterministic 1..10 stroke variant per verse so the same verse always
 // renders with the same imperfect highlighter pass.
 function markerVariant(book: string, chapter: number, verse: number): number {
@@ -54,92 +63,38 @@ function markerVariant(book: string, chapter: number, verse: number): number {
   return ((h >>> 0) % 10) + 1;
 }
 
-/**
- * Lets the user grab the OUTER corner of a page and drag it across the spine
- * to turn — like iBooks. The right page's outer (right) edge folds to the
- * left to advance; the left page's outer (left) edge folds to the right to
- * go back. A small swipe anywhere on the page also turns.
- */
-function CornerDragPage({
+/** Horizontal swipe to turn pages (no 3D page curl). */
+function SwipePage({
   side,
   onTurn,
   children,
 }: {
   side: "left" | "right";
-  /** delta = +1 forward, -1 back */
   onTurn: (delta: 1 | -1) => void;
   children: React.ReactNode;
 }) {
   const isRight = side === "right";
-  // Drag distance in px (negative = leftward for right page; positive = rightward for left page)
   const x = useMotionValue(0);
-  // Map drag distance to a rotateY (0° → ±180°). A page width is roughly 500px.
-  const PAGE_W = 520;
-  const rotateY = useTransform(x, (v) => {
-    if (isRight) {
-      // forward turn: x goes 0 → -PAGE_W → rotateY 0 → -180
-      const t = Math.max(-1, Math.min(0, v / PAGE_W));
-      return t * 180;
-    } else {
-      // back turn: x goes 0 → +PAGE_W → rotateY 0 → +180
-      const t = Math.max(0, Math.min(1, v / PAGE_W));
-      return t * 180;
-    }
-  });
-
-  const commit = (delta: 1 | -1) => {
-    // Snap to fully turned, then fire onTurn (which will navigate / change page;
-    // the new page renders and x resets naturally on remount).
-    const target = isRight ? -PAGE_W : PAGE_W;
-    animate(x, target, {
-      duration: 0.32,
-      ease: [0.45, 0.05, 0.25, 1],
-      onComplete: () => {
-        onTurn(delta);
-        x.set(0);
-      },
-    });
-  };
-  const cancel = () => {
-    animate(x, 0, { type: "spring", stiffness: 280, damping: 28 });
-  };
+  const COMMIT = 56;
+  const VEL = 320;
 
   return (
-    <div
-      className="relative h-full w-full"
-      style={{ perspective: 2200, transformStyle: "preserve-3d" }}
-    >
+    <div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden">
       <motion.div
-        className="h-full w-full touch-pan-y"
+        className="h-full w-full min-h-0 min-w-0 touch-pan-y"
         drag="x"
-        dragElastic={0}
+        dragElastic={0.12}
         dragMomentum={false}
-        dragConstraints={isRight ? { left: -PAGE_W, right: 0 } : { left: 0, right: PAGE_W }}
-        style={{
-          x,
-          rotateY,
-          transformOrigin: isRight ? "left center" : "right center",
-          transformStyle: "preserve-3d",
-          backfaceVisibility: "hidden",
-          willChange: "transform",
-        }}
+        dragConstraints={{ left: -120, right: 120 }}
+        style={{ x }}
         onDragEnd={(_, info) => {
-          const COMMIT_DIST = PAGE_W * 0.28;
-          const COMMIT_VEL = 380;
+          x.set(0);
           if (isRight) {
-            // Forward: drag left
-            if (info.offset.x < -COMMIT_DIST || info.velocity.x < -COMMIT_VEL) commit(1);
-            // Back: drag right (small swipe)
-            else if (info.offset.x > COMMIT_DIST || info.velocity.x > COMMIT_VEL) {
-              x.set(0);
-              onTurn(-1);
-            } else cancel();
+            if (info.offset.x < -COMMIT || info.velocity.x < -VEL) onTurn(1);
+            else if (info.offset.x > COMMIT || info.velocity.x > VEL) onTurn(-1);
           } else {
-            if (info.offset.x > COMMIT_DIST || info.velocity.x > COMMIT_VEL) commit(-1);
-            else if (info.offset.x < -COMMIT_DIST || info.velocity.x < -COMMIT_VEL) {
-              x.set(0);
-              onTurn(1);
-            } else cancel();
+            if (info.offset.x > COMMIT || info.velocity.x > VEL) onTurn(-1);
+            else if (info.offset.x < -COMMIT || info.velocity.x < -VEL) onTurn(1);
           }
         }}
       >
@@ -171,14 +126,6 @@ export default function ReaderPage() {
   const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
-  const [pickerBook, setPickerBook] = useState<
-    | {
-        book: typeof book;
-        anchor?: { x: number; y: number; side: "left" | "right" };
-      }
-    | null
-  >(null);
-
   // Reading text-size scale (persisted). Clamp into a sane range.
   const [fontScale, setFontScale] = useState<number>(() => {
     const raw = parseFloat(localStorage.getItem(LS_FONT_SCALE_KEY) ?? "");
@@ -190,7 +137,7 @@ export default function ReaderPage() {
     localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
   };
 
-  const isMobile = useIsMobile();
+  const singlePage = useReaderSinglePage();
 
   // Persist last-read position so the home screen can offer "continue".
   useEffect(() => {
@@ -300,25 +247,8 @@ export default function ReaderPage() {
     articleElRef.current = el;
     if (!el) return;
     const recompute = () => {
-      // Width: the article's own client width = real text column width.
       const width = Math.round(el.clientWidth);
-      // Height: total content area = from the inside-top of the page surface
-      // (after its top padding) down to the top of the footer. We measure
-      // parent-inside-top rather than article-top so the value doesn't change
-      // depending on whether the chapter header is rendered (first page only).
-      const parent = el.parentElement;
-      let height = 0;
-      if (parent) {
-        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
-        const parentRect = parent.getBoundingClientRect();
-        const cs = window.getComputedStyle(parent);
-        const padTop = parseFloat(cs.paddingTop) || 0;
-        const insideTop = parentRect.top + padTop;
-        const bottom = footer
-          ? footer.getBoundingClientRect().top
-          : parentRect.bottom;
-        height = Math.max(0, Math.round(bottom - insideTop));
-      }
+      const height = Math.round(el.clientHeight);
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
       );
@@ -334,20 +264,8 @@ export default function ReaderPage() {
     const onResize = () => {
       const el = articleElRef.current;
       if (!el) return;
-      const parent = el.parentElement;
       const width = Math.round(el.clientWidth);
-      let height = 0;
-      if (parent) {
-        const footer = parent.querySelector<HTMLElement>("[data-page-footer]");
-        const parentRect = parent.getBoundingClientRect();
-        const cs = window.getComputedStyle(parent);
-        const padTop = parseFloat(cs.paddingTop) || 0;
-        const insideTop = parentRect.top + padTop;
-        const bottom = footer
-          ? footer.getBoundingClientRect().top
-          : parentRect.bottom;
-        height = Math.max(0, Math.round(bottom - insideTop));
-      }
+      const height = Math.round(el.clientHeight);
       setPageBox(prev =>
         prev.w === width && prev.h === height ? prev : { w: width, h: height },
       );
@@ -363,7 +281,7 @@ export default function ReaderPage() {
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
   // Reset when chapter / size changes
-  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, isMobile, fontScale]);
+  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, singlePage, fontScale]);
   const verses = passage?.verses ?? [];
   const totalPagesInChapter = Math.max(1, splits.length - 1);
 
@@ -393,14 +311,14 @@ export default function ReaderPage() {
       else break;
     }
     // On desktop spreads, snap to an even page so the verse is on the spread.
-    if (!isMobile && target % 2 === 1) target -= 1;
+    if (!singlePage && target % 2 === 1) target -= 1;
     setChapterPage(Math.max(0, target));
     setPendingVerse(null);
-  }, [pendingVerse, splits, isMobile]);
+  }, [pendingVerse, splits, singlePage]);
 
   // For desktop spreads we show TWO consecutive pages: chapterPage and chapterPage+1.
   // For mobile we show only one. So advance by 1 (mobile) or 2 (desktop).
-  const pagesPerTurn = isMobile ? 1 : 2;
+  const pagesPerTurn = singlePage ? 1 : 2;
 
   const goPage = (delta: number) => {
     setFlipDirection(delta > 0 ? "forward" : "back");
@@ -517,7 +435,7 @@ export default function ReaderPage() {
 
   // Auth/onboarding gates must stay after every hook so hook order stays stable.
   if (!loading && !user) return <Navigate to="/auth" replace />;
-  if (!loading && user && profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
+  if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
   const clearWindowSelection = () => {
     const sel = window.getSelection();
@@ -551,11 +469,6 @@ export default function ReaderPage() {
     clearWindowSelection();
   };
   const reference = `${book.name} ${chapter}`;
-
-  const goBook = (
-    b: typeof book,
-    anchor?: { x: number; y: number; side: "left" | "right" },
-  ) => setPickerBook({ book: b, anchor });
 
   // Header for first page of chapter
   const ChapterHeader = (
@@ -657,22 +570,26 @@ export default function ReaderPage() {
     const globalPage = chaptersBefore + chapter; // good enough for footer
     return (
       <div
-        className={`relative h-full w-full overflow-hidden real-paper ${
-          side === "left" ? "pl-8 sm:pl-14 pr-5 sm:pr-9" : "pl-5 sm:pl-9 pr-8 sm:pr-14"
-        } pt-9 pb-10`}
+        className="relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2"
+        style={pageHorizontalPadding(side)}
       >
-        {/* Running header */}
-        <div className={`absolute top-2 ${side === "left" ? "left-8 sm:left-14" : "right-8 sm:right-14"} text-[10px] uppercase tracking-[0.25em] text-muted-foreground/70 font-display`}>
+        <div
+          className={`flex-shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium ${
+            side === "left" ? "text-left" : "text-right"
+          }`}
+        >
           {book.name}
         </div>
-        {isFirst && ChapterHeader}
+        {isFirst && <div className="flex-shrink-0">{ChapterHeader}</div>}
         {loadingPassage ? (
-          <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-leather/60" /></div>
+          <div className="flex flex-1 justify-center items-center">
+            <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
+          </div>
         ) : (
           <article
-            ref={pageIdx === leftIdx && side === (isMobile ? mobileSide : "left") ? measureArticle : undefined}
+            ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
             data-reading-area
-            className={`${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} selectable-text`}
+            className={`flex-1 min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} selectable-text`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
@@ -680,8 +597,10 @@ export default function ReaderPage() {
             </p>
           </article>
         )}
-        {/* Page number footer with subtle prev/next chevrons */}
-        <div data-page-footer className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-display tracking-widest">
+        <div
+          data-page-footer
+          className="flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest"
+        >
           <button
             onClick={() => goPage(-1)}
             aria-label="Previous page"
@@ -703,8 +622,8 @@ export default function ReaderPage() {
   };
 
   // Determine left & right page indices
-  const leftIdx = isMobile ? chapterPage : chapterPage;
-  const rightIdx = isMobile ? chapterPage : chapterPage + 1;
+  const leftIdx = chapterPage;
+  const rightIdx = singlePage ? chapterPage : chapterPage + 1;
   // Mobile alternates the visible side based on parity (odd = right page, even = left page)
   const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
 
@@ -743,6 +662,7 @@ export default function ReaderPage() {
 
       <BookScene
         progress={progress}
+        singlePage={singlePage}
         pageSide={mobileSide}
         ribbons={
           <Ribbons
@@ -752,35 +672,32 @@ export default function ReaderPage() {
             onAddAt={(p) => setBmDialog({ position: p })}
           />
         }
-        renderTabs={!focusMode ? (s) => <BookTabs current={book} onSelect={goBook} side={s} /> : undefined}
         leftPage={
-          <CornerDragPage side="left" onTurn={goPage}>
+          <SwipePage side="left" onTurn={goPage}>
             <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
               <PageSurface pageIdx={leftIdx} side="left" />
             </PageFlip>
-          </CornerDragPage>
+          </SwipePage>
         }
         rightPage={
-          <CornerDragPage side="right" onTurn={goPage}>
+          <SwipePage side="right" onTurn={goPage}>
             <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
               <PageSurface pageIdx={rightIdx} side="right" />
             </PageFlip>
-          </CornerDragPage>
+          </SwipePage>
         }
       />
 
-      {/* Click hot-zones for page turns — narrow strips at the very edges so
-          they never sit on top of the thumb-index tabs (which live ~16-40px
-          in from each edge). z-index sits BELOW the tabs (z-[7] inside BookScene). */}
+      {/* Page-turn hot zones — narrow strips at the screen edge */}
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className="fixed top-20 bottom-16 left-0 w-3 z-[5] opacity-0"
+        className="fixed top-20 bottom-16 left-0 w-8 z-[5] opacity-0"
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className="fixed top-20 bottom-16 right-0 w-3 z-[5] opacity-0"
+        className="fixed top-20 bottom-16 right-0 w-8 z-[5] opacity-0"
       />
 
       {/* Headless paginator — measures and reports splits */}
@@ -792,7 +709,7 @@ export default function ReaderPage() {
           // pageBox is measured directly from the live page — width is the
           // real text column, height is from the article's top to the footer.
           pageWidth={Math.max(180, pageBox.w)}
-          pageHeight={Math.max(180, pageBox.h - 8)}
+          pageHeight={Math.max(180, pageBox.h)}
           className={pageTypoClass(profile?.font_choice)}
           columnsClassName={COLUMN_CLASS}
           header={ChapterHeader}
@@ -882,20 +799,6 @@ export default function ReaderPage() {
             setBookmark({ position: bmDialog.position, label, color, book: book.abbr, chapter, verse: null });
             toast({ title: "Ribbon saved", description: `${label} → ${book.name} ${chapter}` });
             setBmDialog(null);
-          }}
-        />
-      )}
-
-      {pickerBook && (
-        <ChapterPicker
-          open
-          book={pickerBook.book}
-          anchor={pickerBook.anchor}
-          currentChapter={pickerBook.book.abbr === book.abbr ? chapter : undefined}
-          onClose={() => setPickerBook(null)}
-          onPick={(c) => {
-            navigate(`/read/${pickerBook.book.abbr}/${c}`);
-            setPickerBook(null);
           }}
         />
       )}

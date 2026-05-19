@@ -14,7 +14,7 @@ import {
 } from "@/lib/lifeWeeks";
 import { toast } from "@/hooks/use-toast";
 
-const APP_TAGLINE = "Your Bible";
+const APP_TAGLINE = "Sacred & Modern";
 
 /** Poster card: consistent on light/dark backgrounds */
 const POSTER_CLASS =
