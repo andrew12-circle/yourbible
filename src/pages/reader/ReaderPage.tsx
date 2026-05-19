@@ -23,9 +23,8 @@ import { getPalette } from "@/lib/bible/palettes";
 import {
   highlightIntervalsForVerse,
   isRangeInReadingArea,
-  selectionRectFromRange,
-  selectionToVerseRanges,
   sliceTextByHighlights,
+  toolbarSelectionFromRange,
 } from "@/lib/bible/verseSelection";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { Button } from "@/components/ui/button";
@@ -390,24 +389,14 @@ export default function ReaderPage() {
 
   // ---- Native text selection → toolbar (apply via toolbar actions only) ----
   useEffect(() => {
-    const root = document;
     let pendingHide: number | null = null;
 
     const computeSelection = (): ToolbarSelection | null => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
-      const range = sel.getRangeAt(0);
-      if (!isRangeInReadingArea(range)) return null;
-      const ranges = selectionToVerseRanges(range, verseLengths);
-      if (!ranges) return null;
-      const versesInSel = [...new Set(ranges.map(r => r.verse))].sort((a, b) => a - b);
-      const rect = selectionRectFromRange(range);
-      if (!rect) return null;
-      return {
-        rect,
-        verses: versesInSel,
-        ranges,
-      };
+      const text = sel.toString().trim();
+      if (!text) return null;
+      return toolbarSelectionFromRange(sel.getRangeAt(0), verseLengths);
     };
 
     const syncToolbar = () => {
@@ -421,7 +410,7 @@ export default function ReaderPage() {
         // through React re-render) doesn't immediately hide the toolbar.
         pendingHide = window.setTimeout(() => {
           if (!computeSelection()) setTbSel(null);
-        }, 80);
+        }, 120);
         return;
       }
       setTbSel(next);
@@ -429,27 +418,26 @@ export default function ReaderPage() {
 
     const onSelChange = () => syncToolbar();
 
-    const onPointerUp = (e: PointerEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.closest(
-          ".verse-num, [data-selection-toolbar], [data-page-footer]",
-        )
-      ) {
-        return;
-      }
-      // Touch browsers finalize the selection after pointerup — re-sync toolbar
-      // on the next frame without auto-applying a highlight.
+    const shouldIgnoreSelectionEnd = (target: EventTarget | null) =>
+      (target as HTMLElement | null)?.closest(
+        ".verse-num, [data-selection-toolbar], [data-page-footer]",
+      );
+
+    const onSelectionEnd = (e: Event) => {
+      if (shouldIgnoreSelectionEnd(e.target)) return;
+      // Touch browsers finalize the selection after pointerup/touchend.
       requestAnimationFrame(() => {
         requestAnimationFrame(syncToolbar);
       });
     };
 
-    root.addEventListener("selectionchange", onSelChange);
-    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("selectionchange", onSelChange);
+    document.addEventListener("pointerup", onSelectionEnd);
+    document.addEventListener("touchend", onSelectionEnd, { passive: true });
     return () => {
-      root.removeEventListener("selectionchange", onSelChange);
-      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("selectionchange", onSelChange);
+      document.removeEventListener("pointerup", onSelectionEnd);
+      document.removeEventListener("touchend", onSelectionEnd);
       if (pendingHide) window.clearTimeout(pendingHide);
     };
   }, [verseLengths]);

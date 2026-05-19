@@ -1,8 +1,23 @@
 import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import type { VerseRange } from "@/lib/bible/verseSelection";
 import { Trash2, NotebookPen, PenLine, Network, BookOpenText } from "lucide-react";
+
+function useDockToolbar() {
+  const [dock, setDock] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setDock(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return dock;
+}
 
 export type ToolbarSelection = {
   /** Bounding rect of the current text selection in viewport coords. */
@@ -49,6 +64,7 @@ export function SelectionToolbar({
   onClose,
 }: Props) {
   const palette = getPalette(paletteId);
+  const dockBottom = useDockToolbar();
 
   if (!selection) return null;
 
@@ -57,17 +73,23 @@ export function SelectionToolbar({
   const margin = 8;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
   const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-  const cx = (selection.rect.left + selection.rect.right) / 2;
-  let left = Math.round(cx - TOOLBAR_W / 2);
-  if (left < margin) left = margin;
-  if (left + TOOLBAR_W > vw - margin) left = vw - margin - TOOLBAR_W;
-  // Try above the selection first.
-  let top = Math.round(selection.rect.top - 12 - 56);
-  if (top < margin) {
-    // Not enough room above — place below.
-    top = Math.round(selection.rect.bottom + 12);
+  let left: number;
+  let top: number;
+  if (dockBottom) {
+    left = Math.round((vw - TOOLBAR_W) / 2);
+    top = Math.max(margin, vh - margin - 72);
+  } else {
+    const cx = (selection.rect.left + selection.rect.right) / 2;
+    left = Math.round(cx - TOOLBAR_W / 2);
+    if (left < margin) left = margin;
+    if (left + TOOLBAR_W > vw - margin) left = vw - margin - TOOLBAR_W;
+    // Try above the selection first.
+    top = Math.round(selection.rect.top - 12 - 56);
+    if (top < margin) {
+      top = Math.round(selection.rect.bottom + 12);
+    }
+    if (top + 96 > vh - margin) top = Math.max(margin, vh - margin - 96);
   }
-  if (top + 96 > vh - margin) top = Math.max(margin, vh - margin - 96);
 
   const toolbar = (
     <AnimatePresence>
@@ -83,7 +105,7 @@ export function SelectionToolbar({
           onMouseDown={(e) => e.preventDefault()}
           onPointerDown={(e) => e.preventDefault()}
           data-selection-toolbar
-          className="fixed z-[60] bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
+          className="fixed z-[70] pointer-events-auto bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
           style={{ left, top, width: TOOLBAR_W }}
         >
           {palette.colors.map((c) => (

@@ -19,6 +19,55 @@ export function findVerseFromNode(node: Node | null): number | null {
   return null;
 }
 
+/** Walk sibling elements when the boundary sits on inter-verse whitespace. */
+function findVerseFromNodeOrSibling(
+  node: Node | null,
+  direction: "before" | "after",
+): number | null {
+  const direct = findVerseFromNode(node);
+  if (direct != null) return direct;
+  if (!node) return null;
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    let sib: Node | null =
+      direction === "before" ? node.previousSibling : node.nextSibling;
+    while (sib) {
+      const v = findVerseFromNode(sib);
+      if (v != null) return v;
+      sib = direction === "before" ? sib.previousSibling : sib.nextSibling;
+    }
+  }
+
+  let el: HTMLElement | null =
+    node instanceof HTMLElement ? node : node.parentElement;
+  if (!el) return null;
+
+  let sib: Element | null =
+    direction === "before" ? el.previousElementSibling : el.nextElementSibling;
+  while (sib) {
+    const v = (sib as HTMLElement).dataset?.verse;
+    if (v) return Number(v);
+    sib =
+      direction === "before"
+        ? sib.previousElementSibling
+        : sib.nextElementSibling;
+  }
+  return null;
+}
+
+export function findVerseFromRangeBoundary(
+  range: Range,
+  which: "start" | "end",
+): number | null {
+  const node = nodeAtRangeBoundary(range, which);
+  const primary = which === "start" ? "before" : "after";
+  const secondary = which === "start" ? "after" : "before";
+  return (
+    findVerseFromNodeOrSibling(node, primary) ??
+    findVerseFromNodeOrSibling(node, secondary)
+  );
+}
+
 /** Deepest text node inside `node` (for element-bounded selections). */
 function deepestTextNode(node: Node | null): Node | null {
   if (!node) return null;
@@ -67,13 +116,6 @@ export function nodeAtRangeBoundary(
     }
   }
   return container;
-}
-
-export function findVerseFromRangeBoundary(
-  range: Range,
-  which: "start" | "end",
-): number | null {
-  return findVerseFromNode(nodeAtRangeBoundary(range, which));
 }
 
 export function getReadingAreaFromRange(range: Range): HTMLElement | null {
@@ -153,9 +195,13 @@ function rangeTouchesVerse(range: Range, body: HTMLElement): boolean {
 export function selectionRectFromRange(
   range: Range,
 ): { left: number; top: number; right: number; bottom: number } | null {
-  const rects = Array.from(range.getClientRects()).filter(
-    (r) => r.width > 0 && r.height > 0,
-  );
+  const clientRects =
+    typeof range.getClientRects === "function"
+      ? range.getClientRects()
+      : null;
+  const rects = clientRects
+    ? Array.from(clientRects).filter((r) => r.width > 0 && r.height > 0)
+    : [];
   if (rects.length > 0) {
     return {
       left: Math.min(...rects.map((r) => r.left)),
@@ -164,6 +210,7 @@ export function selectionRectFromRange(
       bottom: Math.max(...rects.map((r) => r.bottom)),
     };
   }
+  if (typeof range.getBoundingClientRect !== "function") return null;
   const rect = range.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0) return null;
   return {
@@ -172,6 +219,54 @@ export function selectionRectFromRange(
     right: rect.right,
     bottom: rect.bottom,
   };
+}
+
+/** All verse numbers whose body intersects `range` within the reading column. */
+export function versesIntersectingRange(
+  range: Range,
+  verseLengths: Map<number, number>,
+): number[] {
+  const readingArea = getReadingAreaFromRange(range);
+  if (!readingArea) return [];
+
+  const touched: number[] = [];
+  for (const v of verseLengths.keys()) {
+    const body = getVerseBodyElement(v, readingArea);
+    if (body && rangeTouchesVerse(range, body)) touched.push(v);
+  }
+  return touched.sort((a, b) => a - b);
+}
+
+/**
+ * Best-effort verse list when boundary resolution fails (e.g. whitespace
+ * between `<span data-verse>` nodes in a single paragraph).
+ */
+export function versesFromRangeFallback(
+  range: Range,
+  verseLengths: Map<number, number>,
+): number[] {
+  const touched = versesIntersectingRange(range, verseLengths);
+  if (touched.length > 0) return touched;
+
+  const start = findVerseFromRangeBoundary(range, "start");
+  const end = findVerseFromRangeBoundary(range, "end");
+  if (start != null && end != null) {
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
+    const out: number[] = [];
+    for (let v = lo; v <= hi; v++) {
+      if (verseLengths.has(v)) out.push(v);
+    }
+    return out;
+  }
+
+  const ancestor = range.commonAncestorContainer;
+  const fromAncestor = findVerseFromNode(ancestor);
+  if (fromAncestor != null && verseLengths.has(fromAncestor)) {
+    return [fromAncestor];
+  }
+
+  return [];
 }
 
 /**
@@ -184,8 +279,13 @@ export function selectionToVerseRanges(
   const readingArea = getReadingAreaFromRange(range);
   if (!readingArea) return null;
 
-  const startVerse = findVerseFromRangeBoundary(range, "start");
-  const endVerse = findVerseFromRangeBoundary(range, "end");
+  const touched = versesIntersectingRange(range, verseLengths);
+  let startVerse = findVerseFromRangeBoundary(range, "start");
+  let endVerse = findVerseFromRangeBoundary(range, "end");
+  if (startVerse == null && touched.length > 0) startVerse = touched[0];
+  if (endVerse == null && touched.length > 0) {
+    endVerse = touched[touched.length - 1];
+  }
   if (startVerse == null || endVerse == null) return null;
 
   const lo = Math.min(startVerse, endVerse);
@@ -214,6 +314,36 @@ export function selectionToVerseRanges(
   }
 
   return out.length > 0 ? out : null;
+}
+
+export type ToolbarSelectionPayload = {
+  rect: { left: number; top: number; right: number; bottom: number };
+  verses: number[];
+  ranges: VerseRange[];
+};
+
+/**
+ * Build toolbar state from a live DOM range. Shows the toolbar whenever the
+ * selection is in the reading column and has geometry — even if partial
+ * character ranges could not be computed (full-verse marks still apply).
+ */
+export function toolbarSelectionFromRange(
+  range: Range,
+  verseLengths: Map<number, number>,
+): ToolbarSelectionPayload | null {
+  if (!isRangeInReadingArea(range)) return null;
+  const rect = selectionRectFromRange(range);
+  if (!rect) return null;
+
+  const ranges = selectionToVerseRanges(range, verseLengths);
+  if (ranges && ranges.length > 0) {
+    const verses = [...new Set(ranges.map((r) => r.verse))].sort((a, b) => a - b);
+    return { rect, verses, ranges };
+  }
+
+  const verses = versesFromRangeFallback(range, verseLengths);
+  if (verses.length === 0) return null;
+  return { rect, verses, ranges: [] };
 }
 
 export function isRangeInReadingArea(range: Range): boolean {
