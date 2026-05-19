@@ -1,18 +1,23 @@
 import { createRoot } from "react-dom/client";
-import "./index.css";
+import ConfigError from "@/components/ConfigError";
 import { hasSupabaseEnv } from "@/lib/env";
+import "./index.css";
 
 const root = document.getElementById("root")!;
 
 async function bootstrap() {
-  if (!hasSupabaseEnv()) {
-    const { default: ConfigError } = await import("@/components/ConfigError");
-    createRoot(root).render(<ConfigError />);
-    return;
-  }
+  try {
+    if (!hasSupabaseEnv()) {
+      createRoot(root).render(<ConfigError />);
+      return;
+    }
 
-  const { default: App } = await import("./App.tsx");
-  createRoot(root).render(<App />);
+    const { default: App } = await import("./App.tsx");
+    createRoot(root).render(<App />);
+  } catch (e) {
+    console.error("[bootstrap]", e);
+    createRoot(root).render(<ConfigError />);
+  }
 }
 
 void bootstrap();

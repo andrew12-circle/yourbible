@@ -2,25 +2,41 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
-/** Publishable (`sb_publishable_…`) or legacy anon JWT (`eyJ…`) from Project Settings → API Keys */
-const SUPABASE_PUBLISHABLE_KEY = (
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
-)?.trim() ?? "";
+function readSupabaseConfig(): { url: string; key: string } {
+  const url = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+  const key = (
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+  )?.trim() ?? "";
+  return { url, key };
+}
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error(
-    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. Set them in Vercel Environment Variables and redeploy.",
-  );
+let client: ReturnType<typeof createClient<Database>> | null = null;
+
+function getClient() {
+  if (client) return client;
+  const { url, key } = readSupabaseConfig();
+  if (!url || !key) {
+    throw new Error(
+      "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. Set them in Vercel Environment Variables and redeploy.",
+    );
+  }
+  client = createClient<Database>(url, key, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+  return client;
 }
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get(_target, prop) {
+    const c = getClient();
+    const value = Reflect.get(c, prop, c);
+    return typeof value === "function" ? value.bind(c) : value;
+  },
 });
