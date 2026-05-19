@@ -1,8 +1,13 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Prefer real YouTube caption tracks. If YouTube exposes no usable captions,
-// fall back to clipped Gemini transcription so long videos never hit the 1M-token limit.
+// Order: watch-page caption tracks → timedtext API → InnerTube get_transcript → Gemini clips.
+// YOUTUBE_DATA_API_KEY enriches description/chapters only (not caption download).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { parseYoutubeChaptersFromDescription } from "../_shared/youtubeChapters.ts";
+import {
+  fetchInnertubeTranscript,
+  fetchTimedTextTranscript,
+  normalizeYouTubeWatchUrl,
+} from "../_shared/youtubeTranscript.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -337,60 +342,77 @@ function cleanGeminiTranscript(text: string): string {
     .trim();
 }
 
-async function transcribeYouTubeSegment(url: string, startSeconds: number, endSeconds: number): Promise<string> {
+async function transcribeYouTubeSegment(
+  watchUrl: string,
+  startSeconds: number,
+  endSeconds: number,
+): Promise<string> {
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set on the server (required for videos without captions).");
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": GEMINI_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `Transcribe only the spoken words from ${formatTime(startSeconds)} to ${formatTime(endSeconds)} of this YouTube video. Return transcript text only. Do not summarize, invent, or add commentary.`,
+  const segmentLabel = `${formatTime(startSeconds)}-${formatTime(endSeconds)}`;
+  const bodyBase = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Transcribe only the spoken words from ${formatTime(startSeconds)} to ${formatTime(endSeconds)} of this YouTube video. Return transcript text only. Do not summarize, invent, or add commentary.`,
+          },
+          {
+            file_data: { mime_type: "video/mp4", file_uri: watchUrl },
+            video_metadata: {
+              start_offset: { seconds: startSeconds },
+              end_offset: { seconds: endSeconds },
             },
-            {
-              file_data: { mime_type: "video/mp4", file_uri: url },
-              video_metadata: {
-                start_offset: { seconds: startSeconds },
-                end_offset: { seconds: endSeconds },
-                fps: 0.1,
-              },
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: 8192,
-        mediaResolution: "MEDIA_RESOLUTION_LOW",
+          },
+        ],
       },
-    }),
-  });
+    ],
+  };
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Gemini segment ${formatTime(startSeconds)}-${formatTime(endSeconds)} failed: ${response.status} ${errorBody}`);
+  const generationConfigs = [
+    { temperature: 0, maxOutputTokens: 8192, mediaResolution: "LOW" as const },
+    { temperature: 0, maxOutputTokens: 8192 },
+  ];
+
+  let lastError = "";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const generationConfig = generationConfigs[Math.min(attempt, generationConfigs.length - 1)];
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": GEMINI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...bodyBase, generationConfig }),
+      },
+    );
+
+    if (response.ok) {
+      const json = await response.json();
+      const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join(" ") ?? "";
+      return cleanGeminiTranscript(text);
+    }
+
+    lastError = await response.text();
+    const retryable = response.status === 400 || response.status === 429 || response.status >= 500;
+    if (!retryable || attempt === 2) break;
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
 
-  const json = await response.json();
-  const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join(" ") ?? "";
-  return cleanGeminiTranscript(text);
+  throw new Error(`Gemini clip transcription (${segmentLabel}) failed: ${lastError}`);
 }
 
-async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: number): Promise<string> {
+async function transcribeYouTubeWithGeminiClips(watchUrl: string, durationSeconds?: number): Promise<string> {
   const totalSeconds = Math.min(durationSeconds || GEMINI_SEGMENT_SECONDS, GEMINI_MAX_DURATION_SECONDS);
   const segments: string[] = [];
 
   for (let start = 0; start < totalSeconds; start += GEMINI_SEGMENT_SECONDS) {
     const end = Math.min(start + GEMINI_SEGMENT_SECONDS, totalSeconds);
-    const segmentText = await transcribeYouTubeSegment(url, start, end);
+    const segmentText = await transcribeYouTubeSegment(watchUrl, start, end);
     if (segmentText) segments.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
   }
 
@@ -401,6 +423,8 @@ async function transcribeYouTubeWithGeminiClips(url: string, durationSeconds?: n
 
 async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata; chaptersBundle: WatchCaptionBundle | null }> {
   const metadata = await getYouTubeMetadata(url).catch(() => ({}));
+  const videoId = extractYouTubeVideoId(url);
+  const watchUrl = videoId ? normalizeYouTubeWatchUrl(url, videoId) : url;
 
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
@@ -411,8 +435,47 @@ async function transcribeYouTubeVideo(url: string): Promise<{ text: string; meta
     };
   }
 
-  const text = await transcribeYouTubeWithGeminiClips(url, metadata.durationSeconds);
-  return { text, metadata, chaptersBundle: captionResult };
+  const captionAttempts: string[] = ["YouTube watch-page captions: none or unavailable"];
+  if (videoId) {
+    const timedText = await fetchTimedTextTranscript(videoId).catch((e) => {
+      captionAttempts.push(`timedtext API: ${String((e as Error).message ?? e)}`);
+      return null;
+    });
+    if (timedText) {
+      return {
+        text: timedText,
+        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
+        chaptersBundle: captionResult,
+      };
+    }
+    captionAttempts.push("timedtext API: no track returned");
+
+    const innertube = await fetchInnertubeTranscript(videoId).catch((e) => {
+      captionAttempts.push(`YouTube transcript API: ${String((e as Error).message ?? e)}`);
+      return null;
+    });
+    if (innertube) {
+      return {
+        text: innertube,
+        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
+        chaptersBundle: captionResult,
+      };
+    }
+    captionAttempts.push("YouTube transcript API: no segments returned");
+  }
+
+  try {
+    const text = await transcribeYouTubeWithGeminiClips(watchUrl, metadata.durationSeconds);
+    return { text, metadata, chaptersBundle: captionResult };
+  } catch (e) {
+    const geminiMsg = String((e as Error).message ?? e);
+    const hasYoutubeKey = Boolean(Deno.env.get("YOUTUBE_DATA_API_KEY"));
+    throw new Error(
+      `No YouTube captions found (${captionAttempts.join("; ")}). `
+        + `YOUTUBE_DATA_API_KEY is ${hasYoutubeKey ? "set (used for video metadata/chapters, not caption download)" : "not set"}. `
+        + `Gemini fallback failed: ${geminiMsg}`,
+    );
+  }
 }
 
 Deno.serve(async (req) => {
@@ -511,7 +574,8 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ artifact_id, processing_token }),
         }).catch((e) => console.error("analyze kick err", e));
       } catch (e) {
-        const msg = `Could not fetch transcript: ${String((e as Error).message ?? e)}`;
+        const raw = String((e as Error).message ?? e);
+        const msg = raw.startsWith("Could not fetch transcript:") ? raw : `Could not fetch transcript: ${raw}`;
         console.error(msg);
         await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
       }
