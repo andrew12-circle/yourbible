@@ -9,6 +9,12 @@ import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal } from "
 import { toast } from "@/hooks/use-toast";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
+import {
+  parseHomeLayoutMedia,
+  resolveHomeMediaUrl,
+  uploadHomeProfilePhoto,
+  uploadHomeWallpaper,
+} from "@/lib/profile/homeMedia";
 import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
 import { PartnerSettingsSection } from "@/components/partner/PartnerSettingsSection";
 
@@ -46,21 +52,38 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!profile?.layout) return;
-    try {
-      const parsed = JSON.parse(profile.layout) as HomeLayoutSettings;
-      if (parsed.homeWallpaper) {
-        setWallpaper(parsed.homeWallpaper);
-        localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
+    const parsed = parseHomeLayoutMedia(profile.layout);
+    if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
+    if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+
+    let cancelled = false;
+    (async () => {
+      const [wp, photo] = await Promise.all([
+        resolveHomeMediaUrl(parsed.homeWallpaper),
+        resolveHomeMediaUrl(parsed.homeProfilePhoto),
+      ]);
+      if (cancelled) return;
+      if (wp) {
+        setWallpaper(wp);
+        try {
+          localStorage.setItem(WALLPAPER_KEY, wp);
+        } catch {
+          // Quota — signed URL still works for this session.
+        }
       }
-      if (parsed.homeProfilePhoto) {
-        setProfilePhoto(parsed.homeProfilePhoto);
-        localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, parsed.homeProfilePhoto);
+      if (photo) {
+        setProfilePhoto(photo);
+        try {
+          localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, photo);
+        } catch {
+          // Quota — signed URL still works for this session.
+        }
       }
-      if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
-      if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
-    } catch {
-      // Ignore legacy layout values that are not JSON.
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.layout]);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
@@ -106,36 +129,62 @@ export default function SettingsPage() {
     .map((s) => s[0]?.toUpperCase())
     .join("");
 
-  const onUploadWallpaper = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) { toast({ title: "Image too large", description: "Max size is 100 MB." }); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = reader.result as string;
+  const onUploadWallpaper = async (file: File) => {
+    if (!user) return;
+    if (file.size > 100 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max size is 100 MB." });
+      return;
+    }
+    setSaving(true);
+    try {
+      const path = await uploadHomeWallpaper(user.id, file);
+      const url = await resolveHomeMediaUrl(path);
+      if (!url) throw new Error("Could not load uploaded wallpaper.");
+      setWallpaper(url);
       try {
         localStorage.setItem(WALLPAPER_KEY, url);
-        setWallpaper(url);
-        void saveHomeLayout({ homeWallpaper: url });
       } catch {
-        toast({ title: "Applied temporarily", description: "Image is too large to save on this device." });
+        // Signed URL still works for this session.
       }
-    };
-    reader.readAsDataURL(file);
+      await saveHomeLayout({ homeWallpaper: path });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Could not save wallpaper",
+        description: e instanceof Error ? e.message : "Upload failed.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const onUploadProfilePhoto = (file: File) => {
-    if (file.size > 20 * 1024 * 1024) { toast({ title: "Image too large", description: "Max size is 20 MB." }); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = reader.result as string;
+  const onUploadProfilePhoto = async (file: File) => {
+    if (!user) return;
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max size is 20 MB." });
+      return;
+    }
+    setSaving(true);
+    try {
+      const path = await uploadHomeProfilePhoto(user.id, file);
+      const url = await resolveHomeMediaUrl(path);
+      if (!url) throw new Error("Could not load uploaded profile photo.");
+      setProfilePhoto(url);
       try {
         localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, url);
-        setProfilePhoto(url);
-        void saveHomeLayout({ homeProfilePhoto: url });
       } catch {
-        toast({ title: "Applied temporarily", description: "Image is too large to save on this device." });
+        // Signed URL still works for this session.
       }
-    };
-    reader.readAsDataURL(file);
+      await saveHomeLayout({ homeProfilePhoto: path });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Could not save profile photo",
+        description: e instanceof Error ? e.message : "Upload failed.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveWallpaperPresentation = (nextTint: number, nextBlur: number) => {

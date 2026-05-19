@@ -30,12 +30,20 @@ export async function getSignedPhotoUrl(path: string, expiresIn = 3600): Promise
 
 export async function getSignedPhotoUrls(paths: string[]): Promise<Record<string, string>> {
   if (!paths.length) return {};
-  const { data } = await supabase.storage
+  const unique = [...new Set(paths.filter(Boolean))];
+  const { data, error } = await supabase.storage
     .from("journal-photos")
-    .createSignedUrls(paths, 3600);
+    .createSignedUrls(unique, 3600);
+  if (error) {
+    console.warn("[journal-photos] createSignedUrls failed:", error.message);
+    return {};
+  }
   const map: Record<string, string> = {};
   data?.forEach((row) => {
-    if (row.path && row.signedUrl) map[row.path] = row.signedUrl;
+    if (row.path && row.signedUrl && !row.error) map[row.path] = row.signedUrl;
+    else if (row.path && row.error) {
+      console.warn("[journal-photos] sign failed for", row.path, row.error);
+    }
   });
   return map;
 }

@@ -7,8 +7,10 @@ import { parseIdentitySummaryPayload } from "@/lib/framework/identitySummary";
 import {
   HOME_PROFILE_PHOTO_STORAGE_KEY,
   homeProfilePhotoFromLayout,
+  homeProfilePhotoRefFromLayout,
   readHomeProfilePhotoFromStorage,
 } from "@/lib/homeProfilePhoto";
+import { resolveHomeMediaUrl } from "@/lib/profile/homeMedia";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +67,7 @@ export default function IdentityCard() {
   const generatedAt = profile?.identity_generated_at ?? null;
 
   const [storagePhotoTick, setStoragePhotoTick] = useState(0);
+  const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | undefined>();
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -74,9 +77,28 @@ export default function IdentityCard() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  useEffect(() => {
+    const inline = homeProfilePhotoFromLayout(profile?.layout);
+    if (inline) {
+      setSignedAvatarUrl(inline);
+      return;
+    }
+    const ref = homeProfilePhotoRefFromLayout(profile?.layout);
+    if (!ref) {
+      setSignedAvatarUrl(undefined);
+      return;
+    }
+    let cancelled = false;
+    void resolveHomeMediaUrl(ref).then((url) => {
+      if (!cancelled) setSignedAvatarUrl(url ?? undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.layout, storagePhotoTick]);
+
   const avatarUrl = useMemo(() => {
-    const fromLayout = homeProfilePhotoFromLayout(profile?.layout);
-    if (fromLayout) return fromLayout;
+    if (signedAvatarUrl) return signedAvatarUrl;
     const fromLs = readHomeProfilePhotoFromStorage();
     if (fromLs) return fromLs;
     const m = user?.user_metadata;
@@ -87,7 +109,7 @@ export default function IdentityCard() {
     if (typeof a === "string" && a.trim()) return a.trim();
     if (typeof p === "string" && p.trim()) return p.trim();
     return undefined;
-  }, [profile?.layout, user?.user_metadata, storagePhotoTick]);
+  }, [signedAvatarUrl, user?.user_metadata, storagePhotoTick]);
 
   const monogramName = displayName || user?.email || "You";
 

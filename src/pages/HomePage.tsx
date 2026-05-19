@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
+import { parseHomeLayoutMedia, resolveHomeMediaUrl } from "@/lib/profile/homeMedia";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 const LAST_READ_KEY = "yb_last_read";
@@ -86,21 +87,38 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!profile?.layout) return;
-    try {
-      const parsed = JSON.parse(profile.layout) as { homeWallpaper?: string; homeWallpaperTint?: number; homeWallpaperBlur?: number; homeProfilePhoto?: string };
-      if (parsed.homeWallpaper) {
-        setWallpaper(parsed.homeWallpaper);
-        localStorage.setItem(WALLPAPER_KEY, parsed.homeWallpaper);
+    const parsed = parseHomeLayoutMedia(profile.layout);
+    if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
+    if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
+
+    let cancelled = false;
+    (async () => {
+      const [wp, photo] = await Promise.all([
+        resolveHomeMediaUrl(parsed.homeWallpaper),
+        resolveHomeMediaUrl(parsed.homeProfilePhoto),
+      ]);
+      if (cancelled) return;
+      if (wp) {
+        setWallpaper(wp);
+        try {
+          localStorage.setItem(WALLPAPER_KEY, wp);
+        } catch {
+          // Quota — signed URL still works for this session.
+        }
       }
-      if (typeof parsed.homeWallpaperTint === "number") setWallpaperTint(parsed.homeWallpaperTint);
-      if (typeof parsed.homeWallpaperBlur === "number") setWallpaperBlur(parsed.homeWallpaperBlur);
-      if (parsed.homeProfilePhoto) {
-        setProfilePhoto(parsed.homeProfilePhoto);
-        localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, parsed.homeProfilePhoto);
+      if (photo) {
+        setProfilePhoto(photo);
+        try {
+          localStorage.setItem(HOME_PROFILE_PHOTO_STORAGE_KEY, photo);
+        } catch {
+          // Quota — signed URL still works for this session.
+        }
       }
-    } catch {
-      // Keep defaults when legacy/plain layout values are present.
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.layout]);
 
   useEffect(() => {
