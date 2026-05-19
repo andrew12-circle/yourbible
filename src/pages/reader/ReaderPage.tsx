@@ -23,6 +23,7 @@ import { getPalette } from "@/lib/bible/palettes";
 import {
   highlightIntervalsForVerse,
   isRangeInReadingArea,
+  selectionRectFromRange,
   selectionToVerseRanges,
   sliceTextByHighlights,
 } from "@/lib/bible/verseSelection";
@@ -400,15 +401,10 @@ export default function ReaderPage() {
       const ranges = selectionToVerseRanges(range, verseLengths);
       if (!ranges) return null;
       const versesInSel = [...new Set(ranges.map(r => r.verse))].sort((a, b) => a - b);
-      const rect = range.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) return null;
+      const rect = selectionRectFromRange(range);
+      if (!rect) return null;
       return {
-        rect: {
-          left: rect.left,
-          top: rect.top,
-          right: rect.right,
-          bottom: rect.bottom,
-        },
+        rect,
         verses: versesInSel,
         ranges,
       };
@@ -423,7 +419,9 @@ export default function ReaderPage() {
       if (!next) {
         // Small delay so picking a swatch (which momentarily clears selection
         // through React re-render) doesn't immediately hide the toolbar.
-        pendingHide = window.setTimeout(() => setTbSel(null), 80);
+        pendingHide = window.setTimeout(() => {
+          if (!computeSelection()) setTbSel(null);
+        }, 80);
         return;
       }
       setTbSel(next);

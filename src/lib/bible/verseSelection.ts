@@ -19,6 +19,69 @@ export function findVerseFromNode(node: Node | null): number | null {
   return null;
 }
 
+/** Deepest text node inside `node` (for element-bounded selections). */
+function deepestTextNode(node: Node | null): Node | null {
+  if (!node) return null;
+  if (node.nodeType === Node.TEXT_NODE) return node;
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const el = node as Element;
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const found = deepestTextNode(el.childNodes[i]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the DOM node at a range boundary. Browsers often anchor multi-verse
+ * selections on the wrapping `<p>` with child offsets instead of text nodes.
+ */
+export function nodeAtRangeBoundary(
+  range: Range,
+  which: "start" | "end",
+): Node {
+  const container =
+    which === "start" ? range.startContainer : range.endContainer;
+  const offset = which === "start" ? range.startOffset : range.endOffset;
+  if (container.nodeType === Node.TEXT_NODE) return container;
+
+  const el = container as Element;
+  if (which === "start") {
+    if (offset < el.childNodes.length) {
+      const child = el.childNodes[offset];
+      return deepestTextNode(child) ?? child ?? container;
+    }
+    if (offset > 0) {
+      const child = el.childNodes[offset - 1];
+      return deepestTextNode(child) ?? child ?? container;
+    }
+  } else {
+    if (offset > 0) {
+      const child = el.childNodes[offset - 1];
+      return deepestTextNode(child) ?? child ?? container;
+    }
+    if (offset < el.childNodes.length) {
+      const child = el.childNodes[offset];
+      return deepestTextNode(child) ?? child ?? container;
+    }
+  }
+  return container;
+}
+
+export function findVerseFromRangeBoundary(
+  range: Range,
+  which: "start" | "end",
+): number | null {
+  return findVerseFromNode(nodeAtRangeBoundary(range, which));
+}
+
+export function getReadingAreaFromRange(range: Range): HTMLElement | null {
+  const node = range.commonAncestorContainer;
+  const el = node instanceof HTMLElement ? node : node.parentElement;
+  return el?.closest("[data-reading-area]") ?? null;
+}
+
 export function getVerseBodyElement(
   verse: number,
   root: ParentNode = document,
@@ -36,8 +99,45 @@ export function offsetInVerseBody(
 ): number {
   const r = document.createRange();
   r.selectNodeContents(body);
-  r.setEnd(container, offset);
-  return r.toString().length;
+  try {
+    r.setEnd(container, offset);
+  } catch {
+    return container.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_CONTAINS
+      ? 0
+      : (body.textContent?.length ?? 0);
+  }
+  const len = body.textContent?.length ?? 0;
+  return Math.max(0, Math.min(r.toString().length, len));
+}
+
+function constrainRangeToBody(range: Range, body: HTMLElement): Range {
+  const bodyRange = document.createRange();
+  bodyRange.selectNodeContents(body);
+  const out = range.cloneRange();
+  if (out.compareBoundaryPoints(Range.START_TO_START, bodyRange) < 0) {
+    out.setStart(bodyRange.startContainer, bodyRange.startOffset);
+  }
+  if (out.compareBoundaryPoints(Range.END_TO_END, bodyRange) > 0) {
+    out.setEnd(bodyRange.endContainer, bodyRange.endOffset);
+  }
+  return out;
+}
+
+function offsetAtRangeBoundaryInBody(
+  body: HTMLElement,
+  range: Range,
+  which: "start" | "end",
+): number {
+  const sub = constrainRangeToBody(range, body);
+  const measure = document.createRange();
+  measure.selectNodeContents(body);
+  if (which === "start") {
+    measure.setEnd(sub.startContainer, sub.startOffset);
+  } else {
+    measure.setEnd(sub.endContainer, sub.endOffset);
+  }
+  const len = body.textContent?.length ?? 0;
+  return Math.max(0, Math.min(measure.toString().length, len));
 }
 
 function rangeTouchesVerse(range: Range, body: HTMLElement): boolean {
@@ -49,6 +149,31 @@ function rangeTouchesVerse(range: Range, body: HTMLElement): boolean {
   );
 }
 
+/** Union of client rects for toolbar placement (matches SelectionPencilOverlay). */
+export function selectionRectFromRange(
+  range: Range,
+): { left: number; top: number; right: number; bottom: number } | null {
+  const rects = Array.from(range.getClientRects()).filter(
+    (r) => r.width > 0 && r.height > 0,
+  );
+  if (rects.length > 0) {
+    return {
+      left: Math.min(...rects.map((r) => r.left)),
+      top: Math.min(...rects.map((r) => r.top)),
+      right: Math.max(...rects.map((r) => r.right)),
+      bottom: Math.max(...rects.map((r) => r.bottom)),
+    };
+  }
+  const rect = range.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return null;
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
+}
+
 /**
  * Turn a live DOM selection into per-verse character ranges (plain text indices).
  */
@@ -56,8 +181,11 @@ export function selectionToVerseRanges(
   range: Range,
   verseLengths: Map<number, number>,
 ): VerseRange[] | null {
-  const startVerse = findVerseFromNode(range.startContainer);
-  const endVerse = findVerseFromNode(range.endContainer);
+  const readingArea = getReadingAreaFromRange(range);
+  if (!readingArea) return null;
+
+  const startVerse = findVerseFromRangeBoundary(range, "start");
+  const endVerse = findVerseFromRangeBoundary(range, "end");
   if (startVerse == null || endVerse == null) return null;
 
   const lo = Math.min(startVerse, endVerse);
@@ -67,24 +195,17 @@ export function selectionToVerseRanges(
   for (let v = lo; v <= hi; v++) {
     const len = verseLengths.get(v);
     if (len == null) continue;
-    const body = getVerseBodyElement(v);
+    const body = getVerseBodyElement(v, readingArea);
     if (!body || !rangeTouchesVerse(range, body)) continue;
-
-    const bodyRange = document.createRange();
-    bodyRange.selectNodeContents(body);
 
     let start = 0;
     let end = len;
 
     if (v === startVerse) {
-      start = offsetInVerseBody(
-        body,
-        range.startContainer,
-        range.startOffset,
-      );
+      start = offsetAtRangeBoundaryInBody(body, range, "start");
     }
     if (v === endVerse) {
-      end = offsetInVerseBody(body, range.endContainer, range.endOffset);
+      end = offsetAtRangeBoundaryInBody(body, range, "end");
     }
 
     start = Math.max(0, Math.min(start, len));
@@ -96,12 +217,7 @@ export function selectionToVerseRanges(
 }
 
 export function isRangeInReadingArea(range: Range): boolean {
-  const container = (
-    range.commonAncestorContainer instanceof HTMLElement
-      ? range.commonAncestorContainer
-      : range.commonAncestorContainer.parentElement
-  ) as HTMLElement | null;
-  return !!container?.closest("[data-reading-area]");
+  return !!getReadingAreaFromRange(range);
 }
 
 export type HighlightInterval = { start: number; end: number; color: string };

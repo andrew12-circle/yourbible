@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import type { VerseRange } from "@/lib/bible/verseSelection";
@@ -68,7 +69,7 @@ export function SelectionToolbar({
   }
   if (top + 96 > vh - margin) top = Math.max(margin, vh - margin - 96);
 
-  return (
+  const toolbar = (
     <AnimatePresence>
       {open && (
         <motion.div
@@ -82,7 +83,7 @@ export function SelectionToolbar({
           onMouseDown={(e) => e.preventDefault()}
           onPointerDown={(e) => e.preventDefault()}
           data-selection-toolbar
-          className="fixed z-50 bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
+          className="fixed z-[60] bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
           style={{ left, top, width: TOOLBAR_W }}
         >
           {palette.colors.map((c) => (
@@ -158,4 +159,7 @@ export function SelectionToolbar({
       )}
     </AnimatePresence>
   );
+
+  if (typeof document === "undefined") return toolbar;
+  return createPortal(toolbar, document.body);
 }
