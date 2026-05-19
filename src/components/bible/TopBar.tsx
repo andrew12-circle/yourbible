@@ -204,62 +204,8 @@ export function TopBar({
 
               {/* Body */}
               {step === "book" && (
-                <div className="p-3">
-                  <div className="relative mb-3">
-                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      autoFocus
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search books…"
-                      className="w-full pl-8 pr-2 py-1.5 text-sm rounded-md border border-paper-edge bg-paper/60 text-leather placeholder:text-muted-foreground/70 focus:outline-none focus:border-gold/50"
-                    />
-                  </div>
-                  <div className="max-h-[55vh] overflow-y-auto space-y-3">
-                    {otBooks.length > 0 && (
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-1.5 px-1">Old Testament</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                          {otBooks.map(b => (
-                            <button
-                              key={b.abbr}
-                              onClick={() => pickBook(b)}
-                              className={`text-left px-2 py-1.5 rounded-md font-display text-sm border transition-all ${
-                                b.abbr === currentBook.abbr
-                                  ? "bg-leather text-paper border-leather-deep"
-                                  : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                              }`}
-                            >
-                              {b.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {ntBooks.length > 0 && (
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-1.5 px-1">New Testament</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                          {ntBooks.map(b => (
-                            <button
-                              key={b.abbr}
-                              onClick={() => pickBook(b)}
-                              className={`text-left px-2 py-1.5 rounded-md font-display text-sm border transition-all ${
-                                b.abbr === currentBook.abbr
-                                  ? "bg-leather text-paper border-leather-deep"
-                                  : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                              }`}
-                            >
-                              {b.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {filteredBooks.length === 0 && (
-                      <div className="text-center text-sm text-muted-foreground py-8">No books match “{search}”.</div>
-                    )}
-                  </div>
+                <div className="p-3 max-h-[55vh] overflow-y-auto">
+                  <BookPickerStep currentBook={currentBook} onPickBook={pickBook} gridCols="responsive" />
                 </div>
               )}
 

@@ -8,15 +8,15 @@ import {
   Moon,
   Network,
   Plus,
-  Search,
   Settings,
   X,
 } from "lucide-react";
+import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { BibleEntry } from "@/lib/bible/api";
 import { BOOKS, BibleBook } from "@/data/books";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type PickerStep = "book" | "chapter" | "verse";
 
@@ -58,7 +58,6 @@ export function ReaderMobileMenu({
   const [step, setStep] = useState<PickerStep>("book");
   const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
   const [pickedChapter, setPickedChapter] = useState(currentChapter ?? 1);
-  const [search, setSearch] = useState("");
   const [verseInput, setVerseInput] = useState("");
 
   useEffect(() => {
@@ -66,18 +65,8 @@ export function ReaderMobileMenu({
     setStep("book");
     setPickedBook(currentBook);
     setPickedChapter(currentChapter);
-    setSearch("");
     setVerseInput("");
   }, [open, currentBook, currentChapter]);
-
-  const filteredBooks = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return BOOKS;
-    return BOOKS.filter(b => b.name.toLowerCase().includes(q) || b.abbr.toLowerCase().includes(q));
-  }, [search]);
-
-  const otBooks = filteredBooks.filter(b => b.testament === "OT");
-  const ntBooks = filteredBooks.filter(b => b.testament === "NT");
 
   const pickBook = (b: BibleBook) => {
     setPickedBook(b);
@@ -144,11 +133,11 @@ export function ReaderMobileMenu({
                 </button>
               )}
               <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground truncate">
-                {step === "book" && "Go to · book"}
+                {step === "book" && "Go to \u00B7 book"}
                 {step === "chapter" && (
                   <>
                     <span className="text-leather/80 normal-case tracking-normal text-sm font-display">{pickedBook.name}</span>
-                    {" · chapter"}
+                    {" \u00B7 chapter"}
                   </>
                 )}
                 {step === "verse" && (
@@ -156,7 +145,7 @@ export function ReaderMobileMenu({
                     <span className="text-leather/80 normal-case tracking-normal text-sm font-display">
                       {pickedBook.name} {pickedChapter}
                     </span>
-                    {" · verse"}
+                    {" \u00B7 verse"}
                   </>
                 )}
               </p>
@@ -166,63 +155,7 @@ export function ReaderMobileMenu({
           <div className="flex-1 min-h-0 overflow-y-auto">
             {step === "book" && (
               <div className="p-4">
-                <div className="relative mb-3">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    autoFocus
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search books…"
-                    className="w-full pl-8 pr-2 py-2 text-sm rounded-md border border-paper-edge bg-paper/60 text-leather placeholder:text-muted-foreground/70 focus:outline-none focus:border-gold/50"
-                  />
-                </div>
-                <div className="space-y-4">
-                  {otBooks.length > 0 && (
-                    <section>
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">Old Testament</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {otBooks.map(b => (
-                          <button
-                            key={b.abbr}
-                            type="button"
-                            onClick={() => pickBook(b)}
-                            className={`text-left px-2.5 py-2 rounded-md font-display text-sm border transition-all ${
-                              b.abbr === currentBook.abbr
-                                ? "bg-leather text-paper border-leather-deep"
-                                : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                            }`}
-                          >
-                            {b.name}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {ntBooks.length > 0 && (
-                    <section>
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">New Testament</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {ntBooks.map(b => (
-                          <button
-                            key={b.abbr}
-                            type="button"
-                            onClick={() => pickBook(b)}
-                            className={`text-left px-2.5 py-2 rounded-md font-display text-sm border transition-all ${
-                              b.abbr === currentBook.abbr
-                                ? "bg-leather text-paper border-leather-deep"
-                                : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                            }`}
-                          >
-                            {b.name}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {filteredBooks.length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground py-8">No books match "{search}".</p>
-                  )}
-                </div>
+                <BookPickerStep currentBook={currentBook} onPickBook={pickBook} gridCols="two" />
               </div>
             )}
 
@@ -311,7 +244,7 @@ export function ReaderMobileMenu({
             <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">Translation</p>
             <div className="max-h-28 overflow-y-auto rounded-lg border border-paper-edge divide-y divide-paper-edge">
               {bibles.length === 0 && (
-                <p className="px-3 py-2 text-sm text-muted-foreground">Loading translations…</p>
+                <p className="px-3 py-2 text-sm text-muted-foreground">Loading translations{"\u2026"}</p>
               )}
               {bibles.map(b => (
                 <button
