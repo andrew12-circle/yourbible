@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, Search, X, Minus, Plus, Network } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu } from "lucide-react";
+import { BookPickerStep } from "@/components/bible/BookPickerStep";
+import { ReaderMobileMenu } from "@/components/bible/ReaderMobileMenu";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { BibleEntry } from "@/lib/bible/api";
-import { BOOKS, BibleBook, SECTION_LABELS } from "@/data/books";
-import { useMemo, useState } from "react";
+import { BOOKS, BibleBook } from "@/data/books";
+import { useState } from "react";
 
 interface Props {
   reference: string;
@@ -28,6 +30,8 @@ interface Props {
   fontScale: number;
   /** Bump the text-size scale by ±step (clamped). Pass 0 to reset. */
   onFontScaleChange: (next: number) => void;
+  /** Viewport under READER_SINGLE_PAGE_MAX — compact chrome + menu sheet */
+  singlePage?: boolean;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -37,16 +41,17 @@ export function TopBar({
   bibleId, bibles, onChangeBible, onBookmark,
   currentBook, currentChapter, currentVerseCount, onJumpTo,
   fontScale, onFontScaleChange,
+  singlePage = false,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Reference picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [step, setStep] = useState<PickerStep>("book");
   const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
   const [pickedChapter, setPickedChapter] = useState<number>(currentChapter ?? 1);
-  const [search, setSearch] = useState("");
 
   const onOpenPicker = (next: boolean) => {
     setPickerOpen(next);
@@ -55,19 +60,8 @@ export function TopBar({
       setStep("book");
       setPickedBook(currentBook);
       setPickedChapter(currentChapter);
-      setSearch("");
     }
   };
-
-  const filteredBooks = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return BOOKS;
-    return BOOKS.filter(b => b.name.toLowerCase().includes(q) || b.abbr.toLowerCase().includes(q));
-  }, [search]);
-
-  // Group books by testament for the book step
-  const otBooks = filteredBooks.filter(b => b.testament === "OT");
-  const ntBooks = filteredBooks.filter(b => b.testament === "NT");
 
   const pickBook = (b: BibleBook) => {
     setPickedBook(b);
@@ -109,11 +103,55 @@ export function TopBar({
         </button>
       )}
 
+      {singlePage && (
+        <ReaderMobileMenu
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          reference={reference}
+          currentBook={currentBook}
+          currentChapter={currentChapter}
+          currentVerseCount={currentVerseCount}
+          onJumpTo={onJumpTo}
+          bibleId={bibleId}
+          bibles={bibles}
+          onChangeBible={onChangeBible}
+          fontScale={fontScale}
+          onFontScaleChange={onFontScaleChange}
+          onBookmark={onBookmark}
+          focusMode={focusMode}
+          onToggleFocus={onToggleFocus}
+        />
+      )}
+
       <header
-        className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 py-3 bg-paper/80 backdrop-blur-md border-b border-paper-edge ${
+        className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 bg-paper/80 backdrop-blur-md border-b border-paper-edge ${
           open ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
-        }`}
+        } ${singlePage ? "py-2" : "py-3"}`}
       >
+        {singlePage ? (
+        <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex items-center gap-1.5 text-leather hover:text-leather-deep transition-colors min-w-0"
+            aria-label="Open reader menu"
+          >
+            <span className="font-display text-lg truncate">{reference}</span>
+            <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
+          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} title="Reader menu" className="text-leather/80 hover:text-leather">
+              <Menu className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"} className="text-leather/80 hover:text-leather">
+              {focusMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setOpen(false)} title="Hide header" className="text-leather/80 hover:text-leather">
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        ) : (
         <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {/* Reference picker — book / chapter / verse */}
@@ -390,7 +428,9 @@ export function TopBar({
           </Button>
         </div>
         </div>
+        )}
       </header>
     </>
   );
 }
+

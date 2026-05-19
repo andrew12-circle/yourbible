@@ -716,6 +716,7 @@ export default function ReaderPage() {
         }}
         fontScale={fontScale}
         onFontScaleChange={updateFontScale}
+        singlePage={singlePage}
       />
 
       <BookScene
