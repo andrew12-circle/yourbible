@@ -519,12 +519,20 @@ export function LifePrioritiesPanel() {
           </ul>
         )}
 
-        <Link
-          to="/life/priorities"
-          className="mt-2 flex items-center justify-center gap-0.5 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:underline"
-        >
-          30-day overview <ChevronRight className="w-3.5 h-3.5" />
-        </Link>
+        <div className="mt-2 flex flex-col gap-1">
+          <Link
+            to="/life/priorities"
+            className="flex items-center justify-center gap-0.5 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:underline"
+          >
+            30-day overview <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link
+            to="/life/todos"
+            className="flex items-center justify-center gap-0.5 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:underline"
+          >
+            Tasks <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </section>
 
       <LifePrioritiesManageSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} priorities={priorities} onUpdated={load} />

@@ -9,6 +9,9 @@ import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatT
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
 import { composeChatTranscript } from "@/lib/journal/inlineJournalChat";
+import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
+import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
+import ChatJournalView from "@/components/journal/ChatJournalView";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -32,6 +35,7 @@ interface EntryRow {
   id: string;
   title: string | null;
   body: string;
+  summary: string | null;
   mood: number | null;
   tags: string[];
   entry_at_ts: string;
@@ -84,7 +88,7 @@ export default function EntryEditorPane({
       const { data } = await supabase
         .from("journal_entries")
         .select(
-          "id,title,body,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
         )
         .eq("id", entryId)
         .maybeSingle();
@@ -143,7 +147,10 @@ export default function EntryEditorPane({
     queueSaveRef.current({ body, entry_kind: "chat" });
   }, []);
 
+  const [finalizingChat, setFinalizingChat] = useState(false);
+
   const {
+    chatId,
     chatTurns,
     aiBusy,
     chatScrollRef,
@@ -187,7 +194,41 @@ export default function EntryEditorPane({
     if (ok) setChatDraft("");
   };
 
+  const finalizeChatEntry = async () => {
+    if (!entry?.id || finalizingChat) return;
+    setFinalizingChat(true);
+    try {
+      if (chatTurns.length > 0) {
+        persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
+      }
+      await saveChatAsJournalEntry({ journalEntryId: entry.id });
+      const { data: refreshed } = await supabase
+        .from("journal_entries")
+        .select(
+          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+        )
+        .eq("id", entry.id)
+        .maybeSingle();
+      if (refreshed) {
+        const row = refreshed as EntryRow;
+        entryRef.current = row;
+        setEntry(row);
+      }
+      toast({ title: "Saved as journal entry" });
+      setReplyWithAi(false);
+      onChanged();
+    } catch (e) {
+      toast({ title: "Could not save chat", description: String(e), variant: "destructive" });
+    } finally {
+      setFinalizingChat(false);
+    }
+  };
+
   const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
+  const showSavedChatView =
+    !!entry &&
+    !inlineChatMode &&
+    isChatJournalExport(entry.body, entry.summary);
 
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
@@ -321,10 +362,20 @@ export default function EntryEditorPane({
             <DropdownMenuItem onClick={() => navigate(`/journal/${entry.id}/edit`)}>
               Open in full editor
             </DropdownMenuItem>
-            {entry.entry_kind === "chat" && (
-              <DropdownMenuItem onClick={() => navigate(`/journal/chat/${entry.id}`)}>
-                Open chat session
+            {chatId && (
+              <DropdownMenuItem onClick={() => navigate(`/my-ai/${chatId}`)}>
+                Open in My AI
               </DropdownMenuItem>
+            )}
+            {entry.entry_kind === "chat" && (
+              <>
+                <DropdownMenuItem onClick={() => navigate(`/journal/chat/${entry.id}`)}>
+                  Open chat session
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={finalizingChat} onClick={() => void finalizeChatEntry()}>
+                  Save as journal entry
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={remove} className="text-destructive">
@@ -433,6 +484,12 @@ export default function EntryEditorPane({
               dictInterim={dictInterim}
               className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2"
             />
+          ) : showSavedChatView ? (
+            <ChatJournalView
+              body={entry.body}
+              summary={entry.summary}
+              className="flex-1 min-h-0 overflow-y-auto"
+            />
           ) : (
             <>
               <PolishedTextarea
@@ -507,6 +564,26 @@ export default function EntryEditorPane({
               onDictate={() => dictateRef.current?.toggle()}
               aiBusy={aiBusy}
               rounded="card"
+              extraActions={
+                entry.entry_kind === "chat" ? (
+                  <button
+                    type="button"
+                    disabled={finalizingChat || aiBusy}
+                    onClick={() => void finalizeChatEntry()}
+                    className="text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    {finalizingChat ? "Saving…" : "Save as journal entry"}
+                  </button>
+                ) : chatId ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/my-ai/${chatId}`)}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Open in My AI
+                  </button>
+                ) : null
+              }
             />
           </div>
         </div>

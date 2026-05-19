@@ -1,3 +1,8 @@
+/**
+ * Legacy Framework Chat (Socratic / devil's advocate / pastoral) on `chat_threads`.
+ * Canonical grounded chat is `/my-ai` (`my-ai-chat`). Route `/framework/chat` redirects to My AI;
+ * this page remains at `/framework/chat/legacy` until modes are merged.
+ */
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Navigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";

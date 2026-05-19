@@ -4,7 +4,7 @@ import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, BookOpen, ListChecks, MessageCircleQuestion, MessageCircleHeart, MessageCircle,
+  Loader2, BookOpen, ListChecks, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Lightbulb, Calendar as CalIcon, User, Youtube, HeartHandshake,
   type LucideIcon,
@@ -12,7 +12,6 @@ import {
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
-
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
 
@@ -158,16 +157,7 @@ export default function HomePage() {
     { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
     { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
     { label: "Framework", to: "/framework",            icon: Brain,                 color: "#FF2D55", iconColor: "white" },
-    { label: "Chat",      to: "/framework/chat",       icon: MessageCircleQuestion, color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)", badge: counts.chats || undefined },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
-    {
-      label: "Chat journal",
-      to: "/journal/chat",
-      icon: MessageCircle,
-      color: "linear-gradient(160deg, #0D9488 0%, #14B8A6 52%, #5EEAD4 100%)",
-      iconColor: "white",
-      ariaLabel: "Open chat journal",
-    },
     {
       label: "Walking together",
       to: "/partner",
@@ -181,15 +171,18 @@ export default function HomePage() {
     { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "linear-gradient(160deg, #4C46D1 0%, #6A63FF 58%, #8E8BFF 100%)" },
     { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "linear-gradient(160deg, #0073EF 0%, #1A97FF 58%, #57B8FF 100%)" },
     { label: "Library",   to: "/framework/influences", icon: BookOpen,              color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", badge: counts.artifacts || undefined },
+    { label: "Tasks",     to: "/life/todos",           icon: ListTodo,              color: "linear-gradient(160deg, #2563EB 0%, #3B82F6 58%, #93C5FD 100%)" },
+    { label: "Habits",    to: "/life/habits",          icon: CheckSquare,           color: "linear-gradient(160deg, #059669 0%, #10B981 58%, #6EE7B7 100%)", iconColor: "white" },
     { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "linear-gradient(160deg, #091134 0%, #122056 58%, #20357D 100%)" },
     { label: "YouTube",   onOpen: openYouTubeAppOrWeb, icon: Youtube,               color: "#FF2D2D", iconColor: "white", ariaLabel: "Open YouTube" },
     {
       label: "My AI",
       to: "/my-ai",
       icon: MessageCircleHeart,
-      color: "linear-gradient(155deg, #312E81 0%, #3730A3 45%, #475569 100%)",
+      color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)",
       iconColor: "white",
-      ariaLabel: "Open My AI",
+      ariaLabel: "Open My AI — framework-grounded chat",
+      badge: counts.chats || undefined,
     },
     { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
   ];
@@ -423,7 +416,7 @@ export default function HomePage() {
           <div className="flex items-center justify-around gap-1 rounded-[24px] sm:rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-2 sm:px-3 py-2 sm:py-2.5">
             <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
             <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
-            <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")}          label="Journal" />
+            <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")} label="Journal" />
             <DockIcon icon={Brain} color="#FF2D55" onClick={() => navigate("/framework")} label="Framework" iconColor="white" />
           </div>
           <div className="mx-auto mt-2 w-[96px] sm:w-[120px] h-[5px] rounded-full bg-white/70" />

@@ -191,7 +191,7 @@ export default function NewJournalEntryPage() {
     }
     const kindInit = parseJournalEntryKindParam(params.get("kind"));
     if (kindInit === "chat" && !editId) {
-      navigate("/journal/chat", { replace: true });
+      navigate("/my-ai", { replace: true });
       return;
     }
     if (kindInit) {

@@ -1,8 +1,7 @@
 /**
- * Chat journal (Option A): one `journal_entries` row (`entry_kind = 'chat'`) owns a My AI thread
- * via `my_ai_chats.journal_entry_id`. Messages live in `my_ai_messages`. Ending a session writes a
- * markdown transcript (+ optional summary) into `journal_entries.body`. See migration
- * `20260512230000_journal_entry_kind_chat.sql`.
+ * Legacy chat-journal sessions (`entry_kind = 'chat'`). New conversations should start at `/my-ai`
+ * and use "Save to journal" when done. This route remains for existing chat entries and claim handoff.
+ * Same backend as My AI: `my-ai-chat` + `my_ai_messages`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -34,9 +33,8 @@ import { toast } from "@/hooks/use-toast";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
-import { getDefaultJournalId } from "@/lib/journal/journals";
-import { getCurrentContext } from "@/lib/journal/context";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
+import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
@@ -339,70 +337,6 @@ export default function JournalChatPage() {
     localStorage.setItem(LS_VOICE_REPLIES, voiceReplies ? "1" : "0");
   }, [voiceReplies]);
 
-  // Create entry + chat, then navigate to /journal/chat/:id (sessionStorage avoids Strict Mode double-create).
-  useEffect(() => {
-    if (routeEntryId || !user || authLoading) return;
-    const lockKey = "journal_chat_start_lock";
-    const raw = sessionStorage.getItem(lockKey);
-    if (raw) {
-      const started = Number(raw);
-      if (!Number.isNaN(started) && Date.now() - started < 12_000) return;
-    }
-    sessionStorage.setItem(lockKey, String(Date.now()));
-    let cancelled = false;
-    (async () => {
-      const jid = await getDefaultJournalId(user.id);
-      const ctx = await getCurrentContext().catch(() => ({} as Record<string, unknown>));
-      const now = new Date();
-      const title = `Reflection — ${now.toLocaleDateString(undefined, { dateStyle: "medium" })}`;
-      const { data: ent, error: eErr } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: user.id,
-          journal_id: jid,
-          title,
-          body: "",
-          tags: [],
-          entry_kind: "chat",
-          analyze_for_mirror: false,
-          entry_at_ts: now.toISOString(),
-          entry_at: now.toISOString().slice(0, 10),
-          location_name: (ctx.location_name as string | undefined) ?? null,
-          lat: (ctx.lat as number | undefined) ?? null,
-          lng: (ctx.lng as number | undefined) ?? null,
-          weather: (ctx.weather as string | undefined) ?? null,
-          weather_temp_c: (ctx.weather_temp_c as number | undefined) ?? null,
-          weather_icon: (ctx.weather_icon as string | undefined) ?? null,
-        })
-        .select("id")
-        .maybeSingle();
-      if (cancelled) return;
-      if (eErr || !ent?.id) {
-        sessionStorage.removeItem(lockKey);
-        toast({ title: "Could not start chat journal", description: eErr?.message, variant: "destructive" });
-        navigate("/journal", { replace: true });
-        return;
-      }
-      const { data: chat, error: cErr } = await supabase
-        .from("my_ai_chats")
-        .insert({ user_id: user.id, journal_entry_id: ent.id })
-        .select("id")
-        .maybeSingle();
-      if (cancelled) return;
-      if (cErr || !chat?.id) {
-        sessionStorage.removeItem(lockKey);
-        toast({ title: "Could not create chat thread", description: cErr?.message, variant: "destructive" });
-        navigate("/journal", { replace: true });
-        return;
-      }
-      navigate(`/journal/chat/${ent.id}`, { replace: true });
-      sessionStorage.removeItem(lockKey);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [routeEntryId, user, authLoading, navigate]);
-
   // Load entry + linked chat for :entryId; bootstrap opener when thread is empty.
   useEffect(() => {
     if (!routeEntryId || !user) return;
@@ -583,6 +517,7 @@ export default function JournalChatPage() {
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
+  if (!routeEntryId) return <Navigate to="/my-ai" replace />;
 
   const persistTitle = async (next: string) => {
     if (!routeEntryId) return;
@@ -729,18 +664,13 @@ export default function JournalChatPage() {
     stopJournalTts();
     setEnding(true);
     try {
-      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>("my-ai-chat", {
-        body: { finalize_journal_entry_id: routeEntryId },
-      });
-      if (error) throw new Error(error.message);
-      const payload = data as { ok?: boolean; error?: string } | null;
-      if (payload?.error) throw new Error(payload.error);
+      await saveChatAsJournalEntry({ journalEntryId: routeEntryId });
       if (analyzeForMirror) {
         supabase.functions.invoke("journal-score-entry", { body: { entry_id: routeEntryId } }).catch(() => {});
       }
       navigate(`/journal/${routeEntryId}`);
     } catch (e) {
-      toast({ title: "Could not end session", description: String(e), variant: "destructive" });
+      toast({ title: "Could not save entry", description: String(e), variant: "destructive" });
     } finally {
       setEnding(false);
     }
@@ -753,7 +683,7 @@ export default function JournalChatPage() {
 
   const newSession = () => {
     setSheetOpen(false);
-    navigate("/journal/chat");
+    navigate("/my-ai");
   };
 
   sendRef.current = send;
@@ -813,7 +743,7 @@ export default function JournalChatPage() {
         <div className="flex flex-wrap items-center gap-2">
           <AiWritingAssistToggle compact />
           <Button type="button" variant="outline" size="sm" className="text-xs" disabled={ending} onClick={() => void endSession()}>
-            {ending ? "Saving…" : "End session"}
+            {ending ? "Saving…" : "Save as journal entry"}
           </Button>
           <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/journal")}>
             Continue later

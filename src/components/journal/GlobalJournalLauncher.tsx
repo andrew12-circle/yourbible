@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { ChevronLeft, NotebookPen, Ribbon } from "lucide-react";
+import { ChevronLeft, NotebookPen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import FloatingJournalPanel from "@/components/journal/FloatingJournalPanel";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
@@ -60,7 +60,7 @@ export default function GlobalJournalLauncher() {
           readerJournal
             ? "border-gold/25 bg-navy text-gold-bright"
             : "border-primary/20 bg-primary text-primary-foreground",
-          launcherTucked ? "w-1 overflow-hidden" : "w-11",
+          launcherTucked ? "w-1 overflow-hidden" : readerJournal ? "w-8" : "w-11",
         )}
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
@@ -82,21 +82,25 @@ export default function GlobalJournalLauncher() {
         ) : (
           <button
             type="button"
-            aria-label={panelOpen ? "Close mini journal" : "Open mini journal"}
+            aria-label={
+              readerJournal
+                ? panelOpen
+                  ? "Close journal"
+                  : "Open journal"
+                : panelOpen
+                  ? "Close mini journal"
+                  : "Open mini journal"
+            }
             title="Journal"
             onClick={() => togglePanel()}
             className={cn(
-              "flex min-h-[88px] w-full flex-col items-center justify-center gap-0.5 py-2",
+              "flex min-h-[88px] w-full items-center justify-center py-2",
               readerJournal
-                ? "text-gold-bright hover:bg-gold/10 active:bg-gold/15"
-                : "text-primary-foreground hover:bg-white/10 active:bg-white/15",
+                ? "hover:bg-gold/10 active:bg-gold/15"
+                : "flex-col gap-0.5 text-primary-foreground hover:bg-white/10 active:bg-white/15",
             )}
           >
-            {readerJournal ? (
-              <Ribbon className="h-5 w-5 shrink-0 text-[#9b1d20]" strokeWidth={2} aria-hidden />
-            ) : (
-              <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />
-            )}
+            {!readerJournal && <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />}
           </button>
         )}
       </div>

@@ -559,9 +559,13 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
             onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
           />
         </div>
-        {entryId ? (
+        {chatId ? (
           <Button variant="link" className="h-auto p-0 text-xs" asChild>
-            <Link to={`/journal/chat/${entryId}`}>Open full chat journal</Link>
+            <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
+          </Button>
+        ) : entryId ? (
+          <Button variant="link" className="h-auto p-0 text-xs" asChild>
+            <Link to={`/journal/chat/${entryId}`}>Open chat session</Link>
           </Button>
         ) : null}
       </div>

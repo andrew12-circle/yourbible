@@ -17,11 +17,14 @@ import {
   isListeningEmpty,
   parseListeningBody,
 } from "@/lib/journal/listeningEntry";
+import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
+import ChatJournalView from "@/components/journal/ChatJournalView";
 
 interface Entry {
   id: string;
   title: string | null;
   body: string;
+  summary: string | null;
   entry_at_ts: string;
   mood: number | null;
   tags: string[];
@@ -140,6 +143,7 @@ export default function JournalEntryPage() {
   const renderListening =
     entry.entry_kind === "listening" || isListeningBody(entry.body);
   const isChatEntry = entry.entry_kind === "chat";
+  const showChatJournalView = isChatJournalExport(entry.body, entry.summary);
 
   return (
     <JournalLayout
@@ -201,6 +205,12 @@ export default function JournalEntryPage() {
 
       {renderListening ? (
         <ListeningSectionsView body={entry.body} />
+      ) : showChatJournalView ? (
+        <ChatJournalView
+          body={entry.body}
+          summary={entry.summary}
+          className="mb-6"
+        />
       ) : isChatEntry ? (
         <div className="font-sans text-[16px] leading-relaxed mb-6 prose prose-sm dark:prose-invert max-w-none prose-hr:my-4 prose-p:my-2">
           {entry.body
@@ -428,7 +438,7 @@ function LinkChip({ link }: { link: EntryLink }) {
       break;
     case "chat_thread":
       label = "chat";
-      to = `/framework/chat`;
+      to = `/my-ai`;
       break;
     case "artifact":
       label = "artifact";

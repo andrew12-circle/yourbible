@@ -8,6 +8,7 @@ import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META, type JournalEntryKind } from "@/lib/journal/entryKinds";
+import { entryListPreview, getChatJournalPreview } from "@/lib/journal/chatJournalEntry";
 import SwipeableEntryRow from "./SwipeableEntryRow";
 import {
   deleteJournalEntry,
@@ -20,6 +21,7 @@ interface Entry {
   id: string;
   title: string | null;
   body: string;
+  summary: string | null;
   entry_at_ts: string;
   mood: number | null;
   location_name: string | null;
@@ -64,7 +66,7 @@ export default function EntryListPane({
     let query = supabase
       .from("journal_entries")
       .select(
-        "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
+        "id,title,body,summary,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
       )
       .order("pinned", { ascending: false })
       .order("entry_at_ts", { ascending: false })
@@ -342,7 +344,7 @@ function EntryRow({
         <div className="flex items-start gap-1.5">
           {e.pinned && <Pin className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-amber-500 fill-amber-500"}`} />}
           <h3 className="text-[14px] font-semibold tracking-tight truncate flex-1 leading-snug">
-            {e.title || firstLine(e.body) || <span className={`italic font-normal ${active ? "" : "text-muted-foreground"}`}>No title</span>}
+            {e.title || getChatJournalPreview(e.body, e.summary) || firstLine(e.body) || <span className={`italic font-normal ${active ? "" : "text-muted-foreground"}`}>No title</span>}
           </h3>
           {e.analyze_for_mirror && <Sparkles className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-violet-500"}`} />}
           {isChat && (
@@ -362,7 +364,7 @@ function EntryRow({
           )}
         </div>
         <p className={`text-[12px] line-clamp-2 leading-snug ${active ? "opacity-85" : "text-muted-foreground"}`}>
-          {e.title ? e.body : afterFirstLine(e.body)}
+          {entryListPreview(e.body, e.title, e.summary)}
         </p>
         <div className={`text-[11px] mt-1 flex items-center gap-2 flex-wrap ${active ? "opacity-80" : "text-muted-foreground/80"}`}>
           <span className="tabular-nums">{time}</span>
@@ -436,7 +438,7 @@ function CalendarMini({ entries, selectedId, onSelect }: {
                   selectedId === e.id ? "bg-primary text-primary-foreground" : "hover:bg-muted/40"
                 }`}
               >
-                {e.title || firstLine(e.body) || "Untitled"}
+                {e.title || getChatJournalPreview(e.body, e.summary) || firstLine(e.body) || "Untitled"}
               </button>
             ))}
           </div>
@@ -448,10 +450,6 @@ function CalendarMini({ entries, selectedId, onSelect }: {
 
 function firstLine(s: string) {
   return (s || "").split("\n")[0]?.slice(0, 80) ?? "";
-}
-function afterFirstLine(s: string) {
-  const parts = (s || "").split("\n");
-  return parts.slice(1).join(" ").trim() || parts[0] || "";
 }
 function formatMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number);

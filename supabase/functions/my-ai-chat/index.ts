@@ -26,6 +26,8 @@ type RequestBody = {
   /** Optional transcript excerpt from the client (e.g. "Source in transcript"); capped server-side. */
   journal_bootstrap_transcript_excerpt?: string | null;
   finalize_journal_entry_id?: string | null;
+  /** Standalone My AI thread → new journal entry with transcript + summary. */
+  export_chat_to_journal_id?: string | null;
   retry_last?: boolean;
 };
 
@@ -126,6 +128,34 @@ function looksLikeGeneralKnowledgeFallback(reply: string): Citation[] {
 
 function escapeMd(s: string): string {
   return s.replace(/\r\n/g, "\n").replace(/\*\*/g, "\\*\\*");
+}
+
+const CHAT_EXPORT_MARKER = "<!-- chat-export:v1 -->";
+
+type ChatJournalMsg = { role: "user" | "assistant"; content: string };
+
+function composeSavedChatJournalBody(summary: string, messages: ChatJournalMsg[]): string {
+  const payload = JSON.stringify({ v: 1, messages });
+  const summaryText = summary.trim();
+  if (!summaryText) return `${CHAT_EXPORT_MARKER}\n${payload}`;
+  return `${summaryText}\n\n${CHAT_EXPORT_MARKER}\n${payload}`;
+}
+
+function rowsToChatMessages(rows: { role: string; content: string }[]): ChatJournalMsg[] {
+  return rows
+    .filter((r) => r.role === "user" || r.role === "assistant")
+    .map((r) => ({
+      role: r.role === "assistant" ? "assistant" as const : "user" as const,
+      content: (r.content ?? "").trim(),
+    }))
+    .filter((m) => m.content.length > 0);
+}
+
+function fallbackChatSummary(messages: ChatJournalMsg[]): string {
+  const firstAssistant = messages.find((m) => m.role === "assistant");
+  if (!firstAssistant) return "";
+  const t = firstAssistant.content.replace(/\s+/g, " ").trim();
+  return t.length > 280 ? `${t.slice(0, 277)}…` : t;
 }
 
 function parseAssistantPayload(rawText: string): { reply: string; citations: Citation[] } {
@@ -351,22 +381,19 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: true });
       if (mErr) return jsonResponse({ error: mErr.message }, 502);
 
-      const lines: string[] = [];
-      for (const row of msgs ?? []) {
-        const r = row as { role: string; content: string };
-        if (r.role === "user") lines.push(`**You:** ${escapeMd(r.content)}`);
-        else if (r.role === "assistant") lines.push(`**AI:** ${escapeMd(r.content)}`);
-      }
-      const transcript = lines.join("\n\n");
+      const messages = rowsToChatMessages((msgs ?? []) as { role: string; content: string }[]);
+      const transcriptForAi = messages
+        .map((m) => `${m.role === "user" ? "You" : "AI"}: ${m.content}`)
+        .join("\n\n");
 
       let titleOut: string | null = typeof entry.title === "string" ? entry.title : null;
       let tagsOut: string[] = Array.isArray(entry.tags) ? [...entry.tags] : [];
-      let summaryBlock = "";
+      let summaryText = "";
 
-      if (!("error" in chatCfg) && transcript.trim()) {
+      if (!("error" in chatCfg) && transcriptForAi.trim()) {
         const sumSys =
           `You summarize a private faith-aware journaling conversation. Return a single JSON object only (no fences), keys: "title" (short string, <= 80 chars), "tags" (array of 3-8 short lowercase kebab-case theme strings), "summary" (one paragraph, <= 900 chars, warm and specific).`;
-        const sumUser = `Transcript (markdown):\n\n${transcript.slice(0, 24_000)}`;
+        const sumUser = `Transcript:\n\n${transcriptForAi.slice(0, 24_000)}`;
         const sumRes = await callChatJson(sumSys, sumUser);
         if (sumRes.ok && sumRes.rawText) {
           try {
@@ -374,7 +401,7 @@ Deno.serve(async (req) => {
             if (isRecord(j)) {
               if (typeof j.title === "string" && j.title.trim()) titleOut = j.title.trim().slice(0, 120);
               if (typeof j.summary === "string" && j.summary.trim()) {
-                summaryBlock = `## Reflection\n\n${j.summary.trim()}\n\n---\n\n`;
+                summaryText = j.summary.trim();
               }
               if (Array.isArray(j.tags)) {
                 const next = j.tags
@@ -390,7 +417,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const bodyMd = summaryBlock + "## Transcript\n\n" + (transcript.trim() || "_(No messages in this session.)_") + "\n";
+      if (!summaryText) summaryText = fallbackChatSummary(messages);
+      const bodyMd = composeSavedChatJournalBody(summaryText, messages);
 
       const { error: upErr } = await supabase
         .from("journal_entries")
@@ -398,6 +426,7 @@ Deno.serve(async (req) => {
           title: titleOut,
           tags: tagsOut,
           body: bodyMd,
+          summary: summaryText || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", finalizeId)
@@ -405,6 +434,123 @@ Deno.serve(async (req) => {
       if (upErr) return jsonResponse({ error: upErr.message }, 502);
 
       return jsonResponse({ ok: true, entry_id: finalizeId, title: titleOut, tags: tagsOut });
+    }
+
+    // --- Export standalone My AI chat to a new journal entry ---
+    const exportChatId = typeof body.export_chat_to_journal_id === "string" && body.export_chat_to_journal_id.length
+      ? body.export_chat_to_journal_id
+      : null;
+    if (exportChatId) {
+      const { data: chatRow, error: chErr } = await supabase
+        .from("my_ai_chats")
+        .select("id,journal_entry_id,title")
+        .eq("id", exportChatId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (chErr) return jsonResponse({ error: chErr.message }, 502);
+      if (!chatRow?.id) return jsonResponse({ error: "Chat not found" }, 404);
+
+      const linkedEntryId = (chatRow.journal_entry_id as string | null) ?? null;
+      if (linkedEntryId) {
+        const { data: linked } = await supabase
+          .from("journal_entries")
+          .select("entry_kind")
+          .eq("id", linkedEntryId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (linked?.entry_kind === "chat") {
+          return jsonResponse({
+            error: "Use finalize for in-progress chat journal entries",
+            journal_entry_id: linkedEntryId,
+          }, 400);
+        }
+      }
+
+      const { data: msgs, error: mErr } = await supabase
+        .from("my_ai_messages")
+        .select("role,content")
+        .eq("chat_id", exportChatId)
+        .order("created_at", { ascending: true });
+      if (mErr) return jsonResponse({ error: mErr.message }, 502);
+
+      const messages = rowsToChatMessages((msgs ?? []) as { role: string; content: string }[]);
+      if (!messages.length) {
+        return jsonResponse({ error: "Nothing to save yet — send a message first" }, 400);
+      }
+      const transcriptForAi = messages
+        .map((m) => `${m.role === "user" ? "You" : "AI"}: ${m.content}`)
+        .join("\n\n");
+
+      const { data: journals, error: jErr } = await supabase
+        .from("journals")
+        .select("id,is_default")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (jErr) return jsonResponse({ error: jErr.message }, 502);
+      const journalId =
+        (journals ?? []).find((j: { is_default?: boolean }) => j.is_default)?.id ??
+        (journals ?? [])[0]?.id ??
+        null;
+      if (!journalId) return jsonResponse({ error: "No journal found — create one first" }, 400);
+
+      let titleOut =
+        typeof chatRow.title === "string" && chatRow.title.trim()
+          ? chatRow.title.trim().slice(0, 120)
+          : `AI chat — ${new Date().toLocaleDateString(undefined, { dateStyle: "medium" })}`;
+      let tagsOut: string[] = ["from-my-ai"];
+      let summaryText = "";
+
+      if (!("error" in chatCfg)) {
+        const sumSys =
+          `You summarize a private faith-aware conversation. Return a single JSON object only (no fences), keys: "title" (short string, <= 80 chars), "tags" (array of 3-8 short lowercase kebab-case theme strings), "summary" (one paragraph, <= 900 chars, warm and specific).`;
+        const sumUser = `Transcript:\n\n${transcriptForAi.slice(0, 24_000)}`;
+        const sumRes = await callChatJson(sumSys, sumUser);
+        if (sumRes.ok && sumRes.rawText) {
+          try {
+            const j: unknown = JSON.parse(stripJsonFence(sumRes.rawText));
+            if (isRecord(j)) {
+              if (typeof j.title === "string" && j.title.trim()) titleOut = j.title.trim().slice(0, 120);
+              if (typeof j.summary === "string" && j.summary.trim()) {
+                summaryText = j.summary.trim();
+              }
+              if (Array.isArray(j.tags)) {
+                const next = j.tags
+                  .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+                  .map((t) => t.trim().slice(0, 40));
+                tagsOut = [...new Set([...tagsOut, ...next])].slice(0, 16);
+              }
+            }
+          } catch {
+            /* keep defaults */
+          }
+        }
+      }
+
+      if (!summaryText) summaryText = fallbackChatSummary(messages);
+      const bodyMd = composeSavedChatJournalBody(summaryText, messages);
+      const now = new Date();
+
+      const { data: created, error: insErr } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: userId,
+          journal_id: journalId,
+          title: titleOut,
+          body: bodyMd,
+          summary: summaryText || null,
+          tags: tagsOut,
+          entry_kind: null,
+          analyze_for_mirror: true,
+          entry_at_ts: now.toISOString(),
+          entry_at: now.toISOString().slice(0, 10),
+        })
+        .select("id")
+        .maybeSingle();
+      if (insErr) return jsonResponse({ error: insErr.message }, 502);
+      if (!created?.id) return jsonResponse({ error: "Could not create journal entry" }, 502);
+
+      return jsonResponse({ ok: true, entry_id: created.id as string, title: titleOut, tags: tagsOut });
     }
 
     if ("error" in chatCfg) {

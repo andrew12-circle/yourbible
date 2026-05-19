@@ -3,12 +3,14 @@ import { Pin, Sparkles, MapPin, MessageCircle } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import { entryListPreview, getChatJournalPreview } from "@/lib/journal/chatJournalEntry";
 import SwipeableEntryRow from "./SwipeableEntryRow";
 
 export interface EntryListData {
   id: string;
   title: string | null;
   body: string;
+  summary?: string | null;
   entry_at_ts: string;
   mood: number | null;
   location_name: string | null;
@@ -62,7 +64,7 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
             <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500 mt-1 flex-shrink-0" />
           )}
           <h3 className="text-[16px] font-semibold tracking-tight truncate flex-1 leading-snug">
-            {entry.title || firstLine(entry.body) || (
+            {entry.title || getChatJournalPreview(entry.body, entry.summary) || firstLine(entry.body) || (
               <span className="italic font-normal text-muted-foreground">No title</span>
             )}
           </h3>
@@ -79,7 +81,7 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
           )}
         </div>
         <p className="text-[14px] text-muted-foreground line-clamp-2 leading-snug">
-          {entry.title ? entry.body : afterFirstLine(entry.body)}
+          {entryListPreview(entry.body, entry.title, entry.summary)}
         </p>
         <div className="text-[12px] text-muted-foreground/80 mt-2 flex items-center gap-2 flex-wrap">
           <span className="tabular-nums">{time}</span>
@@ -126,8 +128,4 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
 
 function firstLine(s: string) {
   return (s || "").split("\n")[0]?.slice(0, 80) ?? "";
-}
-function afterFirstLine(s: string) {
-  const parts = (s || "").split("\n");
-  return parts.slice(1).join(" ").trim() || parts[0] || "";
 }

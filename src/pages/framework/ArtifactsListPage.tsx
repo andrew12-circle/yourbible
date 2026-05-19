@@ -184,6 +184,8 @@ export default function ArtifactsListPage() {
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
+  const showHeaderNew = listReady && rows.length > 0;
+
   const toolbar = (
     <LibraryToolbar
       search={search}
@@ -203,14 +205,16 @@ export default function ArtifactsListPage() {
       back="/framework"
       contentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
     >
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
-        <Button asChild size="default" className="rounded-xl font-semibold shadow-sm">
-          <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
-            <Plus className="h-4 w-4" aria-hidden />
-            New artifact
-          </Link>
-        </Button>
-      </div>
+      {showHeaderNew ? (
+        <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+          <Button asChild size="default" className="rounded-xl font-semibold shadow-sm">
+            <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
+              <Plus className="h-4 w-4" aria-hidden />
+              New artifact
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       {!listReady ? (
         <ArtifactLibrarySkeleton />

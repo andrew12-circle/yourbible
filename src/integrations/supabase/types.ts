@@ -1204,6 +1204,190 @@ export type Database = {
           },
         ]
       }
+      habits: {
+        Row: {
+          archived_at: string | null
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      habit_completions: {
+        Row: {
+          completion_date: string
+          created_at: string
+          habit_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completion_date: string
+          created_at?: string
+          habit_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completion_date?: string
+          created_at?: string
+          habit_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_completions_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_goals: {
+        Row: {
+          created_at: string
+          done: boolean
+          event_date: string | null
+          goal_type: string
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+          week_number: number | null
+          year_month: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          event_date?: string | null
+          goal_type: string
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          user_id: string
+          week_number?: number | null
+          year_month: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          event_date?: string | null
+          goal_type?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_number?: number | null
+          year_month?: string
+        }
+        Relationships: []
+      }
+      habit_notes: {
+        Row: {
+          body: string
+          habit_id: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          body?: string
+          habit_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          body?: string
+          habit_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_notes_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_bills: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          due_date: string | null
+          id: string
+          name: string
+          paid: boolean
+          sort_order: number
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          name: string
+          paid?: boolean
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          name?: string
+          paid?: boolean
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
       my_ai_chats: {
         Row: {
           created_at: string
@@ -1736,6 +1920,105 @@ export type Database = {
           },
         ]
       }
+      todo_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          done: boolean
+          due_date: string | null
+          id: string
+          list_id: string | null
+          notes: string | null
+          parent_id: string | null
+          priority: number
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string | null
+          id?: string
+          list_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          priority?: number
+          sort_order?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string | null
+          id?: string
+          list_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          priority?: number
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todo_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "todo_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todo_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "todo_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      todo_lists: {
+        Row: {
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tradition_views: {
         Row: {
           belief_id: string
@@ -1843,6 +2126,7 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
+      ensure_default_todo_lists: { Args: never; Returns: undefined }
       match_artifact_claims: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {

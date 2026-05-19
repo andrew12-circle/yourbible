@@ -7,10 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, Loader2, Maximize2, Minus, Plus } from "lucide-react";
 import {
+  DEFAULT_LIFE_WEEKS_SETTINGS,
   LIFE_WEEKS_TOTAL,
+  type LifePhaseStats,
+  type LifeWeeksSettings,
+  computeLifePhaseStats,
   computeLifeWeekIndex,
   formatBirthDateForInput,
+  mergeLifeWeeksSettings,
+  parseLifeWeeksSettingsFromLayout,
   parseUtcDateOnly,
+  patchLayoutWithLifeWeeksSettings,
 } from "@/lib/lifeWeeks";
 import { toast } from "@/hooks/use-toast";
 
@@ -47,6 +54,136 @@ function todayIsoMax(): string {
   return `${y}-${m}-${day}`;
 }
 
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="shrink-0 rounded-full border border-zinc-300/80 bg-white/60 px-3 py-1.5 text-xs tabular-nums dark:border-zinc-600/80 dark:bg-zinc-900/50">
+      <span className="text-muted-foreground dark:text-zinc-400">{label}</span>{" "}
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function LifeStatsBar({ stats }: { stats: LifePhaseStats }) {
+  const fmt = (n: number) => n.toLocaleString();
+  return (
+    <div
+      className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-thin"
+      aria-label="Life week statistics"
+    >
+      <StatPill label="Lived" value={`${fmt(stats.weeksLived)} wks`} />
+      <StatPill label="Left" value={`${fmt(stats.weeksRemaining)} wks`} />
+      <StatPill label="Lifespan" value={`${stats.pctOfLifespan.toFixed(1)}%`} />
+      <StatPill label="With control" value={`${fmt(stats.controlWeeksLived)} wks`} />
+      <StatPill
+        label="College"
+        value={`${fmt(stats.collegeWeeksLived)}/${fmt(stats.collegeWeeksTotal)} wks`}
+      />
+      <StatPill label="Working" value={`${fmt(stats.workingWeeksLived)} wks`} />
+      <StatPill label="To retire" value={`${fmt(stats.weeksUntilRetirement)} wks`} />
+      <StatPill label="Enjoy left" value={`${fmt(stats.enjoyWeeksRemaining)} wks`} />
+    </div>
+  );
+}
+
+type StageDraft = {
+  retirementAge: string;
+  collegeStartAge: string;
+  collegeEndAge: string;
+  collegeStartDate: string;
+  collegeEndDate: string;
+};
+
+function LifeStageSettingsForm({
+  draft,
+  onChange,
+  onSave,
+  saving,
+}: {
+  draft: StageDraft;
+  onChange: (next: StageDraft) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 max-w-2xl border-t border-zinc-300/60 pt-3 dark:border-zinc-600/60">
+      <div className="space-y-1">
+        <Label htmlFor="lw-retire" className="text-xs text-muted-foreground">
+          Retirement age
+        </Label>
+        <Input
+          id="lw-retire"
+          type="number"
+          min={19}
+          max={120}
+          value={draft.retirementAge}
+          onChange={(e) => onChange({ ...draft, retirementAge: e.target.value })}
+          className="h-9 bg-white/80 dark:bg-zinc-900/80"
+        />
+      </div>
+      <p className="space-y-1 sm:col-span-2 text-xs text-muted-foreground">
+        College window — ages (default 18–22) or exact dates
+      </p>
+      <div className="space-y-1">
+        <Label htmlFor="lw-col-start-age" className="text-xs text-muted-foreground">
+          College from age
+        </Label>
+        <Input
+          id="lw-col-start-age"
+          type="number"
+          min={0}
+          max={119}
+          value={draft.collegeStartAge}
+          onChange={(e) => onChange({ ...draft, collegeStartAge: e.target.value })}
+          className="h-9 bg-white/80 dark:bg-zinc-900/80"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="lw-col-end-age" className="text-xs text-muted-foreground">
+          College until age
+        </Label>
+        <Input
+          id="lw-col-end-age"
+          type="number"
+          min={1}
+          max={120}
+          value={draft.collegeEndAge}
+          onChange={(e) => onChange({ ...draft, collegeEndAge: e.target.value })}
+          className="h-9 bg-white/80 dark:bg-zinc-900/80"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="lw-col-start-d" className="text-xs text-muted-foreground">
+          Or start date
+        </Label>
+        <Input
+          id="lw-col-start-d"
+          type="date"
+          value={draft.collegeStartDate}
+          onChange={(e) => onChange({ ...draft, collegeStartDate: e.target.value })}
+          className="h-9 bg-white/80 dark:bg-zinc-900/80"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="lw-col-end-d" className="text-xs text-muted-foreground">
+          Or end date
+        </Label>
+        <Input
+          id="lw-col-end-d"
+          type="date"
+          value={draft.collegeEndDate}
+          onChange={(e) => onChange({ ...draft, collegeEndDate: e.target.value })}
+          className="h-9 bg-white/80 dark:bg-zinc-900/80"
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <Button type="button" size="sm" onClick={onSave} disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save assumptions"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function LifeWeeksPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const [now, setNow] = useState(() => Date.now());
@@ -58,7 +195,8 @@ export default function LifeWeeksPage() {
    *  - "fit": preserve aspect ratio, bounded by viewport so the whole poster shows on one screen
    *  - number: explicit zoom multiplier of the SVG's native pixel size, container scrolls
    */
-  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>("fit");
+  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>(1);
+  const [showStageSettings, setShowStageSettings] = useState(false);
   const dobMax = todayIsoMax();
 
   const zoomIn = () => {
@@ -116,12 +254,86 @@ export default function LifeWeeksPage() {
     return computeLifeWeekIndex(dob, now);
   }, [dob, now]);
 
-  const weeksLived = indexState === null ? 0 : indexState.currentWeekIndex + 1;
-  const weeksRemaining = indexState === null ? LIFE_WEEKS_TOTAL : Math.max(0, LIFE_WEEKS_TOTAL - weeksLived);
-  const pctLife =
-    LIFE_WEEKS_TOTAL > 0 && indexState
-      ? (100 * weeksLived) / LIFE_WEEKS_TOTAL
-      : 0;
+  const lifeWeeksSettings = useMemo(
+    () => parseLifeWeeksSettingsFromLayout(profile?.layout),
+    [profile?.layout],
+  );
+  const mergedStageSettings = useMemo(
+    () => mergeLifeWeeksSettings(lifeWeeksSettings),
+    [lifeWeeksSettings],
+  );
+
+  const phaseStats = useMemo(() => {
+    if (!dob) return null;
+    return computeLifePhaseStats(dob, now, lifeWeeksSettings);
+  }, [dob, now, lifeWeeksSettings]);
+
+  const [stageDraft, setStageDraft] = useState({
+    retirementAge: String(DEFAULT_LIFE_WEEKS_SETTINGS.retirementAge),
+    collegeStartAge: String(DEFAULT_LIFE_WEEKS_SETTINGS.collegeStartAge),
+    collegeEndAge: String(DEFAULT_LIFE_WEEKS_SETTINGS.collegeEndAge),
+    collegeStartDate: "",
+    collegeEndDate: "",
+  });
+
+  useEffect(() => {
+    setStageDraft({
+      retirementAge: String(mergedStageSettings.retirementAge),
+      collegeStartAge: String(mergedStageSettings.collegeStartAge),
+      collegeEndAge: String(mergedStageSettings.collegeEndAge),
+      collegeStartDate: mergedStageSettings.collegeStartDate ?? "",
+      collegeEndDate: mergedStageSettings.collegeEndDate ?? "",
+    });
+  }, [
+    mergedStageSettings.retirementAge,
+    mergedStageSettings.collegeStartAge,
+    mergedStageSettings.collegeEndAge,
+    mergedStageSettings.collegeStartDate,
+    mergedStageSettings.collegeEndDate,
+  ]);
+
+  const onSaveStageSettings = async () => {
+    const retirementAge = Number(stageDraft.retirementAge);
+    const collegeStartAge = Number(stageDraft.collegeStartAge);
+    const collegeEndAge = Number(stageDraft.collegeEndAge);
+    if (
+      !Number.isFinite(retirementAge) ||
+      !Number.isFinite(collegeStartAge) ||
+      !Number.isFinite(collegeEndAge) ||
+      retirementAge <= 18 ||
+      retirementAge > 120 ||
+      collegeStartAge < 0 ||
+      collegeEndAge <= collegeStartAge
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Check life-stage values",
+        description: "Retirement after 18; college end after college start.",
+      });
+      return;
+    }
+    const patch: LifeWeeksSettings = {
+      retirementAge: Math.round(retirementAge),
+      collegeStartAge: Math.round(collegeStartAge),
+      collegeEndAge: Math.round(collegeEndAge),
+      collegeStartDate: stageDraft.collegeStartDate.trim() || null,
+      collegeEndDate: stageDraft.collegeEndDate.trim() || null,
+    };
+    setSaving(true);
+    try {
+      const { error } = await updateProfile({
+        layout: patchLayoutWithLifeWeeksSettings(profile?.layout ?? "{}", patch),
+      });
+      if (error) {
+        toast({ variant: "destructive", title: "Could not save", description: error.message });
+        return;
+      }
+      toast({ title: "Life-stage settings saved" });
+      setShowStageSettings(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const gridW = MARGIN_LEFT + colX(51) + CELL + 12;
   const gridH = MARGIN_TOP + rowY(119) + CELL + 28;
@@ -219,13 +431,24 @@ export default function LifeWeeksPage() {
           </section>
         )}
 
-        {dob && indexState && (
-          <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
-            <p className="text-sm tabular-nums leading-snug">
-              <span className="font-semibold">{weeksLived.toLocaleString()} weeks</span> lived ·{" "}
-              <span className="font-semibold">{weeksRemaining.toLocaleString()} weeks</span> remaining ·{" "}
-              <span className="text-muted-foreground dark:text-zinc-400">{pctLife.toFixed(1)}% of 120 years</span>
-            </p>
+        {dob && phaseStats && (
+          <section className={`mx-auto max-w-5xl p-3 sm:p-4 ${POSTER_CLASS}`}>
+            <LifeStatsBar stats={phaseStats} />
+            <button
+              type="button"
+              onClick={() => setShowStageSettings((v) => !v)}
+              className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              {showStageSettings ? "Hide" : "Adjust"} college & retirement assumptions
+            </button>
+            {showStageSettings && (
+              <LifeStageSettingsForm
+                draft={stageDraft}
+                onChange={setStageDraft}
+                onSave={onSaveStageSettings}
+                saving={saving}
+              />
+            )}
           </section>
         )}
 

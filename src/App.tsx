@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -27,6 +27,7 @@ import PlaybookDetailPage from "./pages/framework/PlaybookDetailPage";
 import TensionsPage from "./pages/framework/TensionsPage";
 import InfluencesPage from "./pages/framework/InfluencesPage";
 import DigestPage from "./pages/framework/DigestPage";
+/** Legacy Framework Chat (Socratic modes) — canonical AI is `/my-ai`. */
 import ChatPage from "./pages/framework/ChatPage";
 import StudyPage from "./pages/framework/StudyPage";
 import DailyPage from "./pages/framework/DailyPage";
@@ -49,6 +50,8 @@ import PartnerWalkPage from "./pages/partner/PartnerWalkPage";
 import PartnerAcceptPage from "./pages/partner/PartnerAcceptPage";
 import LifeWeeksPage from "./pages/life/LifeWeeksPage";
 import LifePrioritiesPage from "./pages/life/LifePrioritiesPage";
+import HabitsPage from "./pages/life/HabitsPage";
+import TodosPage from "./pages/life/TodosPage";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +87,9 @@ const App = () => (
             <Route path="/sleep" element={<SleepPage />} />
             <Route path="/life-weeks" element={<LifeWeeksPage />} />
             <Route path="/life/priorities" element={<LifePrioritiesPage />} />
+            <Route path="/life/habits" element={<HabitsPage />} />
+            <Route path="/life/todos" element={<TodosPage />} />
+            <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
             <Route path="/framework" element={<FrameworkDashboard />} />
             <Route path="/framework/journey" element={<FaithJourneyPage />} />
             <Route path="/framework/playbook" element={<PlaybookPage />} />
@@ -95,7 +101,8 @@ const App = () => (
             <Route path="/framework/tensions" element={<TensionsPage />} />
             <Route path="/framework/influences" element={<InfluencesPage />} />
             <Route path="/framework/digest" element={<DigestPage />} />
-            <Route path="/framework/chat" element={<ChatPage />} />
+            <Route path="/framework/chat" element={<Navigate to="/my-ai" replace />} />
+            <Route path="/framework/chat/legacy" element={<ChatPage />} />
             <Route path="/framework/study" element={<StudyPage />} />
             <Route path="/framework/daily" element={<DailyPage />} />
             <Route path="/journal" element={<JournalPage />} />

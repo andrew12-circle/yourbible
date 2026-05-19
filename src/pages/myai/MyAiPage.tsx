@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
@@ -6,7 +6,10 @@ import {
   Brain,
   Loader2,
   Menu,
-  MessageSquare,
+  MessageCircle,
+  NotebookPen,
+  PanelLeft,
+  PanelLeftClose,
   Plus,
   Send,
   Sparkles,
@@ -16,15 +19,17 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 
+/** Canonical framework-grounded AI chat. Journal inline/legacy chat journals use the same `my-ai-chat` backend. */
 const LS_INCLUDE_GENERAL = "my_ai.include_general";
+const LS_SIDEBAR = "my_ai.sidebar_open";
 
 type ChatRow = { id: string; title: string | null; updated_at: string };
 
@@ -48,9 +53,23 @@ type MyAiInvokeOk = {
   citations: Citation[];
 };
 
+const SUGGESTED_PROMPTS = [
+  "Summarize what I believe about prayer.",
+  "What scriptures keep coming up for me?",
+  "Where do my beliefs contradict each other?",
+  "Who are the biggest influences in my journey?",
+];
+
 function readIncludeGeneralDefault(): boolean {
   if (typeof window === "undefined") return true;
   const v = localStorage.getItem(LS_INCLUDE_GENERAL);
+  if (v === "0" || v === "false") return false;
+  return true;
+}
+
+function readSidebarOpen(): boolean {
+  if (typeof window === "undefined") return true;
+  const v = localStorage.getItem(LS_SIDEBAR);
   if (v === "0" || v === "false") return false;
   return true;
 }
@@ -99,10 +118,10 @@ function CitationChips({ citations }: { citations: Citation[] }) {
         const chip = (
           <span
             className={cn(
-              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium tracking-tight",
+              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-tight",
               href
-                ? "border-primary/25 bg-primary/5 text-primary hover:bg-primary/10"
-                : "border-border bg-muted/50 text-muted-foreground",
+                ? "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+                : "border-border/80 bg-muted/40 text-muted-foreground",
             )}
           >
             {c.label}
@@ -116,23 +135,6 @@ function CitationChips({ citations }: { citations: Citation[] }) {
           <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
         );
       })}
-    </div>
-  );
-}
-
-function MemoryIndicator({ citations }: { citations: Citation[] }) {
-  if (!citations.length) return null;
-  const types = new Set(citations.map((c) => c.source_type));
-  const deep =
-    types.has("identity") ||
-    types.has("influence") ||
-    (types.has("belief") && (types.has("journal") || types.has("artifact"))) ||
-    citations.length >= 4;
-  if (!deep) return null;
-  return (
-    <div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-violet-600/80 dark:text-violet-300/80">
-      <Brain className="h-3 w-3" />
-      <span>Memory active · {citations.length} threads</span>
     </div>
   );
 }
@@ -323,13 +325,6 @@ function TypingDots() {
   );
 }
 
-const QUICK_PROMPTS = [
-  "Summarize what I believe about prayer.",
-  "What scriptures keep coming up for me?",
-  "Where do my beliefs contradict each other?",
-  "Who are the biggest influences in my journey?",
-];
-
 export default function MyAiPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -342,10 +337,17 @@ export default function MyAiPage() {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
+  const [savingJournal, setSavingJournal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const persistSidebar = (open: boolean) => {
+    setSidebarOpen(open);
+    localStorage.setItem(LS_SIDEBAR, open ? "1" : "0");
+  };
 
   const loadChats = useCallback(async () => {
     if (!user) return;
@@ -384,6 +386,13 @@ export default function MyAiPage() {
     [user],
   );
 
+  const resizeComposer = useCallback(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, []);
+
   useEffect(() => {
     void loadChats();
   }, [loadChats]);
@@ -405,28 +414,38 @@ export default function MyAiPage() {
     localStorage.setItem(LS_INCLUDE_GENERAL, includeGeneral ? "1" : "0");
   }, [includeGeneral]);
 
+  useEffect(() => {
+    resizeComposer();
+  }, [input, resizeComposer]);
+
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
 
+  const activeChat = chats.find((c) => c.id === routeChatId);
+  const headerTitle = activeChat?.title?.trim() || "My AI";
+  const showWelcome = !loadingMessages && messages.length === 0 && !sending;
+  const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+
   const openChat = (id: string) => {
-    setSheetOpen(false);
+    setMobileSheetOpen(false);
     navigate(`/my-ai/${id}`);
   };
 
   const newChat = () => {
-    setSheetOpen(false);
+    setMobileSheetOpen(false);
     navigate("/my-ai");
     setMessages([]);
     setTimeout(() => taRef.current?.focus(), 50);
   };
 
-  const deleteChat = async (id: string) => {
+  const deleteChat = async (id: string, e?: MouseEvent) => {
+    e?.stopPropagation();
     if (!confirm("Delete this chat?")) return;
     const { error } = await supabase.from("my_ai_chats").delete().eq("id", id);
     if (error) {
@@ -438,11 +457,38 @@ export default function MyAiPage() {
     else void loadChats();
   };
 
+  const saveAsJournalEntry = async () => {
+    if (!routeChatId || savingJournal) return;
+    const hasDialogue = messages.some((m) => m.role === "user" || m.role === "assistant");
+    if (!hasDialogue) {
+      toast({ title: "Nothing to save yet", description: "Send a message first.", variant: "destructive" });
+      return;
+    }
+    setSavingJournal(true);
+    try {
+      const { entryId } = await saveChatAsJournalEntry({ chatId: routeChatId });
+      toast({ title: "Saved to journal", description: "Your conversation is now a journal entry." });
+      navigate(`/journal/${entryId}`);
+    } catch (e) {
+      toast({ title: "Could not save", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingJournal(false);
+    }
+  };
+
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
     if (!text || sending) return;
+
+    const optimisticId = `pending-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: optimisticId, role: "user", content: text, citations: [] },
+      { id: `${optimisticId}-assistant`, role: "assistant", content: "", citations: [] },
+    ]);
     setInput("");
     setSending(true);
+    resizeComposer();
 
     try {
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
@@ -472,6 +518,7 @@ export default function MyAiPage() {
       void loadChats();
     } catch (e) {
       toast({ title: "My AI failed", description: String(e), variant: "destructive" });
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith("pending-")));
       setInput(text);
     } finally {
       setSending(false);
@@ -479,41 +526,64 @@ export default function MyAiPage() {
     }
   };
 
-  const rail = (
-    <div className="flex h-full min-h-0 flex-col border-r border-border bg-card/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chats</span>
-        <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs" onClick={newChat}>
-          <Plus className="h-3.5 w-3.5" /> New
+  const sidebarContent = (
+    <div className="flex h-full min-h-0 flex-col bg-muted/20">
+      <div className="flex items-center gap-1 border-b border-border/80 px-2 py-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 flex-1 justify-start gap-2 rounded-lg px-2.5 text-sm font-medium hover:bg-muted/80"
+          onClick={newChat}
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          New chat
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="hidden h-9 w-9 shrink-0 md:inline-flex"
+          onClick={() => persistSidebar(false)}
+          aria-label="Close sidebar"
+        >
+          <PanelLeftClose className="h-4 w-4" />
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {loadingChats ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-60" />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/60" />
           </div>
         ) : chats.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-muted-foreground">No chats yet. Start one from the main pane.</p>
+          <p className="px-3 py-4 text-xs text-muted-foreground">No chats yet.</p>
         ) : (
           chats.map((c) => (
             <div
               key={c.id}
-              className={cn(
-                "group flex cursor-pointer items-center gap-1 border-b border-border/60 px-2 py-2 text-sm hover:bg-muted/60",
-                routeChatId === c.id && "bg-muted/80",
-              )}
+              role="button"
+              tabIndex={0}
               onClick={() => openChat(c.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openChat(c.id);
+                }
+              }}
+              className={cn(
+                "group mx-1.5 flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                routeChatId === c.id
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+              )}
             >
-              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <MessageCircle className="h-3.5 w-3.5 shrink-0 opacity-70" />
               <span className="min-w-0 flex-1 truncate">{c.title?.trim() || "Untitled"}</span>
               <button
                 type="button"
-                className="opacity-0 transition group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                onClick={(e) => void deleteChat(c.id, e)}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive focus-visible:opacity-100"
                 aria-label="Delete chat"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  void deleteChat(c.id);
-                }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -524,147 +594,168 @@ export default function MyAiPage() {
     </div>
   );
 
-  const showWelcome = !routeChatId && messages.length === 0 && !loadingMessages;
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/90 px-3 backdrop-blur-md">
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
-          style={{
-            background: "linear-gradient(145deg, #6D28D9 0%, #0D9488 52%, #14B8A6 100%)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
-          }}
-        >
-          <Sparkles className="h-4 w-4 text-white" strokeWidth={2.2} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold tracking-tight">My AI</h1>
-          <p className="truncate text-[11px] text-muted-foreground">Grounded in your framework</p>
-        </div>
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="md:hidden shrink-0" aria-label="Open chats">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[min(100%,320px)] p-0">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Chats</SheetTitle>
-            </SheetHeader>
-            <div className="h-[100dvh]">{rail}</div>
-          </SheetContent>
-        </Sheet>
-        <Button
-          variant="outline"
-          size="icon"
-          className="shrink-0"
-          aria-label="What My AI knows about you"
-          onClick={() => setStateOpen(true)}
-        >
-          <Brain className="h-5 w-5" />
-        </Button>
-      </header>
-
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="hidden w-[260px] shrink-0 md:flex">{rail}</aside>
+        {sidebarOpen && (
+          <aside className="hidden w-[260px] shrink-0 border-r border-border/80 md:flex">{sidebarContent}</aside>
+        )}
 
-        <section className="flex min-w-0 flex-1 flex-col">
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
-            {showWelcome && (
-              <Card className="mx-auto mb-6 max-w-lg border-border/80 shadow-sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600/15 to-teal-600/15">
-                      <Brain className="h-5 w-5 text-violet-700 dark:text-violet-300" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">Welcome to My AI</CardTitle>
-                      <CardDescription className="text-xs leading-relaxed">
-                        This assistant is built from your beliefs, journals, artifacts, and identity. Ask it anything — it will cite you back to yourself.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Try asking</p>
-                  <div className="flex flex-wrap gap-2">
-                    {QUICK_PROMPTS.map((q) => (
-                      <button
-                        key={q}
-                        type="button"
-                        onClick={() => void send(q)}
-                        disabled={sending}
-                        className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-left text-[12px] font-medium text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+        <section className="relative flex min-w-0 flex-1 flex-col">
+          <header className="flex shrink-0 items-center gap-2 border-b border-border/80 px-2 py-2 sm:px-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+
+            <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:hidden" aria-label="Open chats">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[min(100%,300px)] p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Chats</SheetTitle>
+                </SheetHeader>
+                <div className="h-full">{sidebarContent}</div>
+              </SheetContent>
+            </Sheet>
+
+            {!sidebarOpen && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hidden h-9 w-9 shrink-0 md:inline-flex"
+                onClick={() => persistSidebar(true)}
+                aria-label="Open sidebar"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </Button>
             )}
 
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 md:hidden"
+              onClick={newChat}
+              aria-label="New chat"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+              style={{
+                background: "linear-gradient(145deg, #6D28D9 0%, #0D9488 52%, #14B8A6 100%)",
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
+            </div>
+
+            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-[15px]">{headerTitle}</h1>
+
+            {routeChatId && visibleMessages.length > 0 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 sm:hidden"
+                  disabled={savingJournal || sending}
+                  aria-label="Save to journal"
+                  onClick={() => void saveAsJournalEntry()}
+                >
+                  {savingJournal ? <Loader2 className="h-4 w-4 animate-spin" /> : <NotebookPen className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden h-8 shrink-0 gap-1.5 px-2 text-xs sm:inline-flex"
+                  disabled={savingJournal || sending}
+                  onClick={() => void saveAsJournalEntry()}
+                >
+                  {savingJournal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <NotebookPen className="h-3.5 w-3.5" />}
+                  Save
+                </Button>
+              </>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              aria-label="What My AI knows about you"
+              onClick={() => setStateOpen(true)}
+            >
+              <Brain className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </header>
+
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-36 sm:px-5">
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground opacity-60" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
               </div>
             )}
 
-            {routeChatId && !loadingMessages && messages.length === 0 && (
-              <div className="mx-auto max-w-md py-16 text-center text-sm text-muted-foreground">
-                Say something to begin this chat.
+            {showWelcome && (
+              <div className="mx-auto flex max-w-lg flex-col items-center justify-center px-2 py-10 text-center sm:py-16">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">How can I help?</h2>
+                <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                  Grounded in your beliefs, journals, and framework — with citations back to your sources.
+                </p>
+                <div className="mt-8 grid w-full gap-2 sm:grid-cols-2">
+                  {SUGGESTED_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      disabled={sending}
+                      onClick={() => void send(prompt)}
+                      className="rounded-xl border border-border/80 bg-background/80 px-3 py-2.5 text-left text-xs leading-snug text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="mx-auto max-w-2xl space-y-4 pb-4">
-              {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
-                <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
-                  {m.role === "user" ? (
-                    <div className="max-w-[88%] rounded-2xl rounded-tr-md bg-primary px-3.5 py-2.5 text-sm text-primary-foreground shadow-sm whitespace-pre-wrap">
-                      {m.content}
-                    </div>
-                  ) : (
-                    <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/70 bg-card px-3.5 py-2.5 text-sm shadow-sm">
-                      <MemoryIndicator citations={parseCitationsJson(m.citations)} />
-                      <div className="prose prose-sm max-w-none dark:prose-invert text-foreground">
-                        {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
+            {!loadingMessages && visibleMessages.length > 0 && (
+              <div className="mx-auto max-w-2xl space-y-4 pb-4">
+                {visibleMessages.map((m) => (
+                  <div key={m.id}>
+                    {m.role === "user" ? (
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
+                          {m.content}
+                        </div>
                       </div>
-                      <CitationChips citations={parseCitationsJson(m.citations)} />
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {sending && (
-                <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/70 bg-card px-3.5 py-2.5 text-sm shadow-sm">
-                  <div className="prose prose-sm max-w-none text-muted-foreground">
-                    <TypingDots />
+                    ) : (
+                      <div className="max-w-full px-0.5 py-0.5">
+                        <div className="prose prose-sm max-w-none dark:prose-invert text-foreground prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed prose-headings:font-semibold">
+                          {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
+                        </div>
+                        <CitationChips citations={parseCitationsJson(m.citations)} />
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-md sm:px-5">
-            <div className="mx-auto flex max-w-2xl flex-col gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <label htmlFor="my-ai-outside" className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Outside knowledge</span>
-                  <span className="tabular-nums text-muted-foreground">{includeGeneral ? "On" : "Off"}</span>
-                </label>
-                <Switch
-                  id="my-ai-outside"
-                  checked={includeGeneral}
-                  onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
-                />
-              </div>
-              <div className="flex items-end gap-2">
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-5"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+          >
+            <div className="pointer-events-auto mx-auto max-w-2xl">
+              <div className="flex items-end gap-1.5 rounded-[26px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
                 <Textarea
                   ref={taRef}
                   value={input}
@@ -675,14 +766,34 @@ export default function MyAiPage() {
                       if (!sending) void send();
                     }
                   }}
-                  rows={2}
+                  rows={1}
                   disabled={sending}
-                  placeholder={sending ? "Thinking…" : "Ask anything…"}
-                  className="min-h-[52px] resize-none bg-background"
+                  spellCheck
+                  placeholder={sending ? "Thinking…" : "Message My AI"}
+                  className="min-h-[40px] max-h-40 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
-                <Button type="button" size="icon" className="h-11 w-11 shrink-0" disabled={sending || !input.trim()} onClick={() => void send()}>
+                <Button
+                  type="button"
+                  size="icon"
+                  disabled={sending || !input.trim()}
+                  onClick={() => void send()}
+                  className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
+                  aria-label="Send message"
+                >
                   <Send className="h-4 w-4" />
                 </Button>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/80">
+                <span>Enter to send · Shift+Enter for newline</span>
+                <label htmlFor="my-ai-outside" className="inline-flex cursor-pointer items-center gap-1.5">
+                  <span>Outside knowledge</span>
+                  <Switch
+                    id="my-ai-outside"
+                    checked={includeGeneral}
+                    onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                    className="scale-75"
+                  />
+                </label>
               </div>
             </div>
           </div>

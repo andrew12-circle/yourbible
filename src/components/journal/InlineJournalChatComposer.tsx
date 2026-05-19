@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Loader2, Mic, Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +16,7 @@ type Props = {
   aiBusy?: boolean;
   className?: string;
   rounded?: "pill" | "card";
+  extraActions?: ReactNode;
 };
 
 export default function InlineJournalChatComposer({
@@ -29,6 +31,7 @@ export default function InlineJournalChatComposer({
   aiBusy = false,
   className,
   rounded = "pill",
+  extraActions,
 }: Props) {
   const shellClass =
     rounded === "pill"
@@ -36,51 +39,54 @@ export default function InlineJournalChatComposer({
       : "flex items-end gap-2 rounded-xl border border-border bg-muted/30 px-2 py-2";
 
   return (
-    <div className={cn(shellClass, className)}>
-      <button
-        type="button"
-        onClick={onExit}
-        className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-        aria-label="Back to writing"
-      >
-        <Plus className="h-5 w-5 rotate-45" />
-      </button>
-      <Textarea
-        value={value}
-        onPointerDown={onPointerDown}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onChange={(e) => onChange(e.target.value)}
-        rows={1}
-        placeholder={aiBusy ? "Thinking…" : "Message"}
-        className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            onSend();
-          }
-        }}
-      />
-      {onDictate && (
+    <div className={cn("space-y-1.5", className)}>
+      <div className={shellClass}>
         <button
           type="button"
-          onClick={onDictate}
+          onClick={onExit}
           className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-          aria-label="Dictate"
+          aria-label="Back to writing"
         >
-          <Mic className="h-5 w-5" />
+          <Plus className="h-5 w-5 rotate-45" />
         </button>
-      )}
-      <Button
-        type="button"
-        size="icon"
-        onClick={onSend}
-        disabled={aiBusy || !value.trim()}
-        className="h-9 w-9 shrink-0 rounded-full"
-        aria-label="Send"
-      >
-        {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-      </Button>
+        <Textarea
+          value={value}
+          onPointerDown={onPointerDown}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onChange={(e) => onChange(e.target.value)}
+          rows={1}
+          placeholder={aiBusy ? "Thinking…" : "Message"}
+          className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+        />
+        {onDictate && (
+          <button
+            type="button"
+            onClick={onDictate}
+            className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+            aria-label="Dictate"
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        )}
+        <Button
+          type="button"
+          size="icon"
+          onClick={onSend}
+          disabled={aiBusy || !value.trim()}
+          className="h-9 w-9 shrink-0 rounded-full"
+          aria-label="Send"
+        >
+          {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </Button>
+      </div>
+      {extraActions ? <div className="flex justify-end px-1">{extraActions}</div> : null}
     </div>
   );
 }

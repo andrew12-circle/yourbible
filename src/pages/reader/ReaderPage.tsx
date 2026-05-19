@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BOOKS, findBookByAbbr } from "@/data/books";
@@ -17,6 +17,7 @@ import { TopBar } from "@/components/bible/TopBar";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
+import { SwipePage } from "@/components/bible/SwipePage";
 import { useChapterData, useBookmarks, type Highlight } from "@/hooks/useUserData";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { Button } from "@/components/ui/button";
@@ -63,51 +64,13 @@ function markerVariant(book: string, chapter: number, verse: number): number {
   return ((h >>> 0) % 10) + 1;
 }
 
-/** Horizontal swipe to turn pages (no 3D page curl). */
-function SwipePage({
-  side,
-  onTurn,
-  children,
-}: {
-  side: "left" | "right";
-  onTurn: (delta: 1 | -1) => void;
-  children: React.ReactNode;
-}) {
-  const isRight = side === "right";
-  const x = useMotionValue(0);
-  const COMMIT = 56;
-  const VEL = 320;
-
-  return (
-    <div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden">
-      <motion.div
-        className="h-full w-full min-h-0 min-w-0 touch-pan-y"
-        drag="x"
-        dragElastic={0.12}
-        dragMomentum={false}
-        dragConstraints={{ left: -120, right: 120 }}
-        style={{ x }}
-        onDragEnd={(_, info) => {
-          x.set(0);
-          if (isRight) {
-            if (info.offset.x < -COMMIT || info.velocity.x < -VEL) onTurn(1);
-            else if (info.offset.x > COMMIT || info.velocity.x > VEL) onTurn(-1);
-          } else {
-            if (info.offset.x > COMMIT || info.velocity.x > VEL) onTurn(-1);
-            else if (info.offset.x < -COMMIT || info.velocity.x < -VEL) onTurn(1);
-          }
-        }}
-      >
-        {children}
-      </motion.div>
-    </div>
-  );
-}
-
 export default function ReaderPage() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const params = useParams<{ book?: string; chapter?: string }>();
+  const dailyToastShown = useRef(false);
 
   const book = useMemo(
     () => findBookByAbbr(params.book ?? "Jhn") ?? BOOKS.find(b => b.abbr === "Jhn")!,
@@ -238,6 +201,7 @@ export default function ReaderPage() {
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const articleRoRef = useRef<ResizeObserver | null>(null);
   const articleElRef = useRef<HTMLElement | null>(null);
+  const flipLockUntil = useRef(0);
   const measureArticle = (el: HTMLElement | null) => {
     if (articleRoRef.current) {
       articleRoRef.current.disconnect();
@@ -246,6 +210,7 @@ export default function ReaderPage() {
     articleElRef.current = el;
     if (!el) return;
     const recompute = () => {
+      if (performance.now() < flipLockUntil.current) return;
       const width = Math.round(el.clientWidth);
       const height = Math.round(el.clientHeight);
       setPageBox(prev =>
@@ -261,6 +226,7 @@ export default function ReaderPage() {
   // Recompute on viewport changes too (orientation/resize/zoom).
   useEffect(() => {
     const onResize = () => {
+      if (performance.now() < flipLockUntil.current) return;
       const el = articleElRef.current;
       if (!el) return;
       const width = Math.round(el.clientWidth);
@@ -300,6 +266,24 @@ export default function ReaderPage() {
   // remember it so once the chapter (re)loads and pagination splits are known,
   // we can hop to the page that contains that verse.
   const [pendingVerse, setPendingVerse] = useState<number | null>(null);
+
+  useEffect(() => {
+    const v = parseInt(searchParams.get("v") ?? "", 10);
+    if (v > 0) setPendingVerse(v);
+  }, [book.abbr, chapter, searchParams]);
+
+  useEffect(() => {
+    if (dailyToastShown.current) return;
+    const state = location.state as { dailyPrompt?: string; dailyReason?: string } | null;
+    if (!state?.dailyPrompt) return;
+    dailyToastShown.current = true;
+    const desc = state.dailyReason
+      ? `${state.dailyReason}\n\n${state.dailyPrompt}`
+      : state.dailyPrompt;
+    toast({ title: "Today's reflection", description: desc });
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: {} });
+  }, [location.pathname, location.search, location.state, navigate]);
+
   useEffect(() => {
     if (pendingVerse == null || splits.length <= 1) return;
     // splits[i] is the index of the first verse on page i. Find the largest i
@@ -320,6 +304,10 @@ export default function ReaderPage() {
   const pagesPerTurn = singlePage ? 1 : 2;
 
   const goPage = (delta: number) => {
+    flipLockUntil.current = performance.now() + 280;
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+    setTbSel(null);
     setFlipDirection(delta > 0 ? "forward" : "back");
     const next = chapterPage + delta * pagesPerTurn;
     if (next < 0) {
