@@ -12,6 +12,8 @@ export interface RibbonData {
 
 interface Props {
   ribbons: RibbonData[];
+  /** Gutter between spread pages (desktop) or outer spine edge (mobile). */
+  anchor?: "gutter" | "spine";
   /** When true, slight sway on scroll */
   swaying?: boolean;
   onJump: (r: RibbonData) => void;
@@ -19,24 +21,27 @@ interface Props {
 }
 
 /**
- * Spine ribbons — anchored at the top of the spine, draping down the gutter.
- * Designed to render INSIDE BookScene's spine area (it positions itself
- * absolutely to the parent's center).
+ * Spine ribbons — anchored at the top of the spine, draping down the gutter
+ * (desktop) or the outer spine edge (mobile).
  */
-export function Ribbons({ ribbons, swaying, onJump, onAddAt }: Props) {
+export function Ribbons({ ribbons, anchor = "gutter", swaying, onJump, onAddAt }: Props) {
+  const atSpine = anchor === "spine";
   const slots: (1 | 2 | 3)[] = [1, 2, 3];
   return (
-    // Allow ribbons to overflow the page block downward (beyond the cover)
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 z-[6] pointer-events-none" style={{ height: "calc(100% + 56px)" }}>
+    <div
+      className={
+        "absolute top-0 z-[6] pointer-events-none " +
+        (atSpine ? "right-0 w-16" : "left-1/2 -translate-x-1/2 w-20")
+      }
+      style={{ height: "calc(100% + 56px)" }}
+    >
       {slots.map((slot) => {
         const r = ribbons.find((x) => x.position === slot);
         const colorMeta = RIBBON_COLORS.find(
           (c) => c.id === (r?.color ?? "gold"),
         )!;
-        // Tighter cluster down the gutter, almost straight (just a hair of natural lean)
-        const offset = (slot - 2) * 4; // -4, 0, +4
+        const offset = (slot - 2) * 4;
         const baseTilt = [-0.5, 0.2, -0.2][slot - 1];
-        // Each ribbon barely peeks below the cover (matches reference photo)
         const overshoot = [22, 16, 28][slot - 1];
         return (
           <motion.button
@@ -53,25 +58,24 @@ export function Ribbons({ ribbons, swaying, onJump, onAddAt }: Props) {
                 : { duration: 0.7, ease: "easeInOut" }
             }
             style={{
-              left: `calc(50% + ${offset}px)`,
-              transform: `translateX(-50%) rotate(${baseTilt}deg)`,
+              ...(atSpine
+                ? { right: `${8 - offset}px`, left: "auto" }
+                : {
+                    left: `calc(50% + ${offset}px)`,
+                    transform: `translateX(-50%) rotate(${baseTilt}deg)`,
+                  }),
               transformOrigin: "top center",
-              // body length = full page height + overshoot beyond the cover
               height: `calc(100% + ${overshoot}px)`,
             }}
             className="absolute top-[-2px] pointer-events-auto group flex flex-col items-center"
             aria-label={r ? `Jump to ${r.label}` : `Add ribbon ${slot}`}
           >
-            {/* Ribbon body — satin sheen, fiber striations, soft drop shadow */}
             <div
               className="w-[7px] sm:w-[8px] flex-1 transition-all group-hover:w-[10px]"
               style={{
                 backgroundImage: r
-                  ? // satin sheen across the width
-                    `linear-gradient(90deg, ${colorMeta.hex}55 0%, ${colorMeta.hex} 22%, #ffffff33 48%, ${colorMeta.hex} 72%, ${colorMeta.hex}66 100%),` +
-                    // fine vertical fiber striations
+                  ? `linear-gradient(90deg, ${colorMeta.hex}55 0%, ${colorMeta.hex} 22%, #ffffff33 48%, ${colorMeta.hex} 72%, ${colorMeta.hex}66 100%),` +
                     `repeating-linear-gradient(180deg, rgba(0,0,0,0.10) 0 0.6px, transparent 0.6px 1.6px),` +
-                    // length-wise tone variance
                     `linear-gradient(180deg, ${colorMeta.hex} 0%, ${colorMeta.hex}dd 60%, ${colorMeta.hex}aa 100%)`
                   : "linear-gradient(180deg, hsl(var(--paper-edge)), hsl(var(--paper-deep) / 0.4))",
                 backgroundBlendMode: r ? "overlay, multiply, normal" : "normal",
@@ -82,7 +86,6 @@ export function Ribbons({ ribbons, swaying, onJump, onAddAt }: Props) {
                 borderRadius: "1px",
               }}
             />
-            {/* Frayed angled tip — diagonal cut typical of bookmark ribbons */}
             <div
               className="w-[7px] sm:w-[8px] h-[10px]"
               style={{
@@ -98,7 +101,12 @@ export function Ribbons({ ribbons, swaying, onJump, onAddAt }: Props) {
               }}
             />
             {r && (
-              <div className="absolute top-2 left-full ml-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-[10px] bg-leather text-paper px-2 py-0.5 rounded shadow">
+              <div
+                className={
+                  "absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-[10px] bg-leather text-paper px-2 py-0.5 rounded shadow " +
+                  (atSpine ? "right-full mr-2" : "left-full ml-2")
+                }
+              >
                 {r.label}
               </div>
             )}

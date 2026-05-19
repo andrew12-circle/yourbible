@@ -22,6 +22,51 @@ const LEATHER_BG = {
   backgroundBlendMode: "overlay, multiply, screen, multiply, normal",
 } as const;
 
+const MOBILE_SPINE_W = 20;
+
+/** Leather spine strip on the outer edge of a single-page mobile view. */
+function MobileBookSpine() {
+  return (
+    <>
+      <motion.div
+        aria-hidden
+        className="absolute top-0 bottom-0 right-0 z-[3] pointer-events-none"
+        style={{
+          width: 28,
+          background:
+            "linear-gradient(270deg, hsl(0 0% 0% / 0.16) 0%, hsl(0 0% 0% / 0.07) 38%, transparent 72%)",
+        }}
+      />
+      <motion.div
+        aria-hidden
+        className="absolute top-0 bottom-0 right-0 z-[5] pointer-events-none overflow-hidden"
+        style={{
+          width: MOBILE_SPINE_W,
+          ...LEATHER_BG,
+          boxShadow:
+            "-10px 0 22px -8px hsl(0 0% 0% / 0.42), " +
+            "inset 2px 0 0 hsl(38 58% 52% / 0.55), " +
+            "inset -1px 0 6px hsl(0 0% 0% / 0.45)",
+        }}
+      >
+        <motion.div
+          className="absolute inset-y-0 left-[28%] w-[44%] pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, hsl(10 50% 28% / 0.65) 45%, hsl(20 60% 42% / 0.2) 70%, transparent 100%)",
+          }}
+          aria-hidden
+        />
+        <motion.div
+          className="absolute inset-y-0 left-0 w-px pointer-events-none"
+          style={{ background: "hsl(38 58% 52% / 0.65)" }}
+          aria-hidden
+        />
+      </motion.div>
+    </>
+  );
+}
+
 /**
  * Digital reading layout with a full leather cover frame (top, sides, bottom)
  * wrapping the paper spread.
