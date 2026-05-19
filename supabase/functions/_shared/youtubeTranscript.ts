@@ -93,11 +93,12 @@ async function listTimedTextLangs(videoId: string): Promise<string[]> {
   return [...xml.matchAll(/lang_code="([^"]+)"/g)].map((m) => m[1]).filter(Boolean);
 }
 
-async function fetchTimedTextForLang(videoId: string, lang: string): Promise<string | null> {
+async function fetchTimedTextForLang(videoId: string, lang: string, kind?: "asr"): Promise<string | null> {
   const u = new URL("https://www.youtube.com/api/timedtext");
   u.searchParams.set("v", videoId);
   u.searchParams.set("lang", lang);
   u.searchParams.set("fmt", "json3");
+  if (kind === "asr") u.searchParams.set("kind", "asr");
   const res = await fetch(u.toString(), { headers: YT_HEADERS });
   if (!res.ok) return null;
   return parseJson3CaptionBody(await res.text());
@@ -115,6 +116,12 @@ export async function fetchTimedTextTranscript(videoId: string): Promise<string 
   for (const lang of tryLangs) {
     const text = await fetchTimedTextForLang(videoId, lang).catch(() => null);
     if (text) return text;
+    const asr = await fetchTimedTextForLang(videoId, lang, "asr").catch(() => null);
+    if (asr) return asr;
+  }
+  if (!preferred.length) {
+    const asrOnly = await fetchTimedTextForLang(videoId, "en", "asr").catch(() => null);
+    if (asrOnly) return asrOnly;
   }
   return null;
 }

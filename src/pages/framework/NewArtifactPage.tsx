@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, Square, Upload, Youtube, FileText, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { toast } from "@/hooks/use-toast";
 
@@ -31,6 +32,7 @@ export default function NewArtifactPage() {
   const [mode, setMode] = useState<Mode>("youtube");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [youtubePaste, setYoutubePaste] = useState("");
   const [text, setText] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [recording, setRecording] = useState(false);
@@ -141,6 +143,38 @@ export default function NewArtifactPage() {
     }
     supabase.functions.invoke("framework-fetch-transcript", {
       body: { artifact_id: data.id, url: url.trim(), processing_token: processingToken },
+    }).catch((e) => console.error(e));
+    navigate(`/framework/artifacts/${data.id}`);
+  };
+
+  const submitYoutubeWithPaste = async () => {
+    if (!youtubePaste.trim()) {
+      toast({ title: "Paste the transcript first", variant: "destructive" });
+      return;
+    }
+    if (!url.trim()) {
+      toast({ title: "Add a YouTube URL for context", description: "The URL links chapters and the video player.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const processingToken = createProcessingToken();
+    const { data, error } = await supabase.from("artifacts").insert({
+      user_id: user.id,
+      title: title.trim() || null,
+      kind: "youtube",
+      url: url.trim(),
+      raw_text: youtubePaste.trim(),
+      status: "analyzing",
+      processing_token: processingToken,
+      metadata: { source: "youtube", import_via: "paste" },
+    }).select("id").maybeSingle();
+    if (error || !data) {
+      setBusy(false);
+      toast({ title: "Failed", description: error?.message ?? "Unknown error", variant: "destructive" });
+      return;
+    }
+    supabase.functions.invoke("framework-analyze", {
+      body: { artifact_id: data.id, processing_token: processingToken },
     }).catch((e) => console.error(e));
     navigate(`/framework/artifacts/${data.id}`);
   };
@@ -441,10 +475,32 @@ export default function NewArtifactPage() {
               />
             </div>
           )}
-          <p className="text-xs text-muted-foreground mb-5">
-            Pulls the auto-generated captions and runs them through the analyzer. If captions aren't available you'll be asked to paste the transcript.
+          <p className="text-xs text-muted-foreground mb-4">
+            Fetches captions when available. If fetch fails or you already have the transcript, paste it below.
           </p>
-          <Button onClick={submitYoutube} disabled={busy}>{busy ? "Fetching…" : "Fetch & analyze"}</Button>
+          <Button onClick={submitYoutube} disabled={busy} className="mb-6">
+            {busy ? "Fetching…" : "Fetch & analyze"}
+          </Button>
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <p className="text-sm font-medium mb-1">Or paste full transcript</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              YouTube → ⋮ → Show transcript, select all and copy. Timestamps optional.
+            </p>
+            <Textarea
+              value={youtubePaste}
+              onChange={(e) => setYoutubePaste(e.target.value)}
+              rows={12}
+              placeholder={"[0:00] Opening…\n[0:15] Next line…"}
+              className="font-mono text-sm mb-2"
+              spellCheck={false}
+            />
+            <p className="text-xs text-muted-foreground tabular-nums mb-3">
+              {youtubePaste.length.toLocaleString()} characters
+            </p>
+            <Button variant="secondary" onClick={submitYoutubeWithPaste} disabled={busy || !youtubePaste.trim()}>
+              {busy ? "Saving…" : "Save & analyze pasted transcript"}
+            </Button>
+          </div>
         </>
       )}
 

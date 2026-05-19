@@ -16,7 +16,14 @@ const corsHeaders = {
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_SEGMENT_SECONDS = 20 * 60;
+/** Gemini YouTube URL input is limited to ~45 minutes with audio per request. */
+const GEMINI_MAX_SINGLE_REQUEST_SECONDS = 45 * 60;
 const GEMINI_MAX_DURATION_SECONDS = 3 * 60 * 60;
+
+const YT_WATCH_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept-Language": "en-US,en;q=0.9",
+};
 
 function isYouTubeUrl(url: string): boolean {
   try {
@@ -160,12 +167,7 @@ function collapseAdjacentSameTimestampLines(lines: string[]): string[] {
 
 async function fetchCaptionTrack(baseUrl: string): Promise<string | null> {
   const captionUrl = baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=json3`;
-  const captionRes = await fetch(captionUrl, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
+  const captionRes = await fetch(captionUrl, { headers: YT_WATCH_HEADERS });
   if (!captionRes.ok) return null;
 
   const body = await captionRes.text();
@@ -265,10 +267,7 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionB
   if (!videoId) return null;
 
   const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; TranscriptFetcher/1.0)",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
+    headers: YT_WATCH_HEADERS,
   });
   if (!watchRes.ok) return null;
   const html = await watchRes.text();
@@ -342,38 +341,47 @@ function cleanGeminiTranscript(text: string): string {
     .trim();
 }
 
-async function transcribeYouTubeSegment(
-  watchUrl: string,
-  startSeconds: number,
-  endSeconds: number,
-): Promise<string> {
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set on the server (required for videos without captions).");
+type GeminiTranscribeOpts = {
+  watchUrl: string;
+  startSeconds?: number;
+  endSeconds?: number;
+  prompt: string;
+};
 
-  const segmentLabel = `${formatTime(startSeconds)}-${formatTime(endSeconds)}`;
+async function geminiTranscribeYouTube(opts: GeminiTranscribeOpts): Promise<string> {
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not set (needed only when YouTube captions are unavailable).");
+  }
+
+  const { watchUrl, startSeconds, endSeconds, prompt } = opts;
+  const clipLabel = startSeconds != null && endSeconds != null
+    ? `${formatTime(startSeconds)}-${formatTime(endSeconds)}`
+    : "full video";
+
+  const videoPart: Record<string, unknown> = {
+    file_data: { file_uri: watchUrl },
+  };
+  if (startSeconds != null && endSeconds != null) {
+    videoPart.video_metadata = {
+      start_offset: `${startSeconds}s`,
+      end_offset: `${endSeconds}s`,
+    };
+  }
+
   const bodyBase = {
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `Transcribe only the spoken words from ${formatTime(startSeconds)} to ${formatTime(endSeconds)} of this YouTube video. Return transcript text only. Do not summarize, invent, or add commentary.`,
-          },
-          {
-            file_data: { mime_type: "video/mp4", file_uri: watchUrl },
-            video_metadata: {
-              start_offset: { seconds: startSeconds },
-              end_offset: { seconds: endSeconds },
-            },
-          },
-        ],
-      },
-    ],
+    contents: [{
+      role: "user",
+      parts: [
+        videoPart,
+        { text: prompt },
+      ],
+    }],
   };
 
   const generationConfigs = [
+    { temperature: 0, maxOutputTokens: 65536 },
     { temperature: 0, maxOutputTokens: 8192, mediaResolution: "LOW" as const },
-    { temperature: 0, maxOutputTokens: 8192 },
   ];
 
   let lastError = "";
@@ -398,27 +406,54 @@ async function transcribeYouTubeSegment(
     }
 
     lastError = await response.text();
-    const retryable = response.status === 400 || response.status === 429 || response.status >= 500;
+    const retryable = response.status === 429 || response.status >= 500;
     if (!retryable || attempt === 2) break;
     await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
 
-  throw new Error(`Gemini clip transcription (${segmentLabel}) failed: ${lastError}`);
+  throw new Error(`Gemini transcription (${clipLabel}) failed: ${lastError.slice(0, 400)}`);
 }
 
-async function transcribeYouTubeWithGeminiClips(watchUrl: string, durationSeconds?: number): Promise<string> {
-  const totalSeconds = Math.min(durationSeconds || GEMINI_SEGMENT_SECONDS, GEMINI_MAX_DURATION_SECONDS);
-  const segments: string[] = [];
+async function transcribeYouTubeWithGemini(watchUrl: string, durationSeconds?: number): Promise<string> {
+  const totalSeconds = Math.min(durationSeconds || GEMINI_MAX_SINGLE_REQUEST_SECONDS, GEMINI_MAX_DURATION_SECONDS);
+  const transcribePrompt =
+    "Transcribe all spoken words in this YouTube video. Return plain transcript text only with [M:SS] or [H:MM:SS] timestamps at natural phrase boundaries. Do not summarize, invent content, or add commentary.";
 
+  if (totalSeconds <= GEMINI_MAX_SINGLE_REQUEST_SECONDS) {
+    const text = await geminiTranscribeYouTube({ watchUrl, prompt: transcribePrompt });
+    if (!text) throw new Error("Gemini returned an empty transcript.");
+    return text;
+  }
+
+  const segments: string[] = [];
   for (let start = 0; start < totalSeconds; start += GEMINI_SEGMENT_SECONDS) {
     const end = Math.min(start + GEMINI_SEGMENT_SECONDS, totalSeconds);
-    const segmentText = await transcribeYouTubeSegment(watchUrl, start, end);
+    const segmentText = await geminiTranscribeYouTube({
+      watchUrl,
+      startSeconds: start,
+      endSeconds: end,
+      prompt: `Transcribe only spoken words from ${formatTime(start)} to ${formatTime(end)}. Return transcript text only with timestamps in that range. Do not summarize or invent.`,
+    });
     if (segmentText) segments.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
   }
 
   const transcript = segments.join("\n\n").trim();
-  if (!transcript) throw new Error("Gemini returned an empty transcript for this video. Paste the transcript manually.");
+  if (!transcript) throw new Error("Gemini returned an empty transcript. Paste the transcript manually.");
   return transcript;
+}
+
+function buildTranscriptFailureMessage(captionAttempts: string[], geminiError?: string): string {
+  const hasGeminiKey = Boolean(Deno.env.get("GEMINI_API_KEY"));
+  const parts = [`No YouTube captions found (${captionAttempts.join("; ")})`];
+  if (!hasGeminiKey) {
+    parts.push("GEMINI_API_KEY is not configured, so automatic speech transcription is unavailable");
+  } else if (geminiError) {
+    parts.push(`Automatic transcription failed: ${geminiError}`);
+  }
+  parts.push(
+    "Paste the full transcript instead (YouTube → ⋮ → Show transcript, copy all, then use Paste transcript on this page)",
+  );
+  return parts.join(". ") + ".";
 }
 
 async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata; chaptersBundle: WatchCaptionBundle | null }> {
@@ -464,17 +499,15 @@ async function transcribeYouTubeVideo(url: string): Promise<{ text: string; meta
     captionAttempts.push("YouTube transcript API: no segments returned");
   }
 
+  if (!Deno.env.get("GEMINI_API_KEY")) {
+    throw new Error(buildTranscriptFailureMessage(captionAttempts));
+  }
+
   try {
-    const text = await transcribeYouTubeWithGeminiClips(watchUrl, metadata.durationSeconds);
+    const text = await transcribeYouTubeWithGemini(watchUrl, metadata.durationSeconds);
     return { text, metadata, chaptersBundle: captionResult };
   } catch (e) {
-    const geminiMsg = String((e as Error).message ?? e);
-    const hasYoutubeKey = Boolean(Deno.env.get("YOUTUBE_DATA_API_KEY"));
-    throw new Error(
-      `No YouTube captions found (${captionAttempts.join("; ")}). `
-        + `YOUTUBE_DATA_API_KEY is ${hasYoutubeKey ? "set (used for video metadata/chapters, not caption download)" : "not set"}. `
-        + `Gemini fallback failed: ${geminiMsg}`,
-    );
+    throw new Error(buildTranscriptFailureMessage(captionAttempts, String((e as Error).message ?? e)));
   }
 }
 

@@ -51,6 +51,11 @@ import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import {
+  countTimedTranscriptLines,
+  looksLikeYoutubeShowTranscriptPaste,
+  normalizePastedTranscript,
+} from "@/lib/normalizePastedTranscript";
+import {
   collectTranscriptTextOverlappingInclusiveRange,
   formatTranscriptClock,
   splitTranscript,
@@ -1055,24 +1060,59 @@ export default function ArtifactDetailPage() {
       .catch((e) => console.error(e));
   };
 
+  const normalizedPastePreview = useMemo(
+    () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
+    [pasteText],
+  );
+  const pasteTimestampsNormalized =
+    pasteText.trim().length > 0 && normalizedPastePreview !== pasteText.trim();
+
+  const applyPasteNormalization = useCallback((raw: string) => {
+    const normalized = normalizePastedTranscript(raw);
+    if (normalized !== raw.trim()) {
+      setPasteText(normalized);
+      toast({
+        title: "Transcript timestamps normalized",
+        description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
+      });
+    }
+    return normalized;
+  }, []);
+
+  const handlePasteTranscriptInput = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const chunk = e.clipboardData.getData("text/plain");
+    if (!chunk || !looksLikeYoutubeShowTranscriptPaste(chunk)) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    const start = el.selectionStart ?? pasteText.length;
+    const end = el.selectionEnd ?? pasteText.length;
+    const merged = pasteText.slice(0, start) + chunk + pasteText.slice(end);
+    applyPasteNormalization(merged);
+  };
+
   const submitPasted = async () => {
     if (!pasteText.trim()) return;
+    const normalized = normalizePastedTranscript(pasteText);
     setSavingPaste(true);
     const processingToken = createProcessingToken();
     await supabase
       .from("artifacts")
-      .update({ raw_text: pasteText.trim(), status: "analyzing", error: null, processing_token: processingToken })
+      .update({ raw_text: normalized, status: "analyzing", error: null, processing_token: processingToken })
       .eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
     await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
     await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
     setClaims([]);
-    setA({ ...a, raw_text: pasteText.trim(), status: "analyzing", error: null });
+    setA({ ...a, raw_text: normalized, status: "analyzing", error: null });
     setPasteOpen(false);
     setSavingPaste(false);
+    toast({ title: "Transcript saved", description: "Analysis started." });
     supabase.functions
       .invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } })
-      .catch((e) => console.error(e));
+      .catch((e) => {
+        console.error(e);
+        toast({ title: "Could not start analysis", variant: "destructive" });
+      });
   };
 
   const quickBeliefInfluence: BeliefInfluenceAttachment | null =
@@ -1439,6 +1479,11 @@ export default function ArtifactDetailPage() {
           {a.status}
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {a.kind === "youtube" && (
+            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPasteOpen(true)}>
+              <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript
+            </Button>
+          )},
           {a.kind === "youtube" && a.status === "ready" && (
             <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setWrapUpOpen(true)}>
               Wrap up
@@ -1907,25 +1952,56 @@ export default function ArtifactDetailPage() {
         </div>
       )}
 
-      {pasteOpen && (
-        <div className="mb-5 rounded-lg border border-border bg-card p-4">
-          <div className="text-sm font-medium mb-2">Paste the transcript</div>
+      <Dialog
+        open={pasteOpen}
+        onOpenChange={(open) => {
+          setPasteOpen(open);
+          if (!open) setPasteText("");
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Paste full transcript</DialogTitle>
+            <DialogDescription>
+              Copy the entire transcript from YouTube (⋮ → Show transcript, select all) or any transcript tool, then paste below.
+              We will save it and run the analyzer.
+            </DialogDescription>
+          </DialogHeader>
           <Textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            rows={10}
-            placeholder="Paste the YouTube transcript or your own notes…"
-            className="mb-3 font-serif"
-            spellCheck
+            onPaste={handlePasteTranscriptInput}
+            rows={18}
+            placeholder={"[0:00] Opening line…\n[0:15] Next phrase…\n\nPlain text without timestamps also works."}
+            className="font-mono text-sm resize-y min-h-[280px] flex-1"
+            spellCheck={false}
           />
-          <div className="flex gap-2">
-            <Button size="sm" onClick={submitPasted} disabled={savingPaste || !pasteText.trim()}>
-              {savingPaste ? "Saving…" : "Use this & analyze"}
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {pasteText.length.toLocaleString()} characters
+            {pasteText.trim() ? ` · ~${pasteText.trim().split(/\s+/).length.toLocaleString()} words` : ""}
+            {pasteTimestampsNormalized ? (
+              <span className="text-foreground">
+                {" "}
+                · Timestamps will normalize to [M:SS] ({countTimedTranscriptLines(normalizedPastePreview)} lines)
+              </span>
+            ) : null}
+          </p>
+          {pasteTimestampsNormalized ? (
+            <pre className="max-h-24 overflow-auto rounded border border-border bg-muted/40 p-2 font-mono text-[11px] leading-snug text-muted-foreground">
+              {normalizedPastePreview.slice(0, 500)}
+              {normalizedPastePreview.length > 500 ? "…" : ""}
+            </pre>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setPasteOpen(false)} disabled={savingPaste}>
+              Cancel
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setPasteOpen(false)}>Cancel</Button>
-          </div>
-        </div>
-      )}
+            <Button onClick={submitPasted} disabled={savingPaste || !pasteText.trim()}>
+              {savingPaste ? "Saving…" : "Save & analyze"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {a.raw_text && a.status !== "ready" && (
         <details className="mb-5 text-xs">
