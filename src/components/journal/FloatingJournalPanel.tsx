@@ -565,6 +565,7 @@ export default function FloatingJournalPanel({
       <div className="mb-2 flex shrink-0 items-center justify-end">
         <DictateButton
           ref={dictateRef}
+          userId={userId}
           size="sm"
           className="text-foreground hover:text-foreground dark:text-foreground dark:hover:text-foreground"
           onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}

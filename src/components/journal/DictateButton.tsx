@@ -1,14 +1,16 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Mic, MicOff } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Loader2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
+import { useMediaRecorderDictation } from "@/hooks/useMediaRecorderDictation";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 
 export type DictateButtonHandle = { stop: () => void; toggle: () => void };
 
 export type DictateButtonProps = {
+  userId?: string;
   onAppend: (chunk: string) => void;
   onInterim?: (partial: string) => void;
   /** Fires when the browser speech session starts/stops (for silence-based auto-send, etc.). */
@@ -18,31 +20,68 @@ export type DictateButtonProps = {
   className?: string;
 };
 
+const LS_MEDIA_FALLBACK = "journal.dictation.prefer_media";
+
 export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>(function DictateButton(
-  { onAppend, onInterim, onListeningChange, language, size = "sm", className },
+  { userId, onAppend, onInterim, onListeningChange, language, size = "sm", className },
   ref,
 ) {
   const onListeningChangeRef = useRef(onListeningChange);
   onListeningChangeRef.current = onListeningChange;
 
-  const { supported, listening, error, stop, toggle } = useSpeechDictation({
-    onAppend,
-    onInterim,
-    language,
+  const [preferMedia, setPreferMedia] = useState(() => {
+    try {
+      return localStorage.getItem(LS_MEDIA_FALLBACK) === "1";
+    } catch {
+      return false;
+    }
   });
+
+  const speech = useSpeechDictation({ onAppend, onInterim, language });
+  const media = useMediaRecorderDictation({ userId, onAppend, onInterim });
+
+  const useMedia = preferMedia || !speech.supported;
+
+  const active = useMedia ? media : speech;
+  const { listening, error, stop, toggle } = active;
+  const transcribing = useMedia && media.transcribing;
+  const supported = useMedia ? media.supported : speech.supported;
 
   useImperativeHandle(ref, () => ({ stop, toggle }), [stop, toggle]);
 
   useEffect(() => {
-    onListeningChangeRef.current?.(listening);
-  }, [listening]);
+    onListeningChangeRef.current?.(listening || transcribing);
+  }, [listening, transcribing]);
 
   const lastToasted = useRef<string | null>(null);
   useEffect(() => {
-    if (error && error !== lastToasted.current) {
-      lastToasted.current = error;
-      toast({ title: "Dictation", description: error, variant: "destructive" });
+    if (!error || error === lastToasted.current) return;
+    lastToasted.current = error;
+
+    const isNetworkish =
+      error.includes("Network") ||
+      error.includes("service not allowed") ||
+      error.includes("snag");
+
+    if (!useMedia && isNetworkish && media.supported && userId) {
+      try {
+        localStorage.setItem(LS_MEDIA_FALLBACK, "1");
+      } catch {
+        /* ignore */
+      }
+      setPreferMedia(true);
+      speech.stop();
+      toast({
+        title: "Switching dictation mode",
+        description: "Live captions failed — tap the mic to record, then tap again to transcribe.",
+      });
+      return;
     }
+
+    toast({ title: "Dictation", description: error, variant: "destructive" });
+  }, [error, useMedia, media.supported, userId, speech]);
+
+  useEffect(() => {
     if (!error) lastToasted.current = null;
   }, [error]);
 
@@ -51,9 +90,15 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
 
   const tip = !supported
     ? "Voice dictation isn't supported in this browser yet."
-    : listening
-      ? "Stop dictation"
-      : "Dictate";
+    : transcribing
+      ? "Transcribing…"
+      : listening
+        ? useMedia
+          ? "Tap to finish and transcribe"
+          : "Stop dictation"
+        : useMedia
+          ? "Record voice (tap again when done)"
+          : "Dictate";
 
   return (
     <Tooltip>
@@ -62,19 +107,22 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           type="button"
           variant="ghost"
           size="icon"
-          disabled={!supported}
+          disabled={!supported || transcribing}
           aria-pressed={listening}
           aria-label={listening ? "Stop dictation" : "Dictate"}
           className={cn(
             btnClass,
             "relative shrink-0 text-muted-foreground hover:text-foreground",
+            listening && "text-primary",
             className,
           )}
           onClick={() => {
             if (supported) toggle();
           }}
         >
-          {listening ? (
+          {transcribing ? (
+            <Loader2 className={cn(iconClass, "animate-spin")} />
+          ) : listening ? (
             <>
               <span
                 className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-red-500"

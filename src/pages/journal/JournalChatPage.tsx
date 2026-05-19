@@ -952,6 +952,7 @@ export default function JournalChatPage() {
                 />
                 <DictateButton
                   ref={dictateRef}
+                  userId={user.id}
                   size="md"
                   className="h-9 w-9 shrink-0 rounded-full"
                   onAppend={(chunk) => {

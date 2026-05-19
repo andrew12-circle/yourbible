@@ -150,6 +150,7 @@ export default function JournalVentPage() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <DictateButton
           ref={dictateRef}
+          userId={user?.id}
           size="sm"
           onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
           onInterim={setDictInterim}

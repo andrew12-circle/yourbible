@@ -17,9 +17,17 @@ export interface UseSpeechDictationApi {
   toggle: () => void;
 }
 
+type SpeechRecognitionResult = {
+  isFinal: boolean;
+  length: number;
+  item?: (index: number) => { transcript: string } | undefined;
+  0?: { transcript: string };
+};
+
 type RecognitionResultList = {
   length: number;
-  [index: number]: { isFinal: boolean; 0: { transcript: string } };
+  item?: (index: number) => SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
 };
 
 type SpeechResultEvent = Event & {
@@ -72,12 +80,21 @@ function mapSpeechError(code: string): string {
   }
 }
 
+function resultTranscript(r: SpeechRecognitionResult): string {
+  try {
+    if (typeof r.item === "function") return r.item(0)?.transcript ?? "";
+  } catch {
+    /* fall through */
+  }
+  return r[0]?.transcript ?? "";
+}
+
 function parseResults(ev: SpeechResultEvent): { finals: string[]; interim: string } {
   const finals: string[] = [];
   let interim = "";
   for (let i = ev.resultIndex; i < ev.results.length; i++) {
     const r = ev.results[i];
-    const t = r[0]?.transcript ?? "";
+    const t = resultTranscript(r);
     if (r.isFinal) finals.push(t);
     else interim += t;
   }
@@ -193,10 +210,10 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
 
       rec.onend = () => {
         if (!desiredRef.current) return;
-        if (rapidFailRef.current >= 5) {
+        if (rapidFailRef.current >= 8) {
           desiredRef.current = false;
           setListening(false);
-          setError("Dictation stopped after repeated errors. Try again in a moment.");
+          setError("Dictation stopped after repeated errors. Tap the mic to try again.");
           onInterimRef.current?.("");
           return;
         }
@@ -221,8 +238,10 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
           } catch {
             desiredRef.current = false;
             setListening(false);
+            setError("Dictation paused — tap the mic to continue.");
+            onInterimRef.current?.("");
           }
-        }, 120);
+        }, 250);
       };
     };
 

@@ -721,6 +721,17 @@ export default function NewJournalEntryPage() {
   const triggerPrompts = () => navigate("/journal/prompts");
   const triggerTemplates = () => toast({ title: "Templates coming soon" });
 
+  const dictateButton = (
+    <DictateButton
+      ref={dictateRef}
+      userId={user?.id}
+      size="md"
+      className="h-9 w-9 shrink-0 rounded-full"
+      onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
+      onInterim={setDictInterim}
+    />
+  );
+
   const weatherLabel = weatherTempC != null
     ? `${Math.round((weatherTempC * 9) / 5 + 32)}\u00b0F`
     : (weather ?? "");
@@ -909,14 +920,11 @@ export default function NewJournalEntryPage() {
           e.target.value = "";
         }}
       />
-      <div className="hidden">
-        <DictateButton
-          ref={dictateRef}
-          size="sm"
-          onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
-          onInterim={setDictInterim}
-        />
-      </div>
+      {!inlineChatMode ? (
+        <div className="sr-only" aria-hidden>
+          {dictateButton}
+        </div>
+      ) : null}
 
       {/* Bottom toolbar / chat composer (fixed) */}
       <div
@@ -934,7 +942,7 @@ export default function NewJournalEntryPage() {
               onChange={setBody}
               onSend={() => void sendToAi()}
               onExit={() => setReplyWithAi(false)}
-              onDictate={triggerAudio}
+              dictateControl={dictateButton}
               onPointerDown={() => {
                 composerLockScrollYRef.current = window.scrollY;
               }}

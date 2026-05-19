@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Loader2, Mic, Plus, Send } from "lucide-react";
+import { Loader2, Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ type Props = {
   onChange: (value: string) => void;
   onSend: () => void;
   onExit: () => void;
-  onDictate?: () => void;
+  dictateControl?: ReactNode;
   onFocus?: () => void;
   onBlur?: () => void;
   onPointerDown?: () => void;
@@ -24,7 +24,7 @@ export default function InlineJournalChatComposer({
   onChange,
   onSend,
   onExit,
-  onDictate,
+  dictateControl,
   onFocus,
   onBlur,
   onPointerDown,
@@ -65,16 +65,7 @@ export default function InlineJournalChatComposer({
             }
           }}
         />
-        {onDictate && (
-          <button
-            type="button"
-            onClick={onDictate}
-            className="h-9 w-9 shrink-0 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-            aria-label="Dictate"
-          >
-            <Mic className="h-5 w-5" />
-          </button>
-        )}
+        {dictateControl}
         <Button
           type="button"
           size="icon"

@@ -143,6 +143,30 @@ export default function EntryEditorPane({
     !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
   const inlineChatMode = replyWithAi && canReplyWithAi;
 
+  const handleDictateAppend = useCallback(
+    (chunk: string) => {
+      if (inlineChatMode) {
+        setChatDraft((d) => mergeDictatedText(d, chunk));
+        return;
+      }
+      const cur = entryRef.current;
+      if (!cur) return;
+      queueSaveRef.current({ body: mergeDictatedText(cur.body, chunk) });
+    },
+    [inlineChatMode],
+  );
+
+  const dictateButton = (
+    <DictateButton
+      ref={dictateRef}
+      userId={user?.id}
+      size={inlineChatMode ? "md" : "sm"}
+      className={inlineChatMode ? "h-9 w-9 shrink-0 rounded-full" : undefined}
+      onAppend={handleDictateAppend}
+      onInterim={setDictInterim}
+    />
+  );
+
   const persistChatTranscript = useCallback((body: string) => {
     queueSaveRef.current({ body, entry_kind: "chat" });
   }, []);
@@ -422,20 +446,7 @@ export default function EntryEditorPane({
         >
           <MessageCircle className="w-4 h-4" />
         </TBtn>
-        <DictateButton
-          ref={dictateRef}
-          size="sm"
-          onAppend={(chunk) => {
-            if (replyWithAi) {
-              setChatDraft((d) => mergeDictatedText(d, chunk));
-              return;
-            }
-            const cur = entryRef.current;
-            if (!cur) return;
-            queueSave({ body: mergeDictatedText(cur.body, chunk) });
-          }}
-          onInterim={setDictInterim}
-        />
+        {!inlineChatMode ? dictateButton : null}
         <TBtn title="AI score" onClick={scoreNow}>
           {scoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
         </TBtn>
@@ -561,7 +572,7 @@ export default function EntryEditorPane({
               onChange={setChatDraft}
               onSend={() => void handleChatSend()}
               onExit={exitChatMode}
-              onDictate={() => dictateRef.current?.toggle()}
+              dictateControl={dictateButton}
               aiBusy={aiBusy}
               rounded="card"
               extraActions={
