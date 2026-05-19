@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sacred &amp; Modern">
+  <defs>
+    <linearGradient id="leather" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3d0f0f"/>
+      <stop offset="100%" stop-color="#5c2222"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f7f2e8"/>
+      <stop offset="100%" stop-color="#ebe1d0"/>
+    </linearGradient>
+    <linearGradient id="foil" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a67c2e"/>
+      <stop offset="50%" stop-color="#e5b84d"/>
+      <stop offset="100%" stop-color="#c9a04a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#leather)"/>
+  <rect x="144" y="80" width="288" height="352" rx="40" fill="url(#paper)"/>
+  <path d="M144 80v352" stroke="url(#foil)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M208 176h176" stroke="url(#foil)" stroke-width="16" stroke-linecap="round" opacity="0.92"/>
+  <path d="M208 224h128" stroke="url(#foil)" stroke-width="12" stroke-linecap="round" opacity="0.55"/>
+</svg>
