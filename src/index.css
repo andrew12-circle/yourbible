@@ -578,7 +578,17 @@
 
   /* The reading text area uses native browser selection. We tint the
      selection a warm cream so the live pencil overlay reads cleanly. */
-  .selectable-text { user-select: text; -webkit-user-select: text; }
+  .selectable-text {
+    user-select: text;
+    -webkit-user-select: text;
+    /* Override parent touch-pan-y so drag-to-select works on touch devices. */
+    touch-action: auto;
+  }
+  .selectable-text [data-verse-body],
+  .selectable-text [data-verse-body] * {
+    user-select: text;
+    -webkit-user-select: text;
+  }
   .selectable-text ::selection {
     background: hsl(40 70% 78% / 0.45);
   }

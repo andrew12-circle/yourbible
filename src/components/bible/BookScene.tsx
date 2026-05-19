@@ -28,7 +28,7 @@ const MOBILE_SPINE_W = 20;
 function MobileBookSpine() {
   return (
     <>
-      <motion.div
+      <div
         aria-hidden
         className="absolute top-0 bottom-0 right-0 z-[3] pointer-events-none"
         style={{
@@ -37,7 +37,7 @@ function MobileBookSpine() {
             "linear-gradient(270deg, hsl(0 0% 0% / 0.16) 0%, hsl(0 0% 0% / 0.07) 38%, transparent 72%)",
         }}
       />
-      <motion.div
+      <div
         aria-hidden
         className="absolute top-0 bottom-0 right-0 z-[5] pointer-events-none overflow-hidden"
         style={{
@@ -49,7 +49,7 @@ function MobileBookSpine() {
             "inset -1px 0 6px hsl(0 0% 0% / 0.45)",
         }}
       >
-        <motion.div
+        <div
           className="absolute inset-y-0 left-[28%] w-[44%] pointer-events-none"
           style={{
             background:
@@ -57,12 +57,12 @@ function MobileBookSpine() {
           }}
           aria-hidden
         />
-        <motion.div
+        <div
           className="absolute inset-y-0 left-0 w-px pointer-events-none"
           style={{ background: "hsl(38 58% 52% / 0.65)" }}
           aria-hidden
         />
-      </motion.div>
+      </div>
     </>
   );
 }
@@ -150,7 +150,7 @@ export function BookScene({
                 <div
                   className={
                     "relative flex flex-1 min-h-0 min-w-0 overflow-hidden bg-paper " +
-                    (singlePage ? "flex-col" : "flex-row")
+                    (singlePage ? "" : "flex-row")
                   }
                 >
                   {showLeft && (

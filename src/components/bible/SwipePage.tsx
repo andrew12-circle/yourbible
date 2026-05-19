@@ -155,7 +155,7 @@ export function SwipePage({
   return (
     <div
       className={
-        "relative h-full w-full min-h-0 min-w-0 overflow-hidden touch-pan-y " +
+        "relative h-full w-full min-h-0 min-w-0 overflow-hidden " +
         (gesturing ? "[&_.selectable-text]:!select-none" : "")
       }
     >
