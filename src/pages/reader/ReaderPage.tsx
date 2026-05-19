@@ -54,7 +54,13 @@ const PAGE_MARGIN_OUTER = "clamp(1.125rem, 4vmin, 2.25rem)";
 /** Gutter toward spine / center — extra room on desktop spreads. */
 const PAGE_MARGIN_GUTTER = "clamp(2.25rem, 8vmin, 4.5rem)";
 
-function pageHorizontalPadding(side: "left" | "right"): React.CSSProperties {
+function pageHorizontalPadding(
+  side: "left" | "right",
+  singlePage?: boolean,
+): React.CSSProperties {
+  if (singlePage) {
+    return { paddingLeft: PAGE_MARGIN_OUTER, paddingRight: PAGE_MARGIN_GUTTER };
+  }
   return side === "left"
     ? { paddingLeft: PAGE_MARGIN_OUTER, paddingRight: PAGE_MARGIN_GUTTER }
     : { paddingLeft: PAGE_MARGIN_GUTTER, paddingRight: PAGE_MARGIN_OUTER };
@@ -435,11 +441,7 @@ export default function ReaderPage() {
 
   // Drag-release: apply the active highlighter color to the selected ranges.
   useEffect(() => {
-    const onPointerUp = (e: PointerEvent) => {
-      if (markTool !== "highlight") return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(".verse-num, [data-selection-toolbar]")) return;
-
+    const applyHighlightFromSelection = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
       const range = sel.getRangeAt(0);
@@ -447,7 +449,27 @@ export default function ReaderPage() {
       const ranges = selectionToVerseRanges(range, verseLengths);
       if (!ranges?.length) return;
 
-      void setMarkRanges(ranges, highlightColor, "highlight", verseLengths);
+      void setMarkRanges(ranges, highlightColor, "highlight", verseLengths).then(() => {
+        sel.removeAllRanges();
+        setTbSel(null);
+      });
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (markTool !== "highlight") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(
+          ".verse-num, [data-selection-toolbar], [data-page-footer]",
+        )
+      ) {
+        return;
+      }
+
+      // Touch browsers finalize the selection after pointerup — read on next frame.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(applyHighlightFromSelection);
+      });
     };
     document.addEventListener("pointerup", onPointerUp);
     return () => document.removeEventListener("pointerup", onPointerUp);
@@ -626,11 +648,11 @@ export default function ReaderPage() {
     return (
       <div
         className="relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2"
-        style={pageHorizontalPadding(side)}
+        style={pageHorizontalPadding(side, singlePage)}
       >
         <div
           className={`flex-shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium ${
-            side === "left" ? "text-left" : "text-right"
+            singlePage || side === "left" ? "text-left" : "text-right"
           }`}
         >
           {book.name}
@@ -722,6 +744,7 @@ export default function ReaderPage() {
         ribbons={
           <Ribbons
             ribbons={bookmarks as RibbonData[]}
+            anchor={singlePage ? "spine" : "gutter"}
             swaying={false}
             onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
             onAddAt={(p) => setBmDialog({ position: p })}
@@ -729,15 +752,19 @@ export default function ReaderPage() {
         }
         leftPage={
           <SwipePage side="left" onTurn={goPage}>
-            <PageFlip pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`} direction={flipDirection} side="left">
+            <PageFlip
+              pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`}
+              direction={flipDirection}
+              side="left"
+            >
               <PageSurface pageIdx={leftIdx} side="left" />
             </PageFlip>
           </SwipePage>
         }
         rightPage={
-          <SwipePage side="right" onTurn={goPage}>
-            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side="right">
-              <PageSurface pageIdx={rightIdx} side="right" />
+          <SwipePage side={singlePage ? "left" : "right"} onTurn={goPage}>
+            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={singlePage ? "left" : "right"}>
+              <PageSurface pageIdx={rightIdx} side={singlePage ? "left" : "right"} />
             </PageFlip>
           </SwipePage>
         }

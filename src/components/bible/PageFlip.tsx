@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 
 interface Props {
   pageKey: string;
@@ -10,12 +10,6 @@ interface Props {
 
 /** Opacity crossfade between pages — no translation (avoids text sliding across spine). */
 export function PageFlip({ pageKey, children }: Props) {
-  const [animating, setAnimating] = useState(true);
-
-  useEffect(() => {
-    setAnimating(true);
-  }, [pageKey]);
-
   return (
     <motion.div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden">
       <AnimatePresence mode="sync" initial={false}>
@@ -25,13 +19,7 @@ export function PageFlip({ pageKey, children }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          onAnimationComplete={(def) => {
-            if (def !== "exit") setAnimating(false);
-          }}
-          className={
-            "absolute inset-0 h-full w-full overflow-hidden " +
-            (animating ? "[&_.selectable-text]:!select-none" : "")
-          }
+          className="absolute inset-0 h-full w-full overflow-hidden"
         >
           {children}
         </motion.div>

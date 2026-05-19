@@ -153,32 +153,45 @@ export function BookScene({
                     (singlePage ? "" : "flex-row")
                   }
                 >
-                  {showLeft && (
-                    <div
-                      className={
-                        "relative flex-1 min-h-0 min-w-0 flex " +
-                        (!singlePage ? "border-r border-border/40" : "")
-                      }
-                    >
+                  {singlePage ? (
+                    <div className="relative flex flex-1 min-h-0 min-w-0">
                       <PageStackEdge side="left" widthPx={leftStack} />
                       <div
                         className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
-                        style={{ marginLeft: leftStack }}
+                        style={{
+                          marginLeft: leftStack,
+                          marginRight: MOBILE_SPINE_W,
+                        }}
                       >
-                        {leftPage}
+                        {pageSide === "left" ? leftPage : rightPage}
                       </div>
+                      <MobileBookSpine />
                     </div>
-                  )}
-                  {showRight && (
-                    <div className="relative flex-1 min-h-0 min-w-0 flex flex-row-reverse">
-                      <PageStackEdge side="right" widthPx={rightStack} />
-                      <div
-                        className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
-                        style={{ marginRight: rightStack }}
-                      >
-                        {rightPage}
-                      </div>
-                    </div>
+                  ) : (
+                    <>
+                      {showLeft && (
+                        <div className="relative flex-1 min-h-0 min-w-0 flex border-r border-border/40">
+                          <PageStackEdge side="left" widthPx={leftStack} />
+                          <div
+                            className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
+                            style={{ marginLeft: leftStack }}
+                          >
+                            {leftPage}
+                          </div>
+                        </div>
+                      )}
+                      {showRight && (
+                        <div className="relative flex-1 min-h-0 min-w-0 flex flex-row-reverse">
+                          <PageStackEdge side="right" widthPx={rightStack} />
+                          <div
+                            className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
+                            style={{ marginRight: rightStack }}
+                          >
+                            {rightPage}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {ribbons && (
