@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { toast } from "@/hooks/use-toast";
+import {
+  countTimedTranscriptLines,
+  looksLikeYoutubeShowTranscriptPaste,
+  normalizePastedTranscript,
+} from "@/lib/normalizePastedTranscript";
 
 const ONE_MB = 1024 * 1024;
 
@@ -86,6 +91,36 @@ export default function NewArtifactPage() {
     }
   }, [params]);
 
+  const normalizedYoutubePastePreview = useMemo(
+    () => (youtubePaste.trim() ? normalizePastedTranscript(youtubePaste) : ""),
+    [youtubePaste],
+  );
+  const youtubePasteTimestampsNormalized =
+    youtubePaste.trim().length > 0 && normalizedYoutubePastePreview !== youtubePaste.trim();
+
+  const applyYoutubePasteNormalization = useCallback((raw: string) => {
+    const normalized = normalizePastedTranscript(raw);
+    if (normalized !== raw.trim()) {
+      setYoutubePaste(normalized);
+      toast({
+        title: "Transcript timestamps normalized",
+        description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
+      });
+    }
+    return normalized;
+  }, []);
+
+  const handleYoutubePasteInput = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const chunk = e.clipboardData.getData("text/plain");
+    if (!chunk || !looksLikeYoutubeShowTranscriptPaste(chunk)) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    const start = el.selectionStart ?? youtubePaste.length;
+    const end = el.selectionEnd ?? youtubePaste.length;
+    const merged = youtubePaste.slice(0, start) + chunk + youtubePaste.slice(end);
+    applyYoutubePasteNormalization(merged);
+  };
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
@@ -103,7 +138,7 @@ export default function NewArtifactPage() {
         title: title.trim() || null,
         kind: "text",
         url: url.trim() || null,
-        raw_text: text.trim(),
+        raw_text: normalizePastedTranscript(text),
         status: "analyzing",
         processing_token: processingToken,
       })
@@ -163,7 +198,7 @@ export default function NewArtifactPage() {
       title: title.trim() || null,
       kind: "youtube",
       url: url.trim(),
-      raw_text: youtubePaste.trim(),
+      raw_text: normalizePastedTranscript(youtubePaste),
       status: "analyzing",
       processing_token: processingToken,
       metadata: { source: "youtube", import_via: "paste" },
@@ -489,6 +524,7 @@ export default function NewArtifactPage() {
             <Textarea
               value={youtubePaste}
               onChange={(e) => setYoutubePaste(e.target.value)}
+              onPaste={handleYoutubePasteInput}
               rows={12}
               placeholder={"[0:00] Opening…\n[0:15] Next line…"}
               className="font-mono text-sm mb-2"
@@ -496,6 +532,12 @@ export default function NewArtifactPage() {
             />
             <p className="text-xs text-muted-foreground tabular-nums mb-3">
               {youtubePaste.length.toLocaleString()} characters
+              {youtubePasteTimestampsNormalized ? (
+                <span className="text-foreground">
+                  {" "}
+                  · Timestamps will normalize to [M:SS] ({countTimedTranscriptLines(normalizedYoutubePastePreview)} lines)
+                </span>
+              ) : null}
             </p>
             <Button variant="secondary" onClick={submitYoutubeWithPaste} disabled={busy || !youtubePaste.trim()}>
               {busy ? "Saving…" : "Save & analyze pasted transcript"}

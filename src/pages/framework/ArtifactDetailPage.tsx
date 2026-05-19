@@ -1016,6 +1016,36 @@ export default function ArtifactDetailPage() {
     return clampArtifactPipLayout(pipLayout ?? defaultArtifactPipLayout());
   }, [pipMode, pipLayout]);
 
+  const normalizedPastePreview = useMemo(
+    () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
+    [pasteText],
+  );
+  const pasteTimestampsNormalized =
+    pasteText.trim().length > 0 && normalizedPastePreview !== pasteText.trim();
+
+  const applyPasteNormalization = useCallback((raw: string) => {
+    const normalized = normalizePastedTranscript(raw);
+    if (normalized !== raw.trim()) {
+      setPasteText(normalized);
+      toast({
+        title: "Transcript timestamps normalized",
+        description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
+      });
+    }
+    return normalized;
+  }, []);
+
+  const handlePasteTranscriptInput = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const chunk = e.clipboardData.getData("text/plain");
+    if (!chunk || !looksLikeYoutubeShowTranscriptPaste(chunk)) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    const start = el.selectionStart ?? pasteText.length;
+    const end = el.selectionEnd ?? pasteText.length;
+    const merged = pasteText.slice(0, start) + chunk + pasteText.slice(end);
+    applyPasteNormalization(merged);
+  };
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (!a) {
@@ -1058,36 +1088,6 @@ export default function ArtifactDetailPage() {
     supabase.functions
       .invoke("framework-fetch-transcript", { body: { artifact_id: a.id, url: a.url, processing_token: processingToken } })
       .catch((e) => console.error(e));
-  };
-
-  const normalizedPastePreview = useMemo(
-    () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
-    [pasteText],
-  );
-  const pasteTimestampsNormalized =
-    pasteText.trim().length > 0 && normalizedPastePreview !== pasteText.trim();
-
-  const applyPasteNormalization = useCallback((raw: string) => {
-    const normalized = normalizePastedTranscript(raw);
-    if (normalized !== raw.trim()) {
-      setPasteText(normalized);
-      toast({
-        title: "Transcript timestamps normalized",
-        description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
-      });
-    }
-    return normalized;
-  }, []);
-
-  const handlePasteTranscriptInput = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const chunk = e.clipboardData.getData("text/plain");
-    if (!chunk || !looksLikeYoutubeShowTranscriptPaste(chunk)) return;
-    e.preventDefault();
-    const el = e.currentTarget;
-    const start = el.selectionStart ?? pasteText.length;
-    const end = el.selectionEnd ?? pasteText.length;
-    const merged = pasteText.slice(0, start) + chunk + pasteText.slice(end);
-    applyPasteNormalization(merged);
   };
 
   const submitPasted = async () => {
