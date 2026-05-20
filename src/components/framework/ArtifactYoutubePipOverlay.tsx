@@ -35,7 +35,7 @@ export default function ArtifactYoutubePipOverlay({
 
   return createPortal(
     <div
-      className="fixed relative z-[60] flex flex-col overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15"
+      className="fixed z-[60] flex flex-col overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15"
       style={{
         left: layout.left,
         top: layout.top,

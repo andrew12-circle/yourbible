@@ -5,6 +5,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
 import { parseYoutubeChaptersFromDescription } from "../_shared/youtubeChapters.ts";
 import {
+  planGeminiTranscribeSegments,
+  parseIso8601Duration,
+} from "../_shared/youtubeGeminiTranscribe.ts";
+import {
   fetchInnertubeTranscript,
   fetchTimedTextTranscript,
   normalizeYouTubeWatchUrl,
@@ -232,14 +236,55 @@ async function getYouTubeMetadata(url: string): Promise<YouTubeMetadata> {
   });
   if (!res.ok) return oembed;
   const html = await res.text();
-  const duration = Number(html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/)?.[1] ?? 0) || undefined;
+  const duration =
+    Number(html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/)?.[1] ?? 0)
+    || Number(html.match(/"approxDurationMs"\s*:\s*"?(\d+)"?/)?.[1] ?? 0) / 1000
+    || undefined;
+  const durationSeconds = duration && Number.isFinite(duration) ? Math.floor(duration) : undefined;
   const channelTitle = html.match(/"ownerChannelName"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/)?.[1]
     ?? html.match(/<link\s+itemprop="name"\s+content="([^"]+)"/)?.[1];
   return {
     ...oembed,
     channelTitle: oembed.channelTitle ?? (channelTitle ? decodeHtml(channelTitle) : undefined),
-    durationSeconds: duration,
+    durationSeconds,
   };
+}
+
+async function fetchDurationViaDataApi(videoId: string): Promise<number | undefined> {
+  const key = Deno.env.get("YOUTUBE_DATA_API_KEY");
+  if (!key) return undefined;
+  const u = new URL("https://www.googleapis.com/youtube/v3/videos");
+  u.searchParams.set("part", "contentDetails");
+  u.searchParams.set("id", videoId);
+  u.searchParams.set("key", key);
+  const res = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+  if (!res.ok) return undefined;
+  const json = await res.json() as { items?: Array<{ contentDetails?: { duration?: string } }> };
+  const iso = json?.items?.[0]?.contentDetails?.duration;
+  if (!iso) return undefined;
+  const seconds = parseIso8601Duration(iso);
+  return seconds ?? undefined;
+}
+
+async function resolveYouTubeDurationSeconds(
+  url: string,
+  hints: { fromMetadata?: number; fromWatchBundle?: number } = {},
+): Promise<number | undefined> {
+  const fromHints = [hints.fromMetadata, hints.fromWatchBundle].filter(
+    (n): n is number => typeof n === "number" && n > 0,
+  );
+  if (fromHints.length) return Math.max(...fromHints);
+
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return undefined;
+
+  const fromApi = await fetchDurationViaDataApi(videoId);
+  if (fromApi) return fromApi;
+
+  const meta = await getYouTubeMetadata(url).catch(() => ({}));
+  if (meta.durationSeconds && meta.durationSeconds > 0) return meta.durationSeconds;
+
+  return undefined;
 }
 
 async function fetchDescriptionViaDataApi(videoId: string): Promise<string | null> {
@@ -260,6 +305,7 @@ type WatchCaptionBundle = {
   text: string | null;
   title?: string;
   description?: string;
+  durationSeconds?: number;
   chapters_source?: "youtube_data_api_v3" | "watch_player_response";
 };
 
@@ -273,9 +319,10 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionB
   if (!watchRes.ok) return null;
   const html = await watchRes.text();
   const playerResponse = parseJsonObjectFromHtml(html, "ytInitialPlayerResponse") as {
-    videoDetails?: { title?: string; shortDescription?: string };
+    videoDetails?: { title?: string; shortDescription?: string; lengthSeconds?: string };
     captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string; kind?: string; name?: { simpleText?: string; runs?: Array<{ text?: string }> } }> } };
   } | null;
+  const watchDurationSeconds = Number(playerResponse?.videoDetails?.lengthSeconds ?? 0) || undefined;
   const descriptionFromPlayer = typeof playerResponse?.videoDetails?.shortDescription === "string"
     ? playerResponse.videoDetails.shortDescription
     : undefined;
@@ -294,6 +341,7 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionB
       text: null,
       title: playerResponse?.videoDetails?.title,
       description: descriptionForChapters,
+      durationSeconds: watchDurationSeconds,
       chapters_source: chaptersSource,
     };
   }
@@ -312,6 +360,7 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionB
         text,
         title: playerResponse?.videoDetails?.title,
         description: descriptionForChapters,
+        durationSeconds: watchDurationSeconds,
         chapters_source: chaptersSource,
       };
     }
@@ -321,6 +370,7 @@ async function fetchYouTubeCaptionTranscript(url: string): Promise<WatchCaptionB
     text: null,
     title: playerResponse?.videoDetails?.title,
     description: descriptionForChapters,
+    durationSeconds: watchDurationSeconds,
     chapters_source: chaptersSource,
   };
 }
@@ -415,31 +465,49 @@ async function geminiTranscribeYouTube(opts: GeminiTranscribeOpts): Promise<stri
   throw new Error(`Gemini transcription (${clipLabel}) failed: ${lastError.slice(0, 400)}`);
 }
 
-async function transcribeYouTubeWithGemini(watchUrl: string, durationSeconds?: number): Promise<string> {
-  const totalSeconds = Math.min(durationSeconds || GEMINI_MAX_SINGLE_REQUEST_SECONDS, GEMINI_MAX_DURATION_SECONDS);
-  const transcribePrompt =
-    "Transcribe all spoken words in this YouTube video. Return plain transcript text only with [M:SS] or [H:MM:SS] timestamps at natural phrase boundaries. Do not summarize, invent content, or add commentary.";
+async function transcribeYouTubeWithGemini(
+  watchUrl: string,
+  durationHint?: number,
+): Promise<string> {
+  const resolvedDuration = await resolveYouTubeDurationSeconds(watchUrl, {
+    fromMetadata: durationHint,
+  });
+  const plan = planGeminiTranscribeSegments(resolvedDuration, {
+    maxSingleRequestSeconds: GEMINI_MAX_SINGLE_REQUEST_SECONDS,
+    maxDurationSeconds: GEMINI_MAX_DURATION_SECONDS,
+    segmentSeconds: GEMINI_SEGMENT_SECONDS,
+  });
 
-  if (totalSeconds <= GEMINI_MAX_SINGLE_REQUEST_SECONDS) {
-    const text = await geminiTranscribeYouTube({ watchUrl, prompt: transcribePrompt });
-    if (!text) throw new Error("Gemini returned an empty transcript.");
-    return text;
-  }
+  const parts: string[] = [];
+  let emptyStreak = 0;
 
-  const segments: string[] = [];
-  for (let start = 0; start < totalSeconds; start += GEMINI_SEGMENT_SECONDS) {
-    const end = Math.min(start + GEMINI_SEGMENT_SECONDS, totalSeconds);
+  for (const { start, end } of plan.segments) {
     const segmentText = await geminiTranscribeYouTube({
       watchUrl,
       startSeconds: start,
       endSeconds: end,
-      prompt: `Transcribe only spoken words from ${formatTime(start)} to ${formatTime(end)}. Return transcript text only with timestamps in that range. Do not summarize or invent.`,
+      prompt: plan.segments.length === 1
+        ? "Transcribe all spoken words in this YouTube video clip. Return plain transcript text only with [M:SS] or [H:MM:SS] timestamps at natural phrase boundaries. Do not summarize, invent content, or add commentary."
+        : `Transcribe only spoken words from ${formatTime(start)} to ${formatTime(end)}. Return transcript text only with timestamps in that range. Do not summarize or invent.`,
     });
-    if (segmentText) segments.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
+
+    if (!segmentText.trim()) {
+      emptyStreak += 1;
+      if (!plan.durationKnown && emptyStreak >= 2) break;
+      continue;
+    }
+    emptyStreak = 0;
+    if (plan.segments.length === 1) {
+      parts.push(segmentText);
+    } else {
+      parts.push(`[${formatTime(start)}-${formatTime(end)}] ${segmentText}`);
+    }
   }
 
-  const transcript = segments.join("\n\n").trim();
-  if (!transcript) throw new Error("Gemini returned an empty transcript. Paste the transcript manually.");
+  const transcript = parts.join("\n\n").trim();
+  if (!transcript) {
+    throw new Error("Gemini returned an empty transcript. Paste the transcript manually.");
+  }
   return transcript;
 }
 
@@ -452,7 +520,7 @@ function buildTranscriptFailureMessage(captionAttempts: string[], geminiError?: 
     parts.push(`Automatic transcription failed: ${geminiError}`);
   }
   parts.push(
-    "Paste the full transcript instead (YouTube → ⋮ → Show transcript, copy all, then use Paste transcript on this page)",
+    "For long videos, pasting from YouTube is often fastest (YouTube → ⋮ → Show transcript, copy all, then Paste transcript on this page)",
   );
   return parts.join(". ") + ".";
 }
@@ -505,8 +573,13 @@ async function transcribeYouTubeVideo(url: string): Promise<{ text: string; meta
   }
 
   try {
-    const text = await transcribeYouTubeWithGemini(watchUrl, metadata.durationSeconds);
-    return { text, metadata, chaptersBundle: captionResult };
+    const durationHint = metadata.durationSeconds ?? captionResult?.durationSeconds;
+    const text = await transcribeYouTubeWithGemini(watchUrl, durationHint);
+    const mergedMetadata = {
+      ...metadata,
+      durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? durationHint,
+    };
+    return { text, metadata: mergedMetadata, chaptersBundle: captionResult };
   } catch (e) {
     throw new Error(buildTranscriptFailureMessage(captionAttempts, String((e as Error).message ?? e)));
   }
