@@ -1671,6 +1671,11 @@ export default function ArtifactDetailPage() {
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
             youTubeVideoId={youTubeVideoId}
             playerMountRef={youtubePlayer.mountRef}
+            playerReady={youtubePlayer.playerReady}
+            playerLoading={youtubePlayer.playerLoading}
+            playerInitTimedOut={youtubePlayer.playerInitTimedOut}
+            isPlaying={youtubePlayer.isPlaying}
+            onTogglePlay={youtubePlayer.togglePlayback}
             onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
           >
             <ArtifactCapturePanel
@@ -1695,6 +1700,8 @@ export default function ArtifactDetailPage() {
           <ArtifactYoutubePipOverlay
             active={youtubePip.pipMode}
             layout={youtubePip.pipOverlayLayout}
+            isPlaying={youtubePlayer.isPlaying}
+            onTogglePlay={youtubePlayer.togglePlayback}
             onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
             onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
             onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}

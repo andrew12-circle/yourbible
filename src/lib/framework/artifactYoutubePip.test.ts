@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampArtifactPipLayout,
+  defaultArtifactPipLayout,
   PIP_ENTER_VISIBLE_RATIO,
   PIP_EXIT_VISIBLE_RATIO,
+  PIP_MIN_W,
   pipVisibilitySignal,
 } from "./artifactYoutubePip";
 
@@ -23,5 +26,14 @@ describe("pipVisibilitySignal", () => {
   it("holds hysteresis band while in PIP", () => {
     expect(pipVisibilitySignal(true, 0.2)).toBe("cancel_exit");
     expect(pipVisibilitySignal(false, 0.2)).toBe("cancel_enter");
+  });
+});
+
+describe("artifact pip layout", () => {
+  it("defaults and clamps width to at least PIP_MIN_W", () => {
+    const d = defaultArtifactPipLayout();
+    expect(d.width).toBeGreaterThanOrEqual(PIP_MIN_W);
+    const clamped = clampArtifactPipLayout({ left: 8, top: 8, width: 120 });
+    expect(clamped.width).toBeGreaterThanOrEqual(PIP_MIN_W);
   });
 });

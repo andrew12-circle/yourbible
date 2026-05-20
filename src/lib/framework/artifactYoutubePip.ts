@@ -1,6 +1,6 @@
 /** Chrome overlays the video; no dedicated header band in layout math. */
 export const PIP_HEADER_PX = 0;
-export const PIP_MIN_W = 160;
+export const PIP_MIN_W = 300;
 export const PIP_MAX_W = 640;
 export const PIP_VIEWPORT_PAD = 8;
 
@@ -96,7 +96,7 @@ export function writePipLayoutToSession(artifactId: string, layout: ArtifactPipL
 export function defaultArtifactPipLayout(): ArtifactPipLayout {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  const w = Math.min(300, PIP_MAX_W, vw - PIP_VIEWPORT_PAD * 2);
+  const w = Math.min(380, PIP_MAX_W, vw - PIP_VIEWPORT_PAD * 2);
   const width = Math.max(PIP_MIN_W, w);
   const totalH = pipTotalHeightPx(width);
   return {
