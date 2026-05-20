@@ -722,8 +722,6 @@ export default function ArtifactDetailPage() {
     return fromMeta || null;
   }, [a?.kind, a?.url, artifactMetadata.video_id]);
 
-  const pipPlayerHostRef = useRef<HTMLDivElement | null>(null);
-
   const youtubePip = useArtifactYoutubePip({
     artifactId: id,
     enabled: Boolean(youTubeVideoId),
@@ -735,13 +733,6 @@ export default function ArtifactDetailPage() {
     enabled: Boolean(youTubeVideoId),
     startSeconds: videoStartSeconds,
   });
-
-  const onPipPlayerHostReady = useCallback(
-    (host: HTMLDivElement | null) => {
-      if (youtubePip.pipMode && host) youtubePlayer.reparentTo(host);
-    },
-    [youtubePip.pipMode, youtubePlayer.reparentTo],
-  );
 
   useEffect(() => {
     if (!a?.id) {
@@ -859,7 +850,7 @@ export default function ArtifactDetailPage() {
       youtubePlayer.seekTo(start);
       scrollTranscriptToSeconds(start);
     },
-    [scrollTranscriptToSeconds, youtubePlayer],
+    [scrollTranscriptToSeconds, youtubePlayer.seekTo],
   );
 
   const navSections = useMemo((): ArtifactNavSection[] => {
@@ -1653,11 +1644,10 @@ export default function ArtifactDetailPage() {
           <ArtifactVideoStage
             videoSlotRef={youtubePip.videoSlotRef}
             pipMode={youtubePip.pipMode}
+            pipLayout={youtubePip.pipOverlayLayout}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
             youTubeVideoId={youTubeVideoId}
             playerMountRef={youtubePlayer.mountRef}
-            pipPlayerHostRef={pipPlayerHostRef}
-            onReparentPlayer={youtubePlayer.reparentTo}
             onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
           >
             <ArtifactCapturePanel
@@ -1682,8 +1672,6 @@ export default function ArtifactDetailPage() {
           <ArtifactYoutubePipOverlay
             active={youtubePip.pipMode}
             layout={youtubePip.pipOverlayLayout}
-            playerHostRef={pipPlayerHostRef}
-            onPlayerHostReady={onPipPlayerHostReady}
             onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
             onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
             onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}

@@ -1,17 +1,16 @@
 import { Maximize2, Play } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
 import { artifactCard, artifactInset, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 import { cn } from "@/lib/utils";
 import { youtubeHqThumbnail } from "@/lib/youtube";
 
 type Props = {
   videoSlotRef: React.RefObject<HTMLDivElement | null>;
   pipMode: boolean;
+  pipLayout: ArtifactPipLayout;
   thumbnailUrl?: string | null;
   youTubeVideoId: string;
   playerMountRef: React.RefObject<HTMLDivElement | null>;
-  pipPlayerHostRef: React.RefObject<HTMLDivElement | null>;
-  onReparentPlayer: (host: HTMLElement | null) => void;
   onScrollVideoIntoView: () => void;
   children?: React.ReactNode;
 };
@@ -19,22 +18,15 @@ type Props = {
 export default function ArtifactVideoStage({
   videoSlotRef,
   pipMode,
+  pipLayout,
   thumbnailUrl,
   youTubeVideoId,
   playerMountRef,
-  pipPlayerHostRef,
-  onReparentPlayer,
   onScrollVideoIntoView,
   children,
 }: Props) {
-  const inlineHostRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (pipMode) onReparentPlayer(pipPlayerHostRef.current);
-    else onReparentPlayer(inlineHostRef.current);
-  }, [pipMode, onReparentPlayer, pipPlayerHostRef]);
-
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
+  const pipHeight = pipTotalHeightPx(pipLayout.width);
 
   return (
     <section id="video" className={cn(artifactCard, artifactScrollMt, "mb-6 overflow-hidden p-3 sm:p-4 lg:mb-0")}>
@@ -46,12 +38,23 @@ export default function ArtifactVideoStage({
         )}
       >
         <div
-          ref={inlineHostRef}
           data-inline-player-host
           className={cn(
-            "absolute inset-0 h-full w-full",
-            pipMode && "pointer-events-none opacity-0",
+            "h-full w-full bg-black",
+            pipMode
+              ? "fixed z-[60] overflow-hidden rounded-xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15"
+              : "absolute inset-0",
           )}
+          style={
+            pipMode
+              ? {
+                  left: pipLayout.left,
+                  top: pipLayout.top,
+                  width: pipLayout.width,
+                  height: pipHeight,
+                }
+              : undefined
+          }
         >
           <div ref={playerMountRef} className="h-full w-full" />
         </div>

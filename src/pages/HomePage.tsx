@@ -17,6 +17,21 @@ import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
 
+type PageDef = { type: "apps"; indexes: number[] } | { type: "widgets" };
+
+function homePagesEqual(a: PageDef[], b: PageDef[]) {
+  if (a.length !== b.length) return false;
+  return a.every((p, i) => {
+    const q = b[i];
+    if (p.type !== q.type) return false;
+    if (p.type === "widgets" && q.type === "widgets") return true;
+    if (p.type === "apps" && q.type === "apps") {
+      return p.indexes.length === q.indexes.length && p.indexes.every((n, j) => n === q.indexes[j]);
+    }
+    return false;
+  });
+}
+
 type AppIcon = {
   label: string;
   /** In-app route; omit when `onOpen` handles navigation externally. */
@@ -74,12 +89,16 @@ export default function HomePage() {
   const widgetsRef = useRef<HTMLDivElement>(null);
   const weeksStripRef = useRef<HTMLDivElement>(null);
   const pagerRef = useRef<HTMLDivElement>(null);
-  type PageDef = { type: "apps"; indexes: number[] } | { type: "widgets" };
+  const gridMeasureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDef[]>([
     { type: "apps", indexes: [] },
     { type: "widgets" },
   ]);
+  const [pageHeightPx, setPageHeightPx] = useState<number | null>(null);
   const [activePage, setActivePage] = useState(0);
+
+  /** Clearance above fixed dock + page dots (px from viewport bottom). */
+  const HOME_BOTTOM_CHROME_PX = 118;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -212,21 +231,38 @@ export default function HomePage() {
   ];
 
   const appCount = apps.length;
+
   useLayoutEffect(() => {
+    const gridColsForWidth = (w: number) => (w < 640 ? 4 : w < 768 ? 5 : 6);
+
+    const measureGrid = (gridEl: HTMLDivElement | null, w: number) => {
+      const cols = gridColsForWidth(w);
+      const fallbackRow = w < 640 ? 90 : 103;
+      if (!gridEl) return { cols, rowStride: fallbackRow };
+      const first = gridEl.querySelector("button");
+      if (!first) return { cols, rowStride: fallbackRow };
+      const style = getComputedStyle(gridEl);
+      const gapY = parseFloat(style.rowGap) || parseFloat(style.gap) || (w < 640 ? 20 : 24);
+      const cellH = first.getBoundingClientRect().height;
+      return { cols, rowStride: cellH > 0 ? cellH + gapY : fallbackRow };
+    };
+
     const calc = () => {
-      const vh = window.innerHeight;
       const w = window.innerWidth;
-      const reserveTop = 130;
-      const reserveBottom = 170;
-      const cols = w < 640 ? 4 : w < 768 ? 5 : 6;
-      const rowH = w < 640 ? 86 : 102;
-      const avail = vh - reserveTop - reserveBottom;
-      const rowsPerPage = Math.max(2, Math.floor(avail / rowH));
-      const perPage = Math.max(cols, rowsPerPage * cols);
-      const weeksH = weeksStripRef.current?.offsetHeight ?? 96;
-      const availFirst = Math.max(rowH * 2, avail - weeksH - 12);
-      const rowsFirst = Math.max(2, Math.floor(availFirst / rowH));
-      const firstPerPage = Math.min(appCount, Math.max(cols, rowsFirst * cols));
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const pagerTop = pagerRef.current?.getBoundingClientRect().top ?? 0;
+      const availH = Math.max(160, vh - pagerTop - HOME_BOTTOM_CHROME_PX);
+      setPageHeightPx(Math.floor(availH));
+
+      const { cols, rowStride } = measureGrid(gridMeasureRef.current, w);
+      const weeksH = weeksStripRef.current?.offsetHeight ?? 0;
+      const weeksGap = weeksH > 0 ? 12 : 0;
+      const availFirst = Math.max(rowStride, availH - weeksH - weeksGap);
+      const rowsFirst = Math.max(1, Math.floor(availFirst / rowStride));
+      const rowsPerPage = Math.max(1, Math.floor(availH / rowStride));
+      const firstPerPage = Math.min(appCount, rowsFirst * cols);
+      const perPage = rowsPerPage * cols;
+
       const indices: number[] = Array.from({ length: appCount }, (_, i) => i);
       const result: PageDef[] = [];
       result.push({ type: "apps", indexes: indices.slice(0, firstPerPage) });
@@ -236,15 +272,25 @@ export default function HomePage() {
         result.push({ type: "apps", indexes: indices.slice(i, i + perPage) });
         i += perPage;
       }
-      setPages(result);
+      setPages((prev) => (homePagesEqual(prev, result) ? prev : result));
     };
+
     calc();
-    const ro = weeksStripRef.current ? new ResizeObserver(calc) : null;
-    if (weeksStripRef.current && ro) ro.observe(weeksStripRef.current);
+    const raf = requestAnimationFrame(calc);
+    const ro = new ResizeObserver(calc);
+    if (weeksStripRef.current) ro.observe(weeksStripRef.current);
+    if (gridMeasureRef.current) ro.observe(gridMeasureRef.current);
+    if (pagerRef.current) ro.observe(pagerRef.current);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", calc);
+    vv?.addEventListener("scroll", calc);
     window.addEventListener("resize", calc);
     window.addEventListener("orientationchange", calc);
     return () => {
-      ro?.disconnect();
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      vv?.removeEventListener("resize", calc);
+      vv?.removeEventListener("scroll", calc);
       window.removeEventListener("resize", calc);
       window.removeEventListener("orientationchange", calc);
     };
@@ -346,20 +392,18 @@ export default function HomePage() {
         <div
           ref={pagerRef}
           onScroll={onPagerScroll}
-          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
-          style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}
+          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide touch-pan-x"
+          style={{
+            scrollSnapType: "x mandatory",
+            overscrollBehaviorX: "contain",
+            height: pageHeightPx ?? undefined,
+          }}
         >
           {pages.map((page, pageIdx) => (
             <div
               key={pageIdx}
-              className={`w-full shrink-0 snap-start px-4 sm:px-6 ${
-                page.type === "widgets" || (page.type === "apps" && pageIdx === 0) ? "overflow-y-auto" : ""
-              }`}
-              style={
-                page.type === "widgets" || (page.type === "apps" && pageIdx === 0)
-                  ? { maxHeight: "calc(100dvh - 200px)" }
-                  : undefined
-              }
+              className="w-full shrink-0 snap-start px-4 sm:px-6 overflow-hidden"
+              style={{ height: pageHeightPx ?? undefined }}
             >
               {page.type === "widgets" ? (
                 <div ref={widgetsRef}>
@@ -396,7 +440,10 @@ export default function HomePage() {
                       <LifeWeeksTile />
                     </div>
                   )}
-                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6">
+                  <div
+                    ref={pageIdx === 0 ? gridMeasureRef : undefined}
+                    className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6"
+                  >
                     {page.indexes.map((i) => {
                       const app = apps[i];
                       return (

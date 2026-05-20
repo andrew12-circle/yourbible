@@ -1,14 +1,11 @@
-import { createPortal, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { GripVertical, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 
 type Props = {
-  /** When false, the shell stays in the DOM (for stable reparent) but is hidden off-screen. */
   active: boolean;
   layout: ArtifactPipLayout;
-  playerHostRef: React.RefObject<HTMLDivElement | null>;
-  onPlayerHostReady?: (host: HTMLDivElement | null) => void;
   onScrollVideoIntoView: () => void;
   onDragHeaderPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDragHeaderPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -18,12 +15,10 @@ type Props = {
   onResizePointerUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
 };
 
-/** Fixed mini player portaled to `document.body`; hosts reparented YouTube IFrame API mount. */
+/** PiP drag/resize chrome portaled over the fixed player (player stays in React tree). */
 export default function ArtifactYoutubePipOverlay({
   active,
   layout,
-  playerHostRef,
-  onPlayerHostReady,
   onScrollVideoIntoView,
   onDragHeaderPointerDown,
   onDragHeaderPointerMove,
@@ -32,48 +27,22 @@ export default function ArtifactYoutubePipOverlay({
   onResizePointerMove,
   onResizePointerUp,
 }: Props) {
-  if (typeof document === "undefined") return null;
-
-  const videoH = (layout.width * 9) / 16;
-
-  const setPlayerHostRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      playerHostRef.current = node;
-      onPlayerHostReady?.(node);
-    },
-    [onPlayerHostReady, playerHostRef],
-  );
+  if (typeof document === "undefined" || !active) return null;
 
   return createPortal(
     <div
-      className={cn(
-        "group fixed z-[60] overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
-        !active && "pointer-events-none invisible h-px w-px overflow-hidden opacity-0",
-      )}
-      style={
-        active
-          ? {
-              left: layout.left,
-              top: layout.top,
-              width: layout.width,
-              height: pipTotalHeightPx(layout.width),
-            }
-          : { left: 0, top: 0, width: 1, height: 1 }
-      }
+      className="group pointer-events-none fixed z-[61]"
+      style={{
+        left: layout.left,
+        top: layout.top,
+        width: layout.width,
+        height: pipTotalHeightPx(layout.width),
+      }}
       role="region"
-      aria-label="Picture-in-picture video"
-      aria-hidden={!active}
+      aria-label="Picture-in-picture controls"
     >
       <div
-        ref={setPlayerHostRef}
-        className="relative w-full bg-black"
-        style={{ height: active ? videoH : 1 }}
-      />
-      <div
-        className={cn(
-          "absolute inset-x-0 top-0 z-20 flex h-9 cursor-grab touch-none select-none items-center justify-between px-1.5 active:cursor-grabbing",
-          !active && "hidden",
-        )}
+        className="pointer-events-auto absolute inset-x-0 top-0 z-20 flex h-9 cursor-grab touch-none select-none items-center justify-between px-1.5 active:cursor-grabbing"
         onPointerDown={onDragHeaderPointerDown}
         onPointerMove={onDragHeaderPointerMove}
         onPointerUp={onDragHeaderPointerUp}
@@ -101,10 +70,9 @@ export default function ArtifactYoutubePipOverlay({
         type="button"
         aria-label="Resize video"
         className={cn(
-          "absolute bottom-0 right-0 z-[60] h-7 w-7 cursor-nwse-resize touch-none rounded-tl-md",
+          "pointer-events-auto absolute bottom-0 right-0 z-[60] h-7 w-7 cursor-nwse-resize touch-none rounded-tl-md",
           "border border-white/20 bg-black/55 opacity-0 transition-opacity duration-150",
           "group-hover:opacity-100 hover:bg-black/75",
-          !active && "hidden",
         )}
         onPointerDown={onResizePointerDown}
         onPointerMove={onResizePointerMove}

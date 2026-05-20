@@ -21,6 +21,7 @@ import BeliefDetailPage from "./pages/framework/BeliefDetailPage";
 import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
 import NewArtifactPage from "./pages/framework/NewArtifactPage";
 import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
+import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
 import ResearchLaterPage from "./pages/framework/ResearchLaterPage";
 import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
 import PlaybookPage from "./pages/framework/PlaybookPage";
@@ -129,7 +130,14 @@ const App = () => (
             <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
-            <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
+            <Route
+              path="/framework/artifacts/:id"
+              element={
+                <ArtifactDetailErrorBoundary>
+                  <ArtifactDetailPage />
+                </ArtifactDetailErrorBoundary>
+              }
+            />
             <Route path="/framework/research-later" element={<ResearchLaterPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

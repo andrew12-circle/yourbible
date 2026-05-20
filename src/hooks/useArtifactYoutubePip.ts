@@ -31,10 +31,13 @@ export function useArtifactYoutubePip(options: {
   const pipLayoutRef = useRef<ArtifactPipLayout | null>(null);
   pipLayoutRef.current = pipLayout;
   const pipPointerRef = useRef<PipPointerSession | null>(null);
+  /** Avoid entering PiP before the in-flow slot has been laid out at least once. */
+  const slotLaidOutRef = useRef(false);
 
   useEffect(() => {
     if (!enabled) {
       setPipMode(false);
+      slotLaidOutRef.current = false;
       return;
     }
 
@@ -65,10 +68,15 @@ export function useArtifactYoutubePip(options: {
       const entry = entries[0];
       if (!entry) return;
 
+      if (entry.intersectionRatio >= PIP_EXIT_VISIBLE_RATIO) {
+        slotLaidOutRef.current = true;
+      }
+
       const signal = pipVisibilitySignal(pipModeRef.current, entry.intersectionRatio);
 
       switch (signal) {
         case "enter":
+          if (!slotLaidOutRef.current) break;
           clearExitTimer();
           if (enterTimer == null) {
             enterTimer = setTimeout(() => {

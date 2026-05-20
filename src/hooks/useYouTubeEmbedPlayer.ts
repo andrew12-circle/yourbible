@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type YTPlayer = {
   destroy: () => void;
@@ -88,51 +88,93 @@ export function useYouTubeEmbedPlayer(options: {
     });
   }, []);
 
-  useEffect(() => {
+  const destroyPlayer = useCallback(() => {
+    try {
+      playerRef.current?.destroy();
+    } catch {
+      /* player already torn down */
+    }
+    playerRef.current = null;
+  }, []);
+
+  useLayoutEffect(() => {
     if (!enabled || !videoId) {
       setReady(false);
       return;
     }
 
     let cancelled = false;
+    let raf = 0;
     setReady(false);
 
-    void loadYouTubeIframeApi().then(() => {
-      if (cancelled || !mountRef.current || !videoId) return;
+    const initPlayer = () => {
+      if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) return false;
 
-      playerRef.current?.destroy();
-      playerRef.current = null;
+      const host = mountRef.current.parentElement;
+      if (!host || host.clientWidth < 8 || host.clientHeight < 8) return false;
+
+      destroyPlayer();
 
       const start = Math.max(0, Math.floor(startRef.current));
-      playerRef.current = new window.YT!.Player(mountRef.current, {
-        videoId,
-        width: "100%",
-        height: "100%",
-        playerVars: {
-          start,
-          modestbranding: 1,
-          rel: 0,
-          playsinline: 1,
-        },
-        events: {
-          onReady: () => {
-            if (!cancelled) setReady(true);
+      try {
+        playerRef.current = new window.YT.Player(mountRef.current, {
+          videoId,
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            start,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
           },
-          onStateChange: (e) => {
-            const playing = window.YT?.PlayerState?.PLAYING;
-            if (playing != null) playingRef.current = e.data === playing;
+          events: {
+            onReady: () => {
+              if (!cancelled) setReady(true);
+            },
+            onStateChange: (e) => {
+              const playing = window.YT?.PlayerState?.PLAYING;
+              if (playing != null) playingRef.current = e.data === playing;
+            },
           },
-        },
-      });
+        });
+      } catch (err) {
+        console.error("[useYouTubeEmbedPlayer] failed to create player", err);
+        destroyPlayer();
+        setReady(false);
+        return false;
+      }
+      return true;
+    };
+
+    let initAttempts = 0;
+    const scheduleInit = () => {
+      if (cancelled) return;
+      if (initPlayer()) return;
+      initAttempts += 1;
+      if (initAttempts > 120) return;
+      raf = window.requestAnimationFrame(scheduleInit);
+    };
+
+    void loadYouTubeIframeApi().then(() => {
+      if (!cancelled) scheduleInit();
     });
 
     return () => {
       cancelled = true;
-      playerRef.current?.destroy();
-      playerRef.current = null;
+      if (raf) window.cancelAnimationFrame(raf);
+      destroyPlayer();
       setReady(false);
     };
-  }, [enabled, videoId]);
+  }, [destroyPlayer, enabled, videoId]);
+
+  useLayoutEffect(() => {
+    const host = mountRef.current?.parentElement;
+    if (!host || !playerRef.current) return;
+    syncPlayerSize(host);
+    const ro = new ResizeObserver(() => syncPlayerSize(host));
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, [ready, syncPlayerSize]);
 
   const reparentTo = useCallback(
     (host: HTMLElement | null) => {
@@ -166,11 +208,14 @@ export function useYouTubeEmbedPlayer(options: {
     }
   }, []);
 
-  return {
-    mountRef,
-    playerReady: ready,
-    reparentTo,
-    getCurrentTime,
-    seekTo,
-  };
+  return useMemo(
+    () => ({
+      mountRef,
+      playerReady: ready,
+      reparentTo,
+      getCurrentTime,
+      seekTo,
+    }),
+    [getCurrentTime, ready, reparentTo, seekTo],
+  );
 }
