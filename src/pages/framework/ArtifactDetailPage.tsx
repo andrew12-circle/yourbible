@@ -16,6 +16,8 @@ import {
   LayoutList,
   MoreHorizontal,
   CheckCircle2,
+  Clock,
+  ListOrdered,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -48,6 +50,13 @@ import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
+import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
+import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
+import {
+  formatClaimVerdict,
+  isDeferredVerdict,
+  type ClaimVerdict,
+} from "@/lib/framework/claimVerdict";
 import {
   countTimedTranscriptLines,
   looksLikeYoutubeShowTranscriptPaste,
@@ -167,6 +176,7 @@ interface Claim {
   matched_belief_id: string | null;
   bias_flags: string[];
   verdict: string | null;
+  deferred_at: string | null;
   user_note: string | null;
   /** Populated when claims were extracted per YouTube chapter (see `framework-analyze`). */
   chapter_start_seconds?: number | null;
@@ -726,6 +736,31 @@ export default function ArtifactDetailPage() {
     applyPasteNormalization(merged);
   };
 
+  const glossaryEntries: ClaimsGlossaryEntry[] = useMemo(
+    () =>
+      claims.map((c, i) => ({
+        id: c.id,
+        claim: c.claim,
+        verdict: c.verdict,
+        number: i + 1,
+      })),
+    [claims],
+  );
+
+  const deferredOnArtifact = useMemo(
+    () => claims.filter((c) => isDeferredVerdict(c.verdict)).length,
+    [claims],
+  );
+
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash || !claims.some((c) => c.id === hash)) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [claims, a?.status]);
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (!a) {
@@ -741,9 +776,28 @@ export default function ArtifactDetailPage() {
     );
   }
 
-  const setVerdict = async (cid: string, verdict: string) => {
-    await supabase.from("artifact_claims").update({ verdict }).eq("id", cid);
-    setClaims((cs) => cs.map((c) => (c.id === cid ? { ...c, verdict } : c)));
+  const setVerdict = async (cid: string, verdict: ClaimVerdict | null) => {
+    const deferred_at = verdict === "defer" ? new Date().toISOString() : null;
+    const patch = { verdict, deferred_at };
+    await supabase.from("artifact_claims").update(patch).eq("id", cid);
+    setClaims((cs) =>
+      cs.map((c) => (c.id === cid ? { ...c, verdict, deferred_at } : c)),
+    );
+  };
+
+  const toggleResearchLater = async (cid: string, currentVerdict: string | null) => {
+    if (isDeferredVerdict(currentVerdict)) {
+      await setVerdict(cid, null);
+      toast({ title: "Removed from research queue" });
+    } else {
+      await setVerdict(cid, "defer");
+      toast({ title: "Saved for later", description: "Find it under Framework → Research later." });
+    }
+  };
+
+  const jumpToClaim = (claimNumber: number) => {
+    const el = document.getElementById(`claim-${claimNumber}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const reanalyze = async () => {
@@ -1049,6 +1103,7 @@ export default function ArtifactDetailPage() {
 
   const renderClaimCard = (c: Claim, claimIndex: number) => {
     const source = claimSources[c.id];
+    const claimNumber = claimIndex + 1;
     const cardTint =
       claimIndex % 5 === 0
         ? "border-sky-200/90 bg-sky-50/90 dark:border-sky-800/50 dark:bg-sky-950/35"
@@ -1062,18 +1117,35 @@ export default function ArtifactDetailPage() {
     return (
       <article
         key={c.id}
+        id={`claim-${claimNumber}`}
         className={cn(
-          "rounded-xl border-2 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.04]",
+          "scroll-mt-28 rounded-xl border-2 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.04]",
           cardTint,
+          isDeferredVerdict(c.verdict) && "ring-2 ring-amber-400/50 dark:ring-amber-600/40",
         )}
       >
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <p className="font-display text-base leading-snug flex-1">{c.claim}</p>
-          {c.verdict && (
-            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-foreground text-background">
-              {c.verdict}
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+            <span
+              className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
+              aria-label={`Claim ${claimNumber}`}
+            >
+              #{claimNumber}
             </span>
-          )}
+            <p className="font-display text-base leading-snug">{c.claim}</p>
+          </div>
+          {c.verdict ? (
+            <span
+              className={cn(
+                "shrink-0 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded",
+                isDeferredVerdict(c.verdict)
+                  ? "bg-amber-200 text-amber-950 dark:bg-amber-900 dark:text-amber-100"
+                  : "bg-foreground text-background",
+              )}
+            >
+              {formatClaimVerdict(c.verdict)}
+            </span>
+          ) : null}
         </div>
 
         <div className="mb-3 rounded-md border border-border/70 bg-background/55 p-3 text-xs backdrop-blur-[2px] dark:bg-background/20">
@@ -1083,7 +1155,7 @@ export default function ArtifactDetailPage() {
           </div>
           {source ? (
             <div className="space-y-2">
-              <p className="font-serif text-sm leading-6 text-foreground line-clamp-3">
+              <p className="font-sans text-sm leading-6 text-foreground line-clamp-3">
                 {source.text}
               </p>
               <Button size="sm" variant="outline" onClick={() => jumpToTranscriptSource(source)}>
@@ -1145,18 +1217,26 @@ export default function ArtifactDetailPage() {
           <div className="grid sm:grid-cols-2 gap-3 mb-3 text-xs">
             <div>
               <div className="uppercase tracking-wider text-muted-foreground mb-1">Supports</div>
-              <ul className="space-y-1">
-                {c.scripture_supports?.map((s, i) => (
-                  <li key={i}><span className="font-medium">{s.ref}</span>{s.note ? ` — ${s.note}` : ""}</li>
-                )) || <li className="text-muted-foreground">—</li>}
+              <ul className="space-y-1.5">
+                {c.scripture_supports?.length ? (
+                  c.scripture_supports.map((s, i) => (
+                    <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
+                  ))
+                ) : (
+                  <li className="text-muted-foreground">—</li>
+                )}
               </ul>
             </div>
             <div>
               <div className="uppercase tracking-wider text-muted-foreground mb-1">Challenges</div>
-              <ul className="space-y-1">
-                {c.scripture_challenges?.map((s, i) => (
-                  <li key={i}><span className="font-medium">{s.ref}</span>{s.note ? ` — ${s.note}` : ""}</li>
-                )) || <li className="text-muted-foreground">—</li>}
+              <ul className="space-y-1.5">
+                {c.scripture_challenges?.length ? (
+                  c.scripture_challenges.map((s, i) => (
+                    <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
+                  ))
+                ) : (
+                  <li className="text-muted-foreground">—</li>
+                )}
               </ul>
             </div>
           </div>
@@ -1170,15 +1250,26 @@ export default function ArtifactDetailPage() {
             title="Open the mini journal to research this claim on this page"
           >
             <MessageCircle className="mr-1 h-3.5 w-3.5" />
-            Research with AI
+            Research
           </Button>
           <Button size="sm" variant="outline" onClick={() => openJournalFromClaim(c, source?.startSeconds ?? undefined)}>
             <NotebookPen className="mr-1 h-3.5 w-3.5" />
-            Reflect in journal
+            Reflect
           </Button>
-          <Button size="sm" variant={c.verdict === "keep" ? "default" : "outline"} onClick={() => setVerdict(c.id, "keep")}>Keep</Button>
-          <Button size="sm" variant={c.verdict === "reject" ? "default" : "outline"} onClick={() => setVerdict(c.id, "reject")}>Reject</Button>
-          <Button size="sm" variant={c.verdict === "updated" ? "default" : "outline"} onClick={() => setVerdict(c.id, "updated")}>Update my belief</Button>
+          <Button
+            size="sm"
+            variant={isDeferredVerdict(c.verdict) ? "default" : "outline"}
+            onClick={() => void toggleResearchLater(c.id, c.verdict)}
+            title="Save to your research-later queue"
+          >
+            <Clock className="mr-1 h-3.5 w-3.5" />
+            {isDeferredVerdict(c.verdict) ? "In queue" : "Research later"}
+          </Button>
+          <span className="hidden sm:inline w-px h-5 bg-border/60 mx-0.5" aria-hidden />
+          <Button size="sm" variant={c.verdict === "keep" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "keep")}>Keep</Button>
+          <Button size="sm" variant={c.verdict === "reject" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "reject")}>Reject</Button>
+          <Button size="sm" variant={c.verdict === "updated" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "updated")}>Update my belief</Button>
+          <Button size="sm" variant={c.verdict === "defer" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "defer")}>Defer</Button>
         </div>
       </article>
     );
@@ -1195,8 +1286,32 @@ export default function ArtifactDetailPage() {
     analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
   };
 
-  /** Approx. framework sticky header + main vertical padding for `lg` split-pane height. */
-  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-10rem)]";
+  /** Immersive header + main padding for `lg` split-pane height. */
+  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-5.75rem)]";
+
+  const artifactHeaderActions = (
+    <>
+      {a.kind === "youtube" && (
+        <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPasteOpen(true)}>
+          <FileText className="w-3.5 h-3.5 sm:mr-1" aria-hidden />
+          <span className="hidden sm:inline">Paste transcript</span>
+          <span className="sr-only sm:hidden">Paste transcript</span>
+        </Button>
+      )}
+      {a.kind === "youtube" && a.status === "ready" && (
+        <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setWrapUpOpen(true)}>
+          Wrap up
+        </Button>
+      )}
+      {!inFlight && a.status !== "error" && (
+        <Button size="sm" variant="ghost" onClick={reanalyze} className="h-7 text-xs">
+          <RefreshCw className="w-3.5 h-3.5 sm:mr-1" aria-hidden />
+          <span className="hidden sm:inline">Re-analyze</span>
+          <span className="sr-only sm:hidden">Re-analyze</span>
+        </Button>
+      )}
+    </>
+  );
 
   return (
     <FrameworkLayout
@@ -1204,6 +1319,7 @@ export default function ArtifactDetailPage() {
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
+      headerActions={artifactHeaderActions}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="uppercase tracking-wider">{a.kind}</span>
@@ -1212,23 +1328,6 @@ export default function ArtifactDetailPage() {
           {inFlight && <Loader2 className="w-3 h-3 animate-spin" />}
           {a.status}
         </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {a.kind === "youtube" && (
-            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPasteOpen(true)}>
-              <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript
-            </Button>
-          )}
-          {a.kind === "youtube" && a.status === "ready" && (
-            <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setWrapUpOpen(true)}>
-              Wrap up
-            </Button>
-          )}
-          {!inFlight && a.status !== "error" && (
-            <Button size="sm" variant="ghost" onClick={reanalyze} className="h-7">
-              <RefreshCw className="w-3.5 h-3.5 mr-1" /> Re-analyze
-            </Button>
-          )}
-        </div>
       </div>
 
       <div
