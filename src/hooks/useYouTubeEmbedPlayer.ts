@@ -1,4 +1,8 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  readPlaybackSecondsFromSession,
+  writePlaybackSecondsToSession,
+} from "@/lib/framework/artifactYoutubePip";
 
 type YTPlayer = {
   destroy: () => void;
@@ -6,6 +10,7 @@ type YTPlayer = {
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   setSize: (width: number, height: number) => void;
   playVideo: () => void;
+  pauseVideo: () => void;
 };
 
 type YTNamespace = {
@@ -22,7 +27,7 @@ type YTNamespace = {
       };
     },
   ) => YTPlayer;
-  PlayerState?: { PLAYING: number };
+  PlayerState?: { PLAYING: number; PAUSED: number };
 };
 
 declare global {
@@ -61,11 +66,17 @@ export function useYouTubeEmbedPlayer(options: {
   videoId: string | null;
   enabled: boolean;
   startSeconds?: number;
+  /** Persist / restore playback position per artifact. */
+  artifactId?: string | null;
+  /** Changes when the player shell moves (inline vs PiP) so iframe size re-syncs. */
+  layoutKey?: string;
 }) {
-  const { videoId, enabled, startSeconds = 0 } = options;
+  const { videoId, enabled, startSeconds = 0, artifactId = null, layoutKey = "inline" } = options;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
+  const mountedVideoIdRef = useRef<string | null>(null);
   const playingRef = useRef(false);
+  const resumeOnVisibleRef = useRef(false);
   const [ready, setReady] = useState(false);
   const startRef = useRef(startSeconds);
   startRef.current = startSeconds;
@@ -88,6 +99,19 @@ export function useYouTubeEmbedPlayer(options: {
     });
   }, []);
 
+  const persistPlayback = useCallback(() => {
+    if (!artifactId || !playerRef.current) return;
+    try {
+      const t = playerRef.current.getCurrentTime();
+      if (typeof t === "number" && Number.isFinite(t)) {
+        writePlaybackSecondsToSession(artifactId, t);
+        startRef.current = Math.max(0, Math.floor(t));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [artifactId]);
+
   const destroyPlayer = useCallback(() => {
     try {
       playerRef.current?.destroy();
@@ -95,6 +119,7 @@ export function useYouTubeEmbedPlayer(options: {
       /* player already torn down */
     }
     playerRef.current = null;
+    mountedVideoIdRef.current = null;
   }, []);
 
   useLayoutEffect(() => {
@@ -105,7 +130,14 @@ export function useYouTubeEmbedPlayer(options: {
 
     let cancelled = false;
     let raf = 0;
-    setReady(false);
+
+    const saved =
+      artifactId != null ? readPlaybackSecondsFromSession(artifactId) : null;
+    const initialStart = Math.max(
+      0,
+      Math.floor(saved ?? startRef.current ?? startSeconds),
+    );
+    startRef.current = initialStart;
 
     const initPlayer = () => {
       if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) return false;
@@ -113,23 +145,35 @@ export function useYouTubeEmbedPlayer(options: {
       const host = mountRef.current.parentElement;
       if (!host || host.clientWidth < 8 || host.clientHeight < 8) return false;
 
+      if (playerRef.current && mountedVideoIdRef.current === videoId) {
+        syncPlayerSize(host);
+        setReady(true);
+        return true;
+      }
+
       destroyPlayer();
 
-      const start = Math.max(0, Math.floor(startRef.current));
       try {
         playerRef.current = new window.YT.Player(mountRef.current, {
           videoId,
           width: "100%",
           height: "100%",
           playerVars: {
-            start,
+            start: initialStart,
             modestbranding: 1,
             rel: 0,
             playsinline: 1,
           },
           events: {
             onReady: () => {
-              if (!cancelled) setReady(true);
+              if (!cancelled) {
+                setReady(true);
+                syncPlayerSize(host);
+                if (resumeOnVisibleRef.current) {
+                  resumeOnVisibleRef.current = false;
+                  resumeIfWasPlaying(true);
+                }
+              }
             },
             onStateChange: (e) => {
               const playing = window.YT?.PlayerState?.PLAYING;
@@ -137,6 +181,7 @@ export function useYouTubeEmbedPlayer(options: {
             },
           },
         });
+        mountedVideoIdRef.current = videoId;
       } catch (err) {
         console.error("[useYouTubeEmbedPlayer] failed to create player", err);
         destroyPlayer();
@@ -146,6 +191,7 @@ export function useYouTubeEmbedPlayer(options: {
       return true;
     };
 
+    setReady(false);
     let initAttempts = 0;
     const scheduleInit = () => {
       if (cancelled) return;
@@ -162,10 +208,20 @@ export function useYouTubeEmbedPlayer(options: {
     return () => {
       cancelled = true;
       if (raf) window.cancelAnimationFrame(raf);
+      persistPlayback();
       destroyPlayer();
       setReady(false);
     };
-  }, [destroyPlayer, enabled, videoId]);
+  }, [
+    artifactId,
+    destroyPlayer,
+    enabled,
+    persistPlayback,
+    resumeIfWasPlaying,
+    startSeconds,
+    syncPlayerSize,
+    videoId,
+  ]);
 
   useLayoutEffect(() => {
     const host = mountRef.current?.parentElement;
@@ -174,19 +230,35 @@ export function useYouTubeEmbedPlayer(options: {
     const ro = new ResizeObserver(() => syncPlayerSize(host));
     ro.observe(host);
     return () => ro.disconnect();
-  }, [ready, syncPlayerSize]);
+  }, [layoutKey, ready, syncPlayerSize]);
 
-  const reparentTo = useCallback(
-    (host: HTMLElement | null) => {
-      const el = mountRef.current;
-      if (!el || !host || el.parentElement === host) return;
-      const wasPlaying = playingRef.current;
-      host.appendChild(el);
-      syncPlayerSize(host);
-      resumeIfWasPlaying(wasPlaying);
-    },
-    [resumeIfWasPlaying, syncPlayerSize],
-  );
+  useEffect(() => {
+    if (!ready || !artifactId) return;
+    const tick = window.setInterval(persistPlayback, 2000);
+    return () => window.clearInterval(tick);
+  }, [artifactId, persistPlayback, ready]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!playerRef.current) return;
+      if (document.hidden) {
+        resumeOnVisibleRef.current = playingRef.current;
+        persistPlayback();
+        try {
+          playerRef.current.pauseVideo();
+        } catch {
+          /* ignore */
+        }
+      } else {
+        persistPlayback();
+        const shouldResume = resumeOnVisibleRef.current;
+        resumeOnVisibleRef.current = false;
+        resumeIfWasPlaying(shouldResume);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [persistPlayback, resumeIfWasPlaying]);
 
   const getCurrentTime = useCallback(() => {
     try {
@@ -198,24 +270,27 @@ export function useYouTubeEmbedPlayer(options: {
     return Math.max(0, Math.floor(startRef.current));
   }, []);
 
-  const seekTo = useCallback((seconds: number) => {
-    const s = Math.max(0, Math.floor(seconds));
-    startRef.current = s;
-    try {
-      playerRef.current?.seekTo(s, true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const s = Math.max(0, Math.floor(seconds));
+      startRef.current = s;
+      if (artifactId) writePlaybackSecondsToSession(artifactId, s);
+      try {
+        playerRef.current?.seekTo(s, true);
+      } catch {
+        /* ignore */
+      }
+    },
+    [artifactId],
+  );
 
   return useMemo(
     () => ({
       mountRef,
       playerReady: ready,
-      reparentTo,
       getCurrentTime,
       seekTo,
     }),
-    [getCurrentTime, ready, reparentTo, seekTo],
+    [getCurrentTime, ready, seekTo],
   );
 }

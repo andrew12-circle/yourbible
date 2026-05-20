@@ -25,11 +25,38 @@ export function pipVisibilitySignal(inPip: boolean, intersectionRatio: number): 
 }
 
 const ARTIFACT_YOUTUBE_PIP_SS_PREFIX = "yb_artifact_youtube_pip_v1:";
+const ARTIFACT_YOUTUBE_PLAYBACK_SS_PREFIX = "yb_artifact_playback_v1:";
 
 export type ArtifactPipLayout = { left: number; top: number; width: number };
 
 function pipSessionKey(artifactId: string) {
   return `${ARTIFACT_YOUTUBE_PIP_SS_PREFIX}${artifactId}`;
+}
+
+function playbackSessionKey(artifactId: string) {
+  return `${ARTIFACT_YOUTUBE_PLAYBACK_SS_PREFIX}${artifactId}`;
+}
+
+/** Last playback position (seconds) for resume after tab switch or reload. */
+export function readPlaybackSecondsFromSession(artifactId: string): number | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(playbackSessionKey(artifactId));
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writePlaybackSecondsToSession(artifactId: string, seconds: number) {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(playbackSessionKey(artifactId), String(Math.max(0, Math.floor(seconds))));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function pipTotalHeightPx(videoWidth: number) {

@@ -250,7 +250,7 @@ export default function TranscriptPanel({
       <div
         ref={scrollContainerRef}
         className={cn(
-          "max-h-[60vh] overflow-y-auto overflow-x-hidden lg:max-h-none lg:min-h-0 lg:flex-1",
+          "scrollbar-hover-thin max-h-[60vh] overflow-y-auto overflow-x-hidden lg:max-h-none lg:min-h-0 lg:flex-1",
           artifactInset,
         )}
       >

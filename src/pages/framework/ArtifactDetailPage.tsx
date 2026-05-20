@@ -728,10 +728,16 @@ export default function ArtifactDetailPage() {
     mainScrollRef,
   });
 
+  const youtubeLayoutKey = youtubePip.pipMode
+    ? `pip:${youtubePip.pipOverlayLayout.left},${youtubePip.pipOverlayLayout.top},${youtubePip.pipOverlayLayout.width}`
+    : "inline";
+
   const youtubePlayer = useYouTubeEmbedPlayer({
     videoId: youTubeVideoId,
     enabled: Boolean(youTubeVideoId),
     startSeconds: videoStartSeconds,
+    artifactId: id ?? null,
+    layoutKey: youtubeLayoutKey,
   });
 
   useEffect(() => {
@@ -1521,7 +1527,10 @@ export default function ArtifactDetailPage() {
       <div
         className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
       >
-        <div ref={mainScrollRef} className="min-h-0 space-y-6 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
+        <div
+          ref={mainScrollRef}
+          className="scrollbar-hover-thin min-h-0 space-y-6 lg:col-span-8 lg:overflow-y-auto lg:pr-1"
+        >
       <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
@@ -1643,6 +1652,7 @@ export default function ArtifactDetailPage() {
         <>
           <ArtifactVideoStage
             videoSlotRef={youtubePip.videoSlotRef}
+            mainScrollRef={mainScrollRef}
             pipMode={youtubePip.pipMode}
             pipLayout={youtubePip.pipOverlayLayout}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}

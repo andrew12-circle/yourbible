@@ -608,6 +608,30 @@
   .text-balance { text-wrap: balance; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { scrollbar-width: none; }
+
+  /* Hidden until hover; then a thin scroll indicator (artifact detail panes, etc.). */
+  .scrollbar-hover-thin {
+    scrollbar-width: none;
+  }
+  .scrollbar-hover-thin::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .scrollbar-hover-thin:hover {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.38) transparent;
+  }
+  .scrollbar-hover-thin:hover::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .scrollbar-hover-thin:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.38);
+    border-radius: 999px;
+  }
+  .scrollbar-hover-thin:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
 }
