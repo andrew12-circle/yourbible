@@ -163,3 +163,10 @@ export function normalizePastedTranscript(raw: string): string {
 export function countTimedTranscriptLines(text: string): number {
   return text.split("\n").filter((line) => /^\s*\[\d{1,2}:\d{2}/.test(line)).length;
 }
+
+/** True when stored text should be rewritten with `normalizePastedTranscript`. */
+export function needsTranscriptNormalization(raw: string): boolean {
+  const trimmed = raw.replace(/\r\n/g, "\n").trim();
+  if (!trimmed) return false;
+  return normalizePastedTranscript(trimmed) !== trimmed;
+}

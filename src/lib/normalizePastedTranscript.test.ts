@@ -3,6 +3,7 @@ import {
   countTimedTranscriptLines,
   formatBracketTimestamp,
   looksLikeYoutubeShowTranscriptPaste,
+  needsTranscriptNormalization,
   normalizePastedTranscript,
 } from "./normalizePastedTranscript";
 
@@ -24,6 +25,20 @@ describe("looksLikeYoutubeShowTranscriptPaste", () => {
 
   it("ignores clean bracket transcripts", () => {
     expect(looksLikeYoutubeShowTranscriptPaste("[0:22] Hello")).toBe(false);
+  });
+});
+
+describe("needsTranscriptNormalization", () => {
+  it("detects mashed YouTube paste", () => {
+    expect(needsTranscriptNormalization("0:2222 secondsand this is Dr. Francis Miles.")).toBe(true);
+  });
+
+  it("is false for already-normalized text", () => {
+    expect(needsTranscriptNormalization("[0:22] and this is Dr. Francis Miles.")).toBe(false);
+  });
+
+  it("is false for empty text", () => {
+    expect(needsTranscriptNormalization("   ")).toBe(false);
   });
 });
 

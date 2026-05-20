@@ -53,6 +53,7 @@ import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import {
   countTimedTranscriptLines,
   looksLikeYoutubeShowTranscriptPaste,
+  needsTranscriptNormalization,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
 import {
@@ -573,6 +574,7 @@ export default function ArtifactDetailPage() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [savingPaste, setSavingPaste] = useState(false);
+  const [formattingTranscript, setFormattingTranscript] = useState(false);
   const [videoStartSeconds, setVideoStartSeconds] = useState(0);
   const [liveMeta, setLiveMeta] = useState<ArtifactMetadata | null>(null);
   const [refreshingMeta, setRefreshingMeta] = useState(false);
@@ -766,7 +768,15 @@ export default function ArtifactDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inFlight]);
 
-  const transcriptSplit = useMemo(() => splitTranscript(a?.raw_text || ""), [a?.raw_text]);
+  const displayTranscriptText = useMemo(
+    () => (a?.raw_text ? normalizePastedTranscript(a.raw_text) : ""),
+    [a?.raw_text],
+  );
+  const transcriptNeedsFormatting = useMemo(
+    () => Boolean(a?.raw_text && needsTranscriptNormalization(a.raw_text)),
+    [a?.raw_text],
+  );
+  const transcriptSplit = useMemo(() => splitTranscript(displayTranscriptText), [displayTranscriptText]);
   const transcriptSegments = transcriptSplit.segments;
   const transcriptTimedLayout = transcriptSplit.timed;
   const transcriptCoarseOnly = transcriptSplit.coarseTimestampsOnly;
@@ -1067,16 +1077,49 @@ export default function ArtifactDetailPage() {
   };
 
   const reanalyze = async () => {
+    const normalized = normalizePastedTranscript(a.raw_text);
+    const persistNormalized = normalized !== a.raw_text.trim();
     const processingToken = createProcessingToken();
-    await supabase.from("artifacts").update({ status: "analyzing", error: null, processing_token: processingToken }).eq("id", a.id);
+    await supabase
+      .from("artifacts")
+      .update({
+        ...(persistNormalized ? { raw_text: normalized } : {}),
+        status: "analyzing",
+        error: null,
+        processing_token: processingToken,
+      })
+      .eq("id", a.id);
     await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
     await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
     await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
     setClaims([]);
-    setA({ ...a, status: "analyzing", error: null });
+    setA({ ...a, ...(persistNormalized ? { raw_text: normalized } : {}), status: "analyzing", error: null });
+    if (persistNormalized) {
+      toast({
+        title: "Transcript timestamps normalized",
+        description: "Re-analysis uses the fixed [M:SS] lines.",
+      });
+    }
     supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } }).catch((e) => {
       console.error(e);
       toast({ title: "Could not start analysis", variant: "destructive" });
+    });
+  };
+
+  const formatTranscript = async () => {
+    if (!a.raw_text.trim() || !transcriptNeedsFormatting) return;
+    const normalized = normalizePastedTranscript(a.raw_text);
+    setFormattingTranscript(true);
+    const { error } = await supabase.from("artifacts").update({ raw_text: normalized }).eq("id", a.id);
+    setFormattingTranscript(false);
+    if (error) {
+      toast({ title: "Could not format transcript", description: error.message, variant: "destructive" });
+      return;
+    }
+    setA({ ...a, raw_text: normalized });
+    toast({
+      title: "Transcript formatted",
+      description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
     });
   };
 
@@ -1134,8 +1177,8 @@ export default function ArtifactDetailPage() {
   const canCaptureMoments = !!embedUrl && playerReady && !playerFailed;
 
   const copyTranscript = async () => {
-    if (!a.raw_text) return;
-    await navigator.clipboard.writeText(a.raw_text);
+    if (!displayTranscriptText) return;
+    await navigator.clipboard.writeText(displayTranscriptText);
     toast({ title: "Transcript copied" });
   };
 
@@ -1204,7 +1247,7 @@ export default function ArtifactDetailPage() {
     const qs = new URLSearchParams();
     if (a.title) qs.set("artifactTitle", encodeURIComponent(a.title));
     if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
-    if (a.raw_text) qs.set("artifactTranscript", encodeURIComponent(a.raw_text.slice(0, 12000)));
+    if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));
     if (claimsDigest) qs.set("artifactClaims", encodeURIComponent(claimsDigest.slice(0, 6000)));
     if (startSeconds != null) qs.set("artifactTime", String(Math.max(0, Math.floor(startSeconds))));
     navigate(`/journal/new?${qs.toString()}`);
@@ -1214,7 +1257,7 @@ export default function ArtifactDetailPage() {
     const qs = new URLSearchParams();
     if (a.title) qs.set("artifactTitle", encodeURIComponent(`${a.title} — one claim`));
     if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
-    if (a.raw_text) qs.set("artifactTranscript", encodeURIComponent(a.raw_text.slice(0, 12000)));
+    if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));
     qs.set("artifactClaims", encodeURIComponent(`Focus on this claim:\n\n${claim.claim}`));
     if (startSeconds != null) qs.set("artifactTime", String(Math.max(0, Math.floor(startSeconds))));
     navigate(`/journal/new?${qs.toString()}`);
@@ -1266,9 +1309,9 @@ export default function ArtifactDetailPage() {
         let body: string;
         if (lines.length) {
           body = lines.join("\n\n");
-        } else if (a.raw_text.trim()) {
+        } else if (displayTranscriptText.trim()) {
           if (transcriptTimedLayout) {
-            body = `*(No timed lines overlapped ${clock0}–${clock1}.)*\n\n${a.raw_text.trim().slice(-700)}`;
+            body = `*(No timed lines overlapped ${clock0}–${clock1}.)*\n\n${displayTranscriptText.trim().slice(-700)}`;
           } else {
             body =
               "*(This transcript has no line-level timestamps, so the last ~10 seconds cannot be auto-selected.)*";
@@ -2003,14 +2046,15 @@ export default function ArtifactDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {a.raw_text && a.status !== "ready" && (
+      {displayTranscriptText && a.status !== "ready" && (
         <details className="mb-5 text-xs">
           <summary className="cursor-pointer text-muted-foreground">
-            Transcript captured ({a.raw_text.length.toLocaleString()} chars)
+            Transcript captured ({displayTranscriptText.length.toLocaleString()} chars)
+            {transcriptNeedsFormatting ? " · stored copy still needs Format transcript to persist fixes" : ""}
           </summary>
           <pre className="mt-2 whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded max-h-64 overflow-auto">
-            {a.raw_text.slice(0, 4000)}
-            {a.raw_text.length > 4000 ? "…" : ""}
+            {displayTranscriptText.slice(0, 4000)}
+            {displayTranscriptText.length > 4000 ? "…" : ""}
           </pre>
         </details>
       )}
@@ -2064,16 +2108,38 @@ export default function ArtifactDetailPage() {
                 transcriptRefs.current[id] = el;
               }}
               extraHeaderActions={
-                <Button
-                  size="sm"
-                  className="h-9 shrink-0"
-                  onClick={openStudyJournal}
-                  title="Floating study journal on this page"
-                  aria-label="Open study journal"
-                >
-                  <NotebookPen className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
-                  <span className="hidden sm:inline">Study journal</span>
-                </Button>
+                <>
+                  {transcriptNeedsFormatting ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-9 shrink-0"
+                      onClick={formatTranscript}
+                      disabled={formattingTranscript || inFlight}
+                      title="Rewrite mashed YouTube timestamps in [M:SS] form and save to this artifact"
+                    >
+                      {formattingTranscript ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin sm:mr-1" aria-hidden />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
+                      )}
+                      <span className="hidden sm:inline">
+                        {formattingTranscript ? "Formatting…" : "Format transcript"}
+                      </span>
+                      <span className="sm:hidden">{formattingTranscript ? "…" : "Format"}</span>
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    className="h-9 shrink-0"
+                    onClick={openStudyJournal}
+                    title="Floating study journal on this page"
+                    aria-label="Open study journal"
+                  >
+                    <NotebookPen className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
+                    <span className="hidden sm:inline">Study journal</span>
+                  </Button>
+                </>
               }
             />
           )}
