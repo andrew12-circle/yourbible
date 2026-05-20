@@ -2,6 +2,7 @@
 // Order: watch-page caption tracks → timedtext API → InnerTube get_transcript → Gemini clips.
 // YOUTUBE_DATA_API_KEY enriches description/chapters only (not caption download).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
 import { parseYoutubeChaptersFromDescription } from "../_shared/youtubeChapters.ts";
 import {
   fetchInnertubeTranscript,
@@ -567,8 +568,20 @@ Deno.serve(async (req) => {
             chaptersSource = "youtube_data_api_v3";
           }
         }
-        const youtube_chapters = parseYoutubeChaptersFromDescription(desc);
+        let youtube_chapters = parseYoutubeChaptersFromDescription(desc);
         if (!youtube_chapters.length) chaptersSource = "none";
+        if (!youtube_chapters.length && result.text.trim().length >= 400) {
+          const generated = await generateChaptersFromTranscript({
+            apiKey: Deno.env.get("GEMINI_API_KEY"),
+            rawText: result.text,
+            durationSeconds: result.metadata.durationSeconds ?? null,
+            title: result.metadata.title ?? artifact.title,
+          });
+          if (generated.chapters.length) {
+            youtube_chapters = generated.chapters;
+            chaptersSource = generated.source;
+          }
+        }
         const prevMeta = (artifact.metadata as Record<string, unknown> | null | undefined) ?? {};
         const metadata = {
           ...prevMeta,

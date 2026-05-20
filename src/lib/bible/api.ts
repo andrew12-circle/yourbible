@@ -98,8 +98,36 @@ export async function fetchSleepAudio(text: string, voiceId?: string): Promise<B
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
     body: JSON.stringify({ text, voiceId }),
   });
-  if (!r.ok) throw new Error(`sleep-tts: ${r.status}`);
-  return r.blob();
+  const ct = r.headers.get("content-type") ?? "";
+  if (!r.ok) {
+    let msg = `sleep-tts: ${r.status}`;
+    if (ct.includes("json")) {
+      try {
+        const j = (await r.json()) as { error?: string };
+        if (j.error) msg = j.error;
+      } catch {
+        /* ignore */
+      }
+    }
+    throw new Error(msg);
+  }
+  if (ct.includes("json")) {
+    const j = (await r.json()) as { error?: string };
+    throw new Error(j.error ?? "sleep-tts returned an error");
+  }
+  const blob = await r.blob();
+  if (blob.size < 64) throw new Error("sleep-tts returned empty audio");
+  return blob;
+}
+
+/** Quick probe — verifies sleep-tts + ELEVENLABS_API_KEY on the server. */
+export async function checkSleepTtsAvailable(voiceId?: string): Promise<boolean> {
+  try {
+    const blob = await fetchSleepAudio("Ready.", voiceId);
+    return blob.size > 100;
+  } catch {
+    return false;
+  }
 }
 
 // suppress unused import warning

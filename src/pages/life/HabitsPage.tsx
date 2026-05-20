@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { ChevronLeft, Loader2, ListPlus, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
-import { HabitsHeader } from "@/components/habits/HabitsHeader";
-import { HabitsMonthGrid, isoForToggle } from "@/components/habits/HabitsMonthGrid";
+import { HabitBadgesSection } from "@/components/habits/HabitBadgesSection";
 import { HabitManageSheet } from "@/components/habits/HabitManageSheet";
 import { HabitNoteDialog } from "@/components/habits/HabitNoteDialog";
+import { HabitStreakSummary } from "@/components/habits/HabitStreakSummary";
+import { HabitsHeader } from "@/components/habits/HabitsHeader";
+import { HabitsMonthGrid, isoForToggle } from "@/components/habits/HabitsMonthGrid";
+import { toast } from "@/hooks/use-toast";
 import { formatSupabaseError as getErrorMessage } from "@/lib/supabase/errors";
+import {
+  countTotalCompletions,
+  evaluateNewBadges,
+  getBadgeDef,
+} from "@/lib/habits/badges";
+import { listUnlockedBadges, unlockBadges, type HabitBadgeRow } from "@/lib/habits/badgesApi";
 import {
   archiveHabit,
   createHabit,
@@ -28,6 +36,12 @@ import {
   parseYearMonth,
   yearMonthFromDate,
 } from "@/lib/habits/dates";
+import {
+  activeDayStreak,
+  perfectDayStreak,
+  topHabitStreaks,
+} from "@/lib/habits/overallStreak";
+import { computeRingStats } from "@/lib/habits/ringStats";
 import { buildCompletionSet, completionKey, computeMonthStats } from "@/lib/habits/stats";
 
 export default function HabitsPage() {
@@ -36,24 +50,31 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [completionSet, setCompletionSet] = useState<Set<string>>(new Set());
   const [streakDatesByHabit, setStreakDatesByHabit] = useState<Map<string, string[]>>(new Map());
+  const [unlockedBadges, setUnlockedBadges] = useState<HabitBadgeRow[]>([]);
   const [busy, setBusy] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [noteHabit, setNoteHabit] = useState<HabitRow | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  const badgeSyncRef = useRef(false);
 
   const todayDay = isSameYearMonth(yearMonth) ? new Date().getDate() : null;
   const { year, month } = parseYearMonth(yearMonth);
-  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
   const canGoNext = yearMonth < yearMonthFromDate();
+  const habitIds = useMemo(() => habits.map((h) => h.id), [habits]);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
     setBusy(true);
     try {
-      const [habitList, completions] = await Promise.all([
+      const [habitList, completions, badges] = await Promise.all([
         listHabits(user.id),
         listCompletionsForMonth(user.id, yearMonth),
+        listUnlockedBadges(user.id).catch(() => [] as HabitBadgeRow[]),
       ]);
       setHabits(habitList);
       setCompletionSet(buildCompletionSet(completions, yearMonth));
@@ -62,6 +83,7 @@ export default function HabitsPage() {
         habitList.map((h) => h.id),
       );
       setStreakDatesByHabit(streakMap);
+      setUnlockedBadges(badges);
     } catch (e) {
       toast({
         title: "Couldn't load habits",
@@ -83,10 +105,65 @@ export default function HabitsPage() {
       habits.length,
       completionSet,
       categories,
-      habits.map((h) => h.id),
+      habitIds,
       yearMonth,
     );
-  }, [habits, completionSet, yearMonth]);
+  }, [habits, completionSet, yearMonth, habitIds]);
+
+  const rings = useMemo(
+    () => computeRingStats(habitIds, completionSet, yearMonth),
+    [habitIds, completionSet, yearMonth],
+  );
+
+  const streakSummary = useMemo(
+    () => ({
+      active: activeDayStreak(streakDatesByHabit),
+      perfect: perfectDayStreak(habitIds, streakDatesByHabit),
+      top: topHabitStreaks(habits, streakDatesByHabit),
+    }),
+    [streakDatesByHabit, habitIds, habits],
+  );
+
+  const syncBadges = useCallback(async () => {
+    if (!user?.id || habits.length === 0 || badgeSyncRef.current) return;
+    badgeSyncRef.current = true;
+    try {
+      const already = new Set(unlockedBadges.map((b) => b.badge_id));
+      const newIds = evaluateNewBadges(
+        {
+          habitIds,
+          datesByHabit: streakDatesByHabit,
+          stats,
+          rings,
+          totalCompletions: countTotalCompletions(streakDatesByHabit),
+        },
+        already,
+      );
+      if (newIds.length === 0) return;
+
+      await unlockBadges(user.id, newIds);
+      const refreshed = await listUnlockedBadges(user.id);
+      setUnlockedBadges(refreshed);
+
+      for (const id of newIds) {
+        const def = getBadgeDef(id);
+        if (def) {
+          toast({
+            title: "Award unlocked!",
+            description: def.title,
+          });
+        }
+      }
+    } catch {
+      /* badges table may not exist yet */
+    } finally {
+      badgeSyncRef.current = false;
+    }
+  }, [user?.id, habits.length, unlockedBadges, habitIds, streakDatesByHabit, stats, rings]);
+
+  useEffect(() => {
+    if (!busy && habits.length > 0) void syncBadges();
+  }, [busy, habits.length, stats, rings, streakDatesByHabit, syncBadges]);
 
   const onToggle = async (habitId: string, day: number, next: boolean) => {
     if (!user?.id) return;
@@ -152,7 +229,7 @@ export default function HabitsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );
@@ -169,20 +246,20 @@ export default function HabitsPage() {
           : null;
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-white/90 backdrop-blur px-3 py-3">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-24">
+      <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="w-5 h-5" />
           </Link>
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight">Habit tracker</h1>
-          <p className="text-xs text-muted-foreground">Tap days to mark complete</p>
+          <h1 className="text-lg font-semibold tracking-tight">Habits</h1>
+          <p className="text-xs text-muted-foreground">Rings · streaks · awards</p>
         </div>
         <Button variant="outline" size="sm" className="shrink-0" onClick={() => setManageOpen(true)}>
           <ListPlus className="w-4 h-4 mr-1" />
-          Habits
+          Manage
         </Button>
       </header>
 
@@ -197,13 +274,25 @@ export default function HabitsPage() {
             <HabitsHeader
               monthLabel={monthLabel}
               stats={stats}
+              rings={rings}
               onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
               onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
               canGoNext={canGoNext}
             />
 
+            {habits.length > 0 ? (
+              <>
+                <HabitStreakSummary
+                  activeStreak={streakSummary.active}
+                  perfectStreak={streakSummary.perfect}
+                  topHabits={streakSummary.top}
+                />
+                <HabitBadgesSection unlocked={unlockedBadges} />
+              </>
+            ) : null}
+
             {thresholdMsg ? (
-              <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/40 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
                 <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                 <p>{thresholdMsg}</p>
               </div>

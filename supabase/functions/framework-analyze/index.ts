@@ -3,6 +3,7 @@
 // Also extracts grounded knowledge entities and actionable teachings (with service role).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
 import type { YoutubeChapter } from "../_shared/youtubeChapters.ts";
 import {
   collectTranscriptTextsStartingInHalfOpenRange,
@@ -1031,7 +1032,7 @@ Deno.serve(async (req) => {
 
     const { data: artifact, error: aErr } = await supabase
       .from("artifacts")
-      .select("id,user_id,raw_text,processing_token,metadata")
+      .select("id,user_id,title,raw_text,processing_token,metadata")
       .eq("id", artifact_id)
       .maybeSingle();
     if (aErr || !artifact) throw new Error("Artifact not found");
@@ -1049,9 +1050,31 @@ Deno.serve(async (req) => {
     const rawText = artifact.raw_text as string;
     const beliefsList = (beliefs as Belief[]) ?? [];
     const metadata = (artifact as { metadata?: unknown }).metadata;
-    const chapters = parseYoutubeChaptersFromMetadata(metadata);
+    let chapters = parseYoutubeChaptersFromMetadata(metadata);
     const durationSeconds = parseDurationSeconds(metadata);
     const { segments, timed } = splitTranscript(rawText);
+
+    if (chapters.length === 0 && rawText.trim().length >= 400) {
+      const generated = await generateChaptersFromTranscript({
+        apiKey: GEMINI_API_KEY,
+        rawText,
+        durationSeconds,
+        title: (artifact as { title?: string | null }).title ?? null,
+      });
+      if (generated.chapters.length) {
+        chapters = generated.chapters;
+        const prevMeta = (metadata as Record<string, unknown> | null | undefined) ?? {};
+        const nextMeta = {
+          ...prevMeta,
+          youtube_chapters: generated.chapters,
+          youtube_chapters_source: generated.source,
+        };
+        await supabase.from("artifacts").update({ metadata: nextMeta }).eq("id", artifact_id);
+        console.log(
+          `framework-analyze: transcript chapters=${chapters.length} source=${generated.source}`,
+        );
+      }
+    }
 
     const collected: ClaimWithChapter[] = [];
 

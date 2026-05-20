@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchPassage, fetchSleepAudio } from "@/lib/bible/api";
+import { checkSleepTtsAvailable, fetchPassage, fetchSleepAudio } from "@/lib/bible/api";
+import {
+  isBrowserTtsSupported,
+  pauseBrowserTts,
+  resumeBrowserTts,
+  speakBrowserTts,
+  stopBrowserTts,
+} from "@/lib/bible/browserTts";
 import { buildScriptureChunks } from "@/lib/bible/scriptureTts";
+import { getBrowserProfile } from "@/lib/bible/sleepVoices";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 
 /** @deprecated Use buildScriptureChunks from @/lib/bible/scriptureTts */
 export { buildScriptureChunks as buildVerseChunks } from "@/lib/bible/scriptureTts";
+
+export type TtsEngine = "elevenlabs" | "browser" | null;
 
 export type PlaybackStatus = "idle" | "loading" | "playing" | "paused";
 
@@ -40,11 +50,16 @@ export function useSleepPlayback() {
   const queueRef = useRef<SleepTrack[]>([]);
   const indexRef = useRef(0);
   const volumeRef = useRef(0.8);
+  const engineRef = useRef<TtsEngine>(null);
+  const elevenLabsOkRef = useRef(true);
+  const usingBrowserRef = useRef(false);
 
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [nowPlaying, setNowPlaying] = useState<NowPlayingInfo | null>(null);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [ttsEngine, setTtsEngine] = useState<TtsEngine>(null);
+  const [elevenLabsAvailable, setElevenLabsAvailable] = useState<boolean | null>(null);
 
   const revokeUrls = useCallback(() => {
     urlsRef.current.forEach(URL.revokeObjectURL);
@@ -54,8 +69,10 @@ export function useSleepPlayback() {
   const cleanupAudio = useCallback(() => {
     audioRef.current?.pause();
     audioRef.current = null;
+    stopBrowserTts();
     revokeUrls();
     prefetchRef.current.clear();
+    usingBrowserRef.current = false;
   }, [revokeUrls]);
 
   useEffect(() => () => {
@@ -63,18 +80,25 @@ export function useSleepPlayback() {
     cleanupAudio();
   }, [cleanupAudio]);
 
+  const probeElevenLabs = useCallback(async (voiceId: string) => {
+    const ok = await checkSleepTtsAvailable(voiceId);
+    setElevenLabsAvailable(ok);
+    elevenLabsOkRef.current = ok;
+    return ok;
+  }, []);
+
   const setVolume = useCallback((v: number) => {
     volumeRef.current = v;
     if (audioRef.current) audioRef.current.volume = v;
   }, []);
 
   const prefetch = useCallback(async (track: SleepTrack, voiceId: string) => {
-    if (prefetchRef.current.has(track.key)) return;
+    if (prefetchRef.current.has(track.key) || !elevenLabsOkRef.current) return;
     try {
       const blob = await fetchSleepAudio(track.text, voiceId);
       prefetchRef.current.set(track.key, blob);
     } catch {
-      // Prefetch failures are non-fatal; we'll retry on play.
+      /* Prefetch failures are non-fatal */
     }
   }, []);
 
@@ -90,6 +114,7 @@ export function useSleepPlayback() {
       audio.volume = volumeRef.current;
       audio.preload = "auto";
       audioRef.current = audio;
+      usingBrowserRef.current = false;
 
       const onAbort = () => {
         audio.pause();
@@ -123,25 +148,26 @@ export function useSleepPlayback() {
     });
   }, []);
 
-  const runQueue = useCallback(async (voiceId: string, signal: AbortSignal) => {
-    const queue = queueRef.current;
-    for (let i = indexRef.current; i < queue.length; i++) {
-      if (signal.aborted) return;
-      indexRef.current = i;
-      const track = queue[i]!;
-      const titleParts = track.setLabel.split(" — ");
-      setNowPlaying({
-        title: titleParts[0] ?? track.setLabel,
-        subtitle:
-          track.chunkCount > 1
-            ? `Part ${track.chunkIndex + 1} of ${track.chunkCount} · ${track.reference}`
-            : track.reference,
-        setId: track.setId,
-      });
+  const playTrack = useCallback(
+    async (track: SleepTrack, voiceId: string, signal: AbortSignal): Promise<boolean> => {
+      const useBrowser =
+        usingBrowserRef.current ||
+        !elevenLabsOkRef.current ||
+        engineRef.current === "browser";
 
-      for (let j = 1; j <= 2; j++) {
-        const next = queue[i + j];
-        if (next) void prefetch(next, voiceId);
+      if (useBrowser) {
+        if (!isBrowserTtsSupported()) return false;
+        engineRef.current = "browser";
+        setTtsEngine("browser");
+        usingBrowserRef.current = true;
+        audioRef.current = null;
+        try {
+          await speakBrowserTts(track.text, getBrowserProfile(voiceId), signal);
+          return true;
+        } catch (e) {
+          console.warn("browser TTS failed", track.key, e);
+          return false;
+        }
       }
 
       let blob = prefetchRef.current.get(track.key);
@@ -149,31 +175,77 @@ export function useSleepPlayback() {
       else {
         try {
           blob = await fetchSleepAudio(track.text, voiceId);
+          engineRef.current = "elevenlabs";
+          setTtsEngine("elevenlabs");
         } catch (e) {
-          console.warn("sleep chunk fetch failed, skipping", track.key, e);
-          continue;
+          console.warn("ElevenLabs fetch failed, trying browser TTS", track.key, e);
+          elevenLabsOkRef.current = false;
+          setElevenLabsAvailable(false);
+          if (!isBrowserTtsSupported()) return false;
+          usingBrowserRef.current = true;
+          engineRef.current = "browser";
+          setTtsEngine("browser");
+          try {
+            await speakBrowserTts(track.text, getBrowserProfile(voiceId), signal);
+            return true;
+          } catch (browserErr) {
+            console.warn("browser TTS fallback failed", track.key, browserErr);
+            return false;
+          }
         }
       }
 
-      if (signal.aborted) return;
-
+      if (signal.aborted) return false;
       try {
-        setStatus("playing");
         await playBlob(blob, signal);
+        return true;
       } catch (e) {
-        console.warn("sleep chunk play failed, skipping", track.key, e);
-        continue;
+        console.warn("sleep chunk play failed", track.key, e);
+        return false;
       }
-    }
+    },
+    [playBlob],
+  );
 
-    if (!signal.aborted) {
-      setStatus("idle");
-      setNowPlaying(null);
-      setProgress(0);
-      indexRef.current = 0;
-      cleanupAudio();
-    }
-  }, [cleanupAudio, playBlob, prefetch]);
+  const runQueue = useCallback(
+    async (voiceId: string, signal: AbortSignal) => {
+      const queue = queueRef.current;
+      for (let i = indexRef.current; i < queue.length; i++) {
+        if (signal.aborted) return;
+        indexRef.current = i;
+        const track = queue[i]!;
+        const titleParts = track.setLabel.split(" — ");
+        setNowPlaying({
+          title: titleParts[0] ?? track.setLabel,
+          subtitle:
+            track.chunkCount > 1
+              ? `Part ${track.chunkIndex + 1} of ${track.chunkCount} · ${track.reference}`
+              : track.reference,
+          setId: track.setId,
+        });
+
+        for (let j = 1; j <= 3; j++) {
+          const next = queue[i + j];
+          if (next) void prefetch(next, voiceId);
+        }
+
+        setStatus("playing");
+        const ok = await playTrack(track, voiceId, signal);
+        if (!ok) continue;
+      }
+
+      if (!signal.aborted) {
+        setStatus("idle");
+        setNowPlaying(null);
+        setProgress(0);
+        setTtsEngine(null);
+        engineRef.current = null;
+        indexRef.current = 0;
+        cleanupAudio();
+      }
+    },
+    [cleanupAudio, playTrack, prefetch],
+  );
 
   const buildQueue = useCallback(async (sets: SleepSet[], setIds: string[], bibleId: string) => {
     const tracks: SleepTrack[] = [];
@@ -203,12 +275,17 @@ export function useSleepPlayback() {
       cleanupAudio();
       const ac = new AbortController();
       abortRef.current = ac;
+      engineRef.current = null;
+      elevenLabsOkRef.current = true;
+      setTtsEngine(null);
 
       setBusy(true);
       setStatus("loading");
       try {
         const bibleId = localStorage.getItem(LS_BIBLE_KEY);
         if (!bibleId) throw new Error("Choose a translation in the reader first.");
+
+        void probeElevenLabs(opts.voiceId);
 
         const setIds = opts.playAll ? opts.sets.map((s) => s.id) : [opts.setId];
         const tracks = await buildQueue(opts.sets, setIds, bibleId);
@@ -217,13 +294,22 @@ export function useSleepPlayback() {
         queueRef.current = tracks;
         indexRef.current = 0;
         setProgress(0);
+
+        for (let j = 0; j <= 3; j++) {
+          const t = tracks[j];
+          if (t) void prefetch(t, opts.voiceId);
+        }
+
         await runQueue(opts.voiceId, ac.signal);
       } finally {
         setBusy(false);
-        if (ac.signal.aborted) setStatus("idle");
+        if (ac.signal.aborted) {
+          setStatus("idle");
+          setTtsEngine(null);
+        }
       }
     },
-    [buildQueue, cleanupAudio, runQueue],
+    [buildQueue, cleanupAudio, probeElevenLabs, runQueue],
   );
 
   const stop = useCallback(() => {
@@ -234,10 +320,23 @@ export function useSleepPlayback() {
     setStatus("idle");
     setNowPlaying(null);
     setProgress(0);
+    setTtsEngine(null);
+    engineRef.current = null;
     cleanupAudio();
   }, [cleanupAudio]);
 
   const togglePause = useCallback(() => {
+    if (usingBrowserRef.current) {
+      if (status === "playing") {
+        pauseBrowserTts();
+        setStatus("paused");
+      } else if (status === "paused") {
+        resumeBrowserTts();
+        setStatus("playing");
+      }
+      return;
+    }
+
     const audio = audioRef.current;
     if (!audio) return;
     if (status === "playing") {
@@ -256,6 +355,9 @@ export function useSleepPlayback() {
     nowPlaying,
     progress,
     busy,
+    ttsEngine,
+    elevenLabsAvailable,
+    probeElevenLabs,
     start,
     stop,
     togglePause,

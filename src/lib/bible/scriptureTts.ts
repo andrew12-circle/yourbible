@@ -3,8 +3,8 @@ import type { PassageVerse } from "./api";
 /** Max characters per ElevenLabs request (server trims at 4500). */
 export const SCRIPTURE_CHUNK_MAX = 3500;
 
-/** Extra spacing between verses so the narrator pauses gently. */
-const VERSE_PAUSE = "  ";
+/** Brief pause between verses (Bible-app style continuous read). */
+const VERSE_PAUSE = ".  ";
 
 export function formatVerseForTts(v: PassageVerse): string {
   const line = v.text.replace(/\s+/g, " ").trim();

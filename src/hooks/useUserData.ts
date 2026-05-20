@@ -97,7 +97,7 @@ export function useChapterData(book: string, chapter: number) {
   ) => {
     if (!user || ranges.length === 0) return;
     const verses = [...new Set(ranges.map(r => r.verse))];
-    await supabase
+    const { error: delErr } = await supabase
       .from("highlights")
       .delete()
       .eq("user_id", user.id)
@@ -105,6 +105,7 @@ export function useChapterData(book: string, chapter: number) {
       .eq("chapter", chapter)
       .eq("kind", kind)
       .in("verse", verses);
+    if (delErr) throw delErr;
 
     const rows = ranges.map(r => {
       const len = verseLengths?.get(r.verse);
@@ -121,8 +122,9 @@ export function useChapterData(book: string, chapter: number) {
         end_offset: isWhole ? null : r.end,
       };
     });
-    await supabase.from("highlights").insert(rows);
-    reload();
+    const { error: insErr } = await supabase.from("highlights").insert(rows);
+    if (insErr) throw insErr;
+    await reload();
   };
 
   /** Apply the same mark to many verses in one go (drag-select). */
@@ -132,17 +134,17 @@ export function useChapterData(book: string, chapter: number) {
     kind: MarkKind = "highlight",
   ) => {
     if (!user || verses.length === 0) return;
-    if (color === null) {
-      await supabase
-        .from("highlights")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("book", book)
-        .eq("chapter", chapter)
-        .eq("kind", kind)
-        .in("verse", verses);
-    } else {
-      // Upsert one row per verse.
+    const { error: delErr } = await supabase
+      .from("highlights")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("book", book)
+      .eq("chapter", chapter)
+      .eq("kind", kind)
+      .in("verse", verses);
+    if (delErr) throw delErr;
+
+    if (color !== null) {
       const rows = verses.map(v => ({
         user_id: user.id,
         book,
@@ -153,11 +155,10 @@ export function useChapterData(book: string, chapter: number) {
         start_offset: null,
         end_offset: null,
       }));
-      await supabase
-        .from("highlights")
-        .upsert(rows, { onConflict: "user_id,book,chapter,verse,kind" });
+      const { error: insErr } = await supabase.from("highlights").insert(rows);
+      if (insErr) throw insErr;
     }
-    reload();
+    await reload();
   };
 
   // Back-compat alias for callers that only deal with highlights.

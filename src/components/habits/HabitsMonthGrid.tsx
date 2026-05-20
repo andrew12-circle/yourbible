@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { StickyNote } from "lucide-react";
+import { Flame, StickyNote } from "lucide-react";
 import type { HabitRow } from "@/lib/habits/api";
 import {
   dateISOInMonth,
@@ -84,7 +84,12 @@ export function HabitsMonthGrid({
                       <p className="text-[10px] text-zinc-400 truncate">{habit.category}</p>
                     ) : null}
                   </td>
-                  <td className="px-1 py-2 text-center tabular-nums font-semibold text-emerald-600">{cur}</td>
+                  <td className="px-1 py-2 text-center tabular-nums font-semibold text-emerald-600">
+                    <span className="inline-flex items-center justify-center gap-0.5">
+                      {cur >= 7 ? <Flame className="w-3 h-3 text-orange-500" aria-hidden /> : null}
+                      {cur}
+                    </span>
+                  </td>
                   <td className="px-1 py-2 text-center tabular-nums text-zinc-500">{max}</td>
                   {days.map((day) => {
                     const key = completionKey(habit.id, year, month, day);

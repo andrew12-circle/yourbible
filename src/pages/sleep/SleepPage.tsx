@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useSleepPlayback } from "@/hooks/useSleepPlayback";
+import { SLEEP_VOICES, DEFAULT_SLEEP_VOICE_ID } from "@/lib/bible/sleepVoices";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
@@ -16,13 +17,6 @@ import {
   Volume2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-const VOICES = [
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", desc: "Soft, warm" },
-  { id: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", desc: "Gentle, low" },
-  { id: "JBFqnCBsd6RMkjVDRZzb", name: "George", desc: "Deep, calm" },
-  { id: "FGY2WhTYpPnrIDTdsKH5", name: "Laura", desc: "Bright, kind" },
-];
 
 const SETS = [
   { id: "psalm23", label: "Psalm 23", subtitle: "The Shepherd", book: "Psa", chapter: 23 },
@@ -42,10 +36,11 @@ const SET_GRADIENTS: Record<string, string> = {
 
 export default function SleepPage() {
   const { user, loading } = useAuth();
-  const [voice, setVoice] = useState(VOICES[0].id);
+  const [voice, setVoice] = useState(DEFAULT_SLEEP_VOICE_ID);
   const [setId, setSetId] = useState(SETS[0].id);
   const [playAll, setPlayAll] = useState(false);
   const [volume, setVolume] = useState(0.8);
+  const fallbackToastShown = useRef(false);
 
   const {
     status,
@@ -57,11 +52,28 @@ export default function SleepPage() {
     togglePause,
     setVolume: setPlaybackVolume,
     isActive,
+    ttsEngine,
+    elevenLabsAvailable,
+    probeElevenLabs,
   } = useSleepPlayback();
 
   useEffect(() => {
     setPlaybackVolume(volume);
   }, [volume, setPlaybackVolume]);
+
+  useEffect(() => {
+    void probeElevenLabs(DEFAULT_SLEEP_VOICE_ID);
+  }, [probeElevenLabs]);
+
+  useEffect(() => {
+    if (ttsEngine !== "browser" || !isActive || fallbackToastShown.current) return;
+    fallbackToastShown.current = true;
+    toast({
+      title: "Using device voice",
+      description:
+        "ElevenLabs is unavailable. Set ELEVENLABS_API_KEY on sleep-tts in Supabase for Sarah, George, and other narrators.",
+    });
+  }, [ttsEngine, isActive]);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
 
@@ -283,9 +295,21 @@ export default function SleepPage() {
             className="rounded-2xl bg-black/35 backdrop-blur-xl border border-white/10 p-3"
             animate={{ opacity: isActive ? 0.65 : 1 }}
           >
-            <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 mb-2.5 px-1">Voice</p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {VOICES.map((v) => {
+            <div className="flex items-baseline justify-between mb-2.5 px-1 gap-2">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Voice</p>
+              <p className="text-[10px] text-white/35 truncate text-right">
+                {ttsEngine === "browser"
+                  ? "Device voice (ElevenLabs unavailable)"
+                  : elevenLabsAvailable === false
+                    ? "ElevenLabs not configured — device voice on play"
+                    : "ElevenLabs narration"}
+              </p>
+            </div>
+            <motion.div
+              className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {SLEEP_VOICES.map((v) => {
                 const selected = voice === v.id;
                 return (
                   <button
@@ -306,7 +330,7 @@ export default function SleepPage() {
                   </button>
                 );
               })}
-            </div>
+            </motion.div>
           </motion.div>
 
           <div className="flex items-center gap-3 px-1 pb-1">

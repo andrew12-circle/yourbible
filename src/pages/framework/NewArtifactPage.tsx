@@ -14,6 +14,7 @@ import {
   looksLikeYoutubeShowTranscriptPaste,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
+import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 
 const ONE_MB = 1024 * 1024;
 
@@ -120,6 +121,10 @@ export default function NewArtifactPage() {
     const merged = youtubePaste.slice(0, start) + chunk + youtubePaste.slice(end);
     applyYoutubePasteNormalization(merged);
   };
+
+  const youTubeVideoId = useMemo(() => getYouTubeVideoId(url), [url]);
+  const embedUrl = useMemo(() => getYouTubeEmbedUrl(url), [url]);
+  const showPreviewSlot = url.trim().length > 0;
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -421,27 +426,6 @@ export default function NewArtifactPage() {
     { id: "import", label: "Import", icon: FileUp },
   ];
 
-  const getYouTubeEmbed = (input: string) => {
-    const value = input.trim();
-    if (!value) return null;
-    try {
-      const parsed = new URL(value);
-      if (parsed.hostname.includes("youtu.be")) {
-        const id = parsed.pathname.split("/").filter(Boolean)[0];
-        return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
-      }
-      if (parsed.hostname.includes("youtube.com")) {
-        const id = parsed.searchParams.get("v");
-        return id ? `https://www.youtube.com/embed/${id}?autoplay=0&rel=0` : null;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  const embedUrl = getYouTubeEmbed(url);
-
   return (
     <FrameworkLayout title="New artifact" back="/framework/artifacts">
       <div className="inline-flex rounded-lg border border-border overflow-hidden mb-5">
@@ -499,15 +483,22 @@ export default function NewArtifactPage() {
           </div>
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">YouTube URL</label>
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="mb-3" />
-          {embedUrl && (
-            <div className="mb-4 rounded-lg overflow-hidden border border-border bg-card">
-              <iframe
-                title="YouTube preview"
-                src={embedUrl}
-                className="w-full aspect-video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+          {showPreviewSlot && (
+            <div className="mb-4 rounded-lg overflow-hidden border border-border bg-card aspect-video">
+              {embedUrl ? (
+                <iframe
+                  key={youTubeVideoId ?? embedUrl}
+                  title="YouTube preview"
+                  src={embedUrl}
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
+                  Could not read a video ID from that URL. Paste the full link (e.g. https://youtu.be/… or youtube.com/watch?v=…).
+                </div>
+              )}
             </div>
           )}
           <p className="text-xs text-muted-foreground mb-4">

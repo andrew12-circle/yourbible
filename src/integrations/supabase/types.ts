@@ -1394,6 +1394,38 @@ export type Database = {
         }
         Relationships: []
       }
+      habit_badges: {
+        Row: {
+          badge_id: string
+          habit_id: string | null
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          habit_id?: string | null
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          habit_id?: string | null
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_badges_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       my_ai_chats: {
         Row: {
           created_at: string

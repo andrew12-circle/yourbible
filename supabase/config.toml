@@ -48,6 +48,9 @@ verify_jwt = true
 [functions.framework-sync-youtube-chapters]
 verify_jwt = true
 
+[functions.framework-generate-chapters]
+verify_jwt = true
+
 [functions.framework-daily]
 verify_jwt = true
 

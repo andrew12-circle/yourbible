@@ -8,7 +8,12 @@ import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVe
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
-import { SelectionToolbar, type ToolbarSelection } from "@/components/bible/SelectionToolbar";
+import {
+  SelectionToolbar,
+  DEFAULT_TOOLBAR_H,
+  TOOLBAR_GAP,
+  type ToolbarSelection,
+} from "@/components/bible/SelectionToolbar";
 import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
 import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
@@ -101,6 +106,8 @@ export default function ReaderPage() {
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
+  /** Pinned selection for toolbar actions — survives browser selection collapse on toolbar tap. */
+  const tbSelRef = useRef<ToolbarSelection | null>(null);
   /** Default highlighter color for toolbar swatches. */
   const [activeHighlightColor, setActiveHighlightColor] = useState<string>(() => {
     try {
@@ -341,6 +348,7 @@ export default function ReaderPage() {
     flipLockUntil.current = performance.now() + 280;
     const sel = window.getSelection();
     if (sel) sel.removeAllRanges();
+    tbSelRef.current = null;
     setTbSel(null);
     setFlipDirection(delta > 0 ? "forward" : "back");
     const next = chapterPage + delta * pagesPerTurn;
@@ -389,7 +397,6 @@ export default function ReaderPage() {
 
   // ---- Native text selection → toolbar (apply via toolbar actions only) ----
   useEffect(() => {
-    let pendingHide: number | null = null;
     let syncRaf: number | null = null;
     let selecting = false;
 
@@ -402,23 +409,19 @@ export default function ReaderPage() {
     };
 
     const syncToolbar = () => {
-      if (pendingHide) {
-        window.clearTimeout(pendingHide);
-        pendingHide = null;
-      }
       const next = computeSelection();
       if (!next) {
         // While the user is actively selecting, ignore transient collapsed /
         // empty-geometry frames so the toolbar doesn't flash away mid-drag.
         if (selecting) return;
-        // Small delay so picking a swatch (which momentarily clears selection
-        // through React re-render) doesn't immediately hide the toolbar.
-        pendingHide = window.setTimeout(() => {
-          if (selecting) return;
-          if (!computeSelection()) setTbSel(null);
-        }, 120);
+        // Keep the pinned toolbar once shown — tapping a swatch clears the
+        // browser selection before click (especially on touch, >120ms later).
         return;
       }
+      // Defer showing the toolbar until pointer/touch release — selectionchange
+      // fires continuously while the user is dragging.
+      if (selecting) return;
+      tbSelRef.current = next;
       setTbSel(next);
     };
 
@@ -440,7 +443,10 @@ export default function ReaderPage() {
       !shouldIgnoreSelectionTarget(target);
 
     const onSelectionStart = (e: Event) => {
-      if (isReadingAreaTarget(e.target)) selecting = true;
+      if (!isReadingAreaTarget(e.target)) return;
+      selecting = true;
+      tbSelRef.current = null;
+      setTbSel(null);
     };
 
     const onSelectionEnd = (e: Event) => {
@@ -457,16 +463,47 @@ export default function ReaderPage() {
     document.addEventListener("touchstart", onSelectionStart, { passive: true });
     document.addEventListener("pointerup", onSelectionEnd);
     document.addEventListener("touchend", onSelectionEnd, { passive: true });
+
+    const dismissToolbarUnlessToolbar = (e: Event) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-selection-toolbar], [data-reading-area], .verse-num")) return;
+      tbSelRef.current = null;
+      setTbSel(null);
+    };
+    document.addEventListener("pointerdown", dismissToolbarUnlessToolbar);
+
     return () => {
       document.removeEventListener("selectionchange", scheduleSync);
       document.removeEventListener("pointerdown", onSelectionStart);
       document.removeEventListener("touchstart", onSelectionStart);
       document.removeEventListener("pointerup", onSelectionEnd);
       document.removeEventListener("touchend", onSelectionEnd);
-      if (pendingHide) window.clearTimeout(pendingHide);
+      document.removeEventListener("pointerdown", dismissToolbarUnlessToolbar);
       if (syncRaf != null) cancelAnimationFrame(syncRaf);
     };
   }, [verseLengths]);
+
+  // Keep the selected text visible above a docked or floating toolbar.
+  useEffect(() => {
+    if (!tbSel) return;
+    const docked = window.innerWidth < 768;
+    const toolbarH = DEFAULT_TOOLBAR_H;
+    const margin = 16;
+    const vh = window.innerHeight;
+    const r = tbSel.rect;
+    if (docked) {
+      const dockTop = vh - margin - toolbarH;
+      if (r.bottom + TOOLBAR_GAP > dockTop) {
+        const delta = r.bottom + TOOLBAR_GAP - dockTop + 8;
+        window.scrollBy({ top: delta, behavior: "smooth" });
+      }
+    } else if (r.top - TOOLBAR_GAP - toolbarH < margin) {
+      window.scrollBy({ top: r.top - TOOLBAR_GAP - toolbarH - margin - 8, behavior: "smooth" });
+    }
+  }, [tbSel]);
+
+  const pinnedSelection = (): ToolbarSelection | null =>
+    tbSelRef.current ?? tbSel;
 
   // Auth/onboarding gates must stay after every hook so hook order stays stable.
   if (!loading && !user) return <Navigate to="/auth" replace />;
@@ -475,38 +512,72 @@ export default function ReaderPage() {
   const clearWindowSelection = () => {
     const sel = window.getSelection();
     if (sel) sel.removeAllRanges();
+    tbSelRef.current = null;
     setTbSel(null);
   };
 
   const applyHighlightToSelection = async (cssVar: string) => {
-    if (!tbSel) return;
+    const sel = pinnedSelection();
+    if (!sel || sel.verses.length === 0) return;
     persistHighlightColor(cssVar);
-    if (tbSel.ranges.length > 0) {
-      await setMarkRanges(tbSel.ranges, cssVar, "highlight", verseLengths);
-    } else {
-      await setMarks(tbSel.verses, cssVar, "highlight");
+    try {
+      if (sel.ranges.length > 0) {
+        await setMarkRanges(sel.ranges, cssVar, "highlight", verseLengths);
+      } else {
+        await setMarks(sel.verses, cssVar, "highlight");
+      }
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Couldn't save highlight",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+      return;
     }
     clearWindowSelection();
   };
   const applyUnderlineToSelection = async () => {
-    if (!tbSel) return;
+    const sel = pinnedSelection();
+    if (!sel) return;
     setMarkTool("underline");
-    // Toggle: if every verse already underlined, clear; else apply.
-    const allUnderlined = tbSel.verses.every(v => !!ulFor(v));
-    await setMarks(tbSel.verses, allUnderlined ? null : "--leather", "underline");
+    const allUnderlined = sel.verses.every(v => !!ulFor(v));
+    try {
+      await setMarks(sel.verses, allUnderlined ? null : "--leather", "underline");
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Couldn't save underline",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+      return;
+    }
     clearWindowSelection();
   };
   const clearMarksOnSelection = async () => {
-    if (!tbSel) return;
-    await Promise.all([
-      setMarks(tbSel.verses, null, "highlight"),
-      setMarks(tbSel.verses, null, "underline"),
-    ]);
+    const sel = pinnedSelection();
+    if (!sel) return;
+    try {
+      await Promise.all([
+        setMarks(sel.verses, null, "highlight"),
+        setMarks(sel.verses, null, "underline"),
+      ]);
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Couldn't clear mark",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+      return;
+    }
     clearWindowSelection();
   };
   const noteOnSelection = () => {
-    if (!tbSel) return;
-    setNoteOpen({ verse: tbSel.verses[0] });
+    const sel = pinnedSelection();
+    if (!sel) return;
+    setNoteOpen({ verse: sel.verses[0] });
     clearWindowSelection();
   };
   const reference = `${book.name} ${chapter}`;

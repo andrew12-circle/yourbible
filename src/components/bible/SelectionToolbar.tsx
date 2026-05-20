@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import type { VerseRange } from "@/lib/bible/verseSelection";
@@ -17,6 +17,52 @@ function useDockToolbar() {
     return () => mq.removeEventListener("change", apply);
   }, []);
   return dock;
+}
+
+export const TOOLBAR_W = 320;
+export const TOOLBAR_GAP = 12;
+/** Fallback height before first layout measure. */
+export const DEFAULT_TOOLBAR_H = 72;
+
+export function computeToolbarPosition(
+  rect: { left: number; top: number; right: number; bottom: number },
+  opts: {
+    vw: number;
+    vh: number;
+    toolbarW: number;
+    toolbarH: number;
+    margin?: number;
+    dockBottom: boolean;
+  },
+): { left: number; top: number } {
+  const margin = opts.margin ?? 8;
+  const { vw, vh, toolbarW, toolbarH, dockBottom } = opts;
+  const cx = (rect.left + rect.right) / 2;
+  let left = Math.round(cx - toolbarW / 2);
+  left = Math.max(margin, Math.min(left, vw - margin - toolbarW));
+
+  if (dockBottom) {
+    const dockTop = vh - margin - toolbarH;
+    if (rect.bottom + TOOLBAR_GAP <= dockTop) {
+      return { left: Math.round((vw - toolbarW) / 2), top: dockTop };
+    }
+    let top = Math.round(rect.top - TOOLBAR_GAP - toolbarH);
+    return { left, top: Math.max(margin, top) };
+  }
+
+  let top = Math.round(rect.top - TOOLBAR_GAP - toolbarH);
+  if (top < margin) {
+    top = Math.round(rect.bottom + TOOLBAR_GAP);
+  }
+  if (top + toolbarH > vh - margin) {
+    const above = Math.round(rect.top - TOOLBAR_GAP - toolbarH);
+    if (above >= margin) {
+      top = above;
+    } else {
+      top = Math.max(margin, Math.round(rect.bottom + TOOLBAR_GAP));
+    }
+  }
+  return { left, top };
 }
 
 export type ToolbarSelection = {
@@ -65,36 +111,34 @@ export function SelectionToolbar({
 }: Props) {
   const palette = getPalette(paletteId);
   const dockBottom = useDockToolbar();
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarH, setToolbarH] = useState(DEFAULT_TOOLBAR_H);
+
+  useLayoutEffect(() => {
+    if (!open || !toolbarRef.current) return;
+    const h = Math.ceil(toolbarRef.current.getBoundingClientRect().height);
+    if (h > 0) setToolbarH(h);
+  }, [open, paletteId]);
 
   if (!selection) return null;
 
-  // Position the toolbar centered above the selection. Clamp inside viewport.
-  const TOOLBAR_W = 320;
   const margin = 8;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
   const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-  let left: number;
-  let top: number;
-  if (dockBottom) {
-    left = Math.round((vw - TOOLBAR_W) / 2);
-    top = Math.max(margin, vh - margin - 72);
-  } else {
-    const cx = (selection.rect.left + selection.rect.right) / 2;
-    left = Math.round(cx - TOOLBAR_W / 2);
-    if (left < margin) left = margin;
-    if (left + TOOLBAR_W > vw - margin) left = vw - margin - TOOLBAR_W;
-    // Try above the selection first.
-    top = Math.round(selection.rect.top - 12 - 56);
-    if (top < margin) {
-      top = Math.round(selection.rect.bottom + 12);
-    }
-    if (top + 96 > vh - margin) top = Math.max(margin, vh - margin - 96);
-  }
+  const { left, top } = computeToolbarPosition(selection.rect, {
+    vw,
+    vh,
+    toolbarW: TOOLBAR_W,
+    toolbarH,
+    margin,
+    dockBottom,
+  });
 
   const toolbar = (
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={toolbarRef}
           layout
           initial={{ opacity: 0, y: 6, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -104,7 +148,10 @@ export function SelectionToolbar({
           // the user clicks a tool — `onMouseDown preventDefault` keeps
           // the document selection alive while we read it.
           onMouseDown={(e) => e.preventDefault()}
-          onPointerDown={(e) => e.preventDefault()}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           data-selection-toolbar
           className="fixed z-[70] pointer-events-auto bg-paper border border-gold/40 rounded-2xl shadow-leather px-3 py-2 flex items-center gap-1.5 flex-wrap"
           style={{ left, top, width: TOOLBAR_W }}
@@ -112,9 +159,14 @@ export function SelectionToolbar({
           {palette.colors.map((c) => (
             <button
               key={c.cssVar}
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onClick={() => {
-                onActiveColorChange?.(c.cssVar);
                 onPickHighlight(c.cssVar);
+                onActiveColorChange?.(c.cssVar);
               }}
               title={`${c.name}${c.meaning ? ` · ${c.meaning}` : ""}`}
               className={`w-7 h-7 rounded-full border-2 transition-all ${
@@ -127,7 +179,12 @@ export function SelectionToolbar({
           ))}
           <div className="w-px h-5 bg-paper-edge mx-1" />
           <button
-            onClick={onPickUnderline}
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={() => onPickUnderline()}
             title="Underline with pen"
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
               currentlyUnderlined
@@ -138,7 +195,12 @@ export function SelectionToolbar({
             <PenLine className="w-4 h-4" />
           </button>
           <button
-            onClick={onNote}
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={() => onNote()}
             title="Add note"
             className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
           >
@@ -164,7 +226,12 @@ export function SelectionToolbar({
           )}
           {(currentColor || currentlyUnderlined) && (
             <button
-              onClick={onClear}
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={() => onClear()}
               title="Remove mark"
               className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-destructive"
             >

@@ -8,6 +8,7 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   habit_goals: "20260518190000_habits_tracker.sql",
   habit_notes: "20260518190000_habits_tracker.sql",
   habit_bills: "20260518190000_habits_tracker.sql",
+  habit_badges: "20260519120000_habit_badges.sql",
 };
 
 function isPostgrestError(error: unknown): error is PostgrestError {

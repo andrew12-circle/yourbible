@@ -12,10 +12,8 @@ import {
   StickyNote,
   Sparkles,
   NotebookPen,
-  Maximize2,
   MessageCircle,
   LayoutList,
-  GripVertical,
   MoreHorizontal,
   CheckCircle2,
 } from "lucide-react";
@@ -64,6 +62,7 @@ import {
 } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
+import { getYouTubeVideoId } from "@/lib/youtube";
 
 interface Artifact {
   id: string;
@@ -85,94 +84,8 @@ interface ArtifactMetadata {
   duration_seconds?: number | null;
   title?: string;
   youtube_chapters?: YoutubeChapter[];
-  youtube_chapters_source?: string;
+  youtube_chapters_source?: string | null;
   video_id?: string;
-}
-
-type YouTubePlayer = {
-  getCurrentTime: () => number;
-  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
-  playVideo?: () => void;
-  destroy: () => void;
-};
-
-type YouTubePlayerEvent = {
-  data?: number;
-  target?: YouTubePlayer;
-};
-
-declare global {
-  interface Window {
-    YT?: {
-      Player?: new (
-        element: HTMLElement,
-        options: {
-          videoId: string;
-          width?: string;
-          height?: string;
-          playerVars?: Record<string, string | number>;
-          events?: {
-            onReady?: (event: YouTubePlayerEvent) => void;
-            onStateChange?: (event: YouTubePlayerEvent) => void;
-          };
-        },
-      ) => YouTubePlayer;
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-let youTubeApiPromise: Promise<void> | null = null;
-
-function loadYouTubeIframeApi() {
-  if (typeof window === "undefined") return Promise.reject(new Error("YouTube player unavailable"));
-  if (window.YT?.Player) return Promise.resolve();
-  if (youTubeApiPromise) return youTubeApiPromise;
-
-  youTubeApiPromise = new Promise<void>((resolve, reject) => {
-    const previousReady = window.onYouTubeIframeAPIReady;
-    const timeout = window.setTimeout(() => {
-      youTubeApiPromise = null;
-      reject(new Error("YouTube player timed out"));
-    }, 10000);
-
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.();
-      window.clearTimeout(timeout);
-      resolve();
-    };
-
-    const existing = document.querySelector<HTMLScriptElement>('script[src="https://www.youtube.com/iframe_api"]');
-    if (existing) return;
-
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    tag.async = true;
-    tag.onerror = () => {
-      window.clearTimeout(timeout);
-      youTubeApiPromise = null;
-      reject(new Error("YouTube player failed to load"));
-    };
-    document.head.appendChild(tag);
-  });
-
-  return youTubeApiPromise;
-}
-
-function getYouTubeVideoId(url?: string | null) {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes("youtu.be")) {
-      return parsed.pathname.split("/").filter(Boolean)[0] ?? null;
-    }
-    if (parsed.hostname.includes("youtube.com")) {
-      return parsed.searchParams.get("v");
-    }
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 function titleLooksBad(title: string | null | undefined): boolean {
@@ -182,120 +95,6 @@ function titleLooksBad(title: string | null | undefined): boolean {
   if (t.length <= 5 && /^\d+(?:\.\d+)?[KMB]?$/i.test(t)) return true;
   if (/^\d+(?:\.\d+)?[KMB]?\s+(views?|subscribers?)\b/i.test(t)) return true;
   return false;
-}
-
-function getYouTubeEmbed(url?: string | null, startSeconds = 0) {
-  if (!url) return null;
-  const id = getYouTubeVideoId(url);
-  if (!id) return null;
-  const start = Math.max(0, Math.floor(startSeconds));
-  const params = new URLSearchParams({
-    autoplay: start > 0 ? "1" : "0",
-    enablejsapi: "1",
-    rel: "0",
-  });
-  if (start > 0) params.set("start", String(start));
-  if (typeof window !== "undefined") params.set("origin", window.location.origin);
-  return `https://www.youtube.com/embed/${id}?${params.toString()}`;
-}
-
-function youTubeStateLabel(state?: number) {
-  switch (state) {
-    case 0:
-      return "ended";
-    case 1:
-      return "playing";
-    case 2:
-      return "paused";
-    case 3:
-      return "buffering";
-    case 5:
-      return "cued";
-    default:
-      return "idle";
-  }
-}
-
-const ARTIFACT_YOUTUBE_PIP_SS_PREFIX = "yb_artifact_youtube_pip_v1:";
-const PIP_HEADER_PX = 28;
-const PIP_MIN_W = 160;
-const PIP_MAX_W = 640;
-const PIP_VIEWPORT_PAD = 8;
-
-type ArtifactPipLayout = { left: number; top: number; width: number };
-
-function pipSessionKey(artifactId: string) {
-  return `${ARTIFACT_YOUTUBE_PIP_SS_PREFIX}${artifactId}`;
-}
-
-function pipTotalHeightPx(videoWidth: number) {
-  return PIP_HEADER_PX + (videoWidth * 9) / 16;
-}
-
-function readPipLayoutFromSession(artifactId: string): ArtifactPipLayout | null {
-  if (typeof sessionStorage === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(pipSessionKey(artifactId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<ArtifactPipLayout>;
-    if (
-      typeof parsed.left !== "number" ||
-      typeof parsed.top !== "number" ||
-      typeof parsed.width !== "number" ||
-      !Number.isFinite(parsed.left) ||
-      !Number.isFinite(parsed.top) ||
-      !Number.isFinite(parsed.width)
-    ) {
-      return null;
-    }
-    return { left: parsed.left, top: parsed.top, width: parsed.width };
-  } catch {
-    return null;
-  }
-}
-
-function writePipLayoutToSession(artifactId: string, layout: ArtifactPipLayout) {
-  try {
-    sessionStorage.setItem(pipSessionKey(artifactId), JSON.stringify(layout));
-  } catch {
-    /* ignore */
-  }
-}
-
-function defaultArtifactPipLayout(): ArtifactPipLayout {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  const w = Math.min(300, PIP_MAX_W, vw - PIP_VIEWPORT_PAD * 2);
-  const width = Math.max(PIP_MIN_W, w);
-  const totalH = pipTotalHeightPx(width);
-  return {
-    left: Math.max(PIP_VIEWPORT_PAD, vw - width - PIP_VIEWPORT_PAD),
-    top: Math.max(PIP_VIEWPORT_PAD, vh - totalH - PIP_VIEWPORT_PAD),
-    width,
-  };
-}
-
-function maxPipVideoWidthForTopLeft(left: number, top: number): number {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const byRight = vw - left - PIP_VIEWPORT_PAD;
-  const videoMaxH = vh - top - PIP_VIEWPORT_PAD - PIP_HEADER_PX;
-  const byBottom = videoMaxH > 0 ? (videoMaxH * 16) / 9 : PIP_MIN_W;
-  return Math.floor(Math.min(PIP_MAX_W, byRight, byBottom, vw - PIP_VIEWPORT_PAD * 2));
-}
-
-function clampArtifactPipLayout(layout: ArtifactPipLayout): ArtifactPipLayout {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  let width = Math.min(Math.max(layout.width, PIP_MIN_W), PIP_MAX_W);
-  const maxW = maxPipVideoWidthForTopLeft(layout.left, layout.top);
-  width = Math.min(width, Math.max(PIP_MIN_W, maxW));
-  const totalH = pipTotalHeightPx(width);
-  let left = layout.left;
-  let top = layout.top;
-  left = Math.min(Math.max(PIP_VIEWPORT_PAD, left), vw - width - PIP_VIEWPORT_PAD);
-  top = Math.min(Math.max(PIP_VIEWPORT_PAD, top), vh - totalH - PIP_VIEWPORT_PAD);
-  return { left, top, width };
 }
 
 function withYouTubeTimestamp(url: string | null | undefined, seconds: number) {
@@ -582,30 +381,17 @@ export default function ArtifactDetailPage() {
   const [bookmarkLabel, setBookmarkLabel] = useState("");
   const [noteBody, setNoteBody] = useState("");
   const [savingMoment, setSavingMoment] = useState(false);
-  const [playerReady, setPlayerReady] = useState(false);
-  const [playerFailed, setPlayerFailed] = useState(false);
-  const [playerState, setPlayerState] = useState("idle");
   const [quickBeliefOpen, setQuickBeliefOpen] = useState(false);
   const [quickBeliefText, setQuickBeliefText] = useState("");
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
-  const youtubePlayerContainerRef = useRef<HTMLDivElement | null>(null);
-  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
-  const videoSlotRef = useRef<HTMLDivElement | null>(null);
-  /** Left column scroll container on `lg` split layout; used as IntersectionObserver root for PIP. */
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
-  const [pipMode, setPipMode] = useState(false);
-  const [pipLayout, setPipLayout] = useState<ArtifactPipLayout | null>(null);
-  const pipLayoutRef = useRef<ArtifactPipLayout | null>(null);
-  pipLayoutRef.current = pipLayout;
-  type PipPointerSession =
-    | { kind: "drag"; pointerId: number; startX: number; startY: number; startL: number; startT: number; width: number }
-    | { kind: "resize"; pointerId: number; startX: number; startY: number; startL: number; startT: number; startW: number };
-  const pipPointerRef = useRef<PipPointerSession | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const repairedRef = useRef(false);
   const lastBookmarkJournalInsertAtRef = useRef(0);
   const youtubeChapterSyncSessionRef = useRef<Set<string>>(new Set());
+  const youtubeChapterGenSessionRef = useRef<Set<string>>(new Set());
+  const [generatingChapters, setGeneratingChapters] = useState(false);
   const createProcessingToken = () => crypto.randomUUID();
 
   const fetchYouTubeMeta = useCallback(async (videoUrl: string): Promise<ArtifactMetadata | null> => {
@@ -677,6 +463,24 @@ export default function ArtifactDetailPage() {
     if (!momentError) setMoments(((momentRows as unknown) as ArtifactMoment[]) ?? []);
   };
 
+  const patchArtifactMetadata = useCallback(async (artifactId: string) => {
+    const { data } = await supabase
+      .from("artifacts")
+      .select("metadata,title")
+      .eq("id", artifactId)
+      .maybeSingle();
+    if (!data) return;
+    setA((prev) =>
+      prev
+        ? {
+            ...prev,
+            metadata: (data.metadata as ArtifactMetadata | null) ?? prev.metadata,
+            title: data.title ?? prev.title,
+          }
+        : prev,
+    );
+  }, []);
+
   useEffect(() => {
     if (!user || !id) return;
     load();
@@ -721,14 +525,17 @@ export default function ArtifactDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [a, fetchYouTubeMeta, liveMeta]);
+  }, [a?.id, a?.kind, a?.url, a?.title, fetchYouTubeMeta, liveMeta]);
+
+  const youtubeChapterCount = useMemo(() => {
+    const ch = (a?.metadata as ArtifactMetadata | undefined)?.youtube_chapters;
+    return Array.isArray(ch) ? ch.length : 0;
+  }, [a?.metadata]);
 
   useEffect(() => {
     if (!a || a.kind !== "youtube" || !a.url || !user) return;
     if (a.status === "fetching" || a.status === "transcribing") return;
-    const meta = (a.metadata ?? {}) as ArtifactMetadata;
-    const existing = meta.youtube_chapters;
-    if (Array.isArray(existing) && existing.length > 0) return;
+    if (youtubeChapterCount > 0) return;
     if (youtubeChapterSyncSessionRef.current.has(a.id)) return;
     youtubeChapterSyncSessionRef.current.add(a.id);
     let cancelled = false;
@@ -736,17 +543,41 @@ export default function ArtifactDetailPage() {
       const { error } = await supabase.functions.invoke("framework-sync-youtube-chapters", {
         body: { artifact_id: a.id },
       });
-      if (cancelled) return;
-      if (error) {
-        return;
-      }
-      await load();
+      if (cancelled || error) return;
+      await patchArtifactMetadata(a.id);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [a?.id, a?.kind, a?.url, a?.status, a?.metadata, user]);
+  }, [a?.id, a?.kind, a?.url, a?.status, patchArtifactMetadata, user, youtubeChapterCount]);
+
+  useEffect(() => {
+    if (!a || a.kind !== "youtube" || !user) return;
+    if (a.status !== "ready") return;
+    const text = a.raw_text?.trim() ?? "";
+    if (text.length < 200) return;
+    if (youtubeChapterCount > 0) return;
+    if (youtubeChapterGenSessionRef.current.has(a.id)) return;
+    youtubeChapterGenSessionRef.current.add(a.id);
+    let cancelled = false;
+    (async () => {
+      setGeneratingChapters(true);
+      try {
+        const { error } = await supabase.functions.invoke("framework-generate-chapters", {
+          body: { artifact_id: a.id },
+        });
+        if (cancelled || error) return;
+        await patchArtifactMetadata(a.id);
+      } catch {
+        /* optional — user can tap Generate chapters */
+      } finally {
+        if (!cancelled) setGeneratingChapters(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [a?.id, a?.kind, a?.status, a?.raw_text, patchArtifactMetadata, user, youtubeChapterCount]);
 
   // Poll while any in-flight stage is running.
   const inFlight = !!a && ["fetching", "transcribing", "analyzing"].includes(a.status);
@@ -789,219 +620,50 @@ export default function ArtifactDetailPage() {
     }, {} as Record<string, TranscriptSegment | null>);
   }, [claims, transcriptSegments]);
 
-  const { mergedVideoMeta, artifactMetadata, youtubeChaptersList } = useMemo(() => {
+  const { mergedVideoMeta, artifactMetadata, youtubeChaptersList, youtubeChaptersSource } = useMemo(() => {
     const am = (a?.metadata ?? {}) as ArtifactMetadata;
     const merged = { ...am, ...(liveMeta ?? {}) } as ArtifactMetadata;
     return {
       artifactMetadata: am,
       mergedVideoMeta: merged,
       youtubeChaptersList: merged.youtube_chapters ?? [],
+      youtubeChaptersSource: merged.youtube_chapters_source ?? null,
     };
   }, [a?.metadata, liveMeta]);
+
+  const youtubeChaptersSourceLabel = useMemo(() => {
+    switch (youtubeChaptersSource) {
+      case "youtube_data_api_v3":
+      case "watch_player_response":
+        return "From the creator's video description (same as YouTube).";
+      case "transcript_ai":
+        return "Generated from your transcript — major topic shifts outlined by AI.";
+      case "transcript_heuristic":
+        return "Generated from timed transcript — evenly spaced sections with opening lines as titles.";
+      default:
+        return null;
+    }
+  }, [youtubeChaptersSource]);
 
   const claimChapterLayout = useMemo(
     () => groupClaimsUnderYoutubeChapters(claims, claimSources, youtubeChaptersList),
     [claims, claimSources, youtubeChaptersList],
   );
 
-  const youTubeVideoId = useMemo(() => (a?.kind === "youtube" ? getYouTubeVideoId(a.url) : null), [a?.kind, a?.url]);
-  const embedUrl = useMemo(
-    () => (a?.kind === "youtube" ? getYouTubeEmbed(a.url, videoStartSeconds) : null),
-    [a?.kind, a?.url, videoStartSeconds],
-  );
+  const youTubeVideoId = useMemo(() => {
+    if (a?.kind !== "youtube") return null;
+    const fromUrl = getYouTubeVideoId(a.url);
+    if (fromUrl) return fromUrl;
+    const fromMeta = artifactMetadata.video_id?.trim();
+    return fromMeta || null;
+  }, [a?.kind, a?.url, artifactMetadata.video_id]);
 
-  useEffect(() => {
-    if (!youTubeVideoId || !youtubePlayerContainerRef.current) {
-      setPlayerReady(false);
-      return;
-    }
-
-    let cancelled = false;
-    setPlayerReady(false);
-    setPlayerFailed(false);
-    setPlayerState("loading");
-
-    loadYouTubeIframeApi()
-      .then(() => {
-        if (cancelled || !youtubePlayerContainerRef.current || !window.YT?.Player) return;
-        const player = new window.YT.Player(youtubePlayerContainerRef.current, {
-          videoId: youTubeVideoId,
-          width: "100%",
-          height: "100%",
-          playerVars: {
-            autoplay: videoStartSeconds > 0 ? 1 : 0,
-            enablejsapi: 1,
-            rel: 0,
-            start: Math.max(0, Math.floor(videoStartSeconds)),
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: () => {
-              if (cancelled) return;
-              youtubePlayerRef.current = player;
-              setPlayerReady(true);
-              setPlayerState("ready");
-            },
-            onStateChange: (event) => setPlayerState(youTubeStateLabel(event.data)),
-          },
-        });
-        youtubePlayerRef.current = player;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setPlayerFailed(true);
-        setPlayerState("unavailable");
-      });
-
-    return () => {
-      cancelled = true;
-      setPlayerReady(false);
-      const player = youtubePlayerRef.current;
-      youtubePlayerRef.current = null;
-      player?.destroy();
-    };
-    // Create the player once per video; seeking is handled imperatively.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [youTubeVideoId]);
-
-  useEffect(() => {
-    if (!embedUrl) {
-      setPipMode(false);
-      return;
-    }
-
-    let io: IntersectionObserver | null = null;
-
-    const attach = () => {
-      const target = videoSlotRef.current;
-      if (!target) return;
-      io?.disconnect();
-      const scrollRoot = mainScrollRef.current;
-      const root =
-        scrollRoot && window.matchMedia("(min-width: 1024px)").matches ? scrollRoot : null;
-      io = new IntersectionObserver(
-        ([entry]) => setPipMode(!entry.isIntersecting),
-        { threshold: 0, root },
-      );
-      io.observe(target);
-    };
-
-    attach();
-    const raf = window.requestAnimationFrame(attach);
-    window.addEventListener("resize", attach);
-    return () => {
-      window.cancelAnimationFrame(raf);
-      io?.disconnect();
-      window.removeEventListener("resize", attach);
-    };
-  }, [embedUrl]);
-
-  useEffect(() => {
-    if (!id) return;
-    const saved = readPipLayoutFromSession(id);
-    setPipLayout(saved ? clampArtifactPipLayout(saved) : null);
-  }, [id]);
-
-  useEffect(() => {
-    if (!pipMode || !id) return;
-    setPipLayout((prev) =>
-      prev == null ? clampArtifactPipLayout(defaultArtifactPipLayout()) : clampArtifactPipLayout(prev),
-    );
-  }, [pipMode, id]);
-
-  useEffect(() => {
-    if (!pipMode || !id) return;
-    const onResize = () => {
-      setPipLayout((prev) => {
-        const base = prev ?? defaultArtifactPipLayout();
-        const next = clampArtifactPipLayout(base);
-        writePipLayoutToSession(id, next);
-        return next;
-      });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [pipMode, id]);
-
-  const onPipDragHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !id) return;
-    const current = clampArtifactPipLayout(pipLayoutRef.current ?? defaultArtifactPipLayout());
-    setPipLayout(current);
-    writePipLayoutToSession(id, current);
-    pipPointerRef.current = {
-      kind: "drag",
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startL: current.left,
-      startT: current.top,
-      width: current.width,
-    };
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, [id]);
-
-  const onPipDragHeaderPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const s = pipPointerRef.current;
-    if (!s || s.kind !== "drag" || s.pointerId !== e.pointerId || !id) return;
-    const next = clampArtifactPipLayout({
-      left: s.startL + (e.clientX - s.startX),
-      top: s.startT + (e.clientY - s.startY),
-      width: s.width,
-    });
-    setPipLayout(next);
-    writePipLayoutToSession(id, next);
-  }, [id]);
-
-  const onPipDragHeaderPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const s = pipPointerRef.current;
-    if (s?.pointerId === e.pointerId) pipPointerRef.current = null;
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* already released */
-    }
-  }, []);
-
-  const onPipResizePointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0 || !id) return;
-    e.stopPropagation();
-    const current = clampArtifactPipLayout(pipLayoutRef.current ?? defaultArtifactPipLayout());
-    setPipLayout(current);
-    writePipLayoutToSession(id, current);
-    pipPointerRef.current = {
-      kind: "resize",
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startL: current.left,
-      startT: current.top,
-      startW: current.width,
-    };
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, [id]);
-
-  const onPipResizePointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    const s = pipPointerRef.current;
-    if (!s || s.kind !== "resize" || s.pointerId !== e.pointerId || !id) return;
-    const dw = e.clientX - s.startX;
-    const maxW = maxPipVideoWidthForTopLeft(s.startL, s.startT);
-    const w = Math.min(Math.max(PIP_MIN_W, s.startW + dw), maxW);
-    const next = clampArtifactPipLayout({ left: s.startL, top: s.startT, width: w });
-    setPipLayout(next);
-    writePipLayoutToSession(id, next);
-  }, [id]);
-
-  const onPipResizePointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    const s = pipPointerRef.current;
-    if (s?.pointerId === e.pointerId) pipPointerRef.current = null;
-    try {
-      (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* noop */
-    }
-  }, []);
+  const embedSrc = useMemo(() => {
+    if (!youTubeVideoId) return null;
+    const start = Math.max(0, Math.floor(videoStartSeconds));
+    if (start > 0) return `https://www.youtube.com/embed/${youTubeVideoId}?start=${start}`;
+    return `https://www.youtube.com/embed/${youTubeVideoId}`;
+  }, [youTubeVideoId, videoStartSeconds]);
 
   useEffect(() => {
     if (!a?.id) {
@@ -1018,9 +680,7 @@ export default function ArtifactDetailPage() {
     };
   }, [a?.id, a?.title, a?.kind]);
 
-  const canCapturePlaybackForJournal = Boolean(
-    embedUrl && playerReady && !playerFailed && a?.kind === "youtube",
-  );
+  const canCapturePlaybackForJournal = Boolean(youTubeVideoId && a?.kind === "youtube");
 
   useEffect(() => {
     if (!a || a.kind !== "youtube") {
@@ -1028,22 +688,13 @@ export default function ArtifactDetailPage() {
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
       return;
     }
-    floatingJournalPlaybackRef.current = () => {
-      const current = youtubePlayerRef.current?.getCurrentTime?.();
-      if (typeof current === "number" && Number.isFinite(current)) return Math.max(0, Math.floor(current));
-      return Math.max(0, Math.floor(videoStartSeconds));
-    };
+    floatingJournalPlaybackRef.current = () => Math.max(0, Math.floor(videoStartSeconds));
     useFloatingJournalStore.getState().setPlaybackCaptureAvailable(canCapturePlaybackForJournal);
     return () => {
       floatingJournalPlaybackRef.current = null;
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
     };
   }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, videoStartSeconds]);
-
-  const pipChromeLayout = useMemo(() => {
-    if (!pipMode) return null;
-    return clampArtifactPipLayout(pipLayout ?? defaultArtifactPipLayout());
-  }, [pipMode, pipLayout]);
 
   const normalizedPastePreview = useMemo(
     () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
@@ -1142,6 +793,35 @@ export default function ArtifactDetailPage() {
     });
   };
 
+  const generateChaptersFromTranscript = async (force = false) => {
+    if (!a || a.kind !== "youtube") return;
+    setGeneratingChapters(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("framework-generate-chapters", {
+        body: { artifact_id: a.id, force },
+      });
+      if (error) throw error;
+      const payload = data as { error?: string; skipped?: boolean; count?: number } | null;
+      if (payload?.error) throw new Error(payload.error);
+      await patchArtifactMetadata(a.id);
+      if (payload?.skipped) {
+        toast({ title: "Chapters already present" });
+      } else {
+        toast({
+          title: "Chapters generated",
+          description:
+            payload?.count != null
+              ? `${payload.count} sections — Re-analyze to extract claims per chapter.`
+              : "Re-analyze to extract claims per chapter.",
+        });
+      }
+    } catch {
+      toast({ title: "Could not generate chapters", variant: "destructive" });
+    } finally {
+      setGeneratingChapters(false);
+    }
+  };
+
   const retryFetch = async () => {
     if (!a.url) return;
     const processingToken = createProcessingToken();
@@ -1193,7 +873,7 @@ export default function ArtifactDetailPage() {
         }
       : null;
   const claimsDigest = claims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
-  const canCaptureMoments = !!embedUrl && playerReady && !playerFailed;
+  const canCaptureMoments = Boolean(youTubeVideoId);
 
   const copyTranscript = async () => {
     if (!displayTranscriptText) return;
@@ -1201,11 +881,7 @@ export default function ArtifactDetailPage() {
     toast({ title: "Transcript copied" });
   };
 
-  const getCurrentPlaybackSeconds = () => {
-    const current = youtubePlayerRef.current?.getCurrentTime?.();
-    if (typeof current === "number" && Number.isFinite(current)) return Math.max(0, Math.floor(current));
-    return Math.max(0, Math.floor(videoStartSeconds));
-  };
+  const getCurrentPlaybackSeconds = () => Math.max(0, Math.floor(videoStartSeconds));
 
   const scrollTranscriptToSeconds = (seconds: number) => {
     const source = transcriptSegments
@@ -1217,10 +893,6 @@ export default function ArtifactDetailPage() {
   const seekVideoToSeconds = (seconds: number) => {
     const start = Math.max(0, Math.floor(seconds));
     setVideoStartSeconds(start);
-    if (playerReady && youtubePlayerRef.current) {
-      youtubePlayerRef.current.seekTo(start, true);
-      youtubePlayerRef.current.playVideo?.();
-    }
     scrollTranscriptToSeconds(start);
   };
 
@@ -1545,7 +1217,7 @@ export default function ArtifactDetailPage() {
             <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPasteOpen(true)}>
               <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript
             </Button>
-          )},
+          )}
           {a.kind === "youtube" && a.status === "ready" && (
             <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setWrapUpOpen(true)}>
               Wrap up
@@ -1568,7 +1240,7 @@ export default function ArtifactDetailPage() {
           aria-label="On this page"
           className="sticky top-0 z-[15] flex flex-wrap gap-1 rounded-lg border border-border bg-background/95 px-2 py-2 text-[11px] shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85"
         >
-          {embedUrl ? (
+          {youTubeVideoId ? (
             <a href="#video" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
               Video
             </a>
@@ -1591,14 +1263,14 @@ export default function ArtifactDetailPage() {
               Claims
             </a>
           ) : null}
-          {embedUrl ? (
+          {youTubeVideoId ? (
             <a href="#capture" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
               Capture
             </a>
           ) : null}
         </nav>
       )}
-      {a.kind === "youtube" && (() => {
+      {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
           ...(liveMeta ?? {}),
           ...Object.fromEntries(Object.entries(artifactMetadata).filter(([, v]) => v != null && v !== "")),
@@ -1714,100 +1386,26 @@ export default function ArtifactDetailPage() {
         </div>
       )}
 
-      {embedUrl && (
+      {youTubeVideoId && (
         <section id="video" className="scroll-mt-24 mb-5 rounded-lg border border-border bg-card p-3 lg:mb-0">
           <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Youtube className="w-4 h-4 text-red-600" /> Video
-              <span className="ml-auto text-xs font-normal text-muted-foreground">
-                {playerFailed ? "static embed" : playerReady ? playerState : "loading controls"}
-              </span>
             </div>
-            <div ref={videoSlotRef} className="relative aspect-video w-full">
-              <div
-                className={
-                  pipMode && pipChromeLayout
-                    ? "fixed z-[60] flex flex-col overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15 [&>iframe]:h-full [&>iframe]:w-full"
-                    : "absolute inset-0 overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full"
-                }
-                style={
-                  pipMode && pipChromeLayout
-                    ? {
-                        left: pipChromeLayout.left,
-                        top: pipChromeLayout.top,
-                        width: pipChromeLayout.width,
-                        height: pipTotalHeightPx(pipChromeLayout.width),
-                      }
-                    : undefined
-                }
-              >
-                {pipMode && (
-                  <div
-                    className="flex h-7 shrink-0 cursor-grab touch-none select-none items-center gap-1.5 bg-black/85 pl-2 pr-1 text-white/90 active:cursor-grabbing"
-                    onPointerDown={onPipDragHeaderPointerDown}
-                    onPointerMove={onPipDragHeaderPointerMove}
-                    onPointerUp={onPipDragHeaderPointerUp}
-                    onPointerCancel={onPipDragHeaderPointerUp}
-                  >
-                    <GripVertical className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
-                    <span className="flex-1 truncate text-[10px] font-medium uppercase tracking-wider text-white/75">
-                      Drag to move
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      aria-label="Restore video to original position"
-                      className="shrink-0 rounded-full bg-black/70 p-1 text-white shadow hover:bg-black/90"
-                    >
-                      <Maximize2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-                <div
-                  className={
-                    pipMode && pipChromeLayout
-                      ? "relative w-full shrink-0 bg-black [&>iframe]:h-full [&>iframe]:w-full"
-                      : "h-full w-full"
-                  }
-                  style={
-                    pipMode && pipChromeLayout
-                      ? { height: (pipChromeLayout.width * 9) / 16 }
-                      : undefined
-                  }
-                >
-                  {playerFailed ? (
-                    <iframe
-                      title="YouTube video"
-                      src={embedUrl}
-                      className="h-full w-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div ref={youtubePlayerContainerRef} className="h-full w-full" />
-                  )}
+            <div className="aspect-video w-full overflow-hidden rounded border border-border bg-card">
+              {embedSrc ? (
+                <iframe
+                  key={youTubeVideoId}
+                  title="YouTube video"
+                  src={embedSrc}
+                  className="h-full w-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="flex h-full min-h-[12rem] items-center justify-center text-xs text-muted-foreground">
+                  Video unavailable
                 </div>
-                {pipMode && (
-                  <button
-                    type="button"
-                    aria-label="Resize video"
-                    className="absolute bottom-0 right-0 z-[60] h-7 w-7 cursor-nwse-resize touch-none rounded-tl-md border border-white/20 bg-black/55 hover:bg-black/75"
-                    onPointerDown={onPipResizePointerDown}
-                    onPointerMove={onPipResizePointerMove}
-                    onPointerUp={onPipResizePointerUp}
-                    onPointerCancel={onPipResizePointerUp}
-                  />
-                )}
-              </div>
-              {pipMode && (
-                <button
-                  type="button"
-                  onClick={() => videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                  className="absolute inset-0 flex items-center justify-center rounded bg-muted/70 text-xs text-muted-foreground transition hover:bg-muted"
-                >
-                  <span className="rounded-full border bg-background/90 px-3 py-1 shadow">Tap to bring video back</span>
-                </button>
               )}
             </div>
           </div>
@@ -1817,14 +1415,9 @@ export default function ArtifactDetailPage() {
               <div>
                 <div className="text-sm font-medium">Capture while watching</div>
                 <p className="text-xs text-muted-foreground">
-                  Save bookmarks, notes, and belief seeds at the current playback time.
+                  Save bookmarks, notes, and belief seeds. Timestamps follow chapter jumps and transcript seeks.
                 </p>
               </div>
-              {!canCaptureMoments && (
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {playerFailed ? "Player controls are blocked, so moment capture is disabled." : "Moment capture enables when the player is ready."}
-                </span>
-              )}
             </div>
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -1862,7 +1455,7 @@ export default function ArtifactDetailPage() {
                     </Button>
                     <Button
                       onClick={openStudyJournal}
-                      title="Floating study journal on this page (timestamp inserts when the player is ready)"
+                      title="Floating study journal on this page (timestamp inserts use the last chapter jump)"
                     >
                       <NotebookPen className="mr-1 h-3.5 w-3.5" /> Study journal
                     </Button>
@@ -1924,16 +1517,41 @@ export default function ArtifactDetailPage() {
         <section id="chapters" className="scroll-mt-24 mb-5 rounded-lg border border-border bg-card p-4">
           {a.status === "ready" && (
             <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">Chapters</span> come from timestamp lines in the creator&apos;s description (same source YouTube uses). They help you jump; they are not generated by our AI.
+              {youtubeChaptersSourceLabel ?? (
+                <>
+                  <span className="font-medium text-foreground">Chapters</span> help you jump through the talk. We use the creator&apos;s description timestamps when available; otherwise we outline sections from your transcript.
+                </>
+              )}
             </p>
           )}
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-medium">
             <LayoutList className="h-4 w-4 text-muted-foreground" aria-hidden />
             Chapters
             {youtubeChaptersList.length > 0 && (
-              <span className="ml-auto text-xs font-normal text-muted-foreground tabular-nums">
+              <span className="text-xs font-normal text-muted-foreground tabular-nums">
                 {youtubeChaptersList.length} section{youtubeChaptersList.length === 1 ? "" : "s"}
               </span>
+            )}
+            {a.status === "ready" && a.raw_text && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="ml-auto h-7 text-xs"
+                disabled={generatingChapters || inFlight}
+                onClick={() => generateChaptersFromTranscript(youtubeChaptersList.length > 0)}
+              >
+                {generatingChapters ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-3.5 w-3.5" />
+                )}
+                {generatingChapters
+                  ? "Generating…"
+                  : youtubeChaptersList.length > 0
+                    ? "Regenerate"
+                    : "Generate from transcript"}
+              </Button>
             )}
           </div>
           {youtubeChaptersList.length > 0 ? (
@@ -1958,9 +1576,13 @@ export default function ArtifactDetailPage() {
               ))}
             </div>
           ) : a.status === "ready" ? (
-            <p className="text-xs text-muted-foreground">No chapters detected in the video description.</p>
+            <p className="text-xs text-muted-foreground">
+              {generatingChapters
+                ? "Outlining sections from your transcript…"
+                : "No chapters yet. Tap Generate from transcript, or wait — we try automatically when the transcript is ready."}
+            </p>
           ) : (
-            <p className="text-xs text-muted-foreground">Chapters appear when the video description includes timestamps.</p>
+            <p className="text-xs text-muted-foreground">Chapters appear after the transcript is ready.</p>
           )}
         </section>
       )}
@@ -1972,7 +1594,7 @@ export default function ArtifactDetailPage() {
             Study spine: Teachings
           </div>
           <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-            This video has no description chapters, so we lean on extracted <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Use{" "}
+            This video has no chapter outline yet, so we lean on extracted <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Generate chapters above for section jumps, or use{" "}
             <a href="#capture" className="font-medium text-foreground underline-offset-2 hover:underline">
               Capture
             </a>{" "}
@@ -2114,8 +1736,8 @@ export default function ArtifactDetailPage() {
               segments={transcriptSegments}
               timed={transcriptTimedLayout}
               coarseTimestampsOnly={transcriptCoarseOnly}
-              embedAvailable={Boolean(embedUrl) && !playerFailed}
-              playerReady={playerReady}
+              embedAvailable={Boolean(youTubeVideoId)}
+              playerReady={Boolean(youTubeVideoId)}
               getPlaybackSeconds={getCurrentPlaybackSeconds}
               onSeek={seekVideoToSeconds}
               onCopy={copyTranscript}
