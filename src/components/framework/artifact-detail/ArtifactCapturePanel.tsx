@@ -66,7 +66,7 @@ export default function ArtifactCapturePanel({
   return (
     <div
       id="capture"
-      className={cn(artifactScrollMt, "mt-5 rounded-xl p-4 sm:p-5", artifactInset)}
+      className={cn(artifactScrollMt, "mt-4 rounded-xl p-3 sm:mt-5 sm:p-4 md:p-5", artifactInset)}
     >
       <div className="mb-4 border-b border-border/40 pb-3">
         <h3 className="font-display text-sm font-normal text-foreground sm:text-base">Capture while watching</h3>
@@ -75,19 +75,19 @@ export default function ArtifactCapturePanel({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="flex flex-col gap-5 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-4">
         <div className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               value={bookmarkLabel}
               onChange={(e) => onBookmarkLabelChange(e.target.value)}
               placeholder="Optional bookmark label"
               disabled={!canCapture || saving}
-              className="h-9"
+              className="h-9 w-full min-w-0"
             />
             <Button
               variant="outline"
-              className="h-9 shrink-0"
+              className="h-9 w-full shrink-0 sm:w-auto"
               onClick={onBookmark}
               disabled={!canCapture || saving}
             >
@@ -102,27 +102,40 @@ export default function ArtifactCapturePanel({
             rows={3}
             placeholder="Add a note at the current moment…"
             disabled={!canCapture || saving}
+            className="w-full min-w-0"
           />
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-1.5 lg:flex lg:flex-wrap lg:items-center">
             <Button
               size="sm"
+              className="w-full sm:w-auto"
               onClick={onSaveNote}
               disabled={!canCapture || saving || !noteBody.trim()}
             >
               <StickyNote className="mr-1 h-3.5 w-3.5" aria-hidden />
               Save note
             </Button>
-            <Button size="sm" variant="outline" onClick={onBelieve} disabled={!canCapture || saving}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={onBelieve}
+              disabled={!canCapture || saving}
+            >
               <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />
               I believe this
             </Button>
-            <Button size="sm" variant="secondary" onClick={onStudyJournal}>
+            <Button size="sm" variant="secondary" className="w-full sm:w-auto" onClick={onStudyJournal}>
               <NotebookPen className="mr-1 h-3.5 w-3.5" aria-hidden />
               Study journal
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-muted-foreground">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full gap-1 px-2 text-xs text-muted-foreground sm:w-auto"
+                >
                   <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
                   More
                 </Button>
@@ -139,12 +152,12 @@ export default function ArtifactCapturePanel({
           </div>
         </div>
 
-        <div className="min-h-[8rem] rounded-xl bg-background/50 p-3 ring-1 ring-border/40">
+        <div className="min-h-[6rem] rounded-xl bg-background/50 p-3 ring-1 ring-border/40 sm:min-h-[8rem]">
           <p className={cn(sectionLabel, "mb-2")}>Saved moments</p>
           {moments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No moments yet — bookmark or note while you watch.</p>
           ) : (
-            <div className="flex max-h-52 flex-wrap gap-1.5 overflow-auto pr-0.5">
+            <div className="flex max-h-48 flex-wrap gap-1.5 overflow-auto pr-0.5 sm:max-h-52">
               {moments.map((moment) => (
                 <button
                   key={moment.id}
@@ -153,7 +166,7 @@ export default function ArtifactCapturePanel({
                   disabled={!canCapture}
                   className="inline-flex max-w-full flex-col items-start rounded-full border border-border/70 bg-card px-2.5 py-1 text-left text-xs transition hover:border-primary/40 hover:bg-muted/40 disabled:opacity-50"
                 >
-                  <span className="font-mono tabular-nums text-[10px] text-muted-foreground">
+                  <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
                     {formatTranscriptClock(moment.start_seconds)}
                   </span>
                   <span className="truncate font-medium text-foreground">

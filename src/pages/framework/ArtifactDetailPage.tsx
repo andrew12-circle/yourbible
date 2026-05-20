@@ -1164,6 +1164,19 @@ export default function ArtifactDetailPage() {
     if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds);
   };
 
+  const bookmarkAtSeconds = async (seconds: number, label?: string | null) => {
+    const t = Math.max(0, Math.floor(seconds));
+    const saved = await saveMoment("bookmark", {
+      label: label ?? bookmarkLabel,
+      startSeconds: t,
+      toastDescription: label?.trim()
+        ? `Bookmarked at ${formatTranscriptClock(t)}`
+        : null,
+    });
+    if (saved && label?.trim()) return;
+    if (saved) setBookmarkLabel("");
+  };
+
   const bookmarkCurrentMoment = async () => {
     const t = getCurrentPlaybackSeconds();
     const t0 = Math.max(0, t - 10);
@@ -1525,12 +1538,12 @@ export default function ArtifactDetailPage() {
       ) : null}
 
       <div
-        className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
+        className={cn(
+          "space-y-6 lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-6",
+          artifactSplitPaneHeightClass,
+        )}
       >
-        <div
-          ref={mainScrollRef}
-          className="scrollbar-hover-thin min-h-0 space-y-6 lg:col-span-8 lg:overflow-y-auto lg:pr-1"
-        >
+        <div ref={mainScrollRef} className="min-w-0 space-y-5 sm:space-y-6 lg:col-span-8 lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin">
       <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
@@ -1924,7 +1937,7 @@ export default function ArtifactDetailPage() {
         </div>
 
         <aside
-          className="mt-8 min-h-0 lg:col-span-4 lg:mt-0 lg:flex lg:h-full lg:flex-col lg:overflow-hidden lg:pl-0.5"
+          className="min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pl-0.5"
           aria-label="Transcript"
         >
           {a.raw_text && (
@@ -1935,8 +1948,12 @@ export default function ArtifactDetailPage() {
               coarseTimestampsOnly={transcriptCoarseOnly}
               embedAvailable={Boolean(youTubeVideoId)}
               playerReady={youtubePlayer.playerReady}
+              isPlaying={youtubePlayer.isPlaying}
               getPlaybackSeconds={getCurrentPlaybackSeconds}
               onSeek={seekVideoToSeconds}
+              canBookmark={canCaptureMoments}
+              bookmarking={savingMoment}
+              onBookmarkSegment={(seconds, snippet) => void bookmarkAtSeconds(seconds, snippet)}
               onCopy={copyTranscript}
               onJournal={() => openJournalFromArtifact()}
               fullPageJournalLabel="Full-page journal"

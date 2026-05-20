@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Bookmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TranscriptToolbar from "@/components/framework/artifact-detail/TranscriptToolbar";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -53,8 +53,12 @@ export interface TranscriptPanelProps {
   coarseTimestampsOnly: boolean;
   embedAvailable: boolean;
   playerReady: boolean;
+  isPlaying?: boolean;
   getPlaybackSeconds: () => number;
   onSeek: (seconds: number) => void;
+  canBookmark?: boolean;
+  bookmarking?: boolean;
+  onBookmarkSegment?: (seconds: number, snippet: string) => void;
   onCopy: () => void;
   onJournal: () => void;
   fullPageJournalLabel?: string;
@@ -74,8 +78,12 @@ export default function TranscriptPanel({
   coarseTimestampsOnly,
   embedAvailable,
   playerReady,
+  isPlaying = false,
   getPlaybackSeconds,
   onSeek,
+  canBookmark,
+  bookmarking,
+  onBookmarkSegment,
   onCopy,
   onJournal,
   fullPageJournalLabel = "Journal this",
@@ -94,8 +102,9 @@ export default function TranscriptPanel({
   const [playbackTick, setPlaybackTick] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const lastAutoScrolledId = useRef<string | null>(null);
+  const prevActiveSegmentIdRef = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const q = search.trim();
@@ -143,8 +152,15 @@ export default function TranscriptPanel({
 
   useEffect(() => {
     if (!playerReady) return;
-    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), 300);
+    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), 250);
     return () => window.clearInterval(id);
+  }, [playerReady]);
+
+  const defaultedFollowOnReadyRef = useRef(false);
+  useEffect(() => {
+    if (!playerReady || defaultedFollowOnReadyRef.current) return;
+    defaultedFollowOnReadyRef.current = true;
+    setFollowPlayback(true);
   }, [playerReady]);
 
   const activeSegmentId = findActiveSegmentId(segments, getPlaybackSeconds());
@@ -159,25 +175,51 @@ export default function TranscriptPanel({
     [setSegmentRef],
   );
 
+  const markProgrammaticScroll = useCallback(() => {
+    programmaticScrollRef.current = true;
+    if (programmaticScrollTimerRef.current != null) {
+      window.clearTimeout(programmaticScrollTimerRef.current);
+    }
+    programmaticScrollTimerRef.current = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+      programmaticScrollTimerRef.current = null;
+    }, 600);
+  }, []);
+
   useEffect(() => {
     if (!playerReady || searchActive || !activeSegmentId || !highlightActive || !followPlayback) return;
-    if (lastAutoScrolledId.current === activeSegmentId) return;
-    lastAutoScrolledId.current = activeSegmentId;
+    if (!isPlaying) return;
+
+    const segmentChanged = prevActiveSegmentIdRef.current !== activeSegmentId;
+    prevActiveSegmentIdRef.current = activeSegmentId;
+
     const container = scrollContainerRef.current;
     const el = container?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
     if (!container || !el) return;
-    const containerHeight = container.clientHeight;
-    const offsetTop = el.offsetTop - container.offsetTop;
-    const target = Math.max(0, offsetTop - containerHeight / 2 + el.offsetHeight / 2);
-    programmaticScrollRef.current = true;
-    container.scrollTop = target;
-    window.requestAnimationFrame(() => {
-      programmaticScrollRef.current = false;
-    });
-  }, [playerReady, searchActive, activeSegmentId, highlightActive, followPlayback, playbackTick]);
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const edgeMargin = 56;
+    const inView =
+      elRect.top >= containerRect.top + edgeMargin &&
+      elRect.bottom <= containerRect.bottom - edgeMargin;
+    if (!segmentChanged && inView) return;
+
+    markProgrammaticScroll();
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [
+    playerReady,
+    searchActive,
+    activeSegmentId,
+    highlightActive,
+    followPlayback,
+    isPlaying,
+    playbackTick,
+    markProgrammaticScroll,
+  ]);
 
   useEffect(() => {
-    if (!searchActive) lastAutoScrolledId.current = null;
+    if (!searchActive) prevActiveSegmentIdRef.current = null;
   }, [searchActive]);
 
   useEffect(() => {
@@ -194,14 +236,20 @@ export default function TranscriptPanel({
   const seekFromSegment = useCallback(
     (seconds: number) => {
       setFollowPlayback(true);
-      lastAutoScrolledId.current = null;
+      prevActiveSegmentIdRef.current = null;
+      markProgrammaticScroll();
       onSeek(seconds);
     },
-    [onSeek],
+    [markProgrammaticScroll, onSeek],
   );
 
   return (
-    <section className={cn(artifactCard, "mb-5 p-3 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4")}>
+    <section
+      className={cn(
+        artifactCard,
+        "mb-5 p-3 sm:p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4",
+      )}
+    >
       {search.trim().length >= 3 && artifactId ? (
         <p className="mb-2 text-[11px] text-muted-foreground">
           {semanticLoading
@@ -224,7 +272,7 @@ export default function TranscriptPanel({
         onToggleFollowPlayback={() => {
           setFollowPlayback((v) => {
             const next = !v;
-            if (next) lastAutoScrolledId.current = null;
+            if (next) prevActiveSegmentIdRef.current = null;
             return next;
           });
         }}
@@ -250,7 +298,7 @@ export default function TranscriptPanel({
       <div
         ref={scrollContainerRef}
         className={cn(
-          "scrollbar-hover-thin max-h-[60vh] overflow-y-auto overflow-x-hidden lg:max-h-none lg:min-h-0 lg:flex-1",
+          "overflow-x-hidden lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto",
           artifactInset,
         )}
       >
@@ -322,10 +370,32 @@ export default function TranscriptPanel({
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
                     isActive ? "font-medium text-foreground" : "text-foreground/90",
                     !showTimestamps && "pl-1",
+                    canBookmark && onBookmarkSegment && segment.startSeconds != null && "pr-9 sm:pr-10",
                   )}
                 >
                   <HighlightedText text={segment.text} query={search} />
                 </p>
+                {canBookmark && onBookmarkSegment && segment.startSeconds != null ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "absolute right-1.5 top-2 h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground",
+                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
+                    )}
+                    disabled={bookmarking}
+                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
+                    title="Bookmark this line"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const snippet = segment.text.trim().slice(0, 120);
+                      onBookmarkSegment(segment.startSeconds!, snippet);
+                    }}
+                  >
+                    <Bookmark className="h-3.5 w-3.5" aria-hidden />
+                  </Button>
+                ) : null}
               </div>
             );
           })}

@@ -72,44 +72,56 @@ export default function FrameworkLayout({
       >
         <div
           className={cn(
-            "mx-auto flex gap-2 px-4 sm:gap-3 sm:px-5",
+            "mx-auto px-4 sm:px-5",
             headerLeading && immersive
-              ? "items-start py-3 sm:items-center sm:py-3.5"
-              : "items-center py-2.5 sm:py-3",
+              ? "flex flex-col gap-2 py-2.5 sm:flex-row sm:items-start sm:gap-3 sm:py-3.5"
+              : "flex items-center gap-2 py-2.5 sm:gap-3 sm:py-3",
             headerMax,
           )}
         >
-          <Link
-            to={back ?? "/"}
+          <div
             className={cn(
-              "shrink-0 rounded-lg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              immersive
-                ? "inline-flex items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
-                : "inline-flex h-9 w-9 items-center justify-center hover:bg-muted/50 hover:text-foreground",
+              "flex min-w-0 gap-2 sm:gap-3",
+              headerLeading && immersive ? "items-start" : "items-center flex-1",
             )}
-            aria-label={immersive ? "Back to artifacts" : "Back"}
           >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-            {immersive ? <span className="hidden sm:inline">Artifacts</span> : null}
-          </Link>
-          <div className="min-w-0 flex-1">
-            {headerLeading ? (
-              headerLeading
-            ) : title ? (
-              <h1
-                className={cn(
-                  "truncate tracking-tight text-foreground",
-                  immersive || studioLibrary
-                    ? "font-display text-xl font-normal sm:text-2xl"
-                    : "text-lg font-semibold sm:text-xl",
-                )}
-              >
-                {title}
-              </h1>
+            <Link
+              to={back ?? "/"}
+              className={cn(
+                "shrink-0 rounded-lg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                immersive
+                  ? "inline-flex items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
+                  : "inline-flex h-9 w-9 items-center justify-center hover:bg-muted/50 hover:text-foreground",
+              )}
+              aria-label={immersive ? "Back to artifacts" : "Back"}
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              {immersive ? <span className="hidden sm:inline">Artifacts</span> : null}
+            </Link>
+            <div className="min-w-0 flex-1">
+              {headerLeading ? (
+                headerLeading
+              ) : title ? (
+                <h1
+                  className={cn(
+                    "truncate tracking-tight text-foreground",
+                    immersive || studioLibrary
+                      ? "font-display text-xl font-normal sm:text-2xl"
+                      : "text-lg font-semibold sm:text-xl",
+                  )}
+                >
+                  {title}
+                </h1>
+              ) : null}
+            </div>
+            {headerActions && !(headerLeading && immersive) ? (
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+                {headerActions}
+              </div>
             ) : null}
           </div>
-          {headerActions ? (
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+          {headerActions && headerLeading && immersive ? (
+            <div className="flex shrink-0 items-center justify-end gap-1 pl-10 sm:pl-0 sm:gap-1.5">
               {headerActions}
             </div>
           ) : null}
@@ -163,7 +175,7 @@ export default function FrameworkLayout({
       <main
         className={cn(
           "mx-auto px-4 sm:px-5",
-          immersive ? "py-5 sm:py-6" : studioLibrary ? "py-5 sm:py-6" : "py-8 sm:py-10",
+          immersive ? "py-4 pr-12 pb-6 sm:py-6 sm:pr-14 sm:pb-8" : studioLibrary ? "py-5 sm:py-6" : "py-8 sm:py-10",
           contentClassName ?? "max-w-4xl",
         )}
       >

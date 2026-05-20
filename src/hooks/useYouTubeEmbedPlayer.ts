@@ -78,6 +78,7 @@ export function useYouTubeEmbedPlayer(options: {
   const playingRef = useRef(false);
   const resumeOnVisibleRef = useRef(false);
   const [ready, setReady] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const startRef = useRef(startSeconds);
   startRef.current = startSeconds;
 
@@ -120,6 +121,8 @@ export function useYouTubeEmbedPlayer(options: {
     }
     playerRef.current = null;
     mountedVideoIdRef.current = null;
+    playingRef.current = false;
+    setPlaying(false);
   }, []);
 
   useLayoutEffect(() => {
@@ -176,8 +179,12 @@ export function useYouTubeEmbedPlayer(options: {
               }
             },
             onStateChange: (e) => {
-              const playing = window.YT?.PlayerState?.PLAYING;
-              if (playing != null) playingRef.current = e.data === playing;
+              const playingState = window.YT?.PlayerState?.PLAYING;
+              if (playingState != null) {
+                const isPlaying = e.data === playingState;
+                playingRef.current = isPlaying;
+                setPlaying(isPlaying);
+              }
             },
           },
         });
@@ -284,13 +291,17 @@ export function useYouTubeEmbedPlayer(options: {
     [artifactId],
   );
 
+  const getIsPlaying = useCallback(() => playingRef.current, []);
+
   return useMemo(
     () => ({
       mountRef,
       playerReady: ready,
+      isPlaying: playing,
+      getIsPlaying,
       getCurrentTime,
       seekTo,
     }),
-    [getCurrentTime, ready, seekTo],
+    [getCurrentTime, getIsPlaying, playing, ready, seekTo],
   );
 }
