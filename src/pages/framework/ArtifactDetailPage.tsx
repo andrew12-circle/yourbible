@@ -59,7 +59,14 @@ import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPane
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
+import ArtifactDetailHeader from "@/components/framework/artifact-detail/ArtifactDetailHeader";
+import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
+import ArtifactVideoStage from "@/components/framework/artifact-detail/ArtifactVideoStage";
+import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
+import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
+import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
+import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
   formatClaimVerdict,
@@ -400,6 +407,7 @@ export default function ArtifactDetailPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [a, setA] = useState<Artifact | null>(null);
+  const [artifactLoaded, setArtifactLoaded] = useState(false);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [matchedBeliefs, setMatchedBeliefs] = useState<Record<string, MatchedBelief>>({});
   const [polling, setPolling] = useState(false);
@@ -457,7 +465,11 @@ export default function ArtifactDetailPage() {
   }, []);
 
   const load = async () => {
-    if (!id) return;
+    if (!id) {
+      setArtifactLoaded(true);
+      setA(null);
+      return;
+    }
     const artWithMeta = await supabase
       .from("artifacts")
       .select("id,title,kind,status,error,raw_text,url,metadata")
@@ -504,6 +516,7 @@ export default function ArtifactDetailPage() {
     setA(art as Artifact | null);
     setClaims(parsedClaims);
     if (!momentError) setMoments(((momentRows as unknown) as ArtifactMoment[]) ?? []);
+    setArtifactLoaded(true);
   };
 
   const patchArtifactMetadata = useCallback(async (artifactId: string) => {
@@ -526,7 +539,8 @@ export default function ArtifactDetailPage() {
 
   useEffect(() => {
     if (!user || !id) return;
-    load();
+    setArtifactLoaded(false);
+    void load();
   }, [user, id]);
 
   useEffect(() => {
@@ -708,18 +722,26 @@ export default function ArtifactDetailPage() {
     return fromMeta || null;
   }, [a?.kind, a?.url, artifactMetadata.video_id]);
 
-  const embedSrc = useMemo(() => {
-    if (!youTubeVideoId) return null;
-    const start = Math.max(0, Math.floor(videoStartSeconds));
-    if (start > 0) return `https://www.youtube.com/embed/${youTubeVideoId}?start=${start}`;
-    return `https://www.youtube.com/embed/${youTubeVideoId}`;
-  }, [youTubeVideoId, videoStartSeconds]);
+  const pipPlayerHostRef = useRef<HTMLDivElement | null>(null);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId: id,
-    enabled: Boolean(embedSrc && youTubeVideoId),
+    enabled: Boolean(youTubeVideoId),
     mainScrollRef,
   });
+
+  const youtubePlayer = useYouTubeEmbedPlayer({
+    videoId: youTubeVideoId,
+    enabled: Boolean(youTubeVideoId),
+    startSeconds: videoStartSeconds,
+  });
+
+  const onPipPlayerHostReady = useCallback(
+    (host: HTMLDivElement | null) => {
+      if (youtubePip.pipMode && host) youtubePlayer.reparentTo(host);
+    },
+    [youtubePip.pipMode, youtubePlayer.reparentTo],
+  );
 
   useEffect(() => {
     if (!a?.id) {
@@ -744,13 +766,14 @@ export default function ArtifactDetailPage() {
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
       return;
     }
-    floatingJournalPlaybackRef.current = () => Math.max(0, Math.floor(videoStartSeconds));
+    floatingJournalPlaybackRef.current = () =>
+      youtubePlayer.playerReady ? youtubePlayer.getCurrentTime() : Math.max(0, Math.floor(videoStartSeconds));
     useFloatingJournalStore.getState().setPlaybackCaptureAvailable(canCapturePlaybackForJournal);
     return () => {
       floatingJournalPlaybackRef.current = null;
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
     };
-  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, videoStartSeconds]);
+  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, videoStartSeconds, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
 
   const normalizedPastePreview = useMemo(
     () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
@@ -811,6 +834,50 @@ export default function ArtifactDetailPage() {
     document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  const getCurrentPlaybackSeconds = useCallback(() => {
+    if (youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
+    return Math.max(0, Math.floor(videoStartSeconds));
+  }, [youtubePlayer.playerReady, youtubePlayer.getCurrentTime, videoStartSeconds]);
+
+  const scrollTranscriptToSeconds = useCallback(
+    (seconds: number) => {
+      const source = transcriptSegments
+        .filter(
+          (segment) =>
+            !segment.isParagraphBreak && segment.startSeconds != null && segment.startSeconds <= seconds,
+        )
+        .sort((left, right) => (right.startSeconds ?? 0) - (left.startSeconds ?? 0))[0];
+      if (source) transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [transcriptSegments],
+  );
+
+  const seekVideoToSeconds = useCallback(
+    (seconds: number) => {
+      const start = Math.max(0, Math.floor(seconds));
+      setVideoStartSeconds(start);
+      youtubePlayer.seekTo(start);
+      scrollTranscriptToSeconds(start);
+    },
+    [scrollTranscriptToSeconds, youtubePlayer],
+  );
+
+  const navSections = useMemo((): ArtifactNavSection[] => {
+    if (!a || a.kind !== "youtube" || a.status !== "ready") return [];
+    const sections: ArtifactNavSection[] = [];
+    if (youTubeVideoId) sections.push({ id: "video", hash: "#video", label: "Video" });
+    if (a.url) sections.push({ id: "chapters", hash: "#chapters", label: "Chapters" });
+    if (a.kind === "youtube" && youtubeChaptersList.length === 0) {
+      sections.push({ id: "teachings", hash: "#study-spine-teachings", label: "Teachings" });
+    }
+    if (claims.length > 0) {
+      sections.push({ id: "claims", hash: "#claims", label: "Claims" });
+      sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
+    }
+    if (youTubeVideoId) sections.push({ id: "capture", hash: "#capture", label: "Capture" });
+    return sections;
+  }, [a, a?.kind, a?.status, a?.url, youTubeVideoId, youtubeChaptersList.length, claims.length]);
+
   if (loading) {
     return (
       <FrameworkLayout
@@ -827,6 +894,21 @@ export default function ArtifactDetailPage() {
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
+  if (!artifactLoaded) {
+    return (
+      <FrameworkLayout
+        title="Artifact"
+        back="/framework/artifacts"
+        contentClassName="max-w-none"
+        headerContentClassName="max-w-none"
+      >
+        <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Loading artifact…
+        </div>
+      </FrameworkLayout>
+    );
+  }
   if (!a) {
     return (
       <FrameworkLayout
@@ -835,7 +917,12 @@ export default function ArtifactDetailPage() {
         contentClassName="max-w-none"
         headerContentClassName="max-w-none"
       >
-        Loading…
+        <p className="py-12 text-sm text-muted-foreground">
+          Artifact not found.{" "}
+          <Link to="/framework/artifacts" className="font-medium text-foreground underline-offset-2 hover:underline">
+            Back to artifacts
+          </Link>
+        </p>
       </FrameworkLayout>
     );
   }
@@ -999,21 +1086,6 @@ export default function ArtifactDetailPage() {
     toast({ title: "Transcript copied" });
   };
 
-  const getCurrentPlaybackSeconds = () => Math.max(0, Math.floor(videoStartSeconds));
-
-  const scrollTranscriptToSeconds = (seconds: number) => {
-    const source = transcriptSegments
-      .filter((segment) => !segment.isParagraphBreak && segment.startSeconds != null && segment.startSeconds <= seconds)
-      .sort((left, right) => (right.startSeconds ?? 0) - (left.startSeconds ?? 0))[0];
-    if (source) transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
-  const seekVideoToSeconds = (seconds: number) => {
-    const start = Math.max(0, Math.floor(seconds));
-    setVideoStartSeconds(start);
-    scrollTranscriptToSeconds(start);
-  };
-
   const saveMoment = async (
     kind: ArtifactMomentKind,
     values: {
@@ -1171,25 +1243,27 @@ export default function ArtifactDetailPage() {
     const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
     const epistemology = parseClaimEpistemology(c.epistemology);
     const claimNumber = claimIndex + 1;
-    const cardTint =
-      claimIndex % 5 === 0
-        ? "border-sky-200/90 bg-sky-50/90 dark:border-sky-800/50 dark:bg-sky-950/35"
-        : claimIndex % 5 === 1
-          ? "border-violet-200/90 bg-violet-50/85 dark:border-violet-800/50 dark:bg-violet-950/35"
-          : claimIndex % 5 === 2
-            ? "border-emerald-200/85 bg-emerald-50/75 dark:border-emerald-800/45 dark:bg-emerald-950/30"
-            : claimIndex % 5 === 3
-              ? "border-amber-200/90 bg-amber-50/80 dark:border-amber-800/45 dark:bg-amber-950/28"
-              : "border-rose-200/85 bg-rose-50/80 dark:border-rose-800/45 dark:bg-rose-950/28";
+    const verdictAccent =
+      c.verdict === "keep"
+        ? "border-l-emerald-500"
+        : c.verdict === "reject"
+          ? "border-l-rose-500"
+          : c.verdict === "updated"
+            ? "border-l-indigo-500"
+            : isDeferredVerdict(c.verdict)
+              ? "border-l-amber-500"
+              : "border-l-border";
     return (
       <article
         key={c.id}
         id={c.id}
         data-claim-number={claimNumber}
         className={cn(
-          "scroll-mt-28 space-y-4 rounded-xl border-2 p-4 shadow-sm ring-1 ring-black/[0.03] sm:p-5 dark:ring-white/[0.04]",
-          cardTint,
-          isDeferredVerdict(c.verdict) && "ring-2 ring-amber-400/50 dark:ring-amber-600/40",
+          artifactCard,
+          artifactScrollMt,
+          "space-y-4 border-l-4 p-4 sm:p-5",
+          verdictAccent,
+          isDeferredVerdict(c.verdict) && "ring-1 ring-amber-400/40",
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -1402,108 +1476,27 @@ export default function ArtifactDetailPage() {
 
   const youtubeHeaderLeading =
     a.kind === "youtube" ? (
-      (() => {
-        const thumb =
-          mergedVideoMeta.thumbnail_url ||
-          (youTubeVideoId ? `https://i.ytimg.com/vi/${youTubeVideoId}/hqdefault.jpg` : null);
-        const channel = mergedVideoMeta.channel_title?.trim();
-        const channelUrl = mergedVideoMeta.channel_url?.trim();
-        const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
-
-        return (
-          <div className="flex min-w-0 items-center gap-3">
-            {thumb ? (
-              <button
-                type="button"
-                onClick={scrollToVideoSection}
-                className="group relative shrink-0 overflow-hidden rounded-lg ring-1 ring-border/60 shadow-sm transition hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Scroll to video"
-              >
-                <img
-                  src={thumb}
-                  alt=""
-                  className="h-14 w-[4.75rem] object-cover bg-muted transition group-hover:opacity-90 sm:h-[4.25rem] sm:w-28"
-                />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/25">
-                  <Youtube className="h-5 w-5 text-white opacity-0 drop-shadow transition group-hover:opacity-100" aria-hidden />
-                </span>
-              </button>
-            ) : (
-              <span className="flex h-14 w-[4.75rem] shrink-0 items-center justify-center rounded-lg bg-red-600/10 ring-1 ring-border/60 sm:h-[4.25rem] sm:w-28">
-                <Youtube className="h-6 w-6 text-red-600" aria-hidden />
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-500">
-                  <Youtube className="h-3 w-3" aria-hidden />
-                  YouTube
-                </span>
-                <span className="text-border" aria-hidden>
-                  ·
-                </span>
-                <span className={cn("inline-flex items-center gap-1", inFlight && "text-foreground")}>
-                  {inFlight ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden /> : null}
-                  {formatArtifactStatus(a.status)}
-                </span>
-              </div>
-              <h1 className="font-display text-base font-normal leading-snug text-foreground line-clamp-2 sm:text-lg md:line-clamp-3">
-                {displayTitle}
-              </h1>
-              {channel ? (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {channelUrl ? (
-                    <a
-                      href={channelUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex max-w-full items-center gap-1 hover:text-foreground hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="truncate">{channel}</span>
-                      <ExternalLink className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
-                    </a>
-                  ) : (
-                    channel
-                  )}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        );
-      })()
+      <ArtifactDetailHeader
+        displayTitle={a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video"}
+        statusLabel={formatArtifactStatus(a.status)}
+        inFlight={inFlight}
+        channel={mergedVideoMeta.channel_title}
+        channelUrl={mergedVideoMeta.channel_url}
+        thumbnailUrl={mergedVideoMeta.thumbnail_url}
+        youTubeVideoId={youTubeVideoId}
+        onScrollToVideo={scrollToVideoSection}
+      />
     ) : null;
 
-  const pageNavLinkClass = (href: string) =>
-    cn(
-      "relative inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-      pageSectionHash === href
-        ? "bg-background text-foreground shadow-sm ring-1 ring-border/60 after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:rounded-full after:bg-primary/70"
-        : "text-muted-foreground hover:bg-background/55 hover:text-foreground",
-    );
-
   const artifactHeaderActions = (
-    <>
-      {a.kind === "youtube" && (
-        <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPasteOpen(true)}>
-          <FileText className="w-3.5 h-3.5 sm:mr-1" aria-hidden />
-          <span className="hidden sm:inline">Paste transcript</span>
-          <span className="sr-only sm:hidden">Paste transcript</span>
-        </Button>
-      )}
-      {a.kind === "youtube" && a.status === "ready" && (
-        <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setWrapUpOpen(true)}>
-          Wrap up
-        </Button>
-      )}
-      {!inFlight && a.status !== "error" && (
-        <Button size="sm" variant="ghost" onClick={reanalyze} className="h-7 text-xs">
-          <RefreshCw className="w-3.5 h-3.5 sm:mr-1" aria-hidden />
-          <span className="hidden sm:inline">Re-analyze</span>
-          <span className="sr-only sm:hidden">Re-analyze</span>
-        </Button>
-      )}
-    </>
+    <ArtifactHeaderActions
+      showPaste={a.kind === "youtube"}
+      showWrapUp={a.kind === "youtube" && a.status === "ready"}
+      showReanalyze={!inFlight && a.status !== "error"}
+      onPaste={() => setPasteOpen(true)}
+      onWrapUp={() => setWrapUpOpen(true)}
+      onReanalyze={reanalyze}
+    />
   );
 
   return (
@@ -1538,55 +1531,7 @@ export default function ArtifactDetailPage() {
         className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
       >
         <div ref={mainScrollRef} className="min-h-0 space-y-6 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
-      {a.kind === "youtube" && a.status === "ready" && (
-        <nav
-          aria-label="On this page"
-          className="sticky top-0 z-[15] rounded-2xl border border-border/60 bg-muted/30 p-2 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-md supports-[backdrop-filter]:bg-muted/25 dark:ring-white/[0.03]"
-        >
-          <p className="mb-1.5 px-2 text-xs font-medium text-muted-foreground">On this page</p>
-          <div className="flex flex-wrap gap-1">
-          {youTubeVideoId ? (
-            <a href="#video" className={pageNavLinkClass("#video")} aria-current={pageSectionHash === "#video" ? "location" : undefined}>
-              Video
-            </a>
-          ) : null}
-          {a.url ? (
-            <a href="#chapters" className={pageNavLinkClass("#chapters")} aria-current={pageSectionHash === "#chapters" ? "location" : undefined}>
-              Chapters
-            </a>
-          ) : null}
-          {a.kind === "youtube" && youtubeChaptersList.length === 0 ? (
-            <a
-              href="#study-spine-teachings"
-              className={pageNavLinkClass("#study-spine-teachings")}
-              aria-current={pageSectionHash === "#study-spine-teachings" ? "location" : undefined}
-            >
-              Teachings
-            </a>
-          ) : null}
-          {claims.length > 0 ? (
-            <>
-              <a href="#claims" className={pageNavLinkClass("#claims")} aria-current={pageSectionHash === "#claims" ? "location" : undefined}>
-                Claims
-              </a>
-              <a
-                href="#claims-index"
-                className={cn(pageNavLinkClass("#claims-index"), "gap-1.5")}
-                aria-current={pageSectionHash === "#claims-index" ? "location" : undefined}
-              >
-                <ListOrdered className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                Index
-              </a>
-            </>
-          ) : null}
-          {youTubeVideoId ? (
-            <a href="#capture" className={pageNavLinkClass("#capture")} aria-current={pageSectionHash === "#capture" ? "location" : undefined}>
-              Capture
-            </a>
-          ) : null}
-          </div>
-        </nav>
-      )}
+      <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
           ...(liveMeta ?? {}),
@@ -1703,169 +1648,57 @@ export default function ArtifactDetailPage() {
         </div>
       )}
 
-      {youTubeVideoId && (
-        <section
-          id="video"
-          className="scroll-mt-32 mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card p-3 shadow-page ring-1 ring-black/[0.03] sm:p-4 lg:mb-0 dark:ring-white/[0.04]"
-        >
-          <div>
-            <div
-              ref={youtubePip.videoSlotRef}
-              className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl border border-border/70 bg-muted/20 shadow-soft"
-            >
-              {!youtubePip.pipMode && embedSrc ? (
-                <iframe
-                  key={`inline-${youTubeVideoId}`}
-                  title="YouTube video"
-                  src={embedSrc}
-                  className="h-full w-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : embedSrc ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={youtubePip.scrollVideoIntoView}
-                    className="text-xs text-muted-foreground transition hover:opacity-90"
-                  >
-                    <span className="rounded-full border bg-background/90 px-3 py-1 shadow">
-                      Tap to bring video back
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex h-full min-h-[12rem] items-center justify-center text-xs text-muted-foreground">
-                  Video unavailable
-                </div>
-              )}
-            </div>
-            {youtubePip.pipMode && youtubePip.pipChromeLayout && embedSrc && youTubeVideoId ? (
-              <ArtifactYoutubePipOverlay
-                embedSrc={embedSrc}
-                youTubeVideoId={youTubeVideoId}
-                layout={youtubePip.pipChromeLayout}
-                onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
-                onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
-                onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
-                onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}
-                onResizePointerDown={youtubePip.onPipResizePointerDown}
-                onResizePointerMove={youtubePip.onPipResizePointerMove}
-                onResizePointerUp={youtubePip.onPipResizePointerUp}
-              />
-            ) : null}
-          </div>
-
-          <div
-            id="capture"
-            className="scroll-mt-28 mt-5 rounded-xl border border-border/60 bg-muted/20 p-4 ring-1 ring-black/[0.02] dark:ring-white/[0.03] lg:mt-6"
+      {youTubeVideoId ? (
+        <>
+          <ArtifactVideoStage
+            videoSlotRef={youtubePip.videoSlotRef}
+            pipMode={youtubePip.pipMode}
+            thumbnailUrl={mergedVideoMeta.thumbnail_url}
+            youTubeVideoId={youTubeVideoId}
+            playerMountRef={youtubePlayer.mountRef}
+            pipPlayerHostRef={pipPlayerHostRef}
+            onReparentPlayer={youtubePlayer.reparentTo}
+            onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
           >
-            <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border/40 pb-3">
-              <div>
-                <h3 className="font-display text-sm font-normal text-foreground sm:text-base">Capture while watching</h3>
-                <p className="text-xs text-muted-foreground">
-                  Save bookmarks, notes, and belief seeds. Timestamps follow chapter jumps and transcript seeks.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    value={bookmarkLabel}
-                    onChange={(event) => setBookmarkLabel(event.target.value)}
-                    placeholder="Optional bookmark label"
-                    disabled={!canCaptureMoments || savingMoment}
-                  />
-                  <Button onClick={bookmarkCurrentMoment} disabled={!canCaptureMoments || savingMoment}>
-                    <Bookmark className="mr-1 h-3.5 w-3.5" /> Bookmark
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  <PolishedTextarea
-                    polishResetKey={a.id}
-                    value={noteBody}
-                    onChange={(event) => setNoteBody(event.target.value)}
-                    rows={3}
-                    placeholder="Add a note at the current moment..."
-                    disabled={!canCaptureMoments || savingMoment}
-                  />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={addNoteAtCurrentMoment}
-                      disabled={!canCaptureMoments || savingMoment || !noteBody.trim()}
-                    >
-                      <StickyNote className="mr-1 h-3.5 w-3.5" /> Save note
-                    </Button>
-                    <Button variant="outline" onClick={believeCurrentMoment} disabled={!canCaptureMoments || savingMoment}>
-                      <Sparkles className="mr-1 h-3.5 w-3.5" /> I believe this
-                    </Button>
-                    <Button
-                      onClick={openStudyJournal}
-                      title="Floating study journal on this page (timestamp inserts use the last chapter jump)"
-                    >
-                      <NotebookPen className="mr-1 h-3.5 w-3.5" /> Study journal
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-muted-foreground">
-                          <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
-                          More
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-[min(100vw-2rem,18rem)]">
-                        <DropdownMenuItem
-                          disabled={!canCaptureMoments}
-                          onClick={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-                        >
-                          Open full-page journal with timestamp
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openJournalFromArtifact()} disabled={!a.raw_text?.trim()}>
-                          Open full-page journal (full video)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-md border border-border bg-background/70 p-3">
-                <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Saved moments
-                </div>
-                {moments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No moments saved yet.</p>
-                ) : (
-                  <div className="max-h-56 space-y-2 overflow-auto pr-1">
-                    {moments.map((moment) => (
-                      <button
-                        key={moment.id}
-                        type="button"
-                        onClick={() => seekVideoToSeconds(moment.start_seconds)}
-                        disabled={!canCaptureMoments}
-                        className="w-full rounded-md border border-border bg-card p-2 text-left text-sm transition hover:border-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">{formatTranscriptClock(moment.start_seconds)}</span>
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{moment.kind.replace("_", " ")}</span>
-                        </div>
-                        <div className="mt-1 font-medium">{moment.label || moment.body || "Untitled moment"}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+            <ArtifactCapturePanel
+              bookmarkLabel={bookmarkLabel}
+              onBookmarkLabelChange={setBookmarkLabel}
+              noteBody={noteBody}
+              onNoteBodyChange={setNoteBody}
+              polishResetKey={a.id}
+              moments={moments}
+              canCapture={canCaptureMoments}
+              saving={savingMoment}
+              onBookmark={bookmarkCurrentMoment}
+              onSaveNote={addNoteAtCurrentMoment}
+              onBelieve={believeCurrentMoment}
+              onStudyJournal={openStudyJournal}
+              onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+              onOpenJournalFull={() => openJournalFromArtifact()}
+              onSeekMoment={seekVideoToSeconds}
+              hasTranscript={Boolean(a.raw_text?.trim())}
+            />
+          </ArtifactVideoStage>
+          <ArtifactYoutubePipOverlay
+            active={youtubePip.pipMode}
+            layout={youtubePip.pipOverlayLayout}
+            playerHostRef={pipPlayerHostRef}
+            onPlayerHostReady={onPipPlayerHostReady}
+            onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+            onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
+            onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
+            onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}
+            onResizePointerDown={youtubePip.onPipResizePointerDown}
+            onResizePointerMove={youtubePip.onPipResizePointerMove}
+            onResizePointerUp={youtubePip.onPipResizePointerUp}
+          />
+        </>
+      ) : null}
 
       {a.kind === "youtube" && a.url && (
         <section
           id="chapters"
-          className="scroll-mt-28 mb-6 rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-black/[0.02] sm:p-5 dark:ring-white/[0.03]"
+          className={cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5")}
         >
           {a.status === "ready" && (
             <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
@@ -1964,8 +1797,10 @@ export default function ArtifactDetailPage() {
       )}
 
       {a.status === "ready" && claims.length > 0 && (
-        <div className="mb-4 rounded-lg border border-border bg-muted/25 p-3 text-sm leading-relaxed text-muted-foreground">
-          <p className="font-medium text-foreground">Claims</p>
+        <div className={cn(artifactCard, "mb-4 p-4 text-sm leading-relaxed text-muted-foreground")}>
+          <p className="font-display text-base text-foreground">
+            Claims <span className="font-sans text-sm font-normal text-muted-foreground">({claims.length})</span>
+          </p>
           <p className="mt-1">
             Each card is one thesis-sized line from the transcript, checked against your framework — a hypothesis to verify, not preaching.
             {a.kind === "youtube" && youtubeChaptersList.length > 0 && claimChapterLayout.grouped ? (
@@ -2096,11 +1931,12 @@ export default function ArtifactDetailPage() {
         >
           {a.raw_text && (
             <TranscriptPanel
+              artifactId={a.id}
               segments={transcriptSegments}
               timed={transcriptTimedLayout}
               coarseTimestampsOnly={transcriptCoarseOnly}
               embedAvailable={Boolean(youTubeVideoId)}
-              playerReady={Boolean(youTubeVideoId)}
+              playerReady={youtubePlayer.playerReady}
               getPlaybackSeconds={getCurrentPlaybackSeconds}
               onSeek={seekVideoToSeconds}
               onCopy={copyTranscript}
@@ -2111,40 +1947,10 @@ export default function ArtifactDetailPage() {
               setSegmentRef={(id, el) => {
                 transcriptRefs.current[id] = el;
               }}
-              extraHeaderActions={
-                <>
-                  {transcriptNeedsFormatting ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-9 shrink-0"
-                      onClick={formatTranscript}
-                      disabled={formattingTranscript || inFlight}
-                      title="Rewrite mashed YouTube timestamps in [M:SS] form and save to this artifact"
-                    >
-                      {formattingTranscript ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin sm:mr-1" aria-hidden />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
-                      )}
-                      <span className="hidden sm:inline">
-                        {formattingTranscript ? "Formatting…" : "Format transcript"}
-                      </span>
-                      <span className="sm:hidden">{formattingTranscript ? "…" : "Format"}</span>
-                    </Button>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    className="h-9 shrink-0"
-                    onClick={openStudyJournal}
-                    title="Floating study journal on this page"
-                    aria-label="Open study journal"
-                  >
-                    <NotebookPen className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
-                    <span className="hidden sm:inline">Study journal</span>
-                  </Button>
-                </>
-              }
+              onStudyJournal={openStudyJournal}
+              showFormatButton={transcriptNeedsFormatting}
+              formattingTranscript={formattingTranscript}
+              onFormatTranscript={formatTranscript}
             />
           )}
         </aside>

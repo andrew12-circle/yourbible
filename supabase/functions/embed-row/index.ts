@@ -1,11 +1,11 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { embedDocument } from "../_shared/aiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMS = 768;
 const MAX_TEXT_CHARS = 8000;
 const BATCH_MAX = 25;
@@ -16,7 +16,8 @@ type TableName =
   | "journal_entries"
   | "artifact_claims"
   | "knowledge_entities"
-  | "my_ai_messages";
+  | "my_ai_messages"
+  | "artifact_transcript_chunks";
 
 const TABLES: TableName[] = [
   "belief_nodes",
@@ -24,6 +25,7 @@ const TABLES: TableName[] = [
   "artifact_claims",
   "knowledge_entities",
   "my_ai_messages",
+  "artifact_transcript_chunks",
 ];
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -75,29 +77,17 @@ function composeText(table: TableName, row: Record<string, unknown>): string | n
       const content = String(row.content ?? "").trim();
       return content || null;
     }
+    case "artifact_transcript_chunks": {
+      const text = String(row.text ?? "").trim();
+      return text || null;
+    }
   }
 }
 
-async function embedOne(text: string, geminiKey: string): Promise<number[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
-    body: JSON.stringify({
-      model: `models/${EMBEDDING_MODEL}`,
-      content: { parts: [{ text: truncate(text, MAX_TEXT_CHARS) }] },
-      taskType: "RETRIEVAL_DOCUMENT",
-      outputDimensionality: EMBEDDING_DIMS,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Gemini embed ${res.status}: ${txt.slice(0, 300)}`);
-  }
-  const j = await res.json() as { embedding?: { values?: number[] } };
-  const vec = j?.embedding?.values;
-  if (!Array.isArray(vec) || vec.length !== EMBEDDING_DIMS) {
-    throw new Error(`Bad embedding shape: ${vec?.length ?? "none"}`);
+async function embedOne(text: string): Promise<number[]> {
+  const vec = await embedDocument(truncate(text, MAX_TEXT_CHARS));
+  if (!vec || vec.length !== EMBEDDING_DIMS) {
+    throw new Error("Embedding failed or wrong dimensions");
   }
   return vec;
 }
@@ -108,7 +98,6 @@ function vecToLiteral(v: number[]): string {
 
 async function processJob(
   admin: SupabaseClient,
-  geminiKey: string,
   job: { id: string; user_id: string; table_name: string; row_id: string; attempts: number },
 ): Promise<{ ok: boolean; error?: string }> {
   const table = job.table_name as TableName;
@@ -149,7 +138,7 @@ async function processJob(
   }
 
   try {
-    const vec = await embedOne(text, geminiKey);
+    const vec = await embedOne(text);
     const { error: upErr } = await admin.from(table).update({ embedding: vecToLiteral(vec) }).eq("id", job.row_id);
     if (upErr) throw new Error(upErr.message);
     await admin.from("embedding_jobs").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", job.id);
@@ -201,9 +190,6 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) return jsonResponse({ error: "GEMINI_API_KEY missing" }, 502);
-
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -233,7 +219,7 @@ Deno.serve(async (req) => {
     let ok = 0;
     let failed = 0;
     for (const job of list) {
-      const r = await processJob(admin, GEMINI_API_KEY, job);
+      const r = await processJob(admin, job);
       if (r.ok) ok += 1; else failed += 1;
     }
     return jsonResponse({ ok: true, processed: list.length, succeeded: ok, failed });

@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Copy, RefreshCw, Pause, Play } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import TranscriptToolbar from "@/components/framework/artifact-detail/TranscriptToolbar";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
+import { artifactCard, artifactInset } from "@/lib/framework/artifactSurfaces";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+
+type SemanticHit = {
+  start_seconds: number;
+  end_seconds: number | null;
+  text: string;
+  similarity: number;
+};
 
 function findActiveSegmentId(segments: TranscriptSegment[], seconds: number): string | null {
   let best: TranscriptSegment | null = null;
@@ -20,7 +29,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   if (!trimmed) return <>{text}</>;
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(escaped, "gi");
-  const parts: ReactNode[] = [];
+  const parts: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -38,6 +47,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 export interface TranscriptPanelProps {
+  artifactId?: string;
   segments: TranscriptSegment[];
   timed: boolean;
   coarseTimestampsOnly: boolean;
@@ -47,16 +57,18 @@ export interface TranscriptPanelProps {
   onSeek: (seconds: number) => void;
   onCopy: () => void;
   onJournal: () => void;
-  /** Label for the full-page journal button (distinct from in-page “Study journal”). */
   fullPageJournalLabel?: string;
   onRetryFetch?: () => void;
   retryDisabled?: boolean;
   setSegmentRef?: (id: string, el: HTMLDivElement | null) => void;
-  /** e.g. “Study journal” floating panel trigger */
-  extraHeaderActions?: ReactNode;
+  onStudyJournal?: () => void;
+  showFormatButton?: boolean;
+  formattingTranscript?: boolean;
+  onFormatTranscript?: () => void;
 }
 
 export default function TranscriptPanel({
+  artifactId,
   segments,
   timed,
   coarseTimestampsOnly,
@@ -70,9 +82,14 @@ export default function TranscriptPanel({
   onRetryFetch,
   retryDisabled,
   setSegmentRef,
-  extraHeaderActions,
+  onStudyJournal,
+  showFormatButton,
+  formattingTranscript,
+  onFormatTranscript,
 }: TranscriptPanelProps) {
   const [search, setSearch] = useState("");
+  const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [playbackTick, setPlaybackTick] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
@@ -80,11 +97,49 @@ export default function TranscriptPanel({
   const lastAutoScrolledId = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
 
+  useEffect(() => {
+    const q = search.trim();
+    if (!artifactId || q.length < 3) {
+      setSemanticHits([]);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setSemanticLoading(true);
+      void supabase.functions
+        .invoke("framework-search-transcript", { body: { artifact_id: artifactId, query: q, limit: 12 } })
+        .then(({ data, error }) => {
+          if (error || !data?.semantic) {
+            setSemanticHits([]);
+            return;
+          }
+          setSemanticHits((data.hits as SemanticHit[]) ?? []);
+        })
+        .finally(() => setSemanticLoading(false));
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [artifactId, search]);
+
   const displaySegments = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return segments;
-    return segments.filter((s) => !s.isParagraphBreak && s.text.toLowerCase().includes(q));
-  }, [segments, search]);
+    const textHits = segments.filter((s) => !s.isParagraphBreak && s.text.toLowerCase().includes(q));
+    if (!semanticHits.length || !timed) return textHits;
+    const semanticWindows = semanticHits.map((h) => ({
+      start: h.start_seconds,
+      end: h.end_seconds ?? h.start_seconds + 120,
+    }));
+    const boosted = segments.filter((s) => {
+      if (s.isParagraphBreak || s.startSeconds == null) return false;
+      if (s.text.toLowerCase().includes(q)) return true;
+      return semanticWindows.some((w) => s.startSeconds! >= w.start - 5 && s.startSeconds! <= w.end + 5);
+    });
+    const seen = new Set<string>();
+    return [...textHits, ...boosted].filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }, [segments, search, semanticHits, timed]);
 
   useEffect(() => {
     if (!playerReady) return;
@@ -119,7 +174,7 @@ export default function TranscriptPanel({
     window.requestAnimationFrame(() => {
       programmaticScrollRef.current = false;
     });
-  }, [playerReady, searchActive, activeSegmentId, highlightActive, followPlayback]);
+  }, [playerReady, searchActive, activeSegmentId, highlightActive, followPlayback, playbackTick]);
 
   useEffect(() => {
     if (!searchActive) lastAutoScrolledId.current = null;
@@ -146,109 +201,60 @@ export default function TranscriptPanel({
   );
 
   return (
-    <section className="mb-5 rounded-lg border border-border bg-card p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
-      <div className="mb-3 flex w-full min-w-0 flex-col gap-3 border-b border-border/60 pb-3">
-        <div className="w-full min-w-0 space-y-1">
-          <h2 className="w-full min-w-0 text-sm font-semibold tracking-tight text-foreground">Working transcript</h2>
-          <p className="w-full min-w-0 text-xs leading-relaxed text-muted-foreground">
-            {timed
-              ? "Click a line to jump in the player. Timestamps marked ~ are spread across the clip and are approximate."
-              : "Readable sections. Claim cards below can jump to the closest matching section."}
-          </p>
-        </div>
-        <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onCopy}
-            className="h-9 shrink-0"
-            aria-label="Copy transcript to clipboard"
-          >
-            <Copy className="h-3.5 w-3.5 sm:mr-1" aria-hidden />
-            <span className="hidden sm:inline">Copy</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onJournal}
-            className="h-9 shrink-0"
-            aria-label={fullPageJournalLabel}
-          >
-            <span className="sm:hidden">Journal</span>
-            <span className="hidden sm:inline">{fullPageJournalLabel}</span>
-          </Button>
-          {extraHeaderActions}
-        </div>
-      </div>
+    <section className={cn(artifactCard, "mb-5 p-3 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4")}>
+      {search.trim().length >= 3 && artifactId ? (
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          {semanticLoading
+            ? "Searching transcript memory…"
+            : semanticHits.length
+              ? `Semantic matches: ${semanticHits.length} · also matching text`
+              : "Text search (semantic index still building)"}
+        </p>
+      ) : null}
+
+      <TranscriptToolbar
+        search={search}
+        onSearchChange={setSearch}
+        onCopy={onCopy}
+        onJournal={onJournal}
+        fullPageJournalLabel={fullPageJournalLabel}
+        showTimestamps={showTimestamps}
+        onToggleTimestamps={() => setShowTimestamps((v) => !v)}
+        followPlayback={followPlayback}
+        onToggleFollowPlayback={() => {
+          setFollowPlayback((v) => {
+            const next = !v;
+            if (next) lastAutoScrolledId.current = null;
+            return next;
+          });
+        }}
+        showFollowControl={timed && playerReady}
+        onStudyJournal={onStudyJournal}
+        showFormatButton={showFormatButton}
+        formattingTranscript={formattingTranscript}
+        onFormatTranscript={onFormatTranscript}
+      />
 
       {coarseTimestampsOnly && onRetryFetch && (
-        <div className="mb-3 flex flex-col gap-2 rounded-md border border-border/80 bg-muted/25 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-2 rounded-xl bg-muted/20 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 leading-relaxed">
             We don&apos;t have per-second captions for this transcript. If the video has an official caption track, try
             fetching again.
           </p>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-8 shrink-0"
-            disabled={retryDisabled}
-            onClick={onRetryFetch}
-          >
+          <Button size="sm" variant="secondary" className="h-8 shrink-0" disabled={retryDisabled} onClick={onRetryFetch}>
             <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry fetch
           </Button>
         </div>
       )}
 
-      <div className="mb-2 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search transcript…"
-          className="h-9 min-w-0 flex-1 font-sans text-sm sm:max-w-md"
-          aria-label="Search transcript"
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8 rounded-full px-3 text-xs font-medium"
-          onClick={() => setShowTimestamps((v) => !v)}
-        >
-          {showTimestamps ? "Hide timestamps" : "Show timestamps"}
-        </Button>
-        {timed && playerReady && (
-          <Button
-            type="button"
-            size="sm"
-            variant={followPlayback ? "secondary" : "outline"}
-            className="h-8 rounded-full px-3 text-xs font-medium"
-            onClick={() => {
-              setFollowPlayback((v) => {
-                const next = !v;
-                if (next) lastAutoScrolledId.current = null;
-                return next;
-              });
-            }}
-            title={followPlayback ? "Auto-scrolling with playback" : "Manual scroll · auto-scroll paused"}
-          >
-            {followPlayback ? (
-              <>
-                <Pause className="mr-1 h-3.5 w-3.5" /> Following
-              </>
-            ) : (
-              <>
-                <Play className="mr-1 h-3.5 w-3.5" /> Follow playback
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-
       <div
         ref={scrollContainerRef}
-        className="max-h-[60vh] overflow-y-auto overflow-x-hidden rounded-md border border-border/60 bg-muted/15 lg:max-h-none lg:min-h-0 lg:flex-1"
+        className={cn(
+          "max-h-[60vh] overflow-y-auto overflow-x-hidden lg:max-h-none lg:min-h-0 lg:flex-1",
+          artifactInset,
+        )}
       >
-        <div className="divide-y divide-border/50">
+        <div className="divide-y divide-border/40">
           {displaySegments.map((segment) => {
             if (segment.isParagraphBreak) {
               return <div key={segment.id} className="h-3 shrink-0" aria-hidden />;
@@ -267,10 +273,10 @@ export default function TranscriptPanel({
                 ref={(el) => bindRef(segment.id, el)}
                 data-transcript-row={segment.id}
                 className={cn(
-                  "group flex gap-2 px-3 py-2.5 transition-colors sm:gap-3",
-                  canSeek && "cursor-pointer hover:bg-muted/45",
-                  isActive && "bg-primary/8 ring-1 ring-inset ring-primary/20",
-                  segment.isContinuation && "border-l-2 border-muted-foreground/20 pl-3",
+                  "group relative flex gap-2 px-3 py-3 transition-colors duration-150 sm:gap-3",
+                  canSeek && "cursor-pointer hover:bg-muted/35",
+                  isActive && "bg-primary/[0.07]",
+                  segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
                 tabIndex={canSeek ? 0 : undefined}
@@ -285,12 +291,18 @@ export default function TranscriptPanel({
                   }
                 }}
               >
+                {isActive ? (
+                  <span
+                    className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-primary"
+                    aria-hidden
+                  />
+                ) : null}
                 {showTimestamps && (
                   <div className="flex w-[4.5rem] shrink-0 items-start justify-end sm:w-[5.25rem]">
                     {timed && stamp ? (
                       <span
                         className={cn(
-                          "inline-flex min-h-[1.375rem] min-w-[3.5rem] max-w-full items-center justify-center rounded-full border border-border/80 bg-muted px-2 py-1 text-center text-[11px] font-medium tabular-nums leading-none text-foreground/90",
+                          "inline-flex min-h-[1.375rem] min-w-[3.5rem] max-w-full items-center justify-center rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-[11px] font-medium tabular-nums leading-none text-foreground/90",
                           segment.timestampEstimated && "italic text-foreground/85",
                         )}
                       >
@@ -307,7 +319,8 @@ export default function TranscriptPanel({
                 )}
                 <p
                   className={cn(
-                    "min-w-0 flex-1 font-sans text-sm leading-relaxed text-foreground",
+                    "min-w-0 flex-1 font-sans text-sm leading-relaxed",
+                    isActive ? "font-medium text-foreground" : "text-foreground/90",
                     !showTimestamps && "pl-1",
                   )}
                 >

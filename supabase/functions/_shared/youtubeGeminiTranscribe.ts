@@ -31,19 +31,14 @@ export function planGeminiTranscribeSegments(
     durationKnown ? Math.floor(durationSeconds) : opts.maxDurationSeconds,
     opts.maxDurationSeconds,
   );
-  const useChunked = !durationKnown || totalSeconds > opts.maxSingleRequestSeconds;
-
-  if (!useChunked) {
-    return {
-      totalSeconds,
-      durationKnown: true,
-      segments: [{ start: 0, end: totalSeconds }],
-    };
-  }
-
+  // Always use explicit clip windows (never a single full-video Gemini request).
   const segments: GeminiTranscribeSegment[] = [];
-  for (let start = 0; start < totalSeconds; start += opts.segmentSeconds) {
-    segments.push({ start, end: Math.min(start + opts.segmentSeconds, totalSeconds) });
+  const step = opts.segmentSeconds;
+  for (let start = 0; start < totalSeconds; start += step) {
+    segments.push({ start, end: Math.min(start + step, totalSeconds) });
+  }
+  if (!segments.length) {
+    segments.push({ start: 0, end: Math.min(step, totalSeconds) });
   }
   return { totalSeconds, durationKnown, segments };
 }

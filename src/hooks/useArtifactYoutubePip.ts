@@ -243,15 +243,16 @@ export function useArtifactYoutubePip(options: {
     }
   }, []);
 
-  const pipChromeLayout = useMemo(() => {
-    if (!pipMode) return null;
-    return clampArtifactPipLayout(pipLayout ?? defaultArtifactPipLayout());
-  }, [pipMode, pipLayout]);
+  /** Layout for the portaled PiP shell — kept mounted so the iframe is not destroyed on exit. */
+  const pipOverlayLayout = useMemo(
+    () => clampArtifactPipLayout(pipLayout ?? defaultArtifactPipLayout()),
+    [pipLayout],
+  );
 
   return {
     videoSlotRef,
     pipMode,
-    pipChromeLayout,
+    pipOverlayLayout,
     scrollVideoIntoView,
     onPipDragHeaderPointerDown,
     onPipDragHeaderPointerMove,

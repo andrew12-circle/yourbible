@@ -19,9 +19,7 @@ import {
   SUGGESTED_ACTIONS,
   sanitizeEpistemology,
 } from "../_shared/epistemology.ts";
-
-const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const MODEL = "gemini-2.5-pro";
+import { callChatWithTools, getChatConfig } from "../_shared/aiProvider.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
 
@@ -749,27 +747,6 @@ function parseKnowledgeEntitiesPayload(raw: unknown): KnowledgeEntitiesPayload {
   return raw as KnowledgeEntitiesPayload;
 }
 
-async function callGemini(
-  apiKey: string,
-  messages: { role: string; content: string }[],
-  tools: unknown[],
-  toolChoice: unknown,
-) {
-  return await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      tools,
-      tool_choice: toolChoice,
-    }),
-  });
-}
-
 function parseToolCall(json: unknown, toolName: string): string | null {
   const j = json as {
     choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
@@ -995,17 +972,17 @@ type ClaimGeminiResult =
   | { kind: "gateway_err"; status: number; body: string };
 
 async function geminiSubmitClaims(
-  GEMINI_API_KEY: string,
+  _apiKeyUnused: string,
   userPrompt: string,
 ): Promise<ClaimGeminiResult> {
-  const r = await callGemini(
-    GEMINI_API_KEY,
+  const r = await callChatWithTools(
     [
       { role: "system", content: SYSTEM },
       { role: "user", content: userPrompt },
     ],
     [TOOL],
     { type: "function", function: { name: "submit_claims" } },
+    8192,
   );
   if (r.status === 429) return { kind: "rate_limit" };
   if (r.status === 402) return { kind: "billing" };
@@ -1044,11 +1021,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const chatCfg = getChatConfig();
+    if ("error" in chatCfg) throw new Error(chatCfg.error);
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
@@ -1254,8 +1232,7 @@ Deno.serve(async (req) => {
     if (SERVICE_ROLE) {
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
       try {
-        const er = await callGemini(
-          GEMINI_API_KEY,
+        const er = await callChatWithTools(
           [
             { role: "system", content: ENTITY_SYSTEM },
             { role: "user", content: buildEntityPrompt(artifact.raw_text as string) },
@@ -1295,8 +1272,7 @@ Deno.serve(async (req) => {
           console.error("entity extraction gateway error:", er.status, await er.text());
         }
 
-        const tr = await callGemini(
-          GEMINI_API_KEY,
+        const tr = await callChatWithTools(
           [
             { role: "system", content: TEACHING_SYSTEM },
             { role: "user", content: buildTeachingPrompt(artifact.raw_text as string) },

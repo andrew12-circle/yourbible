@@ -29,6 +29,7 @@ import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
 import IdentityCard from "@/components/framework/IdentityCard";
 import { toast } from "@/hooks/use-toast";
 import { ArtifactShelf } from "./artifacts/ArtifactShelf";
+import { cn } from "@/lib/utils";
 import {
   artifactDisplayTitle,
   type Row as ArtifactRow,
@@ -253,11 +254,61 @@ export default function FrameworkDashboard() {
   if (!user) return <Navigate to="/auth" replace />;
 
   const totalBeliefs = beliefs.length;
+  const hasRecentArtifacts = !busy && recentShelfRows.length > 0;
+
+  const libraryRecentlyAdded = (
+    <section
+      className={cn(
+        "rounded-2xl border border-border/50 bg-card/40 p-5 sm:p-6 shadow-sm ring-1 ring-border/30 animate-fade-up",
+        hasRecentArtifacts ? "mb-8 sm:mb-10" : "mt-10 sm:mt-12",
+      )}
+      style={{
+        animationDelay: hasRecentArtifacts ? "0ms" : "220ms",
+        animationFillMode: "backwards",
+      }}
+    >
+      <div className="mb-4 flex items-baseline justify-between gap-4 sm:mb-5">
+        <div className="min-w-0">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
+            Library
+          </div>
+          <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Recently added
+          </h2>
+        </div>
+        <Link
+          to="/framework/artifacts"
+          className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:rounded-sm"
+        >
+          View all
+        </Link>
+      </div>
+      {busy ? null : recentShelfRows.length === 0 ? (
+        <div className="mx-auto max-w-md rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center text-sm leading-relaxed text-muted-foreground">
+          <FileStack className="mx-auto mb-3 h-5 w-5 text-muted-foreground/60" aria-hidden />
+          Paste a sermon, podcast transcript, or your own journal entry and see how it lines up with what you
+          believe.
+        </div>
+      ) : (
+        <ArtifactShelf
+          shelfKey="overview-recent"
+          title=""
+          rows={recentShelfRows}
+          deletingId={deletingId}
+          onDelete={deleteArtifact}
+          onRename={renameArtifact}
+        />
+      )}
+    </section>
+  );
 
   return (
     <FrameworkLayout title="Overview">
+      {hasRecentArtifacts ? libraryRecentlyAdded : null}
+
       <section
         className="relative overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm animate-fade-up"
+        style={hasRecentArtifacts ? { animationDelay: "60ms", animationFillMode: "backwards" } : undefined}
         style={{
           backgroundImage:
             "radial-gradient(ellipse 80% 60% at 100% 0%, hsl(var(--primary) / 0.10) 0%, transparent 60%)," +
@@ -445,46 +496,7 @@ export default function FrameworkDashboard() {
         </div>
       </section>
 
-      <section
-        className="mt-10 sm:mt-12 rounded-2xl border border-border/50 bg-card/40 p-5 sm:p-6 shadow-sm ring-1 ring-border/30 animate-fade-up"
-        style={{ animationDelay: "220ms", animationFillMode: "backwards" }}
-      >
-        <div className="flex items-baseline justify-between gap-4 mb-4 sm:mb-5">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
-              Library
-            </div>
-            <h2 className="mt-0.5 text-lg sm:text-xl font-semibold tracking-tight text-foreground">
-              Recently added
-            </h2>
-          </div>
-          <Link
-            to="/framework/artifacts"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:rounded-sm"
-          >
-            View all
-          </Link>
-        </div>
-        {busy ? null : recentShelfRows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-            <FileStack
-              className="w-5 h-5 mx-auto mb-3 text-muted-foreground/60"
-              aria-hidden
-            />
-            Paste a sermon, podcast transcript, or your own journal entry and
-            see how it lines up with what you believe.
-          </div>
-        ) : (
-          <ArtifactShelf
-            shelfKey="overview-recent"
-            title=""
-            rows={recentShelfRows}
-            deletingId={deletingId}
-            onDelete={deleteArtifact}
-            onRename={renameArtifact}
-          />
-        )}
-      </section>
+      {!hasRecentArtifacts ? libraryRecentlyAdded : null}
     </FrameworkLayout>
   );
 }

@@ -17,10 +17,13 @@ describe("parseIso8601Duration", () => {
 });
 
 describe("planGeminiTranscribeSegments", () => {
-  it("single window with offsets for short known videos", () => {
+  it("always uses explicit clip windows (30m → two 20m segments)", () => {
     const plan = planGeminiTranscribeSegments(30 * 60, CFG);
     expect(plan.durationKnown).toBe(true);
-    expect(plan.segments).toEqual([{ start: 0, end: 30 * 60 }]);
+    expect(plan.segments).toEqual([
+      { start: 0, end: 20 * 60 },
+      { start: 20 * 60, end: 30 * 60 },
+    ]);
   });
 
   it("chunks ~3h videos into 20-minute segments", () => {

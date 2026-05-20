@@ -14,7 +14,74 @@ export type ChatCallResult = { rawText: string; ok: boolean; err?: string };
 export function resolveAiProvider(): AiProvider {
   const explicit = Deno.env.get("AI_PROVIDER")?.trim().toLowerCase();
   if (explicit === "openai" || explicit === "gemini") return explicit;
+  if (openAiApiKey()) return "openai";
   return "gemini";
+}
+
+const GEMINI_TOOL_GATEWAY_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GEMINI_TOOL_MODEL = "gemini-2.5-pro";
+
+/** Tool-calling chat (OpenAI or Gemini OpenAI-compat gateway). */
+export async function callChatWithTools(
+  messages: { role: string; content: string }[],
+  tools: unknown[],
+  toolChoice: unknown,
+  maxOutputTokens = 8192,
+): Promise<Response> {
+  const provider = resolveAiProvider();
+  if (provider === "openai") {
+    const apiKey = openAiApiKey();
+    if (apiKey) {
+      return fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: getOpenAiChatModel(),
+          messages,
+          tools,
+          tool_choice: toolChoice,
+          max_tokens: maxOutputTokens,
+        }),
+      });
+    }
+  }
+  const geminiKey = geminiApiKey();
+  if (!geminiKey) {
+    return new Response(JSON.stringify({ error: "No AI API key configured" }), { status: 502 });
+  }
+  return fetch(GEMINI_TOOL_GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${geminiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GEMINI_TOOL_MODEL,
+      messages,
+      tools,
+      tool_choice: toolChoice,
+      max_tokens: maxOutputTokens,
+    }),
+  });
+}
+
+/** Document embedding for embed-row (768 dims). */
+export async function embedDocument(text: string): Promise<number[] | null> {
+  const trimmed = text.slice(0, 8000);
+  const provider = resolveAiProvider();
+  if (provider === "openai") {
+    const apiKey = openAiApiKey();
+    if (apiKey) {
+      const vec = await embedOpenAiQuery(trimmed, apiKey);
+      if (vec) return vec;
+    }
+  }
+  const geminiKey = geminiApiKey();
+  return geminiKey ? embedGeminiQuery(trimmed, geminiKey) : null;
 }
 
 function geminiApiKey(): string {

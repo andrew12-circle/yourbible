@@ -181,7 +181,13 @@ export default function ArtifactsListPage() {
     [deleteArtifact, renameArtifact],
   );
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <FrameworkLayout title="Artifacts" back="/framework">
+        <ArtifactLibrarySkeleton />
+      </FrameworkLayout>
+    );
+  }
   if (!user) return <Navigate to="/auth" replace />;
 
   const showHeaderNew = listReady && rows.length > 0;
@@ -204,6 +210,7 @@ export default function ArtifactsListPage() {
       title="Artifacts"
       back="/framework"
       contentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
+      headerContentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
     >
       {showHeaderNew ? (
         <div className="mb-6 flex flex-wrap items-center justify-end gap-2">

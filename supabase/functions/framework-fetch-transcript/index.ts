@@ -1,5 +1,5 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Order: watch-page caption tracks → timedtext API → InnerTube get_transcript → Gemini clips.
+// Order: captions → AssemblyAI (tier 2) → Deepgram (audio URL) → Gemini clips.
 // YOUTUBE_DATA_API_KEY enriches description/chapters only (not caption download).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
@@ -8,6 +8,19 @@ import {
   planGeminiTranscribeSegments,
   parseIso8601Duration,
 } from "../_shared/youtubeGeminiTranscribe.ts";
+import {
+  buildFetchResult,
+  segmentsFromTimedText,
+} from "../_shared/transcriptNormalize.ts";
+import {
+  persistTranscriptChunks,
+  persistTranscriptSegments,
+  transcriptMetadataPatch,
+} from "../_shared/transcriptPersist.ts";
+import { fetchAssemblyAiTranscript } from "../_shared/transcriptProviders/assemblyai.ts";
+import { fetchDeepgramTranscript } from "../_shared/transcriptProviders/deepgram.ts";
+import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
+import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
 import {
   fetchInnertubeTranscript,
   fetchTimedTextTranscript,
@@ -406,9 +419,10 @@ async function geminiTranscribeYouTube(opts: GeminiTranscribeOpts): Promise<stri
   }
 
   const { watchUrl, startSeconds, endSeconds, prompt } = opts;
-  const clipLabel = startSeconds != null && endSeconds != null
-    ? `${formatTime(startSeconds)}-${formatTime(endSeconds)}`
-    : "full video";
+  if (startSeconds == null || endSeconds == null) {
+    throw new Error("clip start/end required (full-video Gemini requests are disabled)");
+  }
+  const clipLabel = `${formatTime(startSeconds)}-${formatTime(endSeconds)}`;
 
   const videoPart: Record<string, unknown> = {
     file_data: { file_uri: watchUrl },
@@ -486,9 +500,7 @@ async function transcribeYouTubeWithGemini(
       watchUrl,
       startSeconds: start,
       endSeconds: end,
-      prompt: plan.segments.length === 1
-        ? "Transcribe all spoken words in this YouTube video clip. Return plain transcript text only with [M:SS] or [H:MM:SS] timestamps at natural phrase boundaries. Do not summarize, invent content, or add commentary."
-        : `Transcribe only spoken words from ${formatTime(start)} to ${formatTime(end)}. Return transcript text only with timestamps in that range. Do not summarize or invent.`,
+      prompt: `Transcribe only spoken words from ${formatTime(start)} to ${formatTime(end)}. Return transcript text only with [M:SS] or [H:MM:SS] timestamps in that range. Do not summarize or invent.`,
     });
 
     if (!segmentText.trim()) {
@@ -511,77 +523,154 @@ async function transcribeYouTubeWithGemini(
   return transcript;
 }
 
-function buildTranscriptFailureMessage(captionAttempts: string[], geminiError?: string): string {
-  const hasGeminiKey = Boolean(Deno.env.get("GEMINI_API_KEY"));
-  const parts = [`No YouTube captions found (${captionAttempts.join("; ")})`];
-  if (!hasGeminiKey) {
-    parts.push("GEMINI_API_KEY is not configured, so automatic speech transcription is unavailable");
-  } else if (geminiError) {
-    parts.push(`Automatic transcription failed: ${geminiError}`);
+function buildTranscriptFailureMessage(tierAttempts: string[], geminiError?: string): string {
+  const steps = [...tierAttempts];
+  if (geminiError) {
+    steps.push(`Gemini (chunked clips): ${geminiError}`);
+  } else if (!Deno.env.get("GEMINI_API_KEY")) {
+    steps.push("Gemini: skipped — GEMINI_API_KEY not set on edge function");
   }
-  parts.push(
-    "For long videos, pasting from YouTube is often fastest (YouTube → ⋮ → Show transcript, copy all, then Paste transcript on this page)",
-  );
-  return parts.join(". ") + ".";
+  return [
+    "Could not fetch transcript.",
+    `Attempts: ${steps.join("; ")}.`,
+    "For long videos, paste from YouTube (⋯ → Show transcript) if automatic fetch keeps failing.",
+  ].join(" ");
 }
 
-async function transcribeYouTubeVideo(url: string): Promise<{ text: string; metadata: YouTubeMetadata; chaptersBundle: WatchCaptionBundle | null }> {
+type YoutubeTranscribeOutcome = {
+  fetch: TranscriptFetchResult;
+  metadata: YouTubeMetadata;
+  chaptersBundle: WatchCaptionBundle | null;
+};
+
+function outcomeFromTimedText(
+  rawText: string,
+  source: "caption" | "gemini",
+  provider: string,
+): TranscriptFetchResult {
+  const segments = segmentsFromTimedText(rawText, source);
+  if (segments.length) return buildFetchResult(segments, source, provider);
+  return buildFetchResult(
+    [{
+      seq: 0,
+      start_seconds: 0,
+      end_seconds: null,
+      text: rawText.trim().slice(0, 50000),
+      speaker: null,
+      confidence: null,
+      source,
+    }],
+    source,
+    provider,
+  );
+}
+
+async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOutcome> {
   const metadata = await getYouTubeMetadata(url).catch(() => ({}));
   const videoId = extractYouTubeVideoId(url);
   const watchUrl = videoId ? normalizeYouTubeWatchUrl(url, videoId) : url;
 
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
+    const fetch = outcomeFromTimedText(captionResult.text, "caption", "youtube_watch_captions");
     return {
-      text: captionResult.text,
+      fetch,
       metadata: { ...metadata, title: metadata.title ?? captionResult.title },
       chaptersBundle: captionResult,
     };
   }
 
-  const captionAttempts: string[] = ["YouTube watch-page captions: none or unavailable"];
+  const tierAttempts: string[] = ["Captions (watch-page): none or unavailable"];
   if (videoId) {
     const timedText = await fetchTimedTextTranscript(videoId).catch((e) => {
-      captionAttempts.push(`timedtext API: ${String((e as Error).message ?? e)}`);
+      tierAttempts.push(`Captions (timedtext): ${String((e as Error).message ?? e)}`);
       return null;
     });
     if (timedText) {
+      const fetch = outcomeFromTimedText(timedText, "caption", "youtube_timedtext");
       return {
-        text: timedText,
+        fetch,
         metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
         chaptersBundle: captionResult,
       };
     }
-    captionAttempts.push("timedtext API: no track returned");
+    tierAttempts.push("Captions (timedtext): no track returned");
 
     const innertube = await fetchInnertubeTranscript(videoId).catch((e) => {
-      captionAttempts.push(`YouTube transcript API: ${String((e as Error).message ?? e)}`);
+      tierAttempts.push(`Captions (innertube): ${String((e as Error).message ?? e)}`);
       return null;
     });
     if (innertube) {
+      const fetch = outcomeFromTimedText(innertube, "caption", "youtube_innertube");
       return {
-        text: innertube,
+        fetch,
         metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
         chaptersBundle: captionResult,
       };
     }
-    captionAttempts.push("YouTube transcript API: no segments returned");
+    tierAttempts.push("Captions (innertube): no segments returned");
+  }
+
+  try {
+    const assembly = await fetchAssemblyAiTranscript(watchUrl);
+    if (assembly.rawText) {
+      return {
+        fetch: assembly,
+        metadata: {
+          ...metadata,
+          durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? null,
+        },
+        chaptersBundle: captionResult,
+      };
+    }
+  } catch (e) {
+    tierAttempts.push(`AssemblyAI: ${String((e as Error).message ?? e)}`);
+  }
+
+  if (Deno.env.get("DEEPGRAM_API_KEY")?.trim()) {
+    const deepgramUrl = videoId
+      ? await resolveYouTubeAudioUrl(videoId).catch(() => null)
+      : null;
+    if (deepgramUrl) {
+      try {
+        const deepgram = await fetchDeepgramTranscript(deepgramUrl);
+        if (deepgram.rawText) {
+          return {
+            fetch: deepgram,
+            metadata: {
+              ...metadata,
+              durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? null,
+            },
+            chaptersBundle: captionResult,
+          };
+        }
+      } catch (e) {
+        tierAttempts.push(`Deepgram: ${String((e as Error).message ?? e)}`);
+      }
+    } else {
+      tierAttempts.push(
+        "Deepgram: skipped — no direct audio URL (YouTube watch URLs are unsupported; set DEEPGRAM_AUDIO_URL or ASSEMBLYAI_API_KEY)",
+      );
+    }
+  } else {
+    tierAttempts.push("Deepgram: skipped — DEEPGRAM_API_KEY not set on edge function");
   }
 
   if (!Deno.env.get("GEMINI_API_KEY")) {
-    throw new Error(buildTranscriptFailureMessage(captionAttempts));
+    throw new Error(buildTranscriptFailureMessage(tierAttempts));
   }
 
   try {
     const durationHint = metadata.durationSeconds ?? captionResult?.durationSeconds;
     const text = await transcribeYouTubeWithGemini(watchUrl, durationHint);
+    const fetch = outcomeFromTimedText(text, "gemini", "gemini_video_clips");
     const mergedMetadata = {
       ...metadata,
       durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? durationHint,
     };
-    return { text, metadata: mergedMetadata, chaptersBundle: captionResult };
+    return { fetch, metadata: mergedMetadata, chaptersBundle: captionResult };
   } catch (e) {
-    throw new Error(buildTranscriptFailureMessage(captionAttempts, String((e as Error).message ?? e)));
+    throw new Error(buildTranscriptFailureMessage(tierAttempts, String((e as Error).message ?? e)));
   }
 }
 
@@ -627,6 +716,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const admin = SERVICE_ROLE
+      ? createClient(SUPABASE_URL, SERVICE_ROLE)
+      : null;
+
     const processTranscript = async () => {
       try {
         const result = await transcribeYouTubeVideo(url);
@@ -643,10 +737,10 @@ Deno.serve(async (req) => {
         }
         let youtube_chapters = parseYoutubeChaptersFromDescription(desc);
         if (!youtube_chapters.length) chaptersSource = "none";
-        if (!youtube_chapters.length && result.text.trim().length >= 400) {
+        if (!youtube_chapters.length && result.fetch.rawText.trim().length >= 400) {
           const generated = await generateChaptersFromTranscript({
             apiKey: Deno.env.get("GEMINI_API_KEY"),
-            rawText: result.text,
+            rawText: result.fetch.rawText,
             durationSeconds: result.metadata.durationSeconds ?? null,
             title: result.metadata.title ?? artifact.title,
           });
@@ -658,6 +752,7 @@ Deno.serve(async (req) => {
         const prevMeta = (artifact.metadata as Record<string, unknown> | null | undefined) ?? {};
         const metadata = {
           ...prevMeta,
+          ...transcriptMetadataPatch(result.fetch),
           source: "youtube",
           title: result.metadata.title ?? null,
           channel_title: uploaderName,
@@ -671,10 +766,31 @@ Deno.serve(async (req) => {
           youtube_chapters,
           youtube_chapters_source: chaptersSource,
         };
+
+        const { data: artRow } = await supabase
+          .from("artifacts")
+          .select("user_id")
+          .eq("id", artifact_id)
+          .maybeSingle();
+        const userId = artRow?.user_id as string | undefined;
+
+        if (admin && userId && result.fetch.segments.length) {
+          await persistTranscriptSegments(admin, {
+            artifactId: artifact_id,
+            userId,
+            segments: result.fetch.segments,
+          });
+          await persistTranscriptChunks(admin, {
+            artifactId: artifact_id,
+            userId,
+            segments: result.fetch.segments,
+          });
+        }
+
         const { data: updated } = await supabase
           .from("artifacts")
           .update({
-            raw_text: result.text,
+            raw_text: result.fetch.rawText,
             title: artifact.title || result.metadata.title || null,
             metadata,
             status: "analyzing",
@@ -692,6 +808,17 @@ Deno.serve(async (req) => {
           headers: { Authorization: auth, "Content-Type": "application/json" },
           body: JSON.stringify({ artifact_id, processing_token }),
         }).catch((e) => console.error("analyze kick err", e));
+
+        if (admin && userId) {
+          await fetch(`${SUPABASE_URL}/functions/v1/framework-embed-transcript`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${SERVICE_ROLE}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ artifact_id, user_id: userId }),
+          }).catch((e) => console.error("embed-transcript kick err", e));
+        }
       } catch (e) {
         const raw = String((e as Error).message ?? e);
         const msg = raw.startsWith("Could not fetch transcript:") ? raw : `Could not fetch transcript: ${raw}`;

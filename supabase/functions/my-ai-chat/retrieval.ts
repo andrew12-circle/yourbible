@@ -68,6 +68,15 @@ function shrinkToLimit(parts: string[], max: number): string {
 type BeliefHit = { id: string; statement: string; topic: string; layer: string; confidence: number; is_core: boolean; updated_at: string; similarity: number };
 type JournalHit = { id: string; title: string | null; body: string; summary: string | null; entry_at_ts: string; similarity: number };
 type ClaimHit = { id: string; artifact_id: string; claim: string; verdict: string | null; created_at: string; similarity: number };
+type TranscriptChunkHit = {
+  id: string;
+  artifact_id: string;
+  start_seconds: number;
+  end_seconds: number | null;
+  text: string;
+  metadata: Record<string, unknown> | null;
+  similarity: number;
+};
 type EntityHit = { id: string; title: string; subtitle: string | null; kind: string; last_seen_at: string; similarity: number };
 type AsstHit = { id: string; chat_id: string; content: string; created_at: string; similarity: number };
 
@@ -88,12 +97,13 @@ export async function buildFrameworkRetrievalContext(
         supabase.rpc("match_beliefs", { query_embedding: qLit, match_count: 14 }),
         supabase.rpc("match_journals", { query_embedding: qLit, match_count: 10, exclude_id: excludeJournalEntryId ?? null }),
         supabase.rpc("match_artifact_claims", { query_embedding: qLit, match_count: 6 }),
+        supabase.rpc("match_artifact_transcript", { query_embedding: qLit, match_count: 6, filter_artifact_id: null }),
         supabase.rpc("match_entities", { query_embedding: qLit, match_count: 8 }),
         supabase.rpc("match_assistant_messages", { query_embedding: qLit, match_count: 4, exclude_chat_id: chatId }),
       ])
-    : [null, null, null, null, null];
+    : [null, null, null, null, null, null];
 
-  const [bRes, jRes, cRes, eRes, mRes] = semanticHits;
+  const [bRes, jRes, cRes, tRes, eRes, mRes] = semanticHits;
 
   const [profileRes, historyRes, sourcesRes, tensionsRes] = await Promise.all([
     supabase.from("profiles").select("identity_summary").eq("user_id", userId).maybeSingle(),
@@ -179,6 +189,7 @@ export async function buildFrameworkRetrievalContext(
   }
 
   const claimHits = ((cRes && !cRes.error) ? (cRes.data ?? []) : []) as ClaimHit[];
+  const transcriptHits = ((tRes && !tRes.error) ? (tRes.data ?? []) : []) as TranscriptChunkHit[];
   const entityHits = ((eRes && !eRes.error) ? (eRes.data ?? []) : []) as EntityHit[];
   const asstHits = ((mRes && !mRes.error) ? (mRes.data ?? []) : []) as AsstHit[];
 
@@ -206,6 +217,11 @@ export async function buildFrameworkRetrievalContext(
   const claimLines = claimHits.slice(0, 5).map((c) => {
     const verdictBit = c.verdict?.trim() ? ` (verdict: ${c.verdict})` : "";
     return `[artifact:${c.artifact_id}] claim — ${truncate(c.claim, 320)}${verdictBit} (sim ${c.similarity.toFixed(2)})`;
+  });
+
+  const transcriptLines = transcriptHits.slice(0, 5).map((t) => {
+    const end = t.end_seconds != null ? `${t.start_seconds}s–${t.end_seconds}s` : `${t.start_seconds}s`;
+    return `[artifact:${t.artifact_id}] transcript @ ${end} — ${truncate(t.text.replace(/\s+/g, " "), 400)} (sim ${t.similarity.toFixed(2)})`;
   });
 
   const entityLines = entityHits.slice(0, 6).map((e) => {
@@ -260,6 +276,7 @@ export async function buildFrameworkRetrievalContext(
     "## Open tensions adjacent to this turn (surface them if relevant)\n" + (tensionLines.length ? tensionLines.join("\n") : "(none)"),
     "## Most-relevant journals\n" + (journalLines.length ? journalLines.join("\n") : "(none)"),
     "## Most-relevant artifact claims\n" + (claimLines.length ? claimLines.join("\n") : "(none)"),
+    "## Transcript moments (semantic — cite artifact + time when relevant)\n" + (transcriptLines.length ? transcriptLines.join("\n") : "(none)"),
     "## Most-relevant knowledge entities\n" + (entityLines.length ? entityLines.join("\n") : "(none)"),
     "## Influences / sources\n" + (sourceLines.length ? sourceLines.join("\n") : "(none)"),
     "## Echoes from past AI replies (other threads — for continuity, not to quote)\n" + (asstLines.length ? asstLines.join("\n") : "(none)"),

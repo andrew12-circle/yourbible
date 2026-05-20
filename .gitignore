@@ -28,3 +28,6 @@ dist-ssr
 .env.*
 !.env.example
 .vercel
+
+# GitHub Actions workflow (local only until push has workflow OAuth scope)
+.github/workflows/deploy-supabase-functions.yml

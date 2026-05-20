@@ -1,4 +1,5 @@
-export const PIP_HEADER_PX = 28;
+/** Chrome overlays the video; no dedicated header band in layout math. */
+export const PIP_HEADER_PX = 0;
 export const PIP_MIN_W = 160;
 export const PIP_MAX_W = 640;
 export const PIP_VIEWPORT_PAD = 8;

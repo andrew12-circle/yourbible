@@ -4,9 +4,10 @@ import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, BookOpen, ListChecks, ListTodo, CheckSquare, MessageCircleHeart,
+  Loader2, BookOpen, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Lightbulb, Calendar as CalIcon, User, Youtube, HeartHandshake,
+  Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users,
   type LucideIcon,
 } from "lucide-react";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
@@ -175,6 +176,13 @@ export default function HomePage() {
     { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
     { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
     { label: "Framework", to: "/framework",            icon: Brain,                 color: "#FF2D55", iconColor: "white" },
+    { label: "Journey",   to: "/framework/journey",    icon: Sprout,                color: "linear-gradient(160deg, #15803D 0%, #22C55E 58%, #86EFAC 100%)", iconColor: "white" },
+    { label: "Playbook",  to: "/framework/playbook",   icon: ClipboardList,         color: "linear-gradient(160deg, #334155 0%, #475569 58%, #94A3B8 100%)", iconColor: "white" },
+    { label: "Artifacts", to: "/framework/artifacts",  icon: FileStack,             color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", iconColor: "white", badge: counts.artifacts || undefined },
+    { label: "Research later", to: "/framework/research-later", icon: Clock,          color: "linear-gradient(160deg, #B45309 0%, #F59E0B 58%, #FCD34D 100%)", iconColor: "white", ariaLabel: "Research later" },
+    { label: "Graph",     to: "/framework/graph",      icon: Share2,                color: "linear-gradient(160deg, #3730A3 0%, #4F46E5 58%, #818CF8 100%)", iconColor: "white" },
+    { label: "Beliefs",   to: "/framework/beliefs",    icon: Network,               color: "linear-gradient(160deg, #1D4ED8 0%, #3B82F6 58%, #93C5FD 100%)", iconColor: "white", badge: counts.beliefs || undefined },
+    { label: "Influences", to: "/framework/influences", icon: Users,                color: "linear-gradient(160deg, #9D174D 0%, #DB2777 58%, #F9A8D4 100%)", iconColor: "white" },
     { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
     {
       label: "Walking together",
@@ -184,11 +192,9 @@ export default function HomePage() {
       iconColor: "white",
       ariaLabel: "Walking together with a partner",
     },
-    { label: "Beliefs",   to: "/framework/beliefs",    icon: ListChecks,            color: "linear-gradient(160deg, #ECECEC 0%, #FCFCFC 62%, #FFFFFF 100%)", iconColor: "#3F3F46", badge: counts.beliefs || undefined },
     { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: "linear-gradient(160deg, #0D9D96 0%, #18C6BE 58%, #61EAE4 100%)", badge: counts.tensions || undefined },
     { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "linear-gradient(160deg, #4C46D1 0%, #6A63FF 58%, #8E8BFF 100%)" },
     { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "linear-gradient(160deg, #0073EF 0%, #1A97FF 58%, #57B8FF 100%)" },
-    { label: "Library",   to: "/framework/influences", icon: BookOpen,              color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", badge: counts.artifacts || undefined },
     { label: "Tasks",     to: "/life/todos",           icon: ListTodo,              color: "linear-gradient(160deg, #2563EB 0%, #3B82F6 58%, #93C5FD 100%)" },
     { label: "Habits",    to: "/life/habits",          icon: CheckSquare,           color: "linear-gradient(160deg, #059669 0%, #10B981 58%, #6EE7B7 100%)", iconColor: "white" },
     { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "linear-gradient(160deg, #091134 0%, #122056 58%, #20357D 100%)" },
