@@ -16,6 +16,8 @@ interface Props {
   immersive?: boolean;
   /** Right-side actions beside title (e.g. paste transcript on artifact detail). */
   headerActions?: ReactNode;
+  /** Rich header block (e.g. YouTube thumbnail + title + channel) replaces plain `title` when set. */
+  headerLeading?: ReactNode;
 }
 
 /** `/framework/artifacts/:id` — not list (`/artifacts`) or new (`/artifacts/new`). */
@@ -43,6 +45,7 @@ export default function FrameworkLayout({
   headerContentClassName,
   immersive: immersiveProp,
   headerActions,
+  headerLeading,
 }: Props) {
   const { pathname } = useLocation();
   const immersive = immersiveProp ?? isArtifactDetailPath(pathname);
@@ -59,8 +62,12 @@ export default function FrameworkLayout({
       >
         <div
           className={cn(
-            "mx-auto px-4 sm:px-5 flex items-center gap-2 sm:gap-3",
-            immersive ? "py-3 sm:py-3.5" : "py-3.5",
+            "mx-auto flex gap-2 px-4 sm:gap-3 sm:px-5",
+            headerLeading && immersive
+              ? "items-start py-3 sm:items-center sm:py-3.5"
+              : immersive
+                ? "items-center py-3 sm:py-3.5"
+                : "items-center py-3.5",
             headerMax,
           )}
         >
@@ -79,26 +86,33 @@ export default function FrameworkLayout({
           </Link>
           <div
             className={cn(
-              "flex-1 min-w-0",
-              immersive && "border-l border-border/50 pl-2.5 sm:pl-3",
+              "min-w-0 flex-1",
+              immersive && !headerLeading && "border-l border-border/50 pl-2.5 sm:pl-3",
+              headerLeading && immersive && "border-l border-border/50 pl-2.5 sm:pl-3",
             )}
           >
-            {!immersive && (
-              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90">
-                My Framework
-              </div>
-            )}
-            {title && (
-              <h1
-                className={cn(
-                  "tracking-tight text-foreground truncate",
-                  immersive
-                    ? "font-display text-lg font-normal leading-snug sm:text-xl"
-                    : "font-semibold text-xl mt-0.5",
+            {headerLeading ? (
+              headerLeading
+            ) : (
+              <>
+                {!immersive && (
+                  <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90">
+                    My Framework
+                  </div>
                 )}
-              >
-                {title}
-              </h1>
+                {title ? (
+                  <h1
+                    className={cn(
+                      "tracking-tight text-foreground truncate",
+                      immersive
+                        ? "font-display text-lg font-normal leading-snug sm:text-xl"
+                        : "mt-0.5 text-xl font-semibold",
+                    )}
+                  >
+                    {title}
+                  </h1>
+                ) : null}
+              </>
             )}
           </div>
           {headerActions ? (

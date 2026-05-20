@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   Clock,
   ListOrdered,
+  Check,
+  X,
+  Pencil,
+  CirclePause,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -53,6 +57,7 @@ import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
+import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
@@ -802,7 +807,25 @@ export default function ArtifactDetailPage() {
     return () => window.clearTimeout(t);
   }, [claims, a?.status]);
 
-  if (loading) return null;
+  const scrollToVideoSection = useCallback(() => {
+    document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  if (loading) {
+    return (
+      <FrameworkLayout
+        title="Artifact"
+        back="/framework/artifacts"
+        contentClassName="max-w-none"
+        headerContentClassName="max-w-none"
+      >
+        <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Loading artifact…
+        </div>
+      </FrameworkLayout>
+    );
+  }
   if (!user) return <Navigate to="/auth" replace />;
   if (!a) {
     return (
@@ -1304,34 +1327,60 @@ export default function ArtifactDetailPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-4">
-          <Button
-            size="sm"
-            variant="secondary"
+        <div
+          className="flex flex-wrap items-center gap-1 border-t border-border/50 pt-3"
+          role="toolbar"
+          aria-label="Claim actions"
+        >
+          <ClaimIconActionButton
+            label="Research"
+            icon={MessageCircle}
+            tone="research"
+            active
             onClick={() => startClaimResearchChat(c, source)}
-            title="Open the journal chat to research this claim on this page"
-          >
-            <MessageCircle className="mr-1 h-3.5 w-3.5" />
-            Research
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => openJournalFromClaim(c, source?.startSeconds ?? undefined)}>
-            <NotebookPen className="mr-1 h-3.5 w-3.5" />
-            Reflect
-          </Button>
-          <Button
-            size="sm"
-            variant={isDeferredVerdict(c.verdict) ? "default" : "outline"}
+          />
+          <ClaimIconActionButton
+            label="Reflect"
+            icon={NotebookPen}
+            tone="reflect"
+            onClick={() => openJournalFromClaim(c, source?.startSeconds ?? undefined)}
+          />
+          <ClaimIconActionButton
+            label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
+            icon={Clock}
+            tone="researchLater"
+            active={isDeferredVerdict(c.verdict)}
             onClick={() => void toggleResearchLater(c.id, c.verdict)}
-            title="Save to your research-later queue"
-          >
-            <Clock className="mr-1 h-3.5 w-3.5" />
-            {isDeferredVerdict(c.verdict) ? "In queue" : "Research later"}
-          </Button>
-          <span className="hidden sm:inline w-px h-5 bg-border/60 mx-0.5" aria-hidden />
-          <Button size="sm" variant={c.verdict === "keep" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "keep")}>Keep</Button>
-          <Button size="sm" variant={c.verdict === "reject" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "reject")}>Reject</Button>
-          <Button size="sm" variant={c.verdict === "updated" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "updated")}>Update my belief</Button>
-          <Button size="sm" variant={c.verdict === "defer" ? "default" : "outline"} onClick={() => void setVerdict(c.id, "defer")}>Defer</Button>
+          />
+          <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden />
+          <ClaimIconActionButton
+            label="Keep"
+            icon={Check}
+            tone="keep"
+            active={c.verdict === "keep"}
+            onClick={() => void setVerdict(c.id, "keep")}
+          />
+          <ClaimIconActionButton
+            label="Reject"
+            icon={X}
+            tone="reject"
+            active={c.verdict === "reject"}
+            onClick={() => void setVerdict(c.id, "reject")}
+          />
+          <ClaimIconActionButton
+            label="Update my belief"
+            icon={Pencil}
+            tone="update"
+            active={c.verdict === "updated"}
+            onClick={() => void setVerdict(c.id, "updated")}
+          />
+          <ClaimIconActionButton
+            label="Defer"
+            icon={CirclePause}
+            tone="defer"
+            active={c.verdict === "defer"}
+            onClick={() => void setVerdict(c.id, "defer")}
+          />
         </div>
       </article>
     );
@@ -1349,7 +1398,81 @@ export default function ArtifactDetailPage() {
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
-  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-6.5rem)]";
+  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-8.25rem)]";
+
+  const youtubeHeaderLeading =
+    a.kind === "youtube" ? (
+      (() => {
+        const thumb =
+          mergedVideoMeta.thumbnail_url ||
+          (youTubeVideoId ? `https://i.ytimg.com/vi/${youTubeVideoId}/hqdefault.jpg` : null);
+        const channel = mergedVideoMeta.channel_title?.trim();
+        const channelUrl = mergedVideoMeta.channel_url?.trim();
+        const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
+
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            {thumb ? (
+              <button
+                type="button"
+                onClick={scrollToVideoSection}
+                className="group relative shrink-0 overflow-hidden rounded-lg ring-1 ring-border/60 shadow-sm transition hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Scroll to video"
+              >
+                <img
+                  src={thumb}
+                  alt=""
+                  className="h-14 w-[4.75rem] object-cover bg-muted transition group-hover:opacity-90 sm:h-[4.25rem] sm:w-28"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/25">
+                  <Youtube className="h-5 w-5 text-white opacity-0 drop-shadow transition group-hover:opacity-100" aria-hidden />
+                </span>
+              </button>
+            ) : (
+              <span className="flex h-14 w-[4.75rem] shrink-0 items-center justify-center rounded-lg bg-red-600/10 ring-1 ring-border/60 sm:h-[4.25rem] sm:w-28">
+                <Youtube className="h-6 w-6 text-red-600" aria-hidden />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-500">
+                  <Youtube className="h-3 w-3" aria-hidden />
+                  YouTube
+                </span>
+                <span className="text-border" aria-hidden>
+                  ·
+                </span>
+                <span className={cn("inline-flex items-center gap-1", inFlight && "text-foreground")}>
+                  {inFlight ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden /> : null}
+                  {formatArtifactStatus(a.status)}
+                </span>
+              </div>
+              <h1 className="font-display text-base font-normal leading-snug text-foreground line-clamp-2 sm:text-lg md:line-clamp-3">
+                {displayTitle}
+              </h1>
+              {channel ? (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {channelUrl ? (
+                    <a
+                      href={channelUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex max-w-full items-center gap-1 hover:text-foreground hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="truncate">{channel}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
+                    </a>
+                  ) : (
+                    channel
+                  )}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        );
+      })()
+    ) : null;
 
   const pageNavLinkClass = (href: string) =>
     cn(
@@ -1385,29 +1508,31 @@ export default function ArtifactDetailPage() {
 
   return (
     <FrameworkLayout
-      title={a.title || "Untitled artifact"}
+      title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
+      headerLeading={youtubeHeaderLeading}
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
       headerActions={artifactHeaderActions}
     >
-      <div
-        className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-2.5 text-sm shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
-        role="status"
-        aria-label="Artifact status"
-      >
-        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-          {a.kind === "youtube" ? <Youtube className="h-3.5 w-3.5 text-red-600" aria-hidden /> : null}
-          {formatArtifactKind(a.kind)}
-        </span>
-        <span className="hidden text-border sm:inline" aria-hidden>
-          |
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          {inFlight ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden /> : null}
-          <span className={cn(inFlight && "text-foreground")}>{formatArtifactStatus(a.status)}</span>
-        </span>
-      </div>
+      {a.kind !== "youtube" ? (
+        <div
+          className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-2.5 text-sm shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
+          role="status"
+          aria-label="Artifact status"
+        >
+          <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+            {formatArtifactKind(a.kind)}
+          </span>
+          <span className="hidden text-border sm:inline" aria-hidden>
+            |
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            {inFlight ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden /> : null}
+            <span className={cn(inFlight && "text-foreground")}>{formatArtifactStatus(a.status)}</span>
+          </span>
+        </div>
+      ) : null}
 
       <div
         className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
@@ -1581,18 +1706,9 @@ export default function ArtifactDetailPage() {
       {youTubeVideoId && (
         <section
           id="video"
-          className="scroll-mt-28 mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-page ring-1 ring-black/[0.03] sm:p-5 lg:mb-0 dark:ring-white/[0.04]"
+          className="scroll-mt-32 mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card p-3 shadow-page ring-1 ring-black/[0.03] sm:p-4 lg:mb-0 dark:ring-white/[0.04]"
         >
           <div>
-            <div className="mb-3 flex items-center gap-2.5 border-b border-border/50 pb-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600/10">
-                <Youtube className="h-4 w-4 text-red-600" aria-hidden />
-              </span>
-              <div>
-                <h2 className="font-display text-base font-normal leading-tight text-foreground sm:text-lg">Video</h2>
-                <p className="text-xs text-muted-foreground">Watch and capture moments below</p>
-              </div>
-            </div>
             <div
               ref={youtubePip.videoSlotRef}
               className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl border border-border/70 bg-muted/20 shadow-soft"
