@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList } from "lucide-react";
+import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
@@ -28,6 +28,7 @@ const NAV = [
   { to: "/framework/journey", label: "Journey", icon: Sprout },
   { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
+  { to: "/framework/research-later", label: "Research later", icon: Clock },
   { to: "/framework/graph", label: "Graph", icon: Share2 },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },
   { to: "/framework/influences", label: "Influences", icon: Users },
@@ -48,22 +49,40 @@ export default function FrameworkLayout({
   const headerMax = headerContentClassName ?? "max-w-4xl";
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+      <header
+        className={cn(
+          "sticky top-0 z-30 border-b backdrop-blur-md supports-[backdrop-filter]:bg-background/80",
+          immersive
+            ? "border-border/60 bg-background/92 shadow-sm supports-[backdrop-filter]:bg-background/85"
+            : "border-border/40 bg-background/80 supports-[backdrop-filter]:bg-background/70",
+        )}
+      >
         <div
           className={cn(
             "mx-auto px-4 sm:px-5 flex items-center gap-2 sm:gap-3",
-            immersive ? "py-2.5" : "py-3.5",
+            immersive ? "py-3 sm:py-3.5" : "py-3.5",
             headerMax,
           )}
         >
           <Link
             to={back ?? "/"}
-            className="p-2 -ml-2 rounded-xl text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Back"
+            className={cn(
+              "rounded-xl text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              immersive
+                ? "inline-flex shrink-0 items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
+                : "p-2 -ml-2 hover:bg-muted/80 hover:text-foreground",
+            )}
+            aria-label={immersive ? "Back to artifacts" : "Back"}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+            {immersive ? <span className="hidden sm:inline">Artifacts</span> : null}
           </Link>
-          <div className="flex-1 min-w-0">
+          <div
+            className={cn(
+              "flex-1 min-w-0",
+              immersive && "border-l border-border/50 pl-2.5 sm:pl-3",
+            )}
+          >
             {!immersive && (
               <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90">
                 My Framework
@@ -72,8 +91,10 @@ export default function FrameworkLayout({
             {title && (
               <h1
                 className={cn(
-                  "font-semibold tracking-tight text-foreground truncate",
-                  immersive ? "text-base sm:text-lg" : "text-xl mt-0.5",
+                  "tracking-tight text-foreground truncate",
+                  immersive
+                    ? "font-display text-lg font-normal leading-snug sm:text-xl"
+                    : "font-semibold text-xl mt-0.5",
                 )}
               >
                 {title}
@@ -81,7 +102,14 @@ export default function FrameworkLayout({
             )}
           </div>
           {headerActions ? (
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+            <div
+              className={cn(
+                "flex shrink-0 flex-wrap items-center justify-end",
+                immersive
+                  ? "gap-1 rounded-xl border border-border/60 bg-muted/30 p-1 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
+                  : "gap-1.5 sm:gap-2",
+              )}
+            >
               {headerActions}
             </div>
           ) : null}
@@ -142,7 +170,7 @@ export default function FrameworkLayout({
       <main
         className={cn(
           "mx-auto px-4 sm:px-5",
-          immersive ? "py-4 sm:py-5" : "py-8 sm:py-10",
+          immersive ? "py-5 sm:py-6" : "py-8 sm:py-10",
           contentClassName ?? "max-w-4xl",
         )}
       >

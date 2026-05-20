@@ -51,7 +51,11 @@ import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
+import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
+import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
+import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
+import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
   formatClaimVerdict,
   isDeferredVerdict,
@@ -60,11 +64,13 @@ import {
 import {
   countTimedTranscriptLines,
   looksLikeYoutubeShowTranscriptPaste,
+  cleanTranscriptQuoteForDisplay,
   needsTranscriptNormalization,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
 import {
   collectTranscriptTextOverlappingInclusiveRange,
+  formatClaimSourceClock,
   formatTranscriptClock,
   splitTranscript,
   type TranscriptSegment,
@@ -95,6 +101,15 @@ interface ArtifactMetadata {
   youtube_chapters?: YoutubeChapter[];
   youtube_chapters_source?: string | null;
   video_id?: string;
+}
+
+function formatArtifactKind(kind: string): string {
+  if (kind === "youtube") return "YouTube";
+  return kind.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatArtifactStatus(status: string): string {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function titleLooksBad(title: string | null | undefined): boolean {
@@ -180,6 +195,8 @@ interface Claim {
   user_note: string | null;
   /** Populated when claims were extracted per YouTube chapter (see `framework-analyze`). */
   chapter_start_seconds?: number | null;
+  /** AI epistemology layers (empty until re-analyze). */
+  epistemology?: ClaimEpistemology | null;
 }
 
 type ClaimChapterGroup = {
@@ -307,7 +324,10 @@ function buildClaimResearchMarkdown(
   }
   lines.push("## Source in transcript");
   if (source?.text?.trim()) {
-    lines.push("> " + source.text.trim().replace(/\n/g, "\n> "));
+    const clock = formatClaimSourceClock(source.startSeconds, source.label);
+    const quote = cleanTranscriptQuoteForDisplay(source.text);
+    if (clock) lines.push(`**[${clock}]**`);
+    lines.push("> " + (quote || source.text.trim()).replace(/\n/g, "\n> "));
   } else {
     lines.push("_No linked transcript snippet._");
   }
@@ -402,6 +422,9 @@ export default function ArtifactDetailPage() {
   const youtubeChapterSyncSessionRef = useRef<Set<string>>(new Set());
   const youtubeChapterGenSessionRef = useRef<Set<string>>(new Set());
   const [generatingChapters, setGeneratingChapters] = useState(false);
+  const [pageSectionHash, setPageSectionHash] = useState(() =>
+    typeof window !== "undefined" ? window.location.hash : "",
+  );
   const createProcessingToken = () => crypto.randomUUID();
 
   const fetchYouTubeMeta = useCallback(async (videoUrl: string): Promise<ArtifactMetadata | null> => {
@@ -454,7 +477,12 @@ export default function ArtifactDetailPage() {
       .order("start_seconds")
       .order("created_at");
     const art = artResult.data;
-    const parsedClaims = ((cl as unknown) as Claim[]) ?? [];
+    const parsedClaims = (((cl as unknown) as Claim[]) ?? []).map((row) => ({
+      ...row,
+      epistemology: parseClaimEpistemology(
+        (row as Claim & { epistemology?: unknown }).epistemology,
+      ),
+    }));
     const beliefIds = Array.from(new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean))) as string[];
     let beliefMap: Record<string, MatchedBelief> = {};
     if (beliefIds.length > 0) {
@@ -495,6 +523,13 @@ export default function ArtifactDetailPage() {
     if (!user || !id) return;
     load();
   }, [user, id]);
+
+  useEffect(() => {
+    const sync = () => setPageSectionHash(window.location.hash);
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
 
   useEffect(() => {
     if (!a || a.kind !== "youtube" || !a.url) return;
@@ -675,6 +710,12 @@ export default function ArtifactDetailPage() {
     return `https://www.youtube.com/embed/${youTubeVideoId}`;
   }, [youTubeVideoId, videoStartSeconds]);
 
+  const youtubePip = useArtifactYoutubePip({
+    artifactId: id,
+    enabled: Boolean(embedSrc && youTubeVideoId),
+    mainScrollRef,
+  });
+
   useEffect(() => {
     if (!a?.id) {
       useFloatingJournalStore.getState().setRouteArtifact(null);
@@ -796,7 +837,7 @@ export default function ArtifactDetailPage() {
   };
 
   const jumpToClaim = (claimNumber: number) => {
-    const el = document.getElementById(`claim-${claimNumber}`);
+    const el = document.querySelector(`[data-claim-number="${claimNumber}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -1103,6 +1144,9 @@ export default function ArtifactDetailPage() {
 
   const renderClaimCard = (c: Claim, claimIndex: number) => {
     const source = claimSources[c.id];
+    const sourceClock = source ? formatClaimSourceClock(source.startSeconds, source.label) : null;
+    const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
+    const epistemology = parseClaimEpistemology(c.epistemology);
     const claimNumber = claimIndex + 1;
     const cardTint =
       claimIndex % 5 === 0
@@ -1117,22 +1161,23 @@ export default function ArtifactDetailPage() {
     return (
       <article
         key={c.id}
-        id={`claim-${claimNumber}`}
+        id={c.id}
+        data-claim-number={claimNumber}
         className={cn(
-          "scroll-mt-28 rounded-xl border-2 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.04]",
+          "scroll-mt-28 space-y-4 rounded-xl border-2 p-4 shadow-sm ring-1 ring-black/[0.03] sm:p-5 dark:ring-white/[0.04]",
           cardTint,
           isDeferredVerdict(c.verdict) && "ring-2 ring-amber-400/50 dark:ring-amber-600/40",
         )}
       >
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
             <span
               className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
               aria-label={`Claim ${claimNumber}`}
             >
               #{claimNumber}
             </span>
-            <p className="font-display text-base leading-snug">{c.claim}</p>
+            <p className="font-display text-base leading-relaxed text-foreground">{c.claim}</p>
           </div>
           {c.verdict ? (
             <span
@@ -1148,28 +1193,43 @@ export default function ArtifactDetailPage() {
           ) : null}
         </div>
 
-        <div className="mb-3 rounded-md border border-border/70 bg-background/55 p-3 text-xs backdrop-blur-[2px] dark:bg-background/20">
-          <div className="mb-1 flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
-            <Quote className="w-3 h-3" />
+        <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
+          <div className="mb-2.5 flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <Quote className="h-3 w-3 shrink-0" />
             Source in transcript
           </div>
           {source ? (
-            <div className="space-y-2">
-              <p className="font-sans text-sm leading-6 text-foreground line-clamp-3">
-                {source.text}
-              </p>
-              <Button size="sm" variant="outline" onClick={() => jumpToTranscriptSource(source)}>
-                {source.startSeconds != null ? `Play from ${source.label}` : `Jump to ${source.label}`}
+            <div className="space-y-3">
+              {sourceClock ? (
+                <p className="font-mono text-sm font-medium tabular-nums tracking-tight text-foreground/90">
+                  [{sourceClock}]
+                </p>
+              ) : null}
+              {sourceQuote ? (
+                <p className="font-sans text-sm leading-relaxed text-foreground line-clamp-4">
+                  {sourceQuote}
+                </p>
+              ) : (
+                <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
+                  Transcript excerpt unavailable.
+                </p>
+              )}
+              <Button size="sm" variant="outline" className="mt-0.5" onClick={() => jumpToTranscriptSource(source)}>
+                {sourceClock && source.startSeconds != null
+                  ? `Play from ${sourceClock}`
+                  : source.label
+                    ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
+                    : "Jump to transcript"}
               </Button>
             </div>
           ) : (
-            <p className="text-muted-foreground">
+            <p className="font-sans text-sm leading-relaxed text-muted-foreground">
               No exact transcript section was detected for this older analysis. Re-analyze after the timestamped transcript update for stronger source links.
             </p>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5 mb-3 text-[10px] uppercase tracking-wider">
+        <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wider">
           {c.tone && (
             <span className="rounded border border-border/60 bg-background/70 px-2 py-0.5 text-muted-foreground">tone: {c.tone}</span>
           )}
@@ -1195,7 +1255,7 @@ export default function ArtifactDetailPage() {
         </div>
 
         {(c.matched_belief_id && matchedBeliefs[c.matched_belief_id]) && (
-          <div className="mb-3 rounded-md border border-border/70 bg-background/55 p-3 text-xs space-y-2 backdrop-blur-[2px] dark:bg-background/20">
+          <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs space-y-2.5 backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
             <div className="uppercase tracking-wider text-muted-foreground">Your current belief context</div>
             <div>
               <p className="font-medium text-foreground">{matchedBeliefs[c.matched_belief_id].statement}</p>
@@ -1213,11 +1273,13 @@ export default function ArtifactDetailPage() {
           </div>
         )}
 
+        <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
+
         {(c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0 && (
-          <div className="grid sm:grid-cols-2 gap-3 mb-3 text-xs">
-            <div>
-              <div className="uppercase tracking-wider text-muted-foreground mb-1">Supports</div>
-              <ul className="space-y-1.5">
+          <div className="grid gap-4 text-xs sm:grid-cols-2 sm:gap-3">
+            <div className="space-y-2">
+              <div className="uppercase tracking-wider text-muted-foreground">Supports</div>
+              <ul className="space-y-2">
                 {c.scripture_supports?.length ? (
                   c.scripture_supports.map((s, i) => (
                     <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
@@ -1227,9 +1289,9 @@ export default function ArtifactDetailPage() {
                 )}
               </ul>
             </div>
-            <div>
-              <div className="uppercase tracking-wider text-muted-foreground mb-1">Challenges</div>
-              <ul className="space-y-1.5">
+            <div className="space-y-2">
+              <div className="uppercase tracking-wider text-muted-foreground">Challenges</div>
+              <ul className="space-y-2">
                 {c.scripture_challenges?.length ? (
                   c.scripture_challenges.map((s, i) => (
                     <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
@@ -1242,12 +1304,12 @@ export default function ArtifactDetailPage() {
           </div>
         )}
 
-        <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-4">
           <Button
             size="sm"
             variant="secondary"
             onClick={() => startClaimResearchChat(c, source)}
-            title="Open the mini journal to research this claim on this page"
+            title="Open the journal chat to research this claim on this page"
           >
             <MessageCircle className="mr-1 h-3.5 w-3.5" />
             Research
@@ -1287,7 +1349,15 @@ export default function ArtifactDetailPage() {
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
-  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-5.75rem)]";
+  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-6.5rem)]";
+
+  const pageNavLinkClass = (href: string) =>
+    cn(
+      "relative inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      pageSectionHash === href
+        ? "bg-background text-foreground shadow-sm ring-1 ring-border/60 after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:rounded-full after:bg-primary/70"
+        : "text-muted-foreground hover:bg-background/55 hover:text-foreground",
+    );
 
   const artifactHeaderActions = (
     <>
@@ -1321,52 +1391,75 @@ export default function ArtifactDetailPage() {
       headerContentClassName="max-w-none"
       headerActions={artifactHeaderActions}
     >
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <span className="uppercase tracking-wider">{a.kind}</span>
-        <span>·</span>
-        <span className="uppercase tracking-wider flex items-center gap-1">
-          {inFlight && <Loader2 className="w-3 h-3 animate-spin" />}
-          {a.status}
+      <div
+        className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-2.5 text-sm shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
+        role="status"
+        aria-label="Artifact status"
+      >
+        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+          {a.kind === "youtube" ? <Youtube className="h-3.5 w-3.5 text-red-600" aria-hidden /> : null}
+          {formatArtifactKind(a.kind)}
+        </span>
+        <span className="hidden text-border sm:inline" aria-hidden>
+          |
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          {inFlight ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden /> : null}
+          <span className={cn(inFlight && "text-foreground")}>{formatArtifactStatus(a.status)}</span>
         </span>
       </div>
 
       <div
         className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
       >
-        <div ref={mainScrollRef} className="min-h-0 space-y-5 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
+        <div ref={mainScrollRef} className="min-h-0 space-y-6 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
       {a.kind === "youtube" && a.status === "ready" && (
         <nav
           aria-label="On this page"
-          className="sticky top-0 z-[15] flex flex-wrap gap-1 rounded-lg border border-border bg-background/95 px-2 py-2 text-[11px] shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85"
+          className="sticky top-0 z-[15] rounded-2xl border border-border/60 bg-muted/30 p-2 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-md supports-[backdrop-filter]:bg-muted/25 dark:ring-white/[0.03]"
         >
+          <p className="mb-1.5 px-2 text-xs font-medium text-muted-foreground">On this page</p>
+          <div className="flex flex-wrap gap-1">
           {youTubeVideoId ? (
-            <a href="#video" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
+            <a href="#video" className={pageNavLinkClass("#video")} aria-current={pageSectionHash === "#video" ? "location" : undefined}>
               Video
             </a>
           ) : null}
           {a.url ? (
-            <a href="#chapters" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
+            <a href="#chapters" className={pageNavLinkClass("#chapters")} aria-current={pageSectionHash === "#chapters" ? "location" : undefined}>
               Chapters
             </a>
           ) : null}
           {a.kind === "youtube" && youtubeChaptersList.length === 0 ? (
             <a
               href="#study-spine-teachings"
-              className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground"
+              className={pageNavLinkClass("#study-spine-teachings")}
+              aria-current={pageSectionHash === "#study-spine-teachings" ? "location" : undefined}
             >
               Teachings
             </a>
           ) : null}
           {claims.length > 0 ? (
-            <a href="#claims" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
-              Claims
-            </a>
+            <>
+              <a href="#claims" className={pageNavLinkClass("#claims")} aria-current={pageSectionHash === "#claims" ? "location" : undefined}>
+                Claims
+              </a>
+              <a
+                href="#claims-index"
+                className={cn(pageNavLinkClass("#claims-index"), "gap-1.5")}
+                aria-current={pageSectionHash === "#claims-index" ? "location" : undefined}
+              >
+                <ListOrdered className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                Index
+              </a>
+            </>
           ) : null}
           {youTubeVideoId ? (
-            <a href="#capture" className="rounded-md px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted/80 hover:text-foreground">
+            <a href="#capture" className={pageNavLinkClass("#capture")} aria-current={pageSectionHash === "#capture" ? "location" : undefined}>
               Capture
             </a>
           ) : null}
+          </div>
         </nav>
       )}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
@@ -1380,13 +1473,13 @@ export default function ArtifactDetailPage() {
         const provider = meta.provider_name || liveMeta?.provider_name || "YouTube";
         if (!thumb && !channel && !a.title) return null;
         return (
-          <section className="mb-5 rounded-lg border border-border bg-card p-3">
+          <section className="mb-6 rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]">
             <div className="flex items-center gap-3">
               {thumb && (
                 <img src={thumb} alt="" className="h-16 w-28 rounded object-cover bg-muted flex-none" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">{provider}</div>
+                <div className="text-xs font-medium text-muted-foreground">{provider}</div>
                 <div className="font-medium truncate">{a.title || "Untitled video"}</div>
                 {channel && (
                   <div className="text-sm text-muted-foreground truncate">
@@ -1486,33 +1579,74 @@ export default function ArtifactDetailPage() {
       )}
 
       {youTubeVideoId && (
-        <section id="video" className="scroll-mt-24 mb-5 rounded-lg border border-border bg-card p-3 lg:mb-0">
+        <section
+          id="video"
+          className="scroll-mt-28 mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-page ring-1 ring-black/[0.03] sm:p-5 lg:mb-0 dark:ring-white/[0.04]"
+        >
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <Youtube className="w-4 h-4 text-red-600" /> Video
+            <div className="mb-3 flex items-center gap-2.5 border-b border-border/50 pb-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600/10">
+                <Youtube className="h-4 w-4 text-red-600" aria-hidden />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-normal leading-tight text-foreground sm:text-lg">Video</h2>
+                <p className="text-xs text-muted-foreground">Watch and capture moments below</p>
+              </div>
             </div>
-            <div className="aspect-video w-full overflow-hidden rounded border border-border bg-card">
-              {embedSrc ? (
+            <div
+              ref={youtubePip.videoSlotRef}
+              className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl border border-border/70 bg-muted/20 shadow-soft"
+            >
+              {!youtubePip.pipMode && embedSrc ? (
                 <iframe
-                  key={youTubeVideoId}
+                  key={`inline-${youTubeVideoId}`}
                   title="YouTube video"
                   src={embedSrc}
                   className="h-full w-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
+              ) : embedSrc ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={youtubePip.scrollVideoIntoView}
+                    className="text-xs text-muted-foreground transition hover:opacity-90"
+                  >
+                    <span className="rounded-full border bg-background/90 px-3 py-1 shadow">
+                      Tap to bring video back
+                    </span>
+                  </button>
+                </div>
               ) : (
                 <div className="flex h-full min-h-[12rem] items-center justify-center text-xs text-muted-foreground">
                   Video unavailable
                 </div>
               )}
             </div>
+            {youtubePip.pipMode && youtubePip.pipChromeLayout && embedSrc && youTubeVideoId ? (
+              <ArtifactYoutubePipOverlay
+                embedSrc={embedSrc}
+                youTubeVideoId={youTubeVideoId}
+                layout={youtubePip.pipChromeLayout}
+                onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+                onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
+                onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
+                onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}
+                onResizePointerDown={youtubePip.onPipResizePointerDown}
+                onResizePointerMove={youtubePip.onPipResizePointerMove}
+                onResizePointerUp={youtubePip.onPipResizePointerUp}
+              />
+            ) : null}
           </div>
 
-          <div id="capture" className="scroll-mt-24 mt-4 rounded-lg border border-border bg-muted/20 p-3 lg:mt-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div
+            id="capture"
+            className="scroll-mt-28 mt-5 rounded-xl border border-border/60 bg-muted/20 p-4 ring-1 ring-black/[0.02] dark:ring-white/[0.03] lg:mt-6"
+          >
+            <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border/40 pb-3">
               <div>
-                <div className="text-sm font-medium">Capture while watching</div>
+                <h3 className="font-display text-sm font-normal text-foreground sm:text-base">Capture while watching</h3>
                 <p className="text-xs text-muted-foreground">
                   Save bookmarks, notes, and belief seeds. Timestamps follow chapter jumps and transcript seeks.
                 </p>
@@ -1613,7 +1747,10 @@ export default function ArtifactDetailPage() {
       )}
 
       {a.kind === "youtube" && a.url && (
-        <section id="chapters" className="scroll-mt-24 mb-5 rounded-lg border border-border bg-card p-4">
+        <section
+          id="chapters"
+          className="scroll-mt-28 mb-6 rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-black/[0.02] sm:p-5 dark:ring-white/[0.03]"
+        >
           {a.status === "ready" && (
             <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
               {youtubeChaptersSourceLabel ?? (
@@ -1726,6 +1863,14 @@ export default function ArtifactDetailPage() {
               </span>
             ) : null}
           </p>
+          {deferredOnArtifact > 0 ? (
+            <p className="mt-2 text-xs">
+              <Link to="/framework/research-later" className="font-medium text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" aria-hidden />
+                {deferredOnArtifact} in your research queue
+              </Link>
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -1800,7 +1945,9 @@ export default function ArtifactDetailPage() {
       )}
 
       {a.status === "ready" && claims.length > 0 && (
-        <div id="claims" className="scroll-mt-24 max-w-4xl space-y-8">
+        <div id="claims" className="scroll-mt-24 max-w-4xl space-y-6">
+          <ClaimsGlossary entries={glossaryEntries} onJump={jumpToClaim} className="mb-2" />
+          <div className="space-y-8">
           {claimChapterLayout.grouped ? (
             claimChapterLayout.groups.map((group) => (
               <div key={group.id} className="space-y-3">
@@ -1822,6 +1969,7 @@ export default function ArtifactDetailPage() {
               {claims.map((c, i) => renderClaimCard(c, i))}
             </div>
           )}
+          </div>
         </div>
       )}
         </div>
@@ -1903,7 +2051,7 @@ export default function ArtifactDetailPage() {
           <ul className="space-y-2.5 text-sm text-muted-foreground">
             <li className="flex gap-2.5">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/80" aria-hidden />
-              <span>Reviewed claim cards (Keep / Reject / Update) where it helped</span>
+              <span>Reviewed claim cards (Keep / Reject / Update / Defer) where it helped</span>
             </li>
             <li className="flex gap-2.5">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/80" aria-hidden />

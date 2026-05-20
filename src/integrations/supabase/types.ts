@@ -51,10 +51,13 @@ export type Database = {
         Row: {
           artifact_id: string
           bias_flags: string[]
+          chapter_start_seconds: number | null
           claim: string
           created_at: string
+          deferred_at: string | null
           doctrine_tags: string[]
           embedding: string | null
+          epistemology: Json
           id: string
           match_relation: string | null
           matched_belief_id: string | null
@@ -68,10 +71,13 @@ export type Database = {
         Insert: {
           artifact_id: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim: string
           created_at?: string
+          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
+          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -85,10 +91,13 @@ export type Database = {
         Update: {
           artifact_id?: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim?: string
           created_at?: string
+          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
+          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null

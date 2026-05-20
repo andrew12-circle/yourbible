@@ -34,6 +34,8 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
+import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
+import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 
@@ -541,17 +543,25 @@ export default function JournalChatPage() {
       .eq("user_id", user.id);
   };
 
-  const applyClaimVerdict = async (verdict: "keep" | "reject" | "updated") => {
+  const applyClaimVerdict = async (verdict: ClaimVerdict) => {
     if (!user || !claimFocusSession) return;
     setClaimVerdictBusy(true);
     try {
+      const deferred_at = verdict === "defer" ? new Date().toISOString() : null;
       const { error } = await supabase
         .from("artifact_claims")
-        .update({ verdict })
+        .update({ verdict, deferred_at })
         .eq("id", claimFocusSession.claimId)
         .eq("user_id", user.id);
       if (error) throw error;
-      const label = verdict === "keep" ? "Marked keep" : verdict === "reject" ? "Marked reject" : "Marked updated";
+      const label =
+        verdict === "keep"
+          ? "Marked keep"
+          : verdict === "reject"
+            ? "Marked reject"
+            : verdict === "defer"
+              ? "Saved for later"
+              : "Marked updated";
       toast({ title: label, description: "You can keep chatting or return to the artifact when you're ready." });
     } catch (e) {
       toast({ title: "Could not update claim", description: String(e), variant: "destructive" });
@@ -803,37 +813,22 @@ export default function JournalChatPage() {
       </header>
 
       {claimFocusSession && routeEntryId && (
-        <div className="shrink-0 border-b border-primary/25 bg-primary/[0.07] px-3 py-3 sm:px-5">
-          <div className="mx-auto max-w-2xl space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Researching one claim</div>
-            <p className="text-sm leading-snug text-foreground">{claimFocusSession.claimPreview}</p>
-            {claimFocusSession.artifactTitle && (
-              <p className="text-xs text-muted-foreground">From: {claimFocusSession.artifactTitle}</p>
-            )}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button size="sm" variant="outline" asChild>
-                <Link to={`/framework/artifacts/${claimFocusSession.artifactId}`}>Back to artifact</Link>
-              </Button>
-              {claimFocusSession.matchedBeliefId && (
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={`/framework/beliefs/${claimFocusSession.matchedBeliefId}`}>Open matched belief</Link>
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={claimVerdictBusy}
-                onClick={() => void applyClaimVerdict("updated")}
-              >
-                Mark claim updated
-              </Button>
-              <Button size="sm" variant="ghost" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("keep")}>
-                Mark keep
-              </Button>
-              <Button size="sm" variant="ghost" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("reject")}>
-                Mark reject
-              </Button>
-            </div>
+        <div className="shrink-0 px-3 sm:px-5">
+          <div className="mx-auto max-w-2xl">
+            {claimFocusSession.artifactTitle ? (
+              <p className="border-b border-primary/15 px-0 pb-1 pt-2 text-xs text-muted-foreground">
+                From: {claimFocusSession.artifactTitle}
+              </p>
+            ) : null}
+            <ClaimResearchBar
+              claimText={claimFocusSession.claimPreview}
+              artifactId={claimFocusSession.artifactId}
+              matchedBeliefId={claimFocusSession.matchedBeliefId}
+              artifactLinkLabel="Back to artifact"
+              showResearchPack={false}
+              verdictBusy={claimVerdictBusy}
+              onVerdict={(v) => void applyClaimVerdict(v)}
+            />
           </div>
         </div>
       )}

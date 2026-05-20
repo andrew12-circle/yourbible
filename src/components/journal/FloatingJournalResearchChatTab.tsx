@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
@@ -17,8 +17,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import type { FloatingClaimResearchHandoff } from "@/lib/journal/floatingJournalStore";
+import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
+import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
+import {
+  CLAIM_RESEARCH_PROMPT_CHIPS,
+  formatResearchPackMarkdown,
+  webSearchStatusLabel,
+  type ResearchPackResp,
+} from "@/lib/framework/claimResearchPack";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
+const LS_MULTI_SOURCE = "journal_chat.claim_multi_source_validation";
 
 type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
@@ -40,77 +49,16 @@ type MyAiInvokeOk = {
   citations: Citation[];
 };
 
-type ResearchPackSection = { body: string; epistemic: string };
-
-type ResearchPackResp = {
-  sections: Record<string, ResearchPackSection>;
-  scripture?: { ref: string; reference?: string; text?: string; error?: string }[];
-  meta?: {
-    bible_id?: string;
-    used_web?: boolean;
-    web_provider?: string | null;
-    lenses?: string[];
-    ref_parse_errors?: { ref: string; error: string }[];
-  };
-  error?: string;
-};
-
-const RESEARCH_LENS_ORDER = [
-  "scripture_context",
-  "historical_theology",
-  "opposing_views",
-  "denominational_notes",
-  "logical_audit",
-  "scientific_relevance",
-  "synthesis",
-] as const;
-
-const RESEARCH_LENS_LABELS: Record<string, string> = {
-  scripture_context: "Scripture context",
-  historical_theology: "Historical theology",
-  opposing_views: "Opposing views",
-  denominational_notes: "Denominational notes",
-  logical_audit: "Logical audit",
-  scientific_relevance: "Scientific relevance",
-  synthesis: "Synthesis",
-};
-
-function formatResearchPackMarkdown(data: ResearchPackResp): string {
-  const lines: string[] = ["# Claim research pack", ""];
-  const meta = data.meta;
-  if (meta) {
-    lines.push(
-      `_Bible translation id: ${meta.bible_id ?? "—"} · Web search: ${meta.used_web ? `on (${meta.web_provider ?? "?"})` : "off"}_`,
-      "",
-    );
-  }
-  const scr = data.scripture;
-  if (scr?.length) {
-    lines.push("## Passages fetched", "");
-    for (const row of scr) {
-      if (row.error) lines.push(`- **${row.ref}**: _${row.error}_`);
-      else lines.push(`- **${row.ref}**${row.reference ? ` (${row.reference})` : ""}`, "", "```text", row.text ?? "", "```", "");
-    }
-  }
-  const errs = meta?.ref_parse_errors;
-  if (errs?.length) {
-    lines.push("## Reference notes", "");
-    for (const e of errs) lines.push(`- **${e.ref}**: ${e.error}`);
-    lines.push("");
-  }
-  const order = (meta?.lenses?.length ? meta.lenses : [...RESEARCH_LENS_ORDER]) as string[];
-  for (const id of order) {
-    const s = data.sections[id];
-    if (!s) continue;
-    const title = RESEARCH_LENS_LABELS[id] ?? id;
-    lines.push(`## ${title}`, "", `*Epistemic: ${s.epistemic}*`, "", s.body.trim(), "", "---", "");
-  }
-  return lines.join("\n").trimEnd();
-}
-
 function readIncludeGeneralDefault(): boolean {
   if (typeof window === "undefined") return true;
   const v = localStorage.getItem(LS_INCLUDE_GENERAL);
+  if (v === "0" || v === "false") return false;
+  return true;
+}
+
+function readMultiSourceDefault(): boolean {
+  if (typeof window === "undefined") return true;
+  const v = localStorage.getItem(LS_MULTI_SOURCE);
   if (v === "0" || v === "false") return false;
   return true;
 }
@@ -284,6 +232,7 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
+  const [multiSourceValidation, setMultiSourceValidation] = useState(readMultiSourceDefault);
   const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
   const [packOpen, setPackOpen] = useState(false);
   const [packLoading, setPackLoading] = useState(false);
@@ -294,13 +243,22 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   const sendingRef = useRef(false);
   const ignoreResult = useRef(false);
   const includeGeneralRef = useRef(includeGeneral);
+  const multiSourceRef = useRef(multiSourceValidation);
+  const packUseWebRef = useRef(packUseWeb);
 
   includeGeneralRef.current = includeGeneral;
+  multiSourceRef.current = multiSourceValidation;
+  packUseWebRef.current = packUseWeb;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     localStorage.setItem(LS_INCLUDE_GENERAL, includeGeneral ? "1" : "0");
   }, [includeGeneral]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LS_MULTI_SOURCE, multiSourceValidation ? "1" : "0");
+  }, [multiSourceValidation]);
 
   const loadMessages = useCallback(
     async (cId: string) => {
@@ -346,22 +304,53 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         if (!(firstMsg?.length ?? 0) && !bootstrappedClaimChatKeys.has(bootKey)) {
           setBootstrapping(true);
           try {
-            const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
-              body: {
+            if (multiSourceRef.current) {
+              const { data, error } = await supabase.functions.invoke<ResearchPackResp>("claim-research-pack", {
+                body: {
+                  artifact_claim_id: research.claimId,
+                  pack_type: "validation",
+                  user_question: "Open this claim for multi-source validation: Bible alignment, historical context, and three independent voices.",
+                  claim_research: { use_web: packUseWebRef.current },
+                },
+              });
+              if (cancelled) return;
+              if (error) throw new Error(error.message);
+              const pack = data as ResearchPackResp | { error?: string } | null;
+              if (pack && typeof pack === "object" && "error" in pack && typeof pack.error === "string") {
+                throw new Error(pack.error);
+              }
+              if (!pack || typeof pack !== "object" || !("sections" in pack) || !pack.sections) {
+                throw new Error("Unexpected validation bootstrap response");
+              }
+              const intro =
+                "Here is an initial **multi-source validation** for this claim. Ask a follow-up or use the prompt chips to go deeper.\n\n";
+              const reply = intro + formatResearchPackMarkdown(pack as ResearchPackResp);
+              const webNote = webSearchStatusLabel((pack as ResearchPackResp).meta);
+              await supabase.from("my_ai_messages").insert({
+                user_id: userId,
                 chat_id: cId,
-                journal_entry_id: eId,
-                mode: "journal",
-                journal_bootstrap_opener: true,
-                include_general_knowledge: includeGeneralRef.current,
-                journal_bootstrap_artifact_claim_id: research.claimId,
-                journal_bootstrap_transcript_excerpt: research.transcriptExcerpt ?? null,
-              },
-            });
-            if (cancelled) return;
-            if (error) throw new Error(error.message);
-            const payload = data as MyAiInvokeOk | { error?: string } | null;
-            if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-              throw new Error(payload.error);
+                role: "assistant",
+                content: `${reply}\n\n---\n\n_${webNote}_`,
+                citations: [],
+              });
+            } else {
+              const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
+                body: {
+                  chat_id: cId,
+                  journal_entry_id: eId,
+                  mode: "journal",
+                  journal_bootstrap_opener: true,
+                  include_general_knowledge: includeGeneralRef.current,
+                  journal_bootstrap_artifact_claim_id: research.claimId,
+                  journal_bootstrap_transcript_excerpt: research.transcriptExcerpt ?? null,
+                },
+              });
+              if (cancelled) return;
+              if (error) throw new Error(error.message);
+              const payload = data as MyAiInvokeOk | { error?: string } | null;
+              if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
+                throw new Error(payload.error);
+              }
             }
             bootstrappedClaimChatKeys.add(bootKey);
           } catch (e) {
@@ -396,6 +385,55 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
     setSending(false);
   };
 
+  const invokeValidationResearch = async (question: string) => {
+    const { data, error } = await supabase.functions.invoke<ResearchPackResp>("claim-research-pack", {
+      body: {
+        artifact_claim_id: research.claimId,
+        pack_type: "validation",
+        user_question: question,
+        claim_research: { use_web: packUseWeb },
+      },
+    });
+    if (error) throw new Error(error.message);
+    const payload = data as ResearchPackResp | { error?: string } | null;
+    if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
+      throw new Error(payload.error);
+    }
+    if (!payload || typeof payload !== "object" || !("sections" in payload) || !payload.sections) {
+      throw new Error("Unexpected response from validation research");
+    }
+    return payload as ResearchPackResp;
+  };
+
+  const sendValidationTurn = async (text: string) => {
+    if (!chatId || !entryId) return;
+    const { error: userErr } = await supabase.from("my_ai_messages").insert({
+      user_id: userId,
+      chat_id: chatId,
+      role: "user",
+      content: text,
+      citations: [],
+    });
+    if (userErr) throw new Error(userErr.message);
+
+    const pack = await invokeValidationResearch(text);
+    const reply = formatResearchPackMarkdown(pack);
+    const webNote = webSearchStatusLabel(pack.meta);
+    const fullReply = `${reply}\n\n---\n\n_${webNote}_`;
+
+    const { error: asstErr } = await supabase.from("my_ai_messages").insert({
+      user_id: userId,
+      chat_id: chatId,
+      role: "assistant",
+      content: fullReply,
+      citations: [],
+    });
+    if (asstErr) throw new Error(asstErr.message);
+
+    await supabase.from("my_ai_chats").update({ updated_at: new Date().toISOString() }).eq("id", chatId).eq("user_id", userId);
+    await loadMessages(chatId);
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || sendingRef.current || !chatId || !entryId) return;
@@ -404,6 +442,10 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
     sendingRef.current = true;
     setSending(true);
     try {
+      if (multiSourceValidation) {
+        await sendValidationTurn(text);
+        return;
+      }
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
         body: {
           chat_id: chatId,
@@ -442,6 +484,39 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
     setSending(true);
     ignoreResult.current = false;
     try {
+      if (multiSourceValidation) {
+        const { data: lastMsgs, error: ltErr } = await supabase
+          .from("my_ai_messages")
+          .select("id,role,content,created_at")
+          .eq("chat_id", chatId)
+          .order("created_at", { ascending: false })
+          .limit(8);
+        if (ltErr) throw new Error(ltErr.message);
+        const desc = (lastMsgs ?? []) as { id: string; role: string; content: string }[];
+        const last = desc[0];
+        if (!last || last.role !== "assistant") throw new Error("Nothing to retry");
+        await supabase.from("my_ai_messages").delete().eq("id", last.id).eq("user_id", userId);
+        let lastUser = "";
+        for (let i = 1; i < desc.length; i++) {
+          if (desc[i].role === "user") {
+            lastUser = desc[i].content;
+            break;
+          }
+        }
+        if (!lastUser.trim()) throw new Error("No user message found to retry from");
+        const pack = await invokeValidationResearch(lastUser.trim());
+        const reply = formatResearchPackMarkdown(pack);
+        const webNote = webSearchStatusLabel(pack.meta);
+        await supabase.from("my_ai_messages").insert({
+          user_id: userId,
+          chat_id: chatId,
+          role: "assistant",
+          content: `${reply}\n\n---\n\n_${webNote}_`,
+          citations: [],
+        });
+        await loadMessages(chatId);
+        return;
+      }
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
         body: {
           chat_id: chatId,
@@ -465,16 +540,24 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
     }
   };
 
-  const applyClaimVerdict = async (verdict: "keep" | "reject" | "updated") => {
+  const applyClaimVerdict = async (verdict: ClaimVerdict) => {
     setClaimVerdictBusy(true);
     try {
+      const deferred_at = verdict === "defer" ? new Date().toISOString() : null;
       const { error } = await supabase
         .from("artifact_claims")
-        .update({ verdict })
+        .update({ verdict, deferred_at })
         .eq("id", research.claimId)
         .eq("user_id", userId);
       if (error) throw error;
-      const label = verdict === "keep" ? "Marked keep" : verdict === "reject" ? "Marked reject" : "Marked updated";
+      const label =
+        verdict === "keep"
+          ? "Marked keep"
+          : verdict === "reject"
+            ? "Marked reject"
+            : verdict === "defer"
+              ? "Saved for later"
+              : "Marked updated";
       toast({ title: label });
     } catch (e) {
       toast({ title: "Could not update claim", description: String(e), variant: "destructive" });
@@ -491,6 +574,7 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
       const { data, error } = await supabase.functions.invoke<ResearchPackResp>("claim-research-pack", {
         body: {
           artifact_claim_id: research.claimId,
+          pack_type: "validation",
           claim_research: { use_web: packUseWeb },
         },
       });
@@ -541,22 +625,55 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   const showLoading = loadingShell || !chatId || !entryId;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 space-y-2 border-b border-border pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="fj-outside" className="text-xs font-medium leading-snug text-foreground">
-              Include broader Christian / scholarly context (general knowledge)
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
+      <div className="min-w-0 shrink-0 space-y-2 overflow-x-hidden border-b border-border pb-2">
+        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
+          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+            <Label htmlFor="fj-multi-source" className="text-xs font-medium leading-snug text-foreground">
+              Multi-source validation (Bible + history + 3 voices)
             </Label>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              When on, the model may summarize common views from training data. This is not live web search.
+              When on, each message runs the validation research pack: Scripture alignment, historical context, and three named teachers or scholars. Enable live web search below (plus Edge secrets) for retrieved snippets; otherwise answers use training data and state limits clearly.
+            </p>
+          </div>
+          <Switch
+            id="fj-multi-source"
+            className="mt-0.5 shrink-0"
+            checked={multiSourceValidation}
+            onCheckedChange={(v) => setMultiSourceValidation(Boolean(v))}
+          />
+        </div>
+        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
+          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+            <Label htmlFor="fj-outside" className="text-xs font-medium leading-snug text-foreground">
+              Journal companion mode (framework-grounded chat)
+            </Label>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Only when multi-source validation is off. Uses your beliefs and journals—not the validation pack or live web search.
             </p>
           </div>
           <Switch
             id="fj-outside"
             className="mt-0.5 shrink-0"
             checked={includeGeneral}
+            disabled={multiSourceValidation}
             onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+          />
+        </div>
+        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden border-t border-border/50 pt-2">
+          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+            <Label htmlFor="fj-pack-web-inline" className="text-xs font-medium leading-snug text-foreground">
+              Live web search (Brave / SerpAPI)
+            </Label>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Applies to validation messages and Research pack. Set WEB_SEARCH_PROVIDER and API keys in Supabase Edge secrets, then redeploy claim-research-pack.
+            </p>
+          </div>
+          <Switch
+            id="fj-pack-web-inline"
+            className="mt-0.5 shrink-0"
+            checked={packUseWeb}
+            onCheckedChange={(v) => setPackUseWeb(Boolean(v))}
           />
         </div>
         {chatId ? (
@@ -570,64 +687,26 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         ) : null}
       </div>
 
-      <div className="shrink-0 border-b border-primary/20 bg-primary/[0.06] py-2 dark:bg-primary/[0.09]">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">Claim</div>
-        <p className="mt-0.5 text-xs leading-snug text-foreground">{research.claimPreview}</p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
-            <Link to={`/framework/artifacts/${research.artifactId}`}>Artifact</Link>
-          </Button>
-          {research.matchedBeliefId ? (
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
-              <Link to={`/framework/beliefs/${research.matchedBeliefId}`}>Belief</Link>
-            </Button>
-          ) : null}
-          <Button
-            size="sm"
-            variant="default"
-            className="h-7 text-[11px]"
-            disabled={packLoading}
-            onClick={() => void runResearchPack()}
-          >
-            {packLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            Research pack
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-7 text-[11px]"
-            disabled={claimVerdictBusy}
-            onClick={() => void applyClaimVerdict("updated")}
-          >
-            Updated
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("keep")}>
-            Keep
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={claimVerdictBusy} onClick={() => void applyClaimVerdict("reject")}>
-            Reject
-          </Button>
-        </div>
-      </div>
+      <ClaimResearchBar
+        claimText={research.claimPreview}
+        artifactId={research.artifactId}
+        matchedBeliefId={research.matchedBeliefId}
+        packLoading={packLoading}
+        verdictBusy={claimVerdictBusy}
+        onResearchPack={() => void runResearchPack()}
+        onVerdict={(v) => void applyClaimVerdict(v)}
+      />
 
       <Sheet open={packOpen} onOpenChange={setPackOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
           <SheetHeader className="shrink-0 border-b border-border px-4 py-3 text-left">
-            <SheetTitle className="text-sm">Research pack</SheetTitle>
+            <SheetTitle className="text-sm">Multi-source validation pack</SheetTitle>
             <p className="text-[11px] font-normal leading-relaxed text-muted-foreground">
-              Retrieval-first: scripture text is fetched from your app&apos;s Bible API. Other lenses are model synthesis with explicit epistemic labels—not verified citations.
+              Bible alignment (fetched passages when refs exist), historical context, and three independent voices. Epistemic labels show whether each part used scripture text, web snippets, or training data only—not verified citations.
             </p>
-            <div className="mt-2 flex items-start justify-between gap-3 border-t border-border pt-2">
-              <div className="min-w-0 space-y-0.5">
-                <Label htmlFor="fj-pack-web" className="text-[11px] text-foreground">
-                  Optional web search (Brave / SerpAPI)
-                </Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Requires Edge secrets. Off unless you enable here before generating.
-                </p>
-              </div>
-              <Switch id="fj-pack-web" className="shrink-0" checked={packUseWeb} onCheckedChange={(v) => setPackUseWeb(Boolean(v))} />
-            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Web search uses the toggle above the chat. {packData?.meta ? webSearchStatusLabel(packData.meta) : "Run the pack to see web status."}
+            </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]" disabled={!packMarkdown} onClick={() => void copyPack()}>
                 <ClipboardCopy className="mr-1 h-3 w-3" /> Copy
@@ -655,7 +734,7 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         </SheetContent>
       </Sheet>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div ref={scrollRef} className="min-h-[100px] min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-2">
         {showLoading && (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-70" />
@@ -667,16 +746,16 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
           </div>
         )}
         {!showLoading && !loadingMessages && (
-          <div className="space-y-3 pr-0.5">
+          <div className="min-w-0 space-y-3 overflow-x-hidden pr-0.5">
             {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
               <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
                 {m.role === "user" ? (
-                  <div className="max-w-[92%] rounded-xl rounded-tr-sm bg-primary px-2.5 py-2 text-xs text-primary-foreground whitespace-pre-wrap">
+                  <div className="max-w-[92%] break-words rounded-xl rounded-tr-sm bg-primary px-2.5 py-2 text-xs text-primary-foreground whitespace-pre-wrap">
                     {m.content}
                   </div>
                 ) : (
-                  <div className="max-w-[94%] rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
-                    <div className="prose prose-xs max-w-none dark:prose-invert text-foreground">
+                  <div className="max-w-[94%] min-w-0 overflow-x-hidden rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
+                    <div className="prose prose-xs max-w-none break-words overflow-x-hidden dark:prose-invert text-foreground">
                       {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
                     </div>
                     <CitationChips citations={parseCitationsJson(m.citations)} />
@@ -695,19 +774,36 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         )}
       </div>
 
-      <div className="shrink-0 space-y-2 border-t border-border pt-2">
-        <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" disabled={sending || !messages.some((m) => m.role === "assistant")} onClick={() => void retryLast()}>
+      <div className="min-w-0 shrink-0 space-y-2 overflow-x-hidden border-t border-border pt-2">
+        <div className="flex min-w-0 flex-wrap gap-1.5">
+          {CLAIM_RESEARCH_PROMPT_CHIPS.map((chip) => (
+            <Button
+              key={chip.label}
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-auto min-w-0 max-w-full whitespace-normal px-2 py-1 text-left text-[10px] font-normal leading-snug"
+              disabled={sending || bootstrapping || showLoading}
+              onClick={() => {
+                setInput(chip.text);
+                setTimeout(() => taRef.current?.focus(), 30);
+              }}
+            >
+              {chip.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-wrap gap-1.5">
+          <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-[11px]" disabled={sending || !messages.some((m) => m.role === "assistant")} onClick={() => void retryLast()}>
             <RefreshCw className="mr-1 h-3 w-3" /> Retry
           </Button>
           <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" disabled={!sending} onClick={stop}>
             <Square className="mr-1 h-3 w-3" /> Stop
           </Button>
         </div>
-        <div className="flex items-end gap-1.5">
-          <PolishedTextarea
+        <div className="flex min-w-0 items-end gap-1.5 overflow-x-hidden rounded-[26px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
+          <Textarea
             ref={taRef}
-            polishResetKey={entryId ?? chatId ?? "fj-claim-chat"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -716,13 +812,21 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
                 if (!sending && !bootstrapping) void send();
               }
             }}
-            rows={2}
+            rows={1}
+            spellCheck
             disabled={sending || bootstrapping || showLoading}
             placeholder={sending || bootstrapping ? "Thinking…" : "Ask about this claim…"}
-            className="min-h-[48px] flex-1 resize-none bg-background text-xs"
+            className="min-h-[40px] max-h-40 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
           />
-          <Button type="button" size="icon" className="h-9 w-9 shrink-0" disabled={sending || bootstrapping || showLoading || !input.trim()} onClick={() => void send()}>
-            <Send className="h-3.5 w-3.5" />
+          <Button
+            type="button"
+            size="icon"
+            className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
+            disabled={sending || bootstrapping || showLoading || !input.trim()}
+            onClick={() => void send()}
+            aria-label="Send message"
+          >
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>

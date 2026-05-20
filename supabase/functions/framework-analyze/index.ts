@@ -1,6 +1,7 @@
 // Framework Analyze — extracts claims from an artifact and compares them
 // against the user's existing belief framework using Gemini (OpenAI-compat API).
 // Also extracts grounded knowledge entities and actionable teachings (with service role).
+// Epistemology v1: per-claim layers in artifact_claims.epistemology (see docs/EPistemology.md for v2 roadmap).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
@@ -11,6 +12,13 @@ import {
   splitTranscript,
   type TranscriptSegment,
 } from "../_shared/transcriptSlice.ts";
+import {
+  CLAIM_TYPES,
+  CONFIDENCE_LEVELS,
+  EPISTEMOLOGY_PROMPT_BLOCK,
+  SUGGESTED_ACTIONS,
+  sanitizeEpistemology,
+} from "../_shared/epistemology.ts";
 
 const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MODEL = "gemini-2.5-pro";
@@ -54,6 +62,7 @@ interface ClaimOut {
   matched_belief_id?: string | null;
   match_relation?: "agree" | "disagree" | "new" | null;
   bias_flags?: string[];
+  epistemology?: Record<string, unknown>;
 }
 
 type EntityKindDb =
@@ -246,9 +255,10 @@ Task:
    - matched_belief_id: the user belief id this claim most closely relates to, or null
    - match_relation: "agree" if the user's belief agrees with the claim, "disagree" if it conflicts, "new" if there is no clear matching belief
    - bias_flags: 0–3 short flags such as "fear-based framing", "guilt appeal", "out-of-context proof-text", "emotional manipulation", "denominational assumption" — only when clearly present
+${EPISTEMOLOGY_PROMPT_BLOCK}
 
 Return ONLY valid JSON of shape:
-{ "claims": ClaimOut[] }`;
+{ "claims": ClaimOut[] } (each claim may include an "epistemology" object with the fields above).`;
 }
 
 function buildChapterSlicePrompt(
@@ -291,7 +301,8 @@ ${clipped}
 Task:
 1. Extract ${minClaims} to ${maxClaims} load-bearing CLAIMS grounded ONLY in this slice (1–2 sentences each). Stay specific to this chapter; do not invent content from other parts of the video.
 2. Order claims by their order within this slice (earliest first).
-3. For each claim, fill in the same fields as in the full-artifact task (tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags).
+3. For each claim, fill in the same fields as in the full-artifact task (tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags, epistemology).
+${EPISTEMOLOGY_PROMPT_BLOCK}
 
 Return ONLY valid JSON of shape:
 { "claims": ClaimOut[] }`;
@@ -320,7 +331,8 @@ ${clipped}
 Task:
 1. Extract ${minClaims} to ${maxClaims} NEW load-bearing CLAIMS found primarily in this window. Skip near-duplicates of claims you would expect from an earlier full-pass on the entire transcript; focus on additional theses, qualifications, or applications that appear here.
 2. Order by position within this window.
-3. Same per-claim fields as the full-artifact extraction task.
+3. Same per-claim fields as the full-artifact extraction task (including epistemology).
+${EPISTEMOLOGY_PROMPT_BLOCK}
 
 Return ONLY valid JSON of shape:
 { "claims": ClaimOut[] }`;
@@ -443,6 +455,26 @@ const TOOL = {
               matched_belief_id: { type: ["string", "null"] },
               match_relation: { type: ["string", "null"], enum: ["agree", "disagree", "new", null] },
               bias_flags: { type: "array", items: { type: "string" } },
+              epistemology: {
+                type: "object",
+                properties: {
+                  claim_types: { type: "array", items: { type: "string", enum: [...CLAIM_TYPES] } },
+                  confidence_level: { type: "string", enum: [...CONFIDENCE_LEVELS] },
+                  hermeneutics: {
+                    type: "object",
+                    properties: {
+                      reasoning_bridge: { type: "string" },
+                      assumptions: { type: "array", items: { type: "string" } },
+                      potential_weaknesses: { type: "array", items: { type: "string" } },
+                    },
+                  },
+                  fruits: { type: "array", items: { type: "string" } },
+                  suggested_actions: {
+                    type: "array",
+                    items: { type: "string", enum: [...SUGGESTED_ACTIONS] },
+                  },
+                },
+              },
             },
             required: ["claim"],
           },
@@ -1188,6 +1220,7 @@ Deno.serve(async (req) => {
         (c.matched_belief_id && validBeliefIds.has(c.matched_belief_id) ? "agree" : "new"),
       bias_flags: c.bias_flags ?? [],
       chapter_start_seconds: c.chapter_start_seconds ?? null,
+      epistemology: sanitizeEpistemology(c.epistemology) ?? {},
     }));
 
     console.log(

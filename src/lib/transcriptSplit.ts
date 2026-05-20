@@ -28,6 +28,33 @@ function timestampToSeconds(value: string) {
   return parts[0] ?? null;
 }
 
+/** Display clock for claim source / play controls — never wordy YouTube UI durations. */
+export function formatClaimSourceClock(
+  startSeconds: number | null | undefined,
+  label?: string,
+): string | null {
+  if (startSeconds != null && Number.isFinite(startSeconds)) {
+    return formatTranscriptClock(startSeconds);
+  }
+  const inner = label?.trim() ?? "";
+  if (!inner) return null;
+  if (/hour|minute|second/i.test(inner)) return null;
+  const clockMatch = inner.match(/^(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if (clockMatch) {
+    const parts = clockMatch[1].split(":").map((n) => Number(n));
+    if (!parts.some((n) => Number.isNaN(n))) {
+      const secs =
+        parts.length === 3
+          ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+          : parts.length === 2
+            ? parts[0] * 60 + parts[1]
+            : parts[0];
+      if (secs != null && Number.isFinite(secs)) return formatTranscriptClock(secs);
+    }
+  }
+  return inner.length <= 14 ? inner : null;
+}
+
 /** Display clock for transcript rows (`m:ss` or `h:mm:ss`). */
 export function formatTranscriptClock(seconds: number) {
   const rounded = Math.max(0, Math.floor(seconds));

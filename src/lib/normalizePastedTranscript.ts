@@ -34,6 +34,7 @@ export function looksLikeYoutubeShowTranscriptPaste(text: string): boolean {
     /\d+:\d{2}\d{1,2}\s*seconds/i.test(text) ||
     /\d+:\d{2}\d+\s*minute/i.test(text) ||
     /\d+:\d{2}:\d{2}\d{1,2}\s*seconds/i.test(text) ||
+    /\d+:\d{2}:\d{2}\d\s*hours?,?\s*\d+\s*minutes?,?\s*\d+\s*seconds/i.test(text) ||
     /^\s*\d+:\d{2}(?::\d{2})?\s*$/m.test(text)
   );
 }
@@ -64,6 +65,17 @@ function fixYoutubeMashedTimestamps(text: string): string {
       if (parseInt(m, 10) !== parseInt(minLabel, 10)) return match;
       if (parseInt(ss, 10) !== parseInt(secLabel, 10)) return match;
       const total = parseInt(m, 10) * 60 + parseInt(ss, 10);
+      return `[${formatBracketTimestamp(total)}] `;
+    },
+  );
+
+  out = out.replace(
+    /(\d+):(\d{2}):(\d{2})(\d)\s*hours?,?\s*(\d+)\s*minutes?,?\s*(\d+)\s*seconds/gi,
+    (match, h, m, ss, hDup, minLabel, secLabel) => {
+      if (parseInt(h, 10) !== parseInt(hDup, 10)) return match;
+      if (parseInt(m, 10) !== parseInt(minLabel, 10)) return match;
+      if (parseInt(ss, 10) !== parseInt(secLabel, 10)) return match;
+      const total = parseInt(h, 10) * 3600 + parseInt(m, 10) * 60 + parseInt(ss, 10);
       return `[${formatBracketTimestamp(total)}] `;
     },
   );
@@ -162,6 +174,32 @@ export function normalizePastedTranscript(raw: string): string {
 /** Count lines that start with a timed bracket (after normalization). */
 export function countTimedTranscriptLines(text: string): number {
   return text.split("\n").filter((line) => /^\s*\[\d{1,2}:\d{2}/.test(line)).length;
+}
+
+/**
+ * Strip leading timestamp junk from a transcript quote (claim source box, snippets).
+ * Normalizes mashed YouTube paste cues when present, then returns spoken text only.
+ */
+export function cleanTranscriptQuoteForDisplay(raw: string): string {
+  const trimmed = raw.replace(/\r\n/g, "\n").trim();
+  if (!trimmed) return "";
+
+  if (looksLikeYoutubeShowTranscriptPaste(trimmed) || /^\s*\[\s*\d{1,2}:\d{2}/.test(trimmed)) {
+    const normalized = normalizePastedTranscript(trimmed);
+    const bracketBody = normalized.match(/^\s*\[[^\]]+\]\s*(.*)$/s);
+    if (bracketBody?.[1]?.trim()) return collapseInlineWhitespace(bracketBody[1]);
+  }
+
+  const stripped = trimmed
+    .replace(
+      /^(\d+):(\d{2}):(\d{2})\d?\s*(?:\d+\s*)?hours?,?\s*\d+\s*minutes?,?\s*\d+\s*seconds\s*/i,
+      "",
+    )
+    .replace(/^(\d+):(\d{2})\d{1,2}\s*seconds\s*/i, "")
+    .replace(/^(\d+):(\d{2})(\d+)\s*minute,?\s*\d+\s*seconds\s*/i, "")
+    .replace(/^\s*\[\s*[^\]]+\]\s*/, "");
+
+  return collapseInlineWhitespace(stripped);
 }
 
 /** True when stored text should be rewritten with `normalizePastedTranscript`. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Minus, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft, Square } from "lucide-react";
+import { PanelRightClose, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,17 @@ const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
 
 const DEFAULT_W = 360;
 const DEFAULT_H = 420;
+/** Taller layout when researching a claim (Chat tab + claim card + composer visible). */
+const CLAIM_RESEARCH_W = 440;
+const CLAIM_RESEARCH_H_MIN = 520;
+const CLAIM_RESEARCH_H_VH = 0.78;
+const CLAIM_RESEARCH_H_MAX = 860;
 const MIN_W = 280;
 const MIN_H = 220;
 const PANEL_MARGIN = 8;
 const TEXTAREA_AUTOSIZE_MAX = 360;
+/** Floating journal chrome (non–Bible reader). */
+const JOURNAL_PANEL_HEADER_BG = "#7DD3FC";
 
 function panelStorageKey(userId: string) {
   return `yb_journal_panel_v1_${userId}`;
@@ -46,12 +53,25 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n));
 }
 
+function claimResearchPanelGeom(prev: PanelPersist): PanelPersist {
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const w = clamp(CLAIM_RESEARCH_W, MIN_W, vw - PANEL_MARGIN * 2);
+  const h = clamp(
+    Math.min(CLAIM_RESEARCH_H_MAX, Math.round(vh * CLAIM_RESEARCH_H_VH)),
+    Math.min(CLAIM_RESEARCH_H_MIN, vh - PANEL_MARGIN * 2),
+    vh - PANEL_MARGIN * 2,
+  );
+  const x = clamp(prev.x, PANEL_MARGIN, vw - w - PANEL_MARGIN);
+  const y = clamp(prev.y, PANEL_MARGIN, vh - h - PANEL_MARGIN);
+  return { x, y, w, h };
+}
+
 type PanelPersist = {
   x: number;
   y: number;
   w: number;
   h: number;
-  minimized: boolean;
 };
 
 export type FloatingJournalPanelProps = {
@@ -89,8 +109,9 @@ export default function FloatingJournalPanel({
     y: 0,
     w: DEFAULT_W,
     h: DEFAULT_H,
-    minimized: false,
   });
+  const claimResearchRef = useRef(false);
+  claimResearchRef.current = Boolean(floatingClaimResearch);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -104,7 +125,6 @@ export default function FloatingJournalPanel({
       y: h - DEFAULT_H - PANEL_MARGIN,
       w: DEFAULT_W,
       h: DEFAULT_H,
-      minimized: false,
     };
   });
 
@@ -184,25 +204,35 @@ export default function FloatingJournalPanel({
     [userId],
   );
 
-  // Restore geometry + draft
+  // Restore geometry + draft (claim research uses expanded layout instead of saved size).
   useLayoutEffect(() => {
-    try {
-      const raw = localStorage.getItem(panelStorageKey(userId));
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<PanelPersist>;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const w = clamp(Number.isFinite(Number(p.w)) && p.w != null ? Number(p.w) : DEFAULT_W, MIN_W, vw - PANEL_MARGIN * 2);
-        const h = clamp(Number.isFinite(Number(p.h)) && p.h != null ? Number(p.h) : DEFAULT_H, MIN_H, vh - PANEL_MARGIN * 2);
-        const nx = Number(p.x);
-        const ny = Number(p.y);
-        const x = clamp(Number.isFinite(nx) ? nx : vw - w - PANEL_MARGIN, PANEL_MARGIN, vw - w - PANEL_MARGIN);
-        const y = clamp(Number.isFinite(ny) ? ny : vh - h - PANEL_MARGIN, PANEL_MARGIN, vh - h - PANEL_MARGIN);
-        setGeom({ x, y, w, h, minimized: !!p.minimized });
+    if (floatingClaimResearch) {
+      setGeom((prev) => {
+        const next = claimResearchPanelGeom(prev);
+        persistPanel(next);
+        return next;
+      });
+    } else {
+      try {
+        const raw = localStorage.getItem(panelStorageKey(userId));
+        if (raw) {
+          const p = JSON.parse(raw) as Partial<PanelPersist>;
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const w = clamp(Number.isFinite(Number(p.w)) && p.w != null ? Number(p.w) : DEFAULT_W, MIN_W, vw - PANEL_MARGIN * 2);
+          const h = clamp(Number.isFinite(Number(p.h)) && p.h != null ? Number(p.h) : DEFAULT_H, MIN_H, vh - PANEL_MARGIN * 2);
+          const nx = Number(p.x);
+          const ny = Number(p.y);
+          const x = clamp(Number.isFinite(nx) ? nx : vw - w - PANEL_MARGIN, PANEL_MARGIN, vw - w - PANEL_MARGIN);
+          const y = clamp(Number.isFinite(ny) ? ny : vh - h - PANEL_MARGIN, PANEL_MARGIN, vh - h - PANEL_MARGIN);
+          setGeom({ x, y, w, h });
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
     }
+
+    if (floatingClaimResearch) return;
 
     try {
       const d = localStorage.getItem(draftStorageKey(userId, artifactId));
@@ -214,7 +244,7 @@ export default function FloatingJournalPanel({
     } catch {
       /* ignore */
     }
-  }, [userId, artifactId]);
+  }, [userId, artifactId, floatingClaimResearch?.claimId, persistPanel]);
 
   // Debounced draft persistence
   useEffect(() => {
@@ -231,13 +261,12 @@ export default function FloatingJournalPanel({
     };
   }, [title, body, userId, artifactId]);
 
-  // Focus when expanded (write tab only)
+  // Focus when open (write tab only)
   useEffect(() => {
-    if (geom.minimized) return;
     if (floatingClaimResearch && panelTab === "chat") return;
     const t = window.setTimeout(() => textareaRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
-  }, [geom.minimized, floatingClaimResearch, panelTab]);
+  }, [floatingClaimResearch, panelTab]);
 
   const syncGeom = useCallback(
     (patch: Partial<PanelPersist>) => {
@@ -249,13 +278,7 @@ export default function FloatingJournalPanel({
         const h = clamp(next.h, MIN_H, vh - PANEL_MARGIN * 2);
         const x = clamp(next.x, PANEL_MARGIN, vw - w - PANEL_MARGIN);
         const y = clamp(next.y, PANEL_MARGIN, vh - h - PANEL_MARGIN);
-        const full: PanelPersist = {
-          x,
-          y,
-          w,
-          h,
-          minimized: patch.minimized !== undefined ? patch.minimized : next.minimized,
-        };
+        const full: PanelPersist = { x, y, w, h };
         persistPanel(full);
         return full;
       });
@@ -317,7 +340,7 @@ export default function FloatingJournalPanel({
   // Resize grip
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || geom.minimized) return;
+    if (!root) return;
     const grip = root.querySelector<HTMLElement>("[data-journal-panel-resize]");
     if (!grip) return;
 
@@ -348,8 +371,9 @@ export default function FloatingJournalPanel({
       const g = geomRef.current;
       const maxW = vw - g.x - PANEL_MARGIN;
       const maxH = vh - g.y - PANEL_MARGIN;
+      const minH = claimResearchRef.current ? Math.min(CLAIM_RESEARCH_H_MIN, maxH) : MIN_H;
       const w = clamp(startW + dx, MIN_W, maxW);
-      const h = clamp(startH + dy, MIN_H, maxH);
+      const h = clamp(startH + dy, minH, maxH);
       syncGeom({ w, h });
     };
 
@@ -373,7 +397,7 @@ export default function FloatingJournalPanel({
       grip.removeEventListener("pointerup", onUp);
       grip.removeEventListener("pointercancel", onUp);
     };
-  }, [geom.minimized, syncGeom]);
+  }, [syncGeom]);
 
   // Keep panel in viewport on window resize
   useEffect(() => {
@@ -397,11 +421,11 @@ export default function FloatingJournalPanel({
   // Textarea height follows content (capped); outer wrapper scrolls if needed
   useLayoutEffect(() => {
     const el = textareaRef.current;
-    if (!el || geom.minimized) return;
+    if (!el) return;
     el.style.height = "0px";
     const next = Math.min(Math.max(el.scrollHeight, 120), TEXTAREA_AUTOSIZE_MAX);
     el.style.height = `${next}px`;
-  }, [body, geom.minimized, geom.h, geom.w]);
+  }, [body, geom.h, geom.w]);
 
   const insertTimestamp = () => {
     const ta = textareaRef.current;
@@ -428,12 +452,16 @@ export default function FloatingJournalPanel({
     });
   };
 
-  const toggleMinimize = () => {
-    setGeom((g) => {
-      const next = { ...g, minimized: !g.minimized };
-      persistPanel(next);
-      return next;
-    });
+  /** Collapse to the right-edge journal tab (GlobalJournalLauncher); draft + geometry kept. */
+  const minimizeToTab = () => {
+    try {
+      localStorage.setItem(draftStorageKey(userId, artifactId), JSON.stringify({ title, body }));
+    } catch {
+      /* ignore */
+    }
+    persistPanel(geomRef.current);
+    useFloatingJournalStore.getState().setLauncherTucked(false);
+    onClose();
   };
 
   const saveTags =
@@ -534,7 +562,7 @@ export default function FloatingJournalPanel({
     "h-8 w-8 shrink-0",
     readerTheme
       ? "text-gold hover:bg-gold/15 hover:text-gold-bright"
-      : "text-primary-foreground hover:bg-white/15 hover:text-primary-foreground dark:hover:bg-white/10",
+      : "text-white hover:bg-white/15 hover:text-white",
   );
 
   const writeTabEditor = (
@@ -636,7 +664,7 @@ export default function FloatingJournalPanel({
       role="dialog"
       aria-labelledby="floating-journal-title"
       className={cn(
-        "fixed z-50 flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_14px_44px_-10px_rgba(15,23,42,0.22)]",
+        "fixed z-50 flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-[0_14px_44px_-10px_rgba(15,23,42,0.22)]",
         readerTheme
           ? "border-gold/25 shadow-leather"
           : "border-border dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_18px_50px_-14px_rgba(0,0,0,0.65)]",
@@ -645,8 +673,8 @@ export default function FloatingJournalPanel({
         left: geom.x,
         top: geom.y,
         width: geom.w,
-        height: geom.minimized ? undefined : geom.h,
-        maxHeight: geom.minimized ? undefined : `calc(100vh - ${PANEL_MARGIN * 2}px)`,
+        height: geom.h,
+        maxHeight: `calc(100vh - ${PANEL_MARGIN * 2}px)`,
       }}
     >
       <header
@@ -655,13 +683,14 @@ export default function FloatingJournalPanel({
           "relative z-10 flex min-h-[44px] shrink-0 cursor-move select-none items-center gap-2 border-b px-3 py-2",
           readerTheme
             ? "border-gold/25 bg-navy text-gold-bright"
-            : "border-primary/20 bg-primary text-primary-foreground dark:border-primary/30",
+            : "border-white/20 text-white",
         )}
+        style={readerTheme ? undefined : { backgroundColor: JOURNAL_PANEL_HEADER_BG }}
       >
         <GripHorizontal
           className={cn(
             "h-4 w-4 shrink-0",
-            readerTheme ? "text-gold/85" : "text-primary-foreground/85",
+            readerTheme ? "text-gold/85" : "text-white/85",
           )}
           aria-hidden
         />
@@ -670,7 +699,7 @@ export default function FloatingJournalPanel({
             id="floating-journal-title"
             className={cn(
               "font-display text-[15px] font-semibold leading-none tracking-tight",
-              readerTheme ? "text-gold-bright" : "text-primary-foreground",
+              readerTheme ? "text-gold-bright" : "text-white",
             )}
           >
             Journal
@@ -678,7 +707,7 @@ export default function FloatingJournalPanel({
           <p
             className={cn(
               "mt-1 truncate text-[11px] leading-tight",
-              readerTheme ? "text-gold/80" : "text-primary-foreground/80",
+              readerTheme ? "text-gold/80" : "text-white/80",
             )}
           >
             {artifactTitle?.trim() || (artifactId ? "Artifact" : "Quick note")}
@@ -704,14 +733,14 @@ export default function FloatingJournalPanel({
             size="icon"
             variant="ghost"
             className={headerIconClass}
-            aria-label={geom.minimized ? "Restore panel" : "Minimize panel"}
-            title={geom.minimized ? "Restore" : "Minimize"}
+            aria-label="Minimize to journal tab"
+            title="Minimize to tab"
             onClick={(e) => {
               e.stopPropagation();
-              toggleMinimize();
+              minimizeToTab();
             }}
           >
-            {geom.minimized ? <Square className="h-3.5 w-3.5" /> : <Minus className="h-4 w-4" />}
+            <PanelRightClose className="h-4 w-4" />
           </Button>
           <Button
             type="button"
@@ -730,9 +759,8 @@ export default function FloatingJournalPanel({
         </div>
       </header>
 
-      {!geom.minimized && (
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card dark:bg-neutral-950">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2.5 sm:px-3.5 sm:pb-3.5">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden bg-card dark:bg-neutral-950">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden px-3 pb-3 pt-2.5 sm:px-3.5 sm:pb-3.5">
             {floatingClaimResearch ? (
               <>
                 <div className="mb-2 flex shrink-0 gap-1 rounded-lg border border-border bg-muted/35 p-1 dark:bg-muted/20">
@@ -755,7 +783,7 @@ export default function FloatingJournalPanel({
                     Chat
                   </Button>
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
                   {panelTab === "write" ? (
                     writeTabEditor
                   ) : (
@@ -773,8 +801,7 @@ export default function FloatingJournalPanel({
             aria-label="Resize journal panel"
             className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-nwse-resize touch-none rounded-tl-md border border-border bg-muted/50 hover:bg-muted dark:border-neutral-700 dark:bg-neutral-800/80 dark:hover:bg-neutral-700"
           />
-        </div>
-      )}
+      </div>
     </div>
   );
 }

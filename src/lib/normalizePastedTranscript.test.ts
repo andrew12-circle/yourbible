@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanTranscriptQuoteForDisplay,
   countTimedTranscriptLines,
   formatBracketTimestamp,
   looksLikeYoutubeShowTranscriptPaste,
@@ -58,6 +59,11 @@ describe("normalizePastedTranscript", () => {
     expect(normalizePastedTranscript(input)).toBe("[1:03] you're going to be learning");
   });
 
+  it("fixes 1:52:471 hour, 52 minutes, 47 seconds mashed cue", () => {
+    const input = "1:52:471 hour, 52 minutes, 47 secondsAnd then he said this.";
+    expect(normalizePastedTranscript(input)).toBe("[1:52:47] And then he said this.");
+  });
+
   it("leaves already-bracketed lines unchanged (aside from whitespace)", () => {
     const input = "[0:22]   already   clean";
     expect(normalizePastedTranscript(input)).toBe("[0:22] already clean");
@@ -88,5 +94,16 @@ describe("normalizePastedTranscript", () => {
     const once = normalizePastedTranscript("0:2222 secondsHello world.");
     const twice = normalizePastedTranscript(once);
     expect(twice).toBe(once);
+  });
+});
+
+describe("cleanTranscriptQuoteForDisplay", () => {
+  it("returns quote body without mashed timestamp prefix", () => {
+    const raw = "1:52:471 hour, 52 minutes, 47 secondsAnd then he said this.";
+    expect(cleanTranscriptQuoteForDisplay(raw)).toBe("And then he said this.");
+  });
+
+  it("strips bracket timestamp from normalized lines", () => {
+    expect(cleanTranscriptQuoteForDisplay("[1:52:47] And then he said this.")).toBe("And then he said this.");
   });
 });

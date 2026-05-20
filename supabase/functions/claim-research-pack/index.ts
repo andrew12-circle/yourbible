@@ -1,10 +1,18 @@
 /**
- * claim-research-pack — v1 structured research for a single artifact claim.
+ * claim-research-pack — structured research for a single artifact claim.
  *
- * OUT OF SCOPE FOR V1 (not implemented here; do not imply otherwise in prompts):
+ * pack_type:
+ * - "standard" — multi-lens research pack (scripture_context, historical_theology, …)
+ * - "validation" — Bible alignment, historical context, three independent voices (optional web)
+ *
+ * Deploy: `supabase functions deploy claim-research-pack --project-ref <ref>`
+ * Required secrets: GEMINI_API_KEY, SUPABASE_URL/ANON (auto), API_BIBLE_KEY via bible-passage
+ * Optional live web: WEB_SEARCH_PROVIDER=brave|serpapi + BRAVE_SEARCH_API_KEY or SERPAPI_API_KEY
+ *
+ * OUT OF SCOPE (not implemented; do not imply in prompts):
  * - Licensed concordance / Strong's lexicons
  * - Theology PDF corpora or proprietary denominational databases
- * - Automated live denominational stance APIs
+ * - OpenAI browsing (uses Gemini + Brave/SerpAPI only)
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
@@ -25,8 +33,27 @@ const DEFAULT_LENS_IDS = [
   "synthesis",
 ] as const;
 
-type LensId = (typeof DEFAULT_LENS_IDS)[number];
-type Epistemic = "training_only" | "scripture_text" | "unknown";
+const VALIDATION_LENS_IDS = [
+  "bible_alignment",
+  "historical_context",
+  "independent_voices",
+] as const;
+
+type StandardLensId = (typeof DEFAULT_LENS_IDS)[number];
+type ValidationLensId = (typeof VALIDATION_LENS_IDS)[number];
+type LensId = StandardLensId | ValidationLensId;
+type PackType = "standard" | "validation";
+type Epistemic = "training_only" | "scripture_text" | "web_snippet" | "mixed" | "unknown";
+
+type IndependentVoice = {
+  name: string;
+  tradition_or_role: string;
+  angle: string;
+  summary: string;
+  agreement: "agrees" | "qualifies" | "disagrees" | "unclear";
+  source_url?: string;
+  epistemic: "web_snippet" | "training_only";
+};
 
 type BookRow = { name: string; abbr: string };
 
@@ -273,12 +300,56 @@ function formatVerseSlice(verses: PassageVerse[], v0?: number, v1?: number): str
   return slice.map((x) => `[${x.number}] ${x.text}`).join("\n");
 }
 
-function isLensId(s: string): s is LensId {
+function isStandardLensId(s: string): s is StandardLensId {
   return (DEFAULT_LENS_IDS as readonly string[]).includes(s);
 }
 
+function isValidationLensId(s: string): s is ValidationLensId {
+  return (VALIDATION_LENS_IDS as readonly string[]).includes(s);
+}
+
+function isLensId(s: string, packType: PackType): s is LensId {
+  return packType === "validation" ? isValidationLensId(s) : isStandardLensId(s);
+}
+
 function isEpistemic(s: string): s is Epistemic {
-  return s === "training_only" || s === "scripture_text" || s === "unknown";
+  return s === "training_only" || s === "scripture_text" || s === "web_snippet" || s === "mixed" ||
+    s === "unknown";
+}
+
+function isAgreement(s: string): s is IndependentVoice["agreement"] {
+  return s === "agrees" || s === "qualifies" || s === "disagrees" || s === "unclear";
+}
+
+function parseIndependentVoices(cell: Record<string, unknown>): IndependentVoice[] | null {
+  const raw = cell.voices;
+  if (!Array.isArray(raw)) return null;
+  const out: IndependentVoice[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (!isRecord(item)) continue;
+    const name = typeof item.name === "string" ? item.name.trim() : "";
+    const tradition_or_role = typeof item.tradition_or_role === "string" ? item.tradition_or_role.trim() : "";
+    const angle = typeof item.angle === "string" ? item.angle.trim() : "";
+    const summary = typeof item.summary === "string" ? item.summary.trim() : "";
+    const agreement = typeof item.agreement === "string" ? item.agreement.trim() : "";
+    const ep = typeof item.epistemic === "string" ? item.epistemic.trim() : "";
+    if (!name || !summary) continue;
+    if (!isAgreement(agreement)) continue;
+    if (ep !== "web_snippet" && ep !== "training_only") continue;
+    const source_url = typeof item.source_url === "string" && item.source_url.startsWith("http")
+      ? item.source_url.trim()
+      : undefined;
+    out.push({
+      name,
+      tradition_or_role: tradition_or_role || "Teacher / scholar",
+      angle: angle || "General",
+      summary,
+      agreement,
+      epistemic: ep,
+      ...(source_url ? { source_url } : {}),
+    });
+  }
+  return out.length >= 1 ? out : null;
 }
 
 type ScriptureEntry = { ref: string; reference?: string; text?: string; error?: string };
@@ -375,6 +446,86 @@ async function runWebSearch(
   return { text: "", provider: null };
 }
 
+async function runValidationWebSearches(
+  claimText: string,
+  userQuestion: string,
+  providerRaw: string | undefined,
+): Promise<{ text: string; provider: string | null; usedWeb: boolean }> {
+  const provider = providerRaw?.trim().toLowerCase();
+  if (!provider || provider === "none" || provider === "off") {
+    return { text: "", provider: null, usedWeb: false };
+  }
+  const base = claimText.slice(0, 200).trim();
+  const qExtra = userQuestion.trim().slice(0, 120);
+  const queries = [
+    `${base} Christian teacher theologian perspective`,
+    `${base} Bible scripture teaching`,
+    qExtra ? `${base} ${qExtra} church history context` : `${base} historical theology church history`,
+  ];
+  const blocks: string[] = [];
+  let usedWeb = false;
+  for (const q of queries) {
+    const ws = await runWebSearch(q, provider);
+    if (ws.text && !ws.text.startsWith("(")) {
+      usedWeb = true;
+      blocks.push(`### Query: ${q}\n\n${ws.text}`);
+    }
+  }
+  return {
+    text: blocks.join("\n\n---\n\n"),
+    provider: blocks.length ? provider : null,
+    usedWeb,
+  };
+}
+
+function buildValidationSystemText(lensJson: string, usedWeb: boolean): string {
+  return `You are a careful research assistant validating ONE claim from a Christian journaling app.
+
+Return ONE JSON object ONLY (no markdown fences) with keys:
+- "sections": object with exactly these lens ids: ${lensJson}
+- Each section value: { "body": string, "epistemic": "scripture_text"|"training_only"|"web_snippet"|"mixed"|"unknown", "voices"?: array (ONLY on independent_voices) }
+
+Lens rules:
+1) bible_alignment: Compare the claim to Scripture using ONLY the "Fetched passage text" section when present. State alignment (supports / tensions / unclear) with verse refs from fetched text. If no passage text, say so and use careful general biblical themes with epistemic "training_only" or "unknown". epistemic "scripture_text" only when fetched passages were used.
+2) historical_context: Era, church-historical streams, cultural background. Use web snippets when supplied (epistemic "web_snippet" or "mixed"); otherwise training_only with explicit limits.
+3) independent_voices: Provide EXACTLY three distinct voices in the "voices" array AND a short "body" markdown summary. Each voice:
+   { "name": string, "tradition_or_role": string, "angle": string, "summary": string, "agreement": "agrees"|"qualifies"|"disagrees"|"unclear", "source_url"?: string (only if present in web snippets), "epistemic": "web_snippet"|"training_only" }
+   Voices must be plausibly real teachers, scholars, or named traditions — not fictional. Prefer different angles (e.g. one devotional teacher, one academic, one historical stream). If web snippets name people, use them and set epistemic web_snippet with URLs only from snippets.
+   If NO web snippets: still name well-known figures but set epistemic training_only; body must say these are model-recalled summaries, not verified live quotes.
+${usedWeb ? "4) Web snippets were retrieved — prioritize them for independent_voices when they name teachers or articles." : "4) No live web search — independent_voices must flag training_only and avoid fake URLs."}
+Never invent URLs, book pages, or direct quotes not grounded in supplied text.
+Tone: warm, precise, non-preachy.`;
+}
+
+function buildStandardSystemText(lensJson: string): string {
+  return `You are a careful research assistant for a private Christian journaling app.
+
+Return ONE JSON object ONLY (no markdown fences) with key "sections" whose value is an object.
+
+Each requested lens id must appear exactly once under "sections" with shape:
+{ "body": string, "epistemic": "training_only" | "scripture_text" | "web_snippet" | "mixed" | "unknown" }
+
+Lens ids for this run (only these keys): ${lensJson}
+
+Rules:
+1) scripture_context: Base analysis ONLY on the "Fetched passage text" section supplied by the server. epistemic must be "scripture_text" if any passage text was supplied; otherwise "unknown". Explicitly state that the app does not yet run Strong's or licensed concordance data; plain-text context only.
+2) For every OTHER lens (non-scripture_context): body MUST begin with its own first line exactly:
+   Epistemic: training_only
+   or
+   Epistemic: unknown
+   (Pick training_only when reasoning from model training data; unknown when you cannot ground an answer.)
+3) Never invent book titles, page numbers, journal volumes, or URLs not present in the user payload. If you did not receive web snippets with real URLs, do not fabricate citations.
+4) If web snippets were NOT provided or are empty, the second paragraph (after the epistemic line) must clearly say answers may omit recent scholarship and are limited to general training-data knowledge.
+5) historical_theology: major streams and cautions, no fake citations.
+6) opposing_views: steel-man counterpositions.
+7) denominational_notes: high-level patterns only; no database of official positions.
+8) logical_audit: premises/conclusions/ gaps.
+9) scientific_relevance: only when plausibly relevant to the claim; otherwise briefly say N/A.
+10) synthesis: short honest integration across lenses; epistemic line as for other non-scripture sections.
+
+Tone: warm, precise, non-preachy.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -407,12 +558,15 @@ Deno.serve(async (req) => {
 
     const claimResearch = isRecord(bodyRaw.claim_research) ? bodyRaw.claim_research : null;
     const useWeb = claimResearch?.use_web === true;
+    const packTypeRaw = typeof bodyRaw.pack_type === "string" ? bodyRaw.pack_type.trim().toLowerCase() : "";
+    const packType: PackType = packTypeRaw === "validation" ? "validation" : "standard";
+    const userQuestion = typeof bodyRaw.user_question === "string" ? bodyRaw.user_question.trim().slice(0, 2000) : "";
 
     let lensesIn: unknown = bodyRaw.lenses;
-    let lensList: LensId[] = [...DEFAULT_LENS_IDS];
+    let lensList: LensId[] = packType === "validation" ? [...VALIDATION_LENS_IDS] : [...DEFAULT_LENS_IDS];
     if (Array.isArray(lensesIn)) {
       const picked = lensesIn
-        .filter((x): x is string => typeof x === "string" && isLensId(x.trim()))
+        .filter((x): x is string => typeof x === "string" && isLensId(x.trim(), packType))
         .map((x) => x.trim() as LensId);
       if (picked.length) lensList = [...new Set(picked)];
     }
@@ -478,47 +632,33 @@ Deno.serve(async (req) => {
     let usedWeb = false;
     let webProviderUsed: string | null = null;
     if (useWeb && webProviderEnv && webProviderEnv !== "none" && webProviderEnv !== "off") {
-      const q = `${claimText.slice(0, 280)} theology interpretation`;
-      const ws = await runWebSearch(q, webProviderEnv);
-      webSnippets = ws.text;
-      usedWeb = Boolean(ws.text && !ws.text.startsWith("("));
-      webProviderUsed = ws.provider;
+      if (packType === "validation") {
+        const ws = await runValidationWebSearches(claimText, userQuestion, webProviderEnv);
+        webSnippets = ws.text;
+        usedWeb = ws.usedWeb;
+        webProviderUsed = ws.provider;
+      } else {
+        const q = `${claimText.slice(0, 280)} theology interpretation`;
+        const ws = await runWebSearch(q, webProviderEnv);
+        webSnippets = ws.text;
+        usedWeb = Boolean(ws.text && !ws.text.startsWith("("));
+        webProviderUsed = ws.provider;
+      }
     }
 
     const webBlock = usedWeb
       ? `## Retrieved web snippets (provider: ${webProviderUsed}; not vetted)\n\n${webSnippets}`
-      : `## Web search\n\nNot used for this request (claim_research.use_web=false or WEB_SEARCH_PROVIDER unset).`;
+      : `## Web search\n\nNot used for this request (claim_research.use_web=false or WEB_SEARCH_PROVIDER unset). Live search requires WEB_SEARCH_PROVIDER=brave|serpapi and BRAVE_SEARCH_API_KEY or SERPAPI_API_KEY in Edge secrets.`;
 
     const lensJson = JSON.stringify(lensList);
 
-    const systemText = `You are a careful research assistant for a private Christian journaling app.
-
-Return ONE JSON object ONLY (no markdown fences) with key "sections" whose value is an object.
-
-Each requested lens id must appear exactly once under "sections" with shape:
-{ "body": string, "epistemic": "training_only" | "scripture_text" | "unknown" }
-
-Lens ids for this run (only these keys): ${lensJson}
-
-Rules:
-1) scripture_context: Base analysis ONLY on the "Fetched passage text" section supplied by the server. epistemic must be "scripture_text" if any passage text was supplied; otherwise "unknown". Explicitly state that the app does not yet run Strong's or licensed concordance data; plain-text context only.
-2) For every OTHER lens (non-scripture_context): body MUST begin with its own first line exactly:
-   Epistemic: training_only
-   or
-   Epistemic: unknown
-   (Pick training_only when reasoning from model training data; unknown when you cannot ground an answer.)
-3) Never invent book titles, page numbers, journal volumes, or URLs not present in the user payload. If you did not receive web snippets with real URLs, do not fabricate citations.
-4) If web snippets were NOT provided or are empty, the second paragraph (after the epistemic line) must clearly say answers may omit recent scholarship and are limited to general training-data knowledge.
-5) historical_theology: major streams and cautions, no fake citations.
-6) opposing_views: steel-man counterpositions.
-7) denominational_notes: high-level patterns only; no database of official positions.
-8) logical_audit: premises/conclusions/ gaps.
-9) scientific_relevance: only when plausibly relevant to the claim; otherwise briefly say N/A.
-10) synthesis: short honest integration across lenses; epistemic line as for other non-scripture sections.
-
-Tone: warm, precise, non-preachy.`;
+    const systemText = packType === "validation"
+      ? buildValidationSystemText(lensJson, usedWeb)
+      : buildStandardSystemText(lensJson);
 
     const userPayload = [
+      `pack_type: ${packType}`,
+      userQuestion ? `user_question:\n${userQuestion}` : "",
       `artifact_title: ${typeof artRow.title === "string" ? artRow.title : ""}`,
       `artifact_kind: ${typeof artRow.kind === "string" ? artRow.kind : ""}`,
       `claim_text:\n${claimText}`,
@@ -532,12 +672,13 @@ Tone: warm, precise, non-preachy.`;
       scriptureBlock,
       "",
       webBlock,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
 
     const gem = await callGeminiJson(systemText, userPayload, GEMINI_API_KEY);
     if (!gem.ok) return jsonResponse({ error: gem.err ?? "Gemini failed" }, 502);
 
-    let sectionsOut: Record<string, { body: string; epistemic: Epistemic }> = {};
+    type SectionOut = { body: string; epistemic: Epistemic; voices?: IndependentVoice[] };
+    let sectionsOut: Record<string, SectionOut> = {};
     try {
       const parsed: unknown = JSON.parse(stripJsonFence(gem.rawText));
       if (isRecord(parsed) && isRecord(parsed.sections)) {
@@ -547,7 +688,12 @@ Tone: warm, precise, non-preachy.`;
           const body = typeof cell.body === "string" ? cell.body.trim() : "";
           const ep = typeof cell.epistemic === "string" ? cell.epistemic.trim() : "";
           if (body && isEpistemic(ep)) {
-            sectionsOut[lid] = { body, epistemic: ep };
+            const entry: SectionOut = { body, epistemic: ep };
+            if (lid === "independent_voices") {
+              const voices = parseIndependentVoices(cell);
+              if (voices?.length) entry.voices = voices;
+            }
+            sectionsOut[lid] = entry;
           }
         }
       }
@@ -562,21 +708,32 @@ Tone: warm, precise, non-preachy.`;
     const hasScriptureText = scriptureEntries.some((e) => e.text && e.text.trim().length > 0);
     for (const lid of lensList) {
       if (sectionsOut[lid]) continue;
-      if (lid === "scripture_context") {
+      if (lid === "scripture_context" || lid === "bible_alignment") {
         if (hasScriptureText) {
           sectionsOut[lid] = {
             epistemic: "scripture_text",
             body:
-              "Concordance / Hebrew–Greek: This app does not yet run Strong's or licensed lexicons. Plain-text context from the user's cited passages (API.Bible) follows.\n\n" +
+              (lid === "bible_alignment"
+                ? "Alignment notes from fetched passage text (API.Bible). Strong's / lexicons not wired in v1.\n\n"
+                : "Concordance / Hebrew–Greek: This app does not yet run Strong's or licensed lexicons. Plain-text context from the user's cited passages (API.Bible) follows.\n\n") +
               scriptureBlock.slice(0, 7000),
           };
         } else {
           sectionsOut[lid] = {
             epistemic: "unknown",
             body:
-              "No usable passage text was retrieved (unparsed references, API errors, or no refs). Strong's / concordance tools are not wired in v1—use the chat tab or fix scripture refs on the claim.",
+              "No usable passage text was retrieved (unparsed references, API errors, or no refs). Add scripture refs on the claim or ask a follow-up with broader context enabled.",
           };
         }
+        continue;
+      }
+      if (lid === "independent_voices") {
+        sectionsOut[lid] = {
+          epistemic: usedWeb ? "mixed" : "training_only",
+          body: usedWeb
+            ? "Could not parse three independent voices from the model. Retry, or check web search configuration."
+            : "Epistemic: training_only\n\nLive web search was off or unavailable. Three-voice validation requires named teachers from model training data only — not verified live quotes. Enable web search in Edge secrets and the toggle, then retry.",
+        };
         continue;
       }
       sectionsOut[lid] = {
@@ -585,21 +742,33 @@ Tone: warm, precise, non-preachy.`;
           "Epistemic: unknown\n\nThis section was missing from the model response after a successful parse. Retry the research pack, or continue in chat.",
       };
     }
-    if (lensList.includes("scripture_context") && sectionsOut.scripture_context && hasScriptureText) {
+    if (packType === "standard" && lensList.includes("scripture_context") && sectionsOut.scripture_context && hasScriptureText) {
       sectionsOut.scripture_context = {
         ...sectionsOut.scripture_context,
         epistemic: "scripture_text",
       };
     }
+    if (packType === "validation" && lensList.includes("bible_alignment") && sectionsOut.bible_alignment && hasScriptureText) {
+      sectionsOut.bible_alignment = {
+        ...sectionsOut.bible_alignment,
+        epistemic: "scripture_text",
+      };
+    }
+
+    const independentVoices = sectionsOut.independent_voices?.voices ?? null;
 
     return jsonResponse({
+      pack_type: packType,
       sections: sectionsOut,
+      independent_voices: independentVoices,
       scripture: scriptureEntries,
       meta: {
         bible_id: bibleId,
         used_web: usedWeb,
         web_provider: webProviderUsed,
         lenses: lensList,
+        pack_type: packType,
+        user_question: userQuestion || null,
         ref_parse_errors: scriptureEntries.filter((e) => e.error).map((e) => ({ ref: e.ref, error: e.error })),
       },
     });
