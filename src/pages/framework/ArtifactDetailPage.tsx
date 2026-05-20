@@ -592,6 +592,8 @@ export default function ArtifactDetailPage() {
   const youtubePlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
+  /** Left column scroll container on `lg` split layout; used as IntersectionObserver root for PIP. */
+  const mainScrollRef = useRef<HTMLDivElement | null>(null);
   const [pipMode, setPipMode] = useState(false);
   const [pipLayout, setPipLayout] = useState<ArtifactPipLayout | null>(null);
   const pipLayoutRef = useRef<ArtifactPipLayout | null>(null);
@@ -867,14 +869,31 @@ export default function ArtifactDetailPage() {
       setPipMode(false);
       return;
     }
-    const target = videoSlotRef.current;
-    if (!target) return;
-    const io = new IntersectionObserver(
-      ([entry]) => setPipMode(!entry.isIntersecting),
-      { threshold: 0 },
-    );
-    io.observe(target);
-    return () => io.disconnect();
+
+    let io: IntersectionObserver | null = null;
+
+    const attach = () => {
+      const target = videoSlotRef.current;
+      if (!target) return;
+      io?.disconnect();
+      const scrollRoot = mainScrollRef.current;
+      const root =
+        scrollRoot && window.matchMedia("(min-width: 1024px)").matches ? scrollRoot : null;
+      io = new IntersectionObserver(
+        ([entry]) => setPipMode(!entry.isIntersecting),
+        { threshold: 0, root },
+      );
+      io.observe(target);
+    };
+
+    attach();
+    const raf = window.requestAnimationFrame(attach);
+    window.addEventListener("resize", attach);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      io?.disconnect();
+      window.removeEventListener("resize", attach);
+    };
   }, [embedUrl]);
 
   useEffect(() => {
@@ -1543,7 +1562,7 @@ export default function ArtifactDetailPage() {
       <div
         className={`lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6 lg:min-h-0 ${artifactSplitPaneHeightClass}`}
       >
-        <div className="min-h-0 space-y-5 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
+        <div ref={mainScrollRef} className="min-h-0 space-y-5 lg:col-span-8 lg:overflow-y-auto lg:pr-1">
       {a.kind === "youtube" && a.status === "ready" && (
         <nav
           aria-label="On this page"
@@ -1697,7 +1716,7 @@ export default function ArtifactDetailPage() {
 
       {embedUrl && (
         <section id="video" className="scroll-mt-24 mb-5 rounded-lg border border-border bg-card p-3 lg:mb-0">
-          <div className="lg:sticky lg:top-0 lg:z-10 lg:-mx-3 lg:rounded-t-lg lg:border-b lg:border-border lg:bg-card lg:px-3 lg:pt-3 lg:pb-3">
+          <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Youtube className="w-4 h-4 text-red-600" /> Video
               <span className="ml-auto text-xs font-normal text-muted-foreground">
@@ -1708,7 +1727,7 @@ export default function ArtifactDetailPage() {
               <div
                 className={
                   pipMode && pipChromeLayout
-                    ? "fixed z-50 flex flex-col overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15 [&>iframe]:h-full [&>iframe]:w-full"
+                    ? "fixed z-[60] flex flex-col overflow-hidden rounded-xl bg-black shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15 [&>iframe]:h-full [&>iframe]:w-full"
                     : "absolute inset-0 overflow-hidden rounded bg-muted [&>iframe]:h-full [&>iframe]:w-full"
                 }
                 style={
