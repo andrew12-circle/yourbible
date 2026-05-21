@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   Loader2,
@@ -28,6 +28,7 @@ import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -58,16 +59,19 @@ import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPane
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
+import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactDetailHeader from "@/components/framework/artifact-detail/ArtifactDetailHeader";
+import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
 import ArtifactChaptersSection from "@/components/framework/artifact-detail/ArtifactChaptersSection";
 import ArtifactClaimsSection from "@/components/framework/artifact-detail/ArtifactClaimsSection";
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
+import { useIsDesktop } from "@/hooks/use-desktop";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
-import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { artifactCard, artifactScrollMt, artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
@@ -357,13 +361,30 @@ export default function ArtifactDetailPage() {
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const repairedRef = useRef(false);
   const lastBookmarkJournalInsertAtRef = useRef(0);
-  const youtubeChapterSyncSessionRef = useRef<Set<string>>(new Set());
-  const youtubeChapterGenSessionRef = useRef<Set<string>>(new Set());
+  const [syncingYoutubeChapters, setSyncingYoutubeChapters] = useState(false);
   const [generatingChapters, setGeneratingChapters] = useState(false);
   const [pageSectionHash, setPageSectionHash] = useState(() =>
     typeof window !== "undefined" ? window.location.hash : "",
   );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"study" | "transcript">("study");
+  const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
   const createProcessingToken = () => crypto.randomUUID();
+
+  const navigateToArtifactHash = useCallback((hash: string) => {
+    const sectionId = hash.replace(/^#/, "");
+    if (!sectionId) return;
+    if (sectionId === "transcript") {
+      setMobileTab("transcript");
+      return;
+    }
+    setMobileTab("study");
+    window.location.hash = sectionId;
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   const fetchYouTubeMeta = useCallback(async (videoUrl: string): Promise<ArtifactMetadata | null> => {
     try {
@@ -390,7 +411,11 @@ export default function ArtifactDetailPage() {
   }, []);
 
   useEffect(() => {
-    const sync = () => setPageSectionHash(window.location.hash);
+    const sync = () => {
+      const hash = window.location.hash;
+      setPageSectionHash(hash);
+      if (hash === "#transcript") setMobileTab("transcript");
+    };
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -441,53 +466,6 @@ export default function ArtifactDetailPage() {
     const ch = (a?.metadata as ArtifactMetadata | undefined)?.youtube_chapters;
     return Array.isArray(ch) ? ch.length : 0;
   }, [a?.metadata]);
-
-  useEffect(() => {
-    if (!a || a.kind !== "youtube" || !a.url || !user) return;
-    if (a.status === "fetching" || a.status === "transcribing") return;
-    if (youtubeChapterCount > 0) return;
-    if (youtubeChapterSyncSessionRef.current.has(a.id)) return;
-    youtubeChapterSyncSessionRef.current.add(a.id);
-    let cancelled = false;
-    (async () => {
-      const { error } = await supabase.functions.invoke("framework-sync-youtube-chapters", {
-        body: { artifact_id: a.id },
-      });
-      if (cancelled || error) return;
-      await patchArtifactMetadata(a.id);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [a?.id, a?.kind, a?.url, a?.status, patchArtifactMetadata, user, youtubeChapterCount]);
-
-  useEffect(() => {
-    if (!a || a.kind !== "youtube" || !user) return;
-    if (a.status !== "ready") return;
-    const text = a.raw_text?.trim() ?? "";
-    if (text.length < 200) return;
-    if (youtubeChapterCount > 0) return;
-    if (youtubeChapterGenSessionRef.current.has(a.id)) return;
-    youtubeChapterGenSessionRef.current.add(a.id);
-    let cancelled = false;
-    (async () => {
-      setGeneratingChapters(true);
-      try {
-        const { error } = await supabase.functions.invoke("framework-generate-chapters", {
-          body: { artifact_id: a.id },
-        });
-        if (cancelled || error) return;
-        await patchArtifactMetadata(a.id);
-      } catch {
-        /* optional — user can tap Generate chapters */
-      } finally {
-        if (!cancelled) setGeneratingChapters(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [a?.id, a?.kind, a?.status, a?.raw_text, patchArtifactMetadata, user, youtubeChapterCount]);
 
   const displayTranscriptText = useMemo(
     () => (a?.raw_text ? normalizePastedTranscript(a.raw_text) : ""),
@@ -553,8 +531,15 @@ export default function ArtifactDetailPage() {
     transcriptSegments,
     transcriptRefs,
   });
-  const { youtubePip, youtubePlayer, playbackFallbackRef, seekVideoToSeconds, getPlaybackSeconds } =
-    videoPlayback;
+  const {
+    pipEnabled,
+    youtubePip,
+    youtubePlayer,
+    playbackFallbackRef,
+    seekVideoToSeconds,
+    getPlaybackSeconds,
+    togglePlayback,
+  } = videoPlayback;
 
   useEffect(() => {
     if (!a?.id) {
@@ -674,6 +659,31 @@ export default function ArtifactDetailPage() {
     return sections;
   }, [a, a?.kind, a?.status, a?.url, youTubeVideoId, youtubeChaptersList.length, claims.length]);
 
+  const advanceMobileClaim = useCallback(
+    (currentId: string) => {
+      if (isDesktop) return;
+      const idx = claims.findIndex((c) => c.id === currentId);
+      const next = idx >= 0 ? claims[idx + 1] : undefined;
+      if (!next) {
+        setMobileOpenClaimId(null);
+        return;
+      }
+      setMobileOpenClaimId(next.id);
+      window.requestAnimationFrame(() => {
+        document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    [claims, isDesktop],
+  );
+
+  useEffect(() => {
+    if (isDesktop || claims.length === 0) return;
+    setMobileOpenClaimId((prev) => {
+      if (prev && claims.some((c) => c.id === prev)) return prev;
+      return claims[0]?.id ?? null;
+    });
+  }, [claims, isDesktop]);
+
   if (loading) {
     return (
       <FrameworkLayout
@@ -732,6 +742,13 @@ export default function ArtifactDetailPage() {
     );
   };
 
+  const applyClaimVerdict = async (cid: string, verdict: ClaimVerdict | null) => {
+    await setVerdict(cid, verdict);
+    if (!isDesktop && verdict && verdict !== "defer") {
+      advanceMobileClaim(cid);
+    }
+  };
+
   const toggleResearchLater = async (cid: string, currentVerdict: string | null) => {
     if (isDeferredVerdict(currentVerdict)) {
       await setVerdict(cid, null);
@@ -743,6 +760,14 @@ export default function ArtifactDetailPage() {
   };
 
   const jumpToClaim = (claimNumber: number) => {
+    const claim = claims[claimNumber - 1];
+    if (!isDesktop && claim) {
+      setMobileOpenClaimId(claim.id);
+      window.requestAnimationFrame(() => {
+        document.getElementById(claim.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return;
+    }
     const el = document.querySelector(`[data-claim-number="${claimNumber}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -792,6 +817,23 @@ export default function ArtifactDetailPage() {
       title: "Transcript formatted",
       description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
     });
+  };
+
+  const syncYouTubeChapters = async () => {
+    if (!a || a.kind !== "youtube") return;
+    setSyncingYoutubeChapters(true);
+    try {
+      const { error } = await supabase.functions.invoke("framework-sync-youtube-chapters", {
+        body: { artifact_id: a.id },
+      });
+      if (error) throw error;
+      await patchArtifactMetadata(a.id);
+      toast({ title: "Synced chapters from YouTube" });
+    } catch {
+      toast({ title: "Could not sync chapters from YouTube", variant: "destructive" });
+    } finally {
+      setSyncingYoutubeChapters(false);
+    }
   };
 
   const generateChaptersFromTranscript = async (force = false) => {
@@ -1080,43 +1122,9 @@ export default function ArtifactDetailPage() {
             : isDeferredVerdict(c.verdict)
               ? "border-l-amber-500"
               : "border-l-border";
-    return (
-      <article
-        key={c.id}
-        id={c.id}
-        data-claim-number={claimNumber}
-        className={cn(
-          artifactCard,
-          artifactScrollMt,
-          "space-y-4 border-l-4 p-4 sm:p-5",
-          verdictAccent,
-          isDeferredVerdict(c.verdict) && "ring-1 ring-amber-400/40",
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <span
-              className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
-              aria-label={`Claim ${claimNumber}`}
-            >
-              #{claimNumber}
-            </span>
-            <p className="font-display text-base leading-relaxed text-foreground">{c.claim}</p>
-          </div>
-          {c.verdict ? (
-            <span
-              className={cn(
-                "shrink-0 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded",
-                isDeferredVerdict(c.verdict)
-                  ? "bg-amber-200 text-amber-950 dark:bg-amber-900 dark:text-amber-100"
-                  : "bg-foreground text-background",
-              )}
-            >
-              {formatClaimVerdict(c.verdict)}
-            </span>
-          ) : null}
-        </div>
 
+    const claimBody = (
+      <>
         <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
           <div className="mb-2.5 flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
             <Quote className="h-3 w-3 shrink-0" />
@@ -1290,30 +1298,74 @@ export default function ArtifactDetailPage() {
             icon={Check}
             tone="keep"
             active={c.verdict === "keep"}
-            onClick={() => void setVerdict(c.id, "keep")}
+            onClick={() => void applyClaimVerdict(c.id, "keep")}
           />
           <ClaimIconActionButton
             label="Reject"
             icon={X}
             tone="reject"
             active={c.verdict === "reject"}
-            onClick={() => void setVerdict(c.id, "reject")}
+            onClick={() => void applyClaimVerdict(c.id, "reject")}
           />
           <ClaimIconActionButton
             label="Update my belief"
             icon={Pencil}
             tone="update"
             active={c.verdict === "updated"}
-            onClick={() => void setVerdict(c.id, "updated")}
+            onClick={() => void applyClaimVerdict(c.id, "updated")}
           />
           <ClaimIconActionButton
             label="Defer"
             icon={CirclePause}
             tone="defer"
             active={c.verdict === "defer"}
-            onClick={() => void setVerdict(c.id, "defer")}
+            onClick={() => void applyClaimVerdict(c.id, "defer")}
           />
         </div>
+      </>
+    );
+
+    if (!isDesktop) {
+      return <div className="space-y-4">{claimBody}</div>;
+    }
+
+    return (
+      <article
+        key={c.id}
+        id={c.id}
+        data-claim-number={claimNumber}
+        className={cn(
+          artifactCard,
+          artifactScrollMt,
+          "space-y-4 border-l-4 p-4 sm:p-5",
+          verdictAccent,
+          isDeferredVerdict(c.verdict) && "ring-1 ring-amber-400/40",
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <span
+              className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
+              aria-label={`Claim ${claimNumber}`}
+            >
+              #{claimNumber}
+            </span>
+            <p className="font-display text-base leading-relaxed text-foreground">{c.claim}</p>
+          </div>
+          {c.verdict ? (
+            <span
+              className={cn(
+                "shrink-0 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded",
+                isDeferredVerdict(c.verdict)
+                  ? "bg-amber-200 text-amber-950 dark:bg-amber-900 dark:text-amber-100"
+                  : "bg-foreground text-background",
+              )}
+            >
+              {formatClaimVerdict(c.verdict)}
+            </span>
+          ) : null}
+        </div>
+        {claimBody}
       </article>
     );
   };
@@ -1357,10 +1409,93 @@ export default function ArtifactDetailPage() {
     />
   );
 
+  const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
+  const stickyVideoMode = Boolean(youTubeVideoId) && !isDesktop;
+
+  const mobileMenuTrigger =
+    a.kind === "youtube" ? (
+      <ArtifactMobileMenu
+        open={mobileMenuOpen}
+        onOpenChange={setMobileMenuOpen}
+        sections={navSections}
+        activeHash={pageSectionHash}
+        showPaste={a.kind === "youtube"}
+        showWrapUp={a.kind === "youtube" && a.status === "ready"}
+        showReanalyze={!inFlight && a.status !== "error"}
+        hasTranscript={Boolean(a.raw_text?.trim())}
+        onNavigateSection={navigateToArtifactHash}
+        onOpenTranscript={() => {
+          setMobileTab("transcript");
+          window.location.hash = "transcript";
+        }}
+        onPaste={() => setPasteOpen(true)}
+        onWrapUp={() => setWrapUpOpen(true)}
+        onReanalyze={reanalyze}
+      />
+    ) : null;
+
+  const mobileTabBar =
+    !isDesktop && a.raw_text?.trim() ? (
+      <TabsList className="grid h-10 w-full grid-cols-2 rounded-none border-0 border-t border-border/50 bg-muted/30 p-0">
+        <TabsTrigger
+          value="study"
+          className="rounded-none border-0 data-[state=active]:bg-background data-[state=active]:shadow-none"
+        >
+          Study
+        </TabsTrigger>
+        <TabsTrigger
+          value="transcript"
+          className="rounded-none border-0 data-[state=active]:bg-background data-[state=active]:shadow-none"
+        >
+          Transcript
+        </TabsTrigger>
+      </TabsList>
+    ) : null;
+
+  const StudyColumnWrapper = ({ children }: { children: ReactNode }) =>
+    !isDesktop ? (
+      <TabsContent value="study" className="mt-0 space-y-5 focus-visible:outline-none sm:space-y-6">
+        {children}
+      </TabsContent>
+    ) : (
+      <div className="space-y-5 sm:space-y-6">{children}</div>
+    );
+
+  const transcriptPanel = a.raw_text ? (
+    <TranscriptPanel
+      artifactId={a.id}
+      segments={transcriptSegments}
+      timed={transcriptTimedLayout}
+      coarseTimestampsOnly={transcriptCoarseOnly}
+      embedAvailable={Boolean(youTubeVideoId)}
+      playerReady={youtubePlayer.playerReady}
+      isPlaying={youtubePlayer.isPlaying}
+      onTogglePlayback={togglePlayback}
+      getPlaybackSeconds={getCurrentPlaybackSeconds}
+      onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+      canBookmark={canCaptureMoments}
+      bookmarking={savingMoment}
+      onBookmarkSegment={(seconds, snippet) => void bookmarkAtSeconds(seconds, snippet)}
+      onCopy={copyTranscript}
+      onJournal={() => openJournalFromArtifact()}
+      fullPageJournalLabel="Full-page journal"
+      onRetryFetch={a.kind === "youtube" && a.url ? retryFetch : undefined}
+      retryDisabled={inFlight}
+      setSegmentRef={(id, el) => {
+        transcriptRefs.current[id] = el;
+      }}
+      showFormatButton={transcriptNeedsFormatting}
+      formattingTranscript={formattingTranscript}
+      onFormatTranscript={formatTranscript}
+    />
+  ) : null;
+
   return (
     <FrameworkLayout
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
       headerLeading={youtubeHeaderLeading}
+      immersiveCompactTitle={a.kind === "youtube" ? displayTitle : undefined}
+      headerTrailing={mobileMenuTrigger}
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
@@ -1391,7 +1526,40 @@ export default function ArtifactDetailPage() {
           artifactSplitPaneHeightClass,
         )}
       >
-        <div ref={mainScrollRef} className="min-w-0 space-y-5 sm:space-y-6 lg:col-span-8 lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin">
+        <Tabs
+          value={mobileTab}
+          onValueChange={(v) => setMobileTab(v as "study" | "transcript")}
+          className="min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col"
+        >
+        {youTubeVideoId ? (
+          <ArtifactYoutubeVideoBlock
+            youTubeVideoId={youTubeVideoId}
+            thumbnailUrl={mergedVideoMeta.thumbnail_url}
+            youtubePip={youtubePip}
+            pipEnabled={pipEnabled}
+            stickyMode={stickyVideoMode}
+            youtubePlayer={youtubePlayer}
+            playback={videoPlayback}
+            artifactId={a.id}
+            moments={moments}
+            bookmarkLabel={bookmarkLabel}
+            onBookmarkLabelChange={setBookmarkLabel}
+            noteBody={noteBody}
+            onNoteBodyChange={setNoteBody}
+            canCaptureMoments={canCaptureMoments}
+            savingMoment={savingMoment}
+            hasTranscript={Boolean(a.raw_text?.trim())}
+            onBookmark={bookmarkCurrentMoment}
+            onSaveNote={addNoteAtCurrentMoment}
+            onBelieve={believeCurrentMoment}
+            onStudyJournal={openStudyJournal}
+            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+            onOpenJournalFull={() => openJournalFromArtifact()}
+            stickyFooter={mobileTabBar}
+          />
+        ) : null}
+
+        <div ref={mainScrollRef} className="min-w-0 space-y-5 sm:space-y-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin">
       <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
@@ -1497,32 +1665,14 @@ export default function ArtifactDetailPage() {
         </div>
       )}
 
-      {youTubeVideoId ? (
-        <ArtifactYoutubeVideoBlock
-          youTubeVideoId={youTubeVideoId}
-          thumbnailUrl={mergedVideoMeta.thumbnail_url}
-          youtubePip={youtubePip}
-          youtubePlayer={youtubePlayer}
-          playback={videoPlayback}
-          artifactId={a.id}
-          moments={moments}
-          bookmarkLabel={bookmarkLabel}
-          onBookmarkLabelChange={setBookmarkLabel}
-          noteBody={noteBody}
-          onNoteBodyChange={setNoteBody}
-          canCaptureMoments={canCaptureMoments}
-          savingMoment={savingMoment}
-          hasTranscript={Boolean(a.raw_text?.trim())}
-          onBookmark={bookmarkCurrentMoment}
-          onSaveNote={addNoteAtCurrentMoment}
-          onBelieve={believeCurrentMoment}
-          onStudyJournal={openStudyJournal}
-          onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-          onOpenJournalFull={() => openJournalFromArtifact()}
-        />
-      ) : null}
-
+      <StudyColumnWrapper>
       {a.kind === "youtube" && a.url && (
+        <ArtifactCollapsibleSection
+          title="Chapters"
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-chapters:${a.id}` : undefined}
+        >
         <ArtifactChaptersSection
           status={a.status}
           rawText={a.raw_text}
@@ -1530,62 +1680,64 @@ export default function ArtifactDetailPage() {
           chaptersSourceLabel={youtubeChaptersSourceLabel}
           generatingChapters={generatingChapters}
           inFlight={inFlight}
+          onSyncYouTubeChapters={a.url ? syncYouTubeChapters : undefined}
+          syncingYoutubeChapters={syncingYoutubeChapters}
           onGenerateChapters={generateChaptersFromTranscript}
           onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
         />
+        </ArtifactCollapsibleSection>
       )}
 
       {a.kind === "youtube" && a.status === "ready" && youtubeChaptersList.length === 0 && (
-        <section id="study-spine-teachings" className="scroll-mt-24 mb-5 rounded-lg border border-primary/20 bg-primary/[0.04] p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-            Study spine: Teachings
+        <ArtifactCollapsibleSection
+          id="study-spine-teachings"
+          title="Study spine: Teachings"
+          description="Extracted invitations from the speaker when no chapter outline exists."
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-study-spine:${a.id}` : undefined}
+          className={artifactScrollMtMobile}
+        >
+          <div className="rounded-lg border border-primary/20 bg-primary/[0.04] p-4">
+            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+              This video has no chapter outline yet, so we lean on extracted{" "}
+              <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Generate chapters above for section jumps, or use{" "}
+              <button
+                type="button"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+                onClick={() => navigateToArtifactHash("#capture")}
+              >
+                Capture
+              </button>{" "}
+              for bookmarks and notes while you watch, and open the{" "}
+              <span className="font-medium text-foreground">Study journal</span> in the transcript tab to reflect in depth.
+            </p>
+            <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
           </div>
-          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-            This video has no chapter outline yet, so we lean on extracted <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Generate chapters above for section jumps, or use{" "}
-            <a href="#capture" className="font-medium text-foreground underline-offset-2 hover:underline">
-              Capture
-            </a>{" "}
-            for bookmarks and notes while you watch, and open the{" "}
-            <span className="font-medium text-foreground">Study journal</span> in the transcript column to reflect in depth.
-          </p>
-          <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
-        </section>
+        </ArtifactCollapsibleSection>
       )}
 
-      {a.status === "ready" && <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} />}
+      {a.status === "ready" && (
+        <ArtifactCollapsibleSection
+          title="Knowledge entities"
+          description="People, books, scriptures, and themes mentioned in this artifact."
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-entities:${a.id}` : undefined}
+        >
+          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} />
+        </ArtifactCollapsibleSection>
+      )}
 
       {a.status === "ready" && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
-        <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
-      )}
-
-      {a.status === "ready" && claims.length > 0 && (
-        <div className={cn(artifactCard, "mb-4 p-4 text-sm leading-relaxed text-muted-foreground")}>
-          <p className="font-display text-base text-foreground">
-            Claims <span className="font-sans text-sm font-normal text-muted-foreground">({claims.length})</span>
-          </p>
-          <p className="mt-1">
-            Each card is one thesis-sized line from the transcript, checked against your framework — a hypothesis to verify, not preaching.
-            {a.kind === "youtube" && youtubeChaptersList.length > 0 && claimChapterLayout.grouped ? (
-              <span className="mt-2 block">
-                With description chapters available, cards are grouped under the chapter they were extracted with (or the chapter implied by the linked transcript time). Cards without a chapter anchor or timed transcript link land in{" "}
-                <span className="font-medium text-foreground">Uncategorized</span> at the end.
-              </span>
-            ) : a.kind === "youtube" && youtubeChaptersList.length > 0 ? (
-              <span className="mt-2 block">
-                Chapters above follow the creator&apos;s outline; claims stay in list order when a card has no timed transcript link.
-              </span>
-            ) : null}
-          </p>
-          {deferredOnArtifact > 0 ? (
-            <p className="mt-2 text-xs">
-              <Link to="/framework/research-later" className="font-medium text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1">
-                <Clock className="h-3 w-3" aria-hidden />
-                {deferredOnArtifact} in your research queue
-              </Link>
-            </p>
-          ) : null}
-        </div>
+        <ArtifactCollapsibleSection
+          title="Teachings"
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-teachings:${a.id}` : undefined}
+        >
+          <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
+        </ArtifactCollapsibleSection>
       )}
 
       {a.status === "ready" && claims.length === 0 && !a.error && (
@@ -1593,6 +1745,88 @@ export default function ArtifactDetailPage() {
           The transcript came through but no clear claims were extracted. Try Re-analyze, or paste a different excerpt.
         </div>
       )}
+
+      {displayTranscriptText && a.status !== "ready" && (
+        <details className="mb-5 text-xs">
+          <summary className="cursor-pointer text-muted-foreground">
+            Transcript captured ({displayTranscriptText.length.toLocaleString()} chars)
+            {transcriptNeedsFormatting ? " · stored copy still needs Format transcript to persist fixes" : ""}
+          </summary>
+          <pre className="mt-2 whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded max-h-64 overflow-auto">
+            {displayTranscriptText.slice(0, 4000)}
+            {displayTranscriptText.length > 4000 ? "…" : ""}
+          </pre>
+        </details>
+      )}
+
+      {a.status === "ready" && claims.length > 0 && (
+        <ArtifactCollapsibleSection
+          id="claims"
+          title={`Claims (${claims.length})`}
+          description="One thesis per card from the transcript — open each to review source, scripture, and verdicts."
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-claims-block:${a.id}` : undefined}
+        >
+          {isDesktop ? (
+            <div className={cn(artifactCard, "mb-4 p-4 text-sm leading-relaxed text-muted-foreground")}>
+              <p className="mt-1">
+                Each card is one thesis-sized line from the transcript, checked against your framework — a hypothesis to verify, not preaching.
+                {a.kind === "youtube" && youtubeChaptersList.length > 0 && claimChapterLayout.grouped ? (
+                  <span className="mt-2 block">
+                    With description chapters available, cards are grouped under the chapter they were extracted with (or the chapter implied by the linked transcript time). Cards without a chapter anchor or timed transcript link land in{" "}
+                    <span className="font-medium text-foreground">Uncategorized</span> at the end.
+                  </span>
+                ) : a.kind === "youtube" && youtubeChaptersList.length > 0 ? (
+                  <span className="mt-2 block">
+                    Chapters above follow the creator&apos;s outline; claims stay in list order when a card has no timed transcript link.
+                  </span>
+                ) : null}
+              </p>
+              {deferredOnArtifact > 0 ? (
+                <p className="mt-2 text-xs">
+                  <Link to="/framework/research-later" className="font-medium text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1">
+                    <Clock className="h-3 w-3" aria-hidden />
+                    {deferredOnArtifact} in your research queue
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <ArtifactClaimsSection
+            claims={claims}
+            claimChapterLayout={claimChapterLayout}
+            glossaryEntries={glossaryEntries}
+            youTubeVideoId={youTubeVideoId}
+            onJumpToClaim={jumpToClaim}
+            onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+            renderClaimCard={renderClaimCard}
+            mobileOpenClaimId={!isDesktop ? mobileOpenClaimId : undefined}
+            onMobileOpenClaimIdChange={!isDesktop ? setMobileOpenClaimId : undefined}
+          />
+        </ArtifactCollapsibleSection>
+      )}
+      </StudyColumnWrapper>
+
+      {!isDesktop ? (
+        <TabsContent
+          value="transcript"
+          id="transcript"
+          className={cn("mt-0 min-h-[min(70dvh,640px)] focus-visible:outline-none", artifactScrollMtMobile)}
+        >
+          {transcriptPanel}
+        </TabsContent>
+      ) : null}
+        </div>
+        </Tabs>
+
+        <aside
+          className="hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pl-0.5"
+          aria-label="Transcript"
+        >
+          {transcriptPanel}
+        </aside>
+      </div>
 
       <Dialog
         open={pasteOpen}
@@ -1644,68 +1878,6 @@ export default function ArtifactDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {displayTranscriptText && a.status !== "ready" && (
-        <details className="mb-5 text-xs">
-          <summary className="cursor-pointer text-muted-foreground">
-            Transcript captured ({displayTranscriptText.length.toLocaleString()} chars)
-            {transcriptNeedsFormatting ? " · stored copy still needs Format transcript to persist fixes" : ""}
-          </summary>
-          <pre className="mt-2 whitespace-pre-wrap font-serif text-sm bg-muted/30 p-3 rounded max-h-64 overflow-auto">
-            {displayTranscriptText.slice(0, 4000)}
-            {displayTranscriptText.length > 4000 ? "…" : ""}
-          </pre>
-        </details>
-      )}
-
-      {a.status === "ready" && claims.length > 0 && (
-        <ArtifactClaimsSection
-          claims={claims}
-          claimChapterLayout={claimChapterLayout}
-          glossaryEntries={glossaryEntries}
-          youTubeVideoId={youTubeVideoId}
-          onJumpToClaim={jumpToClaim}
-          onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
-          renderClaimCard={renderClaimCard}
-        />
-      )}
-        </div>
-
-        <aside
-          className="min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pl-0.5"
-          aria-label="Transcript"
-        >
-          {a.raw_text && (
-            <TranscriptPanel
-              artifactId={a.id}
-              segments={transcriptSegments}
-              timed={transcriptTimedLayout}
-              coarseTimestampsOnly={transcriptCoarseOnly}
-              embedAvailable={Boolean(youTubeVideoId)}
-              playerReady={youtubePlayer.playerReady}
-              isPlaying={youtubePlayer.isPlaying}
-              onTogglePlayback={youtubePlayer.togglePlayback}
-              getPlaybackSeconds={getCurrentPlaybackSeconds}
-              onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
-              canBookmark={canCaptureMoments}
-              bookmarking={savingMoment}
-              onBookmarkSegment={(seconds, snippet) => void bookmarkAtSeconds(seconds, snippet)}
-              onCopy={copyTranscript}
-              onJournal={() => openJournalFromArtifact()}
-              fullPageJournalLabel="Full-page journal"
-              onRetryFetch={a.kind === "youtube" && a.url ? retryFetch : undefined}
-              retryDisabled={inFlight}
-              setSegmentRef={(id, el) => {
-                transcriptRefs.current[id] = el;
-              }}
-              onStudyJournal={openStudyJournal}
-              showFormatButton={transcriptNeedsFormatting}
-              formattingTranscript={formattingTranscript}
-              onFormatTranscript={formatTranscript}
-            />
-          )}
-        </aside>
-      </div>
 
       {polling && (
         <p className="mt-6 text-xs text-muted-foreground flex items-center gap-1">

@@ -90,6 +90,8 @@ function loadYouTubeIframeApi(): Promise<void> {
 
 const MIN_HOST_PX = 8;
 const MAX_INIT_ATTEMPTS = 240;
+/** Clear loading overlay if YT onReady is slow but the iframe has loaded. */
+const IFRAME_READY_FALLBACK_MS = 6000;
 
 /**
  * Player lifecycle contract:
@@ -189,6 +191,56 @@ export function useYouTubeEmbedPlayer(options: {
 
     let cancelled = false;
     let raf = 0;
+    let iframeFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let iframeObserver: MutationObserver | null = null;
+
+    const clearIframeFallback = () => {
+      if (iframeFallbackTimer != null) {
+        window.clearTimeout(iframeFallbackTimer);
+        iframeFallbackTimer = null;
+      }
+      iframeObserver?.disconnect();
+      iframeObserver = null;
+    };
+
+    const markReadyFromIframe = (host: HTMLElement) => {
+      if (cancelled || !playerRef.current) return;
+      setReady(true);
+      setLoading(false);
+      setInitTimedOut(false);
+      syncPlayerSize(host);
+      applyPendingSeek();
+    };
+
+    const armIframeLoadFallback = (host: HTMLElement) => {
+      clearIframeFallback();
+      const bindIframe = (iframe: HTMLIFrameElement) => {
+        iframe.addEventListener(
+          "load",
+          () => {
+            if (!cancelled && playerRef.current) markReadyFromIframe(host);
+          },
+          { once: true },
+        );
+      };
+      const existing = mountRef.current?.querySelector("iframe");
+      if (existing instanceof HTMLIFrameElement) {
+        bindIframe(existing);
+      } else if (mountRef.current) {
+        iframeObserver = new MutationObserver(() => {
+          const iframe = mountRef.current?.querySelector("iframe");
+          if (iframe instanceof HTMLIFrameElement) {
+            bindIframe(iframe);
+            iframeObserver?.disconnect();
+            iframeObserver = null;
+          }
+        });
+        iframeObserver.observe(mountRef.current, { childList: true, subtree: true });
+      }
+      iframeFallbackTimer = window.setTimeout(() => {
+        if (!cancelled && playerRef.current) markReadyFromIframe(host);
+      }, IFRAME_READY_FALLBACK_MS);
+    };
 
     const saved =
       artifactId != null ? readPlaybackSecondsFromSession(artifactId) : null;
@@ -202,52 +254,11 @@ export function useYouTubeEmbedPlayer(options: {
 
     const initPlayer = () => {
       if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) {
-        // #region agent log
-        if (initAttempts === 0 || initAttempts % 60 === 0) {
-          fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-            body: JSON.stringify({
-              sessionId: "85534b",
-              hypothesisId: "H-host",
-              location: "useYouTubeEmbedPlayer.ts:initPlayer:skip",
-              message: "initPlayer skipped",
-              data: {
-                cancelled,
-                hasMount: Boolean(mountRef.current),
-                hasYt: Boolean(window.YT?.Player),
-                videoId: videoId?.slice(0, 8),
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-        }
-        // #endregion
         return false;
       }
 
       const host = mountRef.current.parentElement;
       if (!host || host.clientWidth < MIN_HOST_PX || host.clientHeight < MIN_HOST_PX) {
-        // #region agent log
-        if (initAttempts === 0 || initAttempts % 60 === 0) {
-          fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-            body: JSON.stringify({
-              sessionId: "85534b",
-              hypothesisId: "H-host",
-              location: "useYouTubeEmbedPlayer.ts:initPlayer:hostSize",
-              message: "host too small",
-              data: {
-                w: host?.clientWidth ?? 0,
-                h: host?.clientHeight ?? 0,
-                parentTag: host?.tagName ?? mountRef.current.parentElement?.tagName ?? "none",
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-        }
-        // #endregion
         return false;
       }
 
@@ -279,21 +290,8 @@ export function useYouTubeEmbedPlayer(options: {
           },
           events: {
             onReady: () => {
-              // #region agent log
-              fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-                body: JSON.stringify({
-                  sessionId: "85534b",
-                  hypothesisId: "H-ready",
-                  location: "useYouTubeEmbedPlayer.ts:onReady",
-                  message: "YT onReady",
-                  data: { cancelled, videoId: videoId?.slice(0, 8) },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
               if (!cancelled) {
+                clearIframeFallback();
                 setReady(true);
                 setLoading(false);
                 setInitTimedOut(false);
@@ -326,20 +324,7 @@ export function useYouTubeEmbedPlayer(options: {
           },
         });
         mountedVideoIdRef.current = videoId;
-        // #region agent log
-        fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-          body: JSON.stringify({
-            sessionId: "85534b",
-            hypothesisId: "H-create",
-            location: "useYouTubeEmbedPlayer.ts:playerCreated",
-            message: "YT.Player constructed",
-            data: { videoId: videoId?.slice(0, 8), hostW: host.clientWidth, hostH: host.clientHeight },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
+        armIframeLoadFallback(host);
       } catch (err) {
         console.error("[useYouTubeEmbedPlayer] failed to create player", err);
         destroyPlayer();
@@ -352,20 +337,6 @@ export function useYouTubeEmbedPlayer(options: {
     setReady(false);
     setLoading(true);
     setInitTimedOut(false);
-    // #region agent log
-    fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-      body: JSON.stringify({
-        sessionId: "85534b",
-        hypothesisId: "H-api",
-        location: "useYouTubeEmbedPlayer.ts:effect:start",
-        message: "player init effect start",
-        data: { videoId: videoId?.slice(0, 8), enabled, reinitNonce },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const scheduleInit = () => {
       if (cancelled) return;
       if (initPlayer()) return;
@@ -379,25 +350,12 @@ export function useYouTubeEmbedPlayer(options: {
     };
 
     void loadYouTubeIframeApi().then(() => {
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
-        body: JSON.stringify({
-          sessionId: "85534b",
-          hypothesisId: "H-api",
-          location: "useYouTubeEmbedPlayer.ts:apiReady",
-          message: "iframe API ready",
-          data: { hasYt: Boolean(window.YT?.Player), cancelled },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!cancelled) scheduleInit();
     });
 
     return () => {
       cancelled = true;
+      clearIframeFallback();
       if (raf) window.cancelAnimationFrame(raf);
       persistPlayback();
       // Keep the iframe alive across Strict Mode re-runs and layoutKey/size retries.

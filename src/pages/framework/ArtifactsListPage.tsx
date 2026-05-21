@@ -21,6 +21,7 @@ import {
   type LibraryViewMode,
   type Row,
 } from "./artifacts/artifactLibraryModel";
+import { ArtifactsLibraryMobileMenu } from "./artifacts/ArtifactsLibraryMobileMenu";
 import { LibraryToolbar } from "./artifacts/LibraryToolbar";
 import { ArtifactShelf } from "./artifacts/ArtifactShelf";
 import { ArtifactGrid } from "./artifacts/ArtifactGrid";
@@ -37,6 +38,7 @@ export default function ArtifactsListPage() {
   const [viewMode, setViewMode] = useState<LibraryViewMode>(() => readLibraryViewMode());
   const [sortKey, setSortKey] = useState<LibrarySortKey>(() => readLibrarySortKey());
   const [category, setCategory] = useState<LibraryCategoryId>("all");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search), 150);
@@ -181,9 +183,23 @@ export default function ArtifactsListPage() {
     [deleteArtifact, renameArtifact],
   );
 
+  const mobileMenuShell = (
+    <ArtifactsLibraryMobileMenu
+      open={mobileMenuOpen}
+      onOpenChange={setMobileMenuOpen}
+      showNewArtifact={false}
+      viewMode={viewMode}
+      onViewModeChange={setViewModePersist}
+      sortKey={sortKey}
+      onSortKeyChange={setSortKeyPersist}
+      category={category}
+      onCategoryChange={setCategory}
+    />
+  );
+
   if (loading) {
     return (
-      <FrameworkLayout title="Artifacts" back="/framework">
+      <FrameworkLayout title="Artifacts" back="/framework" headerTrailing={mobileMenuShell}>
         <ArtifactLibrarySkeleton />
       </FrameworkLayout>
     );
@@ -211,9 +227,22 @@ export default function ArtifactsListPage() {
       back="/framework"
       contentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
       headerContentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
+      headerTrailing={
+        <ArtifactsLibraryMobileMenu
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          showNewArtifact={showHeaderNew}
+          viewMode={viewMode}
+          onViewModeChange={setViewModePersist}
+          sortKey={sortKey}
+          onSortKeyChange={setSortKeyPersist}
+          category={category}
+          onCategoryChange={setCategory}
+        />
+      }
     >
       {showHeaderNew ? (
-        <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+        <div className="mb-6 hidden flex-wrap items-center justify-end gap-2 md:flex">
           <Button asChild size="default" className="rounded-xl font-semibold shadow-sm">
             <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" aria-hidden />

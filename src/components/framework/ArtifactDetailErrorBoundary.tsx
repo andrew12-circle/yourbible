@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 
 type Props = { children: ReactNode };
 
-type State = { error: Error | null };
+type State = { error: Error | null; retryKey: number };
 
 /** Catches render errors on artifact detail so users see recovery UI instead of a blank page. */
 export default class ArtifactDetailErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, retryKey: 0 };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
@@ -49,6 +49,6 @@ export default class ArtifactDetailErrorBoundary extends Component<Props, State>
       );
     }
 
-    return this.props.children;
+    return <div key={this.state.retryKey}>{this.props.children}</div>;
   }
 }

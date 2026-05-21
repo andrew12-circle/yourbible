@@ -33,7 +33,6 @@ type Props = {
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
   showFormatButton?: boolean;
-  onStudyJournal?: () => void;
 };
 
 export default function TranscriptToolbar({
@@ -54,7 +53,6 @@ export default function TranscriptToolbar({
   formattingTranscript,
   onFormatTranscript,
   showFormatButton,
-  onStudyJournal,
 }: Props) {
   return (
     <div className="w-full min-w-0 space-y-2.5 border-b border-border/50 pb-3">
@@ -89,9 +87,6 @@ export default function TranscriptToolbar({
             tone="update"
             onClick={onFormatTranscript}
           />
-        ) : null}
-        {onStudyJournal ? (
-          <ClaimIconActionButton label="Study journal" icon={NotebookPen} tone="research" active onClick={onStudyJournal} />
         ) : null}
         {extraActions}
         <ClaimIconActionButton

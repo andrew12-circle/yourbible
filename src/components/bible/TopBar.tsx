@@ -1,13 +1,21 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderMobileMenu } from "@/components/bible/ReaderMobileMenu";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { BibleEntry } from "@/lib/bible/api";
 import { BOOKS, BibleBook } from "@/data/books";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   reference: string;
@@ -46,6 +54,10 @@ export function TopBar({
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (focusMode) setOpen(false);
+  }, [focusMode]);
 
   // Reference picker state
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -92,7 +104,7 @@ export function TopBar({
   return (
     <>
       {/* Tiny pull-down handle, always visible at top edge */}
-      {!open && (
+      {!open && !focusMode && (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -100,6 +112,18 @@ export function TopBar({
           className="fixed top-0 left-1/2 -translate-x-1/2 z-30 mt-1 px-4 py-1 rounded-full bg-paper/60 backdrop-blur-sm text-leather/60 hover:text-leather hover:bg-paper/80 transition-all"
         >
           <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {singlePage && focusMode && (
+        <button
+          type="button"
+          onClick={onToggleFocus}
+          aria-label="Exit Secret Place"
+          className="fixed top-3 right-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-leather/90 px-3 py-1.5 text-xs text-paper shadow-md backdrop-blur-sm"
+        >
+          <EyeOff className="w-3.5 h-3.5" aria-hidden />
+          Exit Secret Place
         </button>
       )}
 
@@ -125,10 +149,10 @@ export function TopBar({
 
       <header
         className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 bg-paper/80 backdrop-blur-md border-b border-paper-edge ${
-          open ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+          open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
         } ${singlePage ? "py-2" : "py-3"}`}
       >
-        {singlePage ? (
+        {singlePage && !focusMode ? (
         <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-2">
           <button
             type="button"
@@ -151,7 +175,7 @@ export function TopBar({
             </Button>
           </div>
         </div>
-        ) : (
+        ) : singlePage && focusMode ? null : (
         <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {/* Reference picker — book / chapter / verse */}
@@ -290,25 +314,6 @@ export function TopBar({
             </PopoverContent>
           </Popover>
 
-          {/* Translation chip */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="px-2 py-0.5 rounded-md text-[10px] font-mono uppercase tracking-wider border border-paper-edge bg-paper/60 text-muted-foreground hover:text-leather hover:border-gold/40 transition-colors"
-                title="Switch translation"
-              >
-                {current?.abbreviation ?? "—"}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-              {bibles.length === 0 && <DropdownMenuItem disabled>Loading translations…</DropdownMenuItem>}
-              {bibles.map(b => (
-                <DropdownMenuItem key={b.id} onClick={() => onChangeBible(b.id)} className={bibleId === b.id ? "font-semibold" : ""}>
-                  <span className="font-mono text-xs text-muted-foreground mr-2">{b.abbreviation}</span>{b.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-1">
@@ -359,11 +364,39 @@ export function TopBar({
                   <Network className="w-4 h-4" />
                 </Button>
               </Link>
-              <Link to="/settings">
-                <Button variant="ghost" size="icon" title="Settings" className="text-leather/80 hover:text-leather">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" title="Settings" className="text-leather/80 hover:text-leather">
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="gap-2">
+                      <Languages className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="flex-1 truncate">
+                        {current?.abbreviation ?? "Translation"}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+                      {bibles.length === 0 && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
+                      {bibles.map((b) => (
+                        <DropdownMenuItem
+                          key={b.id}
+                          onClick={() => onChangeBible(b.id)}
+                          className={bibleId === b.id ? "font-semibold" : ""}
+                        >
+                          <span className="font-mono text-xs text-muted-foreground mr-2">{b.abbreviation}</span>
+                          {b.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings">All settings</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
           <Button variant="ghost" size="icon" onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Enter Secret Place (focus)"} className="text-leather/80 hover:text-leather">

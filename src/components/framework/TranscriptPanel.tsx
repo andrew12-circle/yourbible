@@ -66,7 +66,6 @@ export interface TranscriptPanelProps {
   onRetryFetch?: () => void;
   retryDisabled?: boolean;
   setSegmentRef?: (id: string, el: HTMLDivElement | null) => void;
-  onStudyJournal?: () => void;
   showFormatButton?: boolean;
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
@@ -92,7 +91,6 @@ export default function TranscriptPanel({
   onRetryFetch,
   retryDisabled,
   setSegmentRef,
-  onStudyJournal,
   showFormatButton,
   formattingTranscript,
   onFormatTranscript,
@@ -286,7 +284,6 @@ export default function TranscriptPanel({
         onTogglePlayback={onTogglePlayback}
         showPlaybackControl={timed && playerReady && embedAvailable}
         showFollowControl={timed && playerReady}
-        onStudyJournal={onStudyJournal}
         showFormatButton={showFormatButton}
         formattingTranscript={formattingTranscript}
         onFormatTranscript={onFormatTranscript}
@@ -394,8 +391,8 @@ export default function TranscriptPanel({
                       "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
                     )}
                     disabled={bookmarking}
-                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
-                    title="Bookmark this line"
+                    aria-label={`Bookmark this line at ${stamp ?? formatTranscriptClock(segment.startSeconds)} (not current playhead)`}
+                    title="Bookmark this line (not current playhead)"
                     onClick={(e) => {
                       e.stopPropagation();
                       const snippet = segment.text.trim().slice(0, 120);

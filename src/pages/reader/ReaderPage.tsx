@@ -738,26 +738,28 @@ export default function ReaderPage() {
             </p>
           </article>
         )}
-        <div
-          data-page-footer
-          className="flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest"
-        >
-          <button
-            onClick={() => goPage(-1)}
-            aria-label="Previous page"
-            className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+        {!focusMode ? (
+          <div
+            data-page-footer
+            className="flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <span>{book.name} · p. {globalPage}</span>
-          <button
-            onClick={() => goPage(1)}
-            aria-label="Next page"
-            className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+            <button
+              onClick={() => goPage(-1)}
+              aria-label="Previous page"
+              className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span>{book.name} · p. {globalPage}</span>
+            <button
+              onClick={() => goPage(1)}
+              aria-label="Next page"
+              className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -769,7 +771,11 @@ export default function ReaderPage() {
   const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
 
   return (
-    <div className={`min-h-screen relative transition-all duration-700 ${focusMode ? "saturate-[0.85] contrast-[0.95]" : ""}`}>
+    <div
+      className={`min-h-screen relative transition-all duration-700 ${
+        focusMode ? "saturate-[0.88] contrast-[0.97] bg-paper/98" : ""
+      }`}
+    >
       <MarkerSvgFilter />
 
       <TopBar
@@ -807,13 +813,15 @@ export default function ReaderPage() {
         singlePage={singlePage}
         pageSide={mobileSide}
         ribbons={
-          <Ribbons
-            ribbons={bookmarks as RibbonData[]}
-            anchor={singlePage ? "spine" : "gutter"}
-            swaying={false}
-            onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
-            onAddAt={(p) => setBmDialog({ position: p })}
-          />
+          focusMode ? null : (
+            <Ribbons
+              ribbons={bookmarks as RibbonData[]}
+              anchor={singlePage ? "spine" : "gutter"}
+              swaying={false}
+              onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
+              onAddAt={(p) => setBmDialog({ position: p })}
+            />
+          )
         }
         leftPage={
           <SwipePage side="left" onTurn={goPage}>
@@ -867,13 +875,17 @@ export default function ReaderPage() {
       )}
 
       <AnimatePresence>
-        {focusMode && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur"
+        {focusMode && !singlePage && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            onClick={() => setFocusMode(false)}
+            className="fixed bottom-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur shadow-md"
           >
-            Secret Place — quieted. Tap eye to leave.
-          </motion.div>
+            Secret Place — tap to leave
+          </motion.button>
         )}
       </AnimatePresence>
 
@@ -964,7 +976,7 @@ export default function ReaderPage() {
         </button>
       )}
 
-      <CompanionPane />
+      {!focusMode && <CompanionPane />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowRight, LayoutList, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, LayoutList, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
@@ -11,7 +11,9 @@ type Props = {
   chapters: YoutubeChapter[];
   chaptersSourceLabel: string | null;
   generatingChapters: boolean;
+  syncingYoutubeChapters?: boolean;
   inFlight: boolean;
+  onSyncYouTubeChapters?: () => void;
   onGenerateChapters: (hasChapters: boolean) => void;
   onSeekChapter: (seconds: number) => void;
 };
@@ -22,7 +24,9 @@ export default function ArtifactChaptersSection({
   chapters,
   chaptersSourceLabel,
   generatingChapters,
+  syncingYoutubeChapters = false,
   inFlight,
+  onSyncYouTubeChapters,
   onGenerateChapters,
   onSeekChapter,
 }: Props) {
@@ -46,26 +50,47 @@ export default function ArtifactChaptersSection({
             {chapters.length} section{chapters.length === 1 ? "" : "s"}
           </span>
         )}
-        {status === "ready" && rawText && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="ml-auto h-7 text-xs"
-            disabled={generatingChapters || inFlight}
-            onClick={() => onGenerateChapters(chapters.length > 0)}
-          >
-            {generatingChapters ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
-            )}
-            {generatingChapters
-              ? "Generating…"
-              : chapters.length > 0
-                ? "Regenerate"
-                : "Generate from transcript"}
-          </Button>
+        {status === "ready" && (
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {chapters.length === 0 && onSyncYouTubeChapters ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={syncingYoutubeChapters || generatingChapters || inFlight}
+                onClick={() => onSyncYouTubeChapters()}
+              >
+                {syncingYoutubeChapters ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                )}
+                {syncingYoutubeChapters ? "Syncing…" : "Sync from YouTube"}
+              </Button>
+            ) : null}
+            {rawText ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={generatingChapters || syncingYoutubeChapters || inFlight}
+                onClick={() => onGenerateChapters(chapters.length > 0)}
+              >
+                {generatingChapters ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-3.5 w-3.5" />
+                )}
+                {generatingChapters
+                  ? "Generating…"
+                  : chapters.length > 0
+                    ? "Regenerate"
+                    : "Generate from transcript"}
+              </Button>
+            ) : null}
+          </div>
         )}
       </div>
       {chapters.length > 0 ? (

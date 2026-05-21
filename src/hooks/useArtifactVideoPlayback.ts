@@ -1,4 +1,5 @@
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useIsDesktop } from "@/hooks/use-desktop";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -12,20 +13,61 @@ export function useArtifactVideoPlayback(options: {
 }) {
   const { artifactId, youTubeVideoId, mainScrollRef, transcriptSegments, transcriptRefs } = options;
   const playbackFallbackRef = useRef(0);
+  const playWhenReadyRef = useRef(false);
+  const isDesktop = useIsDesktop();
+  const pipEnabled = Boolean(youTubeVideoId) && isDesktop;
+
+  const [userActivated, setUserActivated] = useState(false);
+  const [videoInView, setVideoInView] = useState(true);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
-    enabled: Boolean(youTubeVideoId),
+    enabled: pipEnabled,
     mainScrollRef,
   });
 
+  const embedEnabled =
+    Boolean(youTubeVideoId) &&
+    userActivated &&
+    (videoInView || youtubePip.pipMode);
+
   const youtubePlayer = useYouTubeEmbedPlayer({
     videoId: youTubeVideoId,
-    enabled: Boolean(youTubeVideoId),
+    enabled: embedEnabled,
     startSeconds: 0,
     artifactId: artifactId ?? null,
     layoutKey: youtubePip.youtubeLayoutKey,
   });
+
+  useEffect(() => {
+    setUserActivated(false);
+    playWhenReadyRef.current = false;
+  }, [artifactId, youTubeVideoId]);
+
+  useEffect(() => {
+    const el = youtubePip.videoSlotRef.current;
+    if (!el || !youTubeVideoId) {
+      setVideoInView(Boolean(youTubeVideoId));
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => setVideoInView(entry.isIntersecting),
+      { root: null, rootMargin: "80px", threshold: 0.08 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [youTubeVideoId, youtubePip.videoSlotRef]);
+
+  useEffect(() => {
+    if (!youtubePlayer.playerReady || !playWhenReadyRef.current) return;
+    playWhenReadyRef.current = false;
+    youtubePlayer.playVideo();
+  }, [youtubePlayer.playerReady, youtubePlayer.playVideo]);
+
+  const activatePlayer = useCallback((opts?: { autoplay?: boolean }) => {
+    setUserActivated(true);
+    if (opts?.autoplay) playWhenReadyRef.current = true;
+  }, []);
 
   const lastSeekScrollRef = useRef({ at: 0, seconds: -1 });
 
@@ -54,11 +96,24 @@ export function useArtifactVideoPlayback(options: {
     (seconds: number, opts?: { play?: boolean }) => {
       const start = Math.max(0, Math.floor(seconds));
       playbackFallbackRef.current = start;
+      if (opts?.play) activatePlayer({ autoplay: true });
       youtubePlayer.seekTo(start, { play: opts?.play });
       scrollTranscriptToSeconds(start);
     },
-    [scrollTranscriptToSeconds, youtubePlayer.seekTo],
+    [activatePlayer, scrollTranscriptToSeconds, youtubePlayer.seekTo],
   );
+
+  const activateAndPlay = useCallback(() => {
+    activatePlayer({ autoplay: true });
+  }, [activatePlayer]);
+
+  const togglePlayback = useCallback(() => {
+    if (!userActivated) {
+      activateAndPlay();
+      return;
+    }
+    youtubePlayer.togglePlayback();
+  }, [activateAndPlay, userActivated, youtubePlayer.togglePlayback]);
 
   const getPlaybackSeconds = useCallback(() => {
     if (youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
@@ -66,11 +121,16 @@ export function useArtifactVideoPlayback(options: {
   }, [youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
 
   return {
+    pipEnabled,
     youtubePip,
     youtubePlayer,
     playbackFallbackRef,
     seekVideoToSeconds,
     scrollTranscriptToSeconds,
     getPlaybackSeconds,
+    userActivated,
+    activatePlayer,
+    activateAndPlay,
+    togglePlayback,
   };
 }

@@ -64,6 +64,7 @@ type Props = {
   /** Filled style when selected (verdict) or primary action emphasis. */
   active?: boolean;
   onClick: () => void;
+  disabled?: boolean;
   className?: string;
 };
 
@@ -74,6 +75,7 @@ export default function ClaimIconActionButton({
   tone,
   active = false,
   onClick,
+  disabled = false,
   className,
 }: Props) {
   const styles = TONE_STYLES[tone];
@@ -91,6 +93,7 @@ export default function ClaimIconActionButton({
             className,
           )}
           onClick={onClick}
+          disabled={disabled}
           aria-label={label}
           aria-pressed={active}
         >

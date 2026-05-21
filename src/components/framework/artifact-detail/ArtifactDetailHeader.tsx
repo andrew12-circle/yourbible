@@ -72,7 +72,7 @@ export default function ArtifactDetailHeader({
   ) : null;
 
   return (
-    <div className="min-w-0 space-y-2 sm:space-y-0">
+    <div className="hidden min-w-0 space-y-2 md:block sm:space-y-0">
       <div className="flex min-w-0 items-start gap-2.5 sm:items-center sm:gap-3.5">
         {thumb ? (
           <button

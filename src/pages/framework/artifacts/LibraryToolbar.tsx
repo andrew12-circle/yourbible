@@ -28,7 +28,18 @@ export function LibraryToolbar({
 }: LibraryToolbarProps) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative w-full md:hidden">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden />
+        <Input
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search artifacts…"
+          className="h-10 w-full rounded-xl border-border/60 bg-muted/20 pl-9 shadow-sm"
+          aria-label="Search artifacts"
+        />
+      </div>
+
+      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
         <div className="relative max-w-md flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden />
           <Input
@@ -89,7 +100,7 @@ export function LibraryToolbar({
           </select>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by type">
+      <div className="hidden flex-wrap gap-2 md:flex" role="tablist" aria-label="Filter by type">
         {LIBRARY_CATEGORY_CHIPS.map((chip) => {
           const active = category === chip.id;
           return (

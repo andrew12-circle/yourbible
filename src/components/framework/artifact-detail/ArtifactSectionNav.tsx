@@ -40,7 +40,7 @@ export default function ArtifactSectionNav({ sections, activeHash, className }: 
     <nav
       aria-label="On this page"
       className={cn(
-        "sticky top-0 z-[15] -mx-0.5 mb-4 rounded-2xl border border-border/40 bg-muted/40 p-1.5 backdrop-blur-md supports-[backdrop-filter]:bg-muted/30 sm:rounded-full sm:border-0 sm:p-1",
+        "sticky top-0 z-[15] -mx-0.5 mb-4 hidden rounded-2xl border border-border/40 bg-muted/40 p-1.5 backdrop-blur-md supports-[backdrop-filter]:bg-muted/30 md:block sm:rounded-full sm:border-0 sm:p-1",
         className,
       )}
     >

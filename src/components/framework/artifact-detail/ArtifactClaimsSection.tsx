@@ -1,8 +1,9 @@
+import ArtifactMobileClaimShell from "@/components/framework/artifact-detail/ArtifactMobileClaimShell";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import type { ClaimChapterGroup } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 
-type ClaimLike = { id: string };
+type ClaimLike = { id: string; claim: string; verdict: string | null };
 
 type Props<T extends ClaimLike> = {
   claims: T[];
@@ -12,6 +13,9 @@ type Props<T extends ClaimLike> = {
   onJumpToClaim: (claimId: string) => void;
   onSeekChapter: (seconds: number) => void;
   renderClaimCard: (claim: T, claimIndex: number) => React.ReactNode;
+  /** Mobile: one claim open at a time; first claim open by default. */
+  mobileOpenClaimId?: string | null;
+  onMobileOpenClaimIdChange?: (claimId: string | null) => void;
 };
 
 export default function ArtifactClaimsSection<T extends ClaimLike>({
@@ -22,7 +26,31 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   onJumpToClaim,
   onSeekChapter,
   renderClaimCard,
+  mobileOpenClaimId,
+  onMobileOpenClaimIdChange,
 }: Props<T>) {
+  const useMobileAccordion = onMobileOpenClaimIdChange != null;
+
+  const wrapCard = (claim: T, claimIndex: number) => {
+    const card = renderClaimCard(claim, claimIndex);
+    if (!useMobileAccordion) return card;
+    const claimNumber = claimIndex + 1;
+    return (
+      <ArtifactMobileClaimShell
+        key={claim.id}
+        claim={claim}
+        claimNumber={claimNumber}
+        open={mobileOpenClaimId === claim.id}
+        onOpenChange={(open) => {
+          if (open) onMobileOpenClaimIdChange(claim.id);
+          else if (mobileOpenClaimId === claim.id) onMobileOpenClaimIdChange(null);
+        }}
+      >
+        {card}
+      </ArtifactMobileClaimShell>
+    );
+  };
+
   return (
     <div id="claims" className="scroll-mt-24 max-w-4xl space-y-6">
       <ClaimsGlossary entries={glossaryEntries} onJump={onJumpToClaim} className="mb-2" />
@@ -50,13 +78,13 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
               </div>
               <div className="space-y-5">
                 {group.claims.map((c) =>
-                  renderClaimCard(c, Math.max(0, claims.findIndex((x) => x.id === c.id))),
+                  wrapCard(c, Math.max(0, claims.findIndex((x) => x.id === c.id))),
                 )}
               </div>
             </div>
           ))
         ) : (
-          <div className="space-y-5">{claims.map((c, i) => renderClaimCard(c, i))}</div>
+          <div className="space-y-5">{claims.map((c, i) => wrapCard(c, i))}</div>
         )}
       </div>
     </div>

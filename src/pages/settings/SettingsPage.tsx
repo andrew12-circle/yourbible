@@ -5,7 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
 import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal, Languages } from "lucide-react";
+import { listBibles, type BibleEntry } from "@/lib/bible/api";
+import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { toast } from "@/hooks/use-toast";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
@@ -45,6 +47,27 @@ export default function SettingsPage() {
   const [wallpaperBlur, setWallpaperBlur] = useState(0);
   const wallpaperFileRef = useRef<HTMLInputElement>(null);
   const profilePhotoFileRef = useRef<HTMLInputElement>(null);
+  const [bibles, setBibles] = useState<BibleEntry[]>([]);
+  const [bibleId, setBibleId] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem(LS_BIBLE_KEY) ?? "" : "",
+  );
+
+  useEffect(() => {
+    listBibles()
+      .then((list) => {
+        setBibles(list);
+        const stored = localStorage.getItem(LS_BIBLE_KEY);
+        const found =
+          list.find((b) => b.id === stored) ??
+          list.find((b) => b.abbreviation === "CSB") ??
+          list[0];
+        if (found) {
+          setBibleId(found.id);
+          localStorage.setItem(LS_BIBLE_KEY, found.id);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setDobDraft(profile?.date_of_birth ?? "");
@@ -286,6 +309,27 @@ export default function SettingsPage() {
         {/* Bible settings */}
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Bible settings</h2>
+          <label className="flex items-center gap-2 max-w-md rounded-lg border border-paper-edge bg-paper/60 px-3 py-2">
+            <Languages className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="text-xs text-muted-foreground shrink-0">Translation</span>
+            <select
+              value={bibleId}
+              onChange={(e) => {
+                setBibleId(e.target.value);
+                localStorage.setItem(LS_BIBLE_KEY, e.target.value);
+                toast({ title: "Translation updated", description: "Applies when you open the reader." });
+              }}
+              className="min-w-0 flex-1 bg-transparent text-sm text-leather focus:outline-none"
+              aria-label="Default Bible translation"
+            >
+              {bibles.length === 0 && <option value="">Loading…</option>}
+              {bibles.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.abbreviation} — {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </section>
 
         {/* Cover */}
