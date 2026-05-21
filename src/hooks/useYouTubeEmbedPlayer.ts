@@ -133,12 +133,24 @@ export function useYouTubeEmbedPlayer(options: {
   videoId: string | null;
   enabled: boolean;
   startSeconds?: number;
+  /** When true, YT player is created with autoplay (PiP handoff). */
+  autoplayOnInit?: boolean;
   /** Persist / restore playback position per artifact. */
   artifactId?: string | null;
   /** Changes when the player shell moves (inline vs PiP) so iframe size re-syncs. */
   layoutKey?: string;
+  /** Bumps when PiP handoff needs a fresh player at a new start time. */
+  handoffNonce?: number;
 }) {
-  const { videoId, enabled, startSeconds = 0, artifactId = null, layoutKey = "inline" } = options;
+  const {
+    videoId,
+    enabled,
+    startSeconds = 0,
+    autoplayOnInit = false,
+    artifactId = null,
+    layoutKey = "inline",
+    handoffNonce = 0,
+  } = options;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const mountedVideoIdRef = useRef<string | null>(null);
@@ -327,7 +339,7 @@ export function useYouTubeEmbedPlayer(options: {
             modestbranding: 1,
             rel: 0,
             playsinline: 1,
-            autoplay: 0,
+            autoplay: autoplayOnInit ? 1 : 0,
           },
           events: {
             onReady: () => {
@@ -342,10 +354,9 @@ export function useYouTubeEmbedPlayer(options: {
                 setInitTimedOut(false);
                 if (layoutHost && hostHasLayout(layoutHost)) syncPlayerSize(layoutHost);
                 applyPendingSeek();
-                if (resumeOnVisibleRef.current) {
-                  resumeOnVisibleRef.current = false;
-                  resumeIfWasPlaying(true);
-                }
+                const shouldResume = resumeOnVisibleRef.current || autoplayOnInit;
+                resumeOnVisibleRef.current = false;
+                if (shouldResume) resumeIfWasPlaying(true);
               }
             },
             onStateChange: (e) => {
@@ -421,6 +432,9 @@ export function useYouTubeEmbedPlayer(options: {
     syncPlayerSize,
     videoId,
     reinitNonce,
+    handoffNonce,
+    autoplayOnInit,
+    startSeconds,
   ]);
 
   useEffect(() => {

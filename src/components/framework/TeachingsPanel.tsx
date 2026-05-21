@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Sparkles, ArrowRight } from "lucide-react";
+import { ChevronDown, Loader2, Sparkles, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
@@ -101,6 +102,57 @@ function parseTeachingRow(raw: Record<string, unknown>): TeachingRow | null {
     created_at: typeof raw.created_at === "string" ? raw.created_at : "",
     updated_at: typeof raw.updated_at === "string" ? raw.updated_at : "",
   };
+}
+
+function TeachingNotesCollapsible({
+  row,
+  notesValue,
+  onNotesChange,
+  onSaveNotes,
+}: {
+  row: TeachingRow;
+  notesValue: string;
+  onNotesChange: (value: string) => void;
+  onSaveNotes: (value: string) => void;
+}) {
+  const hasNotes = notesValue.trim().length > 0;
+  const [open, setOpen] = useState(hasNotes);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="pt-0.5">
+      <CollapsibleTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 px-1.5 text-xs text-muted-foreground"
+        >
+          {hasNotes ? "Notes" : "Add notes (optional)"}
+          {hasNotes ? (
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/70" aria-hidden />
+          ) : null}
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-1.5">
+        <PolishedTextarea
+          polishResetKey={row.id}
+          rows={2}
+          placeholder="Your notes (optional)"
+          value={notesValue}
+          onChange={(e) => onNotesChange(e.target.value)}
+          className="text-sm resize-none bg-background/60"
+          onAfterBlurAssist={(v) => {
+            if (v === (row.notes ?? "")) return;
+            onSaveNotes(v);
+          }}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 interface Props {
@@ -314,7 +366,7 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
                             ))}
                           </div>
                         )}
-                        <div className="flex flex-wrap gap-2 pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           <Button
                             size="sm"
                             variant={row.status === "accepted" ? "default" : "outline"}
@@ -342,29 +394,11 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
                           >
                             Reject
                           </Button>
-                        </div>
-                        <div className="pt-1">
-                          <PolishedTextarea
-                            polishResetKey={row.id}
-                            rows={2}
-                            placeholder="Your notes (optional)"
-                            value={notesDrafts[row.id] ?? row.notes ?? ""}
-                            onChange={(e) =>
-                              setNotesDrafts((d) => ({ ...d, [row.id]: e.target.value }))
-                            }
-                            className="text-sm resize-none bg-background/60"
-                            onAfterBlurAssist={(v) => {
-                              if (v === (row.notes ?? "")) return;
-                              void saveNotes(row, v);
-                            }}
-                          />
-                        </div>
-                        {row.status === "accepted" && (
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {playbookByTeaching[row.id] ? (
+                          {row.status === "accepted" &&
+                            (playbookByTeaching[row.id] ? (
                               <Link
                                 to={`/framework/playbook/${playbookByTeaching[row.id]}`}
-                                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                                className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-sm font-medium text-primary hover:underline"
                               >
                                 View in playbook
                                 <ArrowRight className="h-3.5 w-3.5" />
@@ -384,9 +418,14 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
                                 )}
                                 Generate playbook
                               </Button>
-                            )}
-                          </div>
-                        )}
+                            ))}
+                        </div>
+                        <TeachingNotesCollapsible
+                          row={row}
+                          notesValue={notesDrafts[row.id] ?? row.notes ?? ""}
+                          onNotesChange={(v) => setNotesDrafts((d) => ({ ...d, [row.id]: v }))}
+                          onSaveNotes={(v) => void saveNotes(row, v)}
+                        />
                       </div>
                     </div>
                   </article>

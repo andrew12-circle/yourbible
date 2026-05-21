@@ -14,7 +14,6 @@ import {
   readPipLayoutFromSession,
   writePipLayoutToSession,
   type ArtifactPipLayout,
-  type ArtifactPlayerShellRect,
 } from "@/lib/framework/artifactYoutubePip";
 import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
 
@@ -22,22 +21,14 @@ type PipPointerSession =
   | { kind: "drag"; pointerId: number; startX: number; startY: number; startL: number; startT: number; width: number }
   | { kind: "resize"; pointerId: number; startX: number; startY: number; startL: number; startT: number; startW: number };
 
-function shellRectsEqual(
-  a: ArtifactPlayerShellRect | null,
-  b: ArtifactPlayerShellRect | null,
-): boolean {
-  if (!a || !b) return a === b;
-  return a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
-}
-
 export function useArtifactYoutubePip(options: {
   artifactId: string | undefined;
   enabled: boolean;
   mainScrollRef: RefObject<HTMLDivElement | null>;
-  /** Do not enter PiP until the embed is actually ready (avoids orphaning the iframe on load). */
-  playerReadyRef?: RefObject<boolean>;
+  /** Do not enter PiP until the static embed iframe has loaded in the slot. */
+  embedVisibleRef?: RefObject<boolean>;
 }) {
-  const { artifactId, enabled, mainScrollRef, playerReadyRef } = options;
+  const { artifactId, enabled, mainScrollRef, embedVisibleRef } = options;
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
   const [pipMode, setPipMode] = useState(false);
   const pipModeRef = useRef(false);
@@ -47,9 +38,6 @@ export function useArtifactYoutubePip(options: {
   pipLayoutRef.current = pipLayout;
   const pipPointerRef = useRef<PipPointerSession | null>(null);
   const pipDragRafRef = useRef<number | null>(null);
-  const [inlineShellRect, setInlineShellRect] = useState<ArtifactPlayerShellRect | null>(null);
-  const inlineShellRectRef = useRef<ArtifactPlayerShellRect | null>(null);
-  const inlineMeasureRafRef = useRef<number | null>(null);
   /** Ignore spurious "enter" until the slot has been visibly in-flow at least once (avoids load-time false PiP). */
   const pipEnterArmedRef = useRef(false);
   const ioRef = useRef<IntersectionObserver | null>(null);
@@ -132,7 +120,7 @@ export function useArtifactYoutubePip(options: {
       switch (signal) {
         case "enter":
           if (!pipEnterArmedRef.current) break;
-          if (playerReadyRef && !playerReadyRef.current) break;
+          if (embedVisibleRef && !embedVisibleRef.current) break;
           clearExitTimer();
           if (enterTimer == null) {
             enterTimer = setTimeout(() => {
@@ -184,20 +172,6 @@ export function useArtifactYoutubePip(options: {
       });
       ioRef.current.observe(target);
 
-      const slotRect = target.getBoundingClientRect();
-      if (slotRect.width >= 8 && slotRect.height >= 8) {
-        const next: ArtifactPlayerShellRect = {
-          left: slotRect.left,
-          top: slotRect.top,
-          width: slotRect.width,
-          height: slotRect.height,
-        };
-        if (!shellRectsEqual(inlineShellRectRef.current, next)) {
-          inlineShellRectRef.current = next;
-          setInlineShellRect(next);
-        }
-      }
-
       const rootRect =
         desiredRoot instanceof Element ? desiredRoot.getBoundingClientRect() : null;
       const targetRect = target.getBoundingClientRect();
@@ -232,60 +206,7 @@ export function useArtifactYoutubePip(options: {
       ioTargetRef.current = null;
       window.removeEventListener("resize", onResize);
     };
-  }, [enabled, mainScrollRef]);
-
-  /** Keep the iframe on `document.body` and move only CSS — avoids reparent pauses on PiP enter/exit. */
-  useEffect(() => {
-    if (!enabled || pipMode) {
-      if (inlineMeasureRafRef.current != null) {
-        window.cancelAnimationFrame(inlineMeasureRafRef.current);
-        inlineMeasureRafRef.current = null;
-      }
-      return;
-    }
-
-    const measure = () => {
-      inlineMeasureRafRef.current = null;
-      const el = videoSlotRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const next: ArtifactPlayerShellRect = {
-        left: r.left,
-        top: r.top,
-        width: r.width,
-        height: r.height,
-      };
-      if (shellRectsEqual(inlineShellRectRef.current, next)) return;
-      inlineShellRectRef.current = next;
-      setInlineShellRect(next);
-    };
-
-    const scheduleMeasure = () => {
-      if (inlineMeasureRafRef.current != null) return;
-      inlineMeasureRafRef.current = window.requestAnimationFrame(measure);
-    };
-
-    scheduleMeasure();
-    const ro = new ResizeObserver(scheduleMeasure);
-    const slot = videoSlotRef.current;
-    if (slot) ro.observe(slot);
-
-    window.addEventListener("resize", scheduleMeasure);
-    window.addEventListener("scroll", scheduleMeasure, true);
-    const scrollRoot = mainScrollRef.current;
-    scrollRoot?.addEventListener("scroll", scheduleMeasure, { passive: true });
-
-    return () => {
-      if (inlineMeasureRafRef.current != null) {
-        window.cancelAnimationFrame(inlineMeasureRafRef.current);
-        inlineMeasureRafRef.current = null;
-      }
-      ro.disconnect();
-      window.removeEventListener("resize", scheduleMeasure);
-      window.removeEventListener("scroll", scheduleMeasure, true);
-      scrollRoot?.removeEventListener("scroll", scheduleMeasure);
-    };
-  }, [enabled, pipMode, mainScrollRef]);
+  }, [enabled, mainScrollRef, embedVisibleRef]);
 
   useEffect(() => {
     if (!artifactId) return;
@@ -319,7 +240,9 @@ export function useArtifactYoutubePip(options: {
     pipEnterArmedRef.current = true;
     const scrollRoot = mainScrollRef.current;
     scrollRoot?.scrollTo({ top: 0, behavior: "smooth" });
-    videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => {
+      videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }, [mainScrollRef]);
 
   const onPipDragHeaderPointerDown = useCallback(
@@ -425,7 +348,6 @@ export function useArtifactYoutubePip(options: {
     videoSlotRef,
     pipMode,
     detachPlayerShell: enabled,
-    inlineShellRect,
     pipOverlayLayout,
     youtubeLayoutKey,
     scrollVideoIntoView,

@@ -1,27 +1,26 @@
 import { createPortal } from "react-dom";
-import { Loader2, Maximize2, Play, RefreshCw } from "lucide-react";
+import { Loader2, Maximize2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { artifactCard, artifactInset, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
-import {
-  pipTotalHeightPx,
-  type ArtifactPipLayout,
-  type ArtifactPlayerShellRect,
-} from "@/lib/framework/artifactYoutubePip";
+import { artifactCard, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
+import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 import { cn } from "@/lib/utils";
 import { youtubeHqThumbnail } from "@/lib/youtube";
+import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
 type Props = {
   videoSlotRef: React.RefObject<HTMLDivElement | null>;
   pipMode: boolean;
-  detachPlayerShell?: boolean;
-  inlineShellRect?: ArtifactPlayerShellRect | null;
+  /** Tablet/desktop: same iframe moves to PiP via CSS (no second player). */
+  useStaticPip?: boolean;
   stickyMode?: boolean;
   pipLayout: ArtifactPipLayout;
   thumbnailUrl?: string | null;
   youTubeVideoId: string;
+  staticEmbedSrc?: string | null;
+  onStaticEmbedLoad?: () => void;
+  showApiPlayer?: boolean;
   playerMountRef: React.RefObject<HTMLDivElement | null>;
   playerReady?: boolean;
-  playerLoading?: boolean;
   playerInitTimedOut?: boolean;
   isPlaying?: boolean;
   playerActivated?: boolean;
@@ -34,15 +33,16 @@ type Props = {
 export default function ArtifactVideoStage({
   videoSlotRef,
   pipMode,
-  detachPlayerShell = false,
-  inlineShellRect = null,
+  useStaticPip = false,
   stickyMode = false,
   pipLayout,
   thumbnailUrl,
   youTubeVideoId,
+  staticEmbedSrc = null,
+  onStaticEmbedLoad,
+  showApiPlayer = false,
   playerMountRef,
   playerReady = false,
-  playerLoading: _playerLoading = false,
   playerInitTimedOut = false,
   isPlaying = false,
   playerActivated = false,
@@ -53,115 +53,56 @@ export default function ArtifactVideoStage({
 }: Props) {
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
   const pipHeight = pipTotalHeightPx(pipLayout.width);
+  const inlineEmbedSrc =
+    staticEmbedSrc ?? (youTubeVideoId ? buildYouTubeEmbedSrc(youTubeVideoId) : null);
+
+  const staticIframeInPip = pipMode && useStaticPip;
+  const showStaticIframe = Boolean(inlineEmbedSrc) && !showApiPlayer;
+  const showInlineApi = !pipMode && showApiPlayer;
+  const showPipApi = pipMode && showApiPlayer;
+
+  const pipShellStyle = {
+    left: pipLayout.left,
+    top: pipLayout.top,
+    width: pipLayout.width,
+    height: pipHeight,
+  };
+
   const showPipLoading =
-    pipMode && playerActivated && playerInitTimedOut && !playerReady;
+    showPipApi && playerActivated && playerInitTimedOut && !playerReady;
   const showPipPauseOverlay =
-    pipMode && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
+    showPipApi && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
   const showPipThumbnail =
-    pipMode && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
+    showPipApi && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
 
-  /** PiP-capable: one portaled shell; inline/PiP handoff is CSS-only (no remount). */
-  const usePortal = detachPlayerShell && typeof document !== "undefined";
-  const inlineReady =
-    inlineShellRect != null && inlineShellRect.width >= 8 && inlineShellRect.height >= 8;
-  const showPortaledPlayer = usePortal && (pipMode || inlineReady);
-  const showPlayerInSlot = !usePortal || (usePortal && !showPortaledPlayer);
-
-  const fixedShellStyle = pipMode
-    ? {
-        left: pipLayout.left,
-        top: pipLayout.top,
-        width: pipLayout.width,
-        height: pipHeight,
-      }
-    : inlineShellRect
-      ? {
-          left: inlineShellRect.left,
-          top: inlineShellRect.top,
-          width: inlineShellRect.width,
-          height: inlineShellRect.height,
-        }
-      : undefined;
-
-  const playerShell = (
+  const apiPlayerShell = showInlineApi || showPipApi ? (
     <div
       data-youtube-player-shell
       className={cn(
-        showPortaledPlayer
+        showPipApi
           ? cn(
               "fixed z-[80]",
               artifactVideoRadius,
-              pipMode
-                ? "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15"
-                : "overflow-hidden shadow-sm ring-1 ring-black/10",
+              "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
             )
           : "absolute inset-0 z-[2] overflow-hidden rounded-[inherit] bg-black",
         showPipPauseOverlay && "cursor-pointer",
       )}
-      style={showPortaledPlayer ? fixedShellStyle : undefined}
+      style={showPipApi ? pipShellStyle : undefined}
       onClick={showPipPauseOverlay ? onTogglePlay : undefined}
-      onKeyDown={
-        showPipPauseOverlay
-          ? (e) => {
-              if (e.key === " " || e.key === "Enter") {
-                e.preventDefault();
-                onTogglePlay?.();
-              }
-            }
-          : undefined
-      }
-      role={showPipPauseOverlay ? "button" : undefined}
-      tabIndex={showPipPauseOverlay ? 0 : undefined}
-      aria-label={showPipPauseOverlay ? "Play video" : undefined}
     >
-      <div
-        className={cn(
-          "relative h-full w-full",
-          showPortaledPlayer && cn(artifactVideoRadius, "isolate overflow-hidden bg-black"),
-        )}
-      >
+      <div className="relative h-full w-full">
         {showPipThumbnail ? (
-          <img
-            src={thumb}
-            alt=""
-            className="absolute inset-0 z-[1] h-full w-full object-cover"
-          />
+          <img src={thumb} alt="" className="absolute inset-0 z-[1] h-full w-full object-cover" />
         ) : null}
         <div
-          ref={playerMountRef}
-          className={cn(
-            "relative h-full w-full [&_iframe]:block [&_iframe]:h-full [&_iframe]:w-full",
-            showPipThumbnail && playerReady && "invisible",
-          )}
+          ref={showPipApi || showInlineApi ? playerMountRef : undefined}
+          className="relative h-full w-full [&_iframe]:block [&_iframe]:h-full [&_iframe]:w-full"
         />
-        {showPipPauseOverlay ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/25"
-            aria-hidden
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white shadow-lg ring-2 ring-white/20">
-              <Play className="h-6 w-6 ml-0.5" aria-hidden />
-            </span>
-          </div>
-        ) : null}
         {showPipLoading && onReinitPlayer ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90"
-            role="status"
-            aria-live="polite"
-          >
+          <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90">
             <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-            <span className="text-xs font-medium">Video is taking longer than usual…</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="pointer-events-auto mt-1 h-8 gap-1.5 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onReinitPlayer();
-              }}
-            >
+            <Button type="button" size="sm" variant="secondary" className="pointer-events-auto" onClick={onReinitPlayer}>
               <RefreshCw className="h-3.5 w-3.5" aria-hidden />
               Reload video
             </Button>
@@ -169,35 +110,51 @@ export default function ArtifactVideoStage({
         ) : null}
       </div>
     </div>
-  );
-
-  const portaledPlayerShell =
-    showPortaledPlayer && usePortal ? createPortal(playerShell, document.body) : null;
+  ) : null;
 
   const videoBlock = (
     <div
       ref={videoSlotRef}
       className={cn(
-        "relative aspect-video w-full shrink-0 bg-black",
-        pipMode || usePortal ? "overflow-visible" : "overflow-hidden",
-        artifactInset,
+        "relative aspect-video w-full shrink-0 overflow-hidden bg-black",
+        artifactVideoRadius,
+        pipMode && "overflow-visible",
       )}
     >
-      {showPortaledPlayer ? portaledPlayerShell : null}
-      {showPlayerInSlot ? playerShell : null}
+      {showStaticIframe ? (
+        <iframe
+          data-youtube-static-embed
+          key={youTubeVideoId}
+          src={inlineEmbedSrc!}
+          title="YouTube video"
+          className={cn(
+            "border-0 bg-black",
+            staticIframeInPip
+              ? cn("fixed z-[80]", artifactVideoRadius)
+              : "absolute inset-0 z-[2] h-full w-full",
+          )}
+          style={staticIframeInPip ? pipShellStyle : undefined}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+          onLoad={onStaticEmbedLoad}
+        />
+      ) : null}
 
-      {pipMode ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden">
-          <img
-            src={thumb}
-            alt=""
-            className="absolute inset-0 h-full w-full scale-105 object-cover blur-md brightness-75"
-          />
-          <div className="absolute inset-0 bg-background/30" aria-hidden />
+      {showInlineApi ? apiPlayerShell : null}
+      {showPipApi && typeof document !== "undefined"
+        ? createPortal(apiPlayerShell, document.body)
+        : null}
+
+      {pipMode && useStaticPip ? (
+        <div
+          className="absolute inset-0 z-[1] flex items-center justify-center bg-muted/20"
+          aria-hidden={false}
+        >
           <button
             type="button"
             onClick={onScrollVideoIntoView}
-            className="relative z-10 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-background"
+            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-background"
           >
             <Maximize2 className="h-3.5 w-3.5" aria-hidden />
             Restore video
@@ -212,23 +169,13 @@ export default function ArtifactVideoStage({
       <>
         <div
           id="video"
-          className={cn(
-            "sticky z-[29] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95",
-          )}
-          style={{
-            top: "calc(var(--artifact-header-h, 0px) + env(safe-area-inset-top, 0px))",
-          }}
+          className="sticky z-[29] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95"
+          style={{ top: "calc(var(--artifact-header-h, 0px) + env(safe-area-inset-top, 0px))" }}
         >
           {videoBlock}
         </div>
         {children ? (
-          <section
-            className={cn(
-              artifactCard,
-              artifactScrollMt,
-              "mb-0 hidden overflow-hidden p-3 sm:p-4 lg:mb-0 lg:block lg:p-3",
-            )}
-          >
+          <section className={cn(artifactCard, artifactScrollMt, "mb-0 hidden lg:block lg:p-3")}>
             <div className="lg:p-4">{children}</div>
           </section>
         ) : null}
@@ -239,12 +186,7 @@ export default function ArtifactVideoStage({
   return (
     <section
       id="video"
-      className={cn(
-        artifactCard,
-        artifactScrollMt,
-        "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3",
-        pipMode || usePortal ? "overflow-visible" : "overflow-hidden",
-      )}
+      className={cn(artifactCard, artifactScrollMt, "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3", pipMode && "overflow-visible")}
     >
       <div className="p-3 sm:p-4 lg:p-0">{videoBlock}</div>
       {children ? <div className="p-3 sm:p-4 lg:p-4">{children}</div> : null}

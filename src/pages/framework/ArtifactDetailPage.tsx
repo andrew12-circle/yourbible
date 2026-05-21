@@ -543,14 +543,13 @@ export default function ArtifactDetailPage() {
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
       return;
     }
-    floatingJournalPlaybackRef.current = () =>
-      youtubePlayer.playerReady ? youtubePlayer.getCurrentTime() : playbackFallbackRef.current;
+    floatingJournalPlaybackRef.current = () => getPlaybackSeconds();
     useFloatingJournalStore.getState().setPlaybackCaptureAvailable(canCapturePlaybackForJournal);
     return () => {
       floatingJournalPlaybackRef.current = null;
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
     };
-  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
+  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, getPlaybackSeconds]);
 
   const normalizedPastePreview = useMemo(
     () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
@@ -1459,8 +1458,8 @@ export default function ArtifactDetailPage() {
       timed={transcriptTimedLayout}
       coarseTimestampsOnly={transcriptCoarseOnly}
       embedAvailable={Boolean(youTubeVideoId)}
-      playerReady={youtubePlayer.playerReady}
-      isPlaying={youtubePlayer.isPlaying}
+      playerReady={videoPlayback.playerReady}
+      isPlaying={videoPlayback.isPlaying}
       onTogglePlayback={togglePlayback}
       getPlaybackSeconds={getCurrentPlaybackSeconds}
       onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
@@ -1482,9 +1481,9 @@ export default function ArtifactDetailPage() {
       onFormatTranscript={formatTranscript}
       embeddedInMobileTab={!isDesktop}
       variant={!isDesktop && a.kind === "youtube" ? "youtubeMobile" : "default"}
-      getIsPlaying={youtubePlayer.getIsPlaying}
-      onPauseVideo={youtubePlayer.pauseVideo}
-      onResumePlayback={youtubePlayer.playVideo}
+      getIsPlaying={videoPlayback.getIsPlaying}
+      onPauseVideo={videoPlayback.pauseVideo}
+      onResumePlayback={videoPlayback.playVideo}
       segmentBookmarkActions={
         !isDesktop && a.kind === "youtube"
           ? {
@@ -1873,6 +1872,7 @@ export default function ArtifactDetailPage() {
             renderClaimCard={renderClaimCard}
             mobileOpenClaimId={!isDesktop ? mobileOpenClaimId : undefined}
             onMobileOpenClaimIdChange={!isDesktop ? setMobileOpenClaimId : undefined}
+            claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
           />
         </ArtifactCollapsibleSection>
       )}

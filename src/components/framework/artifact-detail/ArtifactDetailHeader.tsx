@@ -25,8 +25,8 @@ export default function ArtifactDetailHeader({
 }: ArtifactDetailHeaderProps) {
   const thumb = thumbnailUrl || (youTubeVideoId ? youtubeHqThumbnail(youTubeVideoId) : null);
 
-  const badges = (
-    <div className="flex flex-wrap items-center gap-1.5">
+  const metaRow = (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="inline-flex items-center gap-1 rounded-full bg-red-600/10 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-400">
         <Youtube className="h-3 w-3 shrink-0" aria-hidden />
         YouTube
@@ -49,30 +49,29 @@ export default function ArtifactDetailHeader({
         {inFlight ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden /> : null}
         {statusLabel}
       </span>
+      {channel ? (
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1 text-[10px] text-muted-foreground">
+          {channelUrl ? (
+            <a
+              href={channelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-w-0 max-w-full items-center gap-1 hover:text-foreground hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="truncate">{channel}</span>
+              <ExternalLink className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
+            </a>
+          ) : (
+            <span className="truncate">{channel}</span>
+          )}
+        </span>
+      ) : null}
     </div>
   );
 
-  const channelLine = channel ? (
-    <p className="truncate text-xs text-muted-foreground">
-      {channelUrl ? (
-        <a
-          href={channelUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex max-w-full items-center gap-1 hover:text-foreground hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="truncate">{channel}</span>
-          <ExternalLink className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
-        </a>
-      ) : (
-        channel
-      )}
-    </p>
-  ) : null;
-
   return (
-    <div className="hidden min-w-0 space-y-2 md:block sm:space-y-0">
+    <div className="hidden min-w-0 md:block">
       <div className="flex min-w-0 items-start gap-2.5 sm:items-center sm:gap-3.5">
         {thumb ? (
           <button
@@ -99,14 +98,9 @@ export default function ArtifactDetailHeader({
           <h1 className="font-display text-[15px] font-normal leading-snug text-foreground line-clamp-2 sm:text-lg md:line-clamp-3">
             {displayTitle}
           </h1>
-          <div className="mt-1 sm:hidden">{channelLine}</div>
-          <div className="mt-1.5 hidden sm:block">{badges}</div>
+          {metaRow}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-[calc(4.5rem+0.625rem)] sm:hidden">
-        {badges}
-      </div>
-      {channel ? <div className="hidden min-w-0 sm:block">{channelLine}</div> : null}
     </div>
   );
 }

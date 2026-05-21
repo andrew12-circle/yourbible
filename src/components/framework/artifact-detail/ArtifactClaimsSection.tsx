@@ -1,7 +1,7 @@
 import ArtifactMobileClaimShell from "@/components/framework/artifact-detail/ArtifactMobileClaimShell";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import { useIsDesktop } from "@/hooks/use-desktop";
-import { artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
+import { artifactCard, artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 import type { ClaimChapterGroup } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
@@ -19,6 +19,8 @@ type Props<T extends ClaimLike> = {
   /** Mobile: one claim open at a time; first claim open by default. */
   mobileOpenClaimId?: string | null;
   onMobileOpenClaimIdChange?: (claimId: string | null) => void;
+  /** Persist claims-index open state per artifact. */
+  claimsIndexStorageKey?: string;
 };
 
 export default function ArtifactClaimsSection<T extends ClaimLike>({
@@ -31,6 +33,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   renderClaimCard,
   mobileOpenClaimId,
   onMobileOpenClaimIdChange,
+  claimsIndexStorageKey,
 }: Props<T>) {
   const isDesktop = useIsDesktop();
   const useMobileAccordion = onMobileOpenClaimIdChange != null;
@@ -60,16 +63,27 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
       id="claims"
       className={cn(
         "max-w-4xl",
-        isDesktop ? "scroll-mt-24 space-y-6" : cn(artifactScrollMtMobile, "space-y-4"),
+        isDesktop ? "scroll-mt-24" : artifactScrollMtMobile,
       )}
     >
-      <ClaimsGlossary
-        entries={glossaryEntries}
-        onJump={onJumpToClaim}
-        compact={!isDesktop}
-        className={isDesktop ? "mb-2" : "mb-0"}
-      />
-      <div className={isDesktop ? "space-y-8" : "space-y-5"}>
+      <div
+        className={cn(
+          artifactCard,
+          "border border-amber-200/70 bg-amber-50/55 p-3 dark:border-amber-900/50 dark:bg-amber-950/25 sm:p-4",
+          isDesktop ? "space-y-5" : "space-y-4",
+        )}
+      >
+        <ClaimsGlossary
+          entries={glossaryEntries}
+          onJump={onJumpToClaim}
+          compact={!isDesktop}
+          storageKey={claimsIndexStorageKey}
+          className={cn(
+            "border-amber-200/60 bg-background/60 dark:border-amber-900/40 dark:bg-background/30",
+            isDesktop ? "mb-0" : "mb-0",
+          )}
+        />
+        <div className={isDesktop ? "space-y-8" : "space-y-5"}>
         {claimChapterLayout.grouped ? (
           claimChapterLayout.groups.map((group) => (
             <div key={group.id} className={isDesktop ? "space-y-3" : "space-y-2"}>
@@ -108,6 +122,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
         ) : (
           <div className={isDesktop ? "space-y-5" : "space-y-3"}>{claims.map((c, i) => wrapCard(c, i))}</div>
         )}
+        </div>
       </div>
     </div>
   );

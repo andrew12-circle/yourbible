@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { isArtifactPipVideo, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
+import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
+import {
+  readPlaybackSecondsFromSession,
+  writePlaybackSecondsToSession,
+} from "@/lib/framework/artifactYoutubePip";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
+import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
 export function useArtifactVideoPlayback(options: {
   artifactId: string | undefined;
@@ -17,33 +23,52 @@ export function useArtifactVideoPlayback(options: {
   const layoutMode = useArtifactLayoutMode();
   const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
 
-  const playerReadyRef = useRef(false);
+  const embedVisibleRef = useRef(false);
+  const [embedLoaded, setEmbedLoaded] = useState(false);
+  /** API player only for transcript seek / capture — not for scroll PiP. */
+  const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
+  const [staticEmbedStart, setStaticEmbedStart] = useState(0);
+  const [apiStartSeconds, setApiStartSeconds] = useState(0);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
     enabled: pipEnabled,
     mainScrollRef,
-    playerReadyRef,
+    embedVisibleRef,
   });
 
-  /** Mount the real YouTube iframe in the page — no custom thumbnail shell on the main player. */
-  const embedEnabled = Boolean(youTubeVideoId);
+  const savedStart = useMemo(() => {
+    if (!artifactId) return 0;
+    const t = readPlaybackSecondsFromSession(artifactId);
+    return t != null ? t : 0;
+  }, [artifactId]);
+
+  useEffect(() => {
+    playbackFallbackRef.current = savedStart;
+    setStaticEmbedStart(savedStart);
+    setApiStartSeconds(savedStart);
+  }, [artifactId, youTubeVideoId, savedStart]);
+
+  const staticTelemetry = useStaticYouTubeEmbedTelemetry({
+    videoSlotRef: youtubePip.videoSlotRef,
+    enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
+    initialSeconds: savedStart,
+  });
 
   const youtubePlayer = useYouTubeEmbedPlayer({
     videoId: youTubeVideoId,
-    enabled: embedEnabled,
-    startSeconds: 0,
+    enabled: Boolean(youTubeVideoId) && apiPlayerWanted,
+    startSeconds: apiStartSeconds,
     artifactId: artifactId ?? null,
-    layoutKey: youtubePip.youtubeLayoutKey,
+    layoutKey: youtubePip.pipMode ? "pip" : "inline",
   });
 
   useEffect(() => {
     playWhenReadyRef.current = false;
+    embedVisibleRef.current = false;
+    setEmbedLoaded(false);
+    setApiPlayerWanted(false);
   }, [artifactId, youTubeVideoId]);
-
-  useEffect(() => {
-    playerReadyRef.current = youtubePlayer.playerReady;
-  }, [youtubePlayer.playerReady]);
 
   useEffect(() => {
     if (!youtubePlayer.playerReady || !playWhenReadyRef.current) return;
@@ -51,9 +76,51 @@ export function useArtifactVideoPlayback(options: {
     youtubePlayer.playVideo();
   }, [youtubePlayer.playerReady, youtubePlayer.playVideo]);
 
-  const activatePlayer = useCallback((opts?: { autoplay?: boolean }) => {
-    if (opts?.autoplay) playWhenReadyRef.current = true;
+  useEffect(() => {
+    if (!apiPlayerWanted || !youtubePlayer.playerReady) return;
+    const tick = window.setInterval(() => {
+      const t = youtubePlayer.getCurrentTime();
+      playbackFallbackRef.current = t;
+      if (artifactId) writePlaybackSecondsToSession(artifactId, t);
+    }, 2000);
+    return () => window.clearInterval(tick);
+  }, [apiPlayerWanted, artifactId, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
+
+  useEffect(() => {
+    if (apiPlayerWanted || !artifactId) return;
+    const tick = window.setInterval(() => {
+      const t = staticTelemetry.getCurrentTime();
+      playbackFallbackRef.current = t;
+      writePlaybackSecondsToSession(artifactId, t);
+    }, 2000);
+    return () => window.clearInterval(tick);
+  }, [apiPlayerWanted, artifactId, staticTelemetry]);
+
+  const onStaticEmbedLoad = useCallback(() => {
+    embedVisibleRef.current = true;
+    setEmbedLoaded(true);
   }, []);
+
+  const staticEmbedSrc = useMemo(() => {
+    if (!youTubeVideoId) return null;
+    return buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart);
+  }, [youTubeVideoId, staticEmbedStart]);
+
+  const enableApiPlayer = useCallback(() => {
+    const seconds = staticTelemetry.getCurrentTime();
+    playbackFallbackRef.current = seconds;
+    if (artifactId) writePlaybackSecondsToSession(artifactId, seconds);
+    setApiStartSeconds(seconds);
+    setApiPlayerWanted(true);
+  }, [artifactId, staticTelemetry]);
+
+  const activatePlayer = useCallback(
+    (opts?: { autoplay?: boolean }) => {
+      enableApiPlayer();
+      if (opts?.autoplay) playWhenReadyRef.current = true;
+    },
+    [enableApiPlayer],
+  );
 
   const lastSeekScrollRef = useRef({ at: 0, seconds: -1 });
 
@@ -82,29 +149,75 @@ export function useArtifactVideoPlayback(options: {
     (seconds: number, opts?: { play?: boolean }) => {
       const start = Math.max(0, Math.floor(seconds));
       playbackFallbackRef.current = start;
-      if (opts?.play) activatePlayer({ autoplay: true });
-      youtubePlayer.seekTo(start, { play: opts?.play });
+      if (artifactId) writePlaybackSecondsToSession(artifactId, start);
+
+      if (apiPlayerWanted && youtubePlayer.playerReady) {
+        youtubePlayer.seekTo(start, { play: opts?.play });
+      } else if (!apiPlayerWanted) {
+        staticTelemetry.seekTo(start, true);
+        if (opts?.play) staticTelemetry.playVideo();
+      } else {
+        setApiStartSeconds(start);
+        enableApiPlayer();
+        if (opts?.play) activatePlayer({ autoplay: true });
+        youtubePlayer.seekTo(start, { play: opts?.play });
+      }
       scrollTranscriptToSeconds(start);
     },
-    [activatePlayer, scrollTranscriptToSeconds, youtubePlayer.seekTo],
+    [
+      activatePlayer,
+      apiPlayerWanted,
+      artifactId,
+      enableApiPlayer,
+      scrollTranscriptToSeconds,
+      staticTelemetry,
+      youtubePlayer.playerReady,
+      youtubePlayer.seekTo,
+    ],
   );
 
   const activateAndPlay = useCallback(() => {
-    activatePlayer({ autoplay: true });
-  }, [activatePlayer]);
+    if (apiPlayerWanted) {
+      activatePlayer({ autoplay: true });
+    } else {
+      staticTelemetry.playVideo();
+    }
+  }, [activatePlayer, apiPlayerWanted, staticTelemetry]);
 
   const togglePlayback = useCallback(() => {
-    if (!youtubePlayer.playerReady) {
-      activateAndPlay();
+    if (apiPlayerWanted && youtubePlayer.playerReady) {
+      youtubePlayer.togglePlayback();
       return;
     }
-    youtubePlayer.togglePlayback();
-  }, [activateAndPlay, youtubePlayer.playerReady, youtubePlayer.togglePlayback]);
+    staticTelemetry.togglePlayback();
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.playerReady, youtubePlayer.togglePlayback]);
 
   const getPlaybackSeconds = useCallback(() => {
-    if (youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
-    return playbackFallbackRef.current;
-  }, [youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
+    if (apiPlayerWanted && youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
+    return staticTelemetry.getCurrentTime() || playbackFallbackRef.current;
+  }, [
+    apiPlayerWanted,
+    staticTelemetry,
+    youtubePlayer.playerReady,
+    youtubePlayer.getCurrentTime,
+  ]);
+
+  const isPlaying = apiPlayerWanted ? youtubePlayer.isPlaying : staticTelemetry.isPlaying;
+
+  const getIsPlaying = useCallback(() => {
+    if (apiPlayerWanted) return youtubePlayer.getIsPlaying();
+    return staticTelemetry.getIsPlaying();
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getIsPlaying]);
+
+  const pauseVideo = useCallback(() => {
+    if (apiPlayerWanted) youtubePlayer.pauseVideo();
+    else staticTelemetry.pauseVideo();
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.pauseVideo]);
+
+  const playVideo = useCallback(() => {
+    if (apiPlayerWanted) youtubePlayer.playVideo();
+    else staticTelemetry.playVideo();
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.playVideo]);
 
   return {
     pipEnabled,
@@ -117,5 +230,14 @@ export function useArtifactVideoPlayback(options: {
     activatePlayer,
     activateAndPlay,
     togglePlayback,
+    isPlaying,
+    getIsPlaying,
+    pauseVideo,
+    playVideo,
+    staticEmbedSrc,
+    onStaticEmbedLoad,
+    showApiPlayer: apiPlayerWanted,
+    useStaticPip: pipEnabled && !apiPlayerWanted,
+    playerReady: apiPlayerWanted ? youtubePlayer.playerReady : embedLoaded,
   };
 }
