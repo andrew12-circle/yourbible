@@ -18,7 +18,6 @@ export function useArtifactVideoPlayback(options: {
   const pipEnabled = Boolean(youTubeVideoId) && isDesktop;
 
   const [userActivated, setUserActivated] = useState(false);
-  const [videoInView, setVideoInView] = useState(true);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
@@ -26,10 +25,8 @@ export function useArtifactVideoPlayback(options: {
     mainScrollRef,
   });
 
-  const embedEnabled =
-    Boolean(youTubeVideoId) &&
-    userActivated &&
-    (videoInView || youtubePip.pipMode);
+  // Keep embed mounted after activation so scrolling (mobile sticky / desktop PiP handoff) never tears down the player.
+  const embedEnabled = Boolean(youTubeVideoId) && userActivated;
 
   const youtubePlayer = useYouTubeEmbedPlayer({
     videoId: youTubeVideoId,
@@ -43,20 +40,6 @@ export function useArtifactVideoPlayback(options: {
     setUserActivated(false);
     playWhenReadyRef.current = false;
   }, [artifactId, youTubeVideoId]);
-
-  useEffect(() => {
-    const el = youtubePip.videoSlotRef.current;
-    if (!el || !youTubeVideoId) {
-      setVideoInView(Boolean(youTubeVideoId));
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => setVideoInView(entry.isIntersecting),
-      { root: null, rootMargin: "80px", threshold: 0.08 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [youTubeVideoId, youtubePip.videoSlotRef]);
 
   useEffect(() => {
     if (!youtubePlayer.playerReady || !playWhenReadyRef.current) return;

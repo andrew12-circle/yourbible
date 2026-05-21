@@ -74,7 +74,10 @@ export default function ArtifactVideoStage({
                 artifactVideoRadius,
                 "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
               )
-            : "absolute inset-0 z-[2] overflow-hidden rounded-[inherit] bg-black",
+            : cn(
+                "absolute inset-0 z-[2] overflow-hidden rounded-[inherit]",
+                showPoster ? "bg-transparent" : "bg-black",
+              ),
           (canToggleInline || showPosterPlay) && "cursor-pointer",
         )}
         style={
