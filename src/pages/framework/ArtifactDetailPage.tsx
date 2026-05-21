@@ -13,7 +13,6 @@ import {
   Sparkles,
   NotebookPen,
   MessageCircle,
-  LayoutList,
   MoreHorizontal,
   CheckCircle2,
   Clock,
@@ -54,19 +53,22 @@ import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
-import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
+import { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import ArtifactDetailHeader from "@/components/framework/artifact-detail/ArtifactDetailHeader";
 import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
-import ArtifactVideoStage from "@/components/framework/artifact-detail/ArtifactVideoStage";
-import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
+import ArtifactChaptersSection from "@/components/framework/artifact-detail/ArtifactChaptersSection";
+import ArtifactClaimsSection from "@/components/framework/artifact-detail/ArtifactClaimsSection";
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
-import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
-import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
+import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
+import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
+import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
+import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
   formatClaimVerdict,
@@ -211,88 +213,6 @@ interface Claim {
   epistemology?: ClaimEpistemology | null;
 }
 
-type ClaimChapterGroup = {
-  id: string;
-  title: string;
-  chapterStartSeconds?: number;
-  claims: Claim[];
-};
-
-/** Group claims under YouTube chapters using persisted `chapter_start_seconds` when present, else transcript-time heuristics. */
-function groupClaimsUnderYoutubeChapters(
-  claims: Claim[],
-  claimSources: Record<string, TranscriptSegment | null>,
-  chapters: YoutubeChapter[],
-): { grouped: boolean; groups: ClaimChapterGroup[] } {
-  const sorted = [...chapters]
-    .filter((c) => Number.isFinite(c.start_seconds))
-    .sort((a, b) => a.start_seconds - b.start_seconds);
-  if (!sorted.length) {
-    return { grouped: false, groups: [{ id: "all", title: "", claims: [...claims] }] };
-  }
-
-  const before: Claim[] = [];
-  const perChapter: Claim[][] = sorted.map(() => []);
-  const uncategorized: Claim[] = [];
-
-  for (const claim of claims) {
-    const anchored = claim.chapter_start_seconds;
-    if (anchored != null && Number.isFinite(anchored)) {
-      if (anchored < sorted[0].start_seconds) {
-        before.push(claim);
-        continue;
-      }
-      let idx = 0;
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (sorted[i].start_seconds <= anchored) {
-          idx = i;
-          break;
-        }
-      }
-      perChapter[idx].push(claim);
-      continue;
-    }
-
-    const sec = claimSources[claim.id]?.startSeconds;
-    if (sec == null || !Number.isFinite(sec)) {
-      uncategorized.push(claim);
-      continue;
-    }
-    if (sec < sorted[0].start_seconds) {
-      before.push(claim);
-      continue;
-    }
-    let idx = 0;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      if (sorted[i].start_seconds <= sec) {
-        idx = i;
-        break;
-      }
-    }
-    perChapter[idx].push(claim);
-  }
-
-  const groups: ClaimChapterGroup[] = [];
-  if (before.length) {
-    groups.push({ id: "before-first", title: "Before first chapter", claims: before });
-  }
-  sorted.forEach((ch, i) => {
-    const list = perChapter[i];
-    if (!list.length) return;
-    groups.push({
-      id: `ch-${ch.start_seconds}-${i}`,
-      title: ch.title,
-      chapterStartSeconds: ch.start_seconds,
-      claims: list,
-    });
-  });
-  if (uncategorized.length) {
-    groups.push({ id: "uncategorized", title: "Uncategorized", claims: uncategorized });
-  }
-
-  return { grouped: true, groups };
-}
-
 function buildClaimResearchMarkdown(
   artifactTitle: string | null,
   claim: Claim,
@@ -406,21 +326,26 @@ export default function ArtifactDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const [a, setA] = useState<Artifact | null>(null);
-  const [artifactLoaded, setArtifactLoaded] = useState(false);
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [matchedBeliefs, setMatchedBeliefs] = useState<Record<string, MatchedBelief>>({});
-  const [polling, setPolling] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const startedRef = useRef<number | null>(null);
+  const {
+    a,
+    setA,
+    artifactLoaded,
+    claims,
+    setClaims,
+    matchedBeliefs,
+    moments,
+    setMoments,
+    polling,
+    elapsed,
+    inFlight,
+    patchArtifactMetadata,
+  } = useArtifactDetailData(id, user?.id);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [savingPaste, setSavingPaste] = useState(false);
   const [formattingTranscript, setFormattingTranscript] = useState(false);
-  const [videoStartSeconds, setVideoStartSeconds] = useState(0);
   const [liveMeta, setLiveMeta] = useState<ArtifactMetadata | null>(null);
   const [refreshingMeta, setRefreshingMeta] = useState(false);
-  const [moments, setMoments] = useState<ArtifactMoment[]>([]);
   const [bookmarkLabel, setBookmarkLabel] = useState("");
   const [noteBody, setNoteBody] = useState("");
   const [savingMoment, setSavingMoment] = useState(false);
@@ -463,85 +388,6 @@ export default function ArtifactDetailPage() {
       return null;
     }
   }, []);
-
-  const load = async () => {
-    if (!id) {
-      setArtifactLoaded(true);
-      setA(null);
-      return;
-    }
-    const artWithMeta = await supabase
-      .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata")
-      .eq("id", id)
-      .maybeSingle();
-    const artResult = artWithMeta.error
-      ? await supabase
-          .from("artifacts")
-          .select("id,title,kind,status,error,raw_text,url")
-          .eq("id", id)
-          .maybeSingle()
-      : artWithMeta;
-    const { data: cl } = await supabase
-      .from("artifact_claims")
-      .select("*")
-      .eq("artifact_id", id)
-      .order("created_at");
-    const { data: momentRows, error: momentError } = await supabase
-      .from("artifact_moments")
-      .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
-      .eq("artifact_id", id)
-      .order("start_seconds")
-      .order("created_at");
-    const art = artResult.data;
-    const parsedClaims = (((cl as unknown) as Claim[]) ?? []).map((row) => ({
-      ...row,
-      epistemology: parseClaimEpistemology(
-        (row as Claim & { epistemology?: unknown }).epistemology,
-      ),
-    }));
-    const beliefIds = Array.from(new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean))) as string[];
-    let beliefMap: Record<string, MatchedBelief> = {};
-    if (beliefIds.length > 0) {
-      const { data: beliefs } = await supabase
-        .from("belief_nodes")
-        .select("id,topic,statement,answer,confidence")
-        .in("id", beliefIds);
-      beliefMap = (beliefs ?? []).reduce((acc, belief) => {
-        acc[belief.id] = belief as MatchedBelief;
-        return acc;
-      }, {} as Record<string, MatchedBelief>);
-    }
-    setMatchedBeliefs(beliefMap);
-    setA(art as Artifact | null);
-    setClaims(parsedClaims);
-    if (!momentError) setMoments(((momentRows as unknown) as ArtifactMoment[]) ?? []);
-    setArtifactLoaded(true);
-  };
-
-  const patchArtifactMetadata = useCallback(async (artifactId: string) => {
-    const { data } = await supabase
-      .from("artifacts")
-      .select("metadata,title")
-      .eq("id", artifactId)
-      .maybeSingle();
-    if (!data) return;
-    setA((prev) =>
-      prev
-        ? {
-            ...prev,
-            metadata: (data.metadata as ArtifactMetadata | null) ?? prev.metadata,
-            title: data.title ?? prev.title,
-          }
-        : prev,
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!user || !id) return;
-    setArtifactLoaded(false);
-    void load();
-  }, [user, id]);
 
   useEffect(() => {
     const sync = () => setPageSectionHash(window.location.hash);
@@ -643,28 +489,6 @@ export default function ArtifactDetailPage() {
     };
   }, [a?.id, a?.kind, a?.status, a?.raw_text, patchArtifactMetadata, user, youtubeChapterCount]);
 
-  // Poll while any in-flight stage is running.
-  const inFlight = !!a && ["fetching", "transcribing", "analyzing"].includes(a.status);
-  useEffect(() => {
-    if (!inFlight) {
-      setPolling(false);
-      startedRef.current = null;
-      setElapsed(0);
-      return;
-    }
-    setPolling(true);
-    if (startedRef.current === null) startedRef.current = Date.now();
-    const poll = setInterval(load, 2500);
-    const tick = setInterval(() => {
-      if (startedRef.current) setElapsed(Math.floor((Date.now() - startedRef.current) / 1000));
-    }, 1000);
-    return () => {
-      clearInterval(poll);
-      clearInterval(tick);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inFlight]);
-
   const displayTranscriptText = useMemo(
     () => (a?.raw_text ? normalizePastedTranscript(a.raw_text) : ""),
     [a?.raw_text],
@@ -722,23 +546,15 @@ export default function ArtifactDetailPage() {
     return fromMeta || null;
   }, [a?.kind, a?.url, artifactMetadata.video_id]);
 
-  const youtubePip = useArtifactYoutubePip({
+  const videoPlayback = useArtifactVideoPlayback({
     artifactId: id,
-    enabled: Boolean(youTubeVideoId),
+    youTubeVideoId,
     mainScrollRef,
+    transcriptSegments,
+    transcriptRefs,
   });
-
-  const youtubeLayoutKey = youtubePip.pipMode
-    ? `pip:${youtubePip.pipOverlayLayout.left},${youtubePip.pipOverlayLayout.top},${youtubePip.pipOverlayLayout.width}`
-    : "inline";
-
-  const youtubePlayer = useYouTubeEmbedPlayer({
-    videoId: youTubeVideoId,
-    enabled: Boolean(youTubeVideoId),
-    startSeconds: videoStartSeconds,
-    artifactId: id ?? null,
-    layoutKey: youtubeLayoutKey,
-  });
+  const { youtubePip, youtubePlayer, playbackFallbackRef, seekVideoToSeconds, getPlaybackSeconds } =
+    videoPlayback;
 
   useEffect(() => {
     if (!a?.id) {
@@ -764,13 +580,13 @@ export default function ArtifactDetailPage() {
       return;
     }
     floatingJournalPlaybackRef.current = () =>
-      youtubePlayer.playerReady ? youtubePlayer.getCurrentTime() : Math.max(0, Math.floor(videoStartSeconds));
+      youtubePlayer.playerReady ? youtubePlayer.getCurrentTime() : playbackFallbackRef.current;
     useFloatingJournalStore.getState().setPlaybackCaptureAvailable(canCapturePlaybackForJournal);
     return () => {
       floatingJournalPlaybackRef.current = null;
       useFloatingJournalStore.getState().setPlaybackCaptureAvailable(false);
     };
-  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, videoStartSeconds, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
+  }, [a, a?.id, a?.kind, canCapturePlaybackForJournal, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
 
   const normalizedPastePreview = useMemo(
     () => (pasteText.trim() ? normalizePastedTranscript(pasteText) : ""),
@@ -831,33 +647,16 @@ export default function ArtifactDetailPage() {
     document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  const getCurrentPlaybackSeconds = useCallback(() => {
-    if (youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
-    return Math.max(0, Math.floor(videoStartSeconds));
-  }, [youtubePlayer.playerReady, youtubePlayer.getCurrentTime, videoStartSeconds]);
+  const getCurrentPlaybackSeconds = getPlaybackSeconds;
 
-  const scrollTranscriptToSeconds = useCallback(
-    (seconds: number) => {
-      const source = transcriptSegments
-        .filter(
-          (segment) =>
-            !segment.isParagraphBreak && segment.startSeconds != null && segment.startSeconds <= seconds,
-        )
-        .sort((left, right) => (right.startSeconds ?? 0) - (left.startSeconds ?? 0))[0];
-      if (source) transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    },
-    [transcriptSegments],
-  );
-
-  const seekVideoToSeconds = useCallback(
-    (seconds: number) => {
-      const start = Math.max(0, Math.floor(seconds));
-      setVideoStartSeconds(start);
-      youtubePlayer.seekTo(start);
-      scrollTranscriptToSeconds(start);
-    },
-    [scrollTranscriptToSeconds, youtubePlayer.seekTo],
-  );
+  const getClaimSeekSeconds = useCallback((claim: Claim, source: TranscriptSegment | null | undefined) => {
+    if (source?.startSeconds != null && Number.isFinite(source.startSeconds)) {
+      return Math.max(0, Math.floor(source.startSeconds));
+    }
+    const chapter = claim.chapter_start_seconds;
+    if (chapter != null && Number.isFinite(chapter)) return Math.max(0, Math.floor(chapter));
+    return null;
+  }, []);
 
   const navSections = useMemo((): ArtifactNavSection[] => {
     if (!a || a.kind !== "youtube" || a.status !== "ready") return [];
@@ -1161,7 +960,19 @@ export default function ArtifactDetailPage() {
   const jumpToTranscriptSource = (segment: TranscriptSegment | null) => {
     if (!segment || segment.isParagraphBreak) return;
     transcriptRefs.current[segment.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds);
+    if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds, { play: true });
+  };
+
+  const playClaimAtSource = (claim: Claim, source: TranscriptSegment | null | undefined) => {
+    const seconds = getClaimSeekSeconds(claim, source);
+    if (seconds == null) {
+      jumpToTranscriptSource(source ?? null);
+      return;
+    }
+    if (source && !source.isParagraphBreak) {
+      transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    seekVideoToSeconds(seconds, { play: true });
   };
 
   const bookmarkAtSeconds = async (seconds: number, label?: string | null) => {
@@ -1251,6 +1062,12 @@ export default function ArtifactDetailPage() {
     const source = claimSources[c.id];
     const sourceClock = source ? formatClaimSourceClock(source.startSeconds, source.label) : null;
     const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
+    const claimSeekSeconds = getClaimSeekSeconds(c, source);
+    const canPlayClaim = Boolean(youTubeVideoId && claimSeekSeconds != null);
+    const chapterClock =
+      claimSeekSeconds != null && source?.startSeconds == null
+        ? formatTranscriptClock(claimSeekSeconds)
+        : null;
     const epistemology = parseClaimEpistemology(c.epistemology);
     const claimNumber = claimIndex + 1;
     const verdictAccent =
@@ -1307,26 +1124,57 @@ export default function ArtifactDetailPage() {
           </div>
           {source ? (
             <div className="space-y-3">
-              {sourceClock ? (
-                <p className="font-mono text-sm font-medium tabular-nums tracking-tight text-foreground/90">
-                  [{sourceClock}]
-                </p>
-              ) : null}
-              {sourceQuote ? (
-                <p className="font-sans text-sm leading-relaxed text-foreground line-clamp-4">
-                  {sourceQuote}
-                </p>
-              ) : (
-                <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
-                  Transcript excerpt unavailable.
-                </p>
-              )}
-              <Button size="sm" variant="outline" className="mt-0.5" onClick={() => jumpToTranscriptSource(source)}>
-                {sourceClock && source.startSeconds != null
-                  ? `Play from ${sourceClock}`
+              <button
+                type="button"
+                disabled={!canPlayClaim && source.startSeconds == null}
+                onClick={() => playClaimAtSource(c, source)}
+                className={cn(
+                  "w-full space-y-3 rounded-md text-left transition-colors",
+                  (canPlayClaim || source.startSeconds != null) &&
+                    "cursor-pointer hover:bg-muted/40 -mx-1 px-1 py-0.5",
+                )}
+              >
+                {sourceClock ? (
+                  <p className="font-mono text-sm font-medium tabular-nums tracking-tight text-foreground/90">
+                    [{sourceClock}]
+                  </p>
+                ) : null}
+                {sourceQuote ? (
+                  <p className="font-sans text-sm leading-relaxed text-foreground line-clamp-4">
+                    {sourceQuote}
+                  </p>
+                ) : (
+                  <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
+                    Transcript excerpt unavailable.
+                  </p>
+                )}
+              </button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-0.5"
+                disabled={!youTubeVideoId || (claimSeekSeconds == null && source.startSeconds == null)}
+                onClick={() => playClaimAtSource(c, source)}
+              >
+                {canPlayClaim && (sourceClock || chapterClock)
+                  ? `Play from ${sourceClock ?? chapterClock}`
                   : source.label
                     ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
                     : "Jump to transcript"}
+              </Button>
+            </div>
+          ) : canPlayClaim ? (
+            <div className="space-y-3">
+              <p className="font-sans text-sm leading-relaxed text-muted-foreground">
+                No linked transcript line — playback uses the chapter time for this claim.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-0.5"
+                onClick={() => playClaimAtSource(c, source)}
+              >
+                {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
               </Button>
             </div>
           ) : (
@@ -1623,26 +1471,14 @@ export default function ArtifactDetailPage() {
       })()}
 
       {inFlight && (
-        <div className="mb-5 rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium mb-1">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {stageLabel[a.status] ?? "Working…"}
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">{elapsed}s</span>
-          </div>
-          <p className="text-xs text-muted-foreground">{stageHint[a.status]}</p>
-          {a.status === "fetching" && elapsed > 90 && (
-            <p className="text-xs text-amber-700 mt-2">
-              Taking longer than expected. Long videos can take several minutes. You can also paste the transcript yourself.
-            </p>
-          )}
-          {(a.status === "fetching" || a.status === "transcribing") && (
-            <div className="mt-3">
-              <Button size="sm" variant="outline" onClick={() => setPasteOpen(true)}>
-                <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript instead
-              </Button>
-            </div>
-          )}
-        </div>
+        <ArtifactPipelineBanner
+          status={a.status}
+          kind={a.kind}
+          elapsed={elapsed}
+          label={stageLabel[a.status] ?? "Working…"}
+          hint={stageHint[a.status] ?? ""}
+          onPasteTranscript={() => setPasteOpen(true)}
+        />
       )}
 
       {a.error && a.status === "error" && (
@@ -1662,132 +1498,41 @@ export default function ArtifactDetailPage() {
       )}
 
       {youTubeVideoId ? (
-        <>
-          <ArtifactVideoStage
-            videoSlotRef={youtubePip.videoSlotRef}
-            mainScrollRef={mainScrollRef}
-            pipMode={youtubePip.pipMode}
-            pipLayout={youtubePip.pipOverlayLayout}
-            thumbnailUrl={mergedVideoMeta.thumbnail_url}
-            youTubeVideoId={youTubeVideoId}
-            playerMountRef={youtubePlayer.mountRef}
-            playerReady={youtubePlayer.playerReady}
-            playerLoading={youtubePlayer.playerLoading}
-            playerInitTimedOut={youtubePlayer.playerInitTimedOut}
-            isPlaying={youtubePlayer.isPlaying}
-            onTogglePlay={youtubePlayer.togglePlayback}
-            onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
-          >
-            <ArtifactCapturePanel
-              bookmarkLabel={bookmarkLabel}
-              onBookmarkLabelChange={setBookmarkLabel}
-              noteBody={noteBody}
-              onNoteBodyChange={setNoteBody}
-              polishResetKey={a.id}
-              moments={moments}
-              canCapture={canCaptureMoments}
-              saving={savingMoment}
-              onBookmark={bookmarkCurrentMoment}
-              onSaveNote={addNoteAtCurrentMoment}
-              onBelieve={believeCurrentMoment}
-              onStudyJournal={openStudyJournal}
-              onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-              onOpenJournalFull={() => openJournalFromArtifact()}
-              onSeekMoment={seekVideoToSeconds}
-              hasTranscript={Boolean(a.raw_text?.trim())}
-            />
-          </ArtifactVideoStage>
-          <ArtifactYoutubePipOverlay
-            active={youtubePip.pipMode}
-            layout={youtubePip.pipOverlayLayout}
-            isPlaying={youtubePlayer.isPlaying}
-            onTogglePlay={youtubePlayer.togglePlayback}
-            onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
-            onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
-            onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
-            onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}
-            onResizePointerDown={youtubePip.onPipResizePointerDown}
-            onResizePointerMove={youtubePip.onPipResizePointerMove}
-            onResizePointerUp={youtubePip.onPipResizePointerUp}
-          />
-        </>
+        <ArtifactYoutubeVideoBlock
+          youTubeVideoId={youTubeVideoId}
+          thumbnailUrl={mergedVideoMeta.thumbnail_url}
+          youtubePip={youtubePip}
+          youtubePlayer={youtubePlayer}
+          playback={videoPlayback}
+          artifactId={a.id}
+          moments={moments}
+          bookmarkLabel={bookmarkLabel}
+          onBookmarkLabelChange={setBookmarkLabel}
+          noteBody={noteBody}
+          onNoteBodyChange={setNoteBody}
+          canCaptureMoments={canCaptureMoments}
+          savingMoment={savingMoment}
+          hasTranscript={Boolean(a.raw_text?.trim())}
+          onBookmark={bookmarkCurrentMoment}
+          onSaveNote={addNoteAtCurrentMoment}
+          onBelieve={believeCurrentMoment}
+          onStudyJournal={openStudyJournal}
+          onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+          onOpenJournalFull={() => openJournalFromArtifact()}
+        />
       ) : null}
 
       {a.kind === "youtube" && a.url && (
-        <section
-          id="chapters"
-          className={cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5")}
-        >
-          {a.status === "ready" && (
-            <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-              {youtubeChaptersSourceLabel ?? (
-                <>
-                  <span className="font-medium text-foreground">Chapters</span> help you jump through the talk. We use the creator&apos;s description timestamps when available; otherwise we outline sections from your transcript.
-                </>
-              )}
-            </p>
-          )}
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-medium">
-            <LayoutList className="h-4 w-4 text-muted-foreground" aria-hidden />
-            Chapters
-            {youtubeChaptersList.length > 0 && (
-              <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                {youtubeChaptersList.length} section{youtubeChaptersList.length === 1 ? "" : "s"}
-              </span>
-            )}
-            {a.status === "ready" && a.raw_text && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="ml-auto h-7 text-xs"
-                disabled={generatingChapters || inFlight}
-                onClick={() => generateChaptersFromTranscript(youtubeChaptersList.length > 0)}
-              >
-                {generatingChapters ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-1 h-3.5 w-3.5" />
-                )}
-                {generatingChapters
-                  ? "Generating…"
-                  : youtubeChaptersList.length > 0
-                    ? "Regenerate"
-                    : "Generate from transcript"}
-              </Button>
-            )}
-          </div>
-          {youtubeChaptersList.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {youtubeChaptersList.map((chapter, idx) => (
-                <button
-                  key={`${chapter.start_seconds}-${idx}`}
-                  type="button"
-                  onClick={() => seekVideoToSeconds(chapter.start_seconds)}
-                  className="rounded-lg border border-border bg-muted/15 p-3 text-left text-sm transition hover:border-foreground/40 hover:bg-muted/30"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium leading-snug">{chapter.title}</span>
-                    <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                      {formatTranscriptClock(chapter.start_seconds)}
-                    </span>
-                  </div>
-                  <span className="mt-2 inline-flex items-center text-xs text-muted-foreground">
-                    Jump to this point <ArrowRight className="ml-1 h-3 w-3" />
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : a.status === "ready" ? (
-            <p className="text-xs text-muted-foreground">
-              {generatingChapters
-                ? "Outlining sections from your transcript…"
-                : "No chapters yet. Tap Generate from transcript, or wait — we try automatically when the transcript is ready."}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Chapters appear after the transcript is ready.</p>
-          )}
-        </section>
+        <ArtifactChaptersSection
+          status={a.status}
+          rawText={a.raw_text}
+          chapters={youtubeChaptersList}
+          chaptersSourceLabel={youtubeChaptersSourceLabel}
+          generatingChapters={generatingChapters}
+          inFlight={inFlight}
+          onGenerateChapters={generateChaptersFromTranscript}
+          onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+        />
       )}
 
       {a.kind === "youtube" && a.status === "ready" && youtubeChaptersList.length === 0 && (
@@ -1914,32 +1659,15 @@ export default function ArtifactDetailPage() {
       )}
 
       {a.status === "ready" && claims.length > 0 && (
-        <div id="claims" className="scroll-mt-24 max-w-4xl space-y-6">
-          <ClaimsGlossary entries={glossaryEntries} onJump={jumpToClaim} className="mb-2" />
-          <div className="space-y-8">
-          {claimChapterLayout.grouped ? (
-            claimChapterLayout.groups.map((group) => (
-              <div key={group.id} className="space-y-3">
-                <div className="sticky top-0 z-[5] -mx-1 mb-1 flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2 font-medium text-sm text-foreground">
-                  <span className="min-w-0 leading-snug">{group.title}</span>
-                  {group.chapterStartSeconds != null ? (
-                    <span className="shrink-0 font-mono text-xs font-normal tabular-nums text-muted-foreground">
-                      {formatTranscriptClock(group.chapterStartSeconds)}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="space-y-5">
-                  {group.claims.map((c) => renderClaimCard(c, Math.max(0, claims.findIndex((x) => x.id === c.id))))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="space-y-5">
-              {claims.map((c, i) => renderClaimCard(c, i))}
-            </div>
-          )}
-          </div>
-        </div>
+        <ArtifactClaimsSection
+          claims={claims}
+          claimChapterLayout={claimChapterLayout}
+          glossaryEntries={glossaryEntries}
+          youTubeVideoId={youTubeVideoId}
+          onJumpToClaim={jumpToClaim}
+          onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+          renderClaimCard={renderClaimCard}
+        />
       )}
         </div>
 
@@ -1957,7 +1685,7 @@ export default function ArtifactDetailPage() {
               playerReady={youtubePlayer.playerReady}
               isPlaying={youtubePlayer.isPlaying}
               getPlaybackSeconds={getCurrentPlaybackSeconds}
-              onSeek={seekVideoToSeconds}
+              onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
               canBookmark={canCaptureMoments}
               bookmarking={savingMoment}
               onBookmarkSegment={(seconds, snippet) => void bookmarkAtSeconds(seconds, snippet)}

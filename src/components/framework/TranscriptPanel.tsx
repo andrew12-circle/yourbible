@@ -105,6 +105,7 @@ export default function TranscriptPanel({
   const prevActiveSegmentIdRef = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
+  const userPausedFollowUntilRef = useRef(0);
 
   useEffect(() => {
     const q = search.trim();
@@ -152,9 +153,10 @@ export default function TranscriptPanel({
 
   useEffect(() => {
     if (!playerReady) return;
-    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), 250);
+    const ms = followPlayback ? 250 : 500;
+    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), ms);
     return () => window.clearInterval(id);
-  }, [playerReady]);
+  }, [playerReady, followPlayback]);
 
   const defaultedFollowOnReadyRef = useRef(false);
   useEffect(() => {
@@ -188,6 +190,7 @@ export default function TranscriptPanel({
 
   useEffect(() => {
     if (!playerReady || searchActive || !activeSegmentId || !highlightActive || !followPlayback) return;
+    if (Date.now() < userPausedFollowUntilRef.current) return;
     if (!isPlaying) return;
 
     const segmentChanged = prevActiveSegmentIdRef.current !== activeSegmentId;
@@ -235,6 +238,7 @@ export default function TranscriptPanel({
 
   const seekFromSegment = useCallback(
     (seconds: number) => {
+      userPausedFollowUntilRef.current = 0;
       setFollowPlayback(true);
       prevActiveSegmentIdRef.current = null;
       markProgrammaticScroll();

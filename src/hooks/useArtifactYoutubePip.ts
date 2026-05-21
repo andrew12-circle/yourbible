@@ -31,6 +31,41 @@ export function useArtifactYoutubePip(options: {
   const pipLayoutRef = useRef<ArtifactPipLayout | null>(null);
   pipLayoutRef.current = pipLayout;
   const pipPointerRef = useRef<PipPointerSession | null>(null);
+  const pipDragRafRef = useRef<number | null>(null);
+  const [pipLayoutSyncKey, setPipLayoutSyncKey] = useState(0);
+
+  const commitPipLayout = useCallback(
+    (next: ArtifactPipLayout, persist = true) => {
+      const clamped = clampArtifactPipLayout(next);
+      pipLayoutRef.current = clamped;
+      setPipLayout(clamped);
+      if (persist && artifactId) writePipLayoutToSession(artifactId, clamped);
+    },
+    [artifactId],
+  );
+
+  const schedulePipLayoutDuringGesture = useCallback(
+    (next: ArtifactPipLayout) => {
+      pipLayoutRef.current = clampArtifactPipLayout(next);
+      if (pipDragRafRef.current != null) return;
+      pipDragRafRef.current = window.requestAnimationFrame(() => {
+        pipDragRafRef.current = null;
+        if (pipLayoutRef.current) setPipLayout(pipLayoutRef.current);
+      });
+    },
+    [],
+  );
+
+  const finishPipGesture = useCallback(() => {
+    if (pipDragRafRef.current != null) {
+      window.cancelAnimationFrame(pipDragRafRef.current);
+      pipDragRafRef.current = null;
+    }
+    if (pipLayoutRef.current && artifactId) {
+      writePipLayoutToSession(artifactId, pipLayoutRef.current);
+    }
+    setPipLayoutSyncKey((k) => k + 1);
+  }, [artifactId]);
 
   useEffect(() => {
     if (!enabled) {
@@ -139,6 +174,7 @@ export function useArtifactYoutubePip(options: {
     setPipLayout((prev) =>
       prev == null ? clampArtifactPipLayout(defaultArtifactPipLayout()) : clampArtifactPipLayout(prev),
     );
+    setPipLayoutSyncKey((k) => k + 1);
   }, [pipMode, artifactId]);
 
   useEffect(() => {
@@ -163,8 +199,7 @@ export function useArtifactYoutubePip(options: {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || !artifactId) return;
       const current = clampArtifactPipLayout(pipLayoutRef.current ?? defaultArtifactPipLayout());
-      setPipLayout(current);
-      writePipLayoutToSession(artifactId, current);
+      commitPipLayout(current);
       pipPointerRef.current = {
         kind: "drag",
         pointerId: e.pointerId,
@@ -176,41 +211,44 @@ export function useArtifactYoutubePip(options: {
       };
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [artifactId],
+    [artifactId, commitPipLayout],
   );
 
   const onPipDragHeaderPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       const s = pipPointerRef.current;
       if (!s || s.kind !== "drag" || s.pointerId !== e.pointerId || !artifactId) return;
-      const next = clampArtifactPipLayout({
+      schedulePipLayoutDuringGesture({
         left: s.startL + (e.clientX - s.startX),
         top: s.startT + (e.clientY - s.startY),
         width: s.width,
       });
-      setPipLayout(next);
-      writePipLayoutToSession(artifactId, next);
     },
     [artifactId],
   );
 
-  const onPipDragHeaderPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const s = pipPointerRef.current;
-    if (s?.pointerId === e.pointerId) pipPointerRef.current = null;
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const onPipDragHeaderPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const s = pipPointerRef.current;
+      if (s?.pointerId === e.pointerId) {
+        pipPointerRef.current = null;
+        finishPipGesture();
+      }
+      try {
+        (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [finishPipGesture],
+  );
 
   const onPipResizePointerDown = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
       if (e.button !== 0 || !artifactId) return;
       e.stopPropagation();
       const current = clampArtifactPipLayout(pipLayoutRef.current ?? defaultArtifactPipLayout());
-      setPipLayout(current);
-      writePipLayoutToSession(artifactId, current);
+      commitPipLayout(current);
       pipPointerRef.current = {
         kind: "resize",
         pointerId: e.pointerId,
@@ -222,7 +260,7 @@ export function useArtifactYoutubePip(options: {
       };
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [artifactId],
+    [artifactId, commitPipLayout],
   );
 
   const onPipResizePointerMove = useCallback(
@@ -232,11 +270,9 @@ export function useArtifactYoutubePip(options: {
       const dw = e.clientX - s.startX;
       const maxW = maxPipVideoWidthForTopLeft(s.startL, s.startT);
       const w = Math.min(Math.max(PIP_MIN_W, s.startW + dw), maxW);
-      const next = clampArtifactPipLayout({ left: s.startL, top: s.startT, width: w });
-      setPipLayout(next);
-      writePipLayoutToSession(artifactId, next);
+      schedulePipLayoutDuringGesture({ left: s.startL, top: s.startT, width: w });
     },
-    [artifactId],
+    [schedulePipLayoutDuringGesture],
   );
 
   const onPipResizePointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
@@ -255,10 +291,17 @@ export function useArtifactYoutubePip(options: {
     [pipLayout],
   );
 
+  /** Coarse key for YouTube iframe resize — bumps on inline/PiP switch and after drag/resize ends. */
+  const youtubeLayoutKey = useMemo(
+    () => (pipMode ? `pip:w${pipOverlayLayout.width}:k${pipLayoutSyncKey}` : "inline"),
+    [pipMode, pipOverlayLayout.width, pipLayoutSyncKey],
+  );
+
   return {
     videoSlotRef,
     pipMode,
     pipOverlayLayout,
+    youtubeLayoutKey,
     scrollVideoIntoView,
     onPipDragHeaderPointerDown,
     onPipDragHeaderPointerMove,

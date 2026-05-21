@@ -45,17 +45,43 @@ function loadYouTubeIframeApi(): Promise<void> {
   if (apiLoadPromise) return apiLoadPromise;
 
   apiLoadPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (window.YT?.Player) resolve();
+    };
+
+    if (window.YT?.Player) {
+      resolve();
+      return;
+    }
+
     const previous = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       previous?.();
-      resolve();
+      finish();
     };
+
     const existing = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
     if (!existing) {
       const tag = document.createElement("script");
       tag.src = "https://www.youtube.com/iframe_api";
       tag.async = true;
       document.head.appendChild(tag);
+    } else {
+      // Script may already be on the page while the ready callback already ran (SPA navigation).
+      let attempts = 0;
+      const poll = () => {
+        if (window.YT?.Player) {
+          finish();
+          return;
+        }
+        attempts += 1;
+        if (attempts > 600) {
+          resolve();
+          return;
+        }
+        window.requestAnimationFrame(poll);
+      };
+      poll();
     }
   });
 
@@ -65,6 +91,12 @@ function loadYouTubeIframeApi(): Promise<void> {
 const MIN_HOST_PX = 8;
 const MAX_INIT_ATTEMPTS = 240;
 
+/**
+ * Player lifecycle contract:
+ * - Create / destroy: only when `videoId` or `enabled` changes, or on page unmount.
+ * - `layoutKey`: triggers ResizeObserver + setSize only — never destroys the iframe.
+ * - `seekTo`: updates position and optional play — never destroys the iframe.
+ */
 export function useYouTubeEmbedPlayer(options: {
   videoId: string | null;
   enabled: boolean;
@@ -80,12 +112,15 @@ export function useYouTubeEmbedPlayer(options: {
   const mountedVideoIdRef = useRef<string | null>(null);
   const playingRef = useRef(false);
   const resumeOnVisibleRef = useRef(false);
+  const pendingSeekRef = useRef<number | null>(null);
   const startRef = useRef(startSeconds);
   startRef.current = startSeconds;
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initTimedOut, setInitTimedOut] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [reinitNonce, setReinitNonce] = useState(0);
+  const hookMountedRef = useRef(false);
 
   const syncPlayerSize = useCallback((host: HTMLElement) => {
     if (!playerRef.current) return;
@@ -103,6 +138,18 @@ export function useYouTubeEmbedPlayer(options: {
         /* player not ready */
       }
     });
+  }, []);
+
+  const applyPendingSeek = useCallback(() => {
+    const pending = pendingSeekRef.current;
+    if (pending == null || !playerRef.current) return;
+    pendingSeekRef.current = null;
+    try {
+      playerRef.current.seekTo(pending, true);
+      startRef.current = pending;
+    } catch {
+      /* player not ready */
+    }
   }, []);
 
   const persistPlayback = useCallback(() => {
@@ -125,6 +172,7 @@ export function useYouTubeEmbedPlayer(options: {
       /* player already torn down */
     }
     playerRef.current = null;
+    pendingSeekRef.current = null;
     mountedVideoIdRef.current = null;
     playingRef.current = false;
     setPlaying(false);
@@ -150,17 +198,65 @@ export function useYouTubeEmbedPlayer(options: {
     );
     startRef.current = initialStart;
 
+    let initAttempts = 0;
+
     const initPlayer = () => {
-      if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) return false;
+      if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) {
+        // #region agent log
+        if (initAttempts === 0 || initAttempts % 60 === 0) {
+          fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+            body: JSON.stringify({
+              sessionId: "85534b",
+              hypothesisId: "H-host",
+              location: "useYouTubeEmbedPlayer.ts:initPlayer:skip",
+              message: "initPlayer skipped",
+              data: {
+                cancelled,
+                hasMount: Boolean(mountRef.current),
+                hasYt: Boolean(window.YT?.Player),
+                videoId: videoId?.slice(0, 8),
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+        }
+        // #endregion
+        return false;
+      }
 
       const host = mountRef.current.parentElement;
-      if (!host || host.clientWidth < MIN_HOST_PX || host.clientHeight < MIN_HOST_PX) return false;
+      if (!host || host.clientWidth < MIN_HOST_PX || host.clientHeight < MIN_HOST_PX) {
+        // #region agent log
+        if (initAttempts === 0 || initAttempts % 60 === 0) {
+          fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+            body: JSON.stringify({
+              sessionId: "85534b",
+              hypothesisId: "H-host",
+              location: "useYouTubeEmbedPlayer.ts:initPlayer:hostSize",
+              message: "host too small",
+              data: {
+                w: host?.clientWidth ?? 0,
+                h: host?.clientHeight ?? 0,
+                parentTag: host?.tagName ?? mountRef.current.parentElement?.tagName ?? "none",
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+        }
+        // #endregion
+        return false;
+      }
 
       if (playerRef.current && mountedVideoIdRef.current === videoId) {
         syncPlayerSize(host);
         setReady(true);
         setLoading(false);
         setInitTimedOut(false);
+        applyPendingSeek();
         return true;
       }
 
@@ -183,11 +279,26 @@ export function useYouTubeEmbedPlayer(options: {
           },
           events: {
             onReady: () => {
+              // #region agent log
+              fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+                body: JSON.stringify({
+                  sessionId: "85534b",
+                  hypothesisId: "H-ready",
+                  location: "useYouTubeEmbedPlayer.ts:onReady",
+                  message: "YT onReady",
+                  data: { cancelled, videoId: videoId?.slice(0, 8) },
+                  timestamp: Date.now(),
+                }),
+              }).catch(() => {});
+              // #endregion
               if (!cancelled) {
                 setReady(true);
                 setLoading(false);
                 setInitTimedOut(false);
                 syncPlayerSize(host);
+                applyPendingSeek();
                 if (resumeOnVisibleRef.current) {
                   resumeOnVisibleRef.current = false;
                   resumeIfWasPlaying(true);
@@ -205,6 +316,20 @@ export function useYouTubeEmbedPlayer(options: {
           },
         });
         mountedVideoIdRef.current = videoId;
+        // #region agent log
+        fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+          body: JSON.stringify({
+            sessionId: "85534b",
+            hypothesisId: "H-create",
+            location: "useYouTubeEmbedPlayer.ts:playerCreated",
+            message: "YT.Player constructed",
+            data: { videoId: videoId?.slice(0, 8), hostW: host.clientWidth, hostH: host.clientHeight },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
       } catch (err) {
         console.error("[useYouTubeEmbedPlayer] failed to create player", err);
         destroyPlayer();
@@ -217,7 +342,20 @@ export function useYouTubeEmbedPlayer(options: {
     setReady(false);
     setLoading(true);
     setInitTimedOut(false);
-    let initAttempts = 0;
+    // #region agent log
+    fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+      body: JSON.stringify({
+        sessionId: "85534b",
+        hypothesisId: "H-api",
+        location: "useYouTubeEmbedPlayer.ts:effect:start",
+        message: "player init effect start",
+        data: { videoId: videoId?.slice(0, 8), enabled, reinitNonce },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     const scheduleInit = () => {
       if (cancelled) return;
       if (initPlayer()) return;
@@ -231,6 +369,20 @@ export function useYouTubeEmbedPlayer(options: {
     };
 
     void loadYouTubeIframeApi().then(() => {
+      // #region agent log
+      fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "85534b" },
+        body: JSON.stringify({
+          sessionId: "85534b",
+          hypothesisId: "H-api",
+          location: "useYouTubeEmbedPlayer.ts:apiReady",
+          message: "iframe API ready",
+          data: { hasYt: Boolean(window.YT?.Player), cancelled },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (!cancelled) scheduleInit();
     });
 
@@ -246,15 +398,22 @@ export function useYouTubeEmbedPlayer(options: {
     destroyPlayer,
     enabled,
     persistPlayback,
+    applyPendingSeek,
     resumeIfWasPlaying,
     syncPlayerSize,
     videoId,
+    reinitNonce,
   ]);
 
   useEffect(() => {
+    hookMountedRef.current = true;
     return () => {
+      hookMountedRef.current = false;
       persistPlayback();
-      destroyPlayer();
+      // Defer destroy so Strict Mode remount can reuse the iframe before onReady fires.
+      queueMicrotask(() => {
+        if (!hookMountedRef.current) destroyPlayer();
+      });
     };
   }, [destroyPlayer, persistPlayback]);
 
@@ -306,14 +465,22 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const seekTo = useCallback(
-    (seconds: number) => {
+    (seconds: number, options?: { play?: boolean }) => {
       const s = Math.max(0, Math.floor(seconds));
       startRef.current = s;
       if (artifactId) writePlaybackSecondsToSession(artifactId, s);
+      if (!playerRef.current) {
+        pendingSeekRef.current = s;
+        return;
+      }
       try {
-        playerRef.current?.seekTo(s, true);
+        playerRef.current.seekTo(s, true);
+        pendingSeekRef.current = null;
+        if (options?.play) {
+          playerRef.current.playVideo();
+        }
       } catch {
-        /* ignore */
+        pendingSeekRef.current = s;
       }
     },
     [artifactId],
@@ -342,6 +509,13 @@ export function useYouTubeEmbedPlayer(options: {
     else playVideo();
   }, [pauseVideo, playVideo]);
 
+  const reinit = useCallback(() => {
+    destroyPlayer();
+    setInitTimedOut(false);
+    setLoading(true);
+    setReinitNonce((n) => n + 1);
+  }, [destroyPlayer]);
+
   return useMemo(
     () => ({
       mountRef,
@@ -355,6 +529,7 @@ export function useYouTubeEmbedPlayer(options: {
       playVideo,
       pauseVideo,
       togglePlayback,
+      reinit,
     }),
     [
       getCurrentTime,
@@ -367,6 +542,7 @@ export function useYouTubeEmbedPlayer(options: {
       ready,
       seekTo,
       togglePlayback,
+      reinit,
     ],
   );
 }

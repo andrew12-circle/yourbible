@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { GripVertical, Maximize2, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 
 type Props = {
@@ -35,7 +36,10 @@ export default function ArtifactYoutubePipOverlay({
 
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[61]"
+      className={cn(
+        "pointer-events-none fixed z-[61] overflow-hidden",
+        artifactVideoRadius,
+      )}
       style={{
         left: layout.left,
         top: layout.top,
@@ -46,7 +50,7 @@ export default function ArtifactYoutubePipOverlay({
       aria-label="Picture-in-picture controls"
     >
       <div
-        className="pointer-events-auto absolute inset-x-0 top-0 z-20 flex h-8 cursor-grab touch-none select-none items-center bg-gradient-to-b from-black/70 to-transparent px-2 active:cursor-grabbing"
+        className="pointer-events-auto absolute inset-x-0 top-0 z-20 flex h-8 cursor-grab touch-none select-none items-center rounded-t-xl bg-gradient-to-b from-black/70 to-transparent px-2 active:cursor-grabbing"
         onPointerDown={onDragHeaderPointerDown}
         onPointerMove={onDragHeaderPointerMove}
         onPointerUp={onDragHeaderPointerUp}
