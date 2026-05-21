@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { useIsDesktop } from "@/hooks/use-desktop";
-import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
+import { isArtifactPipVideo, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -15,8 +14,8 @@ export function useArtifactVideoPlayback(options: {
   const { artifactId, youTubeVideoId, mainScrollRef, transcriptSegments, transcriptRefs } = options;
   const playbackFallbackRef = useRef(0);
   const playWhenReadyRef = useRef(false);
-  const isDesktop = useIsDesktop(ARTIFACT_VIDEO_DESKTOP_MIN_PX);
-  const pipEnabled = Boolean(youTubeVideoId) && isDesktop;
+  const layoutMode = useArtifactLayoutMode();
+  const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
 
   const [userActivated, setUserActivated] = useState(false);
 

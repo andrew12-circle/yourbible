@@ -6,6 +6,8 @@ import {
   PIP_EXIT_VISIBLE_RATIO,
   PIP_MIN_W,
   pipVisibilitySignal,
+  shouldAllowPipEnter,
+  shouldUseScrollRootForPipIo,
 } from "./artifactYoutubePip";
 
 describe("pipVisibilitySignal", () => {
@@ -26,6 +28,29 @@ describe("pipVisibilitySignal", () => {
   it("holds hysteresis band while in PIP", () => {
     expect(pipVisibilitySignal(true, 0.2)).toBe("cancel_exit");
     expect(pipVisibilitySignal(false, 0.2)).toBe("cancel_enter");
+  });
+});
+
+describe("shouldUseScrollRootForPipIo", () => {
+  it("uses scroll root only when target is inside the lg split-pane scroller", () => {
+    const scroll = document.createElement("div");
+    const child = document.createElement("div");
+    const outside = document.createElement("div");
+    scroll.appendChild(child);
+    document.body.append(scroll, outside);
+    expect(shouldUseScrollRootForPipIo(scroll, child, true)).toBe(true);
+    expect(shouldUseScrollRootForPipIo(scroll, outside, true)).toBe(false);
+    expect(shouldUseScrollRootForPipIo(scroll, child, false)).toBe(false);
+    scroll.remove();
+    outside.remove();
+  });
+});
+
+describe("shouldAllowPipEnter", () => {
+  it("blocks enter until armed", () => {
+    expect(shouldAllowPipEnter(false, "enter")).toBe(false);
+    expect(shouldAllowPipEnter(true, "enter")).toBe(true);
+    expect(shouldAllowPipEnter(true, "cancel_enter")).toBe(false);
   });
 });
 

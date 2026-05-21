@@ -52,8 +52,11 @@ import ArtifactClaimsSection from "@/components/framework/artifact-detail/Artifa
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
-import { useIsDesktop } from "@/hooks/use-desktop";
-import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
+import {
+  isArtifactLayoutDesktop,
+  isArtifactStickyVideo,
+  useArtifactLayoutMode,
+} from "@/hooks/useArtifactLayoutMode";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
@@ -348,9 +351,8 @@ export default function ArtifactDetailPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"study" | "transcript">("study");
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
-  const isDesktop = useIsDesktop();
-  /** Tablets (md+) use desktop PiP video; phones use sticky player under in-page chrome. */
-  const isVideoDesktop = useIsDesktop(ARTIFACT_VIDEO_DESKTOP_MIN_PX);
+  const layoutMode = useArtifactLayoutMode();
+  const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const createProcessingToken = () => crypto.randomUUID();
 
   const navigateToArtifactHash = useCallback((hash: string) => {
@@ -1421,7 +1423,7 @@ export default function ArtifactDetailPage() {
   );
 
   const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
-  const stickyVideoMode = Boolean(youTubeVideoId) && !isVideoDesktop;
+  const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
 
   const mobileTabBar =
     !isDesktop && a.raw_text?.trim() ? (
@@ -1544,33 +1546,6 @@ export default function ArtifactDetailPage() {
             !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col",
           )}
         >
-        {youTubeVideoId && isVideoDesktop ? (
-          <ArtifactYoutubeVideoBlock
-            youTubeVideoId={youTubeVideoId}
-            thumbnailUrl={mergedVideoMeta.thumbnail_url}
-            youtubePip={youtubePip}
-            pipEnabled={pipEnabled}
-            stickyMode={false}
-            youtubePlayer={youtubePlayer}
-            playback={videoPlayback}
-            artifactId={a.id}
-            moments={moments}
-            bookmarkLabel={bookmarkLabel}
-            onBookmarkLabelChange={setBookmarkLabel}
-            noteBody={noteBody}
-            onNoteBodyChange={setNoteBody}
-            canCaptureMoments={canCaptureMoments}
-            savingMoment={savingMoment}
-            hasTranscript={Boolean(a.raw_text?.trim())}
-            onBookmark={bookmarkCurrentMoment}
-            onSaveNote={addNoteAtCurrentMoment}
-            onBelieve={believeCurrentMoment}
-            onStudyJournal={openStudyJournal}
-            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-            onOpenJournalFull={() => openJournalFromArtifact()}
-          />
-        ) : null}
-
         <div
           ref={mainScrollRef}
           className={cn(
@@ -1580,13 +1555,13 @@ export default function ArtifactDetailPage() {
               : "space-y-5 sm:space-y-6",
           )}
         >
-        {youTubeVideoId && !isVideoDesktop ? (
+        {youTubeVideoId ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
-            displayTitle={displayTitle}
-            channel={mergedVideoMeta.channel_title}
-            channelUrl={mergedVideoMeta.channel_url}
-            providerName={mergedVideoMeta.provider_name}
+            displayTitle={stickyVideoMode ? displayTitle : undefined}
+            channel={stickyVideoMode ? mergedVideoMeta.channel_title : undefined}
+            channelUrl={stickyVideoMode ? mergedVideoMeta.channel_url : undefined}
+            providerName={stickyVideoMode ? mergedVideoMeta.provider_name : undefined}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
             youtubePip={youtubePip}
             pipEnabled={pipEnabled}
@@ -1608,10 +1583,10 @@ export default function ArtifactDetailPage() {
             onStudyJournal={openStudyJournal}
             onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
             onOpenJournalFull={() => openJournalFromArtifact()}
-            mobileTabBar={mobileTabBar}
+            mobileTabBar={stickyVideoMode ? mobileTabBar : undefined}
             mobileActiveTab={mobileTab}
             mobileMenuOpen={mobileMenuOpen}
-            onMobileMenuOpenChange={setMobileMenuOpen}
+            onMobileMenuOpenChange={stickyVideoMode ? setMobileMenuOpen : undefined}
             menuSections={navSections}
             menuActiveHash={pageSectionHash}
             menuShowPaste={a.kind === "youtube"}
@@ -1629,7 +1604,11 @@ export default function ArtifactDetailPage() {
           />
         ) : null}
       {isDesktop || mobileTab !== "transcript" ? (
-        <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
+        <ArtifactSectionNav
+          sections={navSections}
+          activeHash={pageSectionHash}
+          stickyVideoLayout={stickyVideoMode}
+        />
       ) : null}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {

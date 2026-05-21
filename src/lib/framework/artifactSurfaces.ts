@@ -1,7 +1,13 @@
 import { cn } from "@/lib/utils";
 
-/** Viewport width at which artifact YouTube uses desktop PiP (not mobile/tablet sticky). Matches `lg`. */
+/** Viewport width at which framework header is shown on YouTube detail (`md`). */
+export const ARTIFACT_TABLET_MIN_PX = 768;
+
+/** Viewport width at which study layout uses split pane + side transcript. Matches `lg`. */
 export const ARTIFACT_VIDEO_DESKTOP_MIN_PX = 1024;
+
+/** Viewport width at which video uses PiP on scroll (tablet + desktop). Phones use sticky. Matches `md`. */
+export const ARTIFACT_VIDEO_PIP_MIN_PX = ARTIFACT_TABLET_MIN_PX;
 
 /** Shared surfaces for artifact detail study layout */
 export const artifactCard = cn(
@@ -18,8 +24,8 @@ export const sectionLabel = cn("text-[11px] font-medium text-muted-foreground");
 /** Hash jump offset below framework header (desktop / non-sticky video). */
 export const artifactScrollMt = "scroll-mt-32";
 
-/** Mobile: header + sticky 16:9 video + tab bar. */
-export const artifactScrollMtMobile = "scroll-mt-[calc(3.5rem+56.25vw+2.75rem)] lg:scroll-mt-32";
+/** Phone/tablet sticky video: measured header + 16:9 video + optional chrome band. */
+export { artifactScrollMtStickyVideo as artifactScrollMtMobile } from "@/lib/framework/artifactLayoutCss";
 
 /** Mobile study column: divider stack (no nested card chrome per section). */
 export const artifactStudyStackMobile = "divide-y divide-border/50";

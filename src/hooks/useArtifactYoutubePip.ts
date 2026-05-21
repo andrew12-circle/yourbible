@@ -9,6 +9,7 @@ import {
   PIP_EXIT_VISIBLE_RATIO,
   PIP_IO_THRESHOLDS,
   pipVisibilitySignal,
+  shouldUseScrollRootForPipIo,
   readPipLayoutFromSession,
   writePipLayoutToSession,
   type ArtifactPipLayout,
@@ -149,10 +150,8 @@ export function useArtifactYoutubePip(options: {
       if (!target) return;
       io?.disconnect();
       const scrollRoot = mainScrollRef.current;
-      const useScrollRootAsRoot =
-        scrollRoot != null &&
-        scrollRoot.contains(target) &&
-        window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`).matches;
+      const splitPaneScroll = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`).matches;
+      const useScrollRootAsRoot = shouldUseScrollRootForPipIo(scrollRoot, target, splitPaneScroll);
       io = new IntersectionObserver(onIntersection, {
         threshold: [...PIP_IO_THRESHOLDS],
         root: useScrollRootAsRoot ? scrollRoot : null,
@@ -208,8 +207,10 @@ export function useArtifactYoutubePip(options: {
   const scrollVideoIntoView = useCallback(() => {
     setPipMode(false);
     pipEnterArmedRef.current = true;
+    const scrollRoot = mainScrollRef.current;
+    scrollRoot?.scrollTo({ top: 0, behavior: "smooth" });
     videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }, [mainScrollRef]);
 
   const onPipDragHeaderPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {

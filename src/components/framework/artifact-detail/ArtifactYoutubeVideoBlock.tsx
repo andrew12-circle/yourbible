@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, type ReactNode } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
@@ -21,8 +21,11 @@ import type { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback"
 import type { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import type { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";
-import { useIsDesktop } from "@/hooks/use-desktop";
-import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
+import {
+  isArtifactLayoutDesktop,
+  isArtifactPipVideo,
+  useArtifactLayoutMode,
+} from "@/hooks/useArtifactLayoutMode";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
 type Player = ReturnType<typeof useYouTubeEmbedPlayer>;
@@ -120,10 +123,27 @@ function ArtifactYoutubeVideoBlock({
   onMenuReanalyze,
   backTo = "/framework/artifacts",
 }: Props) {
-  const isDesktop = useIsDesktop();
-  const isVideoDesktop = useIsDesktop(ARTIFACT_VIDEO_DESKTOP_MIN_PX);
-  const transcriptTabActive = stickyMode && !isVideoDesktop && mobileActiveTab === "transcript";
-  const showMobileCaptureSection = stickyMode && !isVideoDesktop && mobileActiveTab === "study";
+  const layoutMode = useArtifactLayoutMode();
+  const isDesktop = isArtifactLayoutDesktop(layoutMode);
+  const usesPipVideo = isArtifactPipVideo(layoutMode, true);
+  const mobileChromeRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!stickyMode || usesPipVideo) return;
+    const chrome = mobileChromeRef.current;
+    const root = chrome?.closest(".min-h-screen") as HTMLElement | null;
+    if (!chrome || !root) return;
+    const sync = () => {
+      const h = chrome.getBoundingClientRect().height;
+      root.style.setProperty("--artifact-sticky-chrome-h", `${Math.max(0, Math.ceil(h))}px`);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(chrome);
+    return () => ro.disconnect();
+  }, [stickyMode, usesPipVideo]);
+  const transcriptTabActive = stickyMode && !usesPipVideo && mobileActiveTab === "transcript";
+  const showMobileCaptureSection = stickyMode && !usesPipVideo && mobileActiveTab === "study";
   const captureControlled = showMobileCaptureSection;
   const [captureOpen, setCaptureOpen] = useState(false);
   const [noteSectionOpen, setNoteSectionOpen] = useState(false);
@@ -181,7 +201,7 @@ function ArtifactYoutubeVideoBlock({
   );
 
   const mobileVideoMeta =
-    stickyMode && !isVideoDesktop ? (
+    stickyMode && !usesPipVideo ? (
       <div className="md:hidden">
       <ArtifactMobileVideoMeta
         displayTitle={displayTitle?.trim() || "Untitled video"}
@@ -200,8 +220,8 @@ function ArtifactYoutubeVideoBlock({
   }, [onMobileMenuOpenChange]);
 
   const scrollableMobileChrome =
-    stickyMode && !isVideoDesktop ? (
-      <div className="border-b border-border/50 bg-background lg:hidden">
+    stickyMode && !usesPipVideo ? (
+      <div ref={mobileChromeRef} className="border-b border-border/50 bg-background lg:hidden">
         {mobileVideoMeta}
         <ArtifactQuickCaptureRow
           canCapture={canCaptureMoments}
@@ -247,7 +267,7 @@ function ArtifactYoutubeVideoBlock({
         {!stickyMode ? captureSection : null}
       </ArtifactVideoStage>
       {scrollableMobileChrome}
-      {stickyMode && !isVideoDesktop && onMobileMenuOpenChange ? (
+      {stickyMode && !usesPipVideo && onMobileMenuOpenChange ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}
           onOpenChange={onMobileMenuOpenChange}

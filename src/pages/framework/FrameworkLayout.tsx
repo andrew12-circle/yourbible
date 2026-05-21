@@ -1,5 +1,9 @@
 import { ReactNode, useLayoutEffect, useRef } from "react";
-import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
+import {
+  ARTIFACT_TABLET_MIN_PX,
+  ARTIFACT_VIDEO_PIP_MIN_PX,
+} from "@/lib/framework/artifactSurfaces";
+import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -80,9 +84,9 @@ export default function FrameworkLayout({
     if (!root) return;
 
     const sync = () => {
-      const phone = window.matchMedia("(max-width: 767px)").matches;
-      const videoDesktop = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`).matches;
-      if (phone || videoDesktop) {
+      const phone = window.matchMedia(`(max-width: ${ARTIFACT_TABLET_MIN_PX - 1}px)`).matches;
+      const pipVideoLayout = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_PIP_MIN_PX}px)`).matches;
+      if (phone || pipVideoLayout) {
         root.style.setProperty("--artifact-header-h", "0px");
         return;
       }
@@ -92,11 +96,13 @@ export default function FrameworkLayout({
       }
     };
 
+    root.style.setProperty("--artifact-sticky-video-h", ARTIFACT_STICKY_VIDEO_H);
+
     sync();
     const ro = header ? new ResizeObserver(sync) : null;
     if (header) ro?.observe(header);
-    const mqlPhone = window.matchMedia("(max-width: 767px)");
-    const mqlDesktop = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`);
+    const mqlPhone = window.matchMedia(`(max-width: ${ARTIFACT_TABLET_MIN_PX - 1}px)`);
+    const mqlDesktop = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_PIP_MIN_PX}px)`);
     mqlPhone.addEventListener("change", sync);
     mqlDesktop.addEventListener("change", sync);
     window.addEventListener("resize", sync);
@@ -111,14 +117,19 @@ export default function FrameworkLayout({
   return (
     <div
       ref={layoutRootRef}
-      className="min-h-screen bg-background font-sans text-foreground"
-      style={{
-        ["--artifact-header-h" as string]: immersiveMobileMinimal
-          ? "0px"
-          : compactMobileHeader
-            ? "3.5rem"
-            : "4.5rem",
-      }}
+      className={cn(
+        "min-h-screen bg-background font-sans text-foreground",
+        immersiveMobileMinimal &&
+          "max-md:[--artifact-header-h:0px] md:max-lg:[--artifact-header-h:4.75rem] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px]",
+      )}
+      style={
+        immersiveMobileMinimal
+          ? undefined
+          : {
+              ["--artifact-header-h" as string]: compactMobileHeader ? "3.5rem" : "4.5rem",
+              ["--artifact-sticky-video-h" as string]: ARTIFACT_STICKY_VIDEO_H,
+            }
+      }
     >
       <header
         ref={frameworkHeaderRef}

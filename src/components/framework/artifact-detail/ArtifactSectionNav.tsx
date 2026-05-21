@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { artifactSectionNavStickyBelowVideo } from "@/lib/framework/artifactLayoutCss";
 import { sectionLabel } from "@/lib/framework/artifactSurfaces";
 
 export type ArtifactNavSection = {
@@ -19,6 +20,8 @@ export type ArtifactNavSection = {
 type Props = {
   sections: ArtifactNavSection[];
   activeHash: string;
+  /** When true, pin below sticky video + framework header (phone/tablet window scroll). */
+  stickyVideoLayout?: boolean;
   className?: string;
 };
 
@@ -29,7 +32,12 @@ function navigateToHash(hash: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-export default function ArtifactSectionNav({ sections, activeHash, className }: Props) {
+export default function ArtifactSectionNav({
+  sections,
+  activeHash,
+  stickyVideoLayout = false,
+  className,
+}: Props) {
   if (!sections.length) return null;
 
   const resolvedHash = sections.some((s) => s.hash === activeHash)
@@ -40,7 +48,10 @@ export default function ArtifactSectionNav({ sections, activeHash, className }: 
     <nav
       aria-label="On this page"
       className={cn(
-        "sticky top-0 z-[15] -mx-0.5 mb-4 hidden rounded-2xl border border-border/40 bg-muted/40 p-1.5 backdrop-blur-md supports-[backdrop-filter]:bg-muted/30 md:block sm:rounded-full sm:border-0 sm:p-1",
+        "-mx-0.5 mb-4 hidden rounded-2xl border border-border/40 bg-muted/40 p-1.5 backdrop-blur-md supports-[backdrop-filter]:bg-muted/30 md:block sm:rounded-full sm:border-0 sm:p-1",
+        stickyVideoLayout
+          ? artifactSectionNavStickyBelowVideo
+          : "sticky top-0 z-[15]",
         className,
       )}
     >

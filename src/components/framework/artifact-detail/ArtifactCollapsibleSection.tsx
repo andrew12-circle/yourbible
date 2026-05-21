@@ -5,7 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useIsDesktop } from "@/hooks/use-desktop";
+import { useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import {
   artifactScrollMt,
   artifactScrollMtMobile,
@@ -54,7 +54,8 @@ export default function ArtifactCollapsibleSection({
   className,
   children,
 }: Props) {
-  const isDesktop = useIsDesktop();
+  const layoutMode = useArtifactLayoutMode();
+  const isDesktop = layoutMode === "desktop";
   const triggerId = useId();
   const defaultOpen = isDesktop ? defaultOpenDesktop : defaultOpenMobile;
   const [openInternal, setOpenInternal] = useState(() => {
@@ -84,7 +85,7 @@ export default function ArtifactCollapsibleSection({
     }
   };
 
-  const scrollMt = isDesktop ? artifactScrollMt : artifactScrollMtMobile;
+  const scrollMt = layoutMode === "phone" ? artifactScrollMtMobile : artifactScrollMt;
 
   return (
     <Collapsible

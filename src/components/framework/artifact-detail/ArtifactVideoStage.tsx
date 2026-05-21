@@ -53,6 +53,9 @@ export default function ArtifactVideoStage({
   const showLoading =
     playerActivated && (playerLoading || playerInitTimedOut) && !playerReady;
   const showPosterPlay = !pipMode && !playerActivated && Boolean(onActivateAndPlay);
+  const showPipPauseOverlay =
+    pipMode && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
+  const showPipThumbnail = pipMode && (showPoster || showPipPauseOverlay);
 
   const playerShell = (
     <div
@@ -68,7 +71,7 @@ export default function ArtifactVideoStage({
               "absolute inset-0 z-[2] overflow-hidden rounded-[inherit]",
               showPoster ? "bg-transparent" : "bg-black",
             ),
-        (canToggleInline || showPosterPlay) && "cursor-pointer",
+        (canToggleInline || showPosterPlay || showPipPauseOverlay) && "cursor-pointer",
       )}
       style={
         pipMode
@@ -86,12 +89,12 @@ export default function ArtifactVideoStage({
               e.stopPropagation();
               onActivateAndPlay?.();
             }
-          : canToggleInline
+          : canToggleInline || showPipPauseOverlay
             ? onTogglePlay
             : undefined
       }
       onKeyDown={
-        showPosterPlay || canToggleInline
+        showPosterPlay || canToggleInline || showPipPauseOverlay
           ? (e) => {
               if (e.key === " " || e.key === "Enter") {
                 e.preventDefault();
@@ -101,12 +104,12 @@ export default function ArtifactVideoStage({
             }
           : undefined
       }
-      role={showPosterPlay || canToggleInline ? "button" : undefined}
-      tabIndex={showPosterPlay || canToggleInline ? 0 : undefined}
+      role={showPosterPlay || canToggleInline || showPipPauseOverlay ? "button" : undefined}
+      tabIndex={showPosterPlay || canToggleInline || showPipPauseOverlay ? 0 : undefined}
       aria-label={
         showPosterPlay
           ? "Load and play video"
-          : canToggleInline
+          : canToggleInline || showPipPauseOverlay
             ? isPlaying
               ? "Pause video"
               : "Play video"
@@ -120,7 +123,20 @@ export default function ArtifactVideoStage({
           !playerActivated && !pipMode && "invisible",
         )}
       >
-        <div ref={playerMountRef} className="h-full w-full [&_iframe]:block" />
+        {showPipThumbnail ? (
+          <img
+            src={thumb}
+            alt=""
+            className="absolute inset-0 z-[1] h-full w-full object-cover"
+          />
+        ) : null}
+        <div
+          ref={playerMountRef}
+          className={cn(
+            "relative h-full w-full [&_iframe]:block",
+            showPipThumbnail && playerActivated && playerReady && "invisible",
+          )}
+        />
         {canToggleInline && !isPlaying ? (
           <div
             className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/20"
@@ -128,6 +144,16 @@ export default function ArtifactVideoStage({
           >
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 text-white">
               <Play className="h-7 w-7" aria-hidden />
+            </span>
+          </div>
+        ) : null}
+        {showPipPauseOverlay ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/25"
+            aria-hidden
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white shadow-lg ring-2 ring-white/20">
+              <Play className="h-6 w-6 ml-0.5" aria-hidden />
             </span>
           </div>
         ) : null}
@@ -234,7 +260,9 @@ export default function ArtifactVideoStage({
           className={cn(
             "sticky z-[29] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95",
           )}
-          style={{ top: "var(--artifact-header-h, 0px)" }}
+          style={{
+            top: "calc(var(--artifact-header-h, 0px) + env(safe-area-inset-top, 0px))",
+          }}
         >
           {videoBlock}
         </div>

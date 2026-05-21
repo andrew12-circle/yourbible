@@ -15,6 +15,23 @@ export const PIP_IO_THRESHOLDS = [0, 0.1, 0.25, 0.5, 0.75, 1] as const;
 export type PipVisibilitySignal = "enter" | "exit" | "cancel_enter" | "cancel_exit" | "hold";
 
 /** Hysteresis: stay in PIP between enter/exit ratios until debounced transition completes. */
+/**
+ * PiP IO uses the study scroll root when the slot is inside it and that column scrolls (lg split pane).
+ * Tablet uses window scroll (viewport root) even though the slot is in the same DOM subtree.
+ */
+export function shouldUseScrollRootForPipIo(
+  scrollRoot: HTMLElement | null,
+  target: HTMLElement | null,
+  splitPaneScrollRoot: boolean,
+): boolean {
+  return Boolean(scrollRoot && target && scrollRoot.contains(target) && splitPaneScrollRoot);
+}
+
+/** Block enter until the slot has been at least half visible (avoids false PiP on load). */
+export function shouldAllowPipEnter(armed: boolean, signal: PipVisibilitySignal): boolean {
+  return signal === "enter" && armed;
+}
+
 export function pipVisibilitySignal(inPip: boolean, intersectionRatio: number): PipVisibilitySignal {
   if (!inPip) {
     if (intersectionRatio < PIP_ENTER_VISIBLE_RATIO) return "enter";
