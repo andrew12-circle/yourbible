@@ -306,11 +306,21 @@ export function useYouTubeEmbedPlayer(options: {
               }
             },
             onStateChange: (e) => {
-              const playingState = window.YT?.PlayerState?.PLAYING;
-              if (playingState != null) {
-                const isPlaying = e.data === playingState;
-                playingRef.current = isPlaying;
-                setPlaying(isPlaying);
+              const PS = window.YT?.PlayerState;
+              if (!PS) return;
+              if (e.data === PS.PLAYING) {
+                playingRef.current = true;
+                setPlaying(true);
+              } else if (e.data === PS.BUFFERING) {
+                if (playingRef.current) setPlaying(true);
+              } else if (
+                e.data === PS.PAUSED ||
+                e.data === PS.ENDED ||
+                e.data === PS.UNSTARTED ||
+                e.data === PS.CUED
+              ) {
+                playingRef.current = false;
+                setPlaying(false);
               }
             },
           },
@@ -489,6 +499,8 @@ export function useYouTubeEmbedPlayer(options: {
   const getIsPlaying = useCallback(() => playingRef.current, []);
 
   const playVideo = useCallback(() => {
+    playingRef.current = true;
+    setPlaying(true);
     try {
       playerRef.current?.playVideo();
     } catch {
@@ -497,6 +509,8 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const pauseVideo = useCallback(() => {
+    playingRef.current = false;
+    setPlaying(false);
     try {
       playerRef.current?.pauseVideo();
     } catch {

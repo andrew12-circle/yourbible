@@ -1,5 +1,16 @@
 import type { ReactNode } from "react";
-import { Copy, Eye, EyeOff, Loader2, NotebookPen, Pause, Play, Search, Sparkles } from "lucide-react";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  Loader2,
+  LocateFixed,
+  NotebookPen,
+  Pause,
+  Play,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import { sectionLabel } from "@/lib/framework/artifactSurfaces";
@@ -12,6 +23,9 @@ type Props = {
   fullPageJournalLabel: string;
   showTimestamps: boolean;
   onToggleTimestamps: () => void;
+  isPlaying?: boolean;
+  onTogglePlayback?: () => void;
+  showPlaybackControl?: boolean;
   followPlayback: boolean;
   onToggleFollowPlayback: () => void;
   showFollowControl: boolean;
@@ -30,6 +44,9 @@ export default function TranscriptToolbar({
   fullPageJournalLabel,
   showTimestamps,
   onToggleTimestamps,
+  isPlaying = false,
+  onTogglePlayback,
+  showPlaybackControl = false,
   followPlayback,
   onToggleFollowPlayback,
   showFollowControl,
@@ -84,10 +101,19 @@ export default function TranscriptToolbar({
           active={!showTimestamps}
           onClick={onToggleTimestamps}
         />
+        {showPlaybackControl && onTogglePlayback ? (
+          <ClaimIconActionButton
+            label={isPlaying ? "Pause video" : "Play video"}
+            icon={isPlaying ? Pause : Play}
+            tone="researchLater"
+            active={isPlaying}
+            onClick={onTogglePlayback}
+          />
+        ) : null}
         {showFollowControl ? (
           <ClaimIconActionButton
             label={followPlayback ? "Following playback" : "Follow playback"}
-            icon={followPlayback ? Pause : Play}
+            icon={LocateFixed}
             tone="researchLater"
             active={followPlayback}
             onClick={onToggleFollowPlayback}

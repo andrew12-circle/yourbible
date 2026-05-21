@@ -54,6 +54,7 @@ export interface TranscriptPanelProps {
   embedAvailable: boolean;
   playerReady: boolean;
   isPlaying?: boolean;
+  onTogglePlayback?: () => void;
   getPlaybackSeconds: () => number;
   onSeek: (seconds: number) => void;
   canBookmark?: boolean;
@@ -79,6 +80,7 @@ export default function TranscriptPanel({
   embedAvailable,
   playerReady,
   isPlaying = false,
+  onTogglePlayback,
   getPlaybackSeconds,
   onSeek,
   canBookmark,
@@ -280,6 +282,9 @@ export default function TranscriptPanel({
             return next;
           });
         }}
+        isPlaying={isPlaying}
+        onTogglePlayback={onTogglePlayback}
+        showPlaybackControl={timed && playerReady && embedAvailable}
         showFollowControl={timed && playerReady}
         onStudyJournal={onStudyJournal}
         showFormatButton={showFormatButton}

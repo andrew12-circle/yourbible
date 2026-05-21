@@ -1684,6 +1684,7 @@ export default function ArtifactDetailPage() {
               embedAvailable={Boolean(youTubeVideoId)}
               playerReady={youtubePlayer.playerReady}
               isPlaying={youtubePlayer.isPlaying}
+              onTogglePlayback={youtubePlayer.togglePlayback}
               getPlaybackSeconds={getCurrentPlaybackSeconds}
               onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
               canBookmark={canCaptureMoments}
