@@ -388,10 +388,22 @@ export function useYouTubeEmbedPlayer(options: {
   useLayoutEffect(() => {
     const host = mountRef.current?.parentElement;
     if (!host || !playerRef.current) return;
-    syncPlayerSize(host);
-    const ro = new ResizeObserver(() => syncPlayerSize(host));
+
+    const sync = () => syncPlayerSize(host);
+    sync();
+    const ro = new ResizeObserver(() => sync());
     ro.observe(host);
-    return () => ro.disconnect();
+
+    // PiP moves the shell to `position: fixed` (often portaled); re-measure after layout settles.
+    const raf1 = window.requestAnimationFrame(() => {
+      sync();
+      window.requestAnimationFrame(sync);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      ro.disconnect();
+    };
   }, [layoutKey, ready, syncPlayerSize]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+import { ReactNode, useLayoutEffect, useRef } from "react";
+import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,8 +70,47 @@ export default function FrameworkLayout({
   const headerMax =
     headerContentClassName ??
     (studioLibrary ? "max-w-[min(92rem,calc(100vw-1.25rem))]" : "max-w-4xl");
+  const layoutRootRef = useRef<HTMLDivElement>(null);
+  const frameworkHeaderRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (!immersiveMobileMinimal) return;
+    const root = layoutRootRef.current;
+    const header = frameworkHeaderRef.current;
+    if (!root) return;
+
+    const sync = () => {
+      const phone = window.matchMedia("(max-width: 767px)").matches;
+      const videoDesktop = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`).matches;
+      if (phone || videoDesktop) {
+        root.style.setProperty("--artifact-header-h", "0px");
+        return;
+      }
+      if (header) {
+        const h = header.getBoundingClientRect().height;
+        root.style.setProperty("--artifact-header-h", `${Math.max(0, Math.ceil(h))}px`);
+      }
+    };
+
+    sync();
+    const ro = header ? new ResizeObserver(sync) : null;
+    if (header) ro?.observe(header);
+    const mqlPhone = window.matchMedia("(max-width: 767px)");
+    const mqlDesktop = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`);
+    mqlPhone.addEventListener("change", sync);
+    mqlDesktop.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      ro?.disconnect();
+      mqlPhone.removeEventListener("change", sync);
+      mqlDesktop.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [immersiveMobileMinimal]);
+
   return (
     <div
+      ref={layoutRootRef}
       className="min-h-screen bg-background font-sans text-foreground"
       style={{
         ["--artifact-header-h" as string]: immersiveMobileMinimal
@@ -81,6 +121,7 @@ export default function FrameworkLayout({
       }}
     >
       <header
+        ref={frameworkHeaderRef}
         data-artifact-framework-header
         className={cn(
           "sticky top-0 z-30 border-b backdrop-blur-md",

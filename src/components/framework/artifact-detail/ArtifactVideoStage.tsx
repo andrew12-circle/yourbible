@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Loader2, Maximize2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactInset, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
@@ -53,119 +54,129 @@ export default function ArtifactVideoStage({
     playerActivated && (playerLoading || playerInitTimedOut) && !playerReady;
   const showPosterPlay = !pipMode && !playerActivated && Boolean(onActivateAndPlay);
 
+  const playerShell = (
+    <div
+      data-youtube-player-shell
+      className={cn(
+        pipMode
+          ? cn(
+              "fixed z-[60]",
+              artifactVideoRadius,
+              "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
+            )
+          : cn(
+              "absolute inset-0 z-[2] overflow-hidden rounded-[inherit]",
+              showPoster ? "bg-transparent" : "bg-black",
+            ),
+        (canToggleInline || showPosterPlay) && "cursor-pointer",
+      )}
+      style={
+        pipMode
+          ? {
+              left: pipLayout.left,
+              top: pipLayout.top,
+              width: pipLayout.width,
+              height: pipHeight,
+            }
+          : undefined
+      }
+      onClick={
+        showPosterPlay
+          ? (e) => {
+              e.stopPropagation();
+              onActivateAndPlay?.();
+            }
+          : canToggleInline
+            ? onTogglePlay
+            : undefined
+      }
+      onKeyDown={
+        showPosterPlay || canToggleInline
+          ? (e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                if (showPosterPlay) onActivateAndPlay?.();
+                else onTogglePlay?.();
+              }
+            }
+          : undefined
+      }
+      role={showPosterPlay || canToggleInline ? "button" : undefined}
+      tabIndex={showPosterPlay || canToggleInline ? 0 : undefined}
+      aria-label={
+        showPosterPlay
+          ? "Load and play video"
+          : canToggleInline
+            ? isPlaying
+              ? "Pause video"
+              : "Play video"
+            : undefined
+      }
+    >
+      <div
+        className={cn(
+          "relative h-full w-full",
+          pipMode ? cn(artifactVideoRadius, "isolate overflow-hidden bg-black") : undefined,
+          !playerActivated && !pipMode && "invisible",
+        )}
+      >
+        <div ref={playerMountRef} className="h-full w-full [&_iframe]:block" />
+        {canToggleInline && !isPlaying ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/20"
+            aria-hidden
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 text-white">
+              <Play className="h-7 w-7" aria-hidden />
+            </span>
+          </div>
+        ) : null}
+        {showLoading ? (
+          <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+            <span className="text-xs font-medium">
+              {playerInitTimedOut ? "Video is taking longer than usual…" : "Loading video…"}
+            </span>
+            {playerInitTimedOut && onReinitPlayer ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="mt-1 h-8 gap-1.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReinitPlayer();
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                Reload video
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const portaledPlayerShell =
+    pipMode && typeof document !== "undefined"
+      ? createPortal(playerShell, document.body)
+      : playerShell;
+
   const videoBlock = (
     <div
       ref={videoSlotRef}
       className={cn(
-        "relative aspect-video w-full shrink-0 overflow-hidden",
+        "relative aspect-video w-full shrink-0",
+        pipMode ? "overflow-visible" : "overflow-hidden",
         artifactInset,
       )}
     >
-      <div
-        data-youtube-player-shell
-        className={cn(
-          pipMode
-            ? cn(
-                "fixed z-[60]",
-                artifactVideoRadius,
-                "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
-              )
-            : cn(
-                "absolute inset-0 z-[2] overflow-hidden rounded-[inherit]",
-                showPoster ? "bg-transparent" : "bg-black",
-              ),
-          (canToggleInline || showPosterPlay) && "cursor-pointer",
-        )}
-        style={
-          pipMode
-            ? {
-                left: pipLayout.left,
-                top: pipLayout.top,
-                width: pipLayout.width,
-                height: pipHeight,
-              }
-            : undefined
-        }
-        onClick={
-          showPosterPlay
-            ? (e) => {
-                e.stopPropagation();
-                onActivateAndPlay?.();
-              }
-            : canToggleInline
-              ? onTogglePlay
-              : undefined
-        }
-        onKeyDown={
-          showPosterPlay || canToggleInline
-            ? (e) => {
-                if (e.key === " " || e.key === "Enter") {
-                  e.preventDefault();
-                  if (showPosterPlay) onActivateAndPlay?.();
-                  else onTogglePlay?.();
-                }
-              }
-            : undefined
-        }
-        role={showPosterPlay || canToggleInline ? "button" : undefined}
-        tabIndex={showPosterPlay || canToggleInline ? 0 : undefined}
-        aria-label={
-          showPosterPlay
-            ? "Load and play video"
-            : canToggleInline
-              ? isPlaying
-                ? "Pause video"
-                : "Play video"
-              : undefined
-        }
-      >
-        <div
-          className={cn(
-            "relative h-full w-full",
-            pipMode ? cn(artifactVideoRadius, "isolate overflow-hidden bg-black") : undefined,
-            !playerActivated && !pipMode && "invisible",
-          )}
-        >
-          <div ref={playerMountRef} className="h-full w-full [&_iframe]:block" />
-          {canToggleInline && !isPlaying ? (
-            <div
-              className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/20"
-              aria-hidden
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 text-white">
-                <Play className="h-7 w-7" aria-hidden />
-              </span>
-            </div>
-          ) : null}
-          {showLoading ? (
-            <div
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90"
-              role="status"
-              aria-live="polite"
-            >
-              <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-              <span className="text-xs font-medium">
-                {playerInitTimedOut ? "Video is taking longer than usual…" : "Loading video…"}
-              </span>
-              {playerInitTimedOut && onReinitPlayer ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="mt-1 h-8 gap-1.5 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReinitPlayer();
-                  }}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                  Reload video
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
+      {portaledPlayerShell}
 
       {!pipMode ? (
         <>
@@ -221,7 +232,7 @@ export default function ArtifactVideoStage({
         <div
           id="video"
           className={cn(
-            "sticky z-[25] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95",
+            "sticky z-[29] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95",
           )}
           style={{ top: "var(--artifact-header-h, 0px)" }}
         >
@@ -245,7 +256,12 @@ export default function ArtifactVideoStage({
   return (
     <section
       id="video"
-      className={cn(artifactCard, artifactScrollMt, "mb-0 overflow-hidden p-3 sm:p-4 lg:mb-0 lg:p-3")}
+      className={cn(
+        artifactCard,
+        artifactScrollMt,
+        "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3",
+        pipMode ? "overflow-visible" : "overflow-hidden",
+      )}
     >
       <div className="p-3 sm:p-4 lg:p-0">{videoBlock}</div>
       {children ? <div className="p-3 sm:p-4 lg:p-4">{children}</div> : null}

@@ -1,5 +1,8 @@
 import { cn } from "@/lib/utils";
 
+/** Viewport width at which artifact YouTube uses desktop PiP (not mobile/tablet sticky). Matches `lg`. */
+export const ARTIFACT_VIDEO_DESKTOP_MIN_PX = 1024;
+
 /** Shared surfaces for artifact detail study layout */
 export const artifactCard = cn(
   "rounded-2xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)]",

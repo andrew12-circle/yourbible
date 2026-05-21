@@ -22,6 +22,7 @@ import type { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import type { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";
 import { useIsDesktop } from "@/hooks/use-desktop";
+import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
 type Player = ReturnType<typeof useYouTubeEmbedPlayer>;
@@ -120,8 +121,9 @@ function ArtifactYoutubeVideoBlock({
   backTo = "/framework/artifacts",
 }: Props) {
   const isDesktop = useIsDesktop();
-  const transcriptTabActive = stickyMode && !isDesktop && mobileActiveTab === "transcript";
-  const showMobileCaptureSection = stickyMode && !isDesktop && mobileActiveTab === "study";
+  const isVideoDesktop = useIsDesktop(ARTIFACT_VIDEO_DESKTOP_MIN_PX);
+  const transcriptTabActive = stickyMode && !isVideoDesktop && mobileActiveTab === "transcript";
+  const showMobileCaptureSection = stickyMode && !isVideoDesktop && mobileActiveTab === "study";
   const captureControlled = showMobileCaptureSection;
   const [captureOpen, setCaptureOpen] = useState(false);
   const [noteSectionOpen, setNoteSectionOpen] = useState(false);
@@ -179,7 +181,8 @@ function ArtifactYoutubeVideoBlock({
   );
 
   const mobileVideoMeta =
-    stickyMode && !isDesktop ? (
+    stickyMode && !isVideoDesktop ? (
+      <div className="md:hidden">
       <ArtifactMobileVideoMeta
         displayTitle={displayTitle?.trim() || "Untitled video"}
         channel={channel}
@@ -189,6 +192,7 @@ function ArtifactYoutubeVideoBlock({
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
       />
+      </div>
     ) : null;
 
   const openStudyMenu = useCallback(() => {
@@ -196,7 +200,7 @@ function ArtifactYoutubeVideoBlock({
   }, [onMobileMenuOpenChange]);
 
   const scrollableMobileChrome =
-    stickyMode && !isDesktop ? (
+    stickyMode && !isVideoDesktop ? (
       <div className="border-b border-border/50 bg-background lg:hidden">
         {mobileVideoMeta}
         <ArtifactQuickCaptureRow
@@ -243,7 +247,7 @@ function ArtifactYoutubeVideoBlock({
         {!stickyMode ? captureSection : null}
       </ArtifactVideoStage>
       {scrollableMobileChrome}
-      {stickyMode && !isDesktop && onMobileMenuOpenChange ? (
+      {stickyMode && !isVideoDesktop && onMobileMenuOpenChange ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}
           onOpenChange={onMobileMenuOpenChange}

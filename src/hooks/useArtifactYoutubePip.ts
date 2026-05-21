@@ -6,12 +6,14 @@ import {
   PIP_MIN_W,
   PIP_ENTER_DELAY_MS,
   PIP_EXIT_DELAY_MS,
+  PIP_EXIT_VISIBLE_RATIO,
   PIP_IO_THRESHOLDS,
   pipVisibilitySignal,
   readPipLayoutFromSession,
   writePipLayoutToSession,
   type ArtifactPipLayout,
 } from "@/lib/framework/artifactYoutubePip";
+import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
 
 type PipPointerSession =
   | { kind: "drag"; pointerId: number; startX: number; startY: number; startL: number; startT: number; width: number }
@@ -33,6 +35,8 @@ export function useArtifactYoutubePip(options: {
   const pipPointerRef = useRef<PipPointerSession | null>(null);
   const pipDragRafRef = useRef<number | null>(null);
   const [pipLayoutSyncKey, setPipLayoutSyncKey] = useState(0);
+  /** Ignore spurious "enter" until the slot has been visibly in-flow at least once (avoids load-time false PiP). */
+  const pipEnterArmedRef = useRef(false);
 
   const commitPipLayout = useCallback(
     (next: ArtifactPipLayout, persist = true) => {
@@ -70,8 +74,11 @@ export function useArtifactYoutubePip(options: {
   useEffect(() => {
     if (!enabled) {
       setPipMode(false);
+      pipEnterArmedRef.current = false;
       return;
     }
+
+    pipEnterArmedRef.current = false;
 
     let io: IntersectionObserver | null = null;
     let enterTimer: ReturnType<typeof setTimeout> | null = null;
@@ -100,10 +107,15 @@ export function useArtifactYoutubePip(options: {
       const entry = entries[0];
       if (!entry) return;
 
+      if (entry.intersectionRatio >= PIP_EXIT_VISIBLE_RATIO) {
+        pipEnterArmedRef.current = true;
+      }
+
       const signal = pipVisibilitySignal(pipModeRef.current, entry.intersectionRatio);
 
       switch (signal) {
         case "enter":
+          if (!pipEnterArmedRef.current) break;
           clearExitTimer();
           if (enterTimer == null) {
             enterTimer = setTimeout(() => {
@@ -137,11 +149,13 @@ export function useArtifactYoutubePip(options: {
       if (!target) return;
       io?.disconnect();
       const scrollRoot = mainScrollRef.current;
-      const root =
-        scrollRoot && window.matchMedia("(min-width: 1024px)").matches ? scrollRoot : null;
+      const useScrollRootAsRoot =
+        scrollRoot != null &&
+        scrollRoot.contains(target) &&
+        window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_DESKTOP_MIN_PX}px)`).matches;
       io = new IntersectionObserver(onIntersection, {
         threshold: [...PIP_IO_THRESHOLDS],
-        root,
+        root: useScrollRootAsRoot ? scrollRoot : null,
       });
       io.observe(target);
     };
@@ -192,6 +206,8 @@ export function useArtifactYoutubePip(options: {
   }, [pipMode, artifactId]);
 
   const scrollVideoIntoView = useCallback(() => {
+    setPipMode(false);
+    pipEnterArmedRef.current = true;
     videoSlotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 

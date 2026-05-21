@@ -53,6 +53,7 @@ import ArtifactHeaderActions from "@/components/framework/artifact-detail/Artifa
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
 import { useIsDesktop } from "@/hooks/use-desktop";
+import { ARTIFACT_VIDEO_DESKTOP_MIN_PX } from "@/lib/framework/artifactSurfaces";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
@@ -348,6 +349,8 @@ export default function ArtifactDetailPage() {
   const [mobileTab, setMobileTab] = useState<"study" | "transcript">("study");
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
   const isDesktop = useIsDesktop();
+  /** Tablets (md+) use desktop PiP video; phones use sticky player under in-page chrome. */
+  const isVideoDesktop = useIsDesktop(ARTIFACT_VIDEO_DESKTOP_MIN_PX);
   const createProcessingToken = () => crypto.randomUUID();
 
   const navigateToArtifactHash = useCallback((hash: string) => {
@@ -1418,7 +1421,7 @@ export default function ArtifactDetailPage() {
   );
 
   const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
-  const stickyVideoMode = Boolean(youTubeVideoId) && !isDesktop;
+  const stickyVideoMode = Boolean(youTubeVideoId) && !isVideoDesktop;
 
   const mobileTabBar =
     !isDesktop && a.raw_text?.trim() ? (
@@ -1541,7 +1544,7 @@ export default function ArtifactDetailPage() {
             !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col",
           )}
         >
-        {youTubeVideoId && isDesktop ? (
+        {youTubeVideoId && isVideoDesktop ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
@@ -1577,7 +1580,7 @@ export default function ArtifactDetailPage() {
               : "space-y-5 sm:space-y-6",
           )}
         >
-        {youTubeVideoId && !isDesktop ? (
+        {youTubeVideoId && !isVideoDesktop ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
             displayTitle={displayTitle}
