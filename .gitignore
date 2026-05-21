@@ -29,5 +29,6 @@ dist-ssr
 !.env.example
 .vercel
 
-# GitHub Actions workflow (local only until push has workflow OAuth scope)
+# GitHub Actions workflows (Cursor OAuth cannot push these without `workflow` scope)
 .github/workflows/deploy-supabase-functions.yml
+.github/workflows/ci.yml
