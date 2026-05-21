@@ -37,7 +37,7 @@ export default function ArtifactYoutubePipOverlay({
   return createPortal(
     <div
       className={cn(
-        "pointer-events-none fixed z-[61] overflow-hidden",
+        "pointer-events-none fixed z-[81] overflow-hidden",
         artifactVideoRadius,
       )}
       style={{

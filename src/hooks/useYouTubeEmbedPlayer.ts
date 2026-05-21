@@ -90,6 +90,67 @@ function loadYouTubeIframeApi(): Promise<void> {
 
 const MIN_HOST_PX = 8;
 const MAX_INIT_ATTEMPTS = 240;
+
+// #region agent log
+const dbgYt = (
+  hypothesisId: string,
+  message: string,
+  data: Record<string, unknown>,
+  location = "useYouTubeEmbedPlayer.ts",
+) => {
+  const payload = {
+    sessionId: "c783b2",
+    hypothesisId,
+    location,
+    message,
+    data,
+    timestamp: Date.now(),
+  };
+  try {
+    const key = "debug:c783b2";
+    const prev = sessionStorage.getItem(key);
+    const arr = prev ? (JSON.parse(prev) as unknown[]) : [];
+    arr.push(payload);
+    sessionStorage.setItem(key, JSON.stringify(arr.slice(-80)));
+  } catch {
+    /* ignore */
+  }
+  fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c783b2" },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+};
+
+function iframeAttachedToMount(mount: HTMLDivElement | null): boolean {
+  const iframe = mount?.querySelector("iframe");
+  return iframe instanceof HTMLIFrameElement && mount.contains(iframe);
+}
+
+function playerHostElement(mount: HTMLDivElement | null): HTMLElement | null {
+  if (!mount) return null;
+  const shell = mount.closest("[data-youtube-player-shell]");
+  if (shell instanceof HTMLElement) return shell;
+  return mount.parentElement;
+}
+
+function hostLayoutPx(host: HTMLElement | null): { w: number; h: number } {
+  if (!host) return { w: 0, h: 0 };
+  let w = host.clientWidth;
+  let h = host.clientHeight;
+  if (w < MIN_HOST_PX || h < MIN_HOST_PX) {
+    const rect = host.getBoundingClientRect();
+    w = rect.width;
+    h = rect.height;
+  }
+  return { w, h };
+}
+
+function hostHasLayout(host: HTMLElement | null): boolean {
+  const { w, h } = hostLayoutPx(host);
+  return w >= MIN_HOST_PX && h >= MIN_HOST_PX;
+}
+// #endregion
 /** Clear loading overlay if YT onReady is slow but the iframe has loaded. */
 const IFRAME_READY_FALLBACK_MS = 6000;
 
@@ -168,6 +229,9 @@ export function useYouTubeEmbedPlayer(options: {
   }, [artifactId]);
 
   const destroyPlayer = useCallback(() => {
+    // #region agent log
+    dbgYt("H5", "destroyPlayer", { hadPlayer: Boolean(playerRef.current) });
+    // #endregion
     try {
       playerRef.current?.destroy();
     } catch {
@@ -182,6 +246,9 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   useLayoutEffect(() => {
+    // #region agent log
+    dbgYt("H1", "embed effect run", { enabled, videoId, layoutKey });
+    // #endregion
     if (!enabled || !videoId) {
       setLoading(false);
       setInitTimedOut(false);
@@ -205,10 +272,25 @@ export function useYouTubeEmbedPlayer(options: {
 
     const markReadyFromIframe = (host: HTMLElement) => {
       if (cancelled || !playerRef.current) return;
+      const mount = mountRef.current;
+      const attached = iframeAttachedToMount(mount);
+      const layoutHost = playerHostElement(mount) ?? host;
+      const { w: hostW, h: hostH } = hostLayoutPx(layoutHost);
+      // #region agent log
+      dbgYt("H4", "markReadyFromIframe", {
+        hostW,
+        hostH,
+        hasIframe: attached,
+        accepted: attached,
+      });
+      // #endregion
+      if (!attached) return;
       setReady(true);
       setLoading(false);
       setInitTimedOut(false);
-      syncPlayerSize(host);
+      requestAnimationFrame(() => {
+        if (layoutHost && hostHasLayout(layoutHost)) syncPlayerSize(layoutHost);
+      });
       applyPendingSeek();
     };
 
@@ -253,35 +335,76 @@ export function useYouTubeEmbedPlayer(options: {
     let initAttempts = 0;
 
     const initPlayer = () => {
-      if (cancelled || !mountRef.current || !videoId || !window.YT?.Player) {
+      if (cancelled) return false;
+      if (!mountRef.current || !videoId || !window.YT?.Player) {
+        // #region agent log
+        if (initAttempts === 0 || initAttempts % 60 === 0) {
+          dbgYt("H1", "init blocked: mount/api", {
+            initAttempts,
+            hasMount: Boolean(mountRef.current),
+            hasVideoId: Boolean(videoId),
+            hasYtPlayer: Boolean(window.YT?.Player),
+          });
+        }
+        // #endregion
         return false;
       }
 
-      const host = mountRef.current.parentElement;
-      if (!host || host.clientWidth < MIN_HOST_PX || host.clientHeight < MIN_HOST_PX) {
+      const host = playerHostElement(mountRef.current);
+      if (!hostHasLayout(host)) {
+        // #region agent log
+        if (initAttempts === 0 || initAttempts % 60 === 0) {
+          const { w, h } = hostLayoutPx(host);
+          dbgYt("H2", "init blocked: host size", {
+            initAttempts,
+            hostW: w,
+            hostH: h,
+          });
+        }
+        // #endregion
         return false;
       }
 
       if (playerRef.current && mountedVideoIdRef.current === videoId) {
-        syncPlayerSize(host);
-        setReady(true);
-        setLoading(false);
-        setInitTimedOut(false);
-        applyPendingSeek();
-        return true;
+        if (iframeAttachedToMount(mountRef.current)) {
+          syncPlayerSize(host!);
+          setReady(true);
+          setLoading(false);
+          setInitTimedOut(false);
+          applyPendingSeek();
+          // #region agent log
+          dbgYt("H6", "init reused existing player", {
+            hostW: host.clientWidth,
+            hostH: host.clientHeight,
+          });
+          // #endregion
+          return true;
+        }
+        // #region agent log
+        dbgYt("H5", "orphan player — iframe not in mount, recreating", { videoId });
+        // #endregion
+        destroyPlayer();
       }
 
-      destroyPlayer();
+      if (playerRef.current) destroyPlayer();
 
       try {
+        // #region agent log
+        const { w: hostW, h: hostH } = hostLayoutPx(host!);
+        dbgYt("H6", "creating YT.Player", {
+          hostW,
+          hostH,
+          videoId,
+        });
+        // #endregion
         playerRef.current = new window.YT.Player(mountRef.current, {
           videoId,
-          width: host.clientWidth,
-          height: host.clientHeight,
+          width: hostW,
+          height: hostH,
           playerVars: {
             start: initialStart,
-            controls: 0,
-            fs: 0,
+            controls: 1,
+            fs: 1,
             iv_load_policy: 3,
             modestbranding: 1,
             rel: 0,
@@ -291,11 +414,24 @@ export function useYouTubeEmbedPlayer(options: {
           events: {
             onReady: () => {
               if (!cancelled) {
+                const mount = mountRef.current;
+                const attached = iframeAttachedToMount(mount);
+                const layoutHost = playerHostElement(mount) ?? host;
+                const { w: hostW, h: hostH } = hostLayoutPx(layoutHost);
+                // #region agent log
+                dbgYt("H4", "YT onReady", {
+                  hostW,
+                  hostH,
+                  hasIframe: attached,
+                  accepted: attached,
+                });
+                // #endregion
                 clearIframeFallback();
+                if (!attached) return;
                 setReady(true);
                 setLoading(false);
                 setInitTimedOut(false);
-                syncPlayerSize(host);
+                if (layoutHost && hostHasLayout(layoutHost)) syncPlayerSize(layoutHost);
                 applyPendingSeek();
                 if (resumeOnVisibleRef.current) {
                   resumeOnVisibleRef.current = false;
@@ -324,8 +460,14 @@ export function useYouTubeEmbedPlayer(options: {
           },
         });
         mountedVideoIdRef.current = videoId;
-        armIframeLoadFallback(host);
+        setLoading(false);
+        armIframeLoadFallback(host!);
       } catch (err) {
+        // #region agent log
+        dbgYt("H3", "YT.Player create threw", {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        // #endregion
         console.error("[useYouTubeEmbedPlayer] failed to create player", err);
         destroyPlayer();
         setLoading(false);
@@ -334,14 +476,28 @@ export function useYouTubeEmbedPlayer(options: {
       return true;
     };
 
-    setReady(false);
-    setLoading(true);
-    setInitTimedOut(false);
+    const canReuse =
+      playerRef.current &&
+      mountedVideoIdRef.current === videoId &&
+      iframeAttachedToMount(mountRef.current);
+    if (!canReuse) {
+      setReady(false);
+      setLoading(true);
+      setInitTimedOut(false);
+    }
     const scheduleInit = () => {
       if (cancelled) return;
       if (initPlayer()) return;
       initAttempts += 1;
       if (initAttempts > MAX_INIT_ATTEMPTS) {
+        // #region agent log
+        dbgYt("H2", "init timed out (max attempts)", {
+          initAttempts,
+          hasMount: Boolean(mountRef.current),
+          hostW: mountRef.current?.parentElement?.clientWidth ?? 0,
+          hostH: mountRef.current?.parentElement?.clientHeight ?? 0,
+        });
+        // #endregion
         setLoading(false);
         setInitTimedOut(true);
         return;
@@ -358,8 +514,6 @@ export function useYouTubeEmbedPlayer(options: {
       clearIframeFallback();
       if (raf) window.cancelAnimationFrame(raf);
       persistPlayback();
-      // Keep the iframe alive across Strict Mode re-runs and layoutKey/size retries.
-      // Full teardown happens when videoId/enabled change (effect re-run) or page unmount.
     };
   }, [
     artifactId,
@@ -389,22 +543,28 @@ export function useYouTubeEmbedPlayer(options: {
     const host = mountRef.current?.parentElement;
     if (!host || !playerRef.current) return;
 
+    const wasPlaying = playingRef.current;
     const sync = () => syncPlayerSize(host);
     sync();
     const ro = new ResizeObserver(() => sync());
     ro.observe(host);
 
-    // PiP moves the shell to `position: fixed` (often portaled); re-measure after layout settles.
+    // Shell moves between inline anchor and PiP coords without reparenting; re-measure and resume.
+    let raf2 = 0;
     const raf1 = window.requestAnimationFrame(() => {
       sync();
-      window.requestAnimationFrame(sync);
+      raf2 = window.requestAnimationFrame(() => {
+        sync();
+        if (wasPlaying) resumeIfWasPlaying(true);
+      });
     });
 
     return () => {
       window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
       ro.disconnect();
     };
-  }, [layoutKey, ready, syncPlayerSize]);
+  }, [layoutKey, ready, resumeIfWasPlaying, syncPlayerSize]);
 
   useEffect(() => {
     if (!ready || !artifactId) return;

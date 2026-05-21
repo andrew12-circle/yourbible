@@ -1,14 +1,21 @@
 import { createPortal } from "react-dom";
+import { useLayoutEffect } from "react";
 import { Loader2, Maximize2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactInset, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
-import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
+import {
+  pipTotalHeightPx,
+  type ArtifactPipLayout,
+  type ArtifactPlayerShellRect,
+} from "@/lib/framework/artifactYoutubePip";
 import { cn } from "@/lib/utils";
 import { youtubeHqThumbnail } from "@/lib/youtube";
 
 type Props = {
   videoSlotRef: React.RefObject<HTMLDivElement | null>;
   pipMode: boolean;
+  detachPlayerShell?: boolean;
+  inlineShellRect?: ArtifactPlayerShellRect | null;
   stickyMode?: boolean;
   pipLayout: ArtifactPipLayout;
   thumbnailUrl?: string | null;
@@ -19,7 +26,6 @@ type Props = {
   playerInitTimedOut?: boolean;
   isPlaying?: boolean;
   playerActivated?: boolean;
-  onActivateAndPlay?: () => void;
   onTogglePlay?: () => void;
   onReinitPlayer?: () => void;
   onScrollVideoIntoView: () => void;
@@ -29,6 +35,8 @@ type Props = {
 export default function ArtifactVideoStage({
   videoSlotRef,
   pipMode,
+  detachPlayerShell = false,
+  inlineShellRect: _inlineShellRect = null,
   stickyMode = false,
   pipLayout,
   thumbnailUrl,
@@ -39,7 +47,6 @@ export default function ArtifactVideoStage({
   playerInitTimedOut = false,
   isPlaying = false,
   playerActivated = false,
-  onActivateAndPlay,
   onTogglePlay,
   onReinitPlayer,
   onScrollVideoIntoView,
@@ -47,34 +54,65 @@ export default function ArtifactVideoStage({
 }: Props) {
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
   const pipHeight = pipTotalHeightPx(pipLayout.width);
-  const canToggleInline = !pipMode && playerActivated && playerReady && Boolean(onTogglePlay);
-  const showPoster =
-    !playerActivated || !playerReady || playerLoading || playerInitTimedOut;
-  const showLoading =
-    playerActivated && (playerLoading || playerInitTimedOut) && !playerReady;
-  const showPosterPlay = !pipMode && !playerActivated && Boolean(onActivateAndPlay);
+  /** PiP only — main player uses native YouTube loading chrome, no overlay. */
+  const showPipLoading =
+    pipMode && playerActivated && playerInitTimedOut && !playerReady;
   const showPipPauseOverlay =
     pipMode && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
-  const showPipThumbnail = pipMode && (showPoster || showPipPauseOverlay);
+  const showPipThumbnail =
+    pipMode && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
+
+  /** Inline: iframe in the video slot. PiP only: portal to body. */
+  const showPortaledPlayer = detachPlayerShell && pipMode;
+
+  useLayoutEffect(() => {
+    const mount = playerMountRef.current;
+    const iframe = mount?.querySelector("iframe");
+    // #region agent log
+    fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c783b2" },
+      body: JSON.stringify({
+        sessionId: "c783b2",
+        hypothesisId: "H4",
+        location: "ArtifactVideoStage.tsx",
+        message: "stage layout",
+        data: {
+          pipMode,
+          showPortaledPlayer,
+          detachPlayerShell,
+          playerActivated,
+          playerReady,
+          playerLoading,
+          showPipLoading,
+          hasMount: Boolean(mount),
+          hasIframe: Boolean(iframe),
+          iframeW: iframe instanceof HTMLIFrameElement ? iframe.clientWidth : 0,
+          iframeH: iframe instanceof HTMLIFrameElement ? iframe.clientHeight : 0,
+          slotW: videoSlotRef.current?.clientWidth ?? 0,
+          slotH: videoSlotRef.current?.clientHeight ?? 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  });
 
   const playerShell = (
     <div
       data-youtube-player-shell
       className={cn(
-        pipMode
+        showPortaledPlayer
           ? cn(
-              "fixed z-[60]",
+              "fixed z-[80]",
               artifactVideoRadius,
               "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
             )
-          : cn(
-              "absolute inset-0 z-[2] overflow-hidden rounded-[inherit]",
-              showPoster ? "bg-transparent" : "bg-black",
-            ),
-        (canToggleInline || showPosterPlay || showPipPauseOverlay) && "cursor-pointer",
+          : "absolute inset-0 z-[2] overflow-hidden rounded-[inherit] bg-black",
+        showPipPauseOverlay && "cursor-pointer",
       )}
       style={
-        pipMode
+        showPortaledPlayer
           ? {
               left: pipLayout.left,
               top: pipLayout.top,
@@ -83,44 +121,25 @@ export default function ArtifactVideoStage({
             }
           : undefined
       }
-      onClick={
-        showPosterPlay
-          ? (e) => {
-              e.stopPropagation();
-              onActivateAndPlay?.();
-            }
-          : canToggleInline || showPipPauseOverlay
-            ? onTogglePlay
-            : undefined
-      }
+      onClick={showPipPauseOverlay ? onTogglePlay : undefined}
       onKeyDown={
-        showPosterPlay || canToggleInline || showPipPauseOverlay
+        showPipPauseOverlay
           ? (e) => {
               if (e.key === " " || e.key === "Enter") {
                 e.preventDefault();
-                if (showPosterPlay) onActivateAndPlay?.();
-                else onTogglePlay?.();
+                onTogglePlay?.();
               }
             }
           : undefined
       }
-      role={showPosterPlay || canToggleInline || showPipPauseOverlay ? "button" : undefined}
-      tabIndex={showPosterPlay || canToggleInline || showPipPauseOverlay ? 0 : undefined}
-      aria-label={
-        showPosterPlay
-          ? "Load and play video"
-          : canToggleInline || showPipPauseOverlay
-            ? isPlaying
-              ? "Pause video"
-              : "Play video"
-            : undefined
-      }
+      role={showPipPauseOverlay ? "button" : undefined}
+      tabIndex={showPipPauseOverlay ? 0 : undefined}
+      aria-label={showPipPauseOverlay ? "Play video" : undefined}
     >
       <div
         className={cn(
           "relative h-full w-full",
-          pipMode ? cn(artifactVideoRadius, "isolate overflow-hidden bg-black") : undefined,
-          !playerActivated && !pipMode && "invisible",
+          showPortaledPlayer && cn(artifactVideoRadius, "isolate overflow-hidden bg-black"),
         )}
       >
         {showPipThumbnail ? (
@@ -133,20 +152,10 @@ export default function ArtifactVideoStage({
         <div
           ref={playerMountRef}
           className={cn(
-            "relative h-full w-full [&_iframe]:block",
-            showPipThumbnail && playerActivated && playerReady && "invisible",
+            "relative h-full w-full [&_iframe]:block [&_iframe]:h-full [&_iframe]:w-full",
+            showPipThumbnail && playerReady && "invisible",
           )}
         />
-        {canToggleInline && !isPlaying ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/20"
-            aria-hidden
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 text-white">
-              <Play className="h-7 w-7" aria-hidden />
-            </span>
-          </div>
-        ) : null}
         {showPipPauseOverlay ? (
           <div
             className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/25"
@@ -157,31 +166,27 @@ export default function ArtifactVideoStage({
             </span>
           </div>
         ) : null}
-        {showLoading ? (
+        {showPipLoading && onReinitPlayer ? (
           <div
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90"
+            className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/40 text-white/90"
             role="status"
             aria-live="polite"
           >
             <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-            <span className="text-xs font-medium">
-              {playerInitTimedOut ? "Video is taking longer than usual…" : "Loading video…"}
-            </span>
-            {playerInitTimedOut && onReinitPlayer ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="mt-1 h-8 gap-1.5 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReinitPlayer();
-                }}
-              >
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                Reload video
-              </Button>
-            ) : null}
+            <span className="text-xs font-medium">Video is taking longer than usual…</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="pointer-events-auto mt-1 h-8 gap-1.5 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReinitPlayer();
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              Reload video
+            </Button>
           </div>
         ) : null}
       </div>
@@ -189,48 +194,22 @@ export default function ArtifactVideoStage({
   );
 
   const portaledPlayerShell =
-    pipMode && typeof document !== "undefined"
+    showPortaledPlayer && typeof document !== "undefined"
       ? createPortal(playerShell, document.body)
-      : playerShell;
+      : null;
 
   const videoBlock = (
     <div
       ref={videoSlotRef}
       className={cn(
-        "relative aspect-video w-full shrink-0",
+        "relative aspect-video w-full shrink-0 bg-black",
         pipMode ? "overflow-visible" : "overflow-hidden",
         artifactInset,
       )}
     >
-      {portaledPlayerShell}
+      {showPortaledPlayer ? portaledPlayerShell : playerShell}
 
-      {!pipMode ? (
-        <>
-          <img
-            src={thumb}
-            alt=""
-            className={cn(
-              "absolute inset-0 z-[1] h-full w-full object-cover transition-opacity duration-300",
-              showPoster ? "opacity-100" : "opacity-0 pointer-events-none",
-            )}
-          />
-          {showPosterPlay ? (
-            <button
-              type="button"
-              className="absolute inset-0 z-[3] flex items-center justify-center bg-black/25 transition hover:bg-black/35"
-              aria-label="Load and play video"
-              onClick={(e) => {
-                e.stopPropagation();
-                onActivateAndPlay?.();
-              }}
-            >
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/55 text-white shadow-lg ring-2 ring-white/20">
-                <Play className="h-8 w-8 ml-0.5" aria-hidden />
-              </span>
-            </button>
-          ) : null}
-        </>
-      ) : (
+      {pipMode ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden">
           <img
             src={thumb}
@@ -247,12 +226,11 @@ export default function ArtifactVideoStage({
             Restore video
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 
   if (stickyMode) {
-    // Sticky must not sit inside a short wrapper (only video height) or it scrolls away with that box.
     return (
       <>
         <div

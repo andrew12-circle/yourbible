@@ -1549,7 +1549,7 @@ export default function ArtifactDetailPage() {
         <div
           ref={mainScrollRef}
           className={cn(
-            "min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin",
+            "min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scrollbar-hover-thin",
             !isDesktop && mobileTab === "transcript" && stickyVideoMode
               ? "flex min-h-0 flex-1 flex-col overflow-hidden"
               : "space-y-5 sm:space-y-6",

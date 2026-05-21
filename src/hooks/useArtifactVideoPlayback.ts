@@ -17,16 +17,34 @@ export function useArtifactVideoPlayback(options: {
   const layoutMode = useArtifactLayoutMode();
   const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
 
-  const [userActivated, setUserActivated] = useState(false);
+  const playerReadyRef = useRef(false);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
     enabled: pipEnabled,
     mainScrollRef,
+    playerReadyRef,
   });
 
-  // Keep embed mounted after activation so scrolling (mobile sticky / desktop PiP handoff) never tears down the player.
-  const embedEnabled = Boolean(youTubeVideoId) && userActivated;
+  /** Mount the real YouTube iframe in the page — no custom thumbnail shell on the main player. */
+  const embedEnabled = Boolean(youTubeVideoId);
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c783b2" },
+      body: JSON.stringify({
+        sessionId: "c783b2",
+        hypothesisId: "H1",
+        location: "useArtifactVideoPlayback.ts",
+        message: "playback mount",
+        data: { embedEnabled, youTubeVideoId, pipEnabled, layoutMode },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [embedEnabled, youTubeVideoId, pipEnabled, layoutMode]);
 
   const youtubePlayer = useYouTubeEmbedPlayer({
     videoId: youTubeVideoId,
@@ -37,9 +55,12 @@ export function useArtifactVideoPlayback(options: {
   });
 
   useEffect(() => {
-    setUserActivated(false);
     playWhenReadyRef.current = false;
   }, [artifactId, youTubeVideoId]);
+
+  useEffect(() => {
+    playerReadyRef.current = youtubePlayer.playerReady;
+  }, [youtubePlayer.playerReady]);
 
   useEffect(() => {
     if (!youtubePlayer.playerReady || !playWhenReadyRef.current) return;
@@ -48,7 +69,6 @@ export function useArtifactVideoPlayback(options: {
   }, [youtubePlayer.playerReady, youtubePlayer.playVideo]);
 
   const activatePlayer = useCallback((opts?: { autoplay?: boolean }) => {
-    setUserActivated(true);
     if (opts?.autoplay) playWhenReadyRef.current = true;
   }, []);
 
@@ -91,12 +111,12 @@ export function useArtifactVideoPlayback(options: {
   }, [activatePlayer]);
 
   const togglePlayback = useCallback(() => {
-    if (!userActivated) {
+    if (!youtubePlayer.playerReady) {
       activateAndPlay();
       return;
     }
     youtubePlayer.togglePlayback();
-  }, [activateAndPlay, userActivated, youtubePlayer.togglePlayback]);
+  }, [activateAndPlay, youtubePlayer.playerReady, youtubePlayer.togglePlayback]);
 
   const getPlaybackSeconds = useCallback(() => {
     if (youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
@@ -111,7 +131,6 @@ export function useArtifactVideoPlayback(options: {
     seekVideoToSeconds,
     scrollTranscriptToSeconds,
     getPlaybackSeconds,
-    userActivated,
     activatePlayer,
     activateAndPlay,
     togglePlayback,

@@ -609,27 +609,27 @@
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { scrollbar-width: none; }
 
-  /* Hidden until hover; then a thin scroll indicator (artifact detail panes, etc.). */
+  /* Thumb hidden until hover; fixed track width + stable gutter — no layout shift. */
   .scrollbar-hover-thin {
-    scrollbar-width: none;
-  }
-  .scrollbar-hover-thin::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
   }
   .scrollbar-hover-thin:hover {
-    scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.38) transparent;
   }
-  .scrollbar-hover-thin:hover::-webkit-scrollbar {
+  .scrollbar-hover-thin::-webkit-scrollbar {
     width: 5px;
     height: 5px;
   }
-  .scrollbar-hover-thin:hover::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.38);
+  .scrollbar-hover-thin::-webkit-scrollbar-thumb {
+    background: transparent;
     border-radius: 999px;
   }
-  .scrollbar-hover-thin:hover::-webkit-scrollbar-track {
+  .scrollbar-hover-thin:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.38);
+  }
+  .scrollbar-hover-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }

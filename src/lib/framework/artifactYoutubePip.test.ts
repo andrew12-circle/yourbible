@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampArtifactPipLayout,
   defaultArtifactPipLayout,
+  PIP_ENTER_CANCEL_RATIO,
   PIP_ENTER_VISIBLE_RATIO,
   PIP_EXIT_VISIBLE_RATIO,
   PIP_MIN_W,
@@ -14,7 +15,8 @@ describe("pipVisibilitySignal", () => {
   it("enters PIP only when mostly out of view", () => {
     expect(pipVisibilitySignal(false, 0)).toBe("enter");
     expect(pipVisibilitySignal(false, PIP_ENTER_VISIBLE_RATIO - 0.01)).toBe("enter");
-    expect(pipVisibilitySignal(false, PIP_ENTER_VISIBLE_RATIO)).toBe("cancel_enter");
+    expect(pipVisibilitySignal(false, PIP_ENTER_VISIBLE_RATIO)).toBe("hold");
+    expect(pipVisibilitySignal(false, PIP_ENTER_CANCEL_RATIO)).toBe("cancel_enter");
     expect(pipVisibilitySignal(false, 0.3)).toBe("cancel_enter");
   });
 
@@ -27,7 +29,7 @@ describe("pipVisibilitySignal", () => {
 
   it("holds hysteresis band while in PIP", () => {
     expect(pipVisibilitySignal(true, 0.2)).toBe("cancel_exit");
-    expect(pipVisibilitySignal(false, 0.2)).toBe("cancel_enter");
+    expect(pipVisibilitySignal(false, 0.2)).toBe("hold");
   });
 });
 

@@ -31,7 +31,7 @@ type Pip = ReturnType<typeof useArtifactYoutubePip>;
 type Player = ReturnType<typeof useYouTubeEmbedPlayer>;
 type Playback = Pick<
   ReturnType<typeof useArtifactVideoPlayback>,
-  "seekVideoToSeconds" | "activateAndPlay" | "activatePlayer" | "togglePlayback" | "userActivated"
+  "seekVideoToSeconds" | "activateAndPlay" | "activatePlayer" | "togglePlayback"
 >;
 
 type Props = {
@@ -246,6 +246,8 @@ function ArtifactYoutubeVideoBlock({
       <ArtifactVideoStage
         videoSlotRef={youtubePip.videoSlotRef}
         pipMode={youtubePip.pipMode}
+        detachPlayerShell={youtubePip.detachPlayerShell}
+        inlineShellRect={youtubePip.inlineShellRect}
         stickyMode={stickyMode}
         pipLayout={youtubePip.pipOverlayLayout}
         thumbnailUrl={thumbnailUrl}
@@ -255,8 +257,7 @@ function ArtifactYoutubeVideoBlock({
         playerLoading={youtubePlayer.playerLoading}
         playerInitTimedOut={youtubePlayer.playerInitTimedOut}
         isPlaying={youtubePlayer.isPlaying}
-        playerActivated={playback.userActivated}
-        onActivateAndPlay={playback.activateAndPlay}
+        playerActivated={Boolean(youTubeVideoId)}
         onTogglePlay={playback.togglePlayback}
         onReinitPlayer={() => {
           playback.activatePlayer({ autoplay: false });

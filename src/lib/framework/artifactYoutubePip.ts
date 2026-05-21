@@ -6,6 +6,8 @@ export const PIP_VIEWPORT_PAD = 8;
 
 /** Below this visible ratio (in scroll root), enter picture-in-picture. */
 export const PIP_ENTER_VISIBLE_RATIO = 0.1;
+/** Above this ratio while not in PiP, cancel a pending enter (wider band reduces scroll flicker). */
+export const PIP_ENTER_CANCEL_RATIO = 0.25;
 /** Above this visible ratio, restore the in-flow player. */
 export const PIP_EXIT_VISIBLE_RATIO = 0.5;
 export const PIP_ENTER_DELAY_MS = 100;
@@ -35,7 +37,8 @@ export function shouldAllowPipEnter(armed: boolean, signal: PipVisibilitySignal)
 export function pipVisibilitySignal(inPip: boolean, intersectionRatio: number): PipVisibilitySignal {
   if (!inPip) {
     if (intersectionRatio < PIP_ENTER_VISIBLE_RATIO) return "enter";
-    return intersectionRatio >= PIP_ENTER_VISIBLE_RATIO ? "cancel_enter" : "hold";
+    if (intersectionRatio >= PIP_ENTER_CANCEL_RATIO) return "cancel_enter";
+    return "hold";
   }
   if (intersectionRatio > PIP_EXIT_VISIBLE_RATIO) return "exit";
   return intersectionRatio <= PIP_EXIT_VISIBLE_RATIO ? "cancel_exit" : "hold";
@@ -45,6 +48,14 @@ const ARTIFACT_YOUTUBE_PIP_SS_PREFIX = "yb_artifact_youtube_pip_v1:";
 const ARTIFACT_YOUTUBE_PLAYBACK_SS_PREFIX = "yb_artifact_playback_v1:";
 
 export type ArtifactPipLayout = { left: number; top: number; width: number };
+
+/** Viewport-fixed shell box while the in-flow slot is visible (PiP-capable layouts). */
+export type ArtifactPlayerShellRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 function pipSessionKey(artifactId: string) {
   return `${ARTIFACT_YOUTUBE_PIP_SS_PREFIX}${artifactId}`;
