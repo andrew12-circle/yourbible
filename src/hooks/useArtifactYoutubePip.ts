@@ -47,7 +47,6 @@ export function useArtifactYoutubePip(options: {
   pipLayoutRef.current = pipLayout;
   const pipPointerRef = useRef<PipPointerSession | null>(null);
   const pipDragRafRef = useRef<number | null>(null);
-  const [pipLayoutSyncKey, setPipLayoutSyncKey] = useState(0);
   const [inlineShellRect, setInlineShellRect] = useState<ArtifactPlayerShellRect | null>(null);
   const inlineShellRectRef = useRef<ArtifactPlayerShellRect | null>(null);
   const inlineMeasureRafRef = useRef<number | null>(null);
@@ -87,7 +86,6 @@ export function useArtifactYoutubePip(options: {
     if (pipLayoutRef.current && artifactId) {
       writePipLayoutToSession(artifactId, pipLayoutRef.current);
     }
-    setPipLayoutSyncKey((k) => k + 1);
   }, [artifactId]);
 
   useEffect(() => {
@@ -300,7 +298,6 @@ export function useArtifactYoutubePip(options: {
     setPipLayout((prev) =>
       prev == null ? clampArtifactPipLayout(defaultArtifactPipLayout()) : clampArtifactPipLayout(prev),
     );
-    setPipLayoutSyncKey((k) => k + 1);
   }, [pipMode, artifactId]);
 
   useEffect(() => {
@@ -421,11 +418,8 @@ export function useArtifactYoutubePip(options: {
     [pipLayout],
   );
 
-  /** Coarse key for YouTube iframe resize — bumps on inline/PiP switch and after drag/resize ends. */
-  const youtubeLayoutKey = useMemo(
-    () => (pipMode ? `pip:w${pipOverlayLayout.width}:k${pipLayoutSyncKey}` : "inline"),
-    [pipMode, pipOverlayLayout.width, pipLayoutSyncKey],
-  );
+  /** Coarse key for resize only — shell size tracked via ResizeObserver, not remount. */
+  const youtubeLayoutKey = useMemo(() => (pipMode ? "pip" : "inline"), [pipMode]);
 
   return {
     videoSlotRef,

@@ -1,5 +1,4 @@
 import { createPortal } from "react-dom";
-import { useLayoutEffect } from "react";
 import { Loader2, Maximize2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactInset, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
@@ -36,14 +35,14 @@ export default function ArtifactVideoStage({
   videoSlotRef,
   pipMode,
   detachPlayerShell = false,
-  inlineShellRect: _inlineShellRect = null,
+  inlineShellRect = null,
   stickyMode = false,
   pipLayout,
   thumbnailUrl,
   youTubeVideoId,
   playerMountRef,
   playerReady = false,
-  playerLoading = false,
+  playerLoading: _playerLoading = false,
   playerInitTimedOut = false,
   isPlaying = false,
   playerActivated = false,
@@ -54,7 +53,6 @@ export default function ArtifactVideoStage({
 }: Props) {
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
   const pipHeight = pipTotalHeightPx(pipLayout.width);
-  /** PiP only — main player uses native YouTube loading chrome, no overlay. */
   const showPipLoading =
     pipMode && playerActivated && playerInitTimedOut && !playerReady;
   const showPipPauseOverlay =
@@ -62,41 +60,28 @@ export default function ArtifactVideoStage({
   const showPipThumbnail =
     pipMode && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
 
-  /** Inline: iframe in the video slot. PiP only: portal to body. */
-  const showPortaledPlayer = detachPlayerShell && pipMode;
+  /** PiP-capable: one portaled shell; inline/PiP handoff is CSS-only (no remount). */
+  const usePortal = detachPlayerShell && typeof document !== "undefined";
+  const inlineReady =
+    inlineShellRect != null && inlineShellRect.width >= 8 && inlineShellRect.height >= 8;
+  const showPortaledPlayer = usePortal && (pipMode || inlineReady);
+  const showPlayerInSlot = !usePortal || (usePortal && !showPortaledPlayer);
 
-  useLayoutEffect(() => {
-    const mount = playerMountRef.current;
-    const iframe = mount?.querySelector("iframe");
-    // #region agent log
-    fetch("http://127.0.0.1:7557/ingest/d8ad423f-f74d-4738-aea6-21deae4ae80c", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c783b2" },
-      body: JSON.stringify({
-        sessionId: "c783b2",
-        hypothesisId: "H4",
-        location: "ArtifactVideoStage.tsx",
-        message: "stage layout",
-        data: {
-          pipMode,
-          showPortaledPlayer,
-          detachPlayerShell,
-          playerActivated,
-          playerReady,
-          playerLoading,
-          showPipLoading,
-          hasMount: Boolean(mount),
-          hasIframe: Boolean(iframe),
-          iframeW: iframe instanceof HTMLIFrameElement ? iframe.clientWidth : 0,
-          iframeH: iframe instanceof HTMLIFrameElement ? iframe.clientHeight : 0,
-          slotW: videoSlotRef.current?.clientWidth ?? 0,
-          slotH: videoSlotRef.current?.clientHeight ?? 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  });
+  const fixedShellStyle = pipMode
+    ? {
+        left: pipLayout.left,
+        top: pipLayout.top,
+        width: pipLayout.width,
+        height: pipHeight,
+      }
+    : inlineShellRect
+      ? {
+          left: inlineShellRect.left,
+          top: inlineShellRect.top,
+          width: inlineShellRect.width,
+          height: inlineShellRect.height,
+        }
+      : undefined;
 
   const playerShell = (
     <div
@@ -106,21 +91,14 @@ export default function ArtifactVideoStage({
           ? cn(
               "fixed z-[80]",
               artifactVideoRadius,
-              "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
+              pipMode
+                ? "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15"
+                : "overflow-hidden shadow-sm ring-1 ring-black/10",
             )
           : "absolute inset-0 z-[2] overflow-hidden rounded-[inherit] bg-black",
         showPipPauseOverlay && "cursor-pointer",
       )}
-      style={
-        showPortaledPlayer
-          ? {
-              left: pipLayout.left,
-              top: pipLayout.top,
-              width: pipLayout.width,
-              height: pipHeight,
-            }
-          : undefined
-      }
+      style={showPortaledPlayer ? fixedShellStyle : undefined}
       onClick={showPipPauseOverlay ? onTogglePlay : undefined}
       onKeyDown={
         showPipPauseOverlay
@@ -194,20 +172,19 @@ export default function ArtifactVideoStage({
   );
 
   const portaledPlayerShell =
-    showPortaledPlayer && typeof document !== "undefined"
-      ? createPortal(playerShell, document.body)
-      : null;
+    showPortaledPlayer && usePortal ? createPortal(playerShell, document.body) : null;
 
   const videoBlock = (
     <div
       ref={videoSlotRef}
       className={cn(
         "relative aspect-video w-full shrink-0 bg-black",
-        pipMode ? "overflow-visible" : "overflow-hidden",
+        pipMode || usePortal ? "overflow-visible" : "overflow-hidden",
         artifactInset,
       )}
     >
-      {showPortaledPlayer ? portaledPlayerShell : playerShell}
+      {showPortaledPlayer ? portaledPlayerShell : null}
+      {showPlayerInSlot ? playerShell : null}
 
       {pipMode ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden">
@@ -266,7 +243,7 @@ export default function ArtifactVideoStage({
         artifactCard,
         artifactScrollMt,
         "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3",
-        pipMode ? "overflow-visible" : "overflow-hidden",
+        pipMode || usePortal ? "overflow-visible" : "overflow-hidden",
       )}
     >
       <div className="p-3 sm:p-4 lg:p-0">{videoBlock}</div>
