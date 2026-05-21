@@ -5,7 +5,7 @@ import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import JournalsRail from "./JournalsRail";
 import JournalCover from "./JournalCover";
-import { Journal, ensureDefaultJournal, listJournals } from "@/lib/journal/journals";
+import { Journal, ensureDefaultJournal } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,

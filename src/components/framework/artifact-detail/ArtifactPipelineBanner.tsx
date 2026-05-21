@@ -13,7 +13,7 @@ type Props = {
 
 function ArtifactPipelineBanner({
   status,
-  kind,
+  kind: _kind,
   elapsed,
   label,
   hint,

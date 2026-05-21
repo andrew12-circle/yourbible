@@ -30,7 +30,7 @@ const MIN_H = 220;
 const PANEL_MARGIN = 8;
 const TEXTAREA_AUTOSIZE_MAX = 360;
 /** Floating journal chrome (non–Bible reader). */
-const JOURNAL_PANEL_HEADER_BG = "#7DD3FC";
+const JOURNAL_PANEL_HEADER_BG = "#38BDF8";
 
 function panelStorageKey(userId: string) {
   return `yb_journal_panel_v1_${userId}`;
@@ -601,16 +601,6 @@ export default function FloatingJournalPanel({
         />
       </div>
       <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit] dark:hidden"
-          style={{
-            backgroundImage:
-              "linear-gradient(to bottom, hsl(var(--border) / 0.85) 1px, transparent 1px)",
-            backgroundSize: "100% 1.65em",
-            backgroundPosition: "0 0.4em",
-          }}
-        />
         <PolishedTextarea
           ref={textareaRef}
           polishResetKey={artifactId ?? "floating-journal"}
@@ -637,6 +627,7 @@ export default function FloatingJournalPanel({
       >
         <Button
           type="button"
+          variant={readerTheme ? "default" : "secondary"}
           className={cn(
             "flex-1",
             readerTheme &&

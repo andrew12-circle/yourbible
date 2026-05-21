@@ -1,0 +1,33 @@
+---
+description: React page components and artifact detail UI
+globs: "**/*Page.tsx,**/artifact-detail/**"
+alwaysApply: false
+---
+
+# React pages
+
+## Hooks before returns
+
+All `useState`, `useEffect`, `useMemo`, `useCallback`, and custom hooks must run **before** any early `return` (auth, loading, redirects). Never call hooks after `if (loading) return …`.
+
+## Keep pages thin
+
+- **Page file:** route params, layout shell, compose hooks + child components.
+- **Extract** when a section grows: `src/components/<feature>/`, `src/hooks/use<Feature>.ts`, `src/lib/<feature>/`.
+- **Artifact detail** (`artifact-detail/**`, `ArtifactDetailPage`): add UI in `components/framework/artifact-detail/`, logic in hooks under `src/hooks/`, not inline in the page.
+
+## No god files
+
+If a page approaches **1600 lines**, plan a split (hooks + section components). **2000 lines is a hard stop**—do not add features to an oversized page without extracting first.
+
+## Examples
+
+```tsx
+// ❌ BAD — hook after early return
+if (loading) return null;
+const x = useMemo(() => …, []);
+
+// ✅ GOOD — hooks first, then guards
+const x = useMemo(() => …, []);
+if (loading) return null;
+```

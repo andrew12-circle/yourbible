@@ -2,7 +2,6 @@
 import { describe, expect, it } from "vitest";
 import {
   findVerseFromRangeBoundary,
-  selectionToVerseRanges,
   toolbarSelectionFromRange,
   versesFromRangeFallback,
 } from "./verseSelection";
@@ -47,7 +46,7 @@ describe("verseSelection multi-verse paragraph", () => {
     const { p, verseLengths } = buildJohn1Paragraph();
     const range = document.createRange();
     const v5body = document.querySelector('[data-verse-body="5"]')!.firstChild!;
-    const afterV7 = p.childNodes[p.childNodes.length - 1];
+    const _afterV7 = p.childNodes[p.childNodes.length - 1];
     range.setStart(v5body, 4);
     range.setEnd(p, p.childNodes.length);
     mockRangeGeometry(range);

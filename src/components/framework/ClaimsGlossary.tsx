@@ -12,10 +12,12 @@ export interface ClaimsGlossaryEntry {
 interface ClaimsGlossaryProps {
   entries: ClaimsGlossaryEntry[];
   onJump: (claimNumber: number) => void;
+  /** Flatter mobile index under Claims section. */
+  compact?: boolean;
   className?: string;
 }
 
-export default function ClaimsGlossary({ entries, onJump, className }: ClaimsGlossaryProps) {
+export default function ClaimsGlossary({ entries, onJump, compact = false, className }: ClaimsGlossaryProps) {
   if (entries.length === 0) return null;
 
   return (
@@ -23,20 +25,36 @@ export default function ClaimsGlossary({ entries, onJump, className }: ClaimsGlo
       id="claims-index"
       aria-label="Claims index"
       className={cn(
-        "scroll-mt-24 rounded-lg border border-border bg-card/80 p-3 text-sm shadow-sm",
+        "scroll-mt-24 text-sm",
+        compact
+          ? "border-b border-border/50 pb-3"
+          : "rounded-lg border border-border bg-card/80 p-3 shadow-sm",
         className,
       )}
     >
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <div
+        className={cn(
+          "font-medium uppercase tracking-wider text-muted-foreground",
+          compact ? "mb-1.5 text-[10px]" : "mb-2 text-xs",
+        )}
+      >
         Claims index
       </div>
-      <ol className="max-h-48 space-y-1 overflow-y-auto pr-1 sm:max-h-64">
+      <ol
+        className={cn(
+          "space-y-0.5 overflow-y-auto pr-1",
+          compact ? "max-h-36" : "max-h-48 sm:max-h-64",
+        )}
+      >
         {entries.map((entry) => (
           <li key={entry.id}>
             <button
               type="button"
               onClick={() => onJump(entry.number)}
-              className="group flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-muted/70"
+              className={cn(
+                "group flex w-full min-h-10 items-start gap-2 rounded-md px-1.5 py-2 text-left transition",
+                compact ? "hover:bg-muted/50 active:bg-muted/60" : "px-2 hover:bg-muted/70",
+              )}
             >
               <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-muted-foreground group-hover:text-foreground">
                 #{entry.number}

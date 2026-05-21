@@ -38,7 +38,7 @@ function findVerseFromNodeOrSibling(
     }
   }
 
-  let el: HTMLElement | null =
+  const el: HTMLElement | null =
     node instanceof HTMLElement ? node : node.parentElement;
   if (!el) return null;
 

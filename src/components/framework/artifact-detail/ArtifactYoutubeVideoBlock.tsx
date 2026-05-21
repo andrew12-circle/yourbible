@@ -2,8 +2,21 @@ import { memo, useCallback, useState, type ReactNode } from "react";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
+import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
+import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
 import ArtifactQuickCaptureRow from "@/components/framework/artifact-detail/ArtifactQuickCaptureRow";
 import ArtifactVideoStage from "@/components/framework/artifact-detail/ArtifactVideoStage";
+import type { ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import type { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import type { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import type { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
@@ -19,6 +32,10 @@ type Playback = Pick<
 
 type Props = {
   youTubeVideoId: string;
+  displayTitle?: string;
+  channel?: string | null;
+  channelUrl?: string | null;
+  providerName?: string | null;
   thumbnailUrl?: string | null;
   youtubePip: Pip;
   pipEnabled: boolean;
@@ -40,11 +57,31 @@ type Props = {
   onStudyJournal: () => void;
   onOpenJournalTimestamp: () => void;
   onOpenJournalFull: () => void;
-  stickyFooter?: ReactNode;
+  mobileTabBar?: ReactNode;
+  /** Mobile sticky layout: which tab is active (controls capture section visibility). */
+  mobileActiveTab?: "study" | "transcript";
+  mobileMenuOpen?: boolean;
+  onMobileMenuOpenChange?: (open: boolean) => void;
+  menuSections?: ArtifactNavSection[];
+  menuActiveHash?: string;
+  menuShowPaste?: boolean;
+  menuShowWrapUp?: boolean;
+  menuShowReanalyze?: boolean;
+  onMenuNavigateSection?: (hash: string) => void;
+  onMenuOpenTranscript?: () => void;
+  onMenuPaste?: () => void;
+  onMenuWrapUp?: () => void;
+  onMenuReanalyze?: () => void;
+  /** Mobile scroll chrome back link (framework header hidden on YouTube). */
+  backTo?: string;
 };
 
 function ArtifactYoutubeVideoBlock({
   youTubeVideoId,
+  displayTitle,
+  channel,
+  channelUrl,
+  providerName,
   thumbnailUrl,
   youtubePip,
   pipEnabled,
@@ -66,12 +103,29 @@ function ArtifactYoutubeVideoBlock({
   onStudyJournal,
   onOpenJournalTimestamp,
   onOpenJournalFull,
-  stickyFooter,
+  mobileTabBar,
+  mobileActiveTab = "study",
+  mobileMenuOpen = false,
+  onMobileMenuOpenChange,
+  menuSections = [],
+  menuActiveHash = "",
+  menuShowPaste = false,
+  menuShowWrapUp = false,
+  menuShowReanalyze = false,
+  onMenuNavigateSection,
+  onMenuOpenTranscript,
+  onMenuPaste,
+  onMenuWrapUp,
+  onMenuReanalyze,
+  backTo = "/framework/artifacts",
 }: Props) {
   const isDesktop = useIsDesktop();
-  const captureControlled = stickyMode && !isDesktop;
+  const transcriptTabActive = stickyMode && !isDesktop && mobileActiveTab === "transcript";
+  const showMobileCaptureSection = stickyMode && !isDesktop && mobileActiveTab === "study";
+  const captureControlled = showMobileCaptureSection;
   const [captureOpen, setCaptureOpen] = useState(false);
   const [noteSectionOpen, setNoteSectionOpen] = useState(false);
+  const [mobileNoteOpen, setMobileNoteOpen] = useState(false);
 
   const openCapture = useCallback(() => {
     setCaptureOpen(true);
@@ -108,7 +162,11 @@ function ArtifactYoutubeVideoBlock({
     <ArtifactCollapsibleSection
       id="capture"
       title="Capture while watching"
-      description="Mark moments at the playhead; add notes when you're ready."
+      description={
+        isDesktop
+          ? "Mark moments at the playhead; add notes when you're ready."
+          : "Bookmark the playhead or add a note."
+      }
       defaultOpenMobile={false}
       defaultOpenDesktop
       storageKey={`artifact-capture:${artifactId}`}
@@ -120,21 +178,44 @@ function ArtifactYoutubeVideoBlock({
     </ArtifactCollapsibleSection>
   );
 
-  const quickCaptureRow = stickyMode ? (
-    <ArtifactQuickCaptureRow
-      canCapture={canCaptureMoments}
-      saving={savingMoment}
-      hasNote={Boolean(noteBody.trim())}
-      hasTranscript={hasTranscript}
-      onBookmark={onBookmark}
-      onSaveNote={onSaveNote}
-      onBelieve={onBelieve}
-      onStudyJournal={onStudyJournal}
-      onOpenJournalTimestamp={onOpenJournalTimestamp}
-      onOpenJournalFull={onOpenJournalFull}
-      onOpenCapture={openCapture}
-    />
-  ) : null;
+  const mobileVideoMeta =
+    stickyMode && !isDesktop ? (
+      <ArtifactMobileVideoMeta
+        displayTitle={displayTitle?.trim() || "Untitled video"}
+        channel={channel}
+        channelUrl={channelUrl}
+        providerName={providerName}
+        thumbnailUrl={thumbnailUrl}
+        youTubeVideoId={youTubeVideoId}
+        backTo={backTo}
+      />
+    ) : null;
+
+  const openStudyMenu = useCallback(() => {
+    onMobileMenuOpenChange?.(true);
+  }, [onMobileMenuOpenChange]);
+
+  const scrollableMobileChrome =
+    stickyMode && !isDesktop ? (
+      <div className="border-b border-border/50 bg-background lg:hidden">
+        {mobileVideoMeta}
+        <ArtifactQuickCaptureRow
+          canCapture={canCaptureMoments}
+          saving={savingMoment}
+          hasNote={Boolean(noteBody.trim())}
+          transcriptTabActive={transcriptTabActive}
+          iconOnly
+          onBookmark={onBookmark}
+          onSaveNote={onSaveNote}
+          onOpenNote={() => {
+            if (transcriptTabActive) setMobileNoteOpen(true);
+            else openCapture();
+          }}
+          onOpenStudyMenu={openStudyMenu}
+        />
+        {mobileTabBar}
+      </div>
+    ) : null;
 
   return (
     <>
@@ -158,12 +239,70 @@ function ArtifactYoutubeVideoBlock({
           youtubePlayer.reinit();
         }}
         onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
-        quickCaptureRow={quickCaptureRow}
-        stickyFooter={stickyFooter}
       >
         {!stickyMode ? captureSection : null}
       </ArtifactVideoStage>
-      {stickyMode ? <div className="px-3 pb-1 sm:px-4 lg:px-4 lg:pb-4">{captureSection}</div> : null}
+      {scrollableMobileChrome}
+      {stickyMode && !isDesktop && onMobileMenuOpenChange ? (
+        <ArtifactMobileMenu
+          open={mobileMenuOpen}
+          onOpenChange={onMobileMenuOpenChange}
+          showTrigger={false}
+          sections={menuSections}
+          activeHash={menuActiveHash}
+          showPaste={menuShowPaste}
+          showWrapUp={menuShowWrapUp}
+          showReanalyze={menuShowReanalyze}
+          hasTranscript={hasTranscript}
+          onNavigateSection={onMenuNavigateSection ?? (() => {})}
+          onOpenTranscript={onMenuOpenTranscript ?? (() => {})}
+          onPaste={onMenuPaste ?? (() => {})}
+          onWrapUp={onMenuWrapUp ?? (() => {})}
+          onReanalyze={onMenuReanalyze ?? (() => {})}
+          canCapture={canCaptureMoments}
+          captureSaving={savingMoment}
+          onBelieve={onBelieve}
+          onStudyJournal={onStudyJournal}
+          onOpenJournalTimestamp={onOpenJournalTimestamp}
+          onOpenJournalFull={onOpenJournalFull}
+        />
+      ) : null}
+      {showMobileCaptureSection ? (
+        <div className="border-b border-border/50 px-3 sm:px-4">{captureSection}</div>
+      ) : null}
+      {transcriptTabActive ? (
+        <Dialog open={mobileNoteOpen} onOpenChange={setMobileNoteOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Note at playhead</DialogTitle>
+              <DialogDescription>
+                Saves a timestamped note for this video. Use the bookmark on a transcript line to capture an exact quote.
+              </DialogDescription>
+            </DialogHeader>
+            <PolishedTextarea
+              polishResetKey={artifactId}
+              value={noteBody}
+              onChange={(e) => onNoteBodyChange(e.target.value)}
+              rows={4}
+              placeholder="Add a note at the current moment…"
+              disabled={!canCaptureMoments || savingMoment}
+              className="w-full min-w-0"
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setMobileNoteOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void onSaveNote().then(() => setMobileNoteOpen(false))}
+                disabled={!canCaptureMoments || savingMoment || !noteBody.trim()}
+              >
+                {savingMoment ? "Saving…" : "Save note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
       {pipEnabled ? (
         <ArtifactYoutubePipOverlay
           active={youtubePip.pipMode}

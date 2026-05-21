@@ -42,7 +42,7 @@ export type EnsureInlineChatParams = {
 export async function ensureInlineJournalChatSession(
   params: EnsureInlineChatParams,
 ): Promise<{ entryId: string; chatId: string } | null> {
-  const { userId, entryId, journalId, title, existingChatId } = params;
+  const { userId, entryId, journalId: _journalId, title, existingChatId } = params;
 
   const { error: kindErr } = await supabase
     .from("journal_entries")

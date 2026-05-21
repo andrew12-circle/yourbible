@@ -4,19 +4,13 @@ import {
   Loader2,
   RefreshCw,
   FileText,
-  Youtube,
   ArrowRight,
   Quote,
   ExternalLink,
-  Bookmark,
-  StickyNote,
-  Sparkles,
   NotebookPen,
   MessageCircle,
-  MoreHorizontal,
   CheckCircle2,
   Clock,
-  ListOrdered,
   Check,
   X,
   Pencil,
@@ -37,15 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
@@ -58,10 +44,8 @@ import { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary"
 import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
-import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactDetailHeader from "@/components/framework/artifact-detail/ArtifactDetailHeader";
-import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
 import ArtifactChaptersSection from "@/components/framework/artifact-detail/ArtifactChaptersSection";
 import ArtifactClaimsSection from "@/components/framework/artifact-detail/ArtifactClaimsSection";
@@ -71,7 +55,12 @@ import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/Ar
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
-import { artifactCard, artifactScrollMt, artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactCard,
+  artifactScrollMt,
+  artifactScrollMtMobile,
+  artifactStudyStackMobile,
+} from "@/lib/framework/artifactSurfaces";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
@@ -96,17 +85,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
 import { getYouTubeVideoId } from "@/lib/youtube";
-
-interface Artifact {
-  id: string;
-  title: string | null;
-  kind: string;
-  status: string;
-  error: string | null;
-  raw_text: string;
-  url?: string | null;
-  metadata?: ArtifactMetadata | null;
-}
 
 interface ArtifactMetadata {
   source?: string;
@@ -377,6 +355,7 @@ export default function ArtifactDetailPage() {
     if (!sectionId) return;
     if (sectionId === "transcript") {
       setMobileTab("transcript");
+      window.location.hash = "transcript";
       return;
     }
     setMobileTab("study");
@@ -461,11 +440,6 @@ export default function ArtifactDetailPage() {
       cancelled = true;
     };
   }, [a?.id, a?.kind, a?.url, a?.title, fetchYouTubeMeta, liveMeta]);
-
-  const youtubeChapterCount = useMemo(() => {
-    const ch = (a?.metadata as ArtifactMetadata | undefined)?.youtube_chapters;
-    return Array.isArray(ch) ? ch.length : 0;
-  }, [a?.metadata]);
 
   const displayTranscriptText = useMemo(
     () => (a?.raw_text ? normalizePastedTranscript(a.raw_text) : ""),
@@ -1030,6 +1004,40 @@ export default function ArtifactDetailPage() {
     if (saved) setBookmarkLabel("");
   };
 
+  const journalTranscriptSegment = (seconds: number, snippet: string) => {
+    const t = Math.max(0, Math.floor(seconds));
+    seekVideoToSeconds(t, { play: false });
+    openStudyJournal();
+    const routeId = useFloatingJournalStore.getState().routeArtifact?.id;
+    const insertTarget = floatingJournalInsertRef.current;
+    if (insertTarget?.artifactId === a.id && routeId === a.id) {
+      const block = `\n\n---\n\n#### Transcript · ${formatTranscriptClock(t)}\n\n> ${snippet}\n\n`;
+      insertTarget.append(block);
+      toast({
+        title: "Added to journal",
+        description: `Quoted line at ${formatTranscriptClock(t)}`,
+      });
+      return;
+    }
+    openJournalFromArtifact(t);
+  };
+
+  const researchLaterTranscriptSegment = async (seconds: number, snippet: string) => {
+    const t = Math.max(0, Math.floor(seconds));
+    await saveMoment("bookmark", {
+      label: "Research later",
+      body: snippet,
+      startSeconds: t,
+      toastDescription: `Saved at ${formatTranscriptClock(t)} — find it in your moments on this video.`,
+    });
+  };
+
+  const saveSegmentNote = async (seconds: number) => {
+    const t = Math.max(0, Math.floor(seconds));
+    const saved = await saveMoment("note", { body: noteBody, startSeconds: t });
+    if (saved) setNoteBody("");
+  };
+
   const bookmarkCurrentMoment = async () => {
     const t = getCurrentPlaybackSeconds();
     const t0 = Math.max(0, t - 10);
@@ -1326,7 +1334,7 @@ export default function ArtifactDetailPage() {
     );
 
     if (!isDesktop) {
-      return <div className="space-y-4">{claimBody}</div>;
+      return <div className="space-y-3">{claimBody}</div>;
     }
 
     return (
@@ -1412,28 +1420,6 @@ export default function ArtifactDetailPage() {
   const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
   const stickyVideoMode = Boolean(youTubeVideoId) && !isDesktop;
 
-  const mobileMenuTrigger =
-    a.kind === "youtube" ? (
-      <ArtifactMobileMenu
-        open={mobileMenuOpen}
-        onOpenChange={setMobileMenuOpen}
-        sections={navSections}
-        activeHash={pageSectionHash}
-        showPaste={a.kind === "youtube"}
-        showWrapUp={a.kind === "youtube" && a.status === "ready"}
-        showReanalyze={!inFlight && a.status !== "error"}
-        hasTranscript={Boolean(a.raw_text?.trim())}
-        onNavigateSection={navigateToArtifactHash}
-        onOpenTranscript={() => {
-          setMobileTab("transcript");
-          window.location.hash = "transcript";
-        }}
-        onPaste={() => setPasteOpen(true)}
-        onWrapUp={() => setWrapUpOpen(true)}
-        onReanalyze={reanalyze}
-      />
-    ) : null;
-
   const mobileTabBar =
     !isDesktop && a.raw_text?.trim() ? (
       <TabsList className="grid h-10 w-full grid-cols-2 rounded-none border-0 border-t border-border/50 bg-muted/30 p-0">
@@ -1454,8 +1440,8 @@ export default function ArtifactDetailPage() {
 
   const StudyColumnWrapper = ({ children }: { children: ReactNode }) =>
     !isDesktop ? (
-      <TabsContent value="study" className="mt-0 space-y-5 focus-visible:outline-none sm:space-y-6">
-        {children}
+      <TabsContent value="study" className="mt-0 px-3 pb-8 focus-visible:outline-none sm:px-4">
+        <div className={artifactStudyStackMobile}>{children}</div>
       </TabsContent>
     ) : (
       <div className="space-y-5 sm:space-y-6">{children}</div>
@@ -1475,7 +1461,9 @@ export default function ArtifactDetailPage() {
       onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
       canBookmark={canCaptureMoments}
       bookmarking={savingMoment}
-      onBookmarkSegment={(seconds, snippet) => void bookmarkAtSeconds(seconds, snippet)}
+      onBookmarkSegment={
+        isDesktop ? (seconds, snippet) => void bookmarkAtSeconds(seconds, snippet) : undefined
+      }
       onCopy={copyTranscript}
       onJournal={() => openJournalFromArtifact()}
       fullPageJournalLabel="Full-page journal"
@@ -1487,6 +1475,25 @@ export default function ArtifactDetailPage() {
       showFormatButton={transcriptNeedsFormatting}
       formattingTranscript={formattingTranscript}
       onFormatTranscript={formatTranscript}
+      embeddedInMobileTab={!isDesktop}
+      variant={!isDesktop && a.kind === "youtube" ? "youtubeMobile" : "default"}
+      getIsPlaying={youtubePlayer.getIsPlaying}
+      onPauseVideo={youtubePlayer.pauseVideo}
+      onResumePlayback={youtubePlayer.playVideo}
+      segmentBookmarkActions={
+        !isDesktop && a.kind === "youtube"
+          ? {
+              onSaveBookmark: (seconds, snippet) => void bookmarkAtSeconds(seconds, snippet),
+              onJournal: journalTranscriptSegment,
+              onResearchLater: (seconds, snippet) =>
+                void researchLaterTranscriptSegment(seconds, snippet),
+            }
+          : undefined
+      }
+      noteBody={noteBody}
+      onNoteBodyChange={setNoteBody}
+      notePolishResetKey={a.id}
+      onSaveSegmentNote={saveSegmentNote}
     />
   ) : null;
 
@@ -1494,8 +1501,7 @@ export default function ArtifactDetailPage() {
     <FrameworkLayout
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
       headerLeading={youtubeHeaderLeading}
-      immersiveCompactTitle={a.kind === "youtube" ? displayTitle : undefined}
-      headerTrailing={mobileMenuTrigger}
+      immersiveMobileMinimal={a.kind === "youtube" && Boolean(youTubeVideoId)}
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
@@ -1524,16 +1530,60 @@ export default function ArtifactDetailPage() {
         className={cn(
           "space-y-6 lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-6",
           artifactSplitPaneHeightClass,
+          !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col space-y-0",
         )}
       >
         <Tabs
           value={mobileTab}
           onValueChange={(v) => setMobileTab(v as "study" | "transcript")}
-          className="min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col"
+          className={cn(
+            "min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col",
+            !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col",
+          )}
         >
-        {youTubeVideoId ? (
+        {youTubeVideoId && isDesktop ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
+            thumbnailUrl={mergedVideoMeta.thumbnail_url}
+            youtubePip={youtubePip}
+            pipEnabled={pipEnabled}
+            stickyMode={false}
+            youtubePlayer={youtubePlayer}
+            playback={videoPlayback}
+            artifactId={a.id}
+            moments={moments}
+            bookmarkLabel={bookmarkLabel}
+            onBookmarkLabelChange={setBookmarkLabel}
+            noteBody={noteBody}
+            onNoteBodyChange={setNoteBody}
+            canCaptureMoments={canCaptureMoments}
+            savingMoment={savingMoment}
+            hasTranscript={Boolean(a.raw_text?.trim())}
+            onBookmark={bookmarkCurrentMoment}
+            onSaveNote={addNoteAtCurrentMoment}
+            onBelieve={believeCurrentMoment}
+            onStudyJournal={openStudyJournal}
+            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+            onOpenJournalFull={() => openJournalFromArtifact()}
+          />
+        ) : null}
+
+        <div
+          ref={mainScrollRef}
+          className={cn(
+            "min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin",
+            !isDesktop && mobileTab === "transcript" && stickyVideoMode
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "space-y-5 sm:space-y-6",
+          )}
+        >
+        {youTubeVideoId && !isDesktop ? (
+          <ArtifactYoutubeVideoBlock
+            youTubeVideoId={youTubeVideoId}
+            displayTitle={displayTitle}
+            channel={mergedVideoMeta.channel_title}
+            channelUrl={mergedVideoMeta.channel_url}
+            providerName={mergedVideoMeta.provider_name}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
             youtubePip={youtubePip}
             pipEnabled={pipEnabled}
@@ -1555,12 +1605,29 @@ export default function ArtifactDetailPage() {
             onStudyJournal={openStudyJournal}
             onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
             onOpenJournalFull={() => openJournalFromArtifact()}
-            stickyFooter={mobileTabBar}
+            mobileTabBar={mobileTabBar}
+            mobileActiveTab={mobileTab}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuOpenChange={setMobileMenuOpen}
+            menuSections={navSections}
+            menuActiveHash={pageSectionHash}
+            menuShowPaste={a.kind === "youtube"}
+            menuShowWrapUp={a.kind === "youtube" && a.status === "ready"}
+            menuShowReanalyze={!inFlight && a.status !== "error"}
+            onMenuNavigateSection={navigateToArtifactHash}
+            onMenuOpenTranscript={() => {
+              setMobileTab("transcript");
+              window.location.hash = "transcript";
+            }}
+            onMenuPaste={() => setPasteOpen(true)}
+            onMenuWrapUp={() => setWrapUpOpen(true)}
+            onMenuReanalyze={reanalyze}
+            backTo="/framework/artifacts"
           />
         ) : null}
-
-        <div ref={mainScrollRef} className="min-w-0 space-y-5 sm:space-y-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:scrollbar-hover-thin">
-      <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
+      {isDesktop || mobileTab !== "transcript" ? (
+        <ArtifactSectionNav sections={navSections} activeHash={pageSectionHash} />
+      ) : null}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
           ...(liveMeta ?? {}),
@@ -1698,8 +1765,18 @@ export default function ArtifactDetailPage() {
           storageKey={a.id ? `artifact-study-spine:${a.id}` : undefined}
           className={artifactScrollMtMobile}
         >
-          <div className="rounded-lg border border-primary/20 bg-primary/[0.04] p-4">
-            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+          <div
+            className={cn(
+              "rounded-lg border border-primary/20 bg-primary/[0.04]",
+              isDesktop ? "p-4" : "p-3",
+            )}
+          >
+            <p
+              className={cn(
+                "text-sm leading-relaxed text-muted-foreground",
+                isDesktop ? "mb-4" : "mb-3 text-xs",
+              )}
+            >
               This video has no chapter outline yet, so we lean on extracted{" "}
               <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Generate chapters above for section jumps, or use{" "}
               <button
@@ -1709,8 +1786,15 @@ export default function ArtifactDetailPage() {
               >
                 Capture
               </button>{" "}
-              for bookmarks and notes while you watch, and open the{" "}
-              <span className="font-medium text-foreground">Study journal</span> in the transcript tab to reflect in depth.
+              on the Study tab for playhead notes, or bookmark lines in the{" "}
+              <button
+                type="button"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+                onClick={() => navigateToArtifactHash("#transcript")}
+              >
+                Transcript
+              </button>{" "}
+              tab while you watch.
             </p>
             <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
           </div>
@@ -1763,7 +1847,11 @@ export default function ArtifactDetailPage() {
         <ArtifactCollapsibleSection
           id="claims"
           title={`Claims (${claims.length})`}
-          description="One thesis per card from the transcript — open each to review source, scripture, and verdicts."
+          description={
+            isDesktop
+              ? "One thesis per card from the transcript — open each to review source, scripture, and verdicts."
+              : "Tap a claim to review source, scripture, and verdicts."
+          }
           defaultOpenMobile={false}
           defaultOpenDesktop
           storageKey={a.id ? `artifact-claims-block:${a.id}` : undefined}
@@ -1812,7 +1900,7 @@ export default function ArtifactDetailPage() {
         <TabsContent
           value="transcript"
           id="transcript"
-          className={cn("mt-0 min-h-[min(70dvh,640px)] focus-visible:outline-none", artifactScrollMtMobile)}
+          className="mt-0 flex min-h-0 flex-1 flex-col focus-visible:outline-none data-[state=inactive]:hidden"
         >
           {transcriptPanel}
         </TabsContent>

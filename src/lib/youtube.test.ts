@@ -28,7 +28,7 @@ describe("getYouTubeVideoId", () => {
 describe("getYouTubeEmbedUrl", () => {
   it("returns an embed URL for valid youtu.be input", () => {
     const embed = getYouTubeEmbedUrl("https://youtu.be/KSsdJhtL--o?si=1VVa8Eo6NjnKs1kw");
-    expect(embed).toContain("https://www.youtube.com/embed/KSsdJhtL--o");
-    expect(embed).toContain("enablejsapi=1");
+    expect(embed).toContain("https://www.youtube-nocookie.com/embed/KSsdJhtL--o");
+    expect(embed).toContain("rel=0");
   });
 });

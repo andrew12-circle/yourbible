@@ -132,7 +132,7 @@ export async function buildFrameworkRetrievalContext(
   const beliefHitIds = new Set(scoredBeliefs.map((b) => b.id));
 
   // Temporal slice: latest 2 belief_versions for each hit belief.
-  let temporalLines: string[] = [];
+  const temporalLines: string[] = [];
   if (beliefHitIds.size) {
     const { data: vRows } = await supabase
       .from("belief_versions")

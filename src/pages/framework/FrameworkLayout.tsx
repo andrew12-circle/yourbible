@@ -20,6 +20,8 @@ interface Props {
   headerLeading?: ReactNode;
   /** One-line title on mobile when `headerLeading` is set (immersive artifact detail). */
   immersiveCompactTitle?: string;
+  /** Mobile immersive: back + trailing only; title lives in page body (e.g. YouTube detail). */
+  immersiveMobileMinimal?: boolean;
   /** Trailing control on mobile immersive header (e.g. menu). */
   headerTrailing?: ReactNode;
 }
@@ -56,23 +58,33 @@ export default function FrameworkLayout({
   headerActions,
   headerLeading,
   immersiveCompactTitle,
+  immersiveMobileMinimal,
   headerTrailing,
 }: Props) {
   const { pathname } = useLocation();
   const immersive = immersiveProp ?? isArtifactDetailPath(pathname);
   const studioLibrary = isArtifactsLibraryPath(pathname);
+  const compactMobileHeader = Boolean(immersive && (immersiveCompactTitle || immersiveMobileMinimal));
+  const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);
   const headerMax =
     headerContentClassName ??
     (studioLibrary ? "max-w-[min(92rem,calc(100vw-1.25rem))]" : "max-w-4xl");
   return (
     <div
       className="min-h-screen bg-background font-sans text-foreground"
-      style={{ ["--artifact-header-h" as string]: immersive && immersiveCompactTitle ? "3.5rem" : "4.5rem" }}
+      style={{
+        ["--artifact-header-h" as string]: immersiveMobileMinimal
+          ? "0px"
+          : compactMobileHeader
+            ? "3.5rem"
+            : "4.5rem",
+      }}
     >
       <header
         data-artifact-framework-header
         className={cn(
           "sticky top-0 z-30 border-b backdrop-blur-md",
+          hideMobileFrameworkHeader && "max-md:hidden",
           immersive
             ? "border-border/60 bg-background/92 shadow-sm supports-[backdrop-filter]:bg-background/85"
             : studioLibrary
@@ -91,7 +103,7 @@ export default function FrameworkLayout({
             headerMax,
           )}
         >
-          {headerLeading && immersive && immersiveCompactTitle ? (
+          {headerLeading && immersive && !immersiveMobileMinimal && (immersiveCompactTitle || headerTrailing) ? (
             <div className="flex items-center gap-2 md:hidden">
               <Link
                 to={back ?? "/"}
@@ -100,9 +112,13 @@ export default function FrameworkLayout({
               >
                 <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
               </Link>
-              <h1 className="min-w-0 flex-1 truncate font-display text-sm font-normal leading-snug text-foreground">
-                {immersiveCompactTitle}
-              </h1>
+              {immersiveCompactTitle ? (
+                <h1 className="min-w-0 flex-1 truncate font-display text-sm font-normal leading-snug text-foreground">
+                  {immersiveCompactTitle}
+                </h1>
+              ) : (
+                <div className="min-w-0 flex-1" aria-hidden />
+              )}
               {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
             </div>
           ) : null}
@@ -110,8 +126,11 @@ export default function FrameworkLayout({
           <div
             className={cn(
               "flex min-w-0 gap-2 sm:gap-3",
-              headerLeading && immersive && immersiveCompactTitle && "hidden md:flex md:w-full",
-              headerLeading && immersive && !immersiveCompactTitle
+              headerLeading &&
+                immersive &&
+                (immersiveCompactTitle || immersiveMobileMinimal) &&
+                "hidden md:flex md:w-full",
+              headerLeading && immersive && !immersiveCompactTitle && !immersiveMobileMinimal
                 ? "items-start"
                 : "flex-1 items-center",
               !(headerLeading && immersive) && "flex-1",
@@ -124,7 +143,10 @@ export default function FrameworkLayout({
                 immersive
                   ? "inline-flex items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
                   : "inline-flex h-9 w-9 items-center justify-center hover:bg-muted/50 hover:text-foreground",
-                headerLeading && immersive && immersiveCompactTitle && "hidden md:inline-flex",
+                headerLeading &&
+                  immersive &&
+                  (immersiveCompactTitle || immersiveMobileMinimal) &&
+                  "hidden md:inline-flex",
               )}
               aria-label={immersive ? "Back to artifacts" : "Back"}
             >
@@ -160,7 +182,7 @@ export default function FrameworkLayout({
             <div
               className={cn(
                 "flex shrink-0 items-center justify-end gap-1 sm:gap-1.5",
-                immersiveCompactTitle ? "hidden md:flex" : "pl-10 md:pl-0",
+                immersiveCompactTitle || immersiveMobileMinimal ? "hidden md:flex" : "pl-10 md:pl-0",
               )}
             >
               {headerActions}
@@ -227,7 +249,13 @@ export default function FrameworkLayout({
       <main
         className={cn(
           "mx-auto px-4 sm:px-5",
-          immersive ? "py-4 pr-12 pb-6 sm:py-6 sm:pr-14 sm:pb-8" : studioLibrary ? "py-5 sm:py-6" : "py-8 sm:py-10",
+          immersive
+            ? hideMobileFrameworkHeader
+              ? "max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6"
+              : "py-4 pb-6 sm:py-6 sm:pb-8"
+            : studioLibrary
+              ? "py-5 sm:py-6"
+              : "py-8 sm:py-10",
           contentClassName ?? "max-w-4xl",
         )}
       >

@@ -139,7 +139,7 @@ function resolveBookAbbrev(bookRaw: string): string | null {
 type ParsedRef = { book: string; chapter: number; v0?: number; v1?: number };
 
 function parseSingleRef(raw: string): ParsedRef | null {
-  const s = raw.trim().replace(/^[\[(<"'`]+|[\])>"'`]+$/g, "").trim();
+  const s = raw.trim().replace(/^[[(<"'`]+|[])>"'`]+$/g, "").trim();
   if (!s) return null;
   const m = s.match(/^(.+?)\s+(\d+)\s*(?::\s*(\d+)(?:\s*[-–]\s*(\d+))?)?\s*$/);
   if (!m) return null;
@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
     const packType: PackType = packTypeRaw === "validation" ? "validation" : "standard";
     const userQuestion = typeof bodyRaw.user_question === "string" ? bodyRaw.user_question.trim().slice(0, 2000) : "";
 
-    let lensesIn: unknown = bodyRaw.lenses;
+    const lensesIn: unknown = bodyRaw.lenses;
     let lensList: LensId[] = packType === "validation" ? [...VALIDATION_LENS_IDS] : [...DEFAULT_LENS_IDS];
     if (Array.isArray(lensesIn)) {
       const picked = lensesIn
@@ -678,7 +678,7 @@ Deno.serve(async (req) => {
     if (!gem.ok) return jsonResponse({ error: gem.err ?? "Gemini failed" }, 502);
 
     type SectionOut = { body: string; epistemic: Epistemic; voices?: IndependentVoice[] };
-    let sectionsOut: Record<string, SectionOut> = {};
+    const sectionsOut: Record<string, SectionOut> = {};
     try {
       const parsed: unknown = JSON.parse(stripJsonFence(gem.rawText));
       if (isRecord(parsed) && isRecord(parsed.sections)) {

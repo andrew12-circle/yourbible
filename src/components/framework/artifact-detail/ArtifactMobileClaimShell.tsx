@@ -4,7 +4,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { artifactCard, artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
+import { artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
 import { formatClaimVerdict, isDeferredVerdict } from "@/lib/framework/claimVerdict";
 import { cn } from "@/lib/utils";
 
@@ -47,14 +47,14 @@ export default function ArtifactMobileClaimShell({
       open={open}
       onOpenChange={onOpenChange}
       className={cn(
-        artifactCard,
         artifactScrollMtMobile,
-        "border-l-4",
+        "overflow-hidden rounded-lg border border-border/55 bg-card/90 shadow-none",
+        "border-l-[3px]",
         verdictAccent,
-        isDeferredVerdict(claim.verdict) && "ring-1 ring-amber-400/40",
+        isDeferredVerdict(claim.verdict) && "ring-1 ring-amber-400/35",
       )}
     >
-      <CollapsibleTrigger className="flex w-full items-start gap-3 p-4 text-left transition hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-4">
+      <CollapsibleTrigger className="flex w-full min-h-11 items-start gap-2.5 p-3 text-left transition hover:bg-muted/20 active:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span
           className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
           aria-hidden
@@ -62,7 +62,7 @@ export default function ArtifactMobileClaimShell({
           #{claimNumber}
         </span>
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-display text-base leading-snug text-foreground line-clamp-4">{claim.claim}</p>
+          <p className="font-display text-[15px] leading-snug text-foreground line-clamp-3">{claim.claim}</p>
           {claim.verdict ? (
             <span
               className={cn(
@@ -83,7 +83,7 @@ export default function ArtifactMobileClaimShell({
           aria-hidden
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-border/40 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+      <CollapsibleContent className="border-t border-border/40 bg-muted/10 px-3 pb-3 pt-2.5">
         {children}
       </CollapsibleContent>
     </Collapsible>

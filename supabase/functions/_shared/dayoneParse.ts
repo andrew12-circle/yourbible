@@ -40,7 +40,7 @@ export function dayOneUuidToStandard(raw: string): string | null {
 export function dayOneTextToBody(text: string): string {
   let s = text;
   s = s.replace(/!\[\]\(dayone-moment:\/\/[A-F0-9-]+\)\s*/gi, "");
-  s = s.replace(/\\([_\[\]()#*\-+.!])/g, "$1");
+  s = s.replace(/\\([_[\]#*+.!()-])/g, "$1");
   return s.trim();
 }
 

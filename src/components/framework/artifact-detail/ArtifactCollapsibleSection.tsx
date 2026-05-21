@@ -6,7 +6,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useIsDesktop } from "@/hooks/use-desktop";
-import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactScrollMt,
+  artifactScrollMtMobile,
+  artifactStudySectionContentMobile,
+  artifactStudySectionTriggerMobile,
+} from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -79,29 +84,59 @@ export default function ArtifactCollapsibleSection({
     }
   };
 
+  const scrollMt = isDesktop ? artifactScrollMt : artifactScrollMtMobile;
+
   return (
     <Collapsible
       id={id}
       open={open}
       onOpenChange={onOpenChange}
-      className={cn(artifactScrollMt, "mb-4", className)}
+      className={cn(scrollMt, isDesktop ? "mb-4" : "mb-0", className)}
     >
       <CollapsibleTrigger
         id={triggerId}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-left shadow-sm transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          isDesktop
+            ? "flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-left shadow-sm transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            : cn(artifactStudySectionTriggerMobile, open && "bg-muted/15"),
+        )}
       >
-        <div className="min-w-0">
-          <span className="font-display text-sm text-foreground sm:text-base">{title}</span>
+        <div className="min-w-0 flex-1">
+          <span
+            className={cn(
+              "font-display text-foreground",
+              isDesktop ? "text-sm sm:text-base" : "text-[15px] font-semibold leading-snug tracking-tight",
+            )}
+          >
+            {title}
+          </span>
           {description ? (
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</p>
+            <p
+              className={cn(
+                "text-muted-foreground",
+                isDesktop
+                  ? "mt-0.5 line-clamp-2 text-xs"
+                  : open
+                    ? "mt-1 line-clamp-3 text-xs leading-relaxed"
+                    : "mt-0.5 line-clamp-1 text-[11px] leading-snug",
+              )}
+            >
+              {description}
+            </p>
           ) : null}
         </div>
         <ChevronDown
-          className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
+          className={cn(
+            "shrink-0 text-muted-foreground transition-transform",
+            isDesktop ? "h-4 w-4" : "h-5 w-5",
+            open && "rotate-180",
+          )}
           aria-hidden
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className="pt-3">{children}</CollapsibleContent>
+      <CollapsibleContent className={isDesktop ? "pt-3" : artifactStudySectionContentMobile}>
+        {children}
+      </CollapsibleContent>
     </Collapsible>
   );
 }

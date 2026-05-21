@@ -46,7 +46,7 @@ export function computeToolbarPosition(
     if (rect.bottom + TOOLBAR_GAP <= dockTop) {
       return { left: Math.round((vw - toolbarW) / 2), top: dockTop };
     }
-    let top = Math.round(rect.top - TOOLBAR_GAP - toolbarH);
+    const top = Math.round(rect.top - TOOLBAR_GAP - toolbarH);
     return { left, top: Math.max(margin, top) };
   }
 

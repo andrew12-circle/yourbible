@@ -1,38 +1,32 @@
-import { Bookmark, ChevronDown, MoreHorizontal, Sparkles, StickyNote } from "lucide-react";
+import { Bookmark, FileText, MoreHorizontal, StickyNote } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type Props = {
   canCapture: boolean;
   saving: boolean;
   hasNote: boolean;
-  hasTranscript: boolean;
+  /** Transcript tab: line bookmarks are primary; hide playhead bookmark duplicate. */
+  transcriptTabActive?: boolean;
+  /** Mobile sticky toolbar: icon-only buttons to save horizontal space. */
+  iconOnly?: boolean;
   onBookmark: () => void;
   onSaveNote: () => void;
-  onBelieve: () => void;
-  onStudyJournal: () => void;
-  onOpenJournalTimestamp: () => void;
-  onOpenJournalFull: () => void;
-  onOpenCapture: () => void;
+  onOpenNote: () => void;
+  /** Opens study menu sheet (sections, transcript, artifact actions, capture extras). */
+  onOpenStudyMenu: () => void;
 };
 
 export default function ArtifactQuickCaptureRow({
   canCapture,
   saving,
   hasNote,
-  hasTranscript,
+  transcriptTabActive = false,
+  iconOnly = false,
   onBookmark,
   onSaveNote,
-  onBelieve,
-  onStudyJournal,
-  onOpenJournalTimestamp,
-  onOpenJournalFull,
-  onOpenCapture,
+  onOpenNote,
+  onOpenStudyMenu,
 }: Props) {
   return (
     <div
@@ -40,57 +34,57 @@ export default function ArtifactQuickCaptureRow({
       role="toolbar"
       aria-label="Quick capture"
     >
-      <Button
-        size="sm"
-        className="h-9 min-w-0 flex-1 gap-1.5 font-medium"
-        onClick={onBookmark}
-        disabled={!canCapture || saving}
-      >
-        <Bookmark className="h-4 w-4 shrink-0" aria-hidden />
-        Mark moment
-      </Button>
+      {!transcriptTabActive ? (
+        <Button
+          size="sm"
+          className={cn(
+            "h-9 font-medium",
+            iconOnly ? "w-9 shrink-0 px-0" : "min-w-0 flex-1 gap-1.5",
+          )}
+          onClick={onBookmark}
+          disabled={!canCapture || saving}
+          aria-label="Mark moment"
+        >
+          <Bookmark className="h-4 w-4 shrink-0" aria-hidden />
+          {iconOnly ? null : "Mark moment"}
+        </Button>
+      ) : null}
       <Button
         type="button"
         size="sm"
         variant="outline"
-        className="h-9 shrink-0 gap-1"
+        className={cn(
+          "h-9 shrink-0",
+          iconOnly ? "w-9 px-0" : "gap-1",
+          !iconOnly && transcriptTabActive && "min-w-0 flex-1",
+        )}
         onClick={() => {
-          onOpenCapture();
+          onOpenNote();
           if (hasNote) onSaveNote();
         }}
         disabled={!canCapture || saving}
+        aria-label="Note"
       >
-        <StickyNote className="h-3.5 w-3.5" aria-hidden />
-        Note
+        {iconOnly ? (
+          <FileText className="h-4 w-4" aria-hidden />
+        ) : (
+          <>
+            <StickyNote className="h-3.5 w-3.5" aria-hidden />
+            Note
+          </>
+        )}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-9 shrink-0 gap-1 px-2"
-            disabled={!canCapture}
-          >
-            <MoreHorizontal className="h-4 w-4" aria-hidden />
-            More
-            <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[min(100vw-2rem,16rem)]">
-          <DropdownMenuItem onClick={onBelieve} disabled={saving}>
-            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden />
-            I believe this
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onStudyJournal}>Study journal</DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenJournalTimestamp} disabled={!canCapture}>
-            Full-page journal at current time
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenJournalFull} disabled={!hasTranscript}>
-            Full-page journal (full video)
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn("h-9 shrink-0", iconOnly ? "w-9 px-0" : "gap-1 px-2")}
+        aria-label="More — study menu"
+        onClick={onOpenStudyMenu}
+      >
+        <MoreHorizontal className="h-4 w-4" aria-hidden />
+        {iconOnly ? null : "More"}
+      </Button>
     </div>
   );
 }

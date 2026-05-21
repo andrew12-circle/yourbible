@@ -45,7 +45,7 @@ interface Props {
 type PickerStep = "book" | "chapter" | "verse";
 
 export function TopBar({
-  reference, collapsed, focusMode, onToggleFocus,
+  reference, collapsed: _collapsed, focusMode, onToggleFocus,
   bibleId, bibles, onChangeBible, onBookmark,
   currentBook, currentChapter, currentVerseCount, onJumpTo,
   fontScale, onFontScaleChange,

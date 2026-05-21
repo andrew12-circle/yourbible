@@ -18,7 +18,15 @@ type Props = {
   onPaste: () => void;
   onWrapUp: () => void;
   onReanalyze: () => void;
+  /** When false, sheet is controlled externally (e.g. quick-capture More). */
+  showTrigger?: boolean;
   triggerClassName?: string;
+  canCapture?: boolean;
+  captureSaving?: boolean;
+  onBelieve?: () => void;
+  onStudyJournal?: () => void;
+  onOpenJournalTimestamp?: () => void;
+  onOpenJournalFull?: () => void;
 };
 
 export default function ArtifactMobileMenu({
@@ -35,8 +43,18 @@ export default function ArtifactMobileMenu({
   onPaste,
   onWrapUp,
   onReanalyze,
+  showTrigger = true,
   triggerClassName,
+  canCapture = true,
+  captureSaving = false,
+  onBelieve,
+  onStudyJournal,
+  onOpenJournalTimestamp,
+  onOpenJournalFull,
 }: Props) {
+  const showCaptureActions = Boolean(
+    onBelieve || onStudyJournal || onOpenJournalTimestamp || onOpenJournalFull,
+  );
   const resolvedHash = sections.some((s) => s.hash === activeHash) ? activeHash : sections[0]?.hash;
 
   const run = (fn: () => void) => {
@@ -46,17 +64,19 @@ export default function ArtifactMobileMenu({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn("h-9 w-9 shrink-0", triggerClassName)}
-          aria-label="Open menu"
-        >
-          <Menu className="h-5 w-5" aria-hidden />
-        </Button>
-      </SheetTrigger>
+      {showTrigger ? (
+        <SheetTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className={cn("h-9 w-9 shrink-0", triggerClassName)}
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" aria-hidden />
+          </Button>
+        </SheetTrigger>
+      ) : null}
       <SheetContent side="right" className="flex w-[min(100%,320px)] flex-col gap-0 p-0">
         <SheetHeader className="border-b border-border/60 px-4 py-3 text-left">
           <SheetTitle className="font-display text-base font-normal">Study menu</SheetTitle>
@@ -111,10 +131,68 @@ export default function ArtifactMobileMenu({
             </div>
           ) : null}
 
+          {showCaptureActions ? (
+            <div className="mb-4">
+              <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Capture
+              </p>
+              <ul className="space-y-0.5">
+                {onBelieve ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
+                      disabled={captureSaving}
+                      onClick={() => run(onBelieve)}
+                    >
+                      <Sparkles className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      I believe this
+                    </button>
+                  </li>
+                ) : null}
+                {onStudyJournal ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50"
+                      onClick={() => run(onStudyJournal)}
+                    >
+                      Study journal
+                    </button>
+                  </li>
+                ) : null}
+                {onOpenJournalTimestamp ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
+                      disabled={!canCapture}
+                      onClick={() => run(onOpenJournalTimestamp)}
+                    >
+                      Full-page journal at current time
+                    </button>
+                  </li>
+                ) : null}
+                {onOpenJournalFull ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
+                      disabled={!hasTranscript}
+                      onClick={() => run(onOpenJournalFull)}
+                    >
+                      Full-page journal (full video)
+                    </button>
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null}
+
           {(showPaste || showWrapUp || showReanalyze) && (
             <div>
               <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Actions
+                Artifact
               </p>
               <ul className="space-y-0.5">
                 {showPaste ? (

@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
 import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, LogOut, Check, ImagePlus, User, SlidersHorizontal, Languages } from "lucide-react";
+import { ChevronLeft, LogOut, ImagePlus, User, SlidersHorizontal, Languages } from "lucide-react";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { toast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ type HomeLayoutSettings = {
 
 export default function SettingsPage() {
   const { user, profile, updateProfile, signOut, loading } = useAuth();
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
   const [dobDraft, setDobDraft] = useState(profile?.date_of_birth ?? "");
 

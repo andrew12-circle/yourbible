@@ -359,7 +359,7 @@ function ListeningSectionsView({ body }: { body: string }) {
 
 function AxisBar({ axis, value }: { axis: string; value: number }) {
   const v = Math.max(-1, Math.min(1, value));
-  const pct = ((v + 1) / 2) * 100;
+  const _pct = ((v + 1) / 2) * 100;
   const [neg, pos] = axisLabels(axis);
   return (
     <div>

@@ -166,7 +166,7 @@ function parseAssistantPayload(rawText: string): { reply: string; citations: Cit
     reply = parsed.reply;
     citations = parsed.citations;
   } else {
-    let loose = stripJsonFence(rawText);
+    const loose = stripJsonFence(rawText);
     try {
       const j: unknown = JSON.parse(loose);
       if (isRecord(j) && typeof j.reply === "string" && j.reply.trim()) {
@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
       if (mode !== "journal" || !journalEntryId) {
         return jsonResponse({ error: "journal_bootstrap_opener requires mode=journal and journal_entry_id" }, 400);
       }
-      let chatId = typeof body.chat_id === "string" && body.chat_id.length ? body.chat_id : null;
+      const chatId = typeof body.chat_id === "string" && body.chat_id.length ? body.chat_id : null;
       if (!chatId) return jsonResponse({ error: "chat_id is required for bootstrap" }, 400);
 
       const { data: existing, error: exErr } = await supabase

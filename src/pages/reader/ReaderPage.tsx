@@ -27,12 +27,10 @@ import { useChapterData, useBookmarks } from "@/hooks/useUserData";
 import { getPalette } from "@/lib/bible/palettes";
 import {
   highlightIntervalsForVerse,
-  isRangeInReadingArea,
   sliceTextByHighlights,
   toolbarSelectionFromRange,
 } from "@/lib/bible/verseSelection";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { CompanionPane } from "@/components/reader/CompanionPane";
@@ -117,7 +115,7 @@ export default function ReaderPage() {
     }
   });
   /** Last mark kind chosen from the selection toolbar. */
-  const [markTool, setMarkTool] = useState<"highlight" | "underline">("highlight");
+  const [_markTool, setMarkTool] = useState<"highlight" | "underline">("highlight");
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   // Reading text-size scale (persisted). Clamp into a sane range.
@@ -139,7 +137,7 @@ export default function ReaderPage() {
   }, [book.abbr, chapter]);
 
   // Total chapters across the canon → progress through the Bible
-  const { progress, chaptersBefore, totalChapters } = useMemo(() => {
+  const { progress, chaptersBefore, totalChapters: _totalChapters } = useMemo(() => {
     const total = BOOKS.reduce((s, b) => s + b.chapters, 0);
     let before = 0;
     for (const b of BOOKS) {
@@ -153,7 +151,7 @@ export default function ReaderPage() {
     };
   }, [book.abbr, chapter]);
 
-  const { highlights, notes, setMark, setMarks, setMarkRanges, upsertNote, deleteNote } =
+  const { highlights, notes, setMark: _setMark, setMarks, setMarkRanges, upsertNote, deleteNote } =
     useChapterData(book.abbr, chapter);
   const { bookmarks, setBookmark } = useBookmarks();
 

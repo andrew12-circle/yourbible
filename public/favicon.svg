@@ -1,22 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Sacred &amp; Modern">
-  <defs>
-    <linearGradient id="leather" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3d0f0f"/>
-      <stop offset="100%" stop-color="#5c2222"/>
-    </linearGradient>
-    <linearGradient id="paper" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#f7f2e8"/>
-      <stop offset="100%" stop-color="#ebe1d0"/>
-    </linearGradient>
-    <linearGradient id="foil" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#a67c2e"/>
-      <stop offset="50%" stop-color="#e5b84d"/>
-      <stop offset="100%" stop-color="#c9a04a"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="7" fill="url(#leather)"/>
-  <rect x="9" y="5" width="18" height="22" rx="2.5" fill="url(#paper)"/>
-  <path d="M9 5v22" stroke="url(#foil)" stroke-width="1.35" stroke-linecap="round"/>
-  <path d="M13 11h11" stroke="url(#foil)" stroke-width="1" stroke-linecap="round" opacity="0.92"/>
-  <path d="M13 14h8" stroke="url(#foil)" stroke-width="0.75" stroke-linecap="round" opacity="0.55"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Sacred & Modern">
+  <image width="32" height="32" href="data:image/png;base64,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"/>
 </svg>

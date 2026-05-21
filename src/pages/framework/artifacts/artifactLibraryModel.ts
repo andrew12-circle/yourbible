@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, FileText, Mic, Youtube } from "lucide-react";
+import { FileText, Mic, Youtube } from "lucide-react";
 import { getYouTubeVideoId, youtubeHqThumbnail, youtubeMqThumbnail } from "@/lib/youtube";
 
 /** Stored title sometimes wrongly captures view count (e.g. "7.4K"); prefer oEmbed title from metadata when that happens. */

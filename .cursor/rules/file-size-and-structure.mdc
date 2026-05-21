@@ -1,0 +1,30 @@
+---
+description: File size limits and module layout for src
+alwaysApply: true
+---
+
+# File size and structure
+
+## Line limits
+
+- **Hard cap:** 2000 lines per `src/**/*.{ts,tsx}` (enforced by ESLint `max-lines` and `npm run check:file-size`).
+- **Plan a split at 1600:** extract hooks, section components, or `lib/` helpers before the file becomes unmaintainable.
+
+## Module layout
+
+- **Pages** (`src/pages/**`): route entry, wire data and navigation only.
+- **Hooks** (`src/hooks/**`, `use*.ts` next to a feature): state, effects, handlers, derived data.
+- **Components** (`src/components/**`): presentational UI and small local UI state.
+- **Lib** (`src/lib/**`): pure helpers, API clients, types—no React.
+
+Prefer **Page → hooks → components**; pages should not accumulate hundreds of lines of logic or JSX.
+
+## React conventions
+
+- Declare **all hooks at the top** of the component, before any conditional `return` (loading, auth, not-found).
+- Match existing patterns: `@/` imports, `cn()`, shadcn/ui, Supabase client from `@/integrations/supabase/client`.
+- Do not introduce new global state libraries; use existing hooks/contexts.
+
+## When a file is large
+
+Extract in this order: custom hook → section component → `lib/` util. Do not grow god files; split proactively at ~1600 lines.

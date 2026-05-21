@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bookmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import TranscriptSegmentBookmarkSheet, {
+  type TranscriptSegmentBookmarkActions,
+} from "@/components/framework/artifact-detail/TranscriptSegmentBookmarkSheet";
 import TranscriptToolbar from "@/components/framework/artifact-detail/TranscriptToolbar";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
@@ -69,6 +81,23 @@ export interface TranscriptPanelProps {
   showFormatButton?: boolean;
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
+  /** Flush layout when embedded directly under mobile video tabs. */
+  embeddedInMobileTab?: boolean;
+  /** Mobile YouTube transcript tab: full-height sheet layout and per-line bookmark menu. */
+  variant?: "default" | "youtubeMobile";
+  getIsPlaying?: () => boolean;
+  onPauseVideo?: () => void;
+  onResumePlayback?: () => void;
+  segmentBookmarkActions?: {
+    onSaveBookmark: (seconds: number, snippet: string) => void;
+    onJournal: (seconds: number, snippet: string) => void;
+    onResearchLater: (seconds: number, snippet: string) => void;
+  };
+  /** Mobile segment note dialog (youtubeMobile). */
+  noteBody?: string;
+  onNoteBodyChange?: (value: string) => void;
+  notePolishResetKey?: string;
+  onSaveSegmentNote?: (seconds: number) => void | Promise<void>;
 }
 
 export default function TranscriptPanel({
@@ -94,7 +123,22 @@ export default function TranscriptPanel({
   showFormatButton,
   formattingTranscript,
   onFormatTranscript,
+  embeddedInMobileTab = false,
+  variant = "default",
+  getIsPlaying,
+  onPauseVideo,
+  onResumePlayback,
+  segmentBookmarkActions,
+  noteBody = "",
+  onNoteBodyChange,
+  notePolishResetKey,
+  onSaveSegmentNote,
 }: TranscriptPanelProps) {
+  const youtubeMobile = variant === "youtubeMobile";
+  const toolbarSubtitle =
+    canBookmark && onBookmarkSegment
+      ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
+      : "Click a line to jump. Timestamps marked ~ are approximate.";
   const [search, setSearch] = useState("");
   const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
   const [semanticLoading, setSemanticLoading] = useState(false);
@@ -106,6 +150,43 @@ export default function TranscriptPanel({
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
   const userPausedFollowUntilRef = useRef(0);
+  const wasPlayingBeforeMenuRef = useRef(false);
+  const [bookmarkMenuSegment, setBookmarkMenuSegment] = useState<{
+    seconds: number;
+    snippet: string;
+    stamp: string | null;
+    estimated?: boolean;
+  } | null>(null);
+  const [segmentNoteOpen, setSegmentNoteOpen] = useState(false);
+  const [segmentNoteSeconds, setSegmentNoteSeconds] = useState<number | null>(null);
+
+  const resumePlaybackIfNeeded = useCallback(() => {
+    if (wasPlayingBeforeMenuRef.current) {
+      onResumePlayback?.();
+    }
+    wasPlayingBeforeMenuRef.current = false;
+  }, [onResumePlayback]);
+
+  const pauseForOverlay = useCallback(() => {
+    wasPlayingBeforeMenuRef.current = getIsPlaying?.() ?? isPlaying;
+    onPauseVideo?.();
+  }, [getIsPlaying, isPlaying, onPauseVideo]);
+
+  const openBookmarkMenu = useCallback(
+    (seconds: number, snippet: string, stamp: string | null, estimated?: boolean) => {
+      pauseForOverlay();
+      setBookmarkMenuSegment({ seconds, snippet, stamp, estimated });
+    },
+    [pauseForOverlay],
+  );
+
+  const closeBookmarkMenu = useCallback(
+    (resume: boolean) => {
+      setBookmarkMenuSegment(null);
+      if (resume) resumePlaybackIfNeeded();
+    },
+    [resumePlaybackIfNeeded],
+  );
 
   useEffect(() => {
     const q = search.trim();
@@ -247,11 +328,45 @@ export default function TranscriptPanel({
     [markProgrammaticScroll, onSeek],
   );
 
+  const menuActions: TranscriptSegmentBookmarkActions | null =
+    bookmarkMenuSegment && segmentBookmarkActions
+      ? {
+          onMakeNote: () => {
+            const { seconds } = bookmarkMenuSegment;
+            closeBookmarkMenu(false);
+            setSegmentNoteSeconds(seconds);
+            setSegmentNoteOpen(true);
+          },
+          onSaveBookmark: () => {
+            const { seconds, snippet } = bookmarkMenuSegment;
+            closeBookmarkMenu(true);
+            segmentBookmarkActions.onSaveBookmark(seconds, snippet);
+          },
+          onJournal: () => {
+            const { seconds, snippet } = bookmarkMenuSegment;
+            closeBookmarkMenu(true);
+            segmentBookmarkActions.onJournal(seconds, snippet);
+          },
+          onResearchLater: () => {
+            const { seconds, snippet } = bookmarkMenuSegment;
+            closeBookmarkMenu(true);
+            segmentBookmarkActions.onResearchLater(seconds, snippet);
+          },
+        }
+      : null;
+
   return (
     <section
       className={cn(
-        artifactCard,
-        "mb-5 p-3 sm:p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4",
+        youtubeMobile
+          ? "flex min-h-0 flex-1 flex-col bg-background"
+          : artifactCard,
+        embeddedInMobileTab && !youtubeMobile
+          ? "mb-0 rounded-none border-0 border-t border-border/50 p-3 shadow-none sm:p-4"
+          : !youtubeMobile && "mb-5 p-3 sm:p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4",
+        !embeddedInMobileTab && !youtubeMobile && "lg:flex lg:h-full lg:min-h-0 lg:flex-col",
+        youtubeMobile && "p-0",
+        embeddedInMobileTab && youtubeMobile && "border-t border-border/50",
       )}
     >
       {search.trim().length >= 3 && artifactId ? (
@@ -264,30 +379,40 @@ export default function TranscriptPanel({
         </p>
       ) : null}
 
-      <TranscriptToolbar
-        search={search}
-        onSearchChange={setSearch}
-        onCopy={onCopy}
-        onJournal={onJournal}
-        fullPageJournalLabel={fullPageJournalLabel}
-        showTimestamps={showTimestamps}
-        onToggleTimestamps={() => setShowTimestamps((v) => !v)}
-        followPlayback={followPlayback}
-        onToggleFollowPlayback={() => {
-          setFollowPlayback((v) => {
-            const next = !v;
-            if (next) prevActiveSegmentIdRef.current = null;
-            return next;
-          });
-        }}
-        isPlaying={isPlaying}
-        onTogglePlayback={onTogglePlayback}
-        showPlaybackControl={timed && playerReady && embedAvailable}
-        showFollowControl={timed && playerReady}
-        showFormatButton={showFormatButton}
-        formattingTranscript={formattingTranscript}
-        onFormatTranscript={onFormatTranscript}
-      />
+      <div
+        className={cn(
+          youtubeMobile && "shrink-0 border-b border-border/50 bg-background px-3 pb-3 pt-2 sm:px-4",
+        )}
+      >
+        <TranscriptToolbar
+          search={search}
+          onSearchChange={setSearch}
+          onCopy={onCopy}
+          onJournal={onJournal}
+          fullPageJournalLabel={fullPageJournalLabel}
+          showTimestamps={showTimestamps}
+          onToggleTimestamps={() => setShowTimestamps((v) => !v)}
+          followPlayback={followPlayback}
+          onToggleFollowPlayback={() => {
+            setFollowPlayback((v) => {
+              const next = !v;
+              if (next) prevActiveSegmentIdRef.current = null;
+              return next;
+            });
+          }}
+          isPlaying={isPlaying}
+          onTogglePlayback={onTogglePlayback}
+          showPlaybackControl={!youtubeMobile && timed && playerReady && embedAvailable}
+          showFollowControl={timed && playerReady}
+          showFormatButton={showFormatButton && !youtubeMobile}
+          formattingTranscript={formattingTranscript}
+          onFormatTranscript={onFormatTranscript}
+          subtitle={youtubeMobile ? "Tap a line to jump. Bookmark any line while the video plays." : toolbarSubtitle}
+          compact={youtubeMobile}
+          hideTitle={youtubeMobile}
+          hideSecondaryActions={youtubeMobile}
+        />
+      </div>
 
       {coarseTimestampsOnly && onRetryFetch && (
         <div className="mb-3 flex flex-col gap-2 rounded-xl bg-muted/20 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -304,8 +429,10 @@ export default function TranscriptPanel({
       <div
         ref={scrollContainerRef}
         className={cn(
-          "overflow-x-hidden lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto",
-          artifactInset,
+          "overflow-x-hidden",
+          youtubeMobile
+            ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
+            : cn("lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto", artifactInset),
         )}
       >
         <div className="divide-y divide-border/40">
@@ -329,7 +456,8 @@ export default function TranscriptPanel({
                 className={cn(
                   "group relative flex gap-2 px-3 py-3 transition-colors duration-150 sm:gap-3",
                   canSeek && "cursor-pointer hover:bg-muted/35",
-                  isActive && "bg-primary/[0.07]",
+                  isActive &&
+                    (youtubeMobile ? "bg-muted font-semibold" : "bg-primary/[0.07]"),
                   segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
@@ -345,7 +473,7 @@ export default function TranscriptPanel({
                   }
                 }}
               >
-                {isActive ? (
+                {isActive && !youtubeMobile ? (
                   <span
                     className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-primary"
                     aria-hidden
@@ -374,14 +502,42 @@ export default function TranscriptPanel({
                 <p
                   className={cn(
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
-                    isActive ? "font-medium text-foreground" : "text-foreground/90",
+                    isActive
+                      ? youtubeMobile
+                        ? "font-semibold text-foreground"
+                        : "font-medium text-foreground"
+                      : "text-foreground/90",
                     !showTimestamps && "pl-1",
-                    canBookmark && onBookmarkSegment && segment.startSeconds != null && "pr-9 sm:pr-10",
+                    canBookmark &&
+                      segment.startSeconds != null &&
+                      (youtubeMobile ? "pr-[5.5rem]" : onBookmarkSegment && "pr-9 sm:pr-10"),
                   )}
                 >
                   <HighlightedText text={segment.text} query={search} />
                 </p>
-                {canBookmark && onBookmarkSegment && segment.startSeconds != null ? (
+                {canBookmark && segment.startSeconds != null && youtubeMobile && segmentBookmarkActions ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1.5 top-2 h-8 shrink-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    disabled={bookmarking}
+                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const snippet = segment.text.trim().slice(0, 120);
+                      openBookmarkMenu(
+                        segment.startSeconds!,
+                        snippet,
+                        stamp,
+                        segment.timestampEstimated,
+                      );
+                    }}
+                  >
+                    <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Bookmark
+                  </Button>
+                ) : canBookmark && onBookmarkSegment && segment.startSeconds != null ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -391,8 +547,8 @@ export default function TranscriptPanel({
                       "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
                     )}
                     disabled={bookmarking}
-                    aria-label={`Bookmark this line at ${stamp ?? formatTranscriptClock(segment.startSeconds)} (not current playhead)`}
-                    title="Bookmark this line (not current playhead)"
+                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
+                    title="Bookmark this line"
                     onClick={(e) => {
                       e.stopPropagation();
                       const snippet = segment.text.trim().slice(0, 120);
@@ -407,6 +563,84 @@ export default function TranscriptPanel({
           })}
         </div>
       </div>
+
+      {youtubeMobile && menuActions ? (
+        <TranscriptSegmentBookmarkSheet
+          open={Boolean(bookmarkMenuSegment)}
+          onOpenChange={(open) => {
+            if (!open) closeBookmarkMenu(true);
+          }}
+          stamp={
+            bookmarkMenuSegment?.stamp ??
+            (bookmarkMenuSegment
+              ? `${bookmarkMenuSegment.estimated ? "~" : ""}${formatTranscriptClock(bookmarkMenuSegment.seconds)}`
+              : null)
+          }
+          snippet={bookmarkMenuSegment?.snippet ?? ""}
+          disabled={bookmarking}
+          actions={menuActions}
+        />
+      ) : null}
+
+      {youtubeMobile && onSaveSegmentNote && onNoteBodyChange ? (
+        <Dialog
+          open={segmentNoteOpen}
+          onOpenChange={(open) => {
+            setSegmentNoteOpen(open);
+            if (!open) {
+              setSegmentNoteSeconds(null);
+              resumePlaybackIfNeeded();
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {segmentNoteSeconds != null
+                  ? `Note at ${formatTranscriptClock(segmentNoteSeconds)}`
+                  : "Note at this line"}
+              </DialogTitle>
+              <DialogDescription>Saves a timestamped note for this moment in the video.</DialogDescription>
+            </DialogHeader>
+            <PolishedTextarea
+              polishResetKey={notePolishResetKey}
+              value={noteBody}
+              onChange={(e) => onNoteBodyChange(e.target.value)}
+              rows={4}
+              placeholder="Add a note for this transcript line…"
+              disabled={!canBookmark || bookmarking}
+              className="w-full min-w-0"
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setSegmentNoteOpen(false);
+                  setSegmentNoteSeconds(null);
+                  resumePlaybackIfNeeded();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!canBookmark || bookmarking || !noteBody.trim() || segmentNoteSeconds == null}
+                onClick={() => {
+                  if (segmentNoteSeconds == null) return;
+                  void Promise.resolve(onSaveSegmentNote(segmentNoteSeconds)).then(() => {
+                    setSegmentNoteOpen(false);
+                    setSegmentNoteSeconds(null);
+                    resumePlaybackIfNeeded();
+                  });
+                }}
+              >
+                {bookmarking ? "Saving…" : "Save note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </section>
   );
 }

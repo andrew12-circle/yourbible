@@ -94,7 +94,7 @@ export default function FaithJourneyPage() {
       } else {
         const rawEntries = (j as (JournalRow & { journal_id?: string | null })[]) ?? [];
         const journalIds = [...new Set(rawEntries.map((e) => e.journal_id).filter(Boolean))] as string[];
-        let sourceByJournalId: Record<string, string> = {};
+        const sourceByJournalId: Record<string, string> = {};
         if (journalIds.length > 0) {
           const { data: jrows } = await supabase
             .from("journals")

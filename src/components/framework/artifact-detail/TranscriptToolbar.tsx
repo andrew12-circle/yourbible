@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import { sectionLabel } from "@/lib/framework/artifactSurfaces";
+import { cn } from "@/lib/utils";
 
 type Props = {
   search: string;
@@ -33,6 +34,12 @@ type Props = {
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
   showFormatButton?: boolean;
+  /** Overrides default subtitle under "Working transcript". */
+  subtitle?: string;
+  /** Mobile transcript tab: search + follow only. */
+  compact?: boolean;
+  hideTitle?: boolean;
+  hideSecondaryActions?: boolean;
 };
 
 export default function TranscriptToolbar({
@@ -53,15 +60,27 @@ export default function TranscriptToolbar({
   formattingTranscript,
   onFormatTranscript,
   showFormatButton,
+  subtitle = "Click a line to jump. Timestamps marked ~ are approximate.",
+  compact = false,
+  hideTitle = false,
+  hideSecondaryActions = false,
 }: Props) {
   return (
-    <div className="w-full min-w-0 space-y-2.5 border-b border-border/50 pb-3">
-      <div className="w-full min-w-0 space-y-1">
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">Working transcript</h2>
-        <p className={sectionLabel}>
-          Click a line to jump. Timestamps marked ~ are approximate.
-        </p>
-      </div>
+    <div
+      className={cn(
+        "w-full min-w-0 space-y-2.5",
+        !compact && "border-b border-border/50 pb-3",
+        compact && "space-y-2 pb-0",
+      )}
+    >
+      {!hideTitle ? (
+        <div className="w-full min-w-0 space-y-1">
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">Working transcript</h2>
+          <p className={sectionLabel}>{subtitle}</p>
+        </div>
+      ) : subtitle ? (
+        <p className={cn(sectionLabel, "sr-only")}>{subtitle}</p>
+      ) : null}
 
       <div className="relative w-full min-w-0">
         <Search
@@ -78,8 +97,12 @@ export default function TranscriptToolbar({
       </div>
 
       <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
-        <ClaimIconActionButton label="Copy transcript" icon={Copy} tone="defer" onClick={onCopy} />
-        <ClaimIconActionButton label={fullPageJournalLabel} icon={NotebookPen} tone="reflect" onClick={onJournal} />
+        {!hideSecondaryActions ? (
+          <>
+            <ClaimIconActionButton label="Copy transcript" icon={Copy} tone="defer" onClick={onCopy} />
+            <ClaimIconActionButton label={fullPageJournalLabel} icon={NotebookPen} tone="reflect" onClick={onJournal} />
+          </>
+        ) : null}
         {showFormatButton && onFormatTranscript ? (
           <ClaimIconActionButton
             label={formattingTranscript ? "Formatting…" : "Format transcript"}

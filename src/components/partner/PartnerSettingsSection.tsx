@@ -47,10 +47,6 @@ type ShareRow = {
 
 const REL_OPTIONS = ["spouse", "friend", "mentor", "family", "other"] as const;
 
-function partnerId(c: Conn, me: string): string {
-  return c.user_a === me ? c.user_b : c.user_a;
-}
-
 export function PartnerSettingsSection() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);

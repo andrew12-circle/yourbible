@@ -4,7 +4,7 @@
   "description": "Premium personal Bible reader and journal",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4efe4",
+  "background_color": "#121212",
   "theme_color": "#5c2222",
   "icons": [
     {

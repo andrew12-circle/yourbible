@@ -104,7 +104,7 @@ export default function EntryListPane({
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user, journalId, reloadKey, entryKindFilter]);
+  useEffect(() => { load();   }, [user, journalId, reloadKey, entryKindFilter]);
 
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));

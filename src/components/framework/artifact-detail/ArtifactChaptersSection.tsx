@@ -1,6 +1,7 @@
 import { ArrowRight, LayoutList, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { useIsDesktop } from "@/hooks/use-desktop";
+import { artifactCard, artifactInset, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
@@ -30,8 +31,15 @@ export default function ArtifactChaptersSection({
   onGenerateChapters,
   onSeekChapter,
 }: Props) {
+  const isDesktop = useIsDesktop();
+
   return (
-    <section id="chapters" className={cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5")}>
+    <section
+      id="chapters"
+      className={cn(
+        isDesktop ? cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5") : cn(artifactInset, "mb-0 p-3"),
+      )}
+    >
       {status === "ready" && (
         <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
           {chaptersSourceLabel ?? (
@@ -42,16 +50,27 @@ export default function ArtifactChaptersSection({
           )}
         </p>
       )}
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-medium">
-        <LayoutList className="h-4 w-4 text-muted-foreground" aria-hidden />
-        Chapters
+      <div
+        className={cn(
+          "mb-3 flex flex-wrap items-center gap-2",
+          isDesktop ? "text-sm font-medium" : "text-xs",
+        )}
+      >
+        {isDesktop ? (
+          <>
+            <LayoutList className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Chapters
+          </>
+        ) : (
+          <span className="font-medium text-foreground">Outline</span>
+        )}
         {chapters.length > 0 && (
           <span className="text-xs font-normal tabular-nums text-muted-foreground">
             {chapters.length} section{chapters.length === 1 ? "" : "s"}
           </span>
         )}
         {status === "ready" && (
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <div className={cn("flex flex-wrap items-center gap-1.5", isDesktop ? "ml-auto" : "w-full")}>
             {chapters.length === 0 && onSyncYouTubeChapters ? (
               <Button
                 type="button"
@@ -94,13 +113,17 @@ export default function ArtifactChaptersSection({
         )}
       </div>
       {chapters.length > 0 ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className={cn("grid gap-2", isDesktop && "sm:grid-cols-2")}>
           {chapters.map((chapter, idx) => (
             <button
               key={`${chapter.start_seconds}-${idx}`}
               type="button"
               onClick={() => onSeekChapter(chapter.start_seconds)}
-              className="rounded-lg border border-border bg-muted/15 p-3 text-left text-sm transition hover:border-foreground/40 hover:bg-muted/30"
+              className={cn(
+                "rounded-lg border border-border/70 bg-muted/10 p-3 text-left text-sm transition",
+                "hover:border-foreground/35 hover:bg-muted/25 active:bg-muted/35",
+                !isDesktop && "min-h-11",
+              )}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-medium leading-snug">{chapter.title}</span>

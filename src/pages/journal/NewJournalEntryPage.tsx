@@ -4,15 +4,14 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Camera, X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
-  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, Plus, FileText, Lightbulb,
+  X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
+  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, FileText, Lightbulb,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
-import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -95,7 +94,7 @@ export default function NewJournalEntryPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [busy, setBusy] = useState(false);
-  const [busyLabel, setBusyLabel] = useState("Saving");
+  const [_busyLabel, setBusyLabel] = useState("Saving");
   // Inline AI conversation (chat-while-you-write)
   const [inlineEntryId, setInlineEntryId] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -356,6 +355,31 @@ export default function NewJournalEntryPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, user]);
+
+  const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
+
+  const dateLabel = useMemo(() => {
+    try {
+      const d = new Date(entryAt);
+      const datePart = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      const timePart = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      return `${datePart}  ${timePart}`;
+    } catch {
+      return "Today";
+    }
+  }, [entryAt]);
+
+  useEffect(() => {
+    if (!journalId) return;
+    supabase
+      .from("journals")
+      .select("name")
+      .eq("id", journalId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.name) setJournalName(data.name);
+      });
+  }, [journalId]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -679,30 +703,6 @@ export default function NewJournalEntryPage() {
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
-  const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
-
-  const dateLabel = useMemo(() => {
-    try {
-      const d = new Date(entryAt);
-      const datePart = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-      const timePart = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-      return `${datePart}  ${timePart}`;
-    } catch {
-      return "Today";
-    }
-  }, [entryAt]);
-
-  useEffect(() => {
-    if (!journalId) return;
-    supabase
-      .from("journals")
-      .select("name")
-      .eq("id", journalId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.name) setJournalName(data.name);
-      });
-  }, [journalId]);
 
   const openChatMode = async () => {
     if (!canReplyWithAi) {

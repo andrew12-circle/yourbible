@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ChevronLeft, Menu } from "lucide-react";
 import { Journal } from "@/lib/journal/journals";
 
