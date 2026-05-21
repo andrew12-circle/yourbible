@@ -12,10 +12,24 @@ export function isYouTubeEmbedMessageOrigin(origin: string): boolean {
   return origin === "https://www.youtube.com" || origin === "https://www.youtube-nocookie.com";
 }
 
+type EmbedInfo = {
+  currentTime?: number;
+  playerState?: number;
+  videoData?: { currentTime?: number };
+};
+
 type EmbedMessage = {
   event?: string;
-  info?: number | { currentTime?: number; playerState?: number };
+  info?: number | EmbedInfo;
 };
+
+export function currentTimeFromEmbedInfo(info: EmbedInfo | undefined): number | null {
+  if (!info || typeof info !== "object") return null;
+  if (typeof info.currentTime === "number" && Number.isFinite(info.currentTime)) return info.currentTime;
+  const fromVideoData = info.videoData?.currentTime;
+  if (typeof fromVideoData === "number" && Number.isFinite(fromVideoData)) return fromVideoData;
+  return null;
+}
 
 export function parseYouTubeEmbedMessage(data: unknown): EmbedMessage | null {
   if (typeof data === "string") {

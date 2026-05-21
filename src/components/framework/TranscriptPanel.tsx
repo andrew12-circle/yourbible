@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Bookmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +34,29 @@ function findActiveSegmentId(segments: TranscriptSegment[], seconds: number): st
     if (s.startSeconds <= seconds && (!best || s.startSeconds > best.startSeconds!)) best = s;
   }
   return best?.id ?? null;
+}
+
+const TRANSCRIPT_FOLLOW_CENTER_THRESHOLD_PX = 48;
+
+function isTranscriptRowCentered(container: HTMLElement, el: HTMLElement): boolean {
+  const containerRect = container.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const elCenter = elRect.top + elRect.height / 2;
+  const containerCenter = containerRect.top + containerRect.height / 2;
+  return Math.abs(elCenter - containerCenter) <= TRANSCRIPT_FOLLOW_CENTER_THRESHOLD_PX;
+}
+
+function scrollTranscriptRowToCenter(
+  container: HTMLElement,
+  el: HTMLElement,
+  behavior: ScrollBehavior = "smooth",
+) {
+  const containerRect = container.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const elCenter = elRect.top + elRect.height / 2;
+  const containerCenter = containerRect.top + containerRect.height / 2;
+  const delta = elCenter - containerCenter;
+  container.scrollTo({ top: container.scrollTop + delta, behavior });
 }
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
@@ -98,6 +121,8 @@ export interface TranscriptPanelProps {
   onNoteBodyChange?: (value: string) => void;
   notePolishResetKey?: string;
   onSaveSegmentNote?: (seconds: number) => void | Promise<void>;
+  /** Pinned mobile video: scroll title away in the page scroller (not an inner transcript pane). */
+  outerScrollContainerRef?: RefObject<HTMLElement | null>;
 }
 
 export default function TranscriptPanel({
@@ -133,8 +158,10 @@ export default function TranscriptPanel({
   onNoteBodyChange,
   notePolishResetKey,
   onSaveSegmentNote,
+  outerScrollContainerRef,
 }: TranscriptPanelProps) {
   const youtubeMobile = variant === "youtubeMobile";
+  const useOuterScroll = youtubeMobile && Boolean(outerScrollContainerRef);
   const toolbarSubtitle =
     canBookmark && onBookmarkSegment
       ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
@@ -277,20 +304,16 @@ export default function TranscriptPanel({
     const segmentChanged = prevActiveSegmentIdRef.current !== activeSegmentId;
     prevActiveSegmentIdRef.current = activeSegmentId;
 
-    const container = scrollContainerRef.current;
+    const container = useOuterScroll
+      ? outerScrollContainerRef?.current ?? null
+      : scrollContainerRef.current;
     const el = container?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
     if (!container || !el) return;
 
-    const containerRect = container.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const edgeMargin = 56;
-    const inView =
-      elRect.top >= containerRect.top + edgeMargin &&
-      elRect.bottom <= containerRect.bottom - edgeMargin;
-    if (!segmentChanged && inView) return;
+    if (!segmentChanged && isTranscriptRowCentered(container, el)) return;
 
     markProgrammaticScroll();
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    scrollTranscriptRowToCenter(container, el, "smooth");
   }, [
     playerReady,
     searchActive,
@@ -300,6 +323,8 @@ export default function TranscriptPanel({
     isPlaying,
     playbackTick,
     markProgrammaticScroll,
+    useOuterScroll,
+    outerScrollContainerRef,
   ]);
 
   useEffect(() => {
@@ -307,7 +332,9 @@ export default function TranscriptPanel({
   }, [searchActive]);
 
   useEffect(() => {
-    const container = scrollContainerRef.current;
+    const container = useOuterScroll
+      ? outerScrollContainerRef?.current ?? null
+      : scrollContainerRef.current;
     if (!container) return;
     const onScroll = () => {
       if (programmaticScrollRef.current) return;
@@ -315,7 +342,7 @@ export default function TranscriptPanel({
     };
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [useOuterScroll, outerScrollContainerRef, scrollContainerRef]);
 
   const seekFromSegment = useCallback(
     (seconds: number) => {
@@ -359,7 +386,9 @@ export default function TranscriptPanel({
     <section
       className={cn(
         youtubeMobile
-          ? "flex min-h-0 flex-1 flex-col bg-background"
+          ? useOuterScroll
+            ? "bg-background"
+            : "flex min-h-0 flex-1 flex-col bg-background"
           : artifactCard,
         embeddedInMobileTab && !youtubeMobile
           ? "mb-0 rounded-none border-0 border-t border-border/50 p-3 shadow-none sm:p-4"
@@ -427,11 +456,13 @@ export default function TranscriptPanel({
       )}
 
       <div
-        ref={scrollContainerRef}
+        ref={useOuterScroll ? undefined : scrollContainerRef}
         className={cn(
           "overflow-x-hidden",
           youtubeMobile
-            ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
+            ? useOuterScroll
+              ? "bg-background"
+              : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
             : cn("lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto", artifactInset),
         )}
       >

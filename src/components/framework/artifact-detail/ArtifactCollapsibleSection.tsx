@@ -9,6 +9,7 @@ import { useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import {
   artifactScrollMt,
   artifactScrollMtMobile,
+  artifactScrollMtMobilePane,
   artifactStudySectionContentMobile,
   artifactStudySectionTriggerMobile,
 } from "@/lib/framework/artifactSurfaces";
@@ -28,6 +29,8 @@ type Props = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   className?: string;
+  /** Phone YouTube: video is pinned above the scroll pane; use in-pane scroll margin. */
+  pinnedVideoPane?: boolean;
   children: ReactNode;
 };
 
@@ -52,6 +55,7 @@ export default function ArtifactCollapsibleSection({
   open: openProp,
   onOpenChange: onOpenChangeProp,
   className,
+  pinnedVideoPane = false,
   children,
 }: Props) {
   const layoutMode = useArtifactLayoutMode();
@@ -85,7 +89,12 @@ export default function ArtifactCollapsibleSection({
     }
   };
 
-  const scrollMt = layoutMode === "phone" ? artifactScrollMtMobile : artifactScrollMt;
+  const scrollMt =
+    layoutMode === "phone"
+      ? pinnedVideoPane
+        ? artifactScrollMtMobilePane
+        : artifactScrollMtMobile
+      : artifactScrollMt;
 
   return (
     <Collapsible

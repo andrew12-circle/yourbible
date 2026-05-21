@@ -117,10 +117,11 @@ export default function FrameworkLayout({
   return (
     <div
       ref={layoutRootRef}
+      data-artifact-youtube-mobile={immersiveMobileMinimal ? "" : undefined}
       className={cn(
         "min-h-screen bg-background font-sans text-foreground",
         immersiveMobileMinimal &&
-          "max-md:[--artifact-header-h:0px] md:max-lg:[--artifact-header-h:4.75rem] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px]",
+          "max-md:flex max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:flex-col max-md:overflow-hidden max-md:[--artifact-header-h:0px] md:max-lg:[--artifact-header-h:4.75rem] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]",
       )}
       style={
         immersiveMobileMinimal
@@ -303,7 +304,7 @@ export default function FrameworkLayout({
           "mx-auto px-4 sm:px-5",
           immersive
             ? hideMobileFrameworkHeader
-              ? "max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6"
+              ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-hidden max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6"
               : "py-4 pb-6 sm:py-6 sm:pb-8"
             : studioLibrary
               ? "py-5 sm:py-6"

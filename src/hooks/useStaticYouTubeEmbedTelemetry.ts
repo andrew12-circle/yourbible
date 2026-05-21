@@ -5,10 +5,16 @@ import {
   type YouTubeEmbedCommand,
 } from "@/lib/youtube/embed";
 import {
+  currentTimeFromEmbedInfo,
   embedStateIsPlaying,
   isYouTubeEmbedMessageOrigin,
   parseYouTubeEmbedMessage,
 } from "@/lib/youtube/embedTelemetry";
+
+function applyEmbedCurrentTime(currentTimeRef: { current: number }, t: unknown) {
+  if (typeof t !== "number" || !Number.isFinite(t)) return;
+  currentTimeRef.current = Math.max(0, Math.round(t));
+}
 
 /** Track playhead + playing state from the in-slot YouTube embed (enablejsapi=1). */
 export function useStaticYouTubeEmbedTelemetry(options: {
@@ -17,7 +23,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   initialSeconds?: number;
 }) {
   const { videoSlotRef, enabled, initialSeconds = 0 } = options;
-  const currentTimeRef = useRef(Math.max(0, Math.floor(initialSeconds)));
+  const currentTimeRef = useRef(Math.max(0, Math.round(initialSeconds)));
   const isPlayingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -26,6 +32,9 @@ export function useStaticYouTubeEmbedTelemetry(options: {
 
     const onMessage = (event: MessageEvent) => {
       if (!isYouTubeEmbedMessageOrigin(event.origin)) return;
+      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
+      if (!iframe?.contentWindow || event.source !== iframe.contentWindow) return;
+
       const msg = parseYouTubeEmbedMessage(event.data);
       if (!msg?.event) return;
 
@@ -37,21 +46,18 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       }
 
       if (msg.event === "infoDelivery" && msg.info && typeof msg.info === "object") {
-        const t = msg.info.currentTime;
-        if (typeof t === "number" && Number.isFinite(t)) {
-          currentTimeRef.current = Math.max(0, Math.floor(t));
-        }
+        applyEmbedCurrentTime(currentTimeRef, currentTimeFromEmbedInfo(msg.info));
       }
     };
 
     window.addEventListener("message", onMessage);
 
-    const requestInfo = () => {
+    const startListening = () => {
       const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
       if (!iframe?.contentWindow) return;
       try {
         iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "listening", id: 1 }),
+          JSON.stringify({ event: "listening", id: 1, channel: "widget" }),
           "https://www.youtube.com",
         );
       } catch {
@@ -59,12 +65,28 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       }
     };
 
-    requestInfo();
-    const interval = window.setInterval(requestInfo, 500);
+    const pollVideoData = () => {
+      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
+      if (!iframe?.contentWindow) return;
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "getVideoData", args: [] }),
+          "https://www.youtube.com",
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+
+    startListening();
+    pollVideoData();
+    const listenInterval = window.setInterval(startListening, 2000);
+    const pollInterval = window.setInterval(pollVideoData, 250);
 
     return () => {
       window.removeEventListener("message", onMessage);
-      window.clearInterval(interval);
+      window.clearInterval(listenInterval);
+      window.clearInterval(pollInterval);
     };
   }, [enabled, videoSlotRef]);
 
@@ -95,7 +117,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
 
   const seekTo = useCallback(
     (seconds: number, allowSeekAhead = true) => {
-      const s = Math.max(0, Math.floor(seconds));
+      const s = Math.max(0, Math.round(seconds));
       currentTimeRef.current = s;
       runCommand("seekTo", [s, allowSeekAhead ? 1 : 0]);
     },

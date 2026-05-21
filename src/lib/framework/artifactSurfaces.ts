@@ -25,7 +25,12 @@ export const sectionLabel = cn("text-[11px] font-medium text-muted-foreground");
 export const artifactScrollMt = "scroll-mt-32";
 
 /** Phone/tablet sticky video: measured header + 16:9 video + optional chrome band. */
-export { artifactScrollMtStickyVideo as artifactScrollMtMobile } from "@/lib/framework/artifactLayoutCss";
+export {
+  artifactMobilePinnedHeaderPadding,
+  artifactMobileVideoOnlyPadding,
+  artifactScrollMtMobilePane,
+  artifactScrollMtStickyVideo as artifactScrollMtMobile,
+} from "@/lib/framework/artifactLayoutCss";
 
 /** Mobile study column: divider stack (no nested card chrome per section). */
 export const artifactStudyStackMobile = "divide-y divide-border/50";

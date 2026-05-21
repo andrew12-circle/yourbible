@@ -61,10 +61,11 @@ import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
+  artifactMobileVideoOnlyPadding,
   artifactScrollMt,
-  artifactScrollMtMobile,
   artifactStudyStackMobile,
 } from "@/lib/framework/artifactSurfaces";
+import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
@@ -340,6 +341,8 @@ export default function ArtifactDetailPage() {
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
+  const mobileBodyScrollRef = useRef<HTMLDivElement | null>(null);
+  const [mobileChromeHost, setMobileChromeHost] = useState<HTMLDivElement | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const repairedRef = useRef(false);
   const lastBookmarkJournalInsertAtRef = useRef(0);
@@ -612,14 +615,10 @@ export default function ArtifactDetailPage() {
 
   const getCurrentPlaybackSeconds = getPlaybackSeconds;
 
-  const getClaimSeekSeconds = useCallback((claim: Claim, source: TranscriptSegment | null | undefined) => {
-    if (source?.startSeconds != null && Number.isFinite(source.startSeconds)) {
-      return Math.max(0, Math.floor(source.startSeconds));
-    }
-    const chapter = claim.chapter_start_seconds;
-    if (chapter != null && Number.isFinite(chapter)) return Math.max(0, Math.floor(chapter));
-    return null;
-  }, []);
+  const resolveClaimSeekSeconds = useCallback(
+    (claim: Claim) => getClaimSeekSeconds(claim, claimSources[claim.id]),
+    [claimSources],
+  );
 
   const navSections = useMemo((): ArtifactNavSection[] => {
     if (!a || a.kind !== "youtube" || a.status !== "ready") return [];
@@ -984,7 +983,7 @@ export default function ArtifactDetailPage() {
   };
 
   const playClaimAtSource = (claim: Claim, source: TranscriptSegment | null | undefined) => {
-    const seconds = getClaimSeekSeconds(claim, source);
+    const seconds = getClaimSeekSeconds(claim, source ?? null);
     if (seconds == null) {
       jumpToTranscriptSource(source ?? null);
       return;
@@ -1116,7 +1115,7 @@ export default function ArtifactDetailPage() {
     const source = claimSources[c.id];
     const sourceClock = source ? formatClaimSourceClock(source.startSeconds, source.label) : null;
     const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
-    const claimSeekSeconds = getClaimSeekSeconds(c, source);
+    const claimSeekSeconds = getClaimSeekSeconds(c, source ?? null);
     const canPlayClaim = Boolean(youTubeVideoId && claimSeekSeconds != null);
     const chapterClock =
       claimSeekSeconds != null && source?.startSeconds == null
@@ -1423,6 +1422,7 @@ export default function ArtifactDetailPage() {
 
   const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
   const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
+  const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
   const mobileTabBar =
     !isDesktop && a.raw_text?.trim() ? (
@@ -1498,6 +1498,7 @@ export default function ArtifactDetailPage() {
       onNoteBodyChange={setNoteBody}
       notePolishResetKey={a.id}
       onSaveSegmentNote={saveSegmentNote}
+      outerScrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : undefined}
     />
   ) : null;
 
@@ -1534,7 +1535,7 @@ export default function ArtifactDetailPage() {
         className={cn(
           "space-y-6 lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-6",
           artifactSplitPaneHeightClass,
-          !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col space-y-0",
+          mobilePinnedPane && "flex min-h-0 flex-1 flex-col space-y-0 overflow-hidden",
         )}
       >
         <Tabs
@@ -1542,16 +1543,14 @@ export default function ArtifactDetailPage() {
           onValueChange={(v) => setMobileTab(v as "study" | "transcript")}
           className={cn(
             "min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col",
-            !isDesktop && stickyVideoMode && "flex min-h-0 flex-1 flex-col",
+            mobilePinnedPane && "flex min-h-0 flex-1 flex-col overflow-hidden",
           )}
         >
         <div
           ref={mainScrollRef}
           className={cn(
             "min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scrollbar-hover-thin",
-            !isDesktop && mobileTab === "transcript" && stickyVideoMode
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
-              : "space-y-5 sm:space-y-6",
+            mobilePinnedPane ? "relative h-full min-h-0 w-full" : "space-y-5 sm:space-y-6",
           )}
         >
         {youTubeVideoId ? (
@@ -1600,13 +1599,28 @@ export default function ArtifactDetailPage() {
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
             backTo="/framework/artifacts"
+            mobileChromeHost={mobileChromeHost}
           />
         ) : null}
+        <div
+          ref={mobileBodyScrollRef}
+          className={cn(
+            mobilePinnedPane
+              ? cn(
+                  artifactMobileVideoOnlyPadding,
+                  "h-full min-h-0 w-full overflow-y-auto overscroll-contain",
+                  mobileTab === "study" && "space-y-5 sm:space-y-6",
+                )
+              : "contents",
+          )}
+        >
+          {mobilePinnedPane ? <div ref={setMobileChromeHost} className="shrink-0" /> : null}
       {isDesktop || mobileTab !== "transcript" ? (
         <ArtifactSectionNav
           sections={navSections}
           activeHash={pageSectionHash}
-          stickyVideoLayout={stickyVideoMode}
+          stickyVideoLayout={false}
+          className={cn(!isDesktop && stickyVideoMode && "sticky top-0 z-[28]")}
         />
       ) : null}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
@@ -1717,6 +1731,7 @@ export default function ArtifactDetailPage() {
       {a.kind === "youtube" && a.url && (
         <ArtifactCollapsibleSection
           title="Chapters"
+          pinnedVideoPane={mobilePinnedPane}
           defaultOpenMobile={false}
           defaultOpenDesktop
           storageKey={a.id ? `artifact-chapters:${a.id}` : undefined}
@@ -1739,12 +1754,12 @@ export default function ArtifactDetailPage() {
       {a.kind === "youtube" && a.status === "ready" && youtubeChaptersList.length === 0 && (
         <ArtifactCollapsibleSection
           id="study-spine-teachings"
+          pinnedVideoPane={mobilePinnedPane}
           title="Study spine: Teachings"
           description="Extracted invitations from the speaker when no chapter outline exists."
           defaultOpenMobile={false}
           defaultOpenDesktop
           storageKey={a.id ? `artifact-study-spine:${a.id}` : undefined}
-          className={artifactScrollMtMobile}
         >
           <div
             className={cn(
@@ -1785,6 +1800,7 @@ export default function ArtifactDetailPage() {
       {a.status === "ready" && (
         <ArtifactCollapsibleSection
           title="Knowledge entities"
+          pinnedVideoPane={mobilePinnedPane}
           description="People, books, scriptures, and themes mentioned in this artifact."
           defaultOpenMobile={false}
           defaultOpenDesktop
@@ -1797,6 +1813,7 @@ export default function ArtifactDetailPage() {
       {a.status === "ready" && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
         <ArtifactCollapsibleSection
           title="Teachings"
+          pinnedVideoPane={mobilePinnedPane}
           defaultOpenMobile={false}
           defaultOpenDesktop
           storageKey={a.id ? `artifact-teachings:${a.id}` : undefined}
@@ -1827,6 +1844,7 @@ export default function ArtifactDetailPage() {
       {a.status === "ready" && claims.length > 0 && (
         <ArtifactCollapsibleSection
           id="claims"
+          pinnedVideoPane={mobilePinnedPane}
           title={`Claims (${claims.length})`}
           description={
             isDesktop
@@ -1873,6 +1891,13 @@ export default function ArtifactDetailPage() {
             mobileOpenClaimId={!isDesktop ? mobileOpenClaimId : undefined}
             onMobileOpenClaimIdChange={!isDesktop ? setMobileOpenClaimId : undefined}
             claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
+            getClaimSeekSeconds={resolveClaimSeekSeconds}
+            playerReady={videoPlayback.playerReady}
+            isPlaying={videoPlayback.isPlaying}
+            getPlaybackSeconds={getCurrentPlaybackSeconds}
+            onTogglePlayback={togglePlayback}
+            scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : undefined}
+            pinnedVideoPane={mobilePinnedPane}
           />
         </ArtifactCollapsibleSection>
       )}
@@ -1882,11 +1907,15 @@ export default function ArtifactDetailPage() {
         <TabsContent
           value="transcript"
           id="transcript"
-          className="mt-0 flex min-h-0 flex-1 flex-col focus-visible:outline-none data-[state=inactive]:hidden"
+          className={cn(
+            "mt-0 focus-visible:outline-none data-[state=inactive]:hidden",
+            mobilePinnedPane ? "" : "flex min-h-0 flex-1 flex-col",
+          )}
         >
           {transcriptPanel}
         </TabsContent>
       ) : null}
+        </div>
         </div>
         </Tabs>
 

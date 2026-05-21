@@ -1,10 +1,10 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import ArtifactMobilePinnedScrollChrome from "@/components/framework/artifact-detail/ArtifactMobilePinnedScrollChrome";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
 import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
-import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
-import ArtifactQuickCaptureRow from "@/components/framework/artifact-detail/ArtifactQuickCaptureRow";
 import ArtifactVideoStage from "@/components/framework/artifact-detail/ArtifactVideoStage";
 import type { ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -26,6 +26,7 @@ import {
   isArtifactPipVideo,
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
+import { cn } from "@/lib/utils";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
 type Player = ReturnType<typeof useYouTubeEmbedPlayer>;
@@ -86,6 +87,8 @@ type Props = {
   onMenuReanalyze?: () => void;
   /** Mobile scroll chrome back link (framework header hidden on YouTube). */
   backTo?: string;
+  /** Host element inside the scroll pane (title scrolls away; toolbar sticks under video). */
+  mobileChromeHost?: HTMLElement | null;
 };
 
 function ArtifactYoutubeVideoBlock({
@@ -130,28 +133,40 @@ function ArtifactYoutubeVideoBlock({
   onMenuWrapUp,
   onMenuReanalyze,
   backTo = "/framework/artifacts",
+  mobileChromeHost = null,
 }: Props) {
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const usesPipVideo = isArtifactPipVideo(layoutMode, true);
-  const mobileChromeRef = useRef<HTMLDivElement | null>(null);
+  const mobileVideoOnlyRef = useRef<HTMLDivElement | null>(null);
+  const mobilePinnedLayout = stickyMode && !usesPipVideo;
 
   useLayoutEffect(() => {
-    if (!stickyMode || usesPipVideo) return;
-    const chrome = mobileChromeRef.current;
-    const root = chrome?.closest(".min-h-screen") as HTMLElement | null;
-    if (!chrome || !root) return;
+    if (!mobilePinnedLayout) return;
+    const video = mobileVideoOnlyRef.current;
+    const root = video?.closest("[data-artifact-youtube-mobile]") as HTMLElement | null;
+    if (!video || !root) return;
     const sync = () => {
-      const h = chrome.getBoundingClientRect().height;
-      root.style.setProperty("--artifact-sticky-chrome-h", `${Math.max(0, Math.ceil(h))}px`);
+      const videoH = video.getBoundingClientRect().height;
+      root.style.setProperty("--artifact-mobile-video-h", `${Math.max(0, Math.ceil(videoH))}px`);
+      const stickyChromeH = parseFloat(
+        getComputedStyle(root).getPropertyValue("--artifact-mobile-sticky-chrome-h"),
+      );
+      const chromeH = Number.isFinite(stickyChromeH) && stickyChromeH > 0 ? stickyChromeH : 0;
+      root.style.setProperty(
+        "--artifact-mobile-pinned-header-h",
+        `${Math.max(0, Math.ceil(videoH + chromeH))}px`,
+      );
     };
     sync();
     const ro = new ResizeObserver(sync);
-    ro.observe(chrome);
+    ro.observe(video);
     return () => ro.disconnect();
-  }, [stickyMode, usesPipVideo]);
-  const transcriptTabActive = stickyMode && !usesPipVideo && mobileActiveTab === "transcript";
-  const showMobileCaptureSection = stickyMode && !usesPipVideo && mobileActiveTab === "study";
+  }, [mobilePinnedLayout]);
+  const transcriptTabActive = mobilePinnedLayout && mobileActiveTab === "transcript";
+  /** Study list already has Capture collapsible; skip duplicate bar under fixed header. */
+  const showMobileCaptureSection =
+    stickyMode && !usesPipVideo && mobileActiveTab === "study" && !mobilePinnedLayout;
   const captureControlled = showMobileCaptureSection;
   const [captureOpen, setCaptureOpen] = useState(false);
   const [noteSectionOpen, setNoteSectionOpen] = useState(false);
@@ -208,10 +223,18 @@ function ArtifactYoutubeVideoBlock({
     </ArtifactCollapsibleSection>
   );
 
-  const mobileVideoMeta =
-    stickyMode && !usesPipVideo ? (
-      <div className="md:hidden">
-      <ArtifactMobileVideoMeta
+  const openStudyMenu = useCallback(() => {
+    onMobileMenuOpenChange?.(true);
+  }, [onMobileMenuOpenChange]);
+
+  const openNote = useCallback(() => {
+    if (transcriptTabActive) setMobileNoteOpen(true);
+    else openCapture();
+  }, [transcriptTabActive, openCapture]);
+
+  const mobileScrollChrome =
+    mobilePinnedLayout && mobileChromeHost ? (
+      <ArtifactMobilePinnedScrollChrome
         displayTitle={displayTitle?.trim() || "Untitled video"}
         channel={channel}
         channelUrl={channelUrl}
@@ -219,64 +242,58 @@ function ArtifactYoutubeVideoBlock({
         thumbnailUrl={thumbnailUrl}
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
+        canCaptureMoments={canCaptureMoments}
+        savingMoment={savingMoment}
+        hasNote={Boolean(noteBody.trim())}
+        transcriptTabActive={transcriptTabActive}
+        onBookmark={onBookmark}
+        onSaveNote={onSaveNote}
+        onOpenNote={openNote}
+        onOpenStudyMenu={openStudyMenu}
+        mobileTabBar={mobileTabBar}
       />
-      </div>
-    ) : null;
-
-  const openStudyMenu = useCallback(() => {
-    onMobileMenuOpenChange?.(true);
-  }, [onMobileMenuOpenChange]);
-
-  const scrollableMobileChrome =
-    stickyMode && !usesPipVideo ? (
-      <div ref={mobileChromeRef} className="border-b border-border/50 bg-background lg:hidden">
-        {mobileVideoMeta}
-        <ArtifactQuickCaptureRow
-          canCapture={canCaptureMoments}
-          saving={savingMoment}
-          hasNote={Boolean(noteBody.trim())}
-          transcriptTabActive={transcriptTabActive}
-          iconOnly
-          onBookmark={onBookmark}
-          onSaveNote={onSaveNote}
-          onOpenNote={() => {
-            if (transcriptTabActive) setMobileNoteOpen(true);
-            else openCapture();
-          }}
-          onOpenStudyMenu={openStudyMenu}
-        />
-        {mobileTabBar}
-      </div>
     ) : null;
 
   return (
     <>
-      <ArtifactVideoStage
-        videoSlotRef={youtubePip.videoSlotRef}
-        pipMode={youtubePip.pipMode}
-        useStaticPip={playback.useStaticPip}
-        stickyMode={stickyMode}
-        pipLayout={youtubePip.pipOverlayLayout}
-        thumbnailUrl={thumbnailUrl}
-        youTubeVideoId={youTubeVideoId}
-        staticEmbedSrc={playback.staticEmbedSrc}
-        onStaticEmbedLoad={playback.onStaticEmbedLoad}
-        showApiPlayer={playback.showApiPlayer}
-        playerMountRef={youtubePlayer.mountRef}
-        playerReady={youtubePlayer.playerReady}
-        playerInitTimedOut={youtubePlayer.playerInitTimedOut}
-        isPlaying={playback.isPlaying}
-        playerActivated={Boolean(youTubeVideoId)}
-        onTogglePlay={playback.togglePlayback}
-        onReinitPlayer={() => {
-          playback.activatePlayer({ autoplay: false });
-          youtubePlayer.reinit();
-        }}
-        onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+      <div
+        ref={mobileVideoOnlyRef}
+        className={cn(
+          mobilePinnedLayout &&
+            "fixed top-0 left-0 right-0 z-[39] w-full max-w-[100vw] bg-background",
+          !mobilePinnedLayout && "lg:contents",
+        )}
       >
-        {!stickyMode ? captureSection : null}
-      </ArtifactVideoStage>
-      {scrollableMobileChrome}
+        <ArtifactVideoStage
+          videoSlotRef={youtubePip.videoSlotRef}
+          pipMode={youtubePip.pipMode}
+          useStaticPip={playback.useStaticPip}
+          stickyMode={stickyMode}
+          mobilePinnedHeader={mobilePinnedLayout}
+          pipLayout={youtubePip.pipOverlayLayout}
+          thumbnailUrl={thumbnailUrl}
+          youTubeVideoId={youTubeVideoId}
+          staticEmbedSrc={playback.staticEmbedSrc}
+          onStaticEmbedLoad={playback.onStaticEmbedLoad}
+          showApiPlayer={playback.showApiPlayer}
+          playerMountRef={youtubePlayer.mountRef}
+          playerReady={youtubePlayer.playerReady}
+          playerInitTimedOut={youtubePlayer.playerInitTimedOut}
+          isPlaying={playback.isPlaying}
+          playerActivated={Boolean(youTubeVideoId)}
+          onTogglePlay={playback.togglePlayback}
+          onReinitPlayer={() => {
+            playback.activatePlayer({ autoplay: false });
+            youtubePlayer.reinit();
+          }}
+          onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+        >
+          {!stickyMode ? captureSection : null}
+        </ArtifactVideoStage>
+      </div>
+      {mobileScrollChrome && mobileChromeHost
+        ? createPortal(mobileScrollChrome, mobileChromeHost)
+        : null}
       {stickyMode && !usesPipVideo && onMobileMenuOpenChange ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}

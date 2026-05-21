@@ -6,11 +6,20 @@ export const ARTIFACT_STICKY_VIDEO_H = "56.25vw";
 /** Section nav sits below framework header + sticky video when study uses window scroll. */
 export const artifactSectionNavStickyBelowVideo = cn(
   "sticky z-[28]",
-  "top-[calc(var(--artifact-header-h,0px)+var(--artifact-sticky-video-h,56.25vw))]",
+  "top-[calc(var(--artifact-header-h,0px)+env(safe-area-inset-top,0px)+var(--artifact-sticky-video-h,56.25vw))]",
 );
 
-/** Hash jump offset: header + sticky video + optional in-flow chrome before sections. */
+/** Hash jump offset: header + safe area + sticky video + optional in-flow chrome before sections. */
 export const artifactScrollMtStickyVideo = cn(
-  "scroll-mt-[calc(var(--artifact-header-h,0px)+var(--artifact-sticky-video-h,56.25vw)+var(--artifact-sticky-chrome-h,0px)+0.75rem)]",
+  "scroll-mt-[calc(var(--artifact-header-h,0px)+env(safe-area-inset-top,0px)+var(--artifact-sticky-video-h,56.25vw)+var(--artifact-sticky-chrome-h,0px)+0.75rem)]",
   "lg:scroll-mt-32",
 );
+
+/** Sections inside the scroll pane below a pinned mobile video (video is outside this scroller). */
+export const artifactScrollMtMobilePane = "scroll-mt-4";
+
+/** Scroll pane starts below the fixed video only; meta + toolbar live inside the scroller. */
+export const artifactMobileVideoOnlyPadding = "pt-[var(--artifact-mobile-video-h,56.25vw)]";
+
+/** Collapsed header = video + sticky toolbar (meta scrolled away). */
+export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";

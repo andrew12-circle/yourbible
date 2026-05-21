@@ -13,6 +13,8 @@ type Props = {
   /** Tablet/desktop: same iframe moves to PiP via CSS (no second player). */
   useStaticPip?: boolean;
   stickyMode?: boolean;
+  /** Phone transcript tab: pin under header (flex shrink-0); sticky breaks inside overflow-hidden scroll roots. */
+  mobilePinnedHeader?: boolean;
   pipLayout: ArtifactPipLayout;
   thumbnailUrl?: string | null;
   youTubeVideoId: string;
@@ -35,6 +37,7 @@ export default function ArtifactVideoStage({
   pipMode,
   useStaticPip = false,
   stickyMode = false,
+  mobilePinnedHeader = false,
   pipLayout,
   thumbnailUrl,
   youTubeVideoId,
@@ -165,12 +168,18 @@ export default function ArtifactVideoStage({
   );
 
   if (stickyMode) {
+    const pinned = mobilePinnedHeader;
     return (
       <>
         <div
           id="video"
-          className="sticky z-[29] w-full shrink-0 bg-background shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/95"
-          style={{ top: "calc(var(--artifact-header-h, 0px) + env(safe-area-inset-top, 0px))" }}
+          className={cn(
+            "z-[29] w-full shrink-0 bg-black pt-[env(safe-area-inset-top,0px)]",
+            pinned ? "relative" : "sticky",
+          )}
+          style={
+            pinned ? undefined : { top: "var(--artifact-header-h, 0px)" }
+          }
         >
           {videoBlock}
         </div>

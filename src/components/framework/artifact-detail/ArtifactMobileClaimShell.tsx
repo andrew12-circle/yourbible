@@ -4,7 +4,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { artifactScrollMtMobile } from "@/lib/framework/artifactSurfaces";
+import { artifactScrollMtMobile, artifactScrollMtMobilePane } from "@/lib/framework/artifactSurfaces";
 import { formatClaimVerdict, isDeferredVerdict } from "@/lib/framework/claimVerdict";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,9 @@ type Props = {
   claimNumber: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Highlight while video playhead is on this claim (follow playback). */
+  playbackActive?: boolean;
+  pinnedVideoPane?: boolean;
   children: React.ReactNode;
 };
 
@@ -27,6 +30,8 @@ export default function ArtifactMobileClaimShell({
   claimNumber,
   open,
   onOpenChange,
+  playbackActive = false,
+  pinnedVideoPane = false,
   children,
 }: Props) {
   const verdictAccent =
@@ -47,11 +52,12 @@ export default function ArtifactMobileClaimShell({
       open={open}
       onOpenChange={onOpenChange}
       className={cn(
-        artifactScrollMtMobile,
+        pinnedVideoPane ? artifactScrollMtMobilePane : artifactScrollMtMobile,
         "overflow-hidden rounded-lg border border-border/55 bg-card/90 shadow-none",
         "border-l-[3px]",
         verdictAccent,
         isDeferredVerdict(claim.verdict) && "ring-1 ring-amber-400/35",
+        playbackActive && "ring-2 ring-primary/50",
       )}
     >
       <CollapsibleTrigger className="flex w-full min-h-11 items-start gap-2.5 p-3 text-left transition hover:bg-muted/20 active:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
