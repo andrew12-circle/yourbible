@@ -39,8 +39,8 @@ export function looksLikeYoutubeShowTranscriptPaste(text: string): boolean {
   );
 }
 
-/** Fix `0:2222 seconds` / `1:031 minute, 3 seconds` mashed cues anywhere in the blob. */
-function fixYoutubeMashedTimestamps(text: string): string {
+/** Fix `0:2222 seconds` / `1:031 minute, 3 seconds` / `2:032 minutes, 3 seconds` mashed cues. */
+export function fixYoutubeMashedTimestamps(text: string): string {
   let out = text.replace(
     /(\d+):(\d{2}):(\d{2})(\d{1,2})\s*seconds/gi,
     (match, h, m, ss, dup) => {
@@ -60,7 +60,7 @@ function fixYoutubeMashedTimestamps(text: string): string {
   );
 
   out = out.replace(
-    /(\d+):(\d{2})(\d+)\s*minute,?\s*(\d+)\s*seconds/gi,
+    /(\d+):(\d{2})(\d+)\s*minutes?,?\s*(\d+)\s*seconds/gi,
     (match, m, ss, minLabel, secLabel) => {
       if (parseInt(m, 10) !== parseInt(minLabel, 10)) return match;
       if (parseInt(ss, 10) !== parseInt(secLabel, 10)) return match;
@@ -93,7 +93,7 @@ function mergeNewlineSeparatedYoutubeCues(text: string): string {
     if (clock) {
       const next = lines[i + 1]?.trim() ?? "";
       const secOnly = next.match(/^(\d{1,2})\s*seconds?$/i);
-      const minSec = next.match(/^(\d+)\s*minute,?\s*(\d+)\s*seconds?$/i);
+      const minSec = next.match(/^(\d+)\s*minutes?,?\s*(\d+)\s*seconds?$/i);
       const bodyLine = lines[i + 2] ?? "";
       if (secOnly && parseInt(clock[2], 10) === parseInt(secOnly[1], 10)) {
         const h = clock[3] != null ? parseInt(clock[1], 10) : 0;
@@ -147,11 +147,8 @@ export function normalizePastedTranscript(raw: string): string {
   const trimmed = raw.replace(/\r\n/g, "\n").trim();
   if (!trimmed) return "";
 
-  let text = trimmed;
+  let text = fixYoutubeMashedTimestamps(trimmed);
   const needsYoutubeFix = looksLikeYoutubeShowTranscriptPaste(text);
-  if (needsYoutubeFix) {
-    text = fixYoutubeMashedTimestamps(text);
-  }
   if (needsYoutubeFix || /^\s*\d+:\d{2}(?::\d{2})?\s*$/m.test(text)) {
     text = mergeNewlineSeparatedYoutubeCues(text);
   }
@@ -196,7 +193,7 @@ export function cleanTranscriptQuoteForDisplay(raw: string): string {
       "",
     )
     .replace(/^(\d+):(\d{2})\d{1,2}\s*seconds\s*/i, "")
-    .replace(/^(\d+):(\d{2})(\d+)\s*minute,?\s*\d+\s*seconds\s*/i, "")
+    .replace(/^(\d+):(\d{2})(\d+)\s*minutes?,?\s*\d+\s*seconds\s*/i, "")
     .replace(/^\s*\[\s*[^\]]+\]\s*/, "");
 
   return collapseInlineWhitespace(stripped);

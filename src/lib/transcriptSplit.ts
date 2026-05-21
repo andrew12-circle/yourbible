@@ -1,5 +1,7 @@
 /** Client-side transcript parsing for artifact detail (YouTube captions vs Gemini range chunks). */
 
+import { fixYoutubeMashedTimestamps, normalizePastedTranscript } from "@/lib/normalizePastedTranscript";
+
 export interface TranscriptSegment {
   id: string;
   label: string;
@@ -110,6 +112,31 @@ function lineStartsWithTimedBracket(line: string): boolean {
   return m != null && looksLikeTimedBracketInner(m[1]);
 }
 
+/** Physical line still carrying a mashed YouTube cue after normalization pass. */
+const MASHED_LINE_PREFIX_RE =
+  /^(\d+):(\d{2})(\d+)\s*minutes?,?\s*(\d+)\s*seconds\s*(.*)$/is;
+
+function tryParseMashedTimedLine(line: string): { label: string; text: string; startSeconds: number } | null {
+  const fixed = fixYoutubeMashedTimestamps(line.trim());
+  const bracket = fixed.match(/^\s*\[([^\]]+)\]\s*(.*)$/s);
+  if (bracket && looksLikeTimedBracketInner(bracket[1])) {
+    const { label, startSeconds } = parseTimedBracketInner(bracket[1]);
+    const text = bracket[2].trim();
+    if (text && startSeconds != null) return { label, text, startSeconds };
+  }
+  const m = line.trim().match(MASHED_LINE_PREFIX_RE);
+  if (!m) return null;
+  const minutes = parseInt(m[1], 10);
+  const minDup = parseInt(m[3], 10);
+  const seconds = parseInt(m[2], 10);
+  const secLabel = parseInt(m[4], 10);
+  if (minutes !== minDup || seconds !== secLabel) return null;
+  const startSeconds = minutes * 60 + seconds;
+  const text = m[5].trim();
+  if (!text) return null;
+  return { label: formatTranscriptClock(startSeconds), text, startSeconds };
+}
+
 function markTimedContinuationRows(segments: TranscriptSegment[]): TranscriptSegment[] {
   let prevStart: number | null = null;
   return segments.map((segment) => {
@@ -184,10 +211,10 @@ function buildEstimatedTimedRows(
 }
 
 export function splitTranscript(rawText: string): TranscriptSplitResult {
-  const trimmed = rawText.trim();
+  const trimmed = normalizePastedTranscript(rawText.trim());
   if (!trimmed) return { segments: [], timed: false, coarseTimestampsOnly: false };
 
-  const physicalLines = rawText.split("\n");
+  const physicalLines = trimmed.split("\n");
   const timestampMode =
     physicalLines.some(lineStartsWithTimedBracket) || /\]\s*\[\s*\d{1,2}:\d{2}/.test(trimmed);
 
@@ -237,13 +264,24 @@ export function splitTranscript(rawText: string): TranscriptSplitResult {
             index += 1;
           }
         } else {
-          out.push({
-            id: `transcript-${index}`,
-            label: "",
-            text: chunk.trim(),
-            startSeconds: null,
-          });
-          index += 1;
+          const mashed = tryParseMashedTimedLine(chunk);
+          if (mashed) {
+            out.push({
+              id: `transcript-${index}`,
+              label: mashed.label,
+              text: mashed.text,
+              startSeconds: mashed.startSeconds,
+            });
+            index += 1;
+          } else {
+            out.push({
+              id: `transcript-${index}`,
+              label: "",
+              text: chunk.trim(),
+              startSeconds: null,
+            });
+            index += 1;
+          }
         }
       }
     }
@@ -253,18 +291,18 @@ export function splitTranscript(rawText: string): TranscriptSplitResult {
     return { segments, timed: true, coarseTimestampsOnly };
   }
 
-  const paragraphs = rawText
+  const paragraphs = trimmed
     .split(/\n{2,}/)
     .map((p) => p.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
-  const noNewlinesInRaw = !/[\r\n]/.test(rawText);
+  const noNewlinesInRaw = !/[\r\n]/.test(trimmed);
   const sentenceGroupSize = noNewlinesInRaw ? 1 : 4;
 
   const chunks =
     paragraphs.length > 1
       ? paragraphs
-      : (rawText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [rawText])
+      : (trimmed.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [trimmed])
           .map((sentence) => sentence.replace(/\s+/g, " ").trim())
           .filter(Boolean)
           .reduce<string[]>((acc, sentence, i) => {

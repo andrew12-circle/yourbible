@@ -59,6 +59,24 @@ describe("normalizePastedTranscript", () => {
     expect(normalizePastedTranscript(input)).toBe("[1:03] you're going to be learning");
   });
 
+  it("fixes 2:032 minutes, 3 seconds mashed cue (plural minutes)", () => {
+    const input = "2:032 minutes, 3 secondsYou ride them hard";
+    expect(normalizePastedTranscript(input)).toBe("[2:03] You ride them hard");
+  });
+
+  it("fixes 2:092 minutes, 9 seconds mashed cue", () => {
+    const input = "2:092 minutes, 9 secondsMore text here";
+    expect(normalizePastedTranscript(input)).toBe("[2:09] More text here");
+  });
+
+  it("fixes mashed cues after bracket lines (post 1:59 paste)", () => {
+    const input = "[1:59] Earlier line\n2:032 minutes, 3 secondsYou ride them hard";
+    const out = normalizePastedTranscript(input);
+    expect(out).toContain("[1:59] Earlier line");
+    expect(out).toContain("[2:03] You ride them hard");
+    expect(countTimedTranscriptLines(out)).toBe(2);
+  });
+
   it("fixes 1:52:471 hour, 52 minutes, 47 seconds mashed cue", () => {
     const input = "1:52:471 hour, 52 minutes, 47 secondsAnd then he said this.";
     expect(normalizePastedTranscript(input)).toBe("[1:52:47] And then he said this.");
