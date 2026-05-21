@@ -1499,6 +1499,7 @@ export default function ArtifactDetailPage() {
       notePolishResetKey={a.id}
       onSaveSegmentNote={saveSegmentNote}
       outerScrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : undefined}
+      transcriptTabActive={!isDesktop ? mobileTab === "transcript" : true}
     />
   ) : null;
 

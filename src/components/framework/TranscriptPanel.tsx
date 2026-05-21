@@ -17,6 +17,11 @@ import TranscriptToolbar from "@/components/framework/artifact-detail/Transcript
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { artifactCard, artifactInset } from "@/lib/framework/artifactSurfaces";
+import {
+  isTranscriptRowInFollowViewport,
+  readMobileTranscriptFollowInsets,
+  scrollTranscriptRowIntoFollowViewport,
+} from "@/lib/framework/transcriptFollowScroll";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -34,29 +39,6 @@ function findActiveSegmentId(segments: TranscriptSegment[], seconds: number): st
     if (s.startSeconds <= seconds && (!best || s.startSeconds > best.startSeconds!)) best = s;
   }
   return best?.id ?? null;
-}
-
-const TRANSCRIPT_FOLLOW_CENTER_THRESHOLD_PX = 48;
-
-function isTranscriptRowCentered(container: HTMLElement, el: HTMLElement): boolean {
-  const containerRect = container.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  const elCenter = elRect.top + elRect.height / 2;
-  const containerCenter = containerRect.top + containerRect.height / 2;
-  return Math.abs(elCenter - containerCenter) <= TRANSCRIPT_FOLLOW_CENTER_THRESHOLD_PX;
-}
-
-function scrollTranscriptRowToCenter(
-  container: HTMLElement,
-  el: HTMLElement,
-  behavior: ScrollBehavior = "smooth",
-) {
-  const containerRect = container.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  const elCenter = elRect.top + elRect.height / 2;
-  const containerCenter = containerRect.top + containerRect.height / 2;
-  const delta = elCenter - containerCenter;
-  container.scrollTo({ top: container.scrollTop + delta, behavior });
 }
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
@@ -123,6 +105,8 @@ export interface TranscriptPanelProps {
   onSaveSegmentNote?: (seconds: number) => void | Promise<void>;
   /** Pinned mobile video: scroll title away in the page scroller (not an inner transcript pane). */
   outerScrollContainerRef?: RefObject<HTMLElement | null>;
+  /** Mobile: false while Study tab scrolls the shared pane (do not turn off transcript follow). */
+  transcriptTabActive?: boolean;
 }
 
 export default function TranscriptPanel({
@@ -159,6 +143,7 @@ export default function TranscriptPanel({
   notePolishResetKey,
   onSaveSegmentNote,
   outerScrollContainerRef,
+  transcriptTabActive = true,
 }: TranscriptPanelProps) {
   const youtubeMobile = variant === "youtubeMobile";
   const useOuterScroll = youtubeMobile && Boolean(outerScrollContainerRef);
@@ -172,8 +157,10 @@ export default function TranscriptPanel({
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [playbackTick, setPlaybackTick] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const innerScrollRef = useRef<HTMLDivElement | null>(null);
   const prevActiveSegmentIdRef = useRef<string | null>(null);
+  const lastObservedTimeRef = useRef(-1);
+  const lastTimeAdvanceAtRef = useRef(0);
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
   const userPausedFollowUntilRef = useRef(0);
@@ -266,6 +253,14 @@ export default function TranscriptPanel({
     return () => window.clearInterval(id);
   }, [playerReady, followPlayback]);
 
+  useEffect(() => {
+    const t = getPlaybackSeconds();
+    if (t > lastObservedTimeRef.current + 0.25) {
+      lastTimeAdvanceAtRef.current = Date.now();
+    }
+    lastObservedTimeRef.current = t;
+  }, [playbackTick, getPlaybackSeconds]);
+
   const defaultedFollowOnReadyRef = useRef(false);
   useEffect(() => {
     if (!playerReady || defaultedFollowOnReadyRef.current) return;
@@ -296,35 +291,46 @@ export default function TranscriptPanel({
     }, 600);
   }, []);
 
+  const playbackMoving =
+    (getIsPlaying?.() ?? isPlaying) || Date.now() - lastTimeAdvanceAtRef.current < 1200;
+
   useEffect(() => {
+    if (!transcriptTabActive) return;
+    prevActiveSegmentIdRef.current = null;
+  }, [transcriptTabActive]);
+
+  useEffect(() => {
+    if (!transcriptTabActive) return;
     if (!playerReady || searchActive || !activeSegmentId || !highlightActive || !followPlayback) return;
     if (Date.now() < userPausedFollowUntilRef.current) return;
-    if (!isPlaying) return;
+    if (!playbackMoving) return;
 
     const segmentChanged = prevActiveSegmentIdRef.current !== activeSegmentId;
     prevActiveSegmentIdRef.current = activeSegmentId;
 
     const container = useOuterScroll
       ? outerScrollContainerRef?.current ?? null
-      : scrollContainerRef.current;
+      : innerScrollRef.current;
     const el = container?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
     if (!container || !el) return;
 
-    if (!segmentChanged && isTranscriptRowCentered(container, el)) return;
+    const insets = useOuterScroll ? readMobileTranscriptFollowInsets(container) : { top: 0, bottom: 0 };
+    if (!segmentChanged && isTranscriptRowInFollowViewport(container, el, insets)) return;
 
     markProgrammaticScroll();
-    scrollTranscriptRowToCenter(container, el, "smooth");
+    scrollTranscriptRowIntoFollowViewport(container, el, insets, "smooth");
   }, [
     playerReady,
     searchActive,
     activeSegmentId,
     highlightActive,
     followPlayback,
-    isPlaying,
+    playbackMoving,
     playbackTick,
     markProgrammaticScroll,
     useOuterScroll,
     outerScrollContainerRef,
+    transcriptTabActive,
   ]);
 
   useEffect(() => {
@@ -334,15 +340,16 @@ export default function TranscriptPanel({
   useEffect(() => {
     const container = useOuterScroll
       ? outerScrollContainerRef?.current ?? null
-      : scrollContainerRef.current;
+      : innerScrollRef.current;
     if (!container) return;
     const onScroll = () => {
       if (programmaticScrollRef.current) return;
+      if (useOuterScroll && !transcriptTabActive) return;
       setFollowPlayback(false);
     };
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
-  }, [useOuterScroll, outerScrollContainerRef, scrollContainerRef]);
+  }, [useOuterScroll, outerScrollContainerRef, transcriptTabActive]);
 
   const seekFromSegment = useCallback(
     (seconds: number) => {
@@ -456,7 +463,7 @@ export default function TranscriptPanel({
       )}
 
       <div
-        ref={useOuterScroll ? undefined : scrollContainerRef}
+        ref={useOuterScroll ? undefined : innerScrollRef}
         className={cn(
           "overflow-x-hidden",
           youtubeMobile
