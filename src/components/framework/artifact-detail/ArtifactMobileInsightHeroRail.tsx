@@ -56,12 +56,6 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     };
   }, [api]);
 
-  useEffect(() => {
-    if (!activeClaimId || !api) return;
-    const idx = claims.findIndex((c) => c.id === activeClaimId);
-    if (idx >= 0 && idx !== api.selectedScrollSnap()) api.scrollTo(idx);
-  }, [activeClaimId, api, claims]);
-
   const handleTap = useCallback(
     (claimId: string, event: MouseEvent<HTMLButtonElement>) => {
       if (draggingRef.current) {
