@@ -95,10 +95,24 @@ export const artifactDesktopClaimCard = cn(
   "max-h-[min(78vh,720px)]",
 );
 
+/** Mobile claim card in a horizontal rail — slightly narrower, shorter max height under pinned video. */
+export const artifactMobileClaimCard = cn(
+  "flex w-[min(340px,calc(100vw-2.5rem))] max-w-[400px] shrink-0 snap-start flex-col",
+  "overflow-hidden rounded-2xl border border-border/60 bg-white",
+  "shadow-[0_4px_20px_rgba(0,0,0,0.08)]",
+  "max-h-[min(58vh,560px)]",
+);
+
 /** Horizontal rail for desktop claim cards (wider gaps). */
 export const artifactDesktopClaimsRail = cn(
   artifactHorizontalRail,
   "items-stretch gap-4 pb-3 -mx-0.5 px-0.5",
+);
+
+/** Horizontal rail for mobile claim cards (break out of study column padding). */
+export const artifactMobileClaimsRail = cn(
+  artifactHorizontalRail,
+  "items-stretch gap-3 pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4",
 );
 
 /** Desktop cinematic hero — full-bleed thumbnail + dark gradient overlay. */

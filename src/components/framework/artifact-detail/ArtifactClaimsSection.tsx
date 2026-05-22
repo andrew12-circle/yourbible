@@ -76,7 +76,6 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   hideInsightPreview = false,
 }: Props<T>) {
   const isDesktop = useIsDesktop();
-  const useMobileAccordion = onMobileOpenClaimIdChange != null;
   const [followPlayback, setFollowPlayback] = useState(true);
   const [playbackTick, setPlaybackTick] = useState(0);
   const prevActiveClaimIdRef = useRef<string | null>(null);
@@ -92,7 +91,9 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
 
   const showFollowControl = Boolean(youTubeVideoId && playerReady && getClaimSeekSeconds && timedClaimsCount > 0);
   const showPlaybackControl = Boolean(youTubeVideoId && playerReady && onTogglePlayback);
-  const useClaimsRail = isDesktop && hideInsightPreview;
+  const useMobileClaimsRail = !isDesktop && Boolean(youTubeVideoId);
+  const useClaimsRail = (isDesktop && hideInsightPreview) || useMobileClaimsRail;
+  const useMobileAccordion = Boolean(onMobileOpenClaimIdChange) && !useMobileClaimsRail;
 
   const seekForClaim = useCallback(
     (claim: T) => (getClaimSeekSeconds ? getClaimSeekSeconds(claim) : null),
@@ -109,11 +110,15 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     (claim: T, claimIndex: number) =>
       renderArtifactDetailClaimCard(claim, claimIndex, {
         ...claimCardContext,
-        layout: useClaimsRail ? "desktopRail" : claimCardContext.layout ?? "stack",
+        layout: useClaimsRail
+          ? isDesktop
+            ? "desktopRail"
+            : "mobileRail"
+          : (claimCardContext.layout ?? "stack"),
         activeClaimId: activeClaimId ?? null,
         followPlaybackActive: followPlayback,
       }),
-    [claimCardContext, useClaimsRail, activeClaimId, followPlayback],
+    [claimCardContext, useClaimsRail, isDesktop, activeClaimId, followPlayback],
   );
 
   useEffect(() => {
@@ -255,7 +260,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
         });
       });
     },
-    [onMobileOpenClaimIdChange, markProgrammaticScroll],
+    [onMobileOpenClaimIdChange, markProgrammaticScroll, useClaimsRail],
   );
 
   const claimsList = useClaimsRail ? (
@@ -266,6 +271,8 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
       renderClaimCard={renderClaimCard}
       youTubeVideoId={youTubeVideoId}
       onSeekChapter={onSeekChapter}
+      variant={useMobileClaimsRail ? "mobile" : "desktop"}
+      showScrollNav={isDesktop}
     />
   ) : (
     <div className={isDesktop ? "space-y-8" : "space-y-3"}>
@@ -317,33 +324,69 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
         !isDesktop && (pinnedVideoPane ? artifactScrollMtMobilePane : artifactScrollMtMobile),
       )}
     >
-      {isDesktop ? (
-        <div className="space-y-8">
-          {!hideInsightPreview ? (
-            <div className="space-y-4">
-              <ArtifactStudySectionHeader
-                title="Key insights"
-                count={claims.length}
-                countLabel={`${claims.length} insights`}
-                description="Swipe through thesis-sized lines from the transcript — open any card below for scripture and verdicts."
-              />
-              <ArtifactInsightCarousel
-                claims={claims}
-                activeClaimId={activeClaimId ?? mobileOpenClaimId}
-                onSelectClaim={handleCarouselSelect}
-                variant="desktop"
-                onSeeScripture={onSeeScripture}
-                onMarkReviewed={onMarkReviewed}
-              />
-            </div>
-          ) : (
-            <ArtifactStudySectionHeader
-              title="Key claims"
-              count={claims.length}
-              countLabel={`${claims.length} claims extracted`}
-              description="Scroll sideways — transcript source, scripture, and verdict actions stay on each card."
+      {useClaimsRail ? (
+        <div className={isDesktop ? "space-y-8" : "space-y-4"}>
+          <ArtifactStudySectionHeader
+            title="Key claims"
+            count={claims.length}
+            countLabel={`${claims.length} claims extracted`}
+            description={
+              isDesktop
+                ? "Scroll sideways — transcript source, scripture, and verdict actions stay on each card."
+                : "Swipe sideways through full claim cards — less scrolling than stacked claims."
+            }
+          />
+          {(showFollowControl || showPlaybackControl) && (
+            <ClaimsPlaybackToolbar
+              isPlaying={isPlaying}
+              onTogglePlayback={onTogglePlayback}
+              showPlaybackControl={showPlaybackControl}
+              followPlayback={followPlayback}
+              onToggleFollowPlayback={() => {
+                setFollowPlayback((v) => {
+                  const next = !v;
+                  if (next) prevActiveClaimIdRef.current = null;
+                  return next;
+                });
+              }}
+              showFollowControl={showFollowControl}
+              timedClaimsCount={timedClaimsCount}
             />
           )}
+          <ClaimsGlossary
+            entries={glossaryEntries}
+            onJump={onJumpToClaim}
+            compact={!isDesktop}
+            defaultOpen={false}
+            storageKey={
+              claimsIndexStorageKey
+                ? isDesktop
+                  ? claimsIndexStorageKey
+                  : `${claimsIndexStorageKey}:index`
+                : undefined
+            }
+            className={cn(artifactPremiumCard, "border-border/50 bg-card/80", isDesktop ? "p-3" : "p-2")}
+          />
+          {claimsList}
+        </div>
+      ) : isDesktop ? (
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <ArtifactStudySectionHeader
+              title="Key insights"
+              count={claims.length}
+              countLabel={`${claims.length} insights`}
+              description="Swipe through thesis-sized lines from the transcript — open any card below for scripture and verdicts."
+            />
+            <ArtifactInsightCarousel
+              claims={claims}
+              activeClaimId={activeClaimId ?? mobileOpenClaimId}
+              onSelectClaim={handleCarouselSelect}
+              variant="desktop"
+              onSeeScripture={onSeeScripture}
+              onMarkReviewed={onMarkReviewed}
+            />
+          </div>
           {(showFollowControl || showPlaybackControl) && (
             <ClaimsPlaybackToolbar
               isPlaying={isPlaying}

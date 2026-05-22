@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
-import { ReaderMobileMenu } from "@/components/bible/ReaderMobileMenu";
+import { ReaderMobileMenu, type ReaderMenuPanel } from "@/components/bible/ReaderMobileMenu";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -40,6 +40,8 @@ interface Props {
   onFontScaleChange: (next: number) => void;
   /** Viewport under READER_SINGLE_PAGE_MAX — compact chrome + menu sheet */
   singlePage?: boolean;
+  /** Increment to open reader settings (e.g. footer book name tap). */
+  settingsOpenRequest?: number;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -50,14 +52,28 @@ export function TopBar({
   currentBook, currentChapter, currentVerseCount, onJumpTo,
   fontScale, onFontScaleChange,
   singlePage = false,
+  settingsOpenRequest = 0,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuPanel, setMobileMenuPanel] = useState<ReaderMenuPanel>("nav");
+  const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (focusMode) setOpen(false);
   }, [focusMode]);
+
+  useEffect(() => {
+    if (settingsOpenRequest < 1) return;
+    if (singlePage) {
+      setMobileMenuPanel("settings");
+      setMobileMenuOpen(true);
+      return;
+    }
+    setOpen(true);
+    setSettingsDropdownOpen(true);
+  }, [settingsOpenRequest, singlePage]);
 
   // Reference picker state
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -130,7 +146,11 @@ export function TopBar({
       {singlePage && (
         <ReaderMobileMenu
           open={mobileMenuOpen}
-          onOpenChange={setMobileMenuOpen}
+          onOpenChange={(next) => {
+            setMobileMenuOpen(next);
+            if (!next) setMobileMenuPanel("nav");
+          }}
+          initialPanel={mobileMenuPanel}
           reference={reference}
           currentBook={currentBook}
           currentChapter={currentChapter}
@@ -364,7 +384,7 @@ export function TopBar({
                   <Network className="w-4 h-4" />
                 </Button>
               </Link>
-              <DropdownMenu>
+              <DropdownMenu open={settingsDropdownOpen} onOpenChange={setSettingsDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" title="Settings" className="text-leather/80 hover:text-leather">
                     <Settings className="w-4 h-4" />

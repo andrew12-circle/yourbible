@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  readPlaybackSecondsFromSession,
-  writePlaybackSecondsToSession,
-} from "@/lib/framework/artifactYoutubePip";
+import { readPlaybackSecondsLocal, writePlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 
 type YTPlayer = {
   destroy: () => void;
@@ -139,6 +136,9 @@ export function useYouTubeEmbedPlayer(options: {
   autoplayOnInit?: boolean;
   /** Persist / restore playback position per artifact. */
   artifactId?: string | null;
+  /** Merged session + account resume position (when provided by parent). */
+  getSavedPlaybackSeconds?: () => number;
+  onPersistPlaybackSeconds?: (seconds: number) => void;
   /** Changes when the player shell moves (inline vs PiP) so iframe size re-syncs. */
   layoutKey?: string;
   /** Bumps when PiP handoff needs a fresh player at a new start time. */
@@ -150,9 +150,15 @@ export function useYouTubeEmbedPlayer(options: {
     startSeconds = 0,
     autoplayOnInit = false,
     artifactId = null,
+    getSavedPlaybackSeconds,
+    onPersistPlaybackSeconds,
     layoutKey = "inline",
     handoffNonce = 0,
   } = options;
+  const getSavedPlaybackSecondsRef = useRef(getSavedPlaybackSeconds);
+  getSavedPlaybackSecondsRef.current = getSavedPlaybackSeconds;
+  const onPersistPlaybackSecondsRef = useRef(onPersistPlaybackSeconds);
+  onPersistPlaybackSecondsRef.current = onPersistPlaybackSeconds;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const mountedVideoIdRef = useRef<string | null>(null);
@@ -199,12 +205,17 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const persistPlayback = useCallback(() => {
-    if (!artifactId || !playerRef.current) return;
+    if (!playerRef.current) return;
     try {
       const t = playerRef.current.getCurrentTime();
       if (typeof t === "number" && Number.isFinite(t)) {
-        writePlaybackSecondsToSession(artifactId, t);
-        startRef.current = Math.max(0, Math.floor(t));
+        const s = Math.max(0, Math.floor(t));
+        startRef.current = s;
+        if (onPersistPlaybackSecondsRef.current) {
+          onPersistPlaybackSecondsRef.current(s);
+        } else if (artifactId) {
+          writePlaybackSecondsLocal(artifactId, s);
+        }
       }
     } catch {
       /* ignore */
@@ -292,8 +303,13 @@ export function useYouTubeEmbedPlayer(options: {
       }, IFRAME_READY_FALLBACK_MS);
     };
 
+    const savedFromParent = getSavedPlaybackSecondsRef.current?.();
     const saved =
-      artifactId != null ? readPlaybackSecondsFromSession(artifactId) : null;
+      typeof savedFromParent === "number" && Number.isFinite(savedFromParent)
+        ? savedFromParent
+        : artifactId != null
+          ? readPlaybackSecondsLocal(artifactId)
+          : null;
     const initialStart = Math.max(
       0,
       Math.floor(saved ?? startRef.current ?? startSeconds),
@@ -520,7 +536,11 @@ export function useYouTubeEmbedPlayer(options: {
     (seconds: number, options?: { play?: boolean }) => {
       const s = Math.max(0, Math.floor(seconds));
       startRef.current = s;
-      if (artifactId) writePlaybackSecondsToSession(artifactId, s);
+      if (onPersistPlaybackSecondsRef.current) {
+        onPersistPlaybackSecondsRef.current(s);
+      } else if (artifactId) {
+        writePlaybackSecondsLocal(artifactId, s);
+      }
       if (!playerRef.current) {
         pendingSeekRef.current = s;
         return;

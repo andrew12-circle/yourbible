@@ -169,6 +169,35 @@ export type Database = {
           },
         ]
       }
+      artifact_playback_progress: {
+        Row: {
+          artifact_id: string
+          playback_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          playback_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          playback_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_playback_progress_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifacts: {
         Row: {
           created_at: string

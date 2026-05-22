@@ -609,17 +609,18 @@ export default function ArtifactDetailPage() {
   );
 
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
+  const claimsHorizontalRail = desktopPremiumYoutube || (!isDesktop && Boolean(youTubeVideoId));
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash || !claims.some((c) => c.id === hash)) return;
     const t = window.setTimeout(() => {
       scrollArtifactClaimIntoView(document.getElementById(hash), {
-        horizontalRail: desktopPremiumYoutube,
+        horizontalRail: claimsHorizontalRail,
       });
     }, 300);
     return () => window.clearTimeout(t);
-  }, [claims, a?.status, desktopPremiumYoutube]);
+  }, [claims, a?.status, claimsHorizontalRail]);
 
   const scrollToVideoSection = useCallback(() => {
     document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -657,10 +658,10 @@ export default function ArtifactDetailPage() {
   const scrollToClaimById = useCallback(
     (claimId: string) => {
       scrollArtifactClaimIntoView(document.getElementById(claimId), {
-        horizontalRail: desktopPremiumYoutube,
+        horizontalRail: claimsHorizontalRail,
       });
     },
-    [desktopPremiumYoutube],
+    [claimsHorizontalRail],
   );
 
   const advanceMobileClaim = useCallback(
@@ -773,7 +774,7 @@ export default function ArtifactDetailPage() {
       return;
     }
     const el = document.querySelector(`[data-claim-number="${claimNumber}"]`);
-    scrollArtifactClaimIntoView(el, { horizontalRail: desktopPremiumYoutube });
+    scrollArtifactClaimIntoView(el, { horizontalRail: claimsHorizontalRail });
   };
 
   const reanalyze = async () => {
@@ -1801,7 +1802,9 @@ export default function ArtifactDetailPage() {
           description={
             isDesktop
               ? "One thesis per card from the transcript — open each to review source, scripture, and verdicts."
-              : "Swipe insights above, then tap a claim to review source, scripture, and verdicts."
+              : youTubeVideoId
+                ? "Swipe sideways through full claim cards — transcript, scripture, and verdicts on each card."
+                : "Swipe insights above, then tap a claim to review source, scripture, and verdicts."
           }
           defaultOpenMobile
           defaultOpenDesktop
@@ -1841,8 +1844,8 @@ export default function ArtifactDetailPage() {
             onJumpToClaim={jumpToClaim}
             onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
             claimCardContext={claimCardContext}
-            mobileOpenClaimId={!isDesktop ? mobileOpenClaimId : undefined}
-            onMobileOpenClaimIdChange={!isDesktop ? setMobileOpenClaimId : undefined}
+            mobileOpenClaimId={!isDesktop && !youTubeVideoId ? mobileOpenClaimId : undefined}
+            onMobileOpenClaimIdChange={!isDesktop && !youTubeVideoId ? setMobileOpenClaimId : undefined}
             claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
             getClaimSeekSeconds={resolveClaimSeekSeconds}
             playerReady={videoPlayback.playerReady}

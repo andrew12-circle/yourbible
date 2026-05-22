@@ -100,6 +100,7 @@ export default function ReaderPage() {
   const [passage, setPassage] = useState<Passage | null>(null);
   const [loadingPassage, setLoadingPassage] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [settingsOpenRequest, setSettingsOpenRequest] = useState(0);
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -693,6 +694,8 @@ export default function ReaderPage() {
     );
   };
 
+  const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
+
   // A single page surface (no scrolling — fixed area)
   const PageSurface = ({
     pageIdx,
@@ -713,11 +716,18 @@ export default function ReaderPage() {
         style={pageHorizontalPadding(side, singlePage)}
       >
         <div
-          className={`flex-shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium ${
+          className={`flex-shrink-0 ${
             singlePage || side === "left" ? "text-left" : "text-right"
           }`}
         >
-          {book.name}
+          <button
+            type="button"
+            onClick={openReaderSettings}
+            className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
+            aria-label={`${book.name} — open reader settings`}
+          >
+            {book.name}
+          </button>
         </div>
         {isFirst && <div className="flex-shrink-0">{ChapterHeader}</div>}
         {loadingPassage ? (
@@ -748,7 +758,17 @@ export default function ReaderPage() {
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span>{book.name} · p. {globalPage}</span>
+            <span className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={openReaderSettings}
+                className="hover:text-muted-foreground transition-colors"
+                aria-label={`${book.name} — open reader settings`}
+              >
+                {book.name}
+              </button>
+              <span aria-hidden>· p. {globalPage}</span>
+            </span>
             <button
               onClick={() => goPage(1)}
               aria-label="Next page"
@@ -804,6 +824,7 @@ export default function ReaderPage() {
         fontScale={fontScale}
         onFontScaleChange={updateFontScale}
         singlePage={singlePage}
+        settingsOpenRequest={settingsOpenRequest}
       />
 
       <BookScene

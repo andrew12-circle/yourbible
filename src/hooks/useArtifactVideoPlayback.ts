@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { isArtifactPipVideo, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
+import { useArtifactPlaybackPersistence } from "@/hooks/useArtifactPlaybackPersistence";
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
-import {
-  readPlaybackSecondsFromSession,
-  writePlaybackSecondsToSession,
-} from "@/lib/framework/artifactYoutubePip";
+import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
@@ -18,7 +16,10 @@ export function useArtifactVideoPlayback(options: {
   transcriptRefs: RefObject<Record<string, HTMLDivElement | null>>;
 }) {
   const { artifactId, youTubeVideoId, mainScrollRef, transcriptSegments, transcriptRefs } = options;
-  const playbackFallbackRef = useRef(0);
+  const playbackPersistence = useArtifactPlaybackPersistence(artifactId);
+  const { resolvedSeconds: savedStart, loaded: playbackLoaded, persistSeconds } =
+    playbackPersistence;
+  const playbackFallbackRef = useRef(savedStart);
   const playWhenReadyRef = useRef(false);
   const layoutMode = useArtifactLayoutMode();
   const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
@@ -27,8 +28,13 @@ export function useArtifactVideoPlayback(options: {
   const [embedLoaded, setEmbedLoaded] = useState(false);
   /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
-  const [staticEmbedStart, setStaticEmbedStart] = useState(0);
-  const [apiStartSeconds, setApiStartSeconds] = useState(0);
+  const [staticEmbedStart, setStaticEmbedStart] = useState(() =>
+    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+  );
+  const [apiStartSeconds, setApiStartSeconds] = useState(() =>
+    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+  );
+  const appliedRemoteResumeRef = useRef(false);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
@@ -37,22 +43,25 @@ export function useArtifactVideoPlayback(options: {
     embedVisibleRef,
   });
 
-  const savedStart = useMemo(() => {
-    if (!artifactId) return 0;
-    const t = readPlaybackSecondsFromSession(artifactId);
-    return t != null ? t : 0;
-  }, [artifactId]);
+  useEffect(() => {
+    appliedRemoteResumeRef.current = false;
+    const local = artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
+    playbackFallbackRef.current = local;
+    setStaticEmbedStart(local);
+    setApiStartSeconds(local);
+  }, [artifactId, youTubeVideoId]);
 
   useEffect(() => {
+    if (!playbackLoaded || !artifactId) return;
     playbackFallbackRef.current = savedStart;
-    setStaticEmbedStart(savedStart);
     setApiStartSeconds(savedStart);
-  }, [artifactId, youTubeVideoId, savedStart]);
+    if (!embedLoaded) setStaticEmbedStart(savedStart);
+  }, [artifactId, embedLoaded, playbackLoaded, savedStart]);
 
   const staticTelemetry = useStaticYouTubeEmbedTelemetry({
     videoSlotRef: youtubePip.videoSlotRef,
     enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
-    initialSeconds: savedStart,
+    initialSeconds: staticEmbedStart,
   });
 
   const youtubePlayer = useYouTubeEmbedPlayer({
@@ -60,6 +69,8 @@ export function useArtifactVideoPlayback(options: {
     enabled: Boolean(youTubeVideoId) && apiPlayerWanted,
     startSeconds: apiStartSeconds,
     artifactId: artifactId ?? null,
+    getSavedPlaybackSeconds: () => savedStart,
+    onPersistPlaybackSeconds: persistSeconds,
     layoutKey: youtubePip.pipMode ? "pip" : "inline",
   });
 
@@ -77,24 +88,43 @@ export function useArtifactVideoPlayback(options: {
   }, [youtubePlayer.playerReady, youtubePlayer.playVideo]);
 
   useEffect(() => {
+    if (!playbackLoaded || appliedRemoteResumeRef.current || savedStart <= 0) return;
+    if (!embedLoaded || apiPlayerWanted) return;
+    appliedRemoteResumeRef.current = true;
+    staticTelemetry.seekTo(savedStart, true);
+    playbackFallbackRef.current = savedStart;
+  }, [
+    apiPlayerWanted,
+    embedLoaded,
+    playbackLoaded,
+    savedStart,
+    staticTelemetry,
+  ]);
+
+  useEffect(() => {
     if (!apiPlayerWanted || !youtubePlayer.playerReady) return;
     const tick = window.setInterval(() => {
       const t = youtubePlayer.getCurrentTime();
       playbackFallbackRef.current = t;
-      if (artifactId) writePlaybackSecondsToSession(artifactId, t);
+      persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
-  }, [apiPlayerWanted, artifactId, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
+  }, [
+    apiPlayerWanted,
+    persistSeconds,
+    youtubePlayer.playerReady,
+    youtubePlayer.getCurrentTime,
+  ]);
 
   useEffect(() => {
     if (apiPlayerWanted || !artifactId) return;
     const tick = window.setInterval(() => {
       const t = staticTelemetry.getCurrentTime();
       playbackFallbackRef.current = t;
-      writePlaybackSecondsToSession(artifactId, t);
+      persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
-  }, [apiPlayerWanted, artifactId, staticTelemetry]);
+  }, [apiPlayerWanted, artifactId, persistSeconds, staticTelemetry]);
 
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
@@ -109,10 +139,10 @@ export function useArtifactVideoPlayback(options: {
   const enableApiPlayer = useCallback(() => {
     const seconds = staticTelemetry.getCurrentTime();
     playbackFallbackRef.current = seconds;
-    if (artifactId) writePlaybackSecondsToSession(artifactId, seconds);
+    persistSeconds(seconds);
     setApiStartSeconds(seconds);
     setApiPlayerWanted(true);
-  }, [artifactId, staticTelemetry]);
+  }, [persistSeconds, staticTelemetry]);
 
   const activatePlayer = useCallback(
     (opts?: { autoplay?: boolean }) => {
@@ -149,7 +179,7 @@ export function useArtifactVideoPlayback(options: {
     (seconds: number, opts?: { play?: boolean }) => {
       const start = Math.max(0, Math.floor(seconds));
       playbackFallbackRef.current = start;
-      if (artifactId) writePlaybackSecondsToSession(artifactId, start);
+      persistSeconds(start);
 
       if (apiPlayerWanted && youtubePlayer.playerReady) {
         youtubePlayer.seekTo(start, { play: opts?.play });
@@ -167,8 +197,8 @@ export function useArtifactVideoPlayback(options: {
     [
       activatePlayer,
       apiPlayerWanted,
-      artifactId,
       enableApiPlayer,
+      persistSeconds,
       scrollTranscriptToSeconds,
       staticTelemetry,
       youtubePlayer.playerReady,

@@ -26,6 +26,7 @@ import { formatClaimSourceClock, formatTranscriptClock, type TranscriptSegment }
 import {
   artifactCard,
   artifactDesktopClaimCard,
+  artifactMobileClaimCard,
   artifactScrollMt,
 } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
@@ -60,8 +61,8 @@ export type RenderClaimCardContext = {
   openJournalFromClaim: (claim: RenderClaimCardClaim, startSeconds?: number) => void;
   toggleResearchLater: (cid: string, currentVerdict: string | null) => void | Promise<void>;
   applyClaimVerdict: (cid: string, verdict: ClaimVerdict | null) => void | Promise<void>;
-  /** Desktop premium: fixed-width card in a horizontal rail. */
-  layout?: "stack" | "desktopRail";
+  /** Fixed-width card in a horizontal rail (desktop or mobile). */
+  layout?: "stack" | "desktopRail" | "mobileRail";
   activeClaimId?: string | null;
   followPlaybackActive?: boolean;
 };
@@ -82,8 +83,10 @@ export function renderArtifactDetailClaimCard(
       : null;
   const epistemology = parseClaimEpistemology(c.epistemology);
   const claimNumber = claimIndex + 1;
-  const desktopRail = ctx.isDesktop && ctx.layout === "desktopRail";
-  const playbackActive = desktopRail && ctx.followPlaybackActive && ctx.activeClaimId === c.id;
+  const desktopRail = ctx.layout === "desktopRail";
+  const mobileRail = ctx.layout === "mobileRail";
+  const railLayout = desktopRail || mobileRail;
+  const playbackActive = railLayout && ctx.followPlaybackActive && ctx.activeClaimId === c.id;
   const verdictAccent =
     c.verdict === "keep"
       ? "border-l-emerald-500"
@@ -99,7 +102,7 @@ export function renderArtifactDetailClaimCard(
     <div
       className={cn(
         "flex flex-wrap items-center gap-1",
-        !desktopRail && "border-t border-border/50 pt-3",
+        !railLayout && "border-t border-border/50 pt-3",
       )}
       role="toolbar"
       aria-label="Claim actions"
@@ -160,7 +163,7 @@ export function renderArtifactDetailClaimCard(
     <div
       className={cn(
         "rounded-xl border border-border/60 bg-muted/15 p-3.5 text-xs sm:p-4",
-        desktopRail && "bg-white",
+        railLayout && "bg-white",
       )}
     >
       <div className="mb-2.5 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -188,7 +191,7 @@ export function renderArtifactDetailClaimCard(
                 <p
                   className={cn(
                     "font-sans text-sm leading-relaxed text-foreground",
-                    desktopRail ? "line-clamp-6" : "line-clamp-4",
+                    railLayout ? "line-clamp-6" : "line-clamp-4",
                   )}
                 >
                   {sourceQuote}
@@ -298,7 +301,7 @@ export function renderArtifactDetailClaimCard(
     ) : null;
 
   const scriptureSection = (
-    <div className={cn("grid grid-cols-2 gap-3 text-xs", desktopRail && "gap-3")}>
+    <div className={cn("grid grid-cols-2 gap-3 text-xs", railLayout && "gap-3")}>
       <div className="space-y-2 min-w-0">
         <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
           Supports
@@ -310,7 +313,7 @@ export function renderArtifactDetailClaimCard(
                 key={`${s.ref}-${i}`}
                 reference={s.ref}
                 note={s.note}
-                compact={desktopRail}
+                compact={railLayout}
               />
             ))
           ) : (
@@ -329,7 +332,7 @@ export function renderArtifactDetailClaimCard(
                 key={`${s.ref}-${i}`}
                 reference={s.ref}
                 note={s.note}
-                compact={desktopRail}
+                compact={railLayout}
               />
             ))
           ) : (
@@ -346,7 +349,7 @@ export function renderArtifactDetailClaimCard(
       {tagsSection}
       {beliefSection}
       <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
-          {desktopRail ||
+          {railLayout ||
           (c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
             ? scriptureSection
             : null}
@@ -354,11 +357,8 @@ export function renderArtifactDetailClaimCard(
     </>
   );
 
-  if (!ctx.isDesktop) {
-    return <div className="space-y-3">{claimBody}</div>;
-  }
-
-  if (desktopRail) {
+  if (railLayout) {
+    const railPadX = mobileRail ? "px-4" : "px-5";
     return (
       <article
         key={c.id}
@@ -366,12 +366,12 @@ export function renderArtifactDetailClaimCard(
         data-claim-number={claimNumber}
         data-claim-playback-active={playbackActive ? "" : undefined}
         className={cn(
-          artifactDesktopClaimCard,
+          mobileRail ? artifactMobileClaimCard : artifactDesktopClaimCard,
           playbackActive && "ring-2 ring-violet-500/35 ring-offset-2 ring-offset-background",
           isDeferredVerdict(c.verdict) && !playbackActive && "ring-1 ring-amber-300/50",
         )}
       >
-        <header className="shrink-0 space-y-2.5 border-b border-border/50 px-5 pb-4 pt-5">
+        <header className={cn("shrink-0 space-y-2.5 border-b border-border/50 pb-4 pt-5", railPadX)}>
           <span
             className="font-mono text-sm font-medium tabular-nums text-muted-foreground"
             aria-label={`Claim ${claimNumber}`}
@@ -392,16 +392,27 @@ export function renderArtifactDetailClaimCard(
             </span>
           ) : null}
         </header>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 scrollbar-thin">
+        <div
+          className={cn(
+            "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-4 scrollbar-thin",
+            railPadX,
+          )}
+        >
           {sourceSection}
           {tagsSection}
           {beliefSection}
           <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
           {scriptureSection}
         </div>
-        <footer className="shrink-0 border-t border-border/50 bg-white px-5 py-3.5">{claimToolbar}</footer>
+        <footer className={cn("shrink-0 border-t border-border/50 bg-white py-3.5", railPadX)}>
+          {claimToolbar}
+        </footer>
       </article>
     );
+  }
+
+  if (!ctx.isDesktop) {
+    return <div className="space-y-3">{claimBody}</div>;
   }
 
   return (

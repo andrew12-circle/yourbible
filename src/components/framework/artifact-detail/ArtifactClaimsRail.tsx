@@ -1,7 +1,11 @@
 import { useCallback, useRef, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { artifactDesktopClaimsRail, artifactPremiumCard } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactDesktopClaimsRail,
+  artifactMobileClaimsRail,
+  artifactPremiumCard,
+} from "@/lib/framework/artifactSurfaces";
 import { artifactStudyChapterLink } from "@/lib/framework/artifactStudyTheme";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
@@ -15,6 +19,7 @@ type Props<T extends { id: string }> = {
   youTubeVideoId: string | null;
   onSeekChapter?: (seconds: number) => void;
   showScrollNav?: boolean;
+  variant?: "desktop" | "mobile";
   className?: string;
 };
 
@@ -26,20 +31,27 @@ export default function ArtifactClaimsRail<T extends { id: string }>({
   youTubeVideoId,
   onSeekChapter,
   showScrollNav = true,
+  variant = "desktop",
   className,
 }: Props<T>) {
+  const isMobile = variant === "mobile";
   const railRef = useRef<HTMLDivElement>(null);
   const indexFor = (claim: T) => Math.max(0, claims.findIndex((x) => x.id === claim.id));
 
   const scrollRail = useCallback((direction: -1 | 1) => {
     const el = railRef.current;
     if (!el) return;
-    const step = Math.min(440, el.clientWidth * 0.88);
+    const step = Math.min(isMobile ? 320 : 440, el.clientWidth * 0.88);
     el.scrollBy({ left: direction * step, behavior: "smooth" });
-  }, []);
+  }, [isMobile]);
 
   const railContent = (
-    <div ref={railRef} className={cn(artifactDesktopClaimsRail, className)} role="list" aria-label="Claims">
+    <div
+      ref={railRef}
+      className={cn(isMobile ? artifactMobileClaimsRail : artifactDesktopClaimsRail, className)}
+      role="list"
+      aria-label="Claims"
+    >
       {grouped
         ? groups.map((group) => (
             <div key={group.id} className="flex shrink-0 snap-start items-stretch gap-4" role="group">

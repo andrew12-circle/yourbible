@@ -20,11 +20,13 @@ import { BOOKS, BibleBook } from "@/data/books";
 import { useEffect, useState } from "react";
 
 type PickerStep = "book" | "chapter" | "verse";
-type MenuPanel = "nav" | "settings";
+export type ReaderMenuPanel = "nav" | "settings";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When the sheet opens, start on this panel (e.g. footer book name → settings). */
+  initialPanel?: ReaderMenuPanel;
   reference: string;
   currentBook: BibleBook;
   currentChapter: number;
@@ -56,8 +58,9 @@ export function ReaderMobileMenu({
   onBookmark,
   focusMode,
   onToggleFocus,
+  initialPanel = "nav",
 }: Props) {
-  const [panel, setPanel] = useState<MenuPanel>("nav");
+  const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
   const [step, setStep] = useState<PickerStep>("book");
   const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
   const [pickedChapter, setPickedChapter] = useState(currentChapter ?? 1);
@@ -65,12 +68,12 @@ export function ReaderMobileMenu({
 
   useEffect(() => {
     if (!open) return;
-    setPanel("nav");
+    setPanel(initialPanel);
     setStep("book");
     setPickedBook(currentBook);
     setPickedChapter(currentChapter);
     setVerseInput("");
-  }, [open, currentBook, currentChapter]);
+  }, [open, initialPanel, currentBook, currentChapter]);
 
   const pickBook = (b: BibleBook) => {
     setPickedBook(b);
