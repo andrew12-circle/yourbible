@@ -604,7 +604,7 @@ export default function MyAiPage() {
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center gap-2 border-b border-border/80 px-2 py-2 sm:px-3">
+          <header className="flex shrink-0 items-center gap-1.5 border-b border-border/80 px-2 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:gap-2 sm:px-3 md:py-2">
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
               <ArrowLeft className="h-5 w-5" />
             </Button>
