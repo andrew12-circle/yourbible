@@ -140,7 +140,7 @@ export default function FrameworkLayout({
         ref={frameworkHeaderRef}
         data-artifact-framework-header
         className={cn(
-          "sticky top-0 z-30 border-b backdrop-blur-md",
+          "sticky top-0 z-30 border-b backdrop-blur-md max-md:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]",
           hideMobileFrameworkHeader && "max-md:hidden",
           hideDesktopFrameworkHeader && "lg:hidden",
           immersive

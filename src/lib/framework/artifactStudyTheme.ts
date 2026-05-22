@@ -72,11 +72,34 @@ export const artifactMobileInsightHeroCard = cn(
   "shadow-[0_12px_48px_rgba(0,0,0,0.35)] transition active:scale-[0.99]",
 );
 
+export const artifactMobileInsightHeroAccents = [
+  {
+    card: "border-white/20 shadow-[0_16px_52px_-24px_rgba(255,255,255,0.45),0_12px_48px_rgba(0,0,0,0.35)]",
+    number: "text-white",
+  },
+  {
+    card: "border-red-400/30 shadow-[0_16px_52px_-24px_rgba(248,113,113,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    number: "text-red-400",
+  },
+  {
+    card: "border-sky-400/30 shadow-[0_16px_52px_-24px_rgba(56,189,248,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    number: "text-sky-400",
+  },
+  {
+    card: "border-emerald-400/30 shadow-[0_16px_52px_-24px_rgba(52,211,153,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    number: "text-emerald-400",
+  },
+] as const;
+
+export function artifactMobileInsightHeroAccent(index: number) {
+  return artifactMobileInsightHeroAccents[index % artifactMobileInsightHeroAccents.length];
+}
+
 /** Width for one hero insight slide (~72% phone viewport, capped like continue-studying cards). */
 export const artifactMobileInsightHeroSlide =
-  "basis-[min(280px,calc(100vw-2.5rem))] max-w-[300px] shrink-0 grow-0";
+  "basis-[min(292px,calc(100vw-2rem))] max-w-[312px] shrink-0 grow-0";
 
-export const artifactMobileInsightHeroNumber = "font-display text-3xl font-semibold tabular-nums text-amber-400/90";
+export const artifactMobileInsightHeroNumber = "font-display text-4xl font-semibold tabular-nums leading-none";
 export const artifactMobileInsightHeroQuote =
   "font-display text-lg font-semibold leading-snug text-white line-clamp-6 sm:text-xl";
 export const artifactMobileInsightHeroFooter = "text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55";
