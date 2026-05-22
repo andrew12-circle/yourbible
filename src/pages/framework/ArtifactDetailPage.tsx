@@ -1,39 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import {
-  Loader2,
-  RefreshCw,
-  FileText,
-  ArrowRight,
-  Quote,
-  ExternalLink,
-  NotebookPen,
-  MessageCircle,
-  CheckCircle2,
-  Clock,
-  Check,
-  X,
-  Pencil,
-  CirclePause,
-} from "lucide-react";
+import { Loader2, RefreshCw, FileText, ExternalLink, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
@@ -41,11 +16,14 @@ import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
-import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
-import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
-import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactDesktopOverview from "@/components/framework/artifact-detail/ArtifactDesktopOverview";
+import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
+import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
+import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
+import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
+import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
+import MobileAppDock from "@/components/navigation/MobileAppDock";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
 import {
   type RenderClaimCardContext,
@@ -63,10 +41,14 @@ import {
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
+import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs";
+import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
+import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
   artifactDesktopBodySheet,
+  artifactMobileDockPadding,
   artifactMobileVideoOnlyPadding,
   artifactPremiumCard,
   artifactScrollMt,
@@ -360,8 +342,21 @@ export default function ArtifactDetailPage() {
     typeof window !== "undefined" ? window.location.hash : "",
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"study" | "transcript">("study");
+  const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab } =
+    useArtifactDetailMobileTabs();
+  const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
+  const [mobileNoteSectionOpen, setMobileNoteSectionOpen] = useState(false);
+  const {
+    mobileInsightExploreClaimId,
+    setMobileInsightExploreClaimId,
+    closeMobileInsightExplore,
+  } = useArtifactMobileInsightExplore(mobileTab);
+  const openNotesTabWithNote = useCallback(() => {
+    setMobileNoteSectionOpen(true);
+    openNotesTab();
+  }, [openNotesTab]);
+
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const createProcessingToken = () => crypto.randomUUID();
@@ -370,16 +365,19 @@ export default function ArtifactDetailPage() {
     const sectionId = hash.replace(/^#/, "");
     if (!sectionId) return;
     if (sectionId === "transcript") {
-      setMobileTab("transcript");
-      window.location.hash = "transcript";
+      openTranscriptTab();
       return;
     }
-    setMobileTab("study");
+    if (sectionId === "notes" || sectionId === "capture") {
+      openNotesTab();
+      return;
+    }
+    openStudyTab();
     window.location.hash = sectionId;
     window.requestAnimationFrame(() => {
       scrollArtifactClaimIntoView(document.getElementById(sectionId));
     });
-  }, []);
+  }, [openStudyTab, openTranscriptTab, openNotesTab]);
 
   const fetchYouTubeMeta = useCallback(async (videoUrl: string): Promise<ArtifactMetadata | null> => {
     try {
@@ -406,11 +404,7 @@ export default function ArtifactDetailPage() {
   }, []);
 
   useEffect(() => {
-    const sync = () => {
-      const hash = window.location.hash;
-      setPageSectionHash(hash);
-      if (hash === "#transcript") setMobileTab("transcript");
-    };
+    const sync = () => setPageSectionHash(window.location.hash);
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -651,9 +645,31 @@ export default function ArtifactDetailPage() {
       sections.push({ id: "claims", hash: "#claims", label: "Claims" });
       sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
     }
-    if (youTubeVideoId) sections.push({ id: "capture", hash: "#capture", label: "Capture" });
+    const pinnedMobileYoutube =
+      !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
+    if (youTubeVideoId) {
+      sections.push(
+        pinnedMobileYoutube
+          ? { id: "notes", hash: "#notes", label: "Notes" }
+          : { id: "capture", hash: "#capture", label: "Capture" },
+      );
+    }
+    if (pinnedMobileYoutube && a.status === "ready") {
+      sections.unshift({ id: "overview", hash: "#overview", label: "Overview" });
+    }
     return sections;
-  }, [a, a?.kind, a?.status, a?.url, youTubeVideoId, youtubeChaptersList.length, claims.length, desktopPremiumYoutube]);
+  }, [
+    a,
+    a?.kind,
+    a?.status,
+    a?.url,
+    youTubeVideoId,
+    youtubeChaptersList.length,
+    claims.length,
+    desktopPremiumYoutube,
+    isDesktop,
+    layoutMode,
+  ]);
 
   const scrollToClaimById = useCallback(
     (claimId: string) => {
@@ -688,6 +704,40 @@ export default function ArtifactDetailPage() {
       return claims[0]?.id ?? null;
     });
   }, [claims, isDesktop]);
+
+  const jumpToTranscriptSource = useCallback(
+    (segment: TranscriptSegment | null) => {
+      if (!segment || segment.isParagraphBreak) return;
+      transcriptRefs.current[segment.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds, { play: true });
+    },
+    [seekVideoToSeconds],
+  );
+
+  const playClaimAtSource = useCallback(
+    (claim: Claim, source: TranscriptSegment | null | undefined) => {
+      const seconds = getClaimSeekSeconds(claim, source ?? null);
+      if (seconds == null) {
+        jumpToTranscriptSource(source ?? null);
+        return;
+      }
+      if (source && !source.isParagraphBreak) {
+        transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      seekVideoToSeconds(seconds, { play: true });
+    },
+    [jumpToTranscriptSource, seekVideoToSeconds],
+  );
+
+  const openMobileInsightExplore = useCallback(
+    (claimId: string) => {
+      openStudyTab();
+      setMobileInsightExploreClaimId(claimId);
+      const claim = claims.find((c) => c.id === claimId);
+      if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
+    },
+    [claims, claimSources, openStudyTab, playClaimAtSource, setMobileInsightExploreClaimId],
+  );
 
   if (loading) {
     return (
@@ -1004,24 +1054,6 @@ export default function ArtifactDetailPage() {
     useFloatingJournalStore.getState().setPanelOpen(true);
   };
 
-  const jumpToTranscriptSource = (segment: TranscriptSegment | null) => {
-    if (!segment || segment.isParagraphBreak) return;
-    transcriptRefs.current[segment.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds, { play: true });
-  };
-
-  const playClaimAtSource = (claim: Claim, source: TranscriptSegment | null | undefined) => {
-    const seconds = getClaimSeekSeconds(claim, source ?? null);
-    if (seconds == null) {
-      jumpToTranscriptSource(source ?? null);
-      return;
-    }
-    if (source && !source.isParagraphBreak) {
-      transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    seekVideoToSeconds(seconds, { play: true });
-  };
-
   const bookmarkAtSeconds = async (seconds: number, label?: string | null) => {
     const t = Math.max(0, Math.floor(seconds));
     const saved = await saveMoment("bookmark", {
@@ -1196,23 +1228,18 @@ export default function ArtifactDetailPage() {
   const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
-  const mobileTabBar =
-    !isDesktop && a.raw_text?.trim() ? (
-      <TabsList className="grid h-10 w-full grid-cols-2 rounded-none border-0 border-t border-border/50 bg-muted/30 p-0">
-        <TabsTrigger
-          value="study"
-          className="rounded-none border-0 data-[state=active]:bg-background data-[state=active]:shadow-none"
-        >
-          Study
-        </TabsTrigger>
-        <TabsTrigger
-          value="transcript"
-          className="rounded-none border-0 data-[state=active]:bg-background data-[state=active]:shadow-none"
-        >
-          Transcript
-        </TabsTrigger>
-      </TabsList>
-    ) : null;
+  const showMobileOverview = mobilePinnedPane && a.status === "ready";
+  const mobileTabBar = mobilePinnedPane ? <ArtifactMobileSegmentedTabs /> : null;
+
+  const mobileInsightExplorePanel = (
+    <ArtifactMobileInsightExploreSlot
+      enabled={mobilePinnedPane && mobileTab === "study"}
+      claimId={mobileInsightExploreClaimId}
+      claims={claims}
+      claimCardContext={claimCardContext}
+      onBack={closeMobileInsightExplore}
+    />
+  );
 
   const StudyColumnWrapper = ({
     children,
@@ -1327,7 +1354,7 @@ export default function ArtifactDetailPage() {
       >
         <Tabs
           value={mobileTab}
-          onValueChange={(v) => setMobileTab(v as "study" | "transcript")}
+          onValueChange={onTabChange}
           className={cn(
             "min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col",
             mobilePinnedPane && "flex min-h-0 flex-1 flex-col overflow-hidden",
@@ -1444,10 +1471,9 @@ export default function ArtifactDetailPage() {
             menuShowWrapUp={a.kind === "youtube" && a.status === "ready"}
             menuShowReanalyze={!inFlight && a.status !== "error"}
             onMenuNavigateSection={navigateToArtifactHash}
-            onMenuOpenTranscript={() => {
-              setMobileTab("transcript");
-              window.location.hash = "transcript";
-            }}
+            onMenuOpenTranscript={openTranscriptTab}
+            onOpenNotesTab={openNotesTabWithNote}
+            insightExplorePanel={mobileInsightExplorePanel}
             onMenuPaste={() => setPasteOpen(true)}
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
@@ -1462,6 +1488,7 @@ export default function ArtifactDetailPage() {
             mobilePinnedPane
               ? cn(
                   artifactMobileVideoOnlyPadding,
+                  artifactMobileDockPadding,
                   "h-full min-h-0 w-full overflow-y-auto overscroll-contain",
                   mobileTab === "study" && "space-y-5 sm:space-y-6",
                 )
@@ -1469,14 +1496,17 @@ export default function ArtifactDetailPage() {
           )}
         >
           {mobilePinnedPane ? <div ref={setMobileChromeHost} className="shrink-0" /> : null}
-      {isDesktop || mobileTab !== "transcript" ? (
+      {isDesktop || (mobileTab !== "transcript" && mobileTab !== "notes") ? (
         <div className={cn(desktopPremiumYoutube && artifactDesktopBodySheet)}>
         <ArtifactSectionNav
           sections={navSections}
           activeHash={pageSectionHash}
           stickyVideoLayout={false}
           variant={desktopPremiumYoutube ? "desktop" : "default"}
-          className={cn(!isDesktop && stickyVideoMode && "sticky top-0 z-[28]")}
+          className={cn(
+            !isDesktop && stickyVideoMode && !showMobileOverview && "sticky top-0 z-[28]",
+            showMobileOverview && "hidden",
+          )}
         />
 
       {desktopPremiumYoutube && a.status === "ready" ? (
@@ -1605,6 +1635,21 @@ export default function ArtifactDetailPage() {
       )}
 
       <StudyColumnWrapper className={desktopPremiumYoutube ? "space-y-8" : undefined}>
+      {showMobileOverview ? (
+        <ArtifactMobileOverview
+          claims={claims}
+          artifactId={a.id}
+          artifactStatus={a.status}
+          claimsCount={claims.length}
+          entitiesCount={entitiesCount}
+          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
+          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
+          onNavigate={navigateToArtifactHash}
+          onSelectClaim={openMobileInsightExplore}
+          activeClaimId={mobileInsightExploreClaimId}
+          onSeeScripture={openMobileInsightExplore}
+        />
+      ) : null}
       {desktopPremiumYoutube && a.status === "ready" && claims.length > 0 ? (
         <ArtifactClaimsSection
           anchorId="claims"
@@ -1723,9 +1768,9 @@ export default function ArtifactDetailPage() {
               <button
                 type="button"
                 className="font-medium text-foreground underline-offset-2 hover:underline"
-                onClick={() => navigateToArtifactHash("#capture")}
+                onClick={() => navigateToArtifactHash(showMobileOverview ? "#notes" : "#capture")}
               >
-                Capture
+                {showMobileOverview ? "Notes" : "Capture"}
               </button>{" "}
               on the Study tab for playhead notes, or bookmark lines in the{" "}
               <button
@@ -1741,23 +1786,6 @@ export default function ArtifactDetailPage() {
           </div>
         </ArtifactCollapsibleSection>
       )}
-
-      {a.status === "ready" && !desktopPremiumYoutube ? (
-        <ArtifactCollapsibleSection
-          title="Knowledge entities"
-          pinnedVideoPane={mobilePinnedPane}
-          description="People, books, scriptures, and themes mentioned in this artifact."
-          defaultOpenMobile={false}
-          defaultOpenDesktop
-          storageKey={a.id ? `artifact-entities:${a.id}` : undefined}
-        >
-          <ArtifactEntitiesPanel
-            artifactId={a.id}
-            artifactStatus={a.status}
-            variant={!isDesktop ? "mobileRail" : "default"}
-          />
-        </ArtifactCollapsibleSection>
-      ) : null}
 
       {a.status === "ready" && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
         <ArtifactCollapsibleSection
@@ -1796,7 +1824,7 @@ export default function ArtifactDetailPage() {
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
-          title="Claims"
+          title={showMobileOverview ? "Review claims" : "Claims"}
           count={claims.length}
           countLabel={`${claims.length} insights`}
           description={
@@ -1854,7 +1882,24 @@ export default function ArtifactDetailPage() {
             onTogglePlayback={togglePlayback}
             scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : isDesktop ? mainScrollRef : undefined}
             pinnedVideoPane={mobilePinnedPane}
+            hideMobileInsightPreview={showMobileOverview}
+            hideStudySectionHeader={showMobileOverview && Boolean(youTubeVideoId)}
+            sectionTitle={showMobileOverview ? "Review claims" : undefined}
           />
+        </ArtifactCollapsibleSection>
+      ) : null}
+
+      {a.status === "ready" && !desktopPremiumYoutube ? (
+        <ArtifactCollapsibleSection
+          id="entities"
+          title="People & themes"
+          pinnedVideoPane={mobilePinnedPane}
+          description="Full index of people, books, scriptures, and themes."
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          storageKey={a.id ? `artifact-entities:${a.id}` : undefined}
+        >
+          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} variant="default" />
         </ArtifactCollapsibleSection>
       ) : null}
       </StudyColumnWrapper>
@@ -1867,10 +1912,38 @@ export default function ArtifactDetailPage() {
           id="transcript"
           className={cn(
             "mt-0 focus-visible:outline-none data-[state=inactive]:hidden",
-            mobilePinnedPane ? "" : "flex min-h-0 flex-1 flex-col",
+            mobilePinnedPane ? cn(artifactMobileDockPadding, "pb-8") : "flex min-h-0 flex-1 flex-col",
           )}
         >
           {transcriptPanel}
+        </TabsContent>
+      ) : null}
+
+      {!isDesktop && mobilePinnedPane ? (
+        <TabsContent
+          value="notes"
+          className="mt-0 focus-visible:outline-none data-[state=inactive]:hidden"
+        >
+          <ArtifactMobileNotesTab
+            artifactId={a.id}
+            bookmarkLabel={bookmarkLabel}
+            onBookmarkLabelChange={setBookmarkLabel}
+            noteBody={noteBody}
+            onNoteBodyChange={setNoteBody}
+            moments={moments}
+            canCapture={canCaptureMoments}
+            saving={savingMoment}
+            hasTranscript={Boolean(a.raw_text?.trim())}
+            onBookmark={bookmarkCurrentMoment}
+            onSaveNote={addNoteAtCurrentMoment}
+            onBelieve={believeCurrentMoment}
+            onStudyJournal={openStudyJournal}
+            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+            onOpenJournalFull={() => openJournalFromArtifact()}
+            onSeekMoment={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+            noteSectionOpen={mobileNoteSectionOpen}
+            onNoteSectionOpenChange={setMobileNoteSectionOpen}
+          />
         </TabsContent>
       ) : null}
         </div>
@@ -1885,115 +1958,32 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      <Dialog
-        open={pasteOpen}
-        onOpenChange={(open) => {
-          setPasteOpen(open);
-          if (!open) setPasteText("");
+      {mobilePinnedPane ? <MobileAppDock /> : null}
+
+      <ArtifactDetailPageDialogs
+        pasteOpen={pasteOpen}
+        onPasteOpenChange={setPasteOpen}
+        pasteText={pasteText}
+        onPasteTextChange={setPasteText}
+        onPasteTranscriptInput={handlePasteTranscriptInput}
+        pasteTimestampsNormalized={pasteTimestampsNormalized}
+        normalizedPastePreview={normalizedPastePreview}
+        savingPaste={savingPaste}
+        onSubmitPasted={submitPasted}
+        wrapUpOpen={wrapUpOpen}
+        onWrapUpOpenChange={setWrapUpOpen}
+        claimsCount={claims.length}
+        onWrapUpBackToArtifacts={() => {
+          setWrapUpOpen(false);
+          toast({ title: "Nice work", description: "Heading back to your artifacts." });
+          navigate("/framework/artifacts");
         }}
-      >
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Paste full transcript</DialogTitle>
-            <DialogDescription>
-              Copy the entire transcript from YouTube (⋮ → Show transcript, select all) or any transcript tool, then paste below.
-              We will save it and run the analyzer.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            onPaste={handlePasteTranscriptInput}
-            rows={18}
-            placeholder={"[0:00] Opening line…\n[0:15] Next phrase…\n\nPlain text without timestamps also works."}
-            className="font-mono text-sm resize-y min-h-[280px] flex-1"
-            spellCheck={false}
-          />
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {pasteText.length.toLocaleString()} characters
-            {pasteText.trim() ? ` · ~${pasteText.trim().split(/\s+/).length.toLocaleString()} words` : ""}
-            {pasteTimestampsNormalized ? (
-              <span className="text-foreground">
-                {" "}
-                · Timestamps will normalize to [M:SS] ({countTimedTranscriptLines(normalizedPastePreview)} lines)
-              </span>
-            ) : null}
-          </p>
-          {pasteTimestampsNormalized ? (
-            <pre className="max-h-24 overflow-auto rounded border border-border bg-muted/40 p-2 font-mono text-[11px] leading-snug text-muted-foreground">
-              {normalizedPastePreview.slice(0, 500)}
-              {normalizedPastePreview.length > 500 ? "…" : ""}
-            </pre>
-          ) : null}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setPasteOpen(false)} disabled={savingPaste}>
-              Cancel
-            </Button>
-            <Button onClick={submitPasted} disabled={savingPaste || !pasteText.trim()}>
-              {savingPaste ? "Saving…" : "Save & analyze"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {polling && (
-        <p className="mt-6 text-xs text-muted-foreground flex items-center gap-1">
-          <Loader2 className="w-3 h-3 animate-spin" /> Watching for new claims…
-        </p>
-      )}
-
-      <Dialog open={wrapUpOpen} onOpenChange={setWrapUpOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Wrap up studying?</DialogTitle>
-            <DialogDescription>
-              A quick checkpoint — nothing is saved automatically here; use it to close the loop in your head.
-            </DialogDescription>
-          </DialogHeader>
-          <ul className="space-y-2.5 text-sm text-muted-foreground">
-            <li className="flex gap-2.5">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/80" aria-hidden />
-              <span>Reviewed claim cards (Keep / Reject / Update / Defer) where it helped</span>
-            </li>
-            <li className="flex gap-2.5">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/80" aria-hidden />
-              <span>Saved bookmarks or notes in Capture, if you wanted a paper trail</span>
-            </li>
-          </ul>
-          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                setWrapUpOpen(false);
-                toast({ title: "Nice work", description: "Heading back to your artifacts." });
-                navigate("/framework/artifacts");
-              }}
-            >
-              Back to artifacts
-            </Button>
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setWrapUpOpen(false)}>
-                Stay here
-              </Button>
-              {claims.length > 0 ? (
-                <Button type="button" variant="outline" className="w-full sm:w-auto" asChild>
-                  <Link to="/framework/graph" onClick={() => setWrapUpOpen(false)}>
-                    Open belief graph
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <QuickBeliefDialog
-        open={quickBeliefOpen}
-        onOpenChange={setQuickBeliefOpen}
-        initialText={quickBeliefText}
-        initialSource={quickBeliefSource}
-        influenceAttachment={quickBeliefInfluence}
+        polling={polling}
+        quickBeliefOpen={quickBeliefOpen}
+        onQuickBeliefOpenChange={setQuickBeliefOpen}
+        quickBeliefText={quickBeliefText}
+        quickBeliefSource={quickBeliefSource}
+        quickBeliefInfluence={quickBeliefInfluence}
       />
 
     </FrameworkLayout>

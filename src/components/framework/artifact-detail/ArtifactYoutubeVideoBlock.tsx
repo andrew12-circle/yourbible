@@ -72,7 +72,7 @@ type Props = {
   onOpenJournalFull: () => void;
   mobileTabBar?: ReactNode;
   /** Mobile sticky layout: which tab is active (controls capture section visibility). */
-  mobileActiveTab?: "study" | "transcript";
+  mobileActiveTab?: "study" | "transcript" | "notes";
   mobileMenuOpen?: boolean;
   onMobileMenuOpenChange?: (open: boolean) => void;
   menuSections?: ArtifactNavSection[];
@@ -89,6 +89,10 @@ type Props = {
   backTo?: string;
   /** Host element inside the scroll pane (title scrolls away; toolbar sticks under video). */
   mobileChromeHost?: HTMLElement | null;
+  /** Pinned mobile: switch to Notes tab instead of scrolling to capture. */
+  onOpenNotesTab?: () => void;
+  /** Key insights tap-to-explore panel (below tabs). */
+  insightExplorePanel?: ReactNode;
   /** Desktop premium: player fills the cinematic hero (not a separate card). */
   heroEmbed?: boolean;
 };
@@ -136,6 +140,8 @@ function ArtifactYoutubeVideoBlock({
   onMenuReanalyze,
   backTo = "/framework/artifacts",
   mobileChromeHost = null,
+  onOpenNotesTab,
+  insightExplorePanel,
   heroEmbed = false,
 }: Props) {
   const layoutMode = useArtifactLayoutMode();
@@ -232,8 +238,9 @@ function ArtifactYoutubeVideoBlock({
 
   const openNote = useCallback(() => {
     if (transcriptTabActive) setMobileNoteOpen(true);
+    else if (mobilePinnedLayout && onOpenNotesTab) onOpenNotesTab();
     else openCapture();
-  }, [transcriptTabActive, openCapture]);
+  }, [transcriptTabActive, openCapture, mobilePinnedLayout, onOpenNotesTab]);
 
   const mobileScrollChrome =
     mobilePinnedLayout && mobileChromeHost ? (
@@ -254,6 +261,7 @@ function ArtifactYoutubeVideoBlock({
         onOpenNote={openNote}
         onOpenStudyMenu={openStudyMenu}
         mobileTabBar={mobileTabBar}
+        insightExplorePanel={insightExplorePanel}
       />
     ) : null;
 

@@ -1,10 +1,10 @@
 import ContinueStudyingCard, {
   type ContinueStudyingIcon,
 } from "@/components/framework/artifact-detail/ContinueStudyingCard";
-import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
-import ArtifactInsightRail from "@/components/framework/artifact-detail/ArtifactInsightRail";
+import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
-import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
+import { artifactHorizontalRail } from "@/lib/framework/artifactSurfaces";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +33,13 @@ type Props = {
   showTeachingsSpine: boolean;
   onNavigate: (hash: string) => void;
   onSelectClaim: (claimId: string) => void;
+  activeClaimId?: string | null;
   claimSources?: Record<string, TranscriptSegment | null>;
   onSeeScripture?: (claimId: string) => void;
-  onSeeInTranscript?: (claimId: string) => void;
   className?: string;
 };
 
-export default function ArtifactDesktopOverview({
+export default function ArtifactMobileOverview({
   claims,
   artifactId,
   artifactStatus,
@@ -49,9 +49,8 @@ export default function ArtifactDesktopOverview({
   showTeachingsSpine,
   onNavigate,
   onSelectClaim,
-  claimSources,
+  activeClaimId,
   onSeeScripture,
-  onSeeInTranscript,
   className,
 }: Props) {
   const continueCards: ContinueCard[] = [];
@@ -92,18 +91,13 @@ export default function ArtifactDesktopOverview({
   return (
     <section
       id="overview"
-      className={cn(artifactScrollMt, "space-y-10", className)}
-      aria-label="Overview"
+      className={cn("space-y-10", className)}
+      aria-label="Study overview"
     >
       {continueCards.length > 0 ? (
         <div className="space-y-4">
           <ArtifactStudySectionHeader title="Continue studying" />
-          <div
-            className={cn(
-              "flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-hide pb-1 touch-pan-x",
-            )}
-            role="list"
-          >
+          <div className={cn(artifactHorizontalRail, "pb-1")} role="list">
             {continueCards.map((card) => (
               <ContinueStudyingCard
                 key={card.id}
@@ -118,36 +112,35 @@ export default function ArtifactDesktopOverview({
       ) : null}
 
       {claimsCount > 0 ? (
-        <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
+        <div id="key-insights" className="scroll-mt-4 space-y-4">
           <ArtifactStudySectionHeader
-            title="Key claims"
+            title="Key insights"
             count={claimsCount}
-            countLabel={`${claimsCount} claims extracted`}
+            countLabel={`${claimsCount} insights`}
             actionLabel="View all"
             onAction={() => onNavigate("#claims")}
           />
-          <ArtifactInsightRail
+          <ArtifactMobileInsightHeroRail
             claims={claims}
-            claimSources={claimSources}
+            activeClaimId={activeClaimId}
             onSelectClaim={onSelectClaim}
-            onSeeInTranscript={onSeeInTranscript}
             onSeeScripture={onSeeScripture}
           />
         </div>
       ) : null}
 
-      <div id="people-themes" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
+      <div id="people-themes" className="scroll-mt-4 space-y-4">
         <ArtifactStudySectionHeader
           title="People & themes"
           count={entitiesCount}
           countLabel={entitiesCount != null ? `${entitiesCount} mentioned` : undefined}
-          actionLabel="Full index"
+          actionLabel="Explore all"
           onAction={() => onNavigate("#entities")}
         />
         <ArtifactEntitiesPanel
           artifactId={artifactId}
           artifactStatus={artifactStatus}
-          variant="desktopRail"
+          variant="mobileRail"
         />
       </div>
     </section>

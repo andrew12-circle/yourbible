@@ -26,6 +26,7 @@ export const artifactScrollMt = "scroll-mt-32";
 
 /** Phone/tablet sticky video: measured header + 16:9 video + optional chrome band. */
 export {
+  artifactMobileDockPadding,
   artifactMobilePinnedHeaderPadding,
   artifactMobileVideoOnlyPadding,
   artifactScrollMtMobilePane,
@@ -95,12 +96,12 @@ export const artifactDesktopClaimCard = cn(
   "max-h-[min(78vh,720px)]",
 );
 
-/** Mobile claim card in a horizontal rail — slightly narrower, shorter max height under pinned video. */
+/** Mobile claim card in a horizontal rail — wide cards under pinned video. */
 export const artifactMobileClaimCard = cn(
-  "flex w-[min(340px,calc(100vw-2.5rem))] max-w-[400px] shrink-0 snap-start flex-col",
+  "flex w-[min(92vw,420px)] max-w-[420px] shrink-0 snap-start flex-col",
   "overflow-hidden rounded-2xl border border-border/60 bg-white",
-  "shadow-[0_4px_20px_rgba(0,0,0,0.08)]",
-  "max-h-[min(58vh,560px)]",
+  "shadow-[0_4px_24px_rgba(0,0,0,0.1)]",
+  "max-h-[min(65vh,640px)]",
 );
 
 /** Horizontal rail for desktop claim cards (wider gaps). */

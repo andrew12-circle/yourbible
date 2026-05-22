@@ -20,6 +20,7 @@ import {
   sanitizeEpistemology,
 } from "../_shared/epistemology.ts";
 import { callChatWithTools, getChatConfig } from "../_shared/aiProvider.ts";
+import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
 
@@ -1052,6 +1053,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    setAiUsageContext({
+      functionName: "framework-analyze",
+      userId: artifact.user_id as string,
+      artifactId: artifact_id,
+    });
+
     const { data: beliefs } = await supabase
       .from("belief_nodes")
       .select("id,layer,topic,statement,answer,confidence")
@@ -1344,5 +1351,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    clearAiUsageContext();
   }
 });

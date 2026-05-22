@@ -20,6 +20,8 @@ type Props = {
   onOpenNote: () => void;
   onOpenStudyMenu: () => void;
   mobileTabBar?: ReactNode;
+  /** Full claim review opened from Key insights (sits below tabs, above scroll). */
+  insightExplorePanel?: ReactNode;
 };
 
 /** Title/channel scroll away; quick actions + Study/Transcript tabs stick under the fixed video. */
@@ -40,6 +42,7 @@ export default function ArtifactMobilePinnedScrollChrome({
   onOpenNote,
   onOpenStudyMenu,
   mobileTabBar,
+  insightExplorePanel,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
 
@@ -63,7 +66,7 @@ export default function ArtifactMobilePinnedScrollChrome({
     const ro = new ResizeObserver(sync);
     ro.observe(sticky);
     return () => ro.disconnect();
-  }, [transcriptTabActive, mobileTabBar]);
+  }, [transcriptTabActive, mobileTabBar, insightExplorePanel]);
 
   return (
     <div className="shrink-0 lg:hidden">
@@ -95,6 +98,7 @@ export default function ArtifactMobilePinnedScrollChrome({
           onOpenStudyMenu={onOpenStudyMenu}
         />
         {mobileTabBar}
+        {insightExplorePanel}
       </div>
     </div>
   );

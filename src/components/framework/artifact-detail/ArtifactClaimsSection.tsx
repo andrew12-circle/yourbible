@@ -50,6 +50,11 @@ type Props<T extends ClaimLike> = {
   onMarkReviewed?: (claimId: string) => void;
   /** Desktop overview already shows insight rail — hide duplicate carousel here. */
   hideInsightPreview?: boolean;
+  /** Mobile overview shows hero insights — hide duplicate carousel on non-rail mobile. */
+  hideMobileInsightPreview?: boolean;
+  /** Override section header when parent owns the title (e.g. mobile overview). */
+  sectionTitle?: string;
+  hideStudySectionHeader?: boolean;
 };
 
 export default function ArtifactClaimsSection<T extends ClaimLike>({
@@ -74,6 +79,9 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   onSeeScripture,
   onMarkReviewed,
   hideInsightPreview = false,
+  hideMobileInsightPreview = false,
+  sectionTitle,
+  hideStudySectionHeader = false,
 }: Props<T>) {
   const isDesktop = useIsDesktop();
   const [followPlayback, setFollowPlayback] = useState(true);
@@ -326,16 +334,18 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     >
       {useClaimsRail ? (
         <div className={isDesktop ? "space-y-8" : "space-y-4"}>
-          <ArtifactStudySectionHeader
-            title="Key claims"
-            count={claims.length}
-            countLabel={`${claims.length} claims extracted`}
-            description={
-              isDesktop
-                ? "Scroll sideways — transcript source, scripture, and verdict actions stay on each card."
-                : "Swipe sideways through full claim cards — less scrolling than stacked claims."
-            }
-          />
+          {!hideStudySectionHeader ? (
+            <ArtifactStudySectionHeader
+              title={sectionTitle ?? "Key claims"}
+              count={claims.length}
+              countLabel={`${claims.length} claims extracted`}
+              description={
+                isDesktop
+                  ? "Scroll sideways — transcript source, scripture, and verdict actions stay on each card."
+                  : "Swipe sideways through full claim cards — less scrolling than stacked claims."
+              }
+            />
+          ) : null}
           {(showFollowControl || showPlaybackControl) && (
             <ClaimsPlaybackToolbar
               isPlaying={isPlaying}
@@ -414,12 +424,14 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
         </div>
       ) : (
         <div className="space-y-5">
-          <ArtifactInsightCarousel
-            claims={claims}
-            activeClaimId={activeClaimId ?? mobileOpenClaimId}
-            onSelectClaim={handleCarouselSelect}
-            variant="mobile"
-          />
+          {!hideMobileInsightPreview ? (
+            <ArtifactInsightCarousel
+              claims={claims}
+              activeClaimId={activeClaimId ?? mobileOpenClaimId}
+              onSelectClaim={handleCarouselSelect}
+              variant="mobile"
+            />
+          ) : null}
           {(showFollowControl || showPlaybackControl) && (
             <ClaimsPlaybackToolbar
               isPlaying={isPlaying}

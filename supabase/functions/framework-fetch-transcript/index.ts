@@ -19,6 +19,7 @@ import {
 } from "../_shared/transcriptPersist.ts";
 import { fetchAssemblyAiTranscript } from "../_shared/transcriptProviders/assemblyai.ts";
 import { fetchDeepgramTranscript } from "../_shared/transcriptProviders/deepgram.ts";
+import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
 import {
@@ -709,6 +710,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    setAiUsageContext({
+      functionName: "framework-fetch-transcript",
+      userId: u.user.id,
+      artifactId: artifact_id,
+    });
+
     if (!isYouTubeUrl(url)) {
       await supabase.from("artifacts").update({ status: "error", error: "Not a valid YouTube URL." }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: "Bad YouTube URL" }), {
@@ -839,5 +846,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    clearAiUsageContext();
   }
 });

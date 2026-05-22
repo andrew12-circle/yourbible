@@ -1,5 +1,12 @@
 /** Shared AI provider helpers for edge functions (chat + query embeddings). */
 
+import {
+  logAiUsage,
+  logAiUsageFromResponse,
+  parseGeminiUsageMetadata,
+  parseOpenAiUsage,
+} from "./logAiUsage.ts";
+
 export type AiProvider = "openai" | "gemini";
 
 export const EMBEDDING_DIMS = 768;
@@ -22,6 +29,20 @@ const GEMINI_TOOL_GATEWAY_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GEMINI_TOOL_MODEL = "gemini-2.5-pro";
 
+async function replayResponse(res: Response): Promise<{ res: Response; body: unknown }> {
+  const text = await res.text();
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+  return {
+    res: new Response(text, { status: res.status, statusText: res.statusText, headers: res.headers }),
+    body,
+  };
+}
+
 /** Tool-calling chat (OpenAI or Gemini OpenAI-compat gateway). */
 export async function callChatWithTools(
   messages: { role: string; content: string }[],
@@ -29,31 +50,47 @@ export async function callChatWithTools(
   toolChoice: unknown,
   maxOutputTokens = 8192,
 ): Promise<Response> {
+  const started = Date.now();
+  const inputChars = messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
   const provider = resolveAiProvider();
+
   if (provider === "openai") {
     const apiKey = openAiApiKey();
     if (apiKey) {
-      return fetch("https://api.openai.com/v1/chat/completions", {
+      const model = getOpenAiChatModel();
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: getOpenAiChatModel(),
+          model,
           messages,
           tools,
           tool_choice: toolChoice,
           max_tokens: maxOutputTokens,
         }),
       });
+      const { res: replayed, body } = await replayResponse(res);
+      logAiUsageFromResponse({
+        res: replayed,
+        body,
+        provider: "openai",
+        model,
+        operation: "chat_tools",
+        inputChars,
+        durationMs: Date.now() - started,
+      });
+      return replayed;
     }
   }
+
   const geminiKey = geminiApiKey();
   if (!geminiKey) {
     return new Response(JSON.stringify({ error: "No AI API key configured" }), { status: 502 });
   }
-  return fetch(GEMINI_TOOL_GATEWAY_URL, {
+  const res = await fetch(GEMINI_TOOL_GATEWAY_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${geminiKey}`,
@@ -67,6 +104,17 @@ export async function callChatWithTools(
       max_tokens: maxOutputTokens,
     }),
   });
+  const { res: replayed, body } = await replayResponse(res);
+  logAiUsageFromResponse({
+    res: replayed,
+    body,
+    provider: "gemini",
+    model: GEMINI_TOOL_MODEL,
+    operation: "chat_tools",
+    inputChars,
+    durationMs: Date.now() - started,
+  });
+  return replayed;
 }
 
 /** Document embedding for embed-row (768 dims). */
@@ -175,6 +223,8 @@ async function callGeminiJson(
   temperature: number,
   maxOutputTokens: number,
 ): Promise<ChatCallResult> {
+  const started = Date.now();
+  const inputChars = systemText.length + userPayload.length;
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -194,16 +244,31 @@ async function callGeminiJson(
       }),
     },
   );
+  const geminiJson: unknown = await geminiRes.json().catch(() => null);
+  const rawText = extractGeminiText(geminiJson);
+  const usage = parseGeminiUsageMetadata(geminiJson);
+  logAiUsage({
+    operation: "chat_json",
+    provider: "gemini",
+    model,
+    status: geminiRes.ok ? "ok" : "error",
+    httpStatus: geminiRes.status,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    inputChars,
+    outputChars: rawText.length,
+    durationMs: Date.now() - started,
+  });
   if (!geminiRes.ok) {
-    const errText = await geminiRes.text().catch(() => "");
+    const errText = JSON.stringify(geminiJson).slice(0, 500);
     return {
       rawText: "",
       ok: false,
-      err: `Gemini request failed (${geminiRes.status}): ${errText.slice(0, 500)}`,
+      err: `Gemini request failed (${geminiRes.status}): ${errText}`,
     };
   }
-  const geminiJson: unknown = await geminiRes.json().catch(() => null);
-  return { rawText: extractGeminiText(geminiJson), ok: true };
+  return { rawText, ok: true };
 }
 
 async function callOpenAiJson(
@@ -214,6 +279,8 @@ async function callOpenAiJson(
   temperature: number,
   maxOutputTokens: number,
 ): Promise<ChatCallResult> {
+  const started = Date.now();
+  const inputChars = systemText.length + userPayload.length;
   const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -231,16 +298,31 @@ async function callOpenAiJson(
       response_format: { type: "json_object" },
     }),
   });
+  const openAiJson: unknown = await openAiRes.json().catch(() => null);
+  const rawText = extractOpenAiText(openAiJson);
+  const usage = parseOpenAiUsage(openAiJson);
+  logAiUsage({
+    operation: "chat_json",
+    provider: "openai",
+    model,
+    status: openAiRes.ok ? "ok" : "error",
+    httpStatus: openAiRes.status,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    inputChars,
+    outputChars: rawText.length,
+    durationMs: Date.now() - started,
+  });
   if (!openAiRes.ok) {
-    const errText = await openAiRes.text().catch(() => "");
+    const errText = JSON.stringify(openAiJson).slice(0, 500);
     return {
       rawText: "",
       ok: false,
-      err: `OpenAI request failed (${openAiRes.status}): ${errText.slice(0, 500)}`,
+      err: `OpenAI request failed (${openAiRes.status}): ${errText}`,
     };
   }
-  const openAiJson: unknown = await openAiRes.json().catch(() => null);
-  return { rawText: extractOpenAiText(openAiJson), ok: true };
+  return { rawText, ok: true };
 }
 
 async function callGeminiJsonConfigured(
@@ -294,6 +376,7 @@ export async function callChatJson(
 }
 
 async function embedGeminiQuery(text: string, apiKey: string): Promise<number[] | null> {
+  const started = Date.now();
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBEDDING_MODEL}:embedContent`,
@@ -308,16 +391,35 @@ async function embedGeminiQuery(text: string, apiKey: string): Promise<number[] 
         }),
       },
     );
-    if (!res.ok) return null;
-    const j = await res.json() as { embedding?: { values?: number[] } };
+    const j = await res.json().catch(() => null) as { embedding?: { values?: number[] } };
     const v = j?.embedding?.values;
-    return Array.isArray(v) && v.length === EMBEDDING_DIMS ? v : null;
+    const ok = res.ok && Array.isArray(v) && v.length === EMBEDDING_DIMS;
+    logAiUsage({
+      operation: "embed",
+      provider: "gemini",
+      model: GEMINI_EMBEDDING_MODEL,
+      status: ok ? "ok" : "error",
+      httpStatus: res.status,
+      inputChars: text.length,
+      embeddingDims: EMBEDDING_DIMS,
+      totalTokens: Math.ceil(text.length / 4),
+      durationMs: Date.now() - started,
+    });
+    return ok ? v : null;
   } catch {
+    logAiUsage({
+      operation: "embed",
+      provider: "gemini",
+      model: GEMINI_EMBEDDING_MODEL,
+      status: "error",
+      inputChars: text.length,
+    });
     return null;
   }
 }
 
 async function embedOpenAiQuery(text: string, apiKey: string): Promise<number[] | null> {
+  const started = Date.now();
   try {
     const res = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
@@ -331,11 +433,31 @@ async function embedOpenAiQuery(text: string, apiKey: string): Promise<number[] 
         dimensions: EMBEDDING_DIMS,
       }),
     });
-    if (!res.ok) return null;
-    const j = await res.json() as { data?: { embedding?: number[] }[] };
+    const j = await res.json().catch(() => null) as { data?: { embedding?: number[] }[] };
     const v = j?.data?.[0]?.embedding;
-    return Array.isArray(v) && v.length === EMBEDDING_DIMS ? v : null;
+    const usage = parseOpenAiUsage(j);
+    const ok = res.ok && Array.isArray(v) && v.length === EMBEDDING_DIMS;
+    logAiUsage({
+      operation: "embed",
+      provider: "openai",
+      model: OPENAI_EMBEDDING_MODEL,
+      status: ok ? "ok" : "error",
+      httpStatus: res.status,
+      inputChars: text.length,
+      embeddingDims: EMBEDDING_DIMS,
+      promptTokens: usage.promptTokens,
+      totalTokens: usage.totalTokens ?? Math.ceil(text.length / 4),
+      durationMs: Date.now() - started,
+    });
+    return ok ? v : null;
   } catch {
+    logAiUsage({
+      operation: "embed",
+      provider: "openai",
+      model: OPENAI_EMBEDDING_MODEL,
+      status: "error",
+      inputChars: text.length,
+    });
     return null;
   }
 }

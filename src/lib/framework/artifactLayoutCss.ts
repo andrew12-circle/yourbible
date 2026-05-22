@@ -21,5 +21,11 @@ export const artifactScrollMtMobilePane = "scroll-mt-4";
 /** Scroll pane starts below the fixed video only; meta + toolbar live inside the scroller. */
 export const artifactMobileVideoOnlyPadding = "pt-[var(--artifact-mobile-video-h,56.25vw)]";
 
+/** Bottom clearance for fixed mobile app dock on artifact detail. */
+export const artifactMobileDockPadding = "pb-[var(--artifact-mobile-dock-h,5.5rem)]";
+
+/** Default dock height (pill bar + safe area) — set on layout root when dock mounts. */
+export const ARTIFACT_MOBILE_DOCK_H = "5.5rem";
+
 /** Collapsed header = video + sticky toolbar (meta scrolled away). */
 export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";

@@ -378,7 +378,14 @@ export function renderArtifactDetailClaimCard(
           >
             #{claimNumber}
           </span>
-          <p className="text-[15px] font-semibold leading-snug text-foreground">{c.claim}</p>
+          <p
+            className={cn(
+              "font-semibold leading-snug text-foreground",
+              mobileRail ? "text-base" : "text-[15px]",
+            )}
+          >
+            {c.claim}
+          </p>
           {c.verdict ? (
             <span
               className={cn(

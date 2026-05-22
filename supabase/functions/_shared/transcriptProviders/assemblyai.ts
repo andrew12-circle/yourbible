@@ -1,5 +1,14 @@
 import type { TranscriptSegmentRow } from "../transcriptTypes.ts";
 import { buildFetchResult } from "../transcriptNormalize.ts";
+import { logAiUsage } from "../logAiUsage.ts";
+
+function audioSecondsFromSegments(segments: TranscriptSegmentRow[]): number {
+  let maxEnd = 0;
+  for (const s of segments) {
+    if (typeof s.end_seconds === "number" && s.end_seconds > maxEnd) maxEnd = s.end_seconds;
+  }
+  return maxEnd > 0 ? maxEnd : 60;
+}
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
@@ -97,7 +106,16 @@ export async function fetchAssemblyAiTranscript(
     const utterances = poll.utterances ?? [];
     if (utterances.length) {
       const segments = utterancesToSegments(utterances);
-      if (segments.length) return buildFetchResult(segments, "third_party", "assemblyai");
+      if (segments.length) {
+        logAiUsage({
+          operation: "stt",
+          provider: "assemblyai",
+          model: "assemblyai",
+          status: "ok",
+          audioSeconds: audioSecondsFromSegments(segments),
+        });
+        return buildFetchResult(segments, "third_party", "assemblyai");
+      }
     }
 
     const plain = (poll.text ?? "").trim();
@@ -111,6 +129,13 @@ export async function fetchAssemblyAiTranscript(
         confidence: null,
         source: "third_party",
       }];
+      logAiUsage({
+        operation: "stt",
+        provider: "assemblyai",
+        model: "assemblyai",
+        status: "ok",
+        audioSeconds: 120,
+      });
       return buildFetchResult(segments, "third_party", "assemblyai");
     }
     throw new Error("completed with no transcript text");

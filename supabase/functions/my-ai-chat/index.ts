@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, getChatConfig } from "../_shared/aiProvider.ts";
+import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { buildJournalChatSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
 
@@ -339,6 +340,12 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
 
     const body = (await req.json()) as RequestBody;
+    setAiUsageContext({
+      functionName: "my-ai-chat",
+      userId,
+      chatId: typeof body.chat_id === "string" ? body.chat_id : null,
+      journalEntryId: typeof body.journal_entry_id === "string" ? body.journal_entry_id : null,
+    });
 
     const includeGeneral = body.include_general_knowledge !== false;
     const mode = body.mode === "journal" ? "journal" : "chat";
@@ -992,5 +999,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     return jsonResponse({ error: String(e) }, 500);
+  } finally {
+    clearAiUsageContext();
   }
 });

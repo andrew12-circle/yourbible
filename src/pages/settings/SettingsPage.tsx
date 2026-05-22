@@ -18,6 +18,7 @@ import {
   uploadHomeWallpaper,
 } from "@/lib/profile/homeMedia";
 import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
+import { AiUsageSection } from "@/components/settings/AiUsageSection";
 import { PartnerSettingsSection } from "@/components/partner/PartnerSettingsSection";
 
 const WALLPAPER_KEY = "yb_home_wallpaper";
@@ -444,6 +445,8 @@ export default function SettingsPage() {
         </section>
 
         <PartnerSettingsSection />
+
+        <AiUsageSection userId={user?.id} />
 
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Knowledge base</h2>

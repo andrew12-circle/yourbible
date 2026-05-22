@@ -47,6 +47,109 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_events: {
+        Row: {
+          artifact_id: string | null
+          audio_seconds: number | null
+          batch_size: number
+          chat_id: string | null
+          completion_tokens: number | null
+          created_at: string
+          duration_ms: number | null
+          embedding_dims: number | null
+          error_message: string | null
+          estimated_usd: number | null
+          function_name: string
+          http_status: number | null
+          id: string
+          input_chars: number | null
+          journal_entry_id: string | null
+          metadata: Json
+          model: string | null
+          operation: string
+          output_chars: number | null
+          prompt_tokens: number | null
+          provider: string
+          status: string
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          artifact_id?: string | null
+          audio_seconds?: number | null
+          batch_size?: number
+          chat_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          embedding_dims?: number | null
+          error_message?: string | null
+          estimated_usd?: number | null
+          function_name: string
+          http_status?: number | null
+          id?: string
+          input_chars?: number | null
+          journal_entry_id?: string | null
+          metadata?: Json
+          model?: string | null
+          operation: string
+          output_chars?: number | null
+          prompt_tokens?: number | null
+          provider: string
+          status: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          artifact_id?: string | null
+          audio_seconds?: number | null
+          batch_size?: number
+          chat_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          embedding_dims?: number | null
+          error_message?: string | null
+          estimated_usd?: number | null
+          function_name?: string
+          http_status?: number | null
+          id?: string
+          input_chars?: number | null
+          journal_entry_id?: string | null
+          metadata?: Json
+          model?: string | null
+          operation?: string
+          output_chars?: number | null
+          prompt_tokens?: number | null
+          provider?: string
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifact_claims: {
         Row: {
           artifact_id: string
@@ -2277,6 +2380,33 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      get_ai_usage_by_function: {
+        Args: { p_days?: number }
+        Returns: {
+          call_count: number
+          estimated_usd: number
+          function_name: string
+        }[]
+      }
+      get_ai_usage_daily: {
+        Args: { p_days?: number }
+        Returns: {
+          call_count: number
+          day: string
+          estimated_usd: number
+          total_tokens: number
+        }[]
+      }
+      get_ai_usage_totals: {
+        Args: { p_days?: number }
+        Returns: {
+          call_count: number
+          estimated_usd: number
+          operation: string
+          provider: string
+          total_tokens: number
+        }[]
       }
       partner_peer_displays: {
         Args: never
