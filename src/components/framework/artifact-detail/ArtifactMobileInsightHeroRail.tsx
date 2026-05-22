@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { BookOpen } from "lucide-react";
 import {
   Carousel,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/carousel";
 import {
   artifactMobileInsightHeroCard,
+  artifactMobileInsightHeroAccent,
   artifactMobileInsightHeroFooter,
   artifactMobileInsightHeroLink,
   artifactMobileInsightHeroNumber,
@@ -40,6 +41,8 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
 }: Props<T>) {
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const draggingRef = useRef(false);
 
   useEffect(() => {
     if (!api) return;
@@ -60,11 +63,34 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   }, [activeClaimId, api, claims]);
 
   const handleTap = useCallback(
-    (claimId: string) => {
+    (claimId: string, event: MouseEvent<HTMLButtonElement>) => {
+      if (draggingRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        draggingRef.current = false;
+        return;
+      }
       onSelectClaim(claimId);
     },
     [onSelectClaim],
   );
+
+  const handlePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    draggingRef.current = false;
+  }, []);
+
+  const handlePointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    const start = pointerStartRef.current;
+    if (!start) return;
+    const deltaX = Math.abs(event.clientX - start.x);
+    const deltaY = Math.abs(event.clientY - start.y);
+    if (deltaX > 8 && deltaX > deltaY) draggingRef.current = true;
+  }, []);
+
+  const handlePointerEnd = useCallback(() => {
+    pointerStartRef.current = null;
+  }, []);
 
   if (claims.length === 0) return null;
 
@@ -72,24 +98,30 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     <div className={cn("space-y-3", className)}>
       <Carousel
         setApi={setApi}
-        opts={{ align: "start", containScroll: "trimSnaps" }}
-        className="-mx-3 w-[calc(100%+1.5rem)] sm:-mx-4 sm:w-[calc(100%+2rem)]"
+        opts={{ align: "start", containScroll: "trimSnaps", dragFree: true }}
+        className="-mx-3 w-[calc(100%+1.5rem)] touch-pan-y sm:-mx-4 sm:w-[calc(100%+2rem)]"
       >
-        <CarouselContent className="-ml-3 pl-3 sm:pl-4">
+        <CarouselContent className="-ml-3 cursor-grab pl-3 active:cursor-grabbing sm:pl-4">
           {claims.map((claim, idx) => {
             const primaryRef = claim.scripture_supports?.[0]?.ref;
+            const accent = artifactMobileInsightHeroAccent(idx);
             return (
               <CarouselItem key={claim.id} className={cn(artifactMobileInsightHeroSlide, "pl-0 pr-3")}>
                 <button
                   type="button"
                   className={cn(
                     artifactMobileInsightHeroCard,
+                    accent.card,
                     activeClaimId === claim.id && "ring-2 ring-violet-500/50 ring-offset-2 ring-offset-background",
                   )}
-                  onClick={() => handleTap(claim.id)}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerCancel={handlePointerEnd}
+                  onPointerUp={handlePointerEnd}
+                  onClick={(event) => handleTap(claim.id, event)}
                 >
                   <div className="space-y-4 text-left">
-                    <span className={artifactMobileInsightHeroNumber}>#{idx + 1}</span>
+                    <span className={cn(artifactMobileInsightHeroNumber, accent.number)}>{idx + 1}</span>
                     <p className={artifactMobileInsightHeroQuote}>{claim.claim}</p>
                   </div>
                   <div className="mt-5 flex items-end justify-between gap-3">

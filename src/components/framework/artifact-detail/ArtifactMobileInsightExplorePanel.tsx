@@ -5,7 +5,7 @@ import {
   type RenderClaimCardClaim,
   type RenderClaimCardContext,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
-import { formatInsightClaimNumber } from "@/lib/framework/artifactStudyTheme";
+import { artifactMobileInsightHeroAccent } from "@/lib/framework/artifactStudyTheme";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,6 +23,7 @@ export default function ArtifactMobileInsightExplorePanel({
   onBack,
   className,
 }: Props) {
+  const accent = artifactMobileInsightHeroAccent(claimIndex);
   const card = renderArtifactDetailClaimCard(claim, claimIndex, {
     ...claimCardContext,
     layout: "stack",
@@ -45,8 +46,8 @@ export default function ArtifactMobileInsightExplorePanel({
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
           Back to insights
         </Button>
-        <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">
-          #{formatInsightClaimNumber(claimIndex)}
+        <span className={cn("ml-auto font-display text-lg font-semibold tabular-nums", accent.number)}>
+          {claimIndex + 1}
         </span>
       </div>
       <div
