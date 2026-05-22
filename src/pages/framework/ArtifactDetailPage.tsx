@@ -33,6 +33,7 @@ import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framew
 import ArtifactChaptersSection from "@/components/framework/artifact-detail/ArtifactChaptersSection";
 import ArtifactClaimsSection from "@/components/framework/artifact-detail/ArtifactClaimsSection";
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
+import ArtifactDetailLoadingSkeleton from "@/components/framework/artifact-detail/ArtifactDetailLoadingSkeleton";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
 import {
@@ -747,10 +748,7 @@ export default function ArtifactDetailPage() {
         contentClassName="max-w-none"
         headerContentClassName="max-w-none"
       >
-        <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading artifact…
-        </div>
+        <ArtifactDetailLoadingSkeleton />
       </FrameworkLayout>
     );
   }
@@ -763,10 +761,7 @@ export default function ArtifactDetailPage() {
         contentClassName="max-w-none"
         headerContentClassName="max-w-none"
       >
-        <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading artifact…
-        </div>
+        <ArtifactDetailLoadingSkeleton />
       </FrameworkLayout>
     );
   }
