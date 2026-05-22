@@ -5,13 +5,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import { useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import {
   artifactScrollMt,
   artifactScrollMtMobile,
   artifactScrollMtMobilePane,
   artifactStudySectionContentMobile,
-  artifactStudySectionTriggerMobile,
 } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,9 @@ type Props = {
   id?: string;
   title: string;
   description?: string;
+  /** Shown beside title on mobile (e.g. claim count). */
+  count?: number | string;
+  countLabel?: string;
   /** Open by default below lg. */
   defaultOpenMobile?: boolean;
   /** Open by default at lg+. */
@@ -49,6 +52,8 @@ export default function ArtifactCollapsibleSection({
   id,
   title,
   description,
+  count,
+  countLabel,
   defaultOpenMobile = false,
   defaultOpenDesktop = true,
   storageKey,
@@ -106,39 +111,22 @@ export default function ArtifactCollapsibleSection({
       <CollapsibleTrigger
         id={triggerId}
         className={cn(
+          "flex w-full items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           isDesktop
-            ? "flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-left shadow-sm transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            : cn(artifactStudySectionTriggerMobile, open && "bg-muted/15"),
+            ? "min-h-0 justify-between border-b border-border/40 py-3 transition hover:bg-muted/20"
+            : "min-h-0 justify-between py-1",
         )}
       >
-        <div className="min-w-0 flex-1">
-          <span
-            className={cn(
-              "font-display text-foreground",
-              isDesktop ? "text-sm sm:text-base" : "text-[15px] font-semibold leading-snug tracking-tight",
-            )}
-          >
-            {title}
-          </span>
-          {description ? (
-            <p
-              className={cn(
-                "text-muted-foreground",
-                isDesktop
-                  ? "mt-0.5 line-clamp-2 text-xs"
-                  : open
-                    ? "mt-1 line-clamp-3 text-xs leading-relaxed"
-                    : "mt-0.5 line-clamp-1 text-[11px] leading-snug",
-              )}
-            >
-              {description}
-            </p>
-          ) : null}
-        </div>
+        <ArtifactStudySectionHeader
+          title={title}
+          description={isDesktop ? undefined : description}
+          count={count}
+          countLabel={countLabel}
+        />
         <ChevronDown
           className={cn(
-            "shrink-0 text-muted-foreground transition-transform",
-            isDesktop ? "h-4 w-4" : "h-5 w-5",
+            "shrink-0 text-muted-foreground/80 transition-transform",
+            isDesktop ? "h-4 w-4" : "h-4 w-4 mt-1",
             open && "rotate-180",
           )}
           aria-hidden

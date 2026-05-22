@@ -218,6 +218,7 @@ export default function ArtifactsListPage() {
       onSortKeyChange={setSortKeyPersist}
       category={category}
       onCategoryChange={setCategory}
+      showNewArtifact
     />
   );
 
@@ -241,17 +242,6 @@ export default function ArtifactsListPage() {
         />
       }
     >
-      {showHeaderNew ? (
-        <div className="mb-6 hidden flex-wrap items-center justify-end gap-2 md:flex">
-          <Button asChild size="default" className="rounded-xl font-semibold shadow-sm">
-            <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              New artifact
-            </Link>
-          </Button>
-        </div>
-      ) : null}
-
       {!listReady ? (
         <ArtifactLibrarySkeleton />
       ) : rows.length === 0 ? (

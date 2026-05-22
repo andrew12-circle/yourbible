@@ -1,7 +1,12 @@
-import { ArrowRight, LayoutList, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronRight, LayoutList, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/hooks/use-desktop";
-import { artifactCard, artifactInset, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactCard,
+  artifactHorizontalRail,
+  artifactRailCard,
+  artifactScrollMt,
+} from "@/lib/framework/artifactSurfaces";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
@@ -36,9 +41,7 @@ export default function ArtifactChaptersSection({
   return (
     <section
       id="chapters"
-      className={cn(
-        isDesktop ? cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5") : cn(artifactInset, "mb-0 p-3"),
-      )}
+      className={cn(isDesktop ? cn(artifactCard, artifactScrollMt, "mb-6 p-4 sm:p-5") : "mb-0")}
     >
       {status === "ready" && (
         <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
@@ -113,30 +116,54 @@ export default function ArtifactChaptersSection({
         )}
       </div>
       {chapters.length > 0 ? (
-        <div className={cn("grid gap-2", isDesktop && "sm:grid-cols-2")}>
-          {chapters.map((chapter, idx) => (
-            <button
-              key={`${chapter.start_seconds}-${idx}`}
-              type="button"
-              onClick={() => onSeekChapter(chapter.start_seconds)}
-              className={cn(
-                "rounded-lg border border-border/70 bg-muted/10 p-3 text-left text-sm transition",
-                "hover:border-foreground/35 hover:bg-muted/25 active:bg-muted/35",
-                !isDesktop && "min-h-11",
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-medium leading-snug">{chapter.title}</span>
-                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                  {formatTranscriptClock(chapter.start_seconds)}
+        isDesktop ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {chapters.map((chapter, idx) => (
+              <button
+                key={`${chapter.start_seconds}-${idx}`}
+                type="button"
+                onClick={() => onSeekChapter(chapter.start_seconds)}
+                className={cn(
+                  "rounded-lg border border-border/70 bg-muted/10 p-3 text-left text-sm transition",
+                  "hover:border-foreground/35 hover:bg-muted/25 active:bg-muted/35",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium leading-snug">{chapter.title}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                    {formatTranscriptClock(chapter.start_seconds)}
+                  </span>
+                </div>
+                <span className="mt-2 inline-flex items-center text-xs text-muted-foreground">
+                  Jump to this point <ArrowRight className="ml-1 h-3 w-3" />
                 </span>
-              </div>
-              <span className="mt-2 inline-flex items-center text-xs text-muted-foreground">
-                Jump to this point <ArrowRight className="ml-1 h-3 w-3" />
-              </span>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className={artifactHorizontalRail}>
+            {chapters.map((chapter, idx) => (
+              <button
+                key={`${chapter.start_seconds}-${idx}`}
+                type="button"
+                onClick={() => onSeekChapter(chapter.start_seconds)}
+                className={cn(artifactRailCard, "flex min-h-[120px] flex-col justify-between")}
+              >
+                <div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-violet-600">
+                    {formatTranscriptClock(chapter.start_seconds)}
+                  </span>
+                  <p className="mt-2 font-display text-[15px] font-semibold leading-snug text-foreground line-clamp-3">
+                    {chapter.title}
+                  </p>
+                </div>
+                <span className="mt-3 inline-flex items-center justify-end text-xs text-muted-foreground">
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                </span>
+              </button>
+            ))}
+          </div>
+        )
       ) : status === "ready" ? (
         <p className="text-xs text-muted-foreground">
           {generatingChapters

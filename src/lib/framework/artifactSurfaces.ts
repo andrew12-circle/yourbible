@@ -44,3 +44,95 @@ export const artifactStudySectionTriggerMobile = cn(
 
 /** Mobile study section body below trigger. */
 export const artifactStudySectionContentMobile = "pb-4 pt-1.5";
+
+/** Mobile study column: airy section blocks (replaces flat divider stack). */
+export const artifactStudyBodyMobile = cn(
+  "space-y-10 bg-gradient-to-b from-background via-background to-muted/15 pb-10",
+);
+
+/** Mobile premium section title (Playfair). */
+export const artifactStudySectionTitle = cn(
+  "font-display text-lg font-semibold tracking-tight text-foreground",
+);
+
+/** Elevated card surface for mobile study sections. */
+export const artifactPremiumCard = cn(
+  "rounded-2xl border border-border/40 bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+  "dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]",
+);
+
+/** @deprecated Use artifactInsightPreviewCard + artifactPastelTint from artifactStudyTheme. */
+export { artifactInsightPreviewCard as artifactInsightCard } from "@/lib/framework/artifactStudyTheme";
+
+export {
+  artifactContinueCardHover,
+  artifactStudyChapterLink,
+  artifactStudyCount,
+  artifactStudyDotActive,
+  artifactStudyIconWell,
+  artifactStudyLink,
+  artifactStudyTabActive as artifactDesktopTabActive,
+} from "@/lib/framework/artifactStudyTheme";
+
+/** Horizontal snap scroll rail (breaks out of section padding). */
+export const artifactHorizontalRail = cn(
+  "flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-hide",
+  "-mx-1 px-1 pb-1 touch-pan-x",
+);
+
+/** Rail card (~72% viewport width on phone). */
+export const artifactRailCard = cn(
+  "snap-start shrink-0 basis-[72%] max-w-[280px]",
+  artifactPremiumCard,
+  "p-4 text-left transition active:scale-[0.99]",
+);
+
+/** Desktop claim review card in a horizontal rail — white card, scroll body, pinned toolbar. */
+export const artifactDesktopClaimCard = cn(
+  "flex w-[min(420px,88vw)] max-w-[480px] shrink-0 snap-start flex-col",
+  "overflow-hidden rounded-2xl border border-border/60 bg-white",
+  "shadow-[0_4px_24px_rgba(0,0,0,0.06)]",
+  "max-h-[min(78vh,720px)]",
+);
+
+/** Horizontal rail for desktop claim cards (wider gaps). */
+export const artifactDesktopClaimsRail = cn(
+  artifactHorizontalRail,
+  "items-stretch gap-4 pb-3 -mx-0.5 px-0.5",
+);
+
+/** Desktop cinematic hero — full-bleed thumbnail + dark gradient overlay. */
+export const artifactDesktopHero = cn(
+  "relative isolate overflow-hidden",
+  "min-h-[280px] sm:min-h-[320px]",
+);
+
+/** Desktop study body — light sheet overlapping hero. */
+export const artifactDesktopBodySheet = cn(
+  "relative z-10 -mt-7 rounded-t-[1.75rem] bg-background",
+  "px-4 pb-10 pt-7 shadow-[0_-12px_48px_rgba(0,0,0,0.1)] sm:px-6 sm:pt-8",
+);
+
+/** Desktop transcript column — light floating study panel. */
+export const artifactDesktopTranscriptPanel = cn(
+  "rounded-2xl border border-border/55 bg-card",
+  "shadow-[0_10px_40px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.03]",
+);
+
+/** Format seconds as compact duration (e.g. 1h 32m). */
+export function formatArtifactDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${Math.floor(seconds)}s`;
+}
+
+/** Format ISO date for artifact meta row. */
+export function formatArtifactDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}

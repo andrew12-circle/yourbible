@@ -1,4 +1,5 @@
-import { LayoutGrid, List, Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ interface LibraryToolbarProps {
   onSortKeyChange: (s: LibrarySortKey) => void;
   category: LibraryCategoryId;
   onCategoryChange: (c: LibraryCategoryId) => void;
+  showNewArtifact?: boolean;
 }
 
 export function LibraryToolbar({
@@ -25,6 +27,7 @@ export function LibraryToolbar({
   onSortKeyChange,
   category,
   onCategoryChange,
+  showNewArtifact = false,
 }: LibraryToolbarProps) {
   return (
     <div className="space-y-4">
@@ -98,6 +101,14 @@ export function LibraryToolbar({
             <option value="az">A–Z</option>
             <option value="source">Source</option>
           </select>
+          {showNewArtifact ? (
+            <Button asChild size="default" className="h-10 rounded-xl font-semibold shadow-sm">
+              <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
+                <Plus className="h-4 w-4" aria-hidden />
+                New artifact
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </div>
       <div className="hidden flex-wrap gap-2 md:flex" role="tablist" aria-label="Filter by type">

@@ -30,6 +30,8 @@ type Props = {
   onReinitPlayer?: () => void;
   onScrollVideoIntoView: () => void;
   children?: React.ReactNode;
+  /** Fills desktop cinematic hero (no card chrome). */
+  variant?: "default" | "hero";
 };
 
 export default function ArtifactVideoStage({
@@ -53,7 +55,9 @@ export default function ArtifactVideoStage({
   onReinitPlayer,
   onScrollVideoIntoView,
   children,
+  variant = "default",
 }: Props) {
+  const heroEmbed = variant === "hero";
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
   const pipHeight = pipTotalHeightPx(pipLayout.width);
   const inlineEmbedSrc =
@@ -119,8 +123,8 @@ export default function ArtifactVideoStage({
     <div
       ref={videoSlotRef}
       className={cn(
-        "relative aspect-video w-full shrink-0 overflow-hidden bg-black",
-        artifactVideoRadius,
+        "relative w-full shrink-0 overflow-hidden bg-black",
+        heroEmbed ? "h-full min-h-[inherit]" : cn("aspect-video", artifactVideoRadius),
         pipMode && "overflow-visible",
       )}
     >
@@ -166,6 +170,14 @@ export default function ArtifactVideoStage({
       ) : null}
     </div>
   );
+
+  if (heroEmbed) {
+    return (
+      <div id="video" className="h-full min-h-[inherit] w-full">
+        {videoBlock}
+      </div>
+    );
+  }
 
   if (stickyMode) {
     const pinned = mobilePinnedHeader;

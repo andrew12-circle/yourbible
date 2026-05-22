@@ -21,10 +21,17 @@ function versesForRef(passage: Passage, ref: string) {
 interface ClaimScriptureRefProps {
   reference: string;
   note?: string;
+  /** Tighter card for horizontal claim rails. */
+  compact?: boolean;
   className?: string;
 }
 
-export default function ClaimScriptureRef({ reference, note, className }: ClaimScriptureRefProps) {
+export default function ClaimScriptureRef({
+  reference,
+  note,
+  compact = false,
+  className,
+}: ClaimScriptureRefProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passage, setPassage] = useState<Passage | null>(null);
@@ -68,9 +75,16 @@ export default function ClaimScriptureRef({ reference, note, className }: ClaimS
   const verses = passage ? versesForRef(passage, reference) : [];
 
   return (
-    <li className={cn("rounded-md border border-border/50 bg-background/40", className)}>
+    <li
+      className={cn(
+        compact
+          ? "rounded-lg border border-border/55 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          : "rounded-md border border-border/50 bg-background/40",
+        className,
+      )}
+    >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className="flex flex-wrap items-start gap-2 p-2">
+        <div className={cn("flex flex-wrap items-start gap-2", compact ? "p-2.5" : "p-2")}>
           <CollapsibleTrigger asChild>
             <button
               type="button"

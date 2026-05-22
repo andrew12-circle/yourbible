@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Bookmark, RefreshCw } from "lucide-react";
+import { Bookmark, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,10 +13,11 @@ import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import TranscriptSegmentBookmarkSheet, {
   type TranscriptSegmentBookmarkActions,
 } from "@/components/framework/artifact-detail/TranscriptSegmentBookmarkSheet";
+import TranscriptPanelFooter from "@/components/framework/artifact-detail/TranscriptPanelFooter";
 import TranscriptToolbar from "@/components/framework/artifact-detail/TranscriptToolbar";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
-import { artifactCard, artifactInset } from "@/lib/framework/artifactSurfaces";
+import { artifactCard, artifactDesktopTranscriptPanel, artifactInset } from "@/lib/framework/artifactSurfaces";
 import {
   isTranscriptRowInFollowViewport,
   readMobileTranscriptFollowInsets,
@@ -89,7 +90,8 @@ export interface TranscriptPanelProps {
   /** Flush layout when embedded directly under mobile video tabs. */
   embeddedInMobileTab?: boolean;
   /** Mobile YouTube transcript tab: full-height sheet layout and per-line bookmark menu. */
-  variant?: "default" | "youtubeMobile";
+  variant?: "default" | "youtubeMobile" | "desktopStudy";
+  setPlaybackRate?: (rate: number) => void;
   getIsPlaying?: () => boolean;
   onPauseVideo?: () => void;
   onResumePlayback?: () => void;
@@ -144,11 +146,17 @@ export default function TranscriptPanel({
   onSaveSegmentNote,
   outerScrollContainerRef,
   transcriptTabActive = true,
+  setPlaybackRate,
 }: TranscriptPanelProps) {
   const youtubeMobile = variant === "youtubeMobile";
+  const desktopStudy = variant === "desktopStudy";
+  const [playbackRate, setPlaybackRateState] = useState(1);
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false);
+  const panelRef = useRef<HTMLElement | null>(null);
   const useOuterScroll = youtubeMobile && Boolean(outerScrollContainerRef);
-  const toolbarSubtitle =
-    canBookmark && onBookmarkSegment
+  const toolbarSubtitle = desktopStudy
+    ? "Tap a line to jump and follow along. Bookmark important moments."
+    : canBookmark && onBookmarkSegment
       ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
       : "Click a line to jump. Timestamps marked ~ are approximate.";
   const [search, setSearch] = useState("");
@@ -389,18 +397,35 @@ export default function TranscriptPanel({
         }
       : null;
 
+  const handlePlaybackRateChange = useCallback(
+    (rate: number) => {
+      setPlaybackRateState(rate);
+      setPlaybackRate?.(rate);
+    },
+    [setPlaybackRate],
+  );
+
   return (
     <section
+      ref={panelRef}
       className={cn(
         youtubeMobile
           ? useOuterScroll
             ? "bg-background"
             : "flex min-h-0 flex-1 flex-col bg-background"
-          : artifactCard,
-        embeddedInMobileTab && !youtubeMobile
+          : desktopStudy
+            ? artifactDesktopTranscriptPanel
+            : artifactCard,
+        embeddedInMobileTab && !youtubeMobile && !desktopStudy
           ? "mb-0 rounded-none border-0 border-t border-border/50 p-3 shadow-none sm:p-4"
-          : !youtubeMobile && "mb-5 p-3 sm:p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4",
-        !embeddedInMobileTab && !youtubeMobile && "lg:flex lg:h-full lg:min-h-0 lg:flex-col",
+          : !youtubeMobile &&
+              !desktopStudy &&
+              "mb-5 p-3 sm:p-4 lg:mb-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:p-4",
+        desktopStudy && "mb-0 flex h-full min-h-0 flex-col overflow-hidden",
+        transcriptExpanded &&
+          desktopStudy &&
+          "fixed inset-3 z-50 flex max-h-[calc(100dvh-1.5rem)] flex-col shadow-2xl sm:inset-6",
+        !embeddedInMobileTab && !youtubeMobile && !desktopStudy && "lg:flex lg:h-full lg:min-h-0 lg:flex-col",
         youtubeMobile && "p-0",
         embeddedInMobileTab && youtubeMobile && "border-t border-border/50",
       )}
@@ -418,6 +443,7 @@ export default function TranscriptPanel({
       <div
         className={cn(
           youtubeMobile && "shrink-0 border-b border-border/50 bg-background px-3 pb-3 pt-2 sm:px-4",
+          desktopStudy && "shrink-0 px-4 pb-3 pt-4",
         )}
       >
         <TranscriptToolbar
@@ -447,6 +473,7 @@ export default function TranscriptPanel({
           compact={youtubeMobile}
           hideTitle={youtubeMobile}
           hideSecondaryActions={youtubeMobile}
+          layout={desktopStudy ? "desktopStudy" : "default"}
         />
       </div>
 
@@ -470,7 +497,10 @@ export default function TranscriptPanel({
             ? useOuterScroll
               ? "bg-background"
               : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
-            : cn("lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto", artifactInset),
+            : cn(
+                "lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto",
+                desktopStudy ? "bg-background px-1" : artifactInset,
+              ),
         )}
       >
         <div className="divide-y divide-border/40">
@@ -493,9 +523,13 @@ export default function TranscriptPanel({
                 data-transcript-row={segment.id}
                 className={cn(
                   "group relative flex gap-2 px-3 py-3 transition-colors duration-150 sm:gap-3",
-                  canSeek && "cursor-pointer hover:bg-muted/35",
+                  canSeek && "cursor-pointer hover:bg-muted/30",
                   isActive &&
-                    (youtubeMobile ? "bg-muted font-semibold" : "bg-primary/[0.07]"),
+                    (youtubeMobile
+                      ? "bg-muted font-semibold"
+                      : desktopStudy
+                        ? "rounded-lg bg-violet-100/90 ring-1 ring-violet-300/50"
+                        : "bg-primary/[0.07]"),
                   segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
@@ -511,19 +545,28 @@ export default function TranscriptPanel({
                   }
                 }}
               >
-                {isActive && !youtubeMobile ? (
+                {isActive && !youtubeMobile && !desktopStudy ? (
                   <span
                     className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-primary"
                     aria-hidden
                   />
                 ) : null}
                 {showTimestamps && (
-                  <div className="flex w-[4.5rem] shrink-0 items-start justify-end sm:w-[5.25rem]">
+                  <div className="flex w-[4.5rem] shrink-0 items-start gap-1 sm:w-[5.5rem]">
+                    {isActive && desktopStudy && canSeek ? (
+                      <Play className="mt-1 h-3 w-3 shrink-0 fill-violet-600 text-violet-600" aria-hidden />
+                    ) : (
+                      <span className="w-3 shrink-0" aria-hidden />
+                    )}
+                    <div className="flex min-w-0 flex-1 justify-end">
                     {timed && stamp ? (
                       <span
                         className={cn(
-                          "inline-flex min-h-[1.375rem] min-w-[3.5rem] max-w-full items-center justify-center rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-[11px] font-medium tabular-nums leading-none text-foreground/90",
-                          segment.timestampEstimated && "italic text-foreground/85",
+                          "inline-flex min-h-[1.375rem] min-w-[3.25rem] max-w-full items-center justify-center text-[11px] font-medium tabular-nums leading-none text-muted-foreground",
+                          desktopStudy && isActive && "font-semibold text-foreground",
+                          !desktopStudy &&
+                            "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
+                          segment.timestampEstimated && "italic",
                         )}
                       >
                         {stamp}
@@ -535,14 +578,15 @@ export default function TranscriptPanel({
                         {segment.label}
                       </span>
                     )}
+                    </div>
                   </div>
                 )}
                 <p
                   className={cn(
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
                     isActive
-                      ? youtubeMobile
-                        ? "font-semibold text-foreground"
+                      ? youtubeMobile || desktopStudy
+                        ? "font-medium text-foreground"
                         : "font-medium text-foreground"
                       : "text-foreground/90",
                     !showTimestamps && "pl-1",
@@ -601,6 +645,21 @@ export default function TranscriptPanel({
           })}
         </div>
       </div>
+
+      {desktopStudy ? (
+        <TranscriptPanelFooter
+          followPlayback={followPlayback}
+          onFollowPlaybackChange={(next) => {
+            setFollowPlayback(next);
+            if (next) prevActiveSegmentIdRef.current = null;
+          }}
+          playbackRate={playbackRate}
+          onPlaybackRateChange={handlePlaybackRateChange}
+          showPlaybackRate={embedAvailable && playerReady}
+          expanded={transcriptExpanded}
+          onToggleExpanded={() => setTranscriptExpanded((v) => !v)}
+        />
+      ) : null}
 
       {youtubeMobile && menuActions ? (
         <TranscriptSegmentBookmarkSheet

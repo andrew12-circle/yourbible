@@ -27,6 +27,8 @@ interface Props {
   immersiveCompactTitle?: string;
   /** Mobile immersive: back + trailing only; title lives in page body (e.g. YouTube detail). */
   immersiveMobileMinimal?: boolean;
+  /** Desktop artifact detail: hide framework header at lg+ (hero owns navigation). */
+  immersiveDesktopMinimal?: boolean;
   /** Trailing control on mobile immersive header (e.g. menu). */
   headerTrailing?: ReactNode;
 }
@@ -64,6 +66,7 @@ export default function FrameworkLayout({
   headerLeading,
   immersiveCompactTitle,
   immersiveMobileMinimal,
+  immersiveDesktopMinimal,
   headerTrailing,
 }: Props) {
   const { pathname } = useLocation();
@@ -71,6 +74,7 @@ export default function FrameworkLayout({
   const studioLibrary = isArtifactsLibraryPath(pathname);
   const compactMobileHeader = Boolean(immersive && (immersiveCompactTitle || immersiveMobileMinimal));
   const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);
+  const hideDesktopFrameworkHeader = Boolean(immersiveDesktopMinimal);
   const headerMax =
     headerContentClassName ??
     (studioLibrary ? "max-w-[min(92rem,calc(100vw-1.25rem))]" : "max-w-4xl");
@@ -138,6 +142,7 @@ export default function FrameworkLayout({
         className={cn(
           "sticky top-0 z-30 border-b backdrop-blur-md",
           hideMobileFrameworkHeader && "max-md:hidden",
+          hideDesktopFrameworkHeader && "lg:hidden",
           immersive
             ? "border-border/60 bg-background/92 shadow-sm supports-[backdrop-filter]:bg-background/85"
             : studioLibrary
@@ -304,8 +309,10 @@ export default function FrameworkLayout({
           "mx-auto px-4 sm:px-5",
           immersive
             ? hideMobileFrameworkHeader
-              ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-hidden max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6"
-              : "py-4 pb-6 sm:py-6 sm:pb-8"
+              ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-hidden max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6 lg:px-0 lg:py-0 lg:pb-0"
+              : hideDesktopFrameworkHeader
+                ? "py-4 pb-6 sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
+                : "py-4 pb-6 sm:py-6 sm:pb-8"
             : studioLibrary
               ? "py-5 sm:py-6"
               : "py-8 sm:py-10",

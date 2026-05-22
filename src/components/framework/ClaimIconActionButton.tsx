@@ -88,7 +88,7 @@ export default function ClaimIconActionButton({
           size="icon"
           variant="outline"
           className={cn(
-            "h-8 w-8 shrink-0 shadow-sm transition-colors",
+            "h-8 w-8 shrink-0 rounded-full shadow-sm transition-colors",
             active ? styles.active : styles.idle,
             className,
           )}

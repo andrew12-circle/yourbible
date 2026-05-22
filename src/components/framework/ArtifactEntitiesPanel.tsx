@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { artifactHorizontalRail } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -65,10 +66,15 @@ function EntityChipPopover({
   entity,
   mentionConfidence,
   currentArtifactId,
+  mentionCountInArtifact,
+  variant = "default",
 }: {
   entity: KnowledgeEntityRow;
   mentionConfidence: number | null;
   currentArtifactId: string;
+  /** Mentions of this entity in the current artifact (mobile rail). */
+  mentionCountInArtifact?: number;
+  variant?: "default" | "rail";
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -112,15 +118,30 @@ function EntityChipPopover({
         <button
           type="button"
           className={cn(
-            "inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-2.5 py-1 text-left text-xs font-medium text-foreground shadow-sm transition",
-            "hover:bg-muted/60 active:scale-[0.99]",
+            "text-left font-medium text-foreground shadow-sm transition hover:bg-muted/60 active:scale-[0.99]",
+            variant === "rail"
+              ? "inline-flex shrink-0 snap-start flex-col gap-1 rounded-2xl border border-border/50 bg-card px-4 py-3 min-w-[140px] max-w-[200px]"
+              : "inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-2.5 py-1 text-xs",
           )}
         >
-          <span
-            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", confidenceDotClass(mentionConfidence ?? entity.confidence))}
-            title={mentionConfidence != null ? `Confidence ${Math.round(mentionConfidence * 100)}%` : undefined}
-          />
-          <span className="truncate">{entity.title}</span>
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span
+              className={cn(
+                "shrink-0 rounded-full",
+                variant === "rail" ? "h-2 w-2" : "h-1.5 w-1.5",
+                confidenceDotClass(mentionConfidence ?? entity.confidence),
+              )}
+              title={mentionConfidence != null ? `Confidence ${Math.round(mentionConfidence * 100)}%` : undefined}
+            />
+            <span className={cn("truncate", variant === "rail" ? "text-sm font-display font-semibold" : "")}>
+              {entity.title}
+            </span>
+          </span>
+          {variant === "rail" && mentionCountInArtifact != null ? (
+            <span className="text-[10px] text-muted-foreground">
+              {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 space-y-3">
@@ -167,9 +188,11 @@ function EntityChipPopover({
 export default function ArtifactEntitiesPanel({
   artifactId,
   artifactStatus,
+  variant = "default",
 }: {
   artifactId: string;
   artifactStatus: string;
+  variant?: "default" | "mobileRail" | "desktopRail";
 }) {
   const { user } = useAuth();
   const [mentions, setMentions] = useState<MentionRow[]>([]);
@@ -212,6 +235,35 @@ export default function ArtifactEntitiesPanel({
     return { map, kinds };
   }, [mentions]);
 
+  const useRailLayout = variant === "mobileRail" || variant === "desktopRail";
+
+  const railEntries = useMemo(() => {
+    if (!useRailLayout) return [];
+    const byEntity = new Map<
+      string,
+      { entity: KnowledgeEntityRow; count: number; confidence: number | null }
+    >();
+    for (const m of mentions) {
+      const ent = m.knowledge_entities;
+      if (!ent) continue;
+      const existing = byEntity.get(ent.id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        byEntity.set(ent.id, { entity: ent, count: 1, confidence: m.confidence });
+      }
+    }
+    const kindRank = (k: string) => {
+      const i = KIND_ORDER.indexOf(k as (typeof KIND_ORDER)[number]);
+      return i === -1 ? 999 : i;
+    };
+    return [...byEntity.values()].sort(
+      (a, b) =>
+        kindRank(a.entity.kind) - kindRank(b.entity.kind) ||
+        a.entity.title.localeCompare(b.entity.title),
+    );
+  }, [mentions, useRailLayout]);
+
   if (loading) {
     return (
       <div className="mb-4 rounded-lg border border-border bg-muted/15 px-3 py-2.5 text-xs text-muted-foreground">
@@ -222,6 +274,28 @@ export default function ArtifactEntitiesPanel({
 
   if (mentions.length === 0) {
     return null;
+  }
+
+  if (useRailLayout) {
+    return (
+      <div
+        className={cn(
+          artifactHorizontalRail,
+          variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
+        )}
+      >
+        {railEntries.map(({ entity, count, confidence }) => (
+          <EntityChipPopover
+            key={entity.id}
+            entity={entity}
+            mentionConfidence={confidence}
+            currentArtifactId={artifactId}
+            mentionCountInArtifact={count}
+            variant="rail"
+          />
+        ))}
+      </div>
+    );
   }
 
   return (

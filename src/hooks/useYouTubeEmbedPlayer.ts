@@ -11,6 +11,8 @@ type YTPlayer = {
   setSize: (width: number, height: number) => void;
   playVideo: () => void;
   pauseVideo: () => void;
+  setPlaybackRate?: (rate: number) => void;
+  getPlaybackRate?: () => number;
 };
 
 type YTNamespace = {
@@ -563,6 +565,14 @@ export function useYouTubeEmbedPlayer(options: {
     else playVideo();
   }, [pauseVideo, playVideo]);
 
+  const setPlaybackRate = useCallback((rate: number) => {
+    try {
+      playerRef.current?.setPlaybackRate?.(rate);
+    } catch {
+      /* API player not ready */
+    }
+  }, []);
+
   const reinit = useCallback(() => {
     destroyPlayer();
     setInitTimedOut(false);
@@ -583,6 +593,7 @@ export function useYouTubeEmbedPlayer(options: {
       playVideo,
       pauseVideo,
       togglePlayback,
+      setPlaybackRate,
       reinit,
     }),
     [
@@ -595,6 +606,7 @@ export function useYouTubeEmbedPlayer(options: {
       playing,
       ready,
       seekTo,
+      setPlaybackRate,
       togglePlayback,
       reinit,
     ],

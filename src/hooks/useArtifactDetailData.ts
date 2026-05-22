@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
+import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -88,12 +89,15 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       .order("start_seconds")
       .order("created_at");
     const art = artResult.data as ArtifactRow | null;
-    const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => ({
-      ...row,
-      epistemology: parseClaimEpistemology(
-        (row as ArtifactDetailClaim & { epistemology?: unknown }).epistemology,
-      ),
-    }));
+    const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => {
+      const normalized = normalizeArtifactClaimArrays(row);
+      return {
+        ...normalized,
+        epistemology: parseClaimEpistemology(
+          (row as ArtifactDetailClaim & { epistemology?: unknown }).epistemology,
+        ),
+      };
+    });
     const beliefIds = Array.from(
       new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean)),
     ) as string[];

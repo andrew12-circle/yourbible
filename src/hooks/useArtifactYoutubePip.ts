@@ -245,6 +245,15 @@ export function useArtifactYoutubePip(options: {
     });
   }, [mainScrollRef]);
 
+  /** Desktop hero: show floating PiP player immediately. */
+  const enterPip = useCallback(() => {
+    pipEnterArmedRef.current = true;
+    if (!pipLayoutRef.current) {
+      commitPipLayout(defaultArtifactPipLayout());
+    }
+    setPipMode(true);
+  }, [commitPipLayout]);
+
   const onPipDragHeaderPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || !artifactId) return;
@@ -351,6 +360,7 @@ export function useArtifactYoutubePip(options: {
     pipOverlayLayout,
     youtubeLayoutKey,
     scrollVideoIntoView,
+    enterPip,
     onPipDragHeaderPointerDown,
     onPipDragHeaderPointerMove,
     onPipDragHeaderPointerUp,

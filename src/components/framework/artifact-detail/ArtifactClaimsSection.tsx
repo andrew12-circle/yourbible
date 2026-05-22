@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import ArtifactClaimsRail from "@/components/framework/artifact-detail/ArtifactClaimsRail";
+import ArtifactInsightCarousel from "@/components/framework/artifact-detail/ArtifactInsightCarousel";
 import ArtifactMobileClaimShell from "@/components/framework/artifact-detail/ArtifactMobileClaimShell";
+import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
+import {
+  renderArtifactDetailClaimCard,
+  type RenderClaimCardContext,
+} from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import ClaimsPlaybackToolbar from "@/components/framework/artifact-detail/ClaimsPlaybackToolbar";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { findActiveClaimId } from "@/lib/framework/claimPlaybackSync";
 import {
-  artifactCard,
+  artifactPremiumCard,
   artifactScrollMtMobile,
   artifactScrollMtMobilePane,
 } from "@/lib/framework/artifactSurfaces";
 import type { ClaimChapterGroup } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
+import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
 type ClaimLike = { id: string; claim: string; verdict: string | null };
 
 type Props<T extends ClaimLike> = {
+  /** Hash scroll target (e.g. `claims`). Omit when a parent section already owns the anchor. */
+  anchorId?: string;
   claims: T[];
   claimChapterLayout: { grouped: boolean; groups: ClaimChapterGroup<T>[] };
   glossaryEntries: ClaimsGlossaryEntry[];
   youTubeVideoId: string | null;
   onJumpToClaim: (claimId: string) => void;
   onSeekChapter: (seconds: number) => void;
-  renderClaimCard: (claim: T, claimIndex: number) => React.ReactNode;
+  claimCardContext: RenderClaimCardContext;
   /** Mobile: one claim open at a time; first claim open by default. */
   mobileOpenClaimId?: string | null;
   onMobileOpenClaimIdChange?: (claimId: string | null) => void;
@@ -36,16 +46,21 @@ type Props<T extends ClaimLike> = {
   onTogglePlayback?: () => void;
   scrollContainerRef?: RefObject<HTMLElement | null>;
   pinnedVideoPane?: boolean;
+  onSeeScripture?: (claimId: string) => void;
+  onMarkReviewed?: (claimId: string) => void;
+  /** Desktop overview already shows insight rail — hide duplicate carousel here. */
+  hideInsightPreview?: boolean;
 };
 
 export default function ArtifactClaimsSection<T extends ClaimLike>({
+  anchorId,
   claims,
   claimChapterLayout,
   glossaryEntries,
   youTubeVideoId,
   onJumpToClaim,
   onSeekChapter,
-  renderClaimCard,
+  claimCardContext,
   mobileOpenClaimId,
   onMobileOpenClaimIdChange,
   claimsIndexStorageKey,
@@ -56,6 +71,9 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   onTogglePlayback,
   scrollContainerRef,
   pinnedVideoPane = false,
+  onSeeScripture,
+  onMarkReviewed,
+  hideInsightPreview = false,
 }: Props<T>) {
   const isDesktop = useIsDesktop();
   const useMobileAccordion = onMobileOpenClaimIdChange != null;
@@ -74,6 +92,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
 
   const showFollowControl = Boolean(youTubeVideoId && playerReady && getClaimSeekSeconds && timedClaimsCount > 0);
   const showPlaybackControl = Boolean(youTubeVideoId && playerReady && onTogglePlayback);
+  const useClaimsRail = isDesktop && hideInsightPreview;
 
   const seekForClaim = useCallback(
     (claim: T) => (getClaimSeekSeconds ? getClaimSeekSeconds(claim) : null),
@@ -85,6 +104,17 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     void playbackTick;
     return findActiveClaimId(claims, seekForClaim, getPlaybackSeconds());
   }, [showFollowControl, getPlaybackSeconds, claims, seekForClaim, playbackTick]);
+
+  const renderClaimCard = useCallback(
+    (claim: T, claimIndex: number) =>
+      renderArtifactDetailClaimCard(claim, claimIndex, {
+        ...claimCardContext,
+        layout: useClaimsRail ? "desktopRail" : claimCardContext.layout ?? "stack",
+        activeClaimId: activeClaimId ?? null,
+        followPlaybackActive: followPlayback,
+      }),
+    [claimCardContext, useClaimsRail, activeClaimId, followPlayback],
+  );
 
   useEffect(() => {
     if (!playerReady) return;
@@ -129,12 +159,21 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     const edgeMargin = 72;
     const bounds = scrollRoot?.getBoundingClientRect();
     const inView = bounds
-      ? rect.top >= bounds.top + edgeMargin && rect.bottom <= bounds.bottom - edgeMargin
+      ? useClaimsRail
+        ? rect.left >= bounds.left + edgeMargin &&
+          rect.right <= bounds.right - edgeMargin &&
+          rect.top >= bounds.top + edgeMargin &&
+          rect.bottom <= bounds.bottom - edgeMargin
+        : rect.top >= bounds.top + edgeMargin && rect.bottom <= bounds.bottom - edgeMargin
       : rect.top >= edgeMargin && rect.bottom <= window.innerHeight - edgeMargin;
     if (!claimChanged && inView) return;
 
     markProgrammaticScroll();
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: useClaimsRail ? "center" : "nearest",
+    });
   }, [
     playerReady,
     activeClaimId,
@@ -145,6 +184,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     onMobileOpenClaimIdChange,
     markProgrammaticScroll,
     scrollContainerRef,
+    useClaimsRail,
   ]);
 
   useEffect(() => {
@@ -205,89 +245,166 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     );
   };
 
+  const handleCarouselSelect = useCallback(
+    (claimId: string) => {
+      onMobileOpenClaimIdChange?.(claimId);
+      markProgrammaticScroll();
+      requestAnimationFrame(() => {
+        scrollArtifactClaimIntoView(document.getElementById(claimId), {
+          horizontalRail: useClaimsRail,
+        });
+      });
+    },
+    [onMobileOpenClaimIdChange, markProgrammaticScroll],
+  );
+
+  const claimsList = useClaimsRail ? (
+    <ArtifactClaimsRail
+      grouped={claimChapterLayout.grouped}
+      groups={claimChapterLayout.groups}
+      claims={claims}
+      renderClaimCard={renderClaimCard}
+      youTubeVideoId={youTubeVideoId}
+      onSeekChapter={onSeekChapter}
+    />
+  ) : (
+    <div className={isDesktop ? "space-y-8" : "space-y-3"}>
+      {claimChapterLayout.grouped ? (
+        claimChapterLayout.groups.map((group) => (
+          <div key={group.id} className={isDesktop ? "space-y-3" : "space-y-2"}>
+            <div
+              className={cn(
+                "sticky top-0 z-[5] flex items-center justify-between gap-2 text-sm font-medium text-foreground",
+                isDesktop
+                  ? "-mx-1 mb-1 rounded-md border border-border/60 bg-muted/40 px-3 py-2"
+                  : "mb-0 border-b border-border/40 bg-background/95 py-2.5 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80",
+              )}
+            >
+              <span className="min-w-0 leading-snug">{group.title}</span>
+              {group.chapterStartSeconds != null ? (
+                youTubeVideoId ? (
+                  <button
+                    type="button"
+                    className="shrink-0 font-mono text-xs font-normal tabular-nums text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    onClick={() => onSeekChapter(group.chapterStartSeconds!)}
+                  >
+                    {formatTranscriptClock(group.chapterStartSeconds)}
+                  </button>
+                ) : (
+                  <span className="shrink-0 font-mono text-xs font-normal tabular-nums text-muted-foreground">
+                    {formatTranscriptClock(group.chapterStartSeconds)}
+                  </span>
+                )
+              ) : null}
+            </div>
+            <div className={isDesktop ? "space-y-5" : "space-y-3"}>
+              {group.claims.map((c) => wrapCard(c, Math.max(0, claims.findIndex((x) => x.id === c.id))))}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className={isDesktop ? "space-y-5" : "space-y-3"}>{claims.map((c, i) => wrapCard(c, i))}</div>
+      )}
+    </div>
+  );
+
   return (
     <div
-      id="claims"
+      id={anchorId}
       className={cn(
-        "max-w-4xl",
-        isDesktop ? "scroll-mt-24" : pinnedVideoPane ? artifactScrollMtMobilePane : artifactScrollMtMobile,
+        useClaimsRail ? "max-w-none scroll-mt-28" : "max-w-4xl",
+        isDesktop && !useClaimsRail && "scroll-mt-24",
+        !isDesktop && (pinnedVideoPane ? artifactScrollMtMobilePane : artifactScrollMtMobile),
       )}
     >
-      <div
-        className={cn(
-          artifactCard,
-          "border border-amber-200/70 bg-amber-50/55 p-3 dark:border-amber-900/50 dark:bg-amber-950/25 sm:p-4",
-          isDesktop ? "space-y-5" : "space-y-4",
-        )}
-      >
-        <ClaimsGlossary
-          entries={glossaryEntries}
-          onJump={onJumpToClaim}
-          compact={!isDesktop}
-          storageKey={claimsIndexStorageKey}
-          className={cn(
-            "border-amber-200/60 bg-background/60 dark:border-amber-900/40 dark:bg-background/30",
-            isDesktop ? "mb-0" : "mb-0",
-          )}
-        />
-        {(showFollowControl || showPlaybackControl) && (
-          <ClaimsPlaybackToolbar
-            isPlaying={isPlaying}
-            onTogglePlayback={onTogglePlayback}
-            showPlaybackControl={showPlaybackControl}
-            followPlayback={followPlayback}
-            onToggleFollowPlayback={() => {
-              setFollowPlayback((v) => {
-                const next = !v;
-                if (next) prevActiveClaimIdRef.current = null;
-                return next;
-              });
-            }}
-            showFollowControl={showFollowControl}
-            timedClaimsCount={timedClaimsCount}
-          />
-        )}
-        <div className={isDesktop ? "space-y-8" : "space-y-5"}>
-          {claimChapterLayout.grouped ? (
-            claimChapterLayout.groups.map((group) => (
-              <div key={group.id} className={isDesktop ? "space-y-3" : "space-y-2"}>
-                <div
-                  className={cn(
-                    "sticky top-0 z-[5] flex items-center justify-between gap-2 text-sm font-medium text-foreground",
-                    isDesktop
-                      ? "-mx-1 mb-1 rounded-md border border-border/60 bg-muted/40 px-3 py-2"
-                      : "mb-0 border-b border-border/40 bg-background/95 py-2.5 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80",
-                  )}
-                >
-                  <span className="min-w-0 leading-snug">{group.title}</span>
-                  {group.chapterStartSeconds != null ? (
-                    youTubeVideoId ? (
-                      <button
-                        type="button"
-                        className="shrink-0 font-mono text-xs font-normal tabular-nums text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                        onClick={() => onSeekChapter(group.chapterStartSeconds!)}
-                      >
-                        {formatTranscriptClock(group.chapterStartSeconds)}
-                      </button>
-                    ) : (
-                      <span className="shrink-0 font-mono text-xs font-normal tabular-nums text-muted-foreground">
-                        {formatTranscriptClock(group.chapterStartSeconds)}
-                      </span>
-                    )
-                  ) : null}
-                </div>
-                <div className={isDesktop ? "space-y-5" : "space-y-3"}>
-                  {group.claims.map((c) =>
-                    wrapCard(c, Math.max(0, claims.findIndex((x) => x.id === c.id))),
-                  )}
-                </div>
-              </div>
-            ))
+      {isDesktop ? (
+        <div className="space-y-8">
+          {!hideInsightPreview ? (
+            <div className="space-y-4">
+              <ArtifactStudySectionHeader
+                title="Key insights"
+                count={claims.length}
+                countLabel={`${claims.length} insights`}
+                description="Swipe through thesis-sized lines from the transcript — open any card below for scripture and verdicts."
+              />
+              <ArtifactInsightCarousel
+                claims={claims}
+                activeClaimId={activeClaimId ?? mobileOpenClaimId}
+                onSelectClaim={handleCarouselSelect}
+                variant="desktop"
+                onSeeScripture={onSeeScripture}
+                onMarkReviewed={onMarkReviewed}
+              />
+            </div>
           ) : (
-            <div className={isDesktop ? "space-y-5" : "space-y-3"}>{claims.map((c, i) => wrapCard(c, i))}</div>
+            <ArtifactStudySectionHeader
+              title="Key claims"
+              count={claims.length}
+              countLabel={`${claims.length} claims extracted`}
+              description="Scroll sideways — transcript source, scripture, and verdict actions stay on each card."
+            />
           )}
+          {(showFollowControl || showPlaybackControl) && (
+            <ClaimsPlaybackToolbar
+              isPlaying={isPlaying}
+              onTogglePlayback={onTogglePlayback}
+              showPlaybackControl={showPlaybackControl}
+              followPlayback={followPlayback}
+              onToggleFollowPlayback={() => {
+                setFollowPlayback((v) => {
+                  const next = !v;
+                  if (next) prevActiveClaimIdRef.current = null;
+                  return next;
+                });
+              }}
+              showFollowControl={showFollowControl}
+              timedClaimsCount={timedClaimsCount}
+            />
+          )}
+          <ClaimsGlossary
+            entries={glossaryEntries}
+            onJump={onJumpToClaim}
+            storageKey={claimsIndexStorageKey}
+            className={cn(artifactPremiumCard, "border-border/50 bg-card/80 p-3")}
+          />
+          {claimsList}
         </div>
-      </div>
+      ) : (
+        <div className="space-y-5">
+          <ArtifactInsightCarousel
+            claims={claims}
+            activeClaimId={activeClaimId ?? mobileOpenClaimId}
+            onSelectClaim={handleCarouselSelect}
+            variant="mobile"
+          />
+          {(showFollowControl || showPlaybackControl) && (
+            <ClaimsPlaybackToolbar
+              isPlaying={isPlaying}
+              onTogglePlayback={onTogglePlayback}
+              showPlaybackControl={showPlaybackControl}
+              followPlayback={followPlayback}
+              onToggleFollowPlayback={() => {
+                setFollowPlayback((v) => {
+                  const next = !v;
+                  if (next) prevActiveClaimIdRef.current = null;
+                  return next;
+                });
+              }}
+              showFollowControl={showFollowControl}
+              timedClaimsCount={timedClaimsCount}
+            />
+          )}
+          <ClaimsGlossary
+            entries={glossaryEntries}
+            onJump={onJumpToClaim}
+            compact
+            defaultOpen={false}
+            storageKey={claimsIndexStorageKey ? `${claimsIndexStorageKey}:index` : undefined}
+            className={cn(artifactPremiumCard, "border-border/50 bg-card/80 p-2")}
+          />
+          {claimsList}
+        </div>
+      )}
     </div>
   );
 }

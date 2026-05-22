@@ -45,6 +45,11 @@ import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPane
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
+import ArtifactDesktopOverview from "@/components/framework/artifact-detail/ArtifactDesktopOverview";
+import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
+import {
+  type RenderClaimCardContext,
+} from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
 import ArtifactDetailHeader from "@/components/framework/artifact-detail/ArtifactDetailHeader";
 import ArtifactSectionNav, { type ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
 import ArtifactChaptersSection from "@/components/framework/artifact-detail/ArtifactChaptersSection";
@@ -61,11 +66,14 @@ import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
+  artifactDesktopBodySheet,
   artifactMobileVideoOnlyPadding,
+  artifactPremiumCard,
   artifactScrollMt,
-  artifactStudyStackMobile,
+  artifactStudyBodyMobile,
 } from "@/lib/framework/artifactSurfaces";
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
+import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
@@ -369,7 +377,7 @@ export default function ArtifactDetailPage() {
     setMobileTab("study");
     window.location.hash = sectionId;
     window.requestAnimationFrame(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollArtifactClaimIntoView(document.getElementById(sectionId));
     });
   }, []);
 
@@ -600,14 +608,18 @@ export default function ArtifactDetailPage() {
     [claims],
   );
 
+  const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
+
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash || !claims.some((c) => c.id === hash)) return;
     const t = window.setTimeout(() => {
-      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollArtifactClaimIntoView(document.getElementById(hash), {
+        horizontalRail: desktopPremiumYoutube,
+      });
     }, 300);
     return () => window.clearTimeout(t);
-  }, [claims, a?.status]);
+  }, [claims, a?.status, desktopPremiumYoutube]);
 
   const scrollToVideoSection = useCallback(() => {
     document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -623,7 +635,13 @@ export default function ArtifactDetailPage() {
   const navSections = useMemo((): ArtifactNavSection[] => {
     if (!a || a.kind !== "youtube" || a.status !== "ready") return [];
     const sections: ArtifactNavSection[] = [];
-    if (youTubeVideoId) sections.push({ id: "video", hash: "#video", label: "Video" });
+    if (youTubeVideoId) {
+      sections.push(
+        desktopPremiumYoutube
+          ? { id: "overview", hash: "#overview", label: "Overview" }
+          : { id: "video", hash: "#video", label: "Video" },
+      );
+    }
     if (a.url) sections.push({ id: "chapters", hash: "#chapters", label: "Chapters" });
     if (a.kind === "youtube" && youtubeChaptersList.length === 0) {
       sections.push({ id: "teachings", hash: "#study-spine-teachings", label: "Teachings" });
@@ -634,7 +652,16 @@ export default function ArtifactDetailPage() {
     }
     if (youTubeVideoId) sections.push({ id: "capture", hash: "#capture", label: "Capture" });
     return sections;
-  }, [a, a?.kind, a?.status, a?.url, youTubeVideoId, youtubeChaptersList.length, claims.length]);
+  }, [a, a?.kind, a?.status, a?.url, youTubeVideoId, youtubeChaptersList.length, claims.length, desktopPremiumYoutube]);
+
+  const scrollToClaimById = useCallback(
+    (claimId: string) => {
+      scrollArtifactClaimIntoView(document.getElementById(claimId), {
+        horizontalRail: desktopPremiumYoutube,
+      });
+    },
+    [desktopPremiumYoutube],
+  );
 
   const advanceMobileClaim = useCallback(
     (currentId: string) => {
@@ -741,12 +768,12 @@ export default function ArtifactDetailPage() {
     if (!isDesktop && claim) {
       setMobileOpenClaimId(claim.id);
       window.requestAnimationFrame(() => {
-        document.getElementById(claim.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollArtifactClaimIntoView(document.getElementById(claim.id));
       });
       return;
     }
     const el = document.querySelector(`[data-claim-number="${claimNumber}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollArtifactClaimIntoView(el, { horizontalRail: desktopPremiumYoutube });
   };
 
   const reanalyze = async () => {
@@ -1111,274 +1138,16 @@ export default function ArtifactDetailPage() {
     useFloatingJournalStore.getState().setPanelOpen(true);
   };
 
-  const renderClaimCard = (c: Claim, claimIndex: number) => {
-    const source = claimSources[c.id];
-    const sourceClock = source ? formatClaimSourceClock(source.startSeconds, source.label) : null;
-    const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
-    const claimSeekSeconds = getClaimSeekSeconds(c, source ?? null);
-    const canPlayClaim = Boolean(youTubeVideoId && claimSeekSeconds != null);
-    const chapterClock =
-      claimSeekSeconds != null && source?.startSeconds == null
-        ? formatTranscriptClock(claimSeekSeconds)
-        : null;
-    const epistemology = parseClaimEpistemology(c.epistemology);
-    const claimNumber = claimIndex + 1;
-    const verdictAccent =
-      c.verdict === "keep"
-        ? "border-l-emerald-500"
-        : c.verdict === "reject"
-          ? "border-l-rose-500"
-          : c.verdict === "updated"
-            ? "border-l-indigo-500"
-            : isDeferredVerdict(c.verdict)
-              ? "border-l-amber-500"
-              : "border-l-border";
-
-    const claimBody = (
-      <>
-        <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
-          <div className="mb-2.5 flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            <Quote className="h-3 w-3 shrink-0" />
-            Source in transcript
-          </div>
-          {source ? (
-            <div className="space-y-3">
-              <button
-                type="button"
-                disabled={!canPlayClaim && source.startSeconds == null}
-                onClick={() => playClaimAtSource(c, source)}
-                className={cn(
-                  "w-full space-y-3 rounded-md text-left transition-colors",
-                  (canPlayClaim || source.startSeconds != null) &&
-                    "cursor-pointer hover:bg-muted/40 -mx-1 px-1 py-0.5",
-                )}
-              >
-                {sourceClock ? (
-                  <p className="font-mono text-sm font-medium tabular-nums tracking-tight text-foreground/90">
-                    [{sourceClock}]
-                  </p>
-                ) : null}
-                {sourceQuote ? (
-                  <p className="font-sans text-sm leading-relaxed text-foreground line-clamp-4">
-                    {sourceQuote}
-                  </p>
-                ) : (
-                  <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
-                    Transcript excerpt unavailable.
-                  </p>
-                )}
-              </button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-0.5"
-                disabled={!youTubeVideoId || (claimSeekSeconds == null && source.startSeconds == null)}
-                onClick={() => playClaimAtSource(c, source)}
-              >
-                {canPlayClaim && (sourceClock || chapterClock)
-                  ? `Play from ${sourceClock ?? chapterClock}`
-                  : source.label
-                    ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
-                    : "Jump to transcript"}
-              </Button>
-            </div>
-          ) : canPlayClaim ? (
-            <div className="space-y-3">
-              <p className="font-sans text-sm leading-relaxed text-muted-foreground">
-                No linked transcript line — playback uses the chapter time for this claim.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-0.5"
-                onClick={() => playClaimAtSource(c, source)}
-              >
-                {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
-              </Button>
-            </div>
-          ) : (
-            <p className="font-sans text-sm leading-relaxed text-muted-foreground">
-              No exact transcript section was detected for this older analysis. Re-analyze after the timestamped transcript update for stronger source links.
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wider">
-          {c.tone && (
-            <span className="rounded border border-border/60 bg-background/70 px-2 py-0.5 text-muted-foreground">tone: {c.tone}</span>
-          )}
-          {c.doctrine_tags?.map((t) => (
-            <span key={t} className="rounded border border-border/60 bg-background/70 px-2 py-0.5 text-muted-foreground">{t}</span>
-          ))}
-          {c.match_relation && (
-            <span className={`px-2 py-0.5 rounded ${
-              c.match_relation === "agree"
-                ? "bg-emerald-100 text-emerald-900"
-                : c.match_relation === "disagree"
-                  ? "bg-red-100 text-red-900"
-                  : "bg-amber-100 text-amber-900"
-            }`}>
-              {c.match_relation === "new" ? "new to your framework" : `you ${c.match_relation}`}
-            </span>
-          )}
-          {c.bias_flags?.map((f) => (
-            <span key={f} className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
-              ⚠ {f}
-            </span>
-          ))}
-        </div>
-
-        {(c.matched_belief_id && matchedBeliefs[c.matched_belief_id]) && (
-          <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs space-y-2.5 backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
-            <div className="uppercase tracking-wider text-muted-foreground">Your current belief context</div>
-            <div>
-              <p className="font-medium text-foreground">{matchedBeliefs[c.matched_belief_id].statement}</p>
-              {matchedBeliefs[c.matched_belief_id].answer && (
-                <p className="text-muted-foreground mt-1 line-clamp-3">{matchedBeliefs[c.matched_belief_id].answer}</p>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-background border border-border">confidence {matchedBeliefs[c.matched_belief_id].confidence}%</span>
-              <span className="text-muted-foreground inline-flex items-center gap-1">
-                <ArrowRight className="w-3 h-3" />
-                {c.match_relation === "agree" ? "reinforces what you already believe" : c.match_relation === "disagree" ? "challenges your current belief" : "partly overlaps with your current belief"}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
-
-        {(c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0 && (
-          <div className="grid gap-4 text-xs sm:grid-cols-2 sm:gap-3">
-            <div className="space-y-2">
-              <div className="uppercase tracking-wider text-muted-foreground">Supports</div>
-              <ul className="space-y-2">
-                {c.scripture_supports?.length ? (
-                  c.scripture_supports.map((s, i) => (
-                    <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
-                  ))
-                ) : (
-                  <li className="text-muted-foreground">—</li>
-                )}
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <div className="uppercase tracking-wider text-muted-foreground">Challenges</div>
-              <ul className="space-y-2">
-                {c.scripture_challenges?.length ? (
-                  c.scripture_challenges.map((s, i) => (
-                    <ClaimScriptureRef key={`${s.ref}-${i}`} reference={s.ref} note={s.note} />
-                  ))
-                ) : (
-                  <li className="text-muted-foreground">—</li>
-                )}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        <div
-          className="flex flex-wrap items-center gap-1 border-t border-border/50 pt-3"
-          role="toolbar"
-          aria-label="Claim actions"
-        >
-          <ClaimIconActionButton
-            label="Research"
-            icon={MessageCircle}
-            tone="research"
-            active
-            onClick={() => startClaimResearchChat(c, source)}
-          />
-          <ClaimIconActionButton
-            label="Reflect"
-            icon={NotebookPen}
-            tone="reflect"
-            onClick={() => openJournalFromClaim(c, source?.startSeconds ?? undefined)}
-          />
-          <ClaimIconActionButton
-            label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
-            icon={Clock}
-            tone="researchLater"
-            active={isDeferredVerdict(c.verdict)}
-            onClick={() => void toggleResearchLater(c.id, c.verdict)}
-          />
-          <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden />
-          <ClaimIconActionButton
-            label="Keep"
-            icon={Check}
-            tone="keep"
-            active={c.verdict === "keep"}
-            onClick={() => void applyClaimVerdict(c.id, "keep")}
-          />
-          <ClaimIconActionButton
-            label="Reject"
-            icon={X}
-            tone="reject"
-            active={c.verdict === "reject"}
-            onClick={() => void applyClaimVerdict(c.id, "reject")}
-          />
-          <ClaimIconActionButton
-            label="Update my belief"
-            icon={Pencil}
-            tone="update"
-            active={c.verdict === "updated"}
-            onClick={() => void applyClaimVerdict(c.id, "updated")}
-          />
-          <ClaimIconActionButton
-            label="Defer"
-            icon={CirclePause}
-            tone="defer"
-            active={c.verdict === "defer"}
-            onClick={() => void applyClaimVerdict(c.id, "defer")}
-          />
-        </div>
-      </>
-    );
-
-    if (!isDesktop) {
-      return <div className="space-y-3">{claimBody}</div>;
-    }
-
-    return (
-      <article
-        key={c.id}
-        id={c.id}
-        data-claim-number={claimNumber}
-        className={cn(
-          artifactCard,
-          artifactScrollMt,
-          "space-y-4 border-l-4 p-4 sm:p-5",
-          verdictAccent,
-          isDeferredVerdict(c.verdict) && "ring-1 ring-amber-400/40",
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <span
-              className="shrink-0 font-mono text-sm font-semibold tabular-nums text-muted-foreground"
-              aria-label={`Claim ${claimNumber}`}
-            >
-              #{claimNumber}
-            </span>
-            <p className="font-display text-base leading-relaxed text-foreground">{c.claim}</p>
-          </div>
-          {c.verdict ? (
-            <span
-              className={cn(
-                "shrink-0 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded",
-                isDeferredVerdict(c.verdict)
-                  ? "bg-amber-200 text-amber-950 dark:bg-amber-900 dark:text-amber-100"
-                  : "bg-foreground text-background",
-              )}
-            >
-              {formatClaimVerdict(c.verdict)}
-            </span>
-          ) : null}
-        </div>
-        {claimBody}
-      </article>
-    );
+  const claimCardContext: RenderClaimCardContext = {
+    isDesktop,
+    youTubeVideoId,
+    claimSources,
+    matchedBeliefs,
+    playClaimAtSource,
+    startClaimResearchChat,
+    openJournalFromClaim,
+    toggleResearchLater,
+    applyClaimVerdict,
   };
 
   const stageLabel: Record<string, string> = {
@@ -1393,10 +1162,12 @@ export default function ArtifactDetailPage() {
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
-  const artifactSplitPaneHeightClass = "lg:h-[calc(100dvh-8.25rem)]";
+  const artifactSplitPaneHeightClass = desktopPremiumYoutube
+    ? "lg:h-[calc(100dvh-1.5rem)]"
+    : "lg:h-[calc(100dvh-8.25rem)]";
 
   const youtubeHeaderLeading =
-    a.kind === "youtube" ? (
+    a.kind === "youtube" && !desktopPremiumYoutube ? (
       <ArtifactDetailHeader
         displayTitle={a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video"}
         statusLabel={formatArtifactStatus(a.status)}
@@ -1442,13 +1213,19 @@ export default function ArtifactDetailPage() {
       </TabsList>
     ) : null;
 
-  const StudyColumnWrapper = ({ children }: { children: ReactNode }) =>
+  const StudyColumnWrapper = ({
+    children,
+    className,
+  }: {
+    children: ReactNode;
+    className?: string;
+  }) =>
     !isDesktop ? (
       <TabsContent value="study" className="mt-0 px-3 pb-8 focus-visible:outline-none sm:px-4">
-        <div className={artifactStudyStackMobile}>{children}</div>
+        <div className={artifactStudyBodyMobile}>{children}</div>
       </TabsContent>
     ) : (
-      <div className="space-y-5 sm:space-y-6">{children}</div>
+      <div className={cn("space-y-5 sm:space-y-6", className)}>{children}</div>
     );
 
   const transcriptPanel = a.raw_text ? (
@@ -1480,7 +1257,14 @@ export default function ArtifactDetailPage() {
       formattingTranscript={formattingTranscript}
       onFormatTranscript={formatTranscript}
       embeddedInMobileTab={!isDesktop}
-      variant={!isDesktop && a.kind === "youtube" ? "youtubeMobile" : "default"}
+      variant={
+        desktopPremiumYoutube
+          ? "desktopStudy"
+          : !isDesktop && a.kind === "youtube"
+            ? "youtubeMobile"
+            : "default"
+      }
+      setPlaybackRate={youtubePlayer.setPlaybackRate}
       getIsPlaying={videoPlayback.getIsPlaying}
       onPauseVideo={videoPlayback.pauseVideo}
       onResumePlayback={videoPlayback.playVideo}
@@ -1508,6 +1292,7 @@ export default function ArtifactDetailPage() {
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
       headerLeading={youtubeHeaderLeading}
       immersiveMobileMinimal={a.kind === "youtube" && Boolean(youTubeVideoId)}
+      immersiveDesktopMinimal={desktopPremiumYoutube}
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
@@ -1555,6 +1340,72 @@ export default function ArtifactDetailPage() {
           )}
         >
         {youTubeVideoId ? (
+          desktopPremiumYoutube ? (
+            <ArtifactDetailDesktopShell
+              hero={{
+                displayTitle,
+                statusLabel: formatArtifactStatus(a.status),
+                inFlight,
+                channel: mergedVideoMeta.channel_title,
+                channelUrl: mergedVideoMeta.channel_url,
+                thumbnailUrl: mergedVideoMeta.thumbnail_url,
+                youTubeVideoId,
+                durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
+                createdAt: a.created_at,
+                isPlaying: videoPlayback.isPlaying,
+                onPlayStudy: () => {
+                  if (videoPlayback.playerReady) {
+                    if (!videoPlayback.isPlaying) videoPlayback.activateAndPlay();
+                    else videoPlayback.pauseVideo();
+                  } else {
+                    videoPlayback.activateAndPlay();
+                  }
+                  navigateToArtifactHash("#overview");
+                },
+                onPlayVideo: () => {
+                  if (videoPlayback.playerReady) {
+                    if (!videoPlayback.isPlaying) videoPlayback.playVideo();
+                    else videoPlayback.pauseVideo();
+                  } else {
+                    videoPlayback.activateAndPlay();
+                  }
+                },
+                onAddNote: () => navigateToArtifactHash("#capture"),
+                showPaste: a.kind === "youtube",
+                showWrapUp: a.kind === "youtube" && a.status === "ready",
+                showReanalyze: !inFlight && a.status !== "error",
+                onPasteTranscript: () => setPasteOpen(true),
+                onWrapUp: () => setWrapUpOpen(true),
+                onReanalyze: reanalyze,
+              }}
+              videoBlock={
+                <ArtifactYoutubeVideoBlock
+                  youTubeVideoId={youTubeVideoId}
+                  youtubePip={youtubePip}
+                  pipEnabled={pipEnabled}
+                  stickyMode={stickyVideoMode}
+                  heroEmbed={desktopPremiumYoutube}
+                  youtubePlayer={youtubePlayer}
+                  playback={videoPlayback}
+                  artifactId={a.id}
+                  moments={moments}
+                  bookmarkLabel={bookmarkLabel}
+                  onBookmarkLabelChange={setBookmarkLabel}
+                  noteBody={noteBody}
+                  onNoteBodyChange={setNoteBody}
+                  canCaptureMoments={canCaptureMoments}
+                  savingMoment={savingMoment}
+                  hasTranscript={Boolean(a.raw_text?.trim())}
+                  onBookmark={bookmarkCurrentMoment}
+                  onSaveNote={addNoteAtCurrentMoment}
+                  onBelieve={believeCurrentMoment}
+                  onStudyJournal={openStudyJournal}
+                  onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+                  onOpenJournalFull={() => openJournalFromArtifact()}
+                />
+              }
+            />
+          ) : (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
             displayTitle={stickyVideoMode ? displayTitle : undefined}
@@ -1602,6 +1453,7 @@ export default function ArtifactDetailPage() {
             backTo="/framework/artifacts"
             mobileChromeHost={mobileChromeHost}
           />
+          )
         ) : null}
         <div
           ref={mobileBodyScrollRef}
@@ -1617,11 +1469,34 @@ export default function ArtifactDetailPage() {
         >
           {mobilePinnedPane ? <div ref={setMobileChromeHost} className="shrink-0" /> : null}
       {isDesktop || mobileTab !== "transcript" ? (
+        <div className={cn(desktopPremiumYoutube && artifactDesktopBodySheet)}>
         <ArtifactSectionNav
           sections={navSections}
           activeHash={pageSectionHash}
           stickyVideoLayout={false}
+          variant={desktopPremiumYoutube ? "desktop" : "default"}
           className={cn(!isDesktop && stickyVideoMode && "sticky top-0 z-[28]")}
+        />
+
+      {desktopPremiumYoutube && a.status === "ready" ? (
+        <ArtifactDesktopOverview
+          claims={claims}
+          artifactId={a.id}
+          artifactStatus={a.status}
+          claimsCount={claims.length}
+          claimSources={claimSources}
+          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
+          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
+          onNavigate={navigateToArtifactHash}
+          onSelectClaim={(claimId) => {
+            navigateToArtifactHash("#claims");
+            scrollToClaimById(claimId);
+          }}
+          onSeeScripture={scrollToClaimById}
+          onSeeInTranscript={(claimId) => {
+            const claim = claims.find((c) => c.id === claimId);
+            if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
+          }}
         />
       ) : null}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
@@ -1728,13 +1603,55 @@ export default function ArtifactDetailPage() {
         </div>
       )}
 
-      <StudyColumnWrapper>
-      {a.kind === "youtube" && a.url && (
+      <StudyColumnWrapper className={desktopPremiumYoutube ? "space-y-8" : undefined}>
+      {desktopPremiumYoutube && a.status === "ready" && claims.length > 0 ? (
+        <ArtifactClaimsSection
+          anchorId="claims"
+          claims={claims}
+          claimChapterLayout={claimChapterLayout}
+          glossaryEntries={glossaryEntries}
+          youTubeVideoId={youTubeVideoId}
+          onJumpToClaim={jumpToClaim}
+          onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+          claimCardContext={claimCardContext}
+          claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
+          getClaimSeekSeconds={resolveClaimSeekSeconds}
+          playerReady={videoPlayback.playerReady}
+          isPlaying={videoPlayback.isPlaying}
+          getPlaybackSeconds={getCurrentPlaybackSeconds}
+          onTogglePlayback={togglePlayback}
+          scrollContainerRef={mainScrollRef}
+          onSeeScripture={scrollToClaimById}
+          onMarkReviewed={(claimId) => {
+            scrollToClaimById(claimId);
+            void applyClaimVerdict(claimId, "keep");
+          }}
+          hideInsightPreview
+        />
+      ) : null}
+
+      {desktopPremiumYoutube && a.status === "ready" ? (
+        <ArtifactCollapsibleSection
+          id="entities"
+          title="Knowledge entities"
+          pinnedVideoPane={mobilePinnedPane}
+          description="Full index of people, books, scriptures, and themes."
+          defaultOpenMobile={false}
+          defaultOpenDesktop={false}
+          storageKey={a.id ? `artifact-entities-full:${a.id}` : undefined}
+        >
+          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} variant="default" />
+        </ArtifactCollapsibleSection>
+      ) : null}
+
+      {!desktopPremiumYoutube && a.kind === "youtube" && a.url ? (
         <ArtifactCollapsibleSection
           title="Chapters"
           pinnedVideoPane={mobilePinnedPane}
-          defaultOpenMobile={false}
+          defaultOpenMobile={youtubeChaptersList.length > 0}
           defaultOpenDesktop
+          count={youtubeChaptersList.length > 0 ? youtubeChaptersList.length : undefined}
+          countLabel={youtubeChaptersList.length > 0 ? `${youtubeChaptersList.length} sections` : undefined}
           storageKey={a.id ? `artifact-chapters:${a.id}` : undefined}
         >
         <ArtifactChaptersSection
@@ -1750,7 +1667,32 @@ export default function ArtifactDetailPage() {
           onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
         />
         </ArtifactCollapsibleSection>
-      )}
+      ) : null}
+
+      {a.kind === "youtube" && a.url && desktopPremiumYoutube ? (
+        <ArtifactCollapsibleSection
+          title="Chapters"
+          pinnedVideoPane={mobilePinnedPane}
+          defaultOpenMobile={youtubeChaptersList.length > 0}
+          defaultOpenDesktop={false}
+          count={youtubeChaptersList.length > 0 ? youtubeChaptersList.length : undefined}
+          countLabel={youtubeChaptersList.length > 0 ? `${youtubeChaptersList.length} sections` : undefined}
+          storageKey={a.id ? `artifact-chapters:${a.id}` : undefined}
+        >
+        <ArtifactChaptersSection
+          status={a.status}
+          rawText={a.raw_text}
+          chapters={youtubeChaptersList}
+          chaptersSourceLabel={youtubeChaptersSourceLabel}
+          generatingChapters={generatingChapters}
+          inFlight={inFlight}
+          onSyncYouTubeChapters={a.url ? syncYouTubeChapters : undefined}
+          syncingYoutubeChapters={syncingYoutubeChapters}
+          onGenerateChapters={generateChaptersFromTranscript}
+          onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
+        />
+        </ArtifactCollapsibleSection>
+      ) : null}
 
       {a.kind === "youtube" && a.status === "ready" && youtubeChaptersList.length === 0 && (
         <ArtifactCollapsibleSection
@@ -1764,8 +1706,9 @@ export default function ArtifactDetailPage() {
         >
           <div
             className={cn(
-              "rounded-lg border border-primary/20 bg-primary/[0.04]",
-              isDesktop ? "p-4" : "p-3",
+              isDesktop
+                ? "rounded-lg border border-primary/20 bg-primary/[0.04] p-4"
+                : cn(artifactPremiumCard, "border-primary/15 p-3"),
             )}
           >
             <p
@@ -1798,7 +1741,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       )}
 
-      {a.status === "ready" && (
+      {a.status === "ready" && !desktopPremiumYoutube ? (
         <ArtifactCollapsibleSection
           title="Knowledge entities"
           pinnedVideoPane={mobilePinnedPane}
@@ -1807,9 +1750,13 @@ export default function ArtifactDetailPage() {
           defaultOpenDesktop
           storageKey={a.id ? `artifact-entities:${a.id}` : undefined}
         >
-          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} />
+          <ArtifactEntitiesPanel
+            artifactId={a.id}
+            artifactStatus={a.status}
+            variant={!isDesktop ? "mobileRail" : "default"}
+          />
         </ArtifactCollapsibleSection>
-      )}
+      ) : null}
 
       {a.status === "ready" && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
         <ArtifactCollapsibleSection
@@ -1819,7 +1766,9 @@ export default function ArtifactDetailPage() {
           defaultOpenDesktop
           storageKey={a.id ? `artifact-teachings:${a.id}` : undefined}
         >
-          <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
+          <div className={cn(!isDesktop && artifactPremiumCard, !isDesktop && "p-3")}>
+            <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
+          </div>
         </ArtifactCollapsibleSection>
       )}
 
@@ -1842,17 +1791,19 @@ export default function ArtifactDetailPage() {
         </details>
       )}
 
-      {a.status === "ready" && claims.length > 0 && (
+      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
-          title={`Claims (${claims.length})`}
+          title="Claims"
+          count={claims.length}
+          countLabel={`${claims.length} insights`}
           description={
             isDesktop
               ? "One thesis per card from the transcript — open each to review source, scripture, and verdicts."
-              : "Tap a claim to review source, scripture, and verdicts."
+              : "Swipe insights above, then tap a claim to review source, scripture, and verdicts."
           }
-          defaultOpenMobile={false}
+          defaultOpenMobile
           defaultOpenDesktop
           storageKey={a.id ? `artifact-claims-block:${a.id}` : undefined}
         >
@@ -1882,13 +1833,14 @@ export default function ArtifactDetailPage() {
             </div>
           ) : null}
           <ArtifactClaimsSection
+            anchorId={undefined}
             claims={claims}
             claimChapterLayout={claimChapterLayout}
             glossaryEntries={glossaryEntries}
             youTubeVideoId={youTubeVideoId}
             onJumpToClaim={jumpToClaim}
             onSeekChapter={(seconds) => seekVideoToSeconds(seconds, { play: true })}
-            renderClaimCard={renderClaimCard}
+            claimCardContext={claimCardContext}
             mobileOpenClaimId={!isDesktop ? mobileOpenClaimId : undefined}
             onMobileOpenClaimIdChange={!isDesktop ? setMobileOpenClaimId : undefined}
             claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
@@ -1897,12 +1849,14 @@ export default function ArtifactDetailPage() {
             isPlaying={videoPlayback.isPlaying}
             getPlaybackSeconds={getCurrentPlaybackSeconds}
             onTogglePlayback={togglePlayback}
-            scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : undefined}
+            scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : isDesktop ? mainScrollRef : undefined}
             pinnedVideoPane={mobilePinnedPane}
           />
         </ArtifactCollapsibleSection>
-      )}
+      ) : null}
       </StudyColumnWrapper>
+        </div>
+      ) : null}
 
       {!isDesktop ? (
         <TabsContent
@@ -1921,7 +1875,7 @@ export default function ArtifactDetailPage() {
         </Tabs>
 
         <aside
-          className="hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pl-0.5"
+          className="hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-1 lg:pr-1"
           aria-label="Transcript"
         >
           {transcriptPanel}

@@ -89,6 +89,8 @@ type Props = {
   backTo?: string;
   /** Host element inside the scroll pane (title scrolls away; toolbar sticks under video). */
   mobileChromeHost?: HTMLElement | null;
+  /** Desktop premium: player fills the cinematic hero (not a separate card). */
+  heroEmbed?: boolean;
 };
 
 function ArtifactYoutubeVideoBlock({
@@ -134,6 +136,7 @@ function ArtifactYoutubeVideoBlock({
   onMenuReanalyze,
   backTo = "/framework/artifacts",
   mobileChromeHost = null,
+  heroEmbed = false,
 }: Props) {
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
@@ -270,6 +273,7 @@ function ArtifactYoutubeVideoBlock({
           useStaticPip={playback.useStaticPip}
           stickyMode={stickyMode}
           mobilePinnedHeader={mobilePinnedLayout}
+          variant={heroEmbed ? "hero" : "default"}
           pipLayout={youtubePip.pipOverlayLayout}
           thumbnailUrl={thumbnailUrl}
           youTubeVideoId={youTubeVideoId}

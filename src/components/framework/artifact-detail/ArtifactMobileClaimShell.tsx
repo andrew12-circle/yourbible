@@ -53,7 +53,7 @@ export default function ArtifactMobileClaimShell({
       onOpenChange={onOpenChange}
       className={cn(
         pinnedVideoPane ? artifactScrollMtMobilePane : artifactScrollMtMobile,
-        "overflow-hidden rounded-lg border border-border/55 bg-card/90 shadow-none",
+        "overflow-hidden rounded-2xl border border-border/40 bg-card shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.25)]",
         "border-l-[3px]",
         verdictAccent,
         isDeferredVerdict(claim.verdict) && "ring-1 ring-amber-400/35",
