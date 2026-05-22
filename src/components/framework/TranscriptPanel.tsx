@@ -64,6 +64,9 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   return <>{parts}</>;
 }
 
+const mobileActiveTranscriptRowClass =
+  "z-10 mx-2 my-1 scale-[1.015] rounded-2xl border border-blue-200/80 bg-gradient-to-br from-sky-50 via-blue-50 to-white font-semibold shadow-[0_14px_34px_-18px_rgba(37,99,235,0.65)] ring-1 ring-blue-300/30";
+
 export interface TranscriptPanelProps {
   artifactId?: string;
   segments: TranscriptSegment[];
@@ -503,7 +506,7 @@ export default function TranscriptPanel({
               ),
         )}
       >
-        <div className="divide-y divide-border/40">
+        <div className={cn(youtubeMobile ? "space-y-1 py-1" : "divide-y divide-border/40")}>
           {displaySegments.map((segment) => {
             if (segment.isParagraphBreak) {
               return <div key={segment.id} className="h-3 shrink-0" aria-hidden />;
@@ -522,14 +525,15 @@ export default function TranscriptPanel({
                 ref={(el) => bindRef(segment.id, el)}
                 data-transcript-row={segment.id}
                 className={cn(
-                  "group relative flex gap-2 px-3 py-3 transition-colors duration-150 sm:gap-3",
-                  canSeek && "cursor-pointer hover:bg-muted/30",
+                  "group relative flex gap-2 px-3 py-3 transition-all duration-200 ease-out sm:gap-3",
+                  canSeek && (youtubeMobile ? "cursor-pointer hover:bg-blue-50/45" : "cursor-pointer hover:bg-muted/30"),
                   isActive &&
                     (youtubeMobile
-                      ? "bg-muted font-semibold"
+                      ? mobileActiveTranscriptRowClass
                       : desktopStudy
                         ? "rounded-lg bg-violet-100/90 ring-1 ring-violet-300/50"
                         : "bg-primary/[0.07]"),
+                  youtubeMobile && !isActive && "border-b border-border/40",
                   segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
@@ -559,25 +563,28 @@ export default function TranscriptPanel({
                       <span className="w-3 shrink-0" aria-hidden />
                     )}
                     <div className="flex min-w-0 flex-1 justify-end">
-                    {timed && stamp ? (
-                      <span
-                        className={cn(
-                          "inline-flex min-h-[1.375rem] min-w-[3.25rem] max-w-full items-center justify-center text-[11px] font-medium tabular-nums leading-none text-muted-foreground",
-                          desktopStudy && isActive && "font-semibold text-foreground",
-                          !desktopStudy &&
-                            "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
-                          segment.timestampEstimated && "italic",
-                        )}
-                      >
-                        {stamp}
-                      </span>
-                    ) : timed ? (
-                      <span className="text-[10px] tabular-nums text-muted-foreground/50">—</span>
-                    ) : (
-                      <span className="max-w-[5rem] truncate text-[10px] font-medium tabular-nums text-muted-foreground/70">
-                        {segment.label}
-                      </span>
-                    )}
+                      {timed && stamp ? (
+                        <span
+                          className={cn(
+                            "inline-flex min-h-[1.375rem] min-w-[3.25rem] max-w-full items-center justify-center text-[11px] font-medium tabular-nums leading-none text-muted-foreground",
+                            desktopStudy && isActive && "font-semibold text-foreground",
+                            !desktopStudy &&
+                              "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
+                            youtubeMobile &&
+                              isActive &&
+                              "border-blue-200/80 bg-white/85 text-blue-700 shadow-[0_4px_12px_-8px_rgba(37,99,235,0.8)]",
+                            segment.timestampEstimated && "italic",
+                          )}
+                        >
+                          {stamp}
+                        </span>
+                      ) : timed ? (
+                        <span className="text-[10px] tabular-nums text-muted-foreground/50">—</span>
+                      ) : (
+                        <span className="max-w-[5rem] truncate text-[10px] font-medium tabular-nums text-muted-foreground/70">
+                          {segment.label}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -585,14 +592,14 @@ export default function TranscriptPanel({
                   className={cn(
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
                     isActive
-                      ? youtubeMobile || desktopStudy
-                        ? "font-medium text-foreground"
+                      ? youtubeMobile
+                        ? "font-semibold text-blue-950"
                         : "font-medium text-foreground"
                       : "text-foreground/90",
                     !showTimestamps && "pl-1",
                     canBookmark &&
                       segment.startSeconds != null &&
-                      (youtubeMobile ? "pr-[5.5rem]" : onBookmarkSegment && "pr-9 sm:pr-10"),
+                      (youtubeMobile ? "pr-10" : onBookmarkSegment && "pr-9 sm:pr-10"),
                   )}
                 >
                   <HighlightedText text={segment.text} query={search} />
@@ -602,9 +609,13 @@ export default function TranscriptPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-1.5 top-2 h-8 shrink-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    className={cn(
+                      "absolute right-2 top-2 h-8 w-8 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-blue-100/70 hover:text-blue-700",
+                      isActive && "bg-white/75 text-blue-700 shadow-sm hover:bg-white",
+                    )}
                     disabled={bookmarking}
                     aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
+                    title="Bookmark this line"
                     onClick={(e) => {
                       e.stopPropagation();
                       const snippet = segment.text.trim().slice(0, 120);
@@ -617,7 +628,6 @@ export default function TranscriptPanel({
                     }}
                   >
                     <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Bookmark
                   </Button>
                 ) : canBookmark && onBookmarkSegment && segment.startSeconds != null ? (
                   <Button
