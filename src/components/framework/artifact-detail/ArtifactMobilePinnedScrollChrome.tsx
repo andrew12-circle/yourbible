@@ -24,7 +24,7 @@ type Props = {
   insightExplorePanel?: ReactNode;
 };
 
-/** Title/channel scroll away; quick actions + Study/Transcript tabs stick under the fixed video. */
+/** Title/channel scroll away; quick actions + Study/Transcript tabs stay pinned under the fixed video. */
 export default function ArtifactMobilePinnedScrollChrome({
   displayTitle,
   channel,
@@ -82,7 +82,7 @@ export default function ArtifactMobilePinnedScrollChrome({
       <div
         ref={stickyChromeRef}
         className={cn(
-          "sticky z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
+          "fixed inset-x-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
           "top-[var(--artifact-mobile-video-h,56.25vw)]",
         )}
       >

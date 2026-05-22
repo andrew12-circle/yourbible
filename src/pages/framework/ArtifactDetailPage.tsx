@@ -49,7 +49,7 @@ import {
   artifactCard,
   artifactDesktopBodySheet,
   artifactMobileDockPadding,
-  artifactMobileVideoOnlyPadding,
+  artifactMobilePinnedHeaderPadding,
   artifactPremiumCard,
   artifactScrollMt,
   artifactStudyBodyMobile,
@@ -1487,7 +1487,7 @@ export default function ArtifactDetailPage() {
           className={cn(
             mobilePinnedPane
               ? cn(
-                  artifactMobileVideoOnlyPadding,
+                  artifactMobilePinnedHeaderPadding,
                   artifactMobileDockPadding,
                   "h-full min-h-0 w-full overflow-y-auto overscroll-contain",
                   mobileTab === "study" && "space-y-5 sm:space-y-6",
