@@ -1490,7 +1490,6 @@ export default function ArtifactDetailPage() {
                   artifactMobilePinnedHeaderPadding,
                   artifactMobileDockPadding,
                   "h-full min-h-0 w-full overflow-y-auto overscroll-contain",
-                  mobileTab === "study" && "space-y-5 sm:space-y-6",
                 )
               : "contents",
           )}

@@ -7,7 +7,7 @@ type Props = {
 };
 
 const triggerClass = cn(
-  "group inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border-0 px-2",
+  "group inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full border-0 px-2",
   "text-xs font-medium shadow-none transition-colors",
   "text-foreground/55 hover:text-foreground/80",
   "data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-foreground",
@@ -21,7 +21,7 @@ export default function ArtifactMobileSegmentedTabs({ className }: Props) {
   return (
     <TabsList
       className={cn(
-        "mx-3 mb-2 mt-1 grid h-11 w-[calc(100%-1.5rem)] grid-cols-3 gap-1 rounded-full",
+        "mx-3 my-1 grid h-10 w-[calc(100%-1.5rem)] grid-cols-3 gap-1 rounded-full",
         "border border-border/60 bg-muted p-1 text-foreground",
         className,
       )}
