@@ -21,7 +21,6 @@ import ArtifactDesktopOverview from "@/components/framework/artifact-detail/Arti
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
 import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
-import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import MobileAppDock from "@/components/navigation/MobileAppDock";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
@@ -343,6 +342,8 @@ export default function ArtifactDetailPage() {
     typeof window !== "undefined" ? window.location.hash : "",
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const floatingJournalOpen = useFloatingJournalStore((s) => s.panelOpen);
+  const toggleFloatingJournal = useFloatingJournalStore((s) => s.togglePanel);
   const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab } =
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
@@ -1224,8 +1225,7 @@ export default function ArtifactDetailPage() {
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
   const showMobileOverview = mobilePinnedPane && a.status === "ready";
-  const mobileTabBar = mobilePinnedPane ? <ArtifactMobileSegmentedTabs /> : null;
-
+  const mobileInsightExploreOpen = Boolean(mobilePinnedPane && mobileInsightExploreClaimId);
   const mobileInsightExplorePanel = (
     <ArtifactMobileInsightExploreSlot
       enabled={mobilePinnedPane && mobileTab === "study"}
@@ -1456,7 +1456,6 @@ export default function ArtifactDetailPage() {
             onStudyJournal={openStudyJournal}
             onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
             onOpenJournalFull={() => openJournalFromArtifact()}
-            mobileTabBar={stickyVideoMode ? mobileTabBar : undefined}
             mobileActiveTab={mobileTab}
             mobileMenuOpen={mobileMenuOpen}
             onMobileMenuOpenChange={stickyVideoMode ? setMobileMenuOpen : undefined}
@@ -1952,7 +1951,16 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {mobilePinnedPane ? <MobileAppDock /> : null}
+      {mobilePinnedPane && !mobileInsightExploreOpen ? (
+        <MobileAppDock
+          activeTab={mobileTab}
+          onStudyClick={openStudyTab}
+          onTranscriptClick={openTranscriptTab}
+          journalActive={floatingJournalOpen}
+          onJournalClick={toggleFloatingJournal}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
+      ) : null}
 
       <ArtifactDetailPageDialogs
         pasteOpen={pasteOpen}

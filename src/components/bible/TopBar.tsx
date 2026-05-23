@@ -125,7 +125,7 @@ export function TopBar({
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show header"
-          className="fixed top-0 left-1/2 -translate-x-1/2 z-30 mt-1 px-4 py-1 rounded-full bg-paper/60 backdrop-blur-sm text-leather/60 hover:text-leather hover:bg-paper/80 transition-all"
+          className="fixed left-1/2 top-[calc(var(--safe-area-inset-top)+0.25rem)] -translate-x-1/2 z-30 px-4 py-1 rounded-full bg-paper/60 backdrop-blur-sm text-leather/60 hover:text-leather hover:bg-paper/80 transition-all"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
@@ -136,7 +136,7 @@ export function TopBar({
           type="button"
           onClick={onToggleFocus}
           aria-label="Exit Secret Place"
-          className="fixed top-3 right-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-leather/90 px-3 py-1.5 text-xs text-paper shadow-md backdrop-blur-sm"
+          className="fixed right-4 top-[calc(var(--safe-area-inset-top)+0.75rem)] z-40 inline-flex items-center gap-1.5 rounded-full bg-leather/90 px-3 py-1.5 text-xs text-paper shadow-md backdrop-blur-sm"
         >
           <EyeOff className="w-3.5 h-3.5" aria-hidden />
           Exit Secret Place
@@ -168,7 +168,7 @@ export function TopBar({
       )}
 
       <header
-        className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 bg-paper/80 backdrop-blur-md border-b border-paper-edge ${
+        className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 bg-paper/80 backdrop-blur-md border-b border-paper-edge pt-[var(--safe-area-inset-top)] ${
           open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
         } ${singlePage ? "py-2" : "py-3"}`}
       >

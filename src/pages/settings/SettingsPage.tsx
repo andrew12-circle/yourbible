@@ -216,7 +216,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen app-mesh pb-20">
+    <div className="min-h-screen app-mesh pb-safe-20">
       <MarkerSvgFilter />
       <header className="sticky top-0 z-20 bg-paper/80 backdrop-blur-md border-b border-paper-edge">
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">

@@ -26,4 +26,10 @@ describe("computeToolbarPosition", () => {
     const { top } = computeToolbarPosition(rect, { ...base, dockBottom: true });
     expect(top).toBe(base.vh - 8 - 72);
   });
+
+  it("keeps the mobile dock above the iPhone home indicator area", () => {
+    const safeAreaBottom = 34;
+    const { top } = computeToolbarPosition(rect, { ...base, dockBottom: true, safeAreaBottom });
+    expect(top).toBe(base.vh - 8 - safeAreaBottom - 72);
+  });
 });

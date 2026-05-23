@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import { parseHomeLayoutMedia, resolveHomeMediaUrl } from "@/lib/profile/homeMedia";
+import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 const LAST_READ_KEY = "yb_last_read";
@@ -251,7 +252,7 @@ export default function HomePage() {
       const w = window.innerWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
       const pagerTop = pagerRef.current?.getBoundingClientRect().top ?? 0;
-      const availH = Math.max(160, vh - pagerTop - HOME_BOTTOM_CHROME_PX);
+      const availH = Math.max(160, vh - pagerTop - HOME_BOTTOM_CHROME_PX - readSafeAreaInsetBottom());
       setPageHeightPx(Math.floor(availH));
 
       const { cols, rowStride } = measureGrid(gridMeasureRef.current, w);
@@ -380,7 +381,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto pt-2 pb-40 sm:pb-32">
+      <div className="relative z-10 max-w-3xl mx-auto pt-2 pb-[calc(10rem+var(--safe-area-inset-bottom))] sm:pb-[calc(8rem+var(--safe-area-inset-bottom))]">
         {/* Lock-screen style date / greeting */}
         <div className="text-center mt-2 mb-3 sm:mb-4 px-4 sm:px-6">
           <p className="text-[13px] font-medium text-white/85 tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{fullDateStr}</p>

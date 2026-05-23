@@ -377,7 +377,7 @@ export default function LifeWeeksPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen app-mesh pb-16">
+    <div className="min-h-screen app-mesh pb-safe-16">
       <header className="sticky top-0 z-20 flex items-center gap-2 px-3 py-3 sm:px-4 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-1" aria-label="Back">
           <Link to="/home">

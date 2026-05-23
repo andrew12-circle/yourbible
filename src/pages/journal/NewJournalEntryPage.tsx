@@ -743,7 +743,7 @@ export default function NewJournalEntryPage() {
   return (
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
       {/* Day One style header */}
-      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60">
+      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[var(--safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
             type="button"

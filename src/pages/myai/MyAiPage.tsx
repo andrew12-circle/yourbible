@@ -604,7 +604,7 @@ export default function MyAiPage() {
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center gap-2 border-b border-border/80 px-2 py-2 sm:px-3">
+          <header className="flex shrink-0 items-center gap-2 border-b border-border/80 px-2 pb-2 pt-[calc(var(--safe-area-inset-top)+0.5rem)] sm:px-3">
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -694,7 +694,7 @@ export default function MyAiPage() {
             </Button>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-36 sm:px-5">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-safe-36 sm:px-5">
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />

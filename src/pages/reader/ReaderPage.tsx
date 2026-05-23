@@ -866,12 +866,12 @@ export default function ReaderPage() {
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className="fixed top-20 bottom-16 left-0 w-8 z-[5] opacity-0"
+        className="fixed top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0"
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className="fixed top-20 bottom-16 right-0 w-8 z-[5] opacity-0"
+        className="fixed top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0"
       />
 
       {/* Headless paginator — measures and reports splits */}
@@ -901,7 +901,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             onClick={() => setFocusMode(false)}
-            className="fixed bottom-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur shadow-md"
+            className="fixed bottom-safe-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur shadow-md"
           >
             Secret Place — tap to leave
           </motion.button>

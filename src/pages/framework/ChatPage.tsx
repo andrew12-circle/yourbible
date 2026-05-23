@@ -445,7 +445,7 @@ export default function ChatPage() {
             </DropdownMenu>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-36 sm:px-5">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-safe-36 sm:px-5">
             {loadingMessages && activeId && (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />

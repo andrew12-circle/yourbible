@@ -1,4 +1,4 @@
-import { FileText, ListOrdered, Menu, RefreshCw, ScrollText, Sparkles } from "lucide-react";
+import { Bookmark, FileText, ListOrdered, Menu, RefreshCw, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
@@ -23,6 +23,7 @@ type Props = {
   triggerClassName?: string;
   canCapture?: boolean;
   captureSaving?: boolean;
+  onBookmark?: () => void;
   onBelieve?: () => void;
   onStudyJournal?: () => void;
   onOpenJournalTimestamp?: () => void;
@@ -47,13 +48,14 @@ export default function ArtifactMobileMenu({
   triggerClassName,
   canCapture = true,
   captureSaving = false,
+  onBookmark,
   onBelieve,
   onStudyJournal,
   onOpenJournalTimestamp,
   onOpenJournalFull,
 }: Props) {
   const showCaptureActions = Boolean(
-    onBelieve || onStudyJournal || onOpenJournalTimestamp || onOpenJournalFull,
+    onBookmark || onBelieve || onStudyJournal || onOpenJournalTimestamp || onOpenJournalFull,
   );
   const resolvedHash = sections.some((s) => s.hash === activeHash) ? activeHash : sections[0]?.hash;
 
@@ -137,6 +139,19 @@ export default function ArtifactMobileMenu({
                 Capture
               </p>
               <ul className="space-y-0.5">
+                {onBookmark ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
+                      disabled={!canCapture || captureSaving}
+                      onClick={() => run(onBookmark)}
+                    >
+                      <Bookmark className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      Bookmark current moment
+                    </button>
+                  </li>
+                ) : null}
                 {onBelieve ? (
                   <li>
                     <button

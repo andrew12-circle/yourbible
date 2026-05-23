@@ -86,7 +86,7 @@ export function CompanionPane() {
     return (
       <button
         onClick={() => setMinimized(false)}
-        className="fixed bottom-5 right-5 z-[60] bg-leather text-paper rounded-full shadow-leather px-4 py-2.5 flex items-center gap-2 text-sm font-medium hover:scale-105 transition"
+        className="fixed bottom-[calc(var(--safe-area-inset-bottom)+1.25rem)] right-5 z-[60] bg-leather text-paper rounded-full shadow-leather px-4 py-2.5 flex items-center gap-2 text-sm font-medium hover:scale-105 transition"
       >
         <NotebookPen className="w-4 h-4" />
         {scope ? scopeRef(scope) : "Companion"}
@@ -98,7 +98,15 @@ export function CompanionPane() {
 
   // Mobile: bottom sheet
   const style: React.CSSProperties = isMobile
-    ? { left: 0, right: 0, bottom: 0, top: "auto", width: "100%", height: "78vh", borderRadius: "20px 20px 0 0" }
+    ? {
+        left: 0,
+        right: 0,
+        bottom: "var(--safe-area-inset-bottom)",
+        top: "auto",
+        width: "100%",
+        height: "min(78vh, calc(100dvh - var(--safe-area-inset-bottom)))",
+        borderRadius: "20px 20px 0 0",
+      }
     : { left: pos.x, top: pos.y, width: pos.w, height: pos.h };
 
   return (
