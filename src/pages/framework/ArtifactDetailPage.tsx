@@ -1471,7 +1471,6 @@ export default function ArtifactDetailPage() {
             onMenuPaste={() => setPasteOpen(true)}
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
-            onResearchLaterCurrentMoment={() => void researchLaterTranscriptSegment(getCurrentPlaybackSeconds(), "Current playhead")}
             backTo="/framework/artifacts"
             mobileChromeHost={mobileChromeHost}
           />
@@ -1954,6 +1953,9 @@ export default function ArtifactDetailPage() {
 
       {mobilePinnedPane && !mobileInsightExploreOpen ? (
         <MobileAppDock
+          activeTab={mobileTab}
+          onStudyClick={openStudyTab}
+          onTranscriptClick={openTranscriptTab}
           journalActive={floatingJournalOpen}
           onJournalClick={toggleFloatingJournal}
           onMenuClick={() => setMobileMenuOpen(true)}

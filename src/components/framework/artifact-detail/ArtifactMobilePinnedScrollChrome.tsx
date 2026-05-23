@@ -1,8 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { Bookmark } from "lucide-react";
-import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
 import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -13,9 +10,6 @@ type Props = {
   thumbnailUrl?: string | null;
   youTubeVideoId: string;
   backTo?: string;
-  canCaptureMoments: boolean;
-  savingMoment: boolean;
-  onOpenBookmarkMenu: () => void;
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
   insightExplorePanel?: ReactNode;
 };
@@ -29,9 +23,6 @@ export default function ArtifactMobilePinnedScrollChrome({
   thumbnailUrl,
   youTubeVideoId,
   backTo = "/framework/artifacts",
-  canCaptureMoments,
-  savingMoment,
-  onOpenBookmarkMenu,
   insightExplorePanel,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
@@ -69,34 +60,19 @@ export default function ArtifactMobilePinnedScrollChrome({
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
       />
-      <div
-        ref={stickyChromeRef}
-        className={cn(
-          "fixed inset-x-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
-          "top-[var(--artifact-mobile-video-h,56.25vw)]",
-          insightExplorePanel && "bottom-0",
-        )}
-      >
-        {insightExplorePanel ? (
-          insightExplorePanel
-        ) : (
-          <ArtifactMobileSegmentedTabs
-            trailing={
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 shrink-0 rounded-full border-border/60 bg-muted text-foreground/70 shadow-none hover:text-foreground"
-                disabled={!canCaptureMoments || savingMoment}
-                onClick={onOpenBookmarkMenu}
-                aria-label="Bookmark current moment"
-              >
-                <Bookmark className="h-4 w-4" aria-hidden />
-              </Button>
-            }
-          />
-        )}
-      </div>
+      {insightExplorePanel ? (
+        <div
+          ref={stickyChromeRef}
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
+            "top-[var(--artifact-mobile-video-h,56.25vw)]",
+          )}
+        >
+          {insightExplorePanel}
+        </div>
+      ) : (
+        <div ref={stickyChromeRef} className="hidden" />
+      )}
     </div>
   );
 }
