@@ -65,7 +65,90 @@ export type RenderClaimCardContext = {
   layout?: "stack" | "desktopRail" | "mobileRail";
   activeClaimId?: string | null;
   followPlaybackActive?: boolean;
+  actionsPlacement?: "inline" | "external";
 };
+
+type RenderClaimActionsOptions = {
+  bordered?: boolean;
+  wrap?: boolean;
+  showSeparator?: boolean;
+  className?: string;
+};
+
+export function renderArtifactDetailClaimActions(
+  c: RenderClaimCardClaim,
+  ctx: RenderClaimCardContext,
+  options: RenderClaimActionsOptions = {},
+) {
+  const source = ctx.claimSources[c.id];
+  const railLayout = ctx.layout === "desktopRail" || ctx.layout === "mobileRail";
+  const bordered = options.bordered ?? !railLayout;
+  const wrap = options.wrap ?? true;
+  const showSeparator = options.showSeparator ?? true;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        wrap ? "flex-wrap" : "flex-nowrap",
+        bordered && "border-t border-border/50 pt-3",
+        options.className,
+      )}
+      role="toolbar"
+      aria-label="Claim actions"
+    >
+      <ClaimIconActionButton
+        label="Research"
+        icon={MessageCircle}
+        tone="research"
+        active
+        onClick={() => ctx.startClaimResearchChat(c, source)}
+      />
+      <ClaimIconActionButton
+        label="Reflect"
+        icon={NotebookPen}
+        tone="reflect"
+        onClick={() => ctx.openJournalFromClaim(c, source?.startSeconds ?? undefined)}
+      />
+      <ClaimIconActionButton
+        label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
+        icon={Clock}
+        tone="researchLater"
+        active={isDeferredVerdict(c.verdict)}
+        onClick={() => void ctx.toggleResearchLater(c.id, c.verdict)}
+      />
+      {showSeparator ? <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden /> : null}
+      <ClaimIconActionButton
+        label="Keep"
+        icon={Check}
+        tone="keep"
+        active={c.verdict === "keep"}
+        onClick={() => void ctx.applyClaimVerdict(c.id, "keep")}
+      />
+      <ClaimIconActionButton
+        label="Reject"
+        icon={X}
+        tone="reject"
+        active={c.verdict === "reject"}
+        onClick={() => void ctx.applyClaimVerdict(c.id, "reject")}
+      />
+      <ClaimIconActionButton
+        label="Update my belief"
+        icon={Pencil}
+        tone="update"
+        active={c.verdict === "updated"}
+        onClick={() => void ctx.applyClaimVerdict(c.id, "updated")}
+      />
+      <ClaimIconActionButton
+        label="Defer"
+        icon={CirclePause}
+        tone="defer"
+        active={c.verdict === "defer"}
+        onClick={() => void ctx.applyClaimVerdict(c.id, "defer")}
+      />
+    </div>
+  );
+}
 
 export function renderArtifactDetailClaimCard(
   c: RenderClaimCardClaim,
@@ -98,66 +181,8 @@ export function renderArtifactDetailClaimCard(
             ? "border-l-amber-500"
             : "border-l-border";
 
-  const claimToolbar = (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-1",
-        !railLayout && "border-t border-border/50 pt-3",
-      )}
-      role="toolbar"
-      aria-label="Claim actions"
-    >
-      <ClaimIconActionButton
-        label="Research"
-        icon={MessageCircle}
-        tone="research"
-        active
-        onClick={() => ctx.startClaimResearchChat(c, source)}
-      />
-      <ClaimIconActionButton
-        label="Reflect"
-        icon={NotebookPen}
-        tone="reflect"
-        onClick={() => ctx.openJournalFromClaim(c, source?.startSeconds ?? undefined)}
-      />
-      <ClaimIconActionButton
-        label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
-        icon={Clock}
-        tone="researchLater"
-        active={isDeferredVerdict(c.verdict)}
-        onClick={() => void ctx.toggleResearchLater(c.id, c.verdict)}
-      />
-      <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden />
-      <ClaimIconActionButton
-        label="Keep"
-        icon={Check}
-        tone="keep"
-        active={c.verdict === "keep"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "keep")}
-      />
-      <ClaimIconActionButton
-        label="Reject"
-        icon={X}
-        tone="reject"
-        active={c.verdict === "reject"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "reject")}
-      />
-      <ClaimIconActionButton
-        label="Update my belief"
-        icon={Pencil}
-        tone="update"
-        active={c.verdict === "updated"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "updated")}
-      />
-      <ClaimIconActionButton
-        label="Defer"
-        icon={CirclePause}
-        tone="defer"
-        active={c.verdict === "defer"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "defer")}
-      />
-    </div>
-  );
+  const claimToolbar =
+    ctx.actionsPlacement === "external" ? null : renderArtifactDetailClaimActions(c, ctx);
 
   const sourceSection = (
     <div

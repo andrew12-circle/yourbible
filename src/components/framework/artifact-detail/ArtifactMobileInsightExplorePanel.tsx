@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  renderArtifactDetailClaimActions,
   renderArtifactDetailClaimCard,
   type RenderClaimCardClaim,
   type RenderClaimCardContext,
@@ -24,11 +25,20 @@ export default function ArtifactMobileInsightExplorePanel({
   className,
 }: Props) {
   const accent = artifactMobileInsightHeroAccent(claimIndex);
-  const card = renderArtifactDetailClaimCard(claim, claimIndex, {
+  const detailContext: RenderClaimCardContext = {
     ...claimCardContext,
     layout: "stack",
     activeClaimId: claim.id,
+    actionsPlacement: "external",
+  };
+  const actions = renderArtifactDetailClaimActions(claim, detailContext, {
+    bordered: false,
+    wrap: false,
+    showSeparator: false,
+    className:
+      "min-w-0 flex-1 justify-end overflow-x-auto overscroll-x-contain pb-0.5 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
   });
+  const card = renderArtifactDetailClaimCard(claim, claimIndex, detailContext);
 
   return (
     <section
@@ -40,13 +50,15 @@ export default function ArtifactMobileInsightExplorePanel({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 px-2 text-xs font-medium text-foreground"
+          className="h-8 shrink-0 gap-1.5 px-2 text-xs font-medium text-foreground"
           onClick={onBack}
+          aria-label="Back to study"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          Back to insights
+          Back
         </Button>
-        <span className={cn("ml-auto font-display text-lg font-semibold tabular-nums", accent.number)}>
+        {actions}
+        <span className={cn("shrink-0 font-display text-lg font-semibold tabular-nums", accent.number)}>
           {claimIndex + 1}
         </span>
       </div>
