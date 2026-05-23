@@ -643,12 +643,12 @@ export default function ArtifactDetailPage() {
     if (a.kind === "youtube" && youtubeChaptersList.length === 0) {
       sections.push({ id: "teachings", hash: "#study-spine-teachings", label: "Teachings" });
     }
-    if (claims.length > 0) {
+    const pinnedMobileYoutube =
+      !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
+    if (claims.length > 0 && !pinnedMobileYoutube) {
       sections.push({ id: "claims", hash: "#claims", label: "Claims" });
       sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
     }
-    const pinnedMobileYoutube =
-      !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
     if (youTubeVideoId) {
       sections.push(
         pinnedMobileYoutube
@@ -1814,11 +1814,11 @@ export default function ArtifactDetailPage() {
         </details>
       )}
 
-      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube ? (
+      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
-          title={showMobileOverview ? "Review claims" : "Claims"}
+          title="Claims"
           count={claims.length}
           countLabel={`${claims.length} insights`}
           description={
@@ -1876,9 +1876,6 @@ export default function ArtifactDetailPage() {
             onTogglePlayback={togglePlayback}
             scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : isDesktop ? mainScrollRef : undefined}
             pinnedVideoPane={mobilePinnedPane}
-            hideMobileInsightPreview={showMobileOverview}
-            hideStudySectionHeader={showMobileOverview && Boolean(youTubeVideoId)}
-            sectionTitle={showMobileOverview ? "Review claims" : undefined}
           />
         </ArtifactCollapsibleSection>
       ) : null}

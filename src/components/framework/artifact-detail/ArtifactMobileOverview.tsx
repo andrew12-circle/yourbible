@@ -117,8 +117,6 @@ export default function ArtifactMobileOverview({
             title="Key insights"
             count={claimsCount}
             countLabel={`${claimsCount} insights`}
-            actionLabel="View all"
-            onAction={() => onNavigate("#claims")}
           />
           <ArtifactMobileInsightHeroRail
             claims={claims}
