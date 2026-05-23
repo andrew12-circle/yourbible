@@ -20,13 +20,19 @@ import { BOOKS, BibleBook } from "@/data/books";
 import { useEffect, useState } from "react";
 
 type PickerStep = "book" | "chapter" | "verse";
+type PickerIntent = "reference" | "book" | "chapter";
+type PickerInitialStep = Exclude<PickerStep, "verse">;
 export type ReaderMenuPanel = "nav" | "settings";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When the sheet opens, start on this panel (e.g. footer book name → settings). */
+  /** When the sheet opens, start on this panel. */
   initialPanel?: ReaderMenuPanel;
+  /** When the navigation sheet opens from page chrome, start at book or chapter. */
+  initialStep?: PickerInitialStep;
+  /** Controls whether picking a chapter jumps immediately or drills down to verses. */
+  initialIntent?: PickerIntent;
   reference: string;
   currentBook: BibleBook;
   currentChapter: number;
@@ -59,9 +65,12 @@ export function ReaderMobileMenu({
   focusMode,
   onToggleFocus,
   initialPanel = "nav",
+  initialStep = "book",
+  initialIntent = "reference",
 }: Props) {
   const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
   const [step, setStep] = useState<PickerStep>("book");
+  const [pickerIntent, setPickerIntent] = useState<PickerIntent>("reference");
   const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
   const [pickedChapter, setPickedChapter] = useState(currentChapter ?? 1);
   const [verseInput, setVerseInput] = useState("");
@@ -69,15 +78,21 @@ export function ReaderMobileMenu({
   useEffect(() => {
     if (!open) return;
     setPanel(initialPanel);
-    setStep("book");
+    setStep(initialStep);
+    setPickerIntent(initialIntent);
     setPickedBook(currentBook);
     setPickedChapter(currentChapter);
     setVerseInput("");
-  }, [open, initialPanel, currentBook, currentChapter]);
+  }, [open, initialPanel, initialStep, initialIntent, currentBook, currentChapter]);
 
   const pickBook = (b: BibleBook) => {
     setPickedBook(b);
     if (b.chapters === 1) {
+      if (pickerIntent !== "reference") {
+        onJumpTo(b, 1);
+        onOpenChange(false);
+        return;
+      }
       setPickedChapter(1);
       setStep("verse");
     } else {
@@ -87,6 +102,11 @@ export function ReaderMobileMenu({
 
   const pickChapter = (c: number) => {
     setPickedChapter(c);
+    if (pickerIntent !== "reference") {
+      onJumpTo(pickedBook, c);
+      onOpenChange(false);
+      return;
+    }
     setStep("verse");
   };
 
