@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ArtifactMobileInsightExplorePanel from "./ArtifactMobileInsightExplorePanel";
 import type {
   RenderClaimCardClaim,
@@ -44,12 +46,16 @@ describe("ArtifactMobileInsightExplorePanel", () => {
   it("uses one top header row for back navigation and claim actions", () => {
     const onBack = vi.fn();
     render(
-      <ArtifactMobileInsightExplorePanel
-        claim={claim}
-        claimIndex={1}
-        claimCardContext={claimCardContext}
-        onBack={onBack}
-      />,
+      <MemoryRouter>
+        <TooltipProvider>
+          <ArtifactMobileInsightExplorePanel
+            claim={claim}
+            claimIndex={1}
+            claimCardContext={claimCardContext}
+            onBack={onBack}
+          />
+        </TooltipProvider>
+      </MemoryRouter>,
     );
 
     const backButton = screen.getByRole("button", { name: "Back to study" });
