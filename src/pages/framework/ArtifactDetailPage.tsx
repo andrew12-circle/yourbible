@@ -1467,7 +1467,7 @@ export default function ArtifactDetailPage() {
             onMenuNavigateSection={navigateToArtifactHash}
             onMenuOpenTranscript={openTranscriptTab}
             onOpenNotesTab={openNotesTabWithNote}
-            insightExplorePanel={mobileInsightExplorePanel}
+            insightExplorePanel={mobileInsightExploreOpen ? mobileInsightExplorePanel : null}
             onMenuPaste={() => setPasteOpen(true)}
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
