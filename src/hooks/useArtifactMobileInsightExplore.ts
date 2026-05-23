@@ -8,7 +8,12 @@ export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab) {
     if (mobileTab !== "study") setClaimId(null);
   }, [mobileTab]);
 
-  const closeMobileInsightExplore = useCallback(() => setClaimId(null), []);
+  const closeMobileInsightExplore = useCallback(() => {
+    setClaimId(null);
+    window.requestAnimationFrame(() => {
+      document.getElementById("overview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   return { mobileInsightExploreClaimId: claimId, setMobileInsightExploreClaimId: setClaimId, closeMobileInsightExplore };
 }
