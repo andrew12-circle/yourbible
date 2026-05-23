@@ -82,6 +82,7 @@ type Props = {
   onOpenNotesTab?: () => void;
   /** Key insights tap-to-explore panel (below tabs). */
   insightExplorePanel?: ReactNode;
+  insightExploreOpen?: boolean;
   /** Desktop premium: player fills the cinematic hero (not a separate card). */
   heroEmbed?: boolean;
 };
@@ -130,6 +131,7 @@ function ArtifactYoutubeVideoBlock({
   mobileChromeHost = null,
   onOpenNotesTab,
   insightExplorePanel,
+  insightExploreOpen = false,
   heroEmbed = false,
 }: Props) {
   const layoutMode = useArtifactLayoutMode();
@@ -229,6 +231,7 @@ function ArtifactYoutubeVideoBlock({
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
         insightExplorePanel={insightExplorePanel}
+        insightExploreOpen={insightExploreOpen}
       />
     ) : null;
 
