@@ -85,10 +85,12 @@ type RenderClaimActionsOptions = {
 
 function formatClaimChipLabel(value: string) {
   return value
-    .replace(/[_-]+/g, " ")
+    .replace(/_/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .split(/(\s+|-)/)
+    .map((part) => (part === "-" || /^\s+$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join("");
 }
 
 function getDoctrineChipIcon(tag: string): LucideIcon {
