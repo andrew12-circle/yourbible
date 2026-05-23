@@ -12,6 +12,7 @@ type Props = {
   backTo?: string;
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
   insightExplorePanel?: ReactNode;
+  insightExploreOpen?: boolean;
 };
 
 /** Title/channel scroll away; quick actions + Study/Transcript tabs stay pinned under the fixed video. */
@@ -24,6 +25,7 @@ export default function ArtifactMobilePinnedScrollChrome({
   youTubeVideoId,
   backTo = "/framework/artifacts",
   insightExplorePanel,
+  insightExploreOpen = false,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,7 +62,7 @@ export default function ArtifactMobilePinnedScrollChrome({
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
       />
-      {insightExplorePanel ? (
+      {insightExploreOpen && insightExplorePanel ? (
         <div
           ref={stickyChromeRef}
           className={cn(
