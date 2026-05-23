@@ -1,12 +1,20 @@
 import {
   ArrowRight,
+  Brain,
   Check,
   CirclePause,
   Clock,
+  Leaf,
   MessageCircle,
   NotebookPen,
   Pencil,
+  Play,
   Quote,
+  Sparkles,
+  Star,
+  TriangleAlert,
+  type LucideIcon,
+  Zap,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -74,6 +82,23 @@ type RenderClaimActionsOptions = {
   showSeparator?: boolean;
   className?: string;
 };
+
+function formatClaimChipLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(\s+|-)/)
+    .map((part) => (part === "-" || /^\s+$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join("");
+}
+
+function getDoctrineChipIcon(tag: string): LucideIcon {
+  const normalized = tag.toLowerCase();
+  if (normalized.includes("mind") || normalized.includes("body")) return Brain;
+  if (normalized.includes("sanct")) return Leaf;
+  return Sparkles;
+}
 
 export function renderArtifactDetailClaimActions(
   c: RenderClaimCardClaim,
@@ -187,97 +212,113 @@ export function renderArtifactDetailClaimCard(
   const sourceSection = (
     <div
       className={cn(
-        "rounded-xl border border-border/60 bg-muted/15 p-3.5 text-xs sm:p-4",
-        railLayout && "bg-white",
+        "rounded-[1.65rem] border border-white/70 bg-white/85 p-4 text-xs shadow-[0_18px_50px_rgba(15,23,42,0.10)] ring-1 ring-black/[0.03] sm:p-5",
+        "dark:border-border/50 dark:bg-card/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
+        railLayout && "bg-white p-4 shadow-[0_12px_36px_rgba(15,23,42,0.08)]",
       )}
     >
-      <div className="mb-2.5 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        <Quote className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+      <div className="mb-4 flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 shadow-inner dark:bg-slate-800 dark:text-slate-300">
+          <Quote className="h-4 w-4" aria-hidden />
+        </span>
         Source in transcript
       </div>
-        {source ? (
-          <div className="space-y-3">
-            <button
-              type="button"
-              disabled={!canPlayClaim && source.startSeconds == null}
-              onClick={() => ctx.playClaimAtSource(c, source)}
-              className={cn(
-                "w-full space-y-3 rounded-md text-left transition-colors",
-                (canPlayClaim || source.startSeconds != null) &&
-                  "cursor-pointer hover:bg-muted/40 -mx-1 px-1 py-0.5",
-              )}
-            >
-              {sourceClock ? (
-                <p className="font-mono text-sm font-medium tabular-nums tracking-tight text-foreground/90">
-                  [{sourceClock}]
-                </p>
-              ) : null}
-              {sourceQuote ? (
-                <p
-                  className={cn(
-                    "font-sans text-sm leading-relaxed text-foreground",
-                    railLayout ? "line-clamp-6" : "line-clamp-4",
-                  )}
-                >
-                  {sourceQuote}
-                </p>
-              ) : (
-                <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
-                  Transcript excerpt unavailable.
-                </p>
-              )}
-            </button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-0.5 h-8 rounded-full border-border/70 bg-white px-4 text-xs font-medium shadow-sm hover:bg-muted/30"
-              disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
-              onClick={() => ctx.playClaimAtSource(c, source)}
-            >
-              {canPlayClaim && (sourceClock || chapterClock)
-                ? `Play from ${sourceClock ?? chapterClock}`
-                : source.label
-                  ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
-                  : "Jump to transcript"}
-            </Button>
-          </div>
-        ) : canPlayClaim ? (
-          <div className="space-y-3">
-            <p className="font-sans text-sm leading-relaxed text-muted-foreground">
-              No linked transcript line — playback uses the chapter time for this claim.
-            </p>
-            <Button size="sm" variant="outline" className="mt-0.5" onClick={() => ctx.playClaimAtSource(c, source)}>
-              {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
-            </Button>
-          </div>
-        ) : (
+      {source ? (
+        <div className="space-y-4">
+          <button
+            type="button"
+            disabled={!canPlayClaim && source.startSeconds == null}
+            onClick={() => ctx.playClaimAtSource(c, source)}
+            className={cn(
+              "w-full space-y-3.5 rounded-2xl text-left transition-colors",
+              (canPlayClaim || source.startSeconds != null) &&
+                "cursor-pointer hover:bg-slate-50/80 -mx-2 px-2 py-1 dark:hover:bg-slate-900/35",
+            )}
+          >
+            {sourceClock ? (
+              <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
+                [{sourceClock}]
+              </p>
+            ) : null}
+            {sourceQuote ? (
+              <p
+                className={cn(
+                  "font-sans text-[15px] leading-8 text-foreground sm:text-base",
+                  railLayout ? "line-clamp-6" : "line-clamp-5",
+                )}
+              >
+                {sourceQuote}
+              </p>
+            ) : (
+              <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
+                Transcript excerpt unavailable.
+              </p>
+            )}
+          </button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800 dark:border-border/60 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-950/30"
+            disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
+            onClick={() => ctx.playClaimAtSource(c, source)}
+          >
+            <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
+            {canPlayClaim && (sourceClock || chapterClock)
+              ? `Play from ${sourceClock ?? chapterClock}`
+              : source.label
+                ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
+                : "Jump to transcript"}
+          </Button>
+        </div>
+      ) : canPlayClaim ? (
+        <div className="space-y-3">
           <p className="font-sans text-sm leading-relaxed text-muted-foreground">
-            No exact transcript section was detected for this older analysis. Re-analyze after the timestamped
-            transcript update for stronger source links.
+            No linked transcript line — playback uses the chapter time for this claim.
           </p>
-        )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800"
+            onClick={() => ctx.playClaimAtSource(c, source)}
+          >
+            <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
+            {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
+          </Button>
+        </div>
+      ) : (
+        <p className="font-sans text-sm leading-relaxed text-muted-foreground">
+          No exact transcript section was detected for this older analysis. Re-analyze after the timestamped
+          transcript update for stronger source links.
+        </p>
+      )}
     </div>
   );
 
   const tagsSection = (
-    <div className="flex flex-wrap gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+    <div className="flex flex-wrap gap-2.5 text-sm font-medium">
       {c.tone ? (
-        <span className="rounded-md border border-border/60 bg-white px-2 py-0.5 text-muted-foreground">
-          tone: {c.tone}
+        <span className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/90 px-3.5 py-2 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]">
+          <Zap className="h-4 w-4 text-rose-500" aria-hidden />
+          Tone: {formatClaimChipLabel(c.tone)}
         </span>
       ) : null}
-      {(c.doctrine_tags ?? []).map((t) => (
-        <span
-          key={t}
-          className="rounded-md border border-border/60 bg-white px-2 py-0.5 text-muted-foreground"
-        >
-          {t}
-        </span>
-      ))}
+      {(c.doctrine_tags ?? []).map((t) => {
+        const DoctrineIcon = getDoctrineChipIcon(t);
+        const doctrineTone = DoctrineIcon === Leaf ? "text-emerald-600" : "text-blue-600";
+        return (
+          <span
+            key={t}
+            className="inline-flex items-center gap-2 rounded-full border border-border/45 bg-white/90 px-3.5 py-2 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]"
+          >
+            <DoctrineIcon className={cn("h-4 w-4", doctrineTone)} aria-hidden />
+            {formatClaimChipLabel(t)}
+          </span>
+        );
+      })}
       {c.match_relation ? (
         <span
           className={cn(
-            "rounded-md border px-2 py-0.5",
+            "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]",
             c.match_relation === "agree"
               ? "border-emerald-200/80 bg-emerald-50 text-emerald-800"
               : c.match_relation === "disagree"
@@ -285,15 +326,19 @@ export function renderArtifactDetailClaimCard(
                 : "border-amber-200/80 bg-amber-50 text-amber-900",
           )}
         >
-          {c.match_relation === "new" ? "new to your framework" : `you ${c.match_relation}`}
+          <Star className="h-4 w-4" aria-hidden />
+          {c.match_relation === "new"
+            ? "New to Your Framework"
+            : `You ${formatClaimChipLabel(c.match_relation)}`}
         </span>
       ) : null}
       {(c.bias_flags ?? []).map((f) => (
         <span
           key={f}
-          className="rounded-md border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-amber-900"
+          className="inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-amber-50 px-3.5 py-2 text-amber-900 shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]"
         >
-          ⚠ {f}
+          <TriangleAlert className="h-4 w-4" aria-hidden />
+          {formatClaimChipLabel(f)}
         </span>
       ))}
     </div>
@@ -326,9 +371,9 @@ export function renderArtifactDetailClaimCard(
     ) : null;
 
   const scriptureSection = (
-    <div className={cn("grid grid-cols-2 gap-3 text-xs", railLayout && "gap-3")}>
-      <div className="space-y-2 min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+    <div className={cn("grid grid-cols-2 gap-4 text-xs", railLayout && "gap-3")}>
+      <div className="min-w-0 space-y-3">
+        <div className="font-display text-lg font-semibold tracking-tight text-foreground">
           Supports
         </div>
         <ul className="space-y-2">
@@ -342,12 +387,14 @@ export function renderArtifactDetailClaimCard(
               />
             ))
           ) : (
-            <li className="text-sm text-muted-foreground">—</li>
+            <li className="rounded-2xl border border-dashed border-border/60 bg-white/60 px-3 py-4 text-sm text-muted-foreground">
+              No supporting references yet.
+            </li>
           )}
         </ul>
       </div>
-      <div className="space-y-2 min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="min-w-0 space-y-3">
+        <div className="font-display text-lg font-semibold tracking-tight text-foreground">
           Challenges
         </div>
         <ul className="space-y-2">
@@ -361,7 +408,9 @@ export function renderArtifactDetailClaimCard(
               />
             ))
           ) : (
-            <li className="text-sm text-muted-foreground">—</li>
+            <li className="rounded-2xl border border-dashed border-border/60 bg-white/60 px-3 py-4 text-sm text-muted-foreground">
+              No challenging references yet.
+            </li>
           )}
         </ul>
       </div>
@@ -374,10 +423,9 @@ export function renderArtifactDetailClaimCard(
       {tagsSection}
       {beliefSection}
       <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
-          {railLayout ||
-          (c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
-            ? scriptureSection
-            : null}
+      {railLayout || (c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
+        ? scriptureSection
+        : null}
       {claimToolbar}
     </>
   );
