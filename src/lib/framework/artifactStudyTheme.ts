@@ -67,7 +67,7 @@ export const artifactInsightPreviewCard = cn(
 
 /** Mobile Key insights hero — dark gradient quote cards (mockup). */
 export const artifactMobileInsightHeroCard = cn(
-  "flex min-h-[300px] w-full shrink-0 snap-start flex-col justify-between rounded-3xl p-5 text-left sm:p-6",
+  "flex min-h-[300px] w-full shrink-0 flex-col justify-between rounded-3xl p-5 text-left sm:p-6",
   "border border-white/10 bg-gradient-to-br from-stone-900 via-stone-950 to-black",
   "shadow-[0_12px_48px_rgba(0,0,0,0.35)] transition active:scale-[0.99]",
 );
