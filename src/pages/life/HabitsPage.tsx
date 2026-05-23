@@ -246,7 +246,7 @@ export default function HabitsPage() {
           : null;
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-24">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-safe-24">
       <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link to="/home" aria-label="Back to home">

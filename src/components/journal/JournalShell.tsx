@@ -183,7 +183,7 @@ export default function JournalShell({
               </div>
             }
           />
-          <main className="pb-32">{children}</main>
+          <main className="pb-[calc(8rem+var(--safe-area-inset-bottom))]">{children}</main>
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export default function JournalShell({
               `/journal/new${journalId ? `?journalId=${journalId}` : ""}`,
           )
         }
-        className="fixed bottom-7 right-7 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40"
+        className="fixed bottom-[calc(var(--safe-area-inset-bottom)+1.75rem)] right-7 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40"
         style={{ background: fabColor, boxShadow: `0 12px 28px -8px ${fabColor}` }}
         aria-label="New entry"
       >

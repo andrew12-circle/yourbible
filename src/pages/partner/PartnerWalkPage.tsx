@@ -106,7 +106,7 @@ export default function PartnerWalkPage() {
 
   if (conns.length === 0) {
     return (
-      <div className="min-h-screen app-mesh pb-16">
+      <div className="min-h-screen app-mesh pb-safe-16">
         <div className="max-w-lg mx-auto px-5 pt-10 space-y-6">
           <div className="text-center space-y-2">
             <HeartHandshake className="w-10 h-10 mx-auto text-rose-400" />
@@ -125,7 +125,7 @@ export default function PartnerWalkPage() {
   }
 
   return (
-    <div className="min-h-screen app-mesh pb-20">
+    <div className="min-h-screen app-mesh pb-safe-20">
       <div className="max-w-lg mx-auto px-5 pt-8 space-y-6">
         {conns.map((c) => {
           const peer = peerByConn.get(c.id);
