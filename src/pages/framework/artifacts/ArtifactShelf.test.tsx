@@ -32,4 +32,23 @@ describe("ArtifactShelf", () => {
 
     expect(screen.getByRole("list")).toHaveClass("overflow-x-auto", "touch-pan-x", "[-webkit-overflow-scrolling:touch]");
   });
+
+  it("prevents tile links from taking over horizontal drag gestures", () => {
+    render(
+      <MemoryRouter>
+        <ArtifactShelf
+          shelfKey="recent"
+          title="Recently added"
+          rows={rows}
+          deletingId={null}
+          onDelete={() => {}}
+          onRename={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    const firstTileLink = screen.getByRole("link", { name: "Open Artifact 1" });
+    expect(firstTileLink).toHaveClass("touch-pan-x");
+    expect(firstTileLink).toHaveAttribute("draggable", "false");
+  });
 });
