@@ -1223,6 +1223,7 @@ export default function ArtifactDetailPage() {
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
   const showMobileOverview = mobilePinnedPane && a.status === "ready";
+  const mobileInsightExploreOpen = Boolean(mobilePinnedPane && mobileInsightExploreClaimId);
   const mobileInsightExplorePanel = (
     <ArtifactMobileInsightExploreSlot
       enabled={mobilePinnedPane && mobileTab === "study"}
@@ -1949,7 +1950,9 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {mobilePinnedPane ? <MobileAppDock onMenuClick={() => setMobileMenuOpen(true)} /> : null}
+      {mobilePinnedPane && !mobileInsightExploreOpen ? (
+        <MobileAppDock onMenuClick={() => setMobileMenuOpen(true)} />
+      ) : null}
 
       <ArtifactDetailPageDialogs
         pasteOpen={pasteOpen}

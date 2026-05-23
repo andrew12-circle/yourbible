@@ -74,24 +74,28 @@ export default function ArtifactMobilePinnedScrollChrome({
         className={cn(
           "fixed inset-x-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
           "top-[var(--artifact-mobile-video-h,56.25vw)]",
+          insightExplorePanel && "bottom-0",
         )}
       >
-        <ArtifactMobileSegmentedTabs
-          trailing={
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-full border-border/60 bg-muted text-foreground/70 shadow-none hover:text-foreground"
-              disabled={!canCaptureMoments || savingMoment}
-              onClick={onOpenBookmarkMenu}
-              aria-label="Bookmark current moment"
-            >
-              <Bookmark className="h-4 w-4" aria-hidden />
-            </Button>
-          }
-        />
-        {insightExplorePanel}
+        {insightExplorePanel ? (
+          insightExplorePanel
+        ) : (
+          <ArtifactMobileSegmentedTabs
+            trailing={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full border-border/60 bg-muted text-foreground/70 shadow-none hover:text-foreground"
+                disabled={!canCaptureMoments || savingMoment}
+                onClick={onOpenBookmarkMenu}
+                aria-label="Bookmark current moment"
+              >
+                <Bookmark className="h-4 w-4" aria-hidden />
+              </Button>
+            }
+          />
+        )}
       </div>
     </div>
   );
