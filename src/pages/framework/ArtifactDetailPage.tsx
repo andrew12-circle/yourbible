@@ -342,6 +342,8 @@ export default function ArtifactDetailPage() {
     typeof window !== "undefined" ? window.location.hash : "",
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const floatingJournalOpen = useFloatingJournalStore((s) => s.panelOpen);
+  const toggleFloatingJournal = useFloatingJournalStore((s) => s.togglePanel);
   const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab } =
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
@@ -1951,7 +1953,11 @@ export default function ArtifactDetailPage() {
       </div>
 
       {mobilePinnedPane && !mobileInsightExploreOpen ? (
-        <MobileAppDock onMenuClick={() => setMobileMenuOpen(true)} />
+        <MobileAppDock
+          journalActive={floatingJournalOpen}
+          onJournalClick={toggleFloatingJournal}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
       ) : null}
 
       <ArtifactDetailPageDialogs
