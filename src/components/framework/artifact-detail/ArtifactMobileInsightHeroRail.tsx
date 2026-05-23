@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { BookOpen } from "lucide-react";
 import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  type CarouselApi,
-} from "@/components/ui/carousel";
-import {
   artifactMobileInsightHeroCard,
   artifactMobileInsightHeroAccent,
   artifactMobileInsightHeroFooter,
@@ -39,40 +33,76 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   onSeeScripture,
   className,
 }: Props<T>) {
-  const [api, setApi] = useState<CarouselApi>();
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const draggingRef = useRef(false);
 
-  useEffect(() => {
-    if (!api) return;
-    const onSelect = () => setSelectedIndex(api.selectedScrollSnap());
-    onSelect();
-    api.on("select", onSelect);
-    api.on("reInit", onSelect);
-    return () => {
-      api.off("select", onSelect);
-      api.off("reInit", onSelect);
-    };
-  }, [api]);
+  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
+    const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
+    item?.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
+  }, []);
 
   useEffect(() => {
-    if (!activeClaimId || !api) return;
+    if (!activeClaimId) return;
     const idx = claims.findIndex((c) => c.id === activeClaimId);
-    if (idx >= 0 && idx !== api.selectedScrollSnap()) api.scrollTo(idx);
-  }, [activeClaimId, api, claims]);
+    if (idx >= 0) {
+      setSelectedIndex(idx);
+      scrollToIndex(idx);
+    }
+  }, [activeClaimId, claims, scrollToIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
+    };
+  }, []);
+
+  const updateSelectedFromScroll = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const railCenter = rail.getBoundingClientRect().left + rail.clientWidth / 2;
+    const items = Array.from(rail.querySelectorAll<HTMLElement>("[data-insight-index]"));
+    let nearestIndex: number | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    items.forEach((item) => {
+      const index = Number(item.dataset.insightIndex);
+      const rect = item.getBoundingClientRect();
+      const distance = Math.abs(rect.left + rect.width / 2 - railCenter);
+      if (Number.isFinite(index) && distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    if (nearestIndex == null) return;
+    setSelectedIndex((current) => (current === nearestIndex ? current : nearestIndex));
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (scrollFrameRef.current != null) return;
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      updateSelectedFromScroll();
+    });
+  }, [updateSelectedFromScroll]);
 
   const handleTap = useCallback(
-    (claimId: string, event: MouseEvent<HTMLButtonElement>) => {
+    (claimId: string, index: number, event: MouseEvent<HTMLButtonElement>) => {
       if (draggingRef.current) {
         event.preventDefault();
         event.stopPropagation();
         draggingRef.current = false;
         return;
       }
+      setSelectedIndex(index);
+      scrollToIndex(index);
       onSelectClaim(claimId);
     },
-    [onSelectClaim],
+    [onSelectClaim, scrollToIndex],
   );
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
@@ -96,17 +126,24 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <Carousel
-        setApi={setApi}
-        opts={{ align: "start", containScroll: "trimSnaps", dragFree: true }}
-        className="-mx-3 w-[calc(100%+1.5rem)] touch-pan-y sm:-mx-4 sm:w-[calc(100%+2rem)]"
+      <div
+        ref={railRef}
+        className="-mx-3 overflow-x-auto scroll-smooth pb-3 pt-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:-mx-4"
+        role="list"
+        aria-label="Key insight cards"
+        onScroll={handleScroll}
       >
-        <CarouselContent className="-ml-3 cursor-grab pl-3 active:cursor-grabbing sm:pl-4">
+        <div className="flex min-w-min gap-3 px-3 sm:px-4">
           {claims.map((claim, idx) => {
             const primaryRef = claim.scripture_supports?.[0]?.ref;
             const accent = artifactMobileInsightHeroAccent(idx);
             return (
-              <CarouselItem key={claim.id} className={cn(artifactMobileInsightHeroSlide, "pl-0 pr-3")}>
+              <div
+                key={claim.id}
+                className={artifactMobileInsightHeroSlide}
+                role="listitem"
+                data-insight-index={idx}
+              >
                 <button
                   type="button"
                   className={cn(
@@ -118,7 +155,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                   onPointerMove={handlePointerMove}
                   onPointerCancel={handlePointerEnd}
                   onPointerUp={handlePointerEnd}
-                  onClick={(event) => handleTap(claim.id, event)}
+                  onClick={(event) => handleTap(claim.id, idx, event)}
                 >
                   <div className="space-y-4 text-left">
                     <span className={cn(artifactMobileInsightHeroNumber, accent.number)}>{idx + 1}</span>
@@ -154,11 +191,11 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                     ) : null}
                   </div>
                 </button>
-              </CarouselItem>
+              </div>
             );
           })}
-        </CarouselContent>
-      </Carousel>
+        </div>
+      </div>
       {claims.length > 1 ? (
         <div className="flex justify-center gap-1.5" role="tablist" aria-label="Key insights">
           {claims.map((_, idx) => (
@@ -172,7 +209,10 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                 "h-1.5 rounded-full transition-all",
                 idx === selectedIndex ? cn("w-5", artifactStudyDotActive) : "w-1.5 bg-muted-foreground/35",
               )}
-              onClick={() => api?.scrollTo(idx)}
+              onClick={() => {
+                setSelectedIndex(idx);
+                scrollToIndex(idx);
+              }}
             />
           ))}
         </div>
