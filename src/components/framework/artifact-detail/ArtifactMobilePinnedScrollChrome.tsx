@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { Bookmark } from "lucide-react";
+import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
 import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
-import ArtifactQuickCaptureRow from "@/components/framework/artifact-detail/ArtifactQuickCaptureRow";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -13,13 +15,7 @@ type Props = {
   backTo?: string;
   canCaptureMoments: boolean;
   savingMoment: boolean;
-  hasNote: boolean;
-  transcriptTabActive: boolean;
-  onBookmark: () => void;
-  onSaveNote: () => void;
-  onOpenNote: () => void;
-  onOpenStudyMenu: () => void;
-  mobileTabBar?: ReactNode;
+  onOpenBookmarkMenu: () => void;
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
   insightExplorePanel?: ReactNode;
 };
@@ -35,13 +31,7 @@ export default function ArtifactMobilePinnedScrollChrome({
   backTo = "/framework/artifacts",
   canCaptureMoments,
   savingMoment,
-  hasNote,
-  transcriptTabActive,
-  onBookmark,
-  onSaveNote,
-  onOpenNote,
-  onOpenStudyMenu,
-  mobileTabBar,
+  onOpenBookmarkMenu,
   insightExplorePanel,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
@@ -66,7 +56,7 @@ export default function ArtifactMobilePinnedScrollChrome({
     const ro = new ResizeObserver(sync);
     ro.observe(sticky);
     return () => ro.disconnect();
-  }, [transcriptTabActive, mobileTabBar, insightExplorePanel]);
+  }, [insightExplorePanel]);
 
   return (
     <div className="shrink-0 lg:hidden">
@@ -86,18 +76,21 @@ export default function ArtifactMobilePinnedScrollChrome({
           "top-[var(--artifact-mobile-video-h,56.25vw)]",
         )}
       >
-        <ArtifactQuickCaptureRow
-          canCapture={canCaptureMoments}
-          saving={savingMoment}
-          hasNote={hasNote}
-          transcriptTabActive={transcriptTabActive}
-          iconOnly
-          onBookmark={onBookmark}
-          onSaveNote={onSaveNote}
-          onOpenNote={onOpenNote}
-          onOpenStudyMenu={onOpenStudyMenu}
+        <ArtifactMobileSegmentedTabs
+          trailing={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0 rounded-full border-border/60 bg-muted text-foreground/70 shadow-none hover:text-foreground"
+              disabled={!canCaptureMoments || savingMoment}
+              onClick={onOpenBookmarkMenu}
+              aria-label="Bookmark current moment"
+            >
+              <Bookmark className="h-4 w-4" aria-hidden />
+            </Button>
+          }
         />
-        {mobileTabBar}
         {insightExplorePanel}
       </div>
     </div>

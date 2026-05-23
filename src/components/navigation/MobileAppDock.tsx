@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, FileStack, Home, Search, User } from "lucide-react";
+import { BookOpen, FileStack, Home, Menu, Search } from "lucide-react";
 import { ARTIFACT_MOBILE_DOCK_H } from "@/lib/framework/artifactLayoutCss";
 import { cn } from "@/lib/utils";
 
@@ -14,17 +14,18 @@ const ITEMS = [
     match: (p: string) => p.startsWith("/framework/artifacts"),
   },
   { to: "/framework/study", label: "Study", icon: BookOpen, match: (p: string) => p === "/framework/study" },
-  { to: "/settings", label: "Profile", icon: User, match: (p: string) => p === "/settings" },
 ] as const;
 
 type Props = {
   className?: string;
   layoutRootSelector?: string;
+  onMenuClick?: () => void;
 };
 
 export default function MobileAppDock({
   className,
   layoutRootSelector = "[data-artifact-youtube-mobile]",
+  onMenuClick,
 }: Props) {
   const dockRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
@@ -82,6 +83,15 @@ export default function MobileAppDock({
             </Link>
           );
         })}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-medium text-muted-foreground transition hover:text-foreground"
+          onClick={onMenuClick}
+          aria-label="Open study menu"
+        >
+          <Menu className="h-5 w-5 shrink-0" aria-hidden />
+          <span className="truncate">Menu</span>
+        </button>
       </div>
     </nav>
   );

@@ -5,18 +5,9 @@ import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePip
 import ArtifactCapturePanel from "@/components/framework/artifact-detail/ArtifactCapturePanel";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
+import TranscriptSegmentBookmarkSheet from "@/components/framework/artifact-detail/TranscriptSegmentBookmarkSheet";
 import ArtifactVideoStage from "@/components/framework/artifact-detail/ArtifactVideoStage";
 import type { ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
-import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import type { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import type { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import type { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
@@ -26,6 +17,7 @@ import {
   isArtifactPipVideo,
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
+import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
@@ -36,6 +28,7 @@ type Playback = Pick<
   | "activateAndPlay"
   | "activatePlayer"
   | "togglePlayback"
+  | "getPlaybackSeconds"
   | "staticEmbedSrc"
   | "onStaticEmbedLoad"
   | "showApiPlayer"
@@ -70,7 +63,7 @@ type Props = {
   onStudyJournal: () => void;
   onOpenJournalTimestamp: () => void;
   onOpenJournalFull: () => void;
-  mobileTabBar?: ReactNode;
+  onResearchLaterCurrentMoment?: () => void;
   /** Mobile sticky layout: which tab is active (controls capture section visibility). */
   mobileActiveTab?: "study" | "transcript" | "notes";
   mobileMenuOpen?: boolean;
@@ -124,7 +117,7 @@ function ArtifactYoutubeVideoBlock({
   onStudyJournal,
   onOpenJournalTimestamp,
   onOpenJournalFull,
-  mobileTabBar,
+  onResearchLaterCurrentMoment,
   mobileActiveTab = "study",
   mobileMenuOpen = false,
   onMobileMenuOpenChange,
@@ -149,6 +142,7 @@ function ArtifactYoutubeVideoBlock({
   const usesPipVideo = isArtifactPipVideo(layoutMode, true);
   const mobileVideoOnlyRef = useRef<HTMLDivElement | null>(null);
   const mobilePinnedLayout = stickyMode && !usesPipVideo;
+  const [bookmarkSheetSeconds, setBookmarkSheetSeconds] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     if (!mobilePinnedLayout) return;
@@ -172,14 +166,12 @@ function ArtifactYoutubeVideoBlock({
     ro.observe(video);
     return () => ro.disconnect();
   }, [mobilePinnedLayout]);
-  const transcriptTabActive = mobilePinnedLayout && mobileActiveTab === "transcript";
   /** Study list already has Capture collapsible; skip duplicate bar under fixed header. */
   const showMobileCaptureSection =
     stickyMode && !usesPipVideo && mobileActiveTab === "study" && !mobilePinnedLayout;
   const captureControlled = showMobileCaptureSection;
   const [captureOpen, setCaptureOpen] = useState(false);
   const [noteSectionOpen, setNoteSectionOpen] = useState(false);
-  const [mobileNoteOpen, setMobileNoteOpen] = useState(false);
 
   const openCapture = useCallback(() => {
     setCaptureOpen(true);
@@ -232,15 +224,16 @@ function ArtifactYoutubeVideoBlock({
     </ArtifactCollapsibleSection>
   );
 
-  const openStudyMenu = useCallback(() => {
-    onMobileMenuOpenChange?.(true);
-  }, [onMobileMenuOpenChange]);
+  const openPlayheadBookmarkSheet = useCallback(() => {
+    setBookmarkSheetSeconds(Math.max(0, Math.floor(playback.getPlaybackSeconds())));
+  }, [playback]);
 
-  const openNote = useCallback(() => {
-    if (transcriptTabActive) setMobileNoteOpen(true);
-    else if (mobilePinnedLayout && onOpenNotesTab) onOpenNotesTab();
-    else openCapture();
-  }, [transcriptTabActive, openCapture, mobilePinnedLayout, onOpenNotesTab]);
+  const closePlayheadBookmarkSheet = useCallback(() => setBookmarkSheetSeconds(null), []);
+
+  const runPlayheadBookmarkAction = useCallback((action: () => void) => {
+    closePlayheadBookmarkSheet();
+    action();
+  }, [closePlayheadBookmarkSheet]);
 
   const mobileScrollChrome =
     mobilePinnedLayout && mobileChromeHost ? (
@@ -254,13 +247,7 @@ function ArtifactYoutubeVideoBlock({
         backTo={backTo}
         canCaptureMoments={canCaptureMoments}
         savingMoment={savingMoment}
-        hasNote={Boolean(noteBody.trim())}
-        transcriptTabActive={transcriptTabActive}
-        onBookmark={onBookmark}
-        onSaveNote={onSaveNote}
-        onOpenNote={openNote}
-        onOpenStudyMenu={openStudyMenu}
-        mobileTabBar={mobileTabBar}
+        onOpenBookmarkMenu={openPlayheadBookmarkSheet}
         insightExplorePanel={insightExplorePanel}
       />
     ) : null;
@@ -333,39 +320,21 @@ function ArtifactYoutubeVideoBlock({
       {showMobileCaptureSection ? (
         <div className="border-b border-border/50 px-3 sm:px-4">{captureSection}</div>
       ) : null}
-      {transcriptTabActive ? (
-        <Dialog open={mobileNoteOpen} onOpenChange={setMobileNoteOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Note at playhead</DialogTitle>
-              <DialogDescription>
-                Saves a timestamped note for this video. Use the bookmark on a transcript line to capture an exact quote.
-              </DialogDescription>
-            </DialogHeader>
-            <PolishedTextarea
-              polishResetKey={artifactId}
-              value={noteBody}
-              onChange={(e) => onNoteBodyChange(e.target.value)}
-              rows={4}
-              placeholder="Add a note at the current moment…"
-              disabled={!canCaptureMoments || savingMoment}
-              className="w-full min-w-0"
-            />
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setMobileNoteOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void onSaveNote().then(() => setMobileNoteOpen(false))}
-                disabled={!canCaptureMoments || savingMoment || !noteBody.trim()}
-              >
-                {savingMoment ? "Saving…" : "Save note"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      <TranscriptSegmentBookmarkSheet
+        open={bookmarkSheetSeconds != null}
+        onOpenChange={(open) => {
+          if (!open) closePlayheadBookmarkSheet();
+        }}
+        stamp={bookmarkSheetSeconds != null ? formatTranscriptClock(bookmarkSheetSeconds) : null}
+        snippet="Current playhead"
+        disabled={!canCaptureMoments || savingMoment}
+        actions={{
+          onMakeNote: () => runPlayheadBookmarkAction(onOpenNotesTab ?? openCapture),
+          onSaveBookmark: () => runPlayheadBookmarkAction(onBookmark),
+          onJournal: () => runPlayheadBookmarkAction(onOpenJournalTimestamp),
+          onResearchLater: () => runPlayheadBookmarkAction(onResearchLaterCurrentMoment ?? onBookmark),
+        }}
+      />
       {pipEnabled ? (
         <ArtifactYoutubePipOverlay
           active={youtubePip.pipMode}

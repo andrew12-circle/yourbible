@@ -21,7 +21,6 @@ import ArtifactDesktopOverview from "@/components/framework/artifact-detail/Arti
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
 import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
-import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import MobileAppDock from "@/components/navigation/MobileAppDock";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
@@ -1224,8 +1223,6 @@ export default function ArtifactDetailPage() {
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
   const showMobileOverview = mobilePinnedPane && a.status === "ready";
-  const mobileTabBar = mobilePinnedPane ? <ArtifactMobileSegmentedTabs /> : null;
-
   const mobileInsightExplorePanel = (
     <ArtifactMobileInsightExploreSlot
       enabled={mobilePinnedPane && mobileTab === "study"}
@@ -1456,7 +1453,6 @@ export default function ArtifactDetailPage() {
             onStudyJournal={openStudyJournal}
             onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
             onOpenJournalFull={() => openJournalFromArtifact()}
-            mobileTabBar={stickyVideoMode ? mobileTabBar : undefined}
             mobileActiveTab={mobileTab}
             mobileMenuOpen={mobileMenuOpen}
             onMobileMenuOpenChange={stickyVideoMode ? setMobileMenuOpen : undefined}
@@ -1472,6 +1468,7 @@ export default function ArtifactDetailPage() {
             onMenuPaste={() => setPasteOpen(true)}
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
+            onResearchLaterCurrentMoment={() => void researchLaterTranscriptSegment(getCurrentPlaybackSeconds(), "Current playhead")}
             backTo="/framework/artifacts"
             mobileChromeHost={mobileChromeHost}
           />
@@ -1952,7 +1949,7 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {mobilePinnedPane ? <MobileAppDock /> : null}
+      {mobilePinnedPane ? <MobileAppDock onMenuClick={() => setMobileMenuOpen(true)} /> : null}
 
       <ArtifactDetailPageDialogs
         pasteOpen={pasteOpen}

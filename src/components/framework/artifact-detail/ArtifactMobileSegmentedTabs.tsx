@@ -1,9 +1,11 @@
 import { BookOpen, FileText, StickyNote } from "lucide-react";
+import type { ReactNode } from "react";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type Props = {
   className?: string;
+  trailing?: ReactNode;
 };
 
 const triggerClass = cn(
@@ -17,27 +19,29 @@ const triggerClass = cn(
 
 const iconClass = "h-3.5 w-3.5 shrink-0 opacity-70 group-data-[state=active]:opacity-100";
 
-export default function ArtifactMobileSegmentedTabs({ className }: Props) {
+export default function ArtifactMobileSegmentedTabs({ className, trailing }: Props) {
   return (
-    <TabsList
+    <div
       className={cn(
-        "mx-3 my-1 grid h-10 w-[calc(100%-1.5rem)] grid-cols-3 gap-1 rounded-full",
-        "border border-border/60 bg-muted p-1 text-foreground",
+        "mx-3 my-1 flex h-10 w-[calc(100%-1.5rem)] items-center gap-1",
         className,
       )}
     >
-      <TabsTrigger value="study" className={triggerClass}>
-        <BookOpen className={iconClass} aria-hidden />
-        Study
-      </TabsTrigger>
-      <TabsTrigger value="transcript" className={triggerClass}>
-        <FileText className={iconClass} aria-hidden />
-        Transcript
-      </TabsTrigger>
-      <TabsTrigger value="notes" className={triggerClass}>
-        <StickyNote className={iconClass} aria-hidden />
-        Notes
-      </TabsTrigger>
-    </TabsList>
+      <TabsList className="grid h-full min-w-0 flex-1 grid-cols-3 gap-1 rounded-full border border-border/60 bg-muted p-1 text-foreground">
+        <TabsTrigger value="study" className={triggerClass}>
+          <BookOpen className={iconClass} aria-hidden />
+          Study
+        </TabsTrigger>
+        <TabsTrigger value="transcript" className={triggerClass}>
+          <FileText className={iconClass} aria-hidden />
+          Transcript
+        </TabsTrigger>
+        <TabsTrigger value="notes" className={triggerClass}>
+          <StickyNote className={iconClass} aria-hidden />
+          Notes
+        </TabsTrigger>
+      </TabsList>
+      {trailing}
+    </div>
   );
 }
