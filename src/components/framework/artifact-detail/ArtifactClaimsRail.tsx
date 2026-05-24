@@ -18,6 +18,7 @@ type Props<T extends { id: string }> = {
   renderClaimCard: (claim: T, claimIndex: number) => ReactNode;
   youTubeVideoId: string | null;
   onSeekChapter?: (seconds: number) => void;
+  onUserScroll?: () => void;
   showScrollNav?: boolean;
   variant?: "desktop" | "mobile";
   className?: string;
@@ -30,6 +31,7 @@ export default function ArtifactClaimsRail<T extends { id: string }>({
   renderClaimCard,
   youTubeVideoId,
   onSeekChapter,
+  onUserScroll,
   showScrollNav = true,
   variant = "desktop",
   className,
@@ -51,6 +53,7 @@ export default function ArtifactClaimsRail<T extends { id: string }>({
       className={cn(isMobile ? artifactMobileClaimsRail : artifactDesktopClaimsRail, className)}
       role="list"
       aria-label="Claims"
+      onScroll={onUserScroll}
     >
       {grouped
         ? groups.map((group) => (
