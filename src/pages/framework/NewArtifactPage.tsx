@@ -557,7 +557,7 @@ export default function NewArtifactPage() {
             save the capture back into your artifact library.
           </p>
           <Button asChild className="mt-5">
-            <Link to="/framework/live">Open live workspace</Link>
+            <Link to="/framework/artifacts/live">Open live workspace</Link>
           </Button>
         </div>
       )}

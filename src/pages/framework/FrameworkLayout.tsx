@@ -17,7 +17,6 @@ import {
   Sprout,
   ClipboardList,
   Clock,
-  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
@@ -53,7 +52,11 @@ export function isArtifactDetailPath(pathname: string): boolean {
 
 /** Wide library surfaces (artifact grid, new artifact). */
 export function isArtifactsLibraryPath(pathname: string): boolean {
-  return pathname === "/framework/artifacts" || pathname.startsWith("/framework/artifacts/new") || pathname === "/framework/live";
+  return (
+    pathname === "/framework/artifacts" ||
+    pathname.startsWith("/framework/artifacts/new") ||
+    pathname === "/framework/artifacts/live"
+  );
 }
 
 const NAV = [
@@ -61,7 +64,6 @@ const NAV = [
   { to: "/framework/journey", label: "Journey", icon: Sprout },
   { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
-  { to: "/framework/live", label: "Live", icon: Radio },
   { to: "/framework/research-later", label: "Research later", icon: Clock },
   { to: "/framework/graph", label: "Graph", icon: Share2 },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },

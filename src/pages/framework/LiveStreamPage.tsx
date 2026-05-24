@@ -10,7 +10,7 @@ export default function LiveStreamPage() {
   return (
     <FrameworkLayout
       title="Live stream"
-      back="/framework"
+      back="/framework/artifacts"
       contentClassName="max-w-[min(96rem,calc(100vw-1.25rem))]"
       headerContentClassName="max-w-[min(96rem,calc(100vw-1.25rem))]"
     >

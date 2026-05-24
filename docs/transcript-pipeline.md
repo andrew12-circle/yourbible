@@ -26,7 +26,7 @@ YouTube URL
 
 ## Live stream capture MVP
 
-The app now exposes `/framework/live` as the product surface for a live YouTube workspace:
+The app now exposes `/framework/artifacts/live` as the artifact-library surface for a live YouTube workspace:
 
 ```
 YouTube live URL

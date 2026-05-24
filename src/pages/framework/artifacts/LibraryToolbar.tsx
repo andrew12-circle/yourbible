@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LayoutGrid, List, Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Plus, Radio, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -102,12 +102,20 @@ export function LibraryToolbar({
             <option value="source">Source</option>
           </select>
           {showNewArtifact ? (
-            <Button asChild size="default" className="h-10 rounded-xl font-semibold shadow-sm">
-              <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
-                <Plus className="h-4 w-4" aria-hidden />
-                New artifact
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="secondary" size="default" className="h-10 rounded-xl font-semibold shadow-sm">
+                <Link to="/framework/artifacts/live" className="inline-flex items-center gap-2">
+                  <Radio className="h-4 w-4" aria-hidden />
+                  Live stream
+                </Link>
+              </Button>
+              <Button asChild size="default" className="h-10 rounded-xl font-semibold shadow-sm">
+                <Link to="/framework/artifacts/new" className="inline-flex items-center gap-2">
+                  <Plus className="h-4 w-4" aria-hidden />
+                  New artifact
+                </Link>
+              </Button>
+            </>
           ) : null}
         </div>
       </div>

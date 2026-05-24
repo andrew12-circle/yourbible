@@ -390,7 +390,7 @@ export default function FrameworkDashboard() {
           label="Add artifact"
         />
         <SecondaryAction
-          to="/framework/live"
+          to="/framework/artifacts/live"
           icon={Radio}
           label="Live stream"
         />
