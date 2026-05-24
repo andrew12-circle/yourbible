@@ -84,7 +84,13 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1.5">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</span>
-                <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Sunday live teaching" />
+                <Input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Sunday live teaching"
+                  autoComplete="off"
+                  name="live-stream-title"
+                />
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">YouTube live URL</span>
@@ -92,6 +98,8 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
                   value={url}
                   onChange={(event) => setUrl(event.target.value)}
                   placeholder="https://www.youtube.com/live/..."
+                  autoComplete="off"
+                  name="live-stream-url"
                 />
               </label>
             </div>
@@ -161,6 +169,8 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
               onChange={(event) => setTranscriptDraft(event.target.value)}
               rows={7}
               spellCheck={false}
+              autoComplete="off"
+              name="live-transcript-feed"
               className="font-mono text-sm"
               placeholder="Paste fresh live transcript lines here. Optional format: [10:42] Speaker: text"
             />
