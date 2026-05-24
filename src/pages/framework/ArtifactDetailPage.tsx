@@ -1510,8 +1510,6 @@ export default function ArtifactDetailPage() {
           artifactStatus={a.status}
           claimsCount={claims.length}
           claimSources={claimSources}
-          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
-          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={(claimId) => {
             navigateToArtifactHash("#claims");
@@ -1636,8 +1634,6 @@ export default function ArtifactDetailPage() {
           artifactStatus={a.status}
           claimsCount={claims.length}
           entitiesCount={entitiesCount}
-          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
-          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}

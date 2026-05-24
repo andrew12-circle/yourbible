@@ -1,6 +1,3 @@
-import ContinueStudyingCard, {
-  type ContinueStudyingIcon,
-} from "@/components/framework/artifact-detail/ContinueStudyingCard";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import ArtifactInsightRail from "@/components/framework/artifact-detail/ArtifactInsightRail";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
@@ -15,22 +12,12 @@ type ClaimLike = {
   scripture_supports?: { ref: string; note?: string }[];
 };
 
-type ContinueCard = {
-  id: string;
-  title: string;
-  description: string;
-  hash: string;
-  icon: ContinueStudyingIcon;
-};
-
 type Props = {
   claims: ClaimLike[];
   artifactId: string;
   artifactStatus: string;
   claimsCount: number;
   entitiesCount?: number;
-  showChapters: boolean;
-  showTeachingsSpine: boolean;
   onNavigate: (hash: string) => void;
   onSelectClaim: (claimId: string) => void;
   claimSources?: Record<string, TranscriptSegment | null>;
@@ -45,8 +32,6 @@ export default function ArtifactDesktopOverview({
   artifactStatus,
   claimsCount,
   entitiesCount,
-  showChapters,
-  showTeachingsSpine,
   onNavigate,
   onSelectClaim,
   claimSources,
@@ -54,69 +39,12 @@ export default function ArtifactDesktopOverview({
   onSeeInTranscript,
   className,
 }: Props) {
-  const continueCards: ContinueCard[] = [];
-  if (showChapters) {
-    continueCards.push({
-      id: "chapters",
-      title: "Study spine",
-      description: "Jump through chapters synced from the creator's outline.",
-      hash: "#chapters",
-      icon: "chapters",
-    });
-  } else if (showTeachingsSpine) {
-    continueCards.push({
-      id: "teachings",
-      title: "Study spine",
-      description: "Teachings extracted when no chapter outline exists yet.",
-      hash: "#study-spine-teachings",
-      icon: "chapters",
-    });
-  }
-  continueCards.push({
-    id: "people",
-    title: "People & themes",
-    description: "People, books, scriptures, and recurring themes in this talk.",
-    hash: "#people-themes",
-    icon: "people",
-  });
-  if (claimsCount > 0) {
-    continueCards.push({
-      id: "insights",
-      title: "Key insights",
-      description: "Thesis-sized lines from the transcript to review against scripture.",
-      hash: "#key-insights",
-      icon: "insights",
-    });
-  }
-
   return (
     <section
       id="overview"
       className={cn(artifactScrollMt, "space-y-10", className)}
       aria-label="Overview"
     >
-      {continueCards.length > 0 ? (
-        <div className="space-y-4">
-          <ArtifactStudySectionHeader title="Continue studying" />
-          <div
-            className={cn(
-              "flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-hide pb-1 touch-pan-x",
-            )}
-            role="list"
-          >
-            {continueCards.map((card) => (
-              <ContinueStudyingCard
-                key={card.id}
-                title={card.title}
-                description={card.description}
-                icon={card.icon}
-                onClick={() => onNavigate(card.hash)}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       {claimsCount > 0 ? (
         <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
           <ArtifactStudySectionHeader
