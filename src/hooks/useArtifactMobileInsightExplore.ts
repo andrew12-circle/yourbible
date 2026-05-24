@@ -10,9 +10,6 @@ export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab) {
 
   const closeMobileInsightExplore = useCallback(() => {
     setClaimId(null);
-    window.requestAnimationFrame(() => {
-      document.getElementById("overview")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
   }, []);
 
   return { mobileInsightExploreClaimId: claimId, setMobileInsightExploreClaimId: setClaimId, closeMobileInsightExplore };

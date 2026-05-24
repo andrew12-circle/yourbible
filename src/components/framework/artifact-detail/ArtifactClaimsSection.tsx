@@ -153,6 +153,12 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     }, 600);
   }, []);
 
+  const pauseFollowPlaybackForUserScroll = useCallback(() => {
+    if (programmaticScrollRef.current) return;
+    userPausedFollowUntilRef.current = Date.now() + 2500;
+    setFollowPlayback(false);
+  }, []);
+
   useEffect(() => {
     if (!playerReady || !activeClaimId || !followPlayback || !isPlaying) return;
     if (Date.now() < userPausedFollowUntilRef.current) return;
@@ -202,9 +208,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
 
   useEffect(() => {
     const onScroll = () => {
-      if (programmaticScrollRef.current) return;
-      userPausedFollowUntilRef.current = Date.now() + 2500;
-      setFollowPlayback(false);
+      pauseFollowPlaybackForUserScroll();
     };
     let cleanup: (() => void) | undefined;
     const attach = () => {
@@ -222,7 +226,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
       cancelAnimationFrame(raf);
       cleanup?.();
     };
-  }, [scrollContainerRef, pinnedVideoPane]);
+  }, [scrollContainerRef, pinnedVideoPane, pauseFollowPlaybackForUserScroll]);
 
   const wrapCard = (claim: T, claimIndex: number) => {
     const isActive = activeClaimId === claim.id && followPlayback;
@@ -279,6 +283,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
       renderClaimCard={renderClaimCard}
       youTubeVideoId={youTubeVideoId}
       onSeekChapter={onSeekChapter}
+      onUserScroll={pauseFollowPlaybackForUserScroll}
       variant={useMobileClaimsRail ? "mobile" : "desktop"}
       showScrollNav={isDesktop}
     />
