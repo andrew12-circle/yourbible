@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { Mic, Square, Upload, Youtube, FileText, FileUp } from "lucide-react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Mic, Radio, Square, Upload, Youtube, FileText, FileUp } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -29,7 +30,7 @@ function friendlyImportFnError(functionName: string, err: unknown): string {
   return msg;
 }
 
-type Mode = "text" | "youtube" | "voice" | "import";
+type Mode = "text" | "youtube" | "live" | "voice" | "import";
 
 export default function NewArtifactPage() {
   const { user, loading } = useAuth();
@@ -49,7 +50,13 @@ export default function NewArtifactPage() {
 
   useEffect(() => {
     const requestedMode = params.get("mode");
-    if (requestedMode === "youtube" || requestedMode === "text" || requestedMode === "voice" || requestedMode === "import") {
+    if (
+      requestedMode === "youtube" ||
+      requestedMode === "text" ||
+      requestedMode === "live" ||
+      requestedMode === "voice" ||
+      requestedMode === "import"
+    ) {
       setMode(requestedMode);
     }
   }, [params]);
@@ -419,8 +426,9 @@ export default function NewArtifactPage() {
     navigate(`/framework/artifacts/${data.id}`);
   };
 
-  const tabs: { id: Mode; label: string; icon: typeof Youtube }[] = [
+  const tabs: { id: Mode; label: string; icon: LucideIcon }[] = [
     { id: "youtube", label: "YouTube", icon: Youtube },
+    { id: "live", label: "Live", icon: Radio },
     { id: "text", label: "Text", icon: FileText },
     { id: "voice", label: "Voice", icon: Mic },
     { id: "import", label: "Import", icon: FileUp },
@@ -535,6 +543,23 @@ export default function NewArtifactPage() {
             </Button>
           </div>
         </>
+      )}
+
+      {mode === "live" && (
+        <div className="rounded-2xl border border-border/70 bg-card/45 p-5 shadow-sm sm:p-6">
+          <div className="mb-3 flex items-center gap-2 text-red-700">
+            <Radio className="h-5 w-5" aria-hidden />
+            <span className="font-medium">Live stream capture</span>
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Embed, transcribe, and lift claims live.</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Open the live workspace to paste a YouTube livestream, feed transcript chunks, detect claim candidates, and
+            save the capture back into your artifact library.
+          </p>
+          <Button asChild className="mt-5">
+            <Link to="/framework/live">Open live workspace</Link>
+          </Button>
+        </div>
       )}
 
       {mode === "import" && (

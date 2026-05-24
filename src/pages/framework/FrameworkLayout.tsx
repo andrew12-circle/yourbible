@@ -5,7 +5,20 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Network,
+  Sparkles,
+  FileStack,
+  Share2,
+  AlertTriangle,
+  Users,
+  Sprout,
+  ClipboardList,
+  Clock,
+  Radio,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
@@ -40,7 +53,7 @@ export function isArtifactDetailPath(pathname: string): boolean {
 
 /** Wide library surfaces (artifact grid, new artifact). */
 export function isArtifactsLibraryPath(pathname: string): boolean {
-  return pathname === "/framework/artifacts" || pathname.startsWith("/framework/artifacts/new");
+  return pathname === "/framework/artifacts" || pathname.startsWith("/framework/artifacts/new") || pathname === "/framework/live";
 }
 
 const NAV = [
@@ -48,6 +61,7 @@ const NAV = [
   { to: "/framework/journey", label: "Journey", icon: Sprout },
   { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
+  { to: "/framework/live", label: "Live", icon: Radio },
   { to: "/framework/research-later", label: "Research later", icon: Clock },
   { to: "/framework/graph", label: "Graph", icon: Share2 },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },
