@@ -162,7 +162,7 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
               rows={7}
               spellCheck={false}
               className="font-mono text-sm"
-              placeholder={"[10:42] Pastor: Faith without movement is dead.\n[10:58] Fear blocks provision, but faith moves before it sees."}
+              placeholder="Paste fresh live transcript lines here. Optional format: [10:42] Speaker: text"
             />
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button type="button" onClick={addTranscriptDraft}>
