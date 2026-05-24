@@ -49,7 +49,7 @@ export default function ArtifactMobilePinnedScrollChrome({
     const ro = new ResizeObserver(sync);
     ro.observe(sticky);
     return () => ro.disconnect();
-  }, [insightExplorePanel]);
+  }, [insightExploreOpen, insightExplorePanel]);
 
   return (
     <div className="shrink-0 lg:hidden">
