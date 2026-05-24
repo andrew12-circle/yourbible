@@ -24,6 +24,23 @@ YouTube URL
   → framework-embed-transcript (semantic chunks → OpenAI 768d embeddings)
 ```
 
+## Live stream capture MVP
+
+The app now exposes `/framework/artifacts/live` as the artifact-library surface for a live YouTube workspace:
+
+```
+YouTube live URL
+  → iframe embed
+  → operator / external STT transcript chunks
+  → local signal detector for lifted claims
+  → artifacts.raw_text + artifact_claims
+  → artifact detail review, journal work, belief comparison
+```
+
+This is intentionally the UI-first MVP. Production live transcription should add a worker that pulls audio with `yt-dlp`
+and `ffmpeg`, streams it to Deepgram over WebSocket, then appends transcript chunks into the same artifact session.
+The current browser surface already preserves the data contract for that worker through `metadata.live_capture`.
+
 ## Environment
 
 Set secrets on the Supabase project (local `.env` is not injected into deployed functions):

@@ -22,6 +22,7 @@ import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
 import NewArtifactPage from "./pages/framework/NewArtifactPage";
 import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
+import LiveStreamPage from "./pages/framework/LiveStreamPage";
 import ResearchLaterPage from "./pages/framework/ResearchLaterPage";
 import BeliefGraphPage from "./pages/framework/BeliefGraphPage";
 import PlaybookPage from "./pages/framework/PlaybookPage";
@@ -107,6 +108,7 @@ const App = () => (
             <Route path="/framework/chat/legacy" element={<ChatPage />} />
             <Route path="/framework/study" element={<StudyPage />} />
             <Route path="/framework/daily" element={<DailyPage />} />
+            <Route path="/framework/live" element={<Navigate to="/framework/artifacts/live" replace />} />
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/journal/j/:journalId" element={<JournalPage />} />
             <Route path="/journal/j/:journalId/e/:entryId" element={<JournalPage />} />
@@ -130,6 +132,7 @@ const App = () => (
             <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
             <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
             <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
+            <Route path="/framework/artifacts/live" element={<LiveStreamPage />} />
             <Route
               path="/framework/artifacts/:id"
               element={

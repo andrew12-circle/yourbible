@@ -5,7 +5,19 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Network,
+  Sparkles,
+  FileStack,
+  Share2,
+  AlertTriangle,
+  Users,
+  Sprout,
+  ClipboardList,
+  Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
@@ -40,7 +52,11 @@ export function isArtifactDetailPath(pathname: string): boolean {
 
 /** Wide library surfaces (artifact grid, new artifact). */
 export function isArtifactsLibraryPath(pathname: string): boolean {
-  return pathname === "/framework/artifacts" || pathname.startsWith("/framework/artifacts/new");
+  return (
+    pathname === "/framework/artifacts" ||
+    pathname.startsWith("/framework/artifacts/new") ||
+    pathname === "/framework/artifacts/live"
+  );
 }
 
 const NAV = [

@@ -14,6 +14,7 @@ import {
   Heart,
   Network,
   ClipboardList,
+  Radio,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -387,6 +388,11 @@ export default function FrameworkDashboard() {
           to="/framework/artifacts/new?mode=youtube"
           icon={Plus}
           label="Add artifact"
+        />
+        <SecondaryAction
+          to="/framework/artifacts/live"
+          icon={Radio}
+          label="Live stream"
         />
         <SecondaryAction
           to="/framework/artifacts/new?mode=text&template=question"

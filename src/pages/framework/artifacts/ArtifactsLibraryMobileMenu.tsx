@@ -10,6 +10,7 @@ import {
   Menu,
   Network,
   Plus,
+  Radio,
   Share2,
   Sparkles,
   Sprout,
@@ -81,7 +82,17 @@ export function ArtifactsLibraryMobileMenu({
 
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {showNewArtifact ? (
-            <div className="mb-4 px-1">
+            <div className="mb-4 space-y-2 px-1">
+              <Button asChild variant="secondary" className="w-full rounded-xl font-semibold shadow-sm">
+                <Link
+                  to="/framework/artifacts/live"
+                  onClick={close}
+                  className="inline-flex items-center justify-center gap-2"
+                >
+                  <Radio className="h-4 w-4" aria-hidden />
+                  Live stream
+                </Link>
+              </Button>
               <Button asChild className="w-full rounded-xl font-semibold shadow-sm">
                 <Link
                   to="/framework/artifacts/new"
