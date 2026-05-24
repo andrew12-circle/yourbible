@@ -41,14 +41,14 @@ describe("ArtifactMobileOverview", () => {
         artifactStatus="ready"
         claimsCount={claims.length}
         entitiesCount={2}
-        showChapters={false}
-        showTeachingsSpine={false}
         onNavigate={onNavigate}
         onSelectClaim={onSelectClaim}
       />,
     );
 
     expect(screen.getAllByText("Key insights").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Continue studying")).not.toBeInTheDocument();
+    expect(screen.queryByText("Study spine")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /view all/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Wisdom should lead/i }));
