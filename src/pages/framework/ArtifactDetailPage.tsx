@@ -645,7 +645,7 @@ export default function ArtifactDetailPage() {
     }
     const pinnedMobileYoutube =
       !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
-    if (claims.length > 0 && !pinnedMobileYoutube) {
+    if (claims.length > 0) {
       sections.push({ id: "claims", hash: "#claims", label: "Claims" });
       sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
     }
@@ -1810,7 +1810,7 @@ export default function ArtifactDetailPage() {
         </details>
       )}
 
-      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
+      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
