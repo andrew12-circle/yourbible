@@ -5,7 +5,19 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Network, Sparkles, FileStack, Share2, AlertTriangle, Users, Sprout, ClipboardList, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Network,
+  Sparkles,
+  FileStack,
+  Share2,
+  AlertTriangle,
+  Users,
+  Sprout,
+  ClipboardList,
+  Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
@@ -40,7 +52,11 @@ export function isArtifactDetailPath(pathname: string): boolean {
 
 /** Wide library surfaces (artifact grid, new artifact). */
 export function isArtifactsLibraryPath(pathname: string): boolean {
-  return pathname === "/framework/artifacts" || pathname.startsWith("/framework/artifacts/new");
+  return (
+    pathname === "/framework/artifacts" ||
+    pathname.startsWith("/framework/artifacts/new") ||
+    pathname === "/framework/artifacts/live"
+  );
 }
 
 const NAV = [
@@ -311,11 +327,11 @@ export default function FrameworkLayout({
             ? hideMobileFrameworkHeader
               ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-hidden max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6 lg:px-0 lg:py-0 lg:pb-0"
               : hideDesktopFrameworkHeader
-                ? "py-4 pb-6 sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
-                : "py-4 pb-6 sm:py-6 sm:pb-8"
+                ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
+                : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"
             : studioLibrary
-              ? "py-5 sm:py-6"
-              : "py-8 sm:py-10",
+              ? "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
+              : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
           contentClassName ?? "max-w-4xl",
         )}
       >

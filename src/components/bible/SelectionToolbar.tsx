@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
+import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import type { VerseRange } from "@/lib/bible/verseSelection";
 import { Trash2, NotebookPen, PenLine, Network, BookOpenText } from "lucide-react";
 
@@ -33,16 +34,18 @@ export function computeToolbarPosition(
     toolbarH: number;
     margin?: number;
     dockBottom: boolean;
+    safeAreaBottom?: number;
   },
 ): { left: number; top: number } {
   const margin = opts.margin ?? 8;
   const { vw, vh, toolbarW, toolbarH, dockBottom } = opts;
+  const safeAreaBottom = Math.max(0, opts.safeAreaBottom ?? 0);
   const cx = (rect.left + rect.right) / 2;
   let left = Math.round(cx - toolbarW / 2);
   left = Math.max(margin, Math.min(left, vw - margin - toolbarW));
 
   if (dockBottom) {
-    const dockTop = vh - margin - toolbarH;
+    const dockTop = vh - margin - safeAreaBottom - toolbarH;
     if (rect.bottom + TOOLBAR_GAP <= dockTop) {
       return { left: Math.round((vw - toolbarW) / 2), top: dockTop };
     }
@@ -132,6 +135,7 @@ export function SelectionToolbar({
     toolbarH,
     margin,
     dockBottom,
+    safeAreaBottom: readSafeAreaInsetBottom(),
   });
 
   const toolbar = (

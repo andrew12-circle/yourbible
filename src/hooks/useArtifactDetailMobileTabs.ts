@@ -2,10 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ArtifactMobileTab = "study" | "transcript" | "notes";
 
+function replaceHashlessUrl() {
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
 export function useArtifactDetailMobileTabs() {
   const [mobileTab, setMobileTab] = useState<ArtifactMobileTab>("study");
 
-  const openStudyTab = useCallback(() => setMobileTab("study"), []);
+  const openStudyTab = useCallback(() => {
+    setMobileTab("study");
+    if (window.location.hash === "#transcript" || window.location.hash === "#notes") {
+      replaceHashlessUrl();
+    }
+  }, []);
   const openTranscriptTab = useCallback(() => {
     setMobileTab("transcript");
     window.location.hash = "transcript";
@@ -20,6 +29,7 @@ export function useArtifactDetailMobileTabs() {
       const hash = window.location.hash;
       if (hash === "#transcript") setMobileTab("transcript");
       else if (hash === "#notes" || hash === "#capture") setMobileTab("notes");
+      else setMobileTab("study");
     };
     sync();
     window.addEventListener("hashchange", sync);
@@ -32,7 +42,7 @@ export function useArtifactDetailMobileTabs() {
     if (tab === "transcript") window.location.hash = "transcript";
     else if (tab === "notes") window.location.hash = "notes";
     else if (window.location.hash === "#transcript" || window.location.hash === "#notes") {
-      history.replaceState(null, "", window.location.pathname + window.location.search);
+      replaceHashlessUrl();
     }
   }, []);
 

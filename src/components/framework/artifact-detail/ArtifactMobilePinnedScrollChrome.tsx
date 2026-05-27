@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
-import ArtifactQuickCaptureRow from "@/components/framework/artifact-detail/ArtifactQuickCaptureRow";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -11,17 +10,9 @@ type Props = {
   thumbnailUrl?: string | null;
   youTubeVideoId: string;
   backTo?: string;
-  canCaptureMoments: boolean;
-  savingMoment: boolean;
-  hasNote: boolean;
-  transcriptTabActive: boolean;
-  onBookmark: () => void;
-  onSaveNote: () => void;
-  onOpenNote: () => void;
-  onOpenStudyMenu: () => void;
-  mobileTabBar?: ReactNode;
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
   insightExplorePanel?: ReactNode;
+  insightExploreOpen?: boolean;
 };
 
 /** Title/channel scroll away; quick actions + Study/Transcript tabs stay pinned under the fixed video. */
@@ -33,16 +24,8 @@ export default function ArtifactMobilePinnedScrollChrome({
   thumbnailUrl,
   youTubeVideoId,
   backTo = "/framework/artifacts",
-  canCaptureMoments,
-  savingMoment,
-  hasNote,
-  transcriptTabActive,
-  onBookmark,
-  onSaveNote,
-  onOpenNote,
-  onOpenStudyMenu,
-  mobileTabBar,
   insightExplorePanel,
+  insightExploreOpen = false,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,7 +49,7 @@ export default function ArtifactMobilePinnedScrollChrome({
     const ro = new ResizeObserver(sync);
     ro.observe(sticky);
     return () => ro.disconnect();
-  }, [transcriptTabActive, mobileTabBar, insightExplorePanel]);
+  }, [insightExploreOpen, insightExplorePanel]);
 
   return (
     <div className="shrink-0 lg:hidden">
@@ -79,27 +62,19 @@ export default function ArtifactMobilePinnedScrollChrome({
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
       />
-      <div
-        ref={stickyChromeRef}
-        className={cn(
-          "fixed inset-x-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
-          "top-[var(--artifact-mobile-video-h,56.25vw)]",
-        )}
-      >
-        <ArtifactQuickCaptureRow
-          canCapture={canCaptureMoments}
-          saving={savingMoment}
-          hasNote={hasNote}
-          transcriptTabActive={transcriptTabActive}
-          iconOnly
-          onBookmark={onBookmark}
-          onSaveNote={onSaveNote}
-          onOpenNote={onOpenNote}
-          onOpenStudyMenu={onOpenStudyMenu}
-        />
-        {mobileTabBar}
-        {insightExplorePanel}
-      </div>
+      {insightExploreOpen && insightExplorePanel ? (
+        <div
+          ref={stickyChromeRef}
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
+            "top-[var(--artifact-mobile-video-h,56.25vw)]",
+          )}
+        >
+          {insightExplorePanel}
+        </div>
+      ) : (
+        <div ref={stickyChromeRef} className="hidden" />
+      )}
     </div>
   );
 }

@@ -8,7 +8,9 @@ export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab) {
     if (mobileTab !== "study") setClaimId(null);
   }, [mobileTab]);
 
-  const closeMobileInsightExplore = useCallback(() => setClaimId(null), []);
+  const closeMobileInsightExplore = useCallback(() => {
+    setClaimId(null);
+  }, []);
 
   return { mobileInsightExploreClaimId: claimId, setMobileInsightExploreClaimId: setClaimId, closeMobileInsightExplore };
 }

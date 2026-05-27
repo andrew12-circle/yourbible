@@ -21,7 +21,6 @@ import ArtifactDesktopOverview from "@/components/framework/artifact-detail/Arti
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
 import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
-import ArtifactMobileSegmentedTabs from "@/components/framework/artifact-detail/ArtifactMobileSegmentedTabs";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import MobileAppDock from "@/components/navigation/MobileAppDock";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
@@ -343,6 +342,8 @@ export default function ArtifactDetailPage() {
     typeof window !== "undefined" ? window.location.hash : "",
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const floatingJournalOpen = useFloatingJournalStore((s) => s.panelOpen);
+  const toggleFloatingJournal = useFloatingJournalStore((s) => s.togglePanel);
   const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab } =
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
@@ -642,12 +643,12 @@ export default function ArtifactDetailPage() {
     if (a.kind === "youtube" && youtubeChaptersList.length === 0) {
       sections.push({ id: "teachings", hash: "#study-spine-teachings", label: "Teachings" });
     }
+    const pinnedMobileYoutube =
+      !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
     if (claims.length > 0) {
       sections.push({ id: "claims", hash: "#claims", label: "Claims" });
       sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
     }
-    const pinnedMobileYoutube =
-      !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
     if (youTubeVideoId) {
       sections.push(
         pinnedMobileYoutube
@@ -1224,8 +1225,7 @@ export default function ArtifactDetailPage() {
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
   const showMobileOverview = mobilePinnedPane && a.status === "ready";
-  const mobileTabBar = mobilePinnedPane ? <ArtifactMobileSegmentedTabs /> : null;
-
+  const mobileInsightExploreOpen = Boolean(mobilePinnedPane && mobileInsightExploreClaimId);
   const mobileInsightExplorePanel = (
     <ArtifactMobileInsightExploreSlot
       enabled={mobilePinnedPane && mobileTab === "study"}
@@ -1456,7 +1456,6 @@ export default function ArtifactDetailPage() {
             onStudyJournal={openStudyJournal}
             onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
             onOpenJournalFull={() => openJournalFromArtifact()}
-            mobileTabBar={stickyVideoMode ? mobileTabBar : undefined}
             mobileActiveTab={mobileTab}
             mobileMenuOpen={mobileMenuOpen}
             onMobileMenuOpenChange={stickyVideoMode ? setMobileMenuOpen : undefined}
@@ -1469,6 +1468,7 @@ export default function ArtifactDetailPage() {
             onMenuOpenTranscript={openTranscriptTab}
             onOpenNotesTab={openNotesTabWithNote}
             insightExplorePanel={mobileInsightExplorePanel}
+            insightExploreOpen={mobileInsightExploreOpen}
             onMenuPaste={() => setPasteOpen(true)}
             onMenuWrapUp={() => setWrapUpOpen(true)}
             onMenuReanalyze={reanalyze}
@@ -1510,8 +1510,6 @@ export default function ArtifactDetailPage() {
           artifactStatus={a.status}
           claimsCount={claims.length}
           claimSources={claimSources}
-          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
-          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={(claimId) => {
             navigateToArtifactHash("#claims");
@@ -1636,8 +1634,6 @@ export default function ArtifactDetailPage() {
           artifactStatus={a.status}
           claimsCount={claims.length}
           entitiesCount={entitiesCount}
-          showChapters={Boolean(a.url && youtubeChaptersList.length > 0)}
-          showTeachingsSpine={a.kind === "youtube" && youtubeChaptersList.length === 0}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}
@@ -1818,7 +1814,7 @@ export default function ArtifactDetailPage() {
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
-          title={showMobileOverview ? "Review claims" : "Claims"}
+          title="Claims"
           count={claims.length}
           countLabel={`${claims.length} insights`}
           description={
@@ -1876,9 +1872,6 @@ export default function ArtifactDetailPage() {
             onTogglePlayback={togglePlayback}
             scrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : isDesktop ? mainScrollRef : undefined}
             pinnedVideoPane={mobilePinnedPane}
-            hideMobileInsightPreview={showMobileOverview}
-            hideStudySectionHeader={showMobileOverview && Boolean(youTubeVideoId)}
-            sectionTitle={showMobileOverview ? "Review claims" : undefined}
           />
         </ArtifactCollapsibleSection>
       ) : null}
@@ -1952,7 +1945,16 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {mobilePinnedPane ? <MobileAppDock /> : null}
+      {mobilePinnedPane && !mobileInsightExploreOpen ? (
+        <MobileAppDock
+          activeTab={mobileTab}
+          onStudyClick={openStudyTab}
+          onTranscriptClick={openTranscriptTab}
+          journalActive={floatingJournalOpen}
+          onJournalClick={toggleFloatingJournal}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
+      ) : null}
 
       <ArtifactDetailPageDialogs
         pasteOpen={pasteOpen}

@@ -64,7 +64,7 @@ export function ArtifactShelf({
         </div>
       ) : null}
       <div
-        className="-mx-1 flex overflow-x-auto scroll-smooth pb-2 pt-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+        className="-mx-1 flex overflow-x-auto scroll-smooth pb-2 pt-0.5 touch-pan-x [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
         role="list"
       >
         <div className="flex min-w-min gap-3 px-1">

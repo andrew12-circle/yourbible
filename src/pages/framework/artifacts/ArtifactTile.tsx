@@ -50,6 +50,7 @@ function YoutubeStack({ artifactId, url, metadata }: Pick<Row, "url" | "metadata
       src={thumbUrls[index]}
       alt=""
       className="h-full w-full object-cover"
+      draggable={false}
       onError={() => setIndex((i) => i + 1)}
     />
   );
@@ -88,7 +89,7 @@ export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, 
       );
     }
     if (thumb) {
-      return <img src={thumb} alt="" className="h-full w-full object-cover" />;
+      return <img src={thumb} alt="" className="h-full w-full object-cover" draggable={false} />;
     }
     return <GeneratedCover artifactId={r.id} title={title} variant={generatedVariant(r.kind)} />;
   })();
@@ -98,7 +99,7 @@ export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, 
   const tileBody = (
     <div
       className={cn(
-        "group/tile relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,scale] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_14px_32px_-14px_rgba(0,0,0,0.45)]",
+        "group/tile relative touch-pan-x select-none overflow-hidden rounded-2xl border border-border/50 bg-card/40 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,scale] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_14px_32px_-14px_rgba(0,0,0,0.45)]",
         layout === "grid" ? "w-full" : shelfW,
       )}
     >
@@ -122,7 +123,9 @@ export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, 
       </div>
       <Link
         to={detailPath}
-        className="absolute inset-0 z-10 rounded-2xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="absolute inset-0 z-10 touch-pan-x rounded-2xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
         aria-label={`Open ${title}`}
       />
       {ready ? (

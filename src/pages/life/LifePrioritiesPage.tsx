@@ -97,7 +97,7 @@ export default function LifePrioritiesPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-safe-24">
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link to="/home" aria-label="Back to home">

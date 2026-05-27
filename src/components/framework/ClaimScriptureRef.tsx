@@ -78,36 +78,55 @@ export default function ClaimScriptureRef({
     <li
       className={cn(
         compact
-          ? "rounded-lg border border-border/55 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-          : "rounded-md border border-border/50 bg-background/40",
+          ? "rounded-2xl border border-border/55 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
+          : "rounded-2xl border border-border/50 bg-white/90 shadow-[0_12px_34px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]",
         className,
       )}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className={cn("flex flex-wrap items-start gap-2", compact ? "p-2.5" : "p-2")}>
+        <div className={cn("flex items-start gap-2.5", compact ? "p-3" : "p-4")}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <BookOpen className="h-5 w-5" aria-hidden />
+          </span>
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="inline-flex min-w-0 flex-1 items-start gap-1.5 text-left text-foreground hover:underline underline-offset-2"
+              className="group inline-flex min-w-0 flex-1 items-start justify-between gap-2 text-left text-foreground"
             >
-              <span className="font-medium">{reference}</span>
+              <span className={cn("font-semibold leading-snug", compact ? "text-sm" : "text-base")}>
+                {reference}
+              </span>
               {open ? (
-                <ChevronUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <ChevronUp
+                  className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 transition group-hover:translate-y-[-1px]"
+                  aria-hidden
+                />
               ) : (
-                <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <ChevronDown
+                  className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 transition group-hover:translate-y-0.5"
+                  aria-hidden
+                />
               )}
             </button>
           </CollapsibleTrigger>
-          <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2 text-xs" asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="hidden h-8 shrink-0 rounded-full px-2.5 text-xs text-blue-700 hover:bg-blue-50 sm:inline-flex"
+            asChild
+          >
             <Link to={readerTo} title="Open in Bible reader">
-              <BookOpen className="mr-1 h-3 w-3" />
               Reader
               <ExternalLink className="ml-1 h-3 w-3 opacity-60" />
             </Link>
           </Button>
         </div>
-        {note ? <p className="px-2 pb-1 text-muted-foreground">{note}</p> : null}
-        <CollapsibleContent className="border-t border-border/40 px-2 pb-2 pt-2">
+        {note ? (
+          <p className={cn("leading-relaxed text-muted-foreground", compact ? "px-3 pb-3 text-xs" : "px-4 pb-4 text-sm")}>
+            {note}
+          </p>
+        ) : null}
+        <CollapsibleContent className={cn("border-t border-border/40", compact ? "px-3 pb-3 pt-3" : "px-4 pb-4 pt-3")}>
           {loading ? (
             <p className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />

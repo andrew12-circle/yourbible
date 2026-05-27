@@ -21,7 +21,7 @@ export default function JournalLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 backdrop-blur-2xl bg-background/70 border-b border-border/60">
+      <header className="sticky top-0 z-20 backdrop-blur-2xl bg-background/70 border-b border-border/60 pt-[var(--safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-4 h-11 flex items-center gap-1">
           <Link
             to={back}
@@ -36,7 +36,7 @@ export default function JournalLayout({
           <div className="flex items-center gap-1 text-primary">{right}</div>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 pt-3 pb-28">
+      <main className="max-w-3xl mx-auto px-4 pt-3 pb-safe-28">
         {largeTitle && (
           <h1 className="text-[34px] leading-tight font-bold tracking-tight mb-3">
             {title}

@@ -1,33 +1,57 @@
 import { useLayoutEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { BookOpen, FileStack, Home, Search, User } from "lucide-react";
+import { BookOpen, FileText, Menu, NotebookPen } from "lucide-react";
 import { ARTIFACT_MOBILE_DOCK_H } from "@/lib/framework/artifactLayoutCss";
 import { cn } from "@/lib/utils";
 
-const ITEMS = [
-  { to: "/home", label: "Home", icon: Home, match: (p: string) => p === "/home" },
-  { to: "/my-ai", label: "Search", icon: Search, match: (p: string) => p.startsWith("/my-ai") },
-  {
-    to: "/framework/artifacts",
-    label: "Library",
-    icon: FileStack,
-    match: (p: string) => p.startsWith("/framework/artifacts"),
-  },
-  { to: "/framework/study", label: "Study", icon: BookOpen, match: (p: string) => p === "/framework/study" },
-  { to: "/settings", label: "Profile", icon: User, match: (p: string) => p === "/settings" },
-] as const;
+type DockItemProps = {
+  label: string;
+  icon: typeof BookOpen;
+  active?: boolean;
+  onClick?: () => void;
+};
 
 type Props = {
   className?: string;
   layoutRootSelector?: string;
+  activeTab?: "study" | "transcript" | "notes";
+  onStudyClick?: () => void;
+  onTranscriptClick?: () => void;
+  journalActive?: boolean;
+  onJournalClick?: () => void;
+  onMenuClick?: () => void;
 };
+
+function DockItem({ label, icon: Icon, active = false, onClick }: DockItemProps) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-medium transition",
+        active
+          ? "bg-muted text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+    >
+      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
 
 export default function MobileAppDock({
   className,
   layoutRootSelector = "[data-artifact-youtube-mobile]",
+  activeTab = "study",
+  onStudyClick,
+  onTranscriptClick,
+  journalActive = false,
+  onJournalClick,
+  onMenuClick,
 }: Props) {
   const dockRef = useRef<HTMLDivElement>(null);
-  const { pathname } = useLocation();
 
   useLayoutEffect(() => {
     const dock = dockRef.current;
@@ -64,24 +88,15 @@ export default function MobileAppDock({
           "backdrop-blur-md supports-[backdrop-filter]:bg-background/85",
         )}
       >
-        {ITEMS.map(({ to, label, icon: Icon, match }) => {
-          const active = match(pathname);
-          return (
-            <Link
-              key={to}
-              to={to}
-              className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-medium transition",
-                active
-                  ? "bg-muted text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" aria-hidden />
-              <span className="truncate">{label}</span>
-            </Link>
-          );
-        })}
+        <DockItem label="Study" icon={BookOpen} active={activeTab === "study"} onClick={onStudyClick} />
+        <DockItem label="Transcript" icon={FileText} active={activeTab === "transcript"} onClick={onTranscriptClick} />
+        <DockItem
+          label="Journal"
+          icon={NotebookPen}
+          active={journalActive}
+          onClick={onJournalClick}
+        />
+        <DockItem label="More" icon={Menu} onClick={onMenuClick} />
       </div>
     </nav>
   );

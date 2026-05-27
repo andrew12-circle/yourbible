@@ -21,6 +21,10 @@ function journalLauncherHidden(pathname: string) {
   );
 }
 
+function isArtifactDetailRoute(pathname: string) {
+  return /^\/framework\/artifacts\/(?!new(?:\/|$))[^/]+$/.test(pathname);
+}
+
 export default function GlobalJournalLauncher() {
   const { pathname } = useLocation();
   const { user } = useAuth();
@@ -33,6 +37,7 @@ export default function GlobalJournalLauncher() {
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
   const hidden = !user || journalLauncherHidden(pathname);
+  const hideSideTabOnMobileArtifact = isArtifactDetailRoute(pathname);
 
   useEffect(() => {
     if (isJournalRoute(pathname) && panelOpen) {
@@ -57,6 +62,7 @@ export default function GlobalJournalLauncher() {
         className={cn(
           "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
           "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
+          hideSideTabOnMobileArtifact && "max-md:hidden",
           readerJournal
             ? "border-gold/25 bg-navy text-gold-bright"
             : "border-primary/20 bg-primary text-primary-foreground",

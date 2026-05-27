@@ -10,6 +10,10 @@
 
 @layer base {
   :root {
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-bottom-gutter: max(1rem, var(--safe-area-inset-bottom));
+
     /* Page surfaces */
     --background: 38 38% 94%;          /* warm cream paper */
     --foreground: 24 18% 14%;          /* deep ink */
@@ -634,6 +638,15 @@
   }
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
+  .pb-safe { padding-bottom: var(--safe-area-bottom-gutter); }
+  .pb-safe-16 { padding-bottom: calc(4rem + var(--safe-area-inset-bottom)); }
+  .pb-safe-20 { padding-bottom: calc(5rem + var(--safe-area-inset-bottom)); }
+  .pb-safe-24 { padding-bottom: calc(6rem + var(--safe-area-inset-bottom)); }
+  .pb-safe-28 { padding-bottom: calc(7rem + var(--safe-area-inset-bottom)); }
+  .pb-safe-36 { padding-bottom: calc(9rem + var(--safe-area-inset-bottom)); }
+  .pb-safe-40 { padding-bottom: calc(10rem + var(--safe-area-inset-bottom)); }
+  .bottom-safe-2 { bottom: calc(var(--safe-area-inset-bottom) + 0.5rem); }
+  .bottom-safe-16 { bottom: calc(var(--safe-area-inset-bottom) + 4rem); }
 }
 
 /* ============================================================
