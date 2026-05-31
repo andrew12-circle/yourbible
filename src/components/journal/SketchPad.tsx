@@ -42,7 +42,7 @@ const PAPER_OPTIONS: { id: Paper; label: string; icon: React.ComponentType<{ cla
   { id: "dot", label: "Dot", icon: Grid2X2 },
 ];
 
-const PAPER_STORAGE_KEY = "sketchpad:paper";
+const DEFAULT_PAPER: Paper = "ruled";
 
 /** Spacing in CSS pixels between rules / grid lines / dots. */
 const PAPER_SPACING = 28;
@@ -64,7 +64,9 @@ interface Stroke {
   points: Point[];
 }
 
-const PEN_COLORS: { name: string; value: string }[] = [
+type PenColor = { name: string; value: string };
+
+const DAY_PEN_COLORS: PenColor[] = [
   { name: "Ink", value: "#111827" },
   { name: "Slate", value: "#64748b" },
   { name: "Red", value: "#dc2626" },
@@ -75,9 +77,22 @@ const PEN_COLORS: { name: string; value: string }[] = [
   { name: "Rose", value: "#e11d48" },
 ];
 
+const NIGHT_PEN_COLORS: PenColor[] = [
+  { name: "Ink", value: "#f8fafc" },
+  { name: "Slate", value: "#cbd5e1" },
+  { name: "Red", value: "#fb7185" },
+  { name: "Amber", value: "#fbbf24" },
+  { name: "Emerald", value: "#34d399" },
+  { name: "Sky", value: "#60a5fa" },
+  { name: "Indigo", value: "#a78bfa" },
+  { name: "Rose", value: "#f472b6" },
+];
+
 const PEN_SIZES = [2, 4, 6, 10, 16];
 
-const CANVAS_BG = "#ffffff";
+const DAY_CANVAS_BG = "#ffffff";
+const NIGHT_CANVAS_BG = "#05070a";
+const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
 export interface SketchPadProps {
   open: boolean;
@@ -90,7 +105,23 @@ export interface SketchPadProps {
   filename?: string;
 }
 
+function prefersNightMode() {
+  return typeof window !== "undefined" && window.matchMedia?.(NIGHT_MODE_QUERY).matches === true;
+}
+
+function getPenColors(isNightMode: boolean) {
+  return isNightMode ? NIGHT_PEN_COLORS : DAY_PEN_COLORS;
+}
+
+function mappedColorForMode(color: string, isNightMode: boolean) {
+  const targetColors = getPenColors(isNightMode);
+  if (targetColors.some((c) => c.value === color)) return color;
+  const source = [...DAY_PEN_COLORS, ...NIGHT_PEN_COLORS].find((c) => c.value === color);
+  return targetColors.find((c) => c.name === source?.name)?.value ?? targetColors[0].value;
+}
+
 export default function SketchPad({ open, onClose, onSave, filename }: SketchPadProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   /** Offscreen layer that holds only strokes; eraser composites here so paper stays intact. */
@@ -104,11 +135,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const activePointerTypeRef = useRef<string | null>(null);
   /** Set once a stylus is seen this session — enables palm rejection. */
   const penSeenRef = useRef<boolean>(false);
+  const redrawFrameRef = useRef<number | null>(null);
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState<string>(PEN_COLORS[0].value);
+  const [isNightMode, setIsNightMode] = useState(prefersNightMode);
+  const isNightModeRef = useRef(isNightMode);
+  const [color, setColor] = useState<string>(() => getPenColors(prefersNightMode())[0].value);
   const [size, setSize] = useState<number>(PEN_SIZES[1]);
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
@@ -120,21 +154,85 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   useEffect(() => {
     palmRejectionRef.current = palmRejection;
   }, [palmRejection]);
-  const [paper, setPaper] = useState<Paper>(() => {
-    if (typeof window === "undefined") return "blank";
-    const stored = window.localStorage.getItem(PAPER_STORAGE_KEY);
-    return stored === "ruled" || stored === "graph" || stored === "dot" || stored === "blank"
-      ? (stored as Paper)
-      : "blank";
-  });
+  const [paper, setPaper] = useState<Paper>(DEFAULT_PAPER);
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const penColors = getPenColors(isNightMode);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(PAPER_STORAGE_KEY, paper);
-  }, [paper]);
+    isNightModeRef.current = isNightMode;
+  }, [isNightMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const media = window.matchMedia(NIGHT_MODE_QUERY);
+    const syncNightMode = () => setIsNightMode(media.matches);
+    syncNightMode();
+    media.addEventListener?.("change", syncNightMode);
+    return () => media.removeEventListener?.("change", syncNightMode);
+  }, []);
+
+  useEffect(() => {
+    setColor((current) => mappedColorForMode(current, isNightMode));
+  }, [isNightMode]);
+
+  const redraw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = dprRef.current;
+    const { w, h } = sizeRef.current;
+
+    // 1. Paint the paper (background + ruled / grid / dot pattern).
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = isNightMode ? NIGHT_CANVAS_BG : DAY_CANVAS_BG;
+    ctx.fillRect(0, 0, w, h);
+    drawPaper(ctx, paper, w, h, isNightMode);
+    ctx.restore();
+
+    // 2. Re-render the strokes on the offscreen layer so the eraser only
+    //    cuts ink, never the paper underneath.
+    const layer = strokeLayerRef.current;
+    if (!layer) return;
+    const lctx = layer.getContext("2d");
+    if (!lctx) return;
+    lctx.save();
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.clearRect(0, 0, layer.width, layer.height);
+    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const stroke of strokesRef.current) {
+      drawStroke(lctx, stroke, isNightMode);
+    }
+    if (activeStrokeRef.current) {
+      drawStroke(lctx, activeStrokeRef.current, isNightMode);
+    }
+    lctx.restore();
+
+    // 3. Composite the strokes onto the visible canvas.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  }, [isNightMode, paper]);
+
+  const scheduleRedraw = useCallback(() => {
+    if (redrawFrameRef.current != null) return;
+    redrawFrameRef.current = window.requestAnimationFrame(() => {
+      redrawFrameRef.current = null;
+      redraw();
+    });
+  }, [redraw]);
+
+  const flushRedraw = useCallback(() => {
+    if (redrawFrameRef.current != null) {
+      window.cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
+    }
+    redraw();
+  }, [redraw]);
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -154,55 +252,56 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     const layer = strokeLayerRef.current;
     layer.width = canvas.width;
     layer.height = canvas.height;
-    redraw();
-  }, []);
-
-  const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = dprRef.current;
-    const { w, h } = sizeRef.current;
-
-    // 1. Paint the paper (background + ruled / grid / dot pattern).
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = CANVAS_BG;
-    ctx.fillRect(0, 0, w, h);
-    drawPaper(ctx, paper, w, h);
-    ctx.restore();
-
-    // 2. Re-render the strokes on the offscreen layer so the eraser only
-    //    cuts ink, never the paper underneath.
-    const layer = strokeLayerRef.current;
-    if (!layer) return;
-    const lctx = layer.getContext("2d");
-    if (!lctx) return;
-    lctx.save();
-    lctx.setTransform(1, 0, 0, 1, 0, 0);
-    lctx.clearRect(0, 0, layer.width, layer.height);
-    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    for (const stroke of strokesRef.current) {
-      drawStroke(lctx, stroke);
-    }
-    if (activeStrokeRef.current) {
-      drawStroke(lctx, activeStrokeRef.current);
-    }
-    lctx.restore();
-
-    // 3. Composite the strokes onto the visible canvas.
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(layer, 0, 0);
-    ctx.restore();
-  }, [paper]);
+    flushRedraw();
+  }, [flushRedraw]);
 
   // Repaint when the paper style changes (background only; strokes stay).
   useEffect(() => {
     if (!open) return;
-    redraw();
-  }, [paper, open, redraw]);
+    flushRedraw();
+  }, [paper, open, flushRedraw]);
+
+  // Safari/iPadOS can still open text-selection or callout UI from long-press
+  // gestures unless these native defaults are blocked with non-passive listeners.
+  useEffect(() => {
+    if (!open) return;
+    const root = rootRef.current;
+    const wrap = wrapperRef.current;
+    const canvas = canvasRef.current;
+    const drawingSurfaces = [wrap, canvas].filter(Boolean) as HTMLElement[];
+    const preventDefault = (event: Event) => event.preventDefault();
+    const nonPassive = { passive: false } as AddEventListenerOptions;
+
+    root?.addEventListener("selectstart", preventDefault);
+    root?.addEventListener("dragstart", preventDefault);
+    root?.addEventListener("contextmenu", preventDefault);
+
+    for (const surface of drawingSurfaces) {
+      surface.addEventListener("touchstart", preventDefault, nonPassive);
+      surface.addEventListener("touchmove", preventDefault, nonPassive);
+      surface.addEventListener("touchend", preventDefault, nonPassive);
+      surface.addEventListener("touchcancel", preventDefault, nonPassive);
+      surface.addEventListener("gesturestart", preventDefault, nonPassive);
+      surface.addEventListener("gesturechange", preventDefault, nonPassive);
+      surface.addEventListener("gestureend", preventDefault, nonPassive);
+    }
+
+    return () => {
+      root?.removeEventListener("selectstart", preventDefault);
+      root?.removeEventListener("dragstart", preventDefault);
+      root?.removeEventListener("contextmenu", preventDefault);
+
+      for (const surface of drawingSurfaces) {
+        surface.removeEventListener("touchstart", preventDefault, nonPassive);
+        surface.removeEventListener("touchmove", preventDefault, nonPassive);
+        surface.removeEventListener("touchend", preventDefault, nonPassive);
+        surface.removeEventListener("touchcancel", preventDefault, nonPassive);
+        surface.removeEventListener("gesturestart", preventDefault, nonPassive);
+        surface.removeEventListener("gesturechange", preventDefault, nonPassive);
+        surface.removeEventListener("gestureend", preventDefault, nonPassive);
+      }
+    };
+  }, [open]);
 
   // Initial size + window resize
   useEffect(() => {
@@ -217,6 +316,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     };
   }, [open, resizeCanvas]);
 
+  useEffect(() => {
+    if (open) return;
+    if (redrawFrameRef.current != null) {
+      window.cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
+    }
+  }, [open]);
+
   // Reset state when reopened
   useEffect(() => {
     if (open) {
@@ -229,7 +336,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       setHasStrokes(false);
       setRedoCount(0);
       setTool("pen");
-      setColor(PEN_COLORS[0].value);
+      setColor(getPenColors(isNightModeRef.current)[0].value);
       setSize(PEN_SIZES[1]);
       // Give layout a tick to mount before sizing
       requestAnimationFrame(() => resizeCanvas());
@@ -336,7 +443,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     } else {
       stroke.points.push(getPoint(canvas, e));
     }
-    redraw();
+    scheduleRedraw();
+    e.preventDefault();
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -357,7 +465,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       strokesRef.current.push(stroke);
       setHasStrokes(true);
     }
-    redraw();
+    flushRedraw();
+    e.preventDefault();
   };
 
   const handleUndo = () => {
@@ -382,7 +491,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
   const handleClear = () => {
     if (strokesRef.current.length === 0) return;
-    if (!window.confirm("Clear the sketch? This can't be undone.")) return;
+    if (!window.confirm("Clear the handwritten note? This can't be undone.")) return;
     strokesRef.current = [];
     redoStackRef.current = [];
     setHasStrokes(false);
@@ -398,14 +507,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), "image/png"),
       );
-      if (!blob) throw new Error("Could not export sketch");
+      if (!blob) throw new Error("Could not export handwritten note");
       const base = filename || `sketch-${new Date().toISOString().replace(/[:.]/g, "-")}`;
       const file = new File([blob], `${base}.png`, { type: "image/png" });
       await onSave(file);
       onClose();
     } catch (err) {
-      console.error("sketch save error", err);
-      window.alert(`Couldn't save sketch: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("handwritten save error", err);
+      window.alert(`Couldn't save handwritten note: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -415,188 +524,206 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
   return (
     <div
+      ref={rootRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Sketch"
-      className="fixed inset-0 z-[80] flex flex-col bg-background"
+      aria-label="Handwritten"
+      className={cn("fixed inset-0 z-[80] flex select-none flex-col", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background")}
+      style={{
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+        touchAction: "none",
+        overscrollBehavior: "none",
+      }}
+      onContextMenu={(event) => event.preventDefault()}
     >
       {/* Header */}
-      <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-border/60 px-3">
+      <header className={cn("flex h-11 flex-shrink-0 items-center gap-2 border-b px-3", isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95")}>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-          title="Close sketch"
-          aria-label="Close sketch"
+          className={cn("rounded-full p-1.5 transition", isNightMode ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+          title="Close handwritten"
+          aria-label="Close handwritten"
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="flex-1 text-center text-[13px] font-medium text-muted-foreground">
-          Sketch
+        <div className={cn("flex-1 text-center text-[13px] font-medium", isNightMode ? "text-slate-300" : "text-muted-foreground")}>
+          Handwritten
         </div>
         <Button
           type="button"
           onClick={handleSave}
           disabled={!hasStrokes || saving}
           size="sm"
+          variant="ghost"
+          className={cn("h-8 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
         >
-          {saving ? "Saving…" : "Save sketch"}
+          {saving ? "Saving…" : "Save handwritten"}
         </Button>
       </header>
 
       {/* Toolbar */}
       <div
-        className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2"
+        className={cn("relative z-10 flex-shrink-0 border-b px-3 py-2 shadow-sm backdrop-blur-xl", isNightMode ? "border-white/10 bg-slate-950/90" : "border-border/40 bg-white/90")}
         // Tools shouldn't accidentally pick up pen events meant for the canvas.
         style={{ touchAction: "manipulation" }}
       >
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          <ToolBtn
-            active={tool === "pen"}
-            onClick={() => setTool("pen")}
-            label="Pen"
-          >
-            <PenLine className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            active={tool === "eraser"}
-            onClick={() => setTool("eraser")}
-            label="Eraser"
-          >
-            <Eraser className="h-4 w-4" />
-          </ToolBtn>
-        </div>
-
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          <ToolBtn
-            active={palmRejection}
-            onClick={() => setPalmRejection((v) => !v)}
-            label={
-              palmRejection
-                ? "Palm rejection on — ignores finger/palm once a pencil is used"
-                : "Palm rejection off — finger drawing allowed"
-            }
-          >
-            <Hand className="h-4 w-4" />
-          </ToolBtn>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {PEN_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => {
-                setColor(c.value);
-                if (tool === "eraser") setTool("pen");
-              }}
-              title={c.name}
-              aria-label={`Color ${c.name}`}
-              className={cn(
-                "h-6 w-6 rounded-full border transition",
-                color === c.value && tool === "pen"
-                  ? "ring-2 ring-offset-2 ring-offset-background ring-foreground border-transparent"
-                  : "border-border/70 hover:scale-110",
-              )}
-              style={{ background: c.value }}
-            />
-          ))}
-        </div>
-
         <div
-          className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5"
-          role="radiogroup"
-          aria-label="Paper style"
+          className={cn("mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]", isNightMode ? "border-white/10 bg-slate-900/90 shadow-black/30" : "border-black/10 bg-white/90")}
+          role="toolbar"
+          aria-label="Handwritten tools"
         >
-          {PAPER_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
-            const active = paper === opt.id;
-            return (
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
+              <PenLine className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
+              <Eraser className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn
+              active={palmRejection}
+              onClick={() => setPalmRejection((v) => !v)}
+              label={
+                palmRejection
+                  ? "Palm rejection on — ignores finger/palm once a pencil is used"
+                  : "Palm rejection off — finger drawing allowed"
+              }
+            >
+              <Hand className="h-4 w-4" />
+            </ToolBtn>
+          </div>
+
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
+
+          <div className={cn("flex items-center gap-1 rounded-full px-1.5 py-1", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            {penColors.map((c) => (
               <button
-                key={opt.id}
+                key={c.value}
                 type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setPaper(opt.id)}
-                title={`${opt.label} paper`}
-                aria-label={`${opt.label} paper`}
+                onClick={() => {
+                  setColor(c.value);
+                  if (tool === "eraser") setTool("pen");
+                }}
+                title={c.name}
+                aria-label={`Color ${c.name}`}
                 className={cn(
-                  "flex h-8 items-center gap-1.5 rounded px-2 text-[12px] transition",
-                  active
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "h-5 w-5 rounded-full border transition hover:scale-110",
+                  isNightMode ? "border-white/20" : "border-black/10",
+                  color === c.value &&
+                    tool === "pen" &&
+                    (isNightMode
+                      ? "ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-900"
+                      : "ring-2 ring-blue-500 ring-offset-2 ring-offset-white"),
+                )}
+                style={{ background: c.value }}
+              />
+            ))}
+          </div>
+
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
+
+          <div
+            className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}
+            role="radiogroup"
+            aria-label="Paper style"
+          >
+            {PAPER_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const active = paper === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setPaper(opt.id)}
+                  title={`${opt.label} paper`}
+                  aria-label={`${opt.label} paper`}
+                  className={cn(
+                    "flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition",
+                    active
+                      ? isNightMode
+                        ? "bg-slate-700 text-white shadow-sm"
+                        : "bg-white text-foreground shadow-sm"
+                      : isNightMode
+                        ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                        : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+                  )}
+                >
+                  {opt.id === "dot" ? (
+                    <span className="flex h-4 w-4 items-center justify-center" aria-hidden>
+                      <span className="block h-1 w-1 rounded-full bg-current" />
+                    </span>
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
+
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            {PEN_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSize(s)}
+                title={`Size ${s}`}
+                aria-label={`Size ${s}`}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full transition",
+                  size === s
+                    ? isNightMode
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "bg-white text-foreground shadow-sm"
+                    : isNightMode
+                      ? "text-slate-300 hover:bg-white/10"
+                      : "text-muted-foreground hover:bg-white/70",
                 )}
               >
-                {opt.id === "dot" ? (
-                  <span className="flex h-4 w-4 items-center justify-center" aria-hidden>
-                    <span className="block h-1 w-1 rounded-full bg-current" />
-                  </span>
-                ) : (
-                  <Icon className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">{opt.label}</span>
+                <span
+                  className="block rounded-full"
+                  style={{
+                    width: Math.min(s, 14),
+                    height: Math.min(s, 14),
+                    background: size === s ? "currentColor" : color,
+                  }}
+                />
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
 
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          {PEN_SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSize(s)}
-              title={`Size ${s}`}
-              aria-label={`Size ${s}`}
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded transition",
-                size === s
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <span
-                className="block rounded-full"
-                style={{
-                  width: Math.min(s, 14),
-                  height: Math.min(s, 14),
-                  background: size === s ? "currentColor" : color,
-                }}
-              />
-            </button>
-          ))}
-        </div>
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
-        <div className="ml-auto flex items-center gap-1">
-          <ToolBtn
-            onClick={handleUndo}
-            disabled={!hasStrokes}
-            label="Undo"
-          >
-            <Undo2 className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            onClick={handleRedo}
-            disabled={redoCount === 0}
-            label="Redo"
-          >
-            <Redo2 className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            onClick={handleClear}
-            disabled={!hasStrokes}
-            label="Clear"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </ToolBtn>
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            <ToolBtn onClick={handleUndo} disabled={!hasStrokes} label="Undo">
+              <Undo2 className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={handleRedo} disabled={redoCount === 0} label="Redo">
+              <Redo2 className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={handleClear} disabled={!hasStrokes} label="Clear">
+              <RotateCcw className="h-4 w-4" />
+            </ToolBtn>
+          </div>
         </div>
       </div>
 
       {/* Canvas */}
-      <div className="relative flex-1 overflow-hidden bg-muted/40 p-3">
+      <div className={cn("relative flex-1 overflow-hidden p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
         <div
           ref={wrapperRef}
-          className="relative h-full w-full overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm"
+          className={cn("relative h-full w-full overflow-hidden rounded-xl border shadow-sm", isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white")}
+          style={{
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+            touchAction: "none",
+            overscrollBehavior: "none",
+          }}
         >
           <canvas
             ref={canvasRef}
@@ -614,7 +741,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             onPointerLeave={onPointerUp}
           />
           {!hasStrokes && activeStrokeRef.current == null && (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground/70">
+            <div className={cn("pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center", isNightMode ? "text-slate-400/80" : "text-muted-foreground/70")}>
               <PenLine className="mb-2 h-6 w-6" />
               <p className="text-sm">Draw with finger, pencil, or stylus</p>
               <p className="mt-1 text-xs">
@@ -626,13 +753,13 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Footer hint */}
-      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
+      <footer className={cn("flex flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
-          Closing without saving discards the sketch
+          Closing without saving discards the handwritten note
         </span>
         <span className="hidden sm:inline tabular-nums">
-          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, handwriting can be transcribed into your entry
+          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, this can be transcribed into your entry
         </span>
       </footer>
     </div>
@@ -660,11 +787,12 @@ function ToolBtn({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded transition",
+        "flex h-8 w-8 items-center justify-center rounded-full transition",
         active
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-        disabled && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground",
+          ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
+          : "text-muted-foreground hover:bg-white/70 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
+        disabled &&
+          "cursor-not-allowed opacity-35 hover:bg-transparent hover:text-muted-foreground dark:hover:bg-transparent dark:hover:text-slate-300",
       )}
     >
       {children}
@@ -672,7 +800,7 @@ function ToolBtn({
   );
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
   const pts = stroke.points;
   if (pts.length === 0) return;
 
@@ -684,7 +812,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     ctx.strokeStyle = "rgba(0,0,0,1)";
   } else {
     ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = stroke.color;
+    ctx.strokeStyle = mappedColorForMode(stroke.color, isNightMode);
   }
 
   // Single tap → dot
@@ -694,7 +822,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
     ctx.fillStyle =
-      stroke.tool === "eraser" ? "rgba(0,0,0,1)" : stroke.color;
+      stroke.tool === "eraser" ? "rgba(0,0,0,1)" : mappedColorForMode(stroke.color, isNightMode);
     ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     return;
@@ -727,12 +855,12 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.globalCompositeOperation = "source-over";
 }
 
-function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number) {
+function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number, isNightMode = false) {
   if (paper === "blank") return;
   ctx.save();
   if (paper === "ruled") {
     // Faint blue horizontal rules + a red left margin, like a school notebook.
-    ctx.strokeStyle = "rgba(99, 162, 214, 0.55)";
+    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.34)" : "rgba(99, 162, 214, 0.55)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     // Start a bit below the top so the page doesn't feel cramped.
@@ -743,7 +871,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
     ctx.stroke();
 
     if (w > NOTEBOOK_MARGIN_X + 40) {
-      ctx.strokeStyle = "rgba(220, 38, 38, 0.45)";
+      ctx.strokeStyle = isNightMode ? "rgba(248, 113, 113, 0.44)" : "rgba(220, 38, 38, 0.45)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(NOTEBOOK_MARGIN_X, 0);
@@ -751,7 +879,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
       ctx.stroke();
     }
   } else if (paper === "graph") {
-    ctx.strokeStyle = "rgba(99, 162, 214, 0.35)";
+    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.24)" : "rgba(99, 162, 214, 0.35)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {
@@ -764,7 +892,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
     }
     ctx.stroke();
   } else if (paper === "dot") {
-    ctx.fillStyle = "rgba(120, 120, 130, 0.45)";
+    ctx.fillStyle = isNightMode ? "rgba(203, 213, 225, 0.44)" : "rgba(120, 120, 130, 0.45)";
     const r = 1;
     for (let y = PAPER_SPACING; y < h; y += PAPER_SPACING) {
       for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {

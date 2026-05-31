@@ -435,7 +435,7 @@ export default function EntryEditorPane({
         <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>
           <Paperclip className="w-4 h-4" />
         </TBtn>
-        <TBtn title="Sketch" onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}>
+        <TBtn title="Handwritten" onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}>
           <PenLine className="w-4 h-4" />
         </TBtn>
         <TBtn title="Tags" onClick={() => setShowMeta(true)}><Tag className="w-4 h-4" /></TBtn>
@@ -609,18 +609,18 @@ export default function EntryEditorPane({
           const inserted = await onPickPhotos(dt.files);
           const path = inserted?.[0]?.storage_path;
           if (!path || !user || !entry) return;
-          toast({ title: "Reading your sketch…", description: "AI is transcribing your handwriting." });
+          toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
           const result = await transcribeJournalSketch({ entryId: entry.id, storagePath: path });
           if (!result.ok) {
             toast({
-              title: "Sketch saved",
+              title: "Handwritten note saved",
               description: result.error,
               variant: "destructive",
             });
             return;
           }
           if (result.skipped) {
-            toast({ title: "Sketch saved", description: "This sketch was already transcribed." });
+            toast({ title: "Handwritten note saved", description: "This handwritten note was already transcribed." });
             return;
           }
           const cur = entryRef.current;
@@ -633,7 +633,7 @@ export default function EntryEditorPane({
             setEntry({ ...entryRef.current });
           }
           onChanged();
-          toast({ title: "Sketch transcribed", description: "Text was added to your journal body." });
+          toast({ title: "Handwritten note transcribed", description: "Text was added to your journal body." });
         }}
         filename={`sketch-${entry.id}`}
       />
