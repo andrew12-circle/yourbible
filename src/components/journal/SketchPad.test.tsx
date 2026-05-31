@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SketchPad from "./SketchPad";
 
 const canvasContext = {
+  fillStyle: "",
+  strokeStyle: "",
   arc: vi.fn(),
   beginPath: vi.fn(),
   clearRect: vi.fn(),
@@ -30,9 +32,27 @@ const rect = {
   toJSON: () => ({}),
 } as DOMRect;
 
+function setPrefersDark(matches: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 describe("SketchPad", () => {
   beforeEach(() => {
+    setPrefersDark(false);
     window.localStorage.removeItem("sketchpad:paper");
+    Object.assign(canvasContext, { fillStyle: "", strokeStyle: "" });
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(canvasContext);
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect);
     Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
@@ -55,7 +75,7 @@ describe("SketchPad", () => {
     vi.restoreAllMocks();
   });
 
-  it("opens new sketches on notebook paper by default", () => {
+  it("opens new handwritten notes on notebook paper by default", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
     expect(screen.getByRole("radio", { name: "Notebook paper" })).toHaveAttribute(
@@ -82,6 +102,35 @@ describe("SketchPad", () => {
       target.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
     }
+  });
+
+
+
+  it("uses dark paper and night-safe ink when the device is in night mode", () => {
+    setPrefersDark(true);
+
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    expect(canvasContext.fillStyle).toBe("#05070a");
+    expect(screen.getByRole("button", { name: "Color Ink" })).toHaveStyle({
+      background: "#f8fafc",
+    });
+
+    const canvas = screen.getByRole("dialog", { name: "Handwritten" }).querySelector("canvas");
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+
+    const pointerDown = new Event("pointerdown", { bubbles: true, cancelable: true });
+    Object.assign(pointerDown, {
+      clientX: 12,
+      clientY: 18,
+      pointerId: 1,
+      pointerType: "pen",
+      pressure: 0.6,
+    });
+
+    canvas.dispatchEvent(pointerDown);
+
+    expect(canvasContext.fillStyle).toBe("#f8fafc");
   });
 
   it("prevents pointer defaults while drawing", () => {

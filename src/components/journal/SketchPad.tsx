@@ -64,7 +64,9 @@ interface Stroke {
   points: Point[];
 }
 
-const PEN_COLORS: { name: string; value: string }[] = [
+type PenColor = { name: string; value: string };
+
+const DAY_PEN_COLORS: PenColor[] = [
   { name: "Ink", value: "#111827" },
   { name: "Slate", value: "#64748b" },
   { name: "Red", value: "#dc2626" },
@@ -75,9 +77,22 @@ const PEN_COLORS: { name: string; value: string }[] = [
   { name: "Rose", value: "#e11d48" },
 ];
 
+const NIGHT_PEN_COLORS: PenColor[] = [
+  { name: "Ink", value: "#f8fafc" },
+  { name: "Slate", value: "#cbd5e1" },
+  { name: "Red", value: "#fb7185" },
+  { name: "Amber", value: "#fbbf24" },
+  { name: "Emerald", value: "#34d399" },
+  { name: "Sky", value: "#60a5fa" },
+  { name: "Indigo", value: "#a78bfa" },
+  { name: "Rose", value: "#f472b6" },
+];
+
 const PEN_SIZES = [2, 4, 6, 10, 16];
 
-const CANVAS_BG = "#ffffff";
+const DAY_CANVAS_BG = "#ffffff";
+const NIGHT_CANVAS_BG = "#05070a";
+const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
 export interface SketchPadProps {
   open: boolean;
@@ -88,6 +103,21 @@ export interface SketchPadProps {
    * timestamp-based name.
    */
   filename?: string;
+}
+
+function prefersNightMode() {
+  return typeof window !== "undefined" && window.matchMedia?.(NIGHT_MODE_QUERY).matches === true;
+}
+
+function getPenColors(isNightMode: boolean) {
+  return isNightMode ? NIGHT_PEN_COLORS : DAY_PEN_COLORS;
+}
+
+function mappedColorForMode(color: string, isNightMode: boolean) {
+  const targetColors = getPenColors(isNightMode);
+  if (targetColors.some((c) => c.value === color)) return color;
+  const source = [...DAY_PEN_COLORS, ...NIGHT_PEN_COLORS].find((c) => c.value === color);
+  return targetColors.find((c) => c.name === source?.name)?.value ?? targetColors[0].value;
 }
 
 export default function SketchPad({ open, onClose, onSave, filename }: SketchPadProps) {
@@ -110,7 +140,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState<string>(PEN_COLORS[0].value);
+  const [isNightMode, setIsNightMode] = useState(prefersNightMode);
+  const isNightModeRef = useRef(isNightMode);
+  const [color, setColor] = useState<string>(() => getPenColors(prefersNightMode())[0].value);
   const [size, setSize] = useState<number>(PEN_SIZES[1]);
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
@@ -126,7 +158,24 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const penColors = getPenColors(isNightMode);
 
+  useEffect(() => {
+    isNightModeRef.current = isNightMode;
+  }, [isNightMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const media = window.matchMedia(NIGHT_MODE_QUERY);
+    const syncNightMode = () => setIsNightMode(media.matches);
+    syncNightMode();
+    media.addEventListener?.("change", syncNightMode);
+    return () => media.removeEventListener?.("change", syncNightMode);
+  }, []);
+
+  useEffect(() => {
+    setColor((current) => mappedColorForMode(current, isNightMode));
+  }, [isNightMode]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -139,9 +188,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     // 1. Paint the paper (background + ruled / grid / dot pattern).
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = CANVAS_BG;
+    ctx.fillStyle = isNightMode ? NIGHT_CANVAS_BG : DAY_CANVAS_BG;
     ctx.fillRect(0, 0, w, h);
-    drawPaper(ctx, paper, w, h);
+    drawPaper(ctx, paper, w, h, isNightMode);
     ctx.restore();
 
     // 2. Re-render the strokes on the offscreen layer so the eraser only
@@ -155,10 +204,10 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     lctx.clearRect(0, 0, layer.width, layer.height);
     lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const stroke of strokesRef.current) {
-      drawStroke(lctx, stroke);
+      drawStroke(lctx, stroke, isNightMode);
     }
     if (activeStrokeRef.current) {
-      drawStroke(lctx, activeStrokeRef.current);
+      drawStroke(lctx, activeStrokeRef.current, isNightMode);
     }
     lctx.restore();
 
@@ -167,7 +216,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(layer, 0, 0);
     ctx.restore();
-  }, [paper]);
+  }, [isNightMode, paper]);
 
   const scheduleRedraw = useCallback(() => {
     if (redrawFrameRef.current != null) return;
@@ -287,7 +336,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       setHasStrokes(false);
       setRedoCount(0);
       setTool("pen");
-      setColor(PEN_COLORS[0].value);
+      setColor(getPenColors(isNightModeRef.current)[0].value);
       setSize(PEN_SIZES[1]);
       // Give layout a tick to mount before sizing
       requestAnimationFrame(() => resizeCanvas());
@@ -479,7 +528,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       role="dialog"
       aria-modal="true"
       aria-label="Handwritten"
-      className="fixed inset-0 z-[80] flex select-none flex-col bg-background"
+      className={cn("fixed inset-0 z-[80] flex select-none flex-col", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background")}
       style={{
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
@@ -489,17 +538,17 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       onContextMenu={(event) => event.preventDefault()}
     >
       {/* Header */}
-      <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-border/50 bg-white/95 px-3">
+      <header className={cn("flex h-11 flex-shrink-0 items-center gap-2 border-b px-3", isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95")}>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className={cn("rounded-full p-1.5 transition", isNightMode ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
           title="Close handwritten"
           aria-label="Close handwritten"
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="flex-1 text-center text-[13px] font-medium text-muted-foreground">
+        <div className={cn("flex-1 text-center text-[13px] font-medium", isNightMode ? "text-slate-300" : "text-muted-foreground")}>
           Handwritten
         </div>
         <Button
@@ -508,7 +557,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           disabled={!hasStrokes || saving}
           size="sm"
           variant="ghost"
-          className="h-8 rounded-full px-3 text-[13px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground"
+          className={cn("h-8 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
         >
           {saving ? "Saving…" : "Save handwritten"}
         </Button>
@@ -516,16 +565,16 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
       {/* Toolbar */}
       <div
-        className="relative z-10 flex-shrink-0 border-b border-border/40 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl"
+        className={cn("relative z-10 flex-shrink-0 border-b px-3 py-2 shadow-sm backdrop-blur-xl", isNightMode ? "border-white/10 bg-slate-950/90" : "border-border/40 bg-white/90")}
         // Tools shouldn't accidentally pick up pen events meant for the canvas.
         style={{ touchAction: "manipulation" }}
       >
         <div
-          className="mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border border-black/10 bg-white/90 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]"
+          className={cn("mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]", isNightMode ? "border-white/10 bg-slate-900/90 shadow-black/30" : "border-black/10 bg-white/90")}
           role="toolbar"
           aria-label="Handwritten tools"
         >
-          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
             <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
               <PenLine className="h-4 w-4" />
             </ToolBtn>
@@ -545,10 +594,10 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             </ToolBtn>
           </div>
 
-          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
-          <div className="flex items-center gap-1 rounded-full bg-slate-100/90 px-1.5 py-1">
-            {PEN_COLORS.map((c) => (
+          <div className={cn("flex items-center gap-1 rounded-full px-1.5 py-1", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            {penColors.map((c) => (
               <button
                 key={c.value}
                 type="button"
@@ -559,20 +608,23 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                 title={c.name}
                 aria-label={`Color ${c.name}`}
                 className={cn(
-                  "h-5 w-5 rounded-full border border-black/10 transition hover:scale-110",
+                  "h-5 w-5 rounded-full border transition hover:scale-110",
+                  isNightMode ? "border-white/20" : "border-black/10",
                   color === c.value &&
                     tool === "pen" &&
-                    "ring-2 ring-blue-500 ring-offset-2 ring-offset-white",
+                    (isNightMode
+                      ? "ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-900"
+                      : "ring-2 ring-blue-500 ring-offset-2 ring-offset-white"),
                 )}
                 style={{ background: c.value }}
               />
             ))}
           </div>
 
-          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
           <div
-            className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5"
+            className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}
             role="radiogroup"
             aria-label="Paper style"
           >
@@ -591,8 +643,12 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                   className={cn(
                     "flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition",
                     active
-                      ? "bg-white text-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+                      ? isNightMode
+                        ? "bg-slate-700 text-white shadow-sm"
+                        : "bg-white text-foreground shadow-sm"
+                      : isNightMode
+                        ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                        : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
                   )}
                 >
                   {opt.id === "dot" ? (
@@ -608,9 +664,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             })}
           </div>
 
-          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
-          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
             {PEN_SIZES.map((s) => (
               <button
                 key={s}
@@ -621,8 +677,12 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-full transition",
                   size === s
-                    ? "bg-white text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-white/70",
+                    ? isNightMode
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "bg-white text-foreground shadow-sm"
+                    : isNightMode
+                      ? "text-slate-300 hover:bg-white/10"
+                      : "text-muted-foreground hover:bg-white/70",
                 )}
               >
                 <span
@@ -637,9 +697,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             ))}
           </div>
 
-          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
-          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
             <ToolBtn onClick={handleUndo} disabled={!hasStrokes} label="Undo">
               <Undo2 className="h-4 w-4" />
             </ToolBtn>
@@ -654,10 +714,10 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Canvas */}
-      <div className="relative flex-1 overflow-hidden bg-muted/40 p-3">
+      <div className={cn("relative flex-1 overflow-hidden p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
         <div
           ref={wrapperRef}
-          className="relative h-full w-full overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm"
+          className={cn("relative h-full w-full overflow-hidden rounded-xl border shadow-sm", isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white")}
           style={{
             WebkitUserSelect: "none",
             WebkitTouchCallout: "none",
@@ -681,7 +741,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             onPointerLeave={onPointerUp}
           />
           {!hasStrokes && activeStrokeRef.current == null && (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground/70">
+            <div className={cn("pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center", isNightMode ? "text-slate-400/80" : "text-muted-foreground/70")}>
               <PenLine className="mb-2 h-6 w-6" />
               <p className="text-sm">Draw with finger, pencil, or stylus</p>
               <p className="mt-1 text-xs">
@@ -693,7 +753,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Footer hint */}
-      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/50 bg-white/90 px-4 py-2 text-[11px] text-muted-foreground">
+      <footer className={cn("flex flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
           Closing without saving discards the handwritten note
@@ -729,9 +789,10 @@ function ToolBtn({
       className={cn(
         "flex h-8 w-8 items-center justify-center rounded-full transition",
         active
-          ? "bg-white text-foreground shadow-sm"
-          : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
-        disabled && "cursor-not-allowed opacity-35 hover:bg-transparent hover:text-muted-foreground",
+          ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
+          : "text-muted-foreground hover:bg-white/70 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
+        disabled &&
+          "cursor-not-allowed opacity-35 hover:bg-transparent hover:text-muted-foreground dark:hover:bg-transparent dark:hover:text-slate-300",
       )}
     >
       {children}
@@ -739,7 +800,7 @@ function ToolBtn({
   );
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
   const pts = stroke.points;
   if (pts.length === 0) return;
 
@@ -751,7 +812,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     ctx.strokeStyle = "rgba(0,0,0,1)";
   } else {
     ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = stroke.color;
+    ctx.strokeStyle = mappedColorForMode(stroke.color, isNightMode);
   }
 
   // Single tap → dot
@@ -761,7 +822,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
     ctx.fillStyle =
-      stroke.tool === "eraser" ? "rgba(0,0,0,1)" : stroke.color;
+      stroke.tool === "eraser" ? "rgba(0,0,0,1)" : mappedColorForMode(stroke.color, isNightMode);
     ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     return;
@@ -794,12 +855,12 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.globalCompositeOperation = "source-over";
 }
 
-function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number) {
+function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number, isNightMode = false) {
   if (paper === "blank") return;
   ctx.save();
   if (paper === "ruled") {
     // Faint blue horizontal rules + a red left margin, like a school notebook.
-    ctx.strokeStyle = "rgba(99, 162, 214, 0.55)";
+    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.34)" : "rgba(99, 162, 214, 0.55)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     // Start a bit below the top so the page doesn't feel cramped.
@@ -810,7 +871,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
     ctx.stroke();
 
     if (w > NOTEBOOK_MARGIN_X + 40) {
-      ctx.strokeStyle = "rgba(220, 38, 38, 0.45)";
+      ctx.strokeStyle = isNightMode ? "rgba(248, 113, 113, 0.44)" : "rgba(220, 38, 38, 0.45)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(NOTEBOOK_MARGIN_X, 0);
@@ -818,7 +879,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
       ctx.stroke();
     }
   } else if (paper === "graph") {
-    ctx.strokeStyle = "rgba(99, 162, 214, 0.35)";
+    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.24)" : "rgba(99, 162, 214, 0.35)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {
@@ -831,7 +892,7 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
     }
     ctx.stroke();
   } else if (paper === "dot") {
-    ctx.fillStyle = "rgba(120, 120, 130, 0.45)";
+    ctx.fillStyle = isNightMode ? "rgba(203, 213, 225, 0.44)" : "rgba(120, 120, 130, 0.45)";
     const r = 1;
     for (let y = PAPER_SPACING; y < h; y += PAPER_SPACING) {
       for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {
