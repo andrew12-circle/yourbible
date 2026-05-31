@@ -19,6 +19,10 @@ import {
 } from "../_shared/transcriptPersist.ts";
 import { fetchAssemblyAiTranscript } from "../_shared/transcriptProviders/assemblyai.ts";
 import { fetchDeepgramTranscript } from "../_shared/transcriptProviders/deepgram.ts";
+import {
+  fetchWorkerTranscript,
+  isWorkerConfigured,
+} from "../_shared/transcriptProviders/youtubeTranscriptWorker.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
@@ -571,6 +575,25 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
   const videoId = extractYouTubeVideoId(url);
   const watchUrl = videoId ? normalizeYouTubeWatchUrl(url, videoId) : url;
 
+  const tierAttempts: string[] = [];
+
+  // Tier 0 (preferred): self-hosted youtube-transcript-api worker.
+  if (videoId && isWorkerConfigured()) {
+    try {
+      const worker = await fetchWorkerTranscript(videoId);
+      if (worker.rawText) {
+        return {
+          fetch: worker,
+          metadata,
+          chaptersBundle: null,
+        };
+      }
+      tierAttempts.push("Transcript worker: empty transcript");
+    } catch (e) {
+      tierAttempts.push(`Transcript worker: ${String((e as Error).message ?? e)}`);
+    }
+  }
+
   const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
   if (captionResult?.text) {
     const fetch = outcomeFromTimedText(captionResult.text, "caption", "youtube_watch_captions");
@@ -581,7 +604,7 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
     };
   }
 
-  const tierAttempts: string[] = ["Captions (watch-page): none or unavailable"];
+  tierAttempts.push("Captions (watch-page): none or unavailable");
   if (videoId) {
     const timedText = await fetchTimedTextTranscript(videoId).catch((e) => {
       tierAttempts.push(`Captions (timedtext): ${String((e as Error).message ?? e)}`);
