@@ -41,8 +41,18 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   const draggingRef = useRef(false);
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
+    const rail = railRef.current;
     const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
-    item?.scrollIntoView({ behavior, block: "nearest", inline: "start" });
+    if (!rail || !item) return;
+
+    const railRect = rail.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    const styles = window.getComputedStyle(rail);
+    const scrollPaddingLeft = Number.parseFloat(styles.scrollPaddingLeft) || 0;
+    rail.scrollTo({
+      left: rail.scrollLeft + itemRect.left - railRect.left - scrollPaddingLeft,
+      behavior,
+    });
   }, []);
 
   useEffect(() => {

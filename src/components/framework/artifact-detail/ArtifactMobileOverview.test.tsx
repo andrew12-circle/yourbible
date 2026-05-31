@@ -25,18 +25,18 @@ const multipleClaims = [
   },
 ];
 
-const scrollIntoView = vi.fn();
+const scrollTo = vi.fn();
 
 beforeEach(() => {
-  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
     configurable: true,
-    value: scrollIntoView,
+    value: scrollTo,
   });
 });
 
 afterEach(() => {
   cleanup();
-  scrollIntoView.mockClear();
+  scrollTo.mockClear();
 });
 
 describe("ArtifactMobileOverview", () => {
@@ -86,10 +86,9 @@ describe("ArtifactMobileOverview", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));
 
-    expect(scrollIntoView).toHaveBeenCalledWith({
+    expect(scrollTo).toHaveBeenCalledWith({
+      left: 0,
       behavior: "smooth",
-      block: "nearest",
-      inline: "start",
     });
   });
 });
