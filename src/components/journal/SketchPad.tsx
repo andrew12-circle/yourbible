@@ -467,6 +467,20 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           </ToolBtn>
         </div>
 
+        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
+          <ToolBtn
+            active={palmRejection}
+            onClick={() => setPalmRejection((v) => !v)}
+            label={
+              palmRejection
+                ? "Palm rejection on — ignores finger/palm once a pencil is used"
+                : "Palm rejection off — finger drawing allowed"
+            }
+          >
+            <Hand className="h-4 w-4" />
+          </ToolBtn>
+        </div>
+
         <div className="flex items-center gap-1">
           {PEN_COLORS.map((c) => (
             <button
