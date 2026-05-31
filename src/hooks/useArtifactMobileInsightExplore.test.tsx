@@ -9,15 +9,10 @@ afterEach(() => {
 });
 
 describe("useArtifactMobileInsightExplore", () => {
-  it("closes an insight claim without forcing a page scroll", () => {
-    document.body.innerHTML = '<section id="overview"></section>';
-    const scrollIntoView = vi.fn();
-    const overview = document.getElementById("overview");
-    if (!overview) throw new Error("overview element missing");
-    overview.scrollIntoView = scrollIntoView;
-
+  it("closes an insight claim and runs the close callback", () => {
+    const onClose = vi.fn();
     const { result } = renderHook(
-      ({ tab }: { tab: ArtifactMobileTab }) => useArtifactMobileInsightExplore(tab),
+      ({ tab }: { tab: ArtifactMobileTab }) => useArtifactMobileInsightExplore(tab, onClose),
       { initialProps: { tab: "study" } },
     );
 
@@ -27,6 +22,6 @@ describe("useArtifactMobileInsightExplore", () => {
     act(() => result.current.closeMobileInsightExplore());
 
     expect(result.current.mobileInsightExploreClaimId).toBeNull();
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
