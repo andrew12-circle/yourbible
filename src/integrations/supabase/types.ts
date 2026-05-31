@@ -47,120 +47,14 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_usage_events: {
-        Row: {
-          artifact_id: string | null
-          audio_seconds: number | null
-          batch_size: number
-          chat_id: string | null
-          completion_tokens: number | null
-          created_at: string
-          duration_ms: number | null
-          embedding_dims: number | null
-          error_message: string | null
-          estimated_usd: number | null
-          function_name: string
-          http_status: number | null
-          id: string
-          input_chars: number | null
-          journal_entry_id: string | null
-          metadata: Json
-          model: string | null
-          operation: string
-          output_chars: number | null
-          prompt_tokens: number | null
-          provider: string
-          status: string
-          total_tokens: number | null
-          user_id: string | null
-        }
-        Insert: {
-          artifact_id?: string | null
-          audio_seconds?: number | null
-          batch_size?: number
-          chat_id?: string | null
-          completion_tokens?: number | null
-          created_at?: string
-          duration_ms?: number | null
-          embedding_dims?: number | null
-          error_message?: string | null
-          estimated_usd?: number | null
-          function_name: string
-          http_status?: number | null
-          id?: string
-          input_chars?: number | null
-          journal_entry_id?: string | null
-          metadata?: Json
-          model?: string | null
-          operation: string
-          output_chars?: number | null
-          prompt_tokens?: number | null
-          provider: string
-          status: string
-          total_tokens?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          artifact_id?: string | null
-          audio_seconds?: number | null
-          batch_size?: number
-          chat_id?: string | null
-          completion_tokens?: number | null
-          created_at?: string
-          duration_ms?: number | null
-          embedding_dims?: number | null
-          error_message?: string | null
-          estimated_usd?: number | null
-          function_name?: string
-          http_status?: number | null
-          id?: string
-          input_chars?: number | null
-          journal_entry_id?: string | null
-          metadata?: Json
-          model?: string | null
-          operation?: string
-          output_chars?: number | null
-          prompt_tokens?: number | null
-          provider?: string
-          status?: string
-          total_tokens?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_usage_events_artifact_id_fkey"
-            columns: ["artifact_id"]
-            isOneToOne: false
-            referencedRelation: "artifacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_usage_events_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "my_ai_chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_usage_events_journal_entry_id_fkey"
-            columns: ["journal_entry_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       artifact_claims: {
         Row: {
           artifact_id: string
           bias_flags: string[]
-          chapter_start_seconds: number | null
           claim: string
           created_at: string
-          deferred_at: string | null
           doctrine_tags: string[]
           embedding: string | null
-          epistemology: Json
           id: string
           match_relation: string | null
           matched_belief_id: string | null
@@ -174,13 +68,10 @@ export type Database = {
         Insert: {
           artifact_id: string
           bias_flags?: string[]
-          chapter_start_seconds?: number | null
           claim: string
           created_at?: string
-          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
-          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -194,13 +85,10 @@ export type Database = {
         Update: {
           artifact_id?: string
           bias_flags?: string[]
-          chapter_start_seconds?: number | null
           claim?: string
           created_at?: string
-          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
-          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -265,35 +153,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "artifact_moments_artifact_id_fkey"
-            columns: ["artifact_id"]
-            isOneToOne: false
-            referencedRelation: "artifacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      artifact_playback_progress: {
-        Row: {
-          artifact_id: string
-          playback_seconds: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          artifact_id: string
-          playback_seconds?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          artifact_id?: string
-          playback_seconds?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "artifact_playback_progress_artifact_id_fkey"
             columns: ["artifact_id"]
             isOneToOne: false
             referencedRelation: "artifacts"
@@ -878,11 +737,9 @@ export type Database = {
           chapter: number
           color: string
           created_at: string
-          end_offset: number | null
           id: string
           kind: string
           label: string | null
-          start_offset: number | null
           updated_at: string
           user_id: string
           verse: number
@@ -892,11 +749,9 @@ export type Database = {
           chapter: number
           color: string
           created_at?: string
-          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
-          start_offset?: number | null
           updated_at?: string
           user_id: string
           verse: number
@@ -906,11 +761,9 @@ export type Database = {
           chapter?: number
           color?: string
           created_at?: string
-          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
-          start_offset?: number | null
           updated_at?: string
           user_id?: string
           verse?: number
@@ -1347,222 +1200,6 @@ export type Database = {
             columns: ["priority_id"]
             isOneToOne: false
             referencedRelation: "life_priorities"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      habits: {
-        Row: {
-          archived_at: string | null
-          category: string | null
-          created_at: string
-          id: string
-          name: string
-          note: string | null
-          sort_order: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          category?: string | null
-          created_at?: string
-          id?: string
-          name: string
-          note?: string | null
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          category?: string | null
-          created_at?: string
-          id?: string
-          name?: string
-          note?: string | null
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      habit_completions: {
-        Row: {
-          completion_date: string
-          created_at: string
-          habit_id: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          completion_date: string
-          created_at?: string
-          habit_id: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          completion_date?: string
-          created_at?: string
-          habit_id?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "habit_completions_habit_id_fkey"
-            columns: ["habit_id"]
-            isOneToOne: false
-            referencedRelation: "habits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      habit_goals: {
-        Row: {
-          created_at: string
-          done: boolean
-          event_date: string | null
-          goal_type: string
-          id: string
-          sort_order: number
-          title: string
-          updated_at: string
-          user_id: string
-          week_number: number | null
-          year_month: string
-        }
-        Insert: {
-          created_at?: string
-          done?: boolean
-          event_date?: string | null
-          goal_type: string
-          id?: string
-          sort_order?: number
-          title: string
-          updated_at?: string
-          user_id: string
-          week_number?: number | null
-          year_month: string
-        }
-        Update: {
-          created_at?: string
-          done?: boolean
-          event_date?: string | null
-          goal_type?: string
-          id?: string
-          sort_order?: number
-          title?: string
-          updated_at?: string
-          user_id?: string
-          week_number?: number | null
-          year_month?: string
-        }
-        Relationships: []
-      }
-      habit_notes: {
-        Row: {
-          body: string
-          habit_id: string | null
-          id: string
-          updated_at: string
-          user_id: string
-          year_month: string
-        }
-        Insert: {
-          body?: string
-          habit_id?: string | null
-          id?: string
-          updated_at?: string
-          user_id: string
-          year_month: string
-        }
-        Update: {
-          body?: string
-          habit_id?: string | null
-          id?: string
-          updated_at?: string
-          user_id?: string
-          year_month?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "habit_notes_habit_id_fkey"
-            columns: ["habit_id"]
-            isOneToOne: false
-            referencedRelation: "habits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      habit_bills: {
-        Row: {
-          amount_cents: number
-          created_at: string
-          due_date: string | null
-          id: string
-          name: string
-          paid: boolean
-          sort_order: number
-          updated_at: string
-          user_id: string
-          year_month: string
-        }
-        Insert: {
-          amount_cents?: number
-          created_at?: string
-          due_date?: string | null
-          id?: string
-          name: string
-          paid?: boolean
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-          year_month: string
-        }
-        Update: {
-          amount_cents?: number
-          created_at?: string
-          due_date?: string | null
-          id?: string
-          name?: string
-          paid?: boolean
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-          year_month?: string
-        }
-        Relationships: []
-      }
-      habit_badges: {
-        Row: {
-          badge_id: string
-          habit_id: string | null
-          id: string
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          badge_id: string
-          habit_id?: string | null
-          id?: string
-          unlocked_at?: string
-          user_id: string
-        }
-        Update: {
-          badge_id?: string
-          habit_id?: string | null
-          id?: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "habit_badges_habit_id_fkey"
-            columns: ["habit_id"]
-            isOneToOne: false
-            referencedRelation: "habits"
             referencedColumns: ["id"]
           },
         ]
@@ -2099,105 +1736,6 @@ export type Database = {
           },
         ]
       }
-      todo_items: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          done: boolean
-          due_date: string | null
-          id: string
-          list_id: string | null
-          notes: string | null
-          parent_id: string | null
-          priority: number
-          sort_order: number
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          done?: boolean
-          due_date?: string | null
-          id?: string
-          list_id?: string | null
-          notes?: string | null
-          parent_id?: string | null
-          priority?: number
-          sort_order?: number
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          done?: boolean
-          due_date?: string | null
-          id?: string
-          list_id?: string | null
-          notes?: string | null
-          parent_id?: string | null
-          priority?: number
-          sort_order?: number
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "todo_items_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "todo_lists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "todo_items_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "todo_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      todo_lists: {
-        Row: {
-          archived_at: string | null
-          color: string | null
-          created_at: string
-          id: string
-          name: string
-          slug: string | null
-          sort_order: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          color?: string | null
-          created_at?: string
-          id?: string
-          name: string
-          slug?: string | null
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          color?: string | null
-          created_at?: string
-          id?: string
-          name?: string
-          slug?: string | null
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       tradition_views: {
         Row: {
           belief_id: string
@@ -2305,7 +1843,6 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
-      ensure_default_todo_lists: { Args: never; Returns: undefined }
       match_artifact_claims: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {
@@ -2380,33 +1917,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
-      }
-      get_ai_usage_by_function: {
-        Args: { p_days?: number }
-        Returns: {
-          call_count: number
-          estimated_usd: number
-          function_name: string
-        }[]
-      }
-      get_ai_usage_daily: {
-        Args: { p_days?: number }
-        Returns: {
-          call_count: number
-          day: string
-          estimated_usd: number
-          total_tokens: number
-        }[]
-      }
-      get_ai_usage_totals: {
-        Args: { p_days?: number }
-        Returns: {
-          call_count: number
-          estimated_usd: number
-          operation: string
-          provider: string
-          total_tokens: number
-        }[]
       }
       partner_peer_displays: {
         Args: never
