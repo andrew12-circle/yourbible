@@ -67,7 +67,7 @@ describe("ArtifactMobileOverview", () => {
     expect(onNavigate).not.toHaveBeenCalledWith("#claims");
   });
 
-  it("renders key insights as a snap-scrolling mobile rail", () => {
+  it("renders key insights as a mobile rail with explicit navigation controls", () => {
     render(
       <ArtifactMobileOverview
         claims={multipleClaims}
@@ -81,8 +81,9 @@ describe("ArtifactMobileOverview", () => {
     );
 
     const rail = screen.getByRole("list", { name: /key insight cards/i });
-    expect(rail).toHaveClass("overflow-x-auto", "snap-x", "snap-mandatory", "touch-pan-y");
+    expect(rail).toHaveClass("overflow-hidden", "touch-pan-y");
     expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
+    expect(screen.getByRole("button", { name: "Next insight" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));
 

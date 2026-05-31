@@ -34,8 +34,10 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   className,
 }: Props<T>) {
   const railRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [trackOffset, setTrackOffset] = useState(0);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const railDragRef = useRef<{ pointerId: number; x: number; y: number; scrollLeft: number } | null>(null);
   const draggingRef = useRef(false);
@@ -45,6 +47,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
     if (!rail || !item) return;
 
+    setTrackOffset(item.offsetLeft);
     const railRect = rail.getBoundingClientRect();
     const itemRect = item.getBoundingClientRect();
     const styles = window.getComputedStyle(rail);
@@ -178,7 +181,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     <div className={cn("w-full max-w-full min-w-0 space-y-3 overflow-hidden", className)}>
       <div
         ref={railRef}
-        className="w-full max-w-full cursor-grab touch-pan-y snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden pb-3 pt-0.5 active:cursor-grabbing"
         role="list"
         aria-label="Key insight cards"
         onScroll={handleScroll}
@@ -187,7 +190,11 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         onPointerCancel={handleRailPointerEnd}
         onPointerUp={handleRailPointerEnd}
       >
-        <div className="flex w-max gap-3">
+        <div
+          ref={trackRef}
+          className="flex w-max gap-3 transition-transform duration-300 ease-out"
+          style={{ transform: `translate3d(-${trackOffset}px, 0, 0)` }}
+        >
           {claims.map((claim, idx) => {
             const primaryRef = claim.scripture_supports?.[0]?.ref;
             const accent = artifactMobileInsightHeroAccent(idx);
