@@ -104,7 +104,16 @@ describe("SketchPad", () => {
     }
   });
 
+  it("keeps mobile controls in one horizontal scroller with larger tap targets", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
+    const toolbar = screen.getByRole("toolbar", { name: "Handwritten tools" });
+    expect(toolbar).toHaveClass("flex-nowrap");
+    expect(toolbar.parentElement).toHaveClass("overflow-x-auto");
+    expect(screen.getByRole("button", { name: "Pen" })).toHaveClass("h-10");
+    expect(screen.getByRole("button", { name: "Color Ink" })).toHaveClass("h-10");
+    expect(screen.getByText("Closing without saving discards the handwritten note").closest("footer")).toHaveClass("hidden");
+  });
 
   it("uses dark paper and night-safe ink when the device is in night mode", () => {
     setPrefersDark(true);

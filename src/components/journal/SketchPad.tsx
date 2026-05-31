@@ -532,6 +532,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       style={{
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
+        height: "100dvh",
+        paddingBottom: "env(safe-area-inset-bottom)",
         touchAction: "none",
         overscrollBehavior: "none",
       }}
@@ -559,18 +561,25 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           variant="ghost"
           className={cn("h-8 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
         >
-          {saving ? "Saving…" : "Save handwritten"}
+          {saving ? (
+            "Saving…"
+          ) : (
+            <>
+              <span className="hidden sm:inline">Save handwritten</span>
+              <span className="sm:hidden">Save</span>
+            </>
+          )}
         </Button>
       </header>
 
       {/* Toolbar */}
       <div
-        className={cn("relative z-10 flex-shrink-0 border-b px-3 py-2 shadow-sm backdrop-blur-xl", isNightMode ? "border-white/10 bg-slate-950/90" : "border-border/40 bg-white/90")}
+        className={cn("relative z-10 flex-shrink-0 overflow-x-auto overscroll-x-contain border-b px-2 py-1.5 shadow-sm backdrop-blur-xl sm:px-3 sm:py-2", isNightMode ? "border-white/10 bg-slate-950/90" : "border-border/40 bg-white/90")}
         // Tools shouldn't accidentally pick up pen events meant for the canvas.
         style={{ touchAction: "manipulation" }}
       >
         <div
-          className={cn("mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]", isNightMode ? "border-white/10 bg-slate-900/90 shadow-black/30" : "border-black/10 bg-white/90")}
+          className={cn("mx-auto flex w-max min-w-full max-w-none flex-nowrap items-center gap-1.5 rounded-[1.35rem] border p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)] sm:min-w-0 sm:max-w-6xl", isNightMode ? "border-white/10 bg-slate-900/90 shadow-black/30" : "border-black/10 bg-white/90")}
           role="toolbar"
           aria-label="Handwritten tools"
         >
@@ -608,7 +617,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                 title={c.name}
                 aria-label={`Color ${c.name}`}
                 className={cn(
-                  "h-5 w-5 rounded-full border transition hover:scale-110",
+                  "h-10 w-10 flex-shrink-0 rounded-full border transition hover:scale-110 sm:h-5 sm:w-5",
                   isNightMode ? "border-white/20" : "border-black/10",
                   color === c.value &&
                     tool === "pen" &&
@@ -641,7 +650,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                   title={`${opt.label} paper`}
                   aria-label={`${opt.label} paper`}
                   className={cn(
-                    "flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition",
+                    "flex h-10 flex-shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition sm:h-8 sm:px-2.5",
                     active
                       ? isNightMode
                         ? "bg-slate-700 text-white shadow-sm"
@@ -675,7 +684,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
                 title={`Size ${s}`}
                 aria-label={`Size ${s}`}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full transition",
+                  "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition sm:h-8 sm:w-8",
                   size === s
                     ? isNightMode
                       ? "bg-slate-700 text-white shadow-sm"
@@ -714,10 +723,10 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Canvas */}
-      <div className={cn("relative flex-1 overflow-hidden p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
+      <div className={cn("relative min-h-0 flex-1 overflow-hidden p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
         <div
           ref={wrapperRef}
-          className={cn("relative h-full w-full overflow-hidden rounded-xl border shadow-sm", isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white")}
+          className={cn("relative h-full w-full overflow-hidden rounded-lg border shadow-sm sm:rounded-xl", isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white")}
           style={{
             WebkitUserSelect: "none",
             WebkitTouchCallout: "none",
@@ -753,7 +762,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Footer hint */}
-      <footer className={cn("flex flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
+      <footer className={cn("hidden flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px] sm:flex", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
           Closing without saving discards the handwritten note
@@ -787,7 +796,7 @@ function ToolBtn({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-full transition",
+        "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition sm:h-8 sm:w-8",
         active
           ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
           : "text-muted-foreground hover:bg-white/70 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
