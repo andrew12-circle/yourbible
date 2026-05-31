@@ -271,11 +271,36 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Don't start a new stroke if one is already in progress (palm-rejection
-    // heuristic for tablets with finger+stylus active).
-    if (activePointerIdRef.current != null) return;
+    // Remember that a stylus has touched the surface this session.
+    if (e.pointerType === "pen") penSeenRef.current = true;
+
+    // Palm rejection: once a stylus has been used, ignore finger / palm
+    // (`touch`) input on the canvas — matches Apple Notes behaviour.
+    if (
+      palmRejectionRef.current &&
+      penSeenRef.current &&
+      e.pointerType === "touch"
+    ) {
+      e.preventDefault();
+      return;
+    }
+
+    if (activePointerIdRef.current != null) {
+      // A stylus that arrives while a palm/finger stroke is in progress takes
+      // over: discard the stray stroke so the pen starts cleanly.
+      const takeover =
+        e.pointerType === "pen" && activePointerTypeRef.current === "touch";
+      if (!takeover) return;
+      try {
+        canvas.releasePointerCapture(activePointerIdRef.current);
+      } catch {
+        /* noop */
+      }
+      activeStrokeRef.current = null;
+    }
     canvas.setPointerCapture(e.pointerId);
     activePointerIdRef.current = e.pointerId;
+    activePointerTypeRef.current = e.pointerType;
     const pt = getPoint(canvas, e);
     activeStrokeRef.current = {
       tool,
