@@ -3,6 +3,7 @@ import {
   Eraser,
   Grid2X2,
   GripHorizontal,
+  Hand,
   PenLine,
   Redo2,
   RotateCcw,
