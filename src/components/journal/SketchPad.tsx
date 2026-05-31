@@ -100,12 +100,26 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const redoStackRef = useRef<Stroke[]>([]);
   const activeStrokeRef = useRef<Stroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  /** Pointer type of the in-progress stroke, so a pen can take over from a palm. */
+  const activePointerTypeRef = useRef<string | null>(null);
+  /** Set once a stylus is seen this session — enables palm rejection. */
+  const penSeenRef = useRef<boolean>(false);
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState<string>(PEN_COLORS[0].value);
   const [size, setSize] = useState<number>(PEN_SIZES[1]);
+  /**
+   * When on (default), once an Apple Pencil / stylus has been detected we
+   * ignore finger & palm (`touch`) input on the canvas — just like Apple Notes.
+   * Turn it off to draw with a finger.
+   */
+  const [palmRejection, setPalmRejection] = useState(true);
+  const palmRejectionRef = useRef(palmRejection);
+  useEffect(() => {
+    palmRejectionRef.current = palmRejection;
+  }, [palmRejection]);
   const [paper, setPaper] = useState<Paper>(() => {
     if (typeof window === "undefined") return "blank";
     const stored = window.localStorage.getItem(PAPER_STORAGE_KEY);
