@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   artifactMobileInsightHeroCard,
   artifactMobileInsightHeroAccent,
@@ -156,6 +156,12 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     updateSelectedFromScroll();
   }, [updateSelectedFromScroll]);
 
+  const selectInsight = useCallback((index: number) => {
+    const nextIndex = Math.min(Math.max(index, 0), claims.length - 1);
+    setSelectedIndex(nextIndex);
+    scrollToIndex(nextIndex);
+  }, [claims.length, scrollToIndex]);
+
   if (claims.length === 0) return null;
 
   return (
@@ -235,24 +241,46 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         </div>
       </div>
       {claims.length > 1 ? (
-        <div className="flex justify-center gap-1.5" role="tablist" aria-label="Key insights">
-          {claims.map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              role="tab"
-              aria-selected={idx === selectedIndex}
-              aria-label={`Insight ${idx + 1}`}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                idx === selectedIndex ? cn("w-5", artifactStudyDotActive) : "w-1.5 bg-muted-foreground/35",
-              )}
-              onClick={() => {
-                setSelectedIndex(idx);
-                scrollToIndex(idx);
-              }}
-            />
-          ))}
+        <div className="flex items-center justify-between gap-3 px-1">
+          <button
+            type="button"
+            aria-label="Previous insight"
+            disabled={selectedIndex === 0}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
+            onClick={() => selectInsight(selectedIndex - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex justify-center gap-1.5" role="tablist" aria-label="Key insights">
+              {claims.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  role="tab"
+                  aria-selected={idx === selectedIndex}
+                  aria-label={`Insight ${idx + 1}`}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    idx === selectedIndex ? cn("w-5", artifactStudyDotActive) : "w-1.5 bg-muted-foreground/35",
+                  )}
+                  onClick={() => selectInsight(idx)}
+                />
+              ))}
+            </div>
+            <span className="min-w-8 text-center text-[11px] font-semibold text-muted-foreground">
+              {selectedIndex + 1}/{claims.length}
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label="Next insight"
+            disabled={selectedIndex === claims.length - 1}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
+            onClick={() => selectInsight(selectedIndex + 1)}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
         </div>
       ) : null}
     </div>
