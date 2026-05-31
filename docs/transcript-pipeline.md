@@ -4,6 +4,7 @@
 
 | Tier | Provider | When | Notes |
 |------|----------|------|-------|
+| 0 | **YouTube transcript worker** (preferred) | `TRANSCRIPT_WORKER_URL` set | Self-hosted Python `youtube-transcript-api` service; most reliable for captioned videos. Source in `worker/youtube-transcript/`. Falls through on 404 (no captions). |
 | 1 | YouTube captions (scrape) | Always first | Free, fast; breaks when captions disabled |
 | 2 | **AssemblyAI** | `ASSEMBLYAI_API_KEY` + `TRANSCRIPT_TIER2_ENABLED` | Accepts YouTube watch URLs via `audio_url`; utterances + optional speaker labels |
 | 3 | **Deepgram** | `DEEPGRAM_API_KEY` + resolved direct audio URL | Watch URLs fail; edge resolves `googlevideo` audio from player/InnerTube, or use `DEEPGRAM_AUDIO_URL` |
@@ -15,6 +16,7 @@
 
 ```
 YouTube URL
+  → transcript worker (youtube-transcript-api, if TRANSCRIPT_WORKER_URL set)
   → captions (watch / timedtext / InnerTube)
   → AssemblyAI (URL transcribe + poll)
   → Deepgram (audio URL, if available)
@@ -23,6 +25,21 @@ YouTube URL
   → framework-analyze (OpenAI primary via AI_PROVIDER)
   → framework-embed-transcript (semantic chunks → OpenAI 768d embeddings)
 ```
+
+## YouTube transcript worker (Tier 0)
+
+`youtube-transcript-api` is a Python library and cannot run inside the Deno edge
+runtime, so it is deployed as a small standalone service. Source, Dockerfile and
+deploy steps live in [`worker/youtube-transcript/README.md`](../worker/youtube-transcript/README.md).
+
+When `TRANSCRIPT_WORKER_URL` is set, `framework-fetch-transcript` calls the
+worker first; if the worker is unreachable or the video has no captions, the
+pipeline falls through to the existing caption/AssemblyAI/Deepgram/Gemini tiers.
+
+| Variable | Purpose |
+|----------|---------|
+| `TRANSCRIPT_WORKER_URL` | Base URL of the deployed worker (no trailing slash) |
+| `TRANSCRIPT_WORKER_TOKEN` | Bearer token; must match the worker's `WORKER_TOKEN` |
 
 ## Live stream capture MVP
 
