@@ -42,7 +42,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
     const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
-    item?.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
+    item?.scrollIntoView({ behavior, block: "nearest", inline: "start" });
   }, []);
 
   useEffect(() => {

@@ -86,6 +86,10 @@ describe("ArtifactMobileOverview", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));
 
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "start",
+    });
   });
 });
