@@ -19,6 +19,10 @@ import {
 } from "../_shared/transcriptPersist.ts";
 import { fetchAssemblyAiTranscript } from "../_shared/transcriptProviders/assemblyai.ts";
 import { fetchDeepgramTranscript } from "../_shared/transcriptProviders/deepgram.ts";
+import {
+  fetchWorkerTranscript,
+  isWorkerConfigured,
+} from "../_shared/transcriptProviders/youtubeTranscriptWorker.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
