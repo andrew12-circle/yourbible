@@ -37,9 +37,46 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [trackOffset, setTrackOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
-  const railDragRef = useRef<{ pointerId: number; x: number; y: number; scrollLeft: number } | null>(null);
+  const railDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startOffset: number;
+    lastX: number;
+    lastTime: number;
+    velocity: number;
+  } | null>(null);
   const draggingRef = useRef(false);
+
+  const getInsightOffsets = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return [];
+    return Array.from(rail.querySelectorAll<HTMLElement>("[data-insight-index]")).map((item) => item.offsetLeft);
+  }, []);
+
+  const clampOffset = useCallback((offset: number) => {
+    const offsets = getInsightOffsets();
+    if (offsets.length === 0) return 0;
+    const maxOffset = offsets[offsets.length - 1] ?? 0;
+    return Math.min(Math.max(offset, 0), maxOffset);
+  }, [getInsightOffsets]);
+
+  const nearestIndexForOffset = useCallback((offset: number) => {
+    const offsets = getInsightOffsets();
+    if (offsets.length === 0) return 0;
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    offsets.forEach((itemOffset, index) => {
+      const distance = Math.abs(itemOffset - offset);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  }, [getInsightOffsets]);
 
   const scrollToIndex = useCallback((index: number) => {
     const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
@@ -88,36 +125,53 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   }, []);
 
   const handleRailPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const rail = railRef.current;
-    if (!rail) return;
+    draggingRef.current = false;
     railDragRef.current = {
       pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      scrollLeft: rail.scrollLeft,
+      startX: event.clientX,
+      startY: event.clientY,
+      startOffset: trackOffset,
+      lastX: event.clientX,
+      lastTime: event.timeStamp,
+      velocity: 0,
     };
-    rail.setPointerCapture(event.pointerId);
-  }, []);
+    railRef.current?.setPointerCapture?.(event.pointerId);
+  }, [trackOffset]);
 
   const handleRailPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const drag = railDragRef.current;
-    const rail = railRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || !rail) return;
+    if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const deltaX = event.clientX - drag.x;
-    const deltaY = event.clientY - drag.y;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
     if (Math.abs(deltaX) <= 4 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+    const elapsedMs = Math.max(event.timeStamp - drag.lastTime, 1);
+    drag.velocity = (drag.lastX - event.clientX) / elapsedMs;
+    drag.lastX = event.clientX;
+    drag.lastTime = event.timeStamp;
     draggingRef.current = true;
-    rail.scrollLeft = drag.scrollLeft - deltaX;
+    setIsDragging(true);
+    setTrackOffset(clampOffset(drag.startOffset - deltaX));
     event.preventDefault();
-  }, []);
+  }, [clampOffset]);
 
   const handleRailPointerEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const drag = railDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     railDragRef.current = null;
-    railRef.current?.releasePointerCapture(event.pointerId);
-  }, []);
+    if (railRef.current?.hasPointerCapture?.(event.pointerId)) {
+      railRef.current.releasePointerCapture(event.pointerId);
+    }
+    setIsDragging(false);
+
+    if (!draggingRef.current) return;
+    const releaseOffset = clampOffset(drag.startOffset - (event.clientX - drag.startX));
+    const momentumOffset = clampOffset(releaseOffset + drag.velocity * 650);
+    const nextIndex = nearestIndexForOffset(momentumOffset);
+    setSelectedIndex(nextIndex);
+    scrollToIndex(nextIndex);
+  }, [clampOffset, nearestIndexForOffset, scrollToIndex]);
 
   const selectInsight = useCallback((index: number) => {
     const nextIndex = Math.min(Math.max(index, 0), claims.length - 1);
@@ -141,7 +195,10 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
       >
         <div
           ref={trackRef}
-          className="flex w-max gap-3 transition-transform duration-300 ease-out"
+          className={cn(
+            "flex w-max gap-3",
+            isDragging ? "transition-none" : "transition-transform duration-500 ease-out",
+          )}
           style={{ transform: `translate3d(-${trackOffset}px, 0, 0)` }}
         >
           {claims.map((claim, idx) => {
