@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import ArtifactMobileOverview from "./ArtifactMobileOverview";
 
 vi.mock("@/components/framework/ArtifactEntitiesPanel", () => ({
@@ -15,18 +15,18 @@ const claims = [
   },
 ];
 
-const scrollIntoView = vi.fn();
-
-beforeEach(() => {
-  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
-    configurable: true,
-    value: scrollIntoView,
-  });
-});
+const multipleClaims = [
+  ...claims,
+  {
+    id: "claim-2",
+    claim: "Discernment should test claims before accepting them.",
+    verdict: null,
+    scripture_supports: [{ ref: "1 John 4:1" }],
+  },
+];
 
 afterEach(() => {
   cleanup();
-  scrollIntoView.mockClear();
 });
 
 describe("ArtifactMobileOverview", () => {
@@ -55,5 +55,29 @@ describe("ArtifactMobileOverview", () => {
 
     expect(onSelectClaim).toHaveBeenCalledWith("claim-1");
     expect(onNavigate).not.toHaveBeenCalledWith("#claims");
+  });
+
+  it("renders key insights as a mobile rail with explicit navigation controls", () => {
+    render(
+      <ArtifactMobileOverview
+        claims={multipleClaims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={multipleClaims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    const rail = screen.getByRole("list", { name: /key insight cards/i });
+    expect(rail).toHaveClass("overflow-hidden", "touch-pan-y");
+    expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
+    expect(screen.getByRole("button", { name: "Next insight" })).toBeInTheDocument();
+
+    const insightTwoTab = screen.getByRole("tab", { name: "Insight 2" });
+    fireEvent.click(insightTwoTab);
+
+    expect(insightTwoTab).toHaveAttribute("aria-selected", "true");
   });
 });

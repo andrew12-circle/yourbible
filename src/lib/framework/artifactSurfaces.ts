@@ -48,7 +48,7 @@ export const artifactStudySectionContentMobile = "pb-4 pt-1.5";
 
 /** Mobile study column: airy section blocks (replaces flat divider stack). */
 export const artifactStudyBodyMobile = cn(
-  "space-y-10 bg-gradient-to-b from-background via-background to-muted/15 pb-10",
+  "space-y-10 bg-background pb-10",
 );
 
 /** Mobile premium section title (Playfair). */

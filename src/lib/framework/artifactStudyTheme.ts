@@ -95,9 +95,9 @@ export function artifactMobileInsightHeroAccent(index: number) {
   return artifactMobileInsightHeroAccents[index % artifactMobileInsightHeroAccents.length];
 }
 
-/** Width for one hero insight slide (~72% phone viewport, capped like continue-studying cards). */
+/** Width for one hero insight slide, leaving a peek of the next card on phones. */
 export const artifactMobileInsightHeroSlide =
-  "basis-[min(292px,calc(100vw-2rem))] max-w-[312px] shrink-0 grow-0";
+  "w-[78vw] min-w-[248px] max-w-[292px] shrink-0 grow-0";
 
 export const artifactMobileInsightHeroNumber = "font-display text-4xl font-semibold tabular-nums leading-none";
 export const artifactMobileInsightHeroQuote =
