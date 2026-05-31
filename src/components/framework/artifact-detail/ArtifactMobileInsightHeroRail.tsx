@@ -178,7 +178,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   if (claims.length === 0) return null;
 
   return (
-    <div className={cn("w-full max-w-full min-w-0 space-y-3 overflow-hidden", className)}>
+    <div className={cn("w-[calc(100vw-2rem)] max-w-[420px] min-w-0 space-y-3 overflow-hidden", className)}>
       <div
         ref={railRef}
         className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden pb-3 pt-0.5 active:cursor-grabbing"
@@ -258,7 +258,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         </div>
       </div>
       {claims.length > 1 ? (
-        <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex w-full items-center justify-between gap-3 px-1">
           <button
             type="button"
             aria-label="Previous insight"
