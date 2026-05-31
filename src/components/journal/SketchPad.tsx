@@ -442,7 +442,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
   const handleClear = () => {
     if (strokesRef.current.length === 0) return;
-    if (!window.confirm("Clear the sketch? This can't be undone.")) return;
+    if (!window.confirm("Clear the handwritten note? This can't be undone.")) return;
     strokesRef.current = [];
     redoStackRef.current = [];
     setHasStrokes(false);
@@ -458,14 +458,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), "image/png"),
       );
-      if (!blob) throw new Error("Could not export sketch");
+      if (!blob) throw new Error("Could not export handwritten note");
       const base = filename || `sketch-${new Date().toISOString().replace(/[:.]/g, "-")}`;
       const file = new File([blob], `${base}.png`, { type: "image/png" });
       await onSave(file);
       onClose();
     } catch (err) {
-      console.error("sketch save error", err);
-      window.alert(`Couldn't save sketch: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("handwritten save error", err);
+      window.alert(`Couldn't save handwritten note: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -478,7 +478,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       ref={rootRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Sketch"
+      aria-label="Handwritten"
       className="fixed inset-0 z-[80] flex select-none flex-col bg-background"
       style={{
         WebkitUserSelect: "none",
@@ -494,13 +494,13 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           type="button"
           onClick={onClose}
           className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          title="Close sketch"
-          aria-label="Close sketch"
+          title="Close handwritten"
+          aria-label="Close handwritten"
         >
           <X className="h-4 w-4" />
         </button>
         <div className="flex-1 text-center text-[13px] font-medium text-muted-foreground">
-          Sketch
+          Handwritten
         </div>
         <Button
           type="button"
@@ -510,7 +510,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           variant="ghost"
           className="h-8 rounded-full px-3 text-[13px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground"
         >
-          {saving ? "Saving…" : "Save sketch"}
+          {saving ? "Saving…" : "Save handwritten"}
         </Button>
       </header>
 
@@ -523,7 +523,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
         <div
           className="mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border border-black/10 bg-white/90 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]"
           role="toolbar"
-          aria-label="Sketch tools"
+          aria-label="Handwritten tools"
         >
           <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
             <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
@@ -696,10 +696,10 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/50 bg-white/90 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
-          Closing without saving discards the sketch
+          Closing without saving discards the handwritten note
         </span>
         <span className="hidden sm:inline tabular-nums">
-          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, handwriting can be transcribed into your entry
+          Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, this can be transcribed into your entry
         </span>
       </footer>
     </div>

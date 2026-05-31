@@ -620,7 +620,7 @@ export default function NewJournalEntryPage() {
           if (!isSketch) continue;
           const path = uploaded[i]?.storage_path;
           if (!path) continue;
-          setBusyLabel("Reading sketch");
+          setBusyLabel("Reading handwriting");
           const r = await transcribeJournalSketch({ entryId: entryId!, storagePath: path });
           if (!r.ok) {
             txError = r.error;
@@ -636,7 +636,7 @@ export default function NewJournalEntryPage() {
           });
         } else if (transcribedCount > 0) {
           toast({
-            title: "Sketch transcribed",
+            title: "Handwritten note transcribed",
             description: "Handwriting was added to your journal body.",
           });
         }
@@ -1098,7 +1098,7 @@ export default function NewJournalEntryPage() {
               className="w-full"
               onClick={() => { setMoreOpen(false); setSketchOpen(true); }}
             >
-              <PenLine className="w-4 h-4 mr-2" /> Add sketch
+              <PenLine className="w-4 h-4 mr-2" /> Add handwritten
             </Button>
           </div>
         </SheetContent>

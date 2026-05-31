@@ -67,7 +67,7 @@ describe("SketchPad", () => {
   it("blocks browser selection and callout gestures on the sketch surface", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
-    const dialog = screen.getByRole("dialog", { name: "Sketch" });
+    const dialog = screen.getByRole("dialog", { name: "Handwritten" });
     const canvas = dialog.querySelector("canvas");
     expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 
@@ -87,7 +87,7 @@ describe("SketchPad", () => {
   it("prevents pointer defaults while drawing", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
-    const canvas = screen.getByRole("dialog", { name: "Sketch" }).querySelector("canvas");
+    const canvas = screen.getByRole("dialog", { name: "Handwritten" }).querySelector("canvas");
     expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 
     const pointerDown = new Event("pointerdown", { bubbles: true, cancelable: true });
