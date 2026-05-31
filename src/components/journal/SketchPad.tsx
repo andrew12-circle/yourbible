@@ -224,6 +224,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       redoStackRef.current = [];
       activeStrokeRef.current = null;
       activePointerIdRef.current = null;
+      activePointerTypeRef.current = null;
+      penSeenRef.current = false;
       setHasStrokes(false);
       setRedoCount(0);
       setTool("pen");
