@@ -1,6 +1,7 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ArtifactDetailPage from "./ArtifactDetailPage";
 
 const claims = Array.from({ length: 28 }, (_, index) => ({
@@ -102,7 +103,9 @@ vi.mock("./FrameworkLayout", () => ({
 }));
 
 vi.mock("@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock", () => ({
-  default: () => <div data-testid="youtube-block" />,
+  default: ({ insightExplorePanel }: { insightExplorePanel?: React.ReactNode }) => (
+    <div data-testid="youtube-block">{insightExplorePanel}</div>
+  ),
 }));
 
 vi.mock("@/components/framework/artifact-detail/ArtifactClaimsSection", () => ({
@@ -138,20 +141,53 @@ vi.mock("@/components/navigation/MobileAppDock", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("ArtifactDetailPage", () => {
   it("keeps the full claims section available on pinned mobile YouTube artifacts with many claims", () => {
     render(
-      <MemoryRouter initialEntries={["/framework/artifacts/artifact-1"]}>
-        <Routes>
-          <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <TooltipProvider>
+        <MemoryRouter initialEntries={["/framework/artifacts/artifact-1"]}>
+          <Routes>
+            <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </TooltipProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "Key insights" })).toBeInTheDocument();
     expect(screen.getAllByText("28 insights").length).toBeGreaterThan(0);
     expect(screen.getByTestId("full-claims-section")).toHaveTextContent("28 full claims");
+  });
+
+  it("scrolls back to the mobile insight picker when closing an explored insight", async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      value: scrollTo,
+    });
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+
+    render(
+      <TooltipProvider>
+        <MemoryRouter initialEntries={["/framework/artifacts/artifact-1"]}>
+          <Routes>
+            <Route path="/framework/artifacts/:id" element={<ArtifactDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByText("Claim 1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Back to study" }));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" });
+    });
+    expect(screen.queryByRole("button", { name: "Back to study" })).not.toBeInTheDocument();
   });
 });
