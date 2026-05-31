@@ -81,7 +81,7 @@ describe("ArtifactMobileOverview", () => {
     );
 
     const rail = screen.getByRole("list", { name: /key insight cards/i });
-    expect(rail).toHaveClass("overflow-x-auto", "snap-x", "snap-mandatory", "touch-pan-x");
+    expect(rail).toHaveClass("overflow-x-auto", "snap-x", "snap-mandatory", "touch-pan-y");
     expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
 
     fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));

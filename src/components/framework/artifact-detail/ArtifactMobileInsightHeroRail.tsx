@@ -37,7 +37,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   const scrollFrameRef = useRef<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
-  const railDragRef = useRef<{ pointerId: number; x: number; scrollLeft: number } | null>(null);
+  const railDragRef = useRef<{ pointerId: number; x: number; y: number; scrollLeft: number } | null>(null);
   const draggingRef = useRef(false);
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
@@ -124,12 +124,12 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   }, []);
 
   const handleRailPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "touch") return;
     const rail = railRef.current;
     if (!rail) return;
     railDragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
+      y: event.clientY,
       scrollLeft: rail.scrollLeft,
     };
     rail.setPointerCapture(event.pointerId);
@@ -141,7 +141,8 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     if (!drag || drag.pointerId !== event.pointerId || !rail) return;
 
     const deltaX = event.clientX - drag.x;
-    if (Math.abs(deltaX) <= 4) return;
+    const deltaY = event.clientY - drag.y;
+    if (Math.abs(deltaX) <= 4 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
     draggingRef.current = true;
     rail.scrollLeft = drag.scrollLeft - deltaX;
     event.preventDefault();
@@ -161,7 +162,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     <div className={cn("space-y-3", className)}>
       <div
         ref={railRef}
-        className="-mx-3 cursor-grab touch-pan-x snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scroll-padding-inline:0.75rem] [scrollbar-width:thin] sm:-mx-4 sm:[scroll-padding-inline:1rem]"
+        className="-mx-3 cursor-grab touch-pan-y snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scroll-padding-inline:0.75rem] [scrollbar-width:thin] sm:-mx-4 sm:[scroll-padding-inline:1rem]"
         role="list"
         aria-label="Key insight cards"
         onScroll={handleScroll}
