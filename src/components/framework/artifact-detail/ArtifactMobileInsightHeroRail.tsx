@@ -26,6 +26,13 @@ type Props<T extends ClaimLike> = {
   className?: string;
 };
 
+const MAX_FLICK_VELOCITY = 1.2;
+const MOMENTUM_PROJECTION_MS = 300;
+
+function clampVelocity(velocity: number) {
+  return Math.min(Math.max(velocity, -MAX_FLICK_VELOCITY), MAX_FLICK_VELOCITY);
+}
+
 export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   claims,
   activeClaimId,
@@ -167,7 +174,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
 
     if (!draggingRef.current) return;
     const releaseOffset = clampOffset(drag.startOffset - (event.clientX - drag.startX));
-    const momentumOffset = clampOffset(releaseOffset + drag.velocity * 650);
+    const momentumOffset = clampOffset(releaseOffset + clampVelocity(drag.velocity) * MOMENTUM_PROJECTION_MS);
     const nextIndex = nearestIndexForOffset(momentumOffset);
     setSelectedIndex(nextIndex);
     scrollToIndex(nextIndex);

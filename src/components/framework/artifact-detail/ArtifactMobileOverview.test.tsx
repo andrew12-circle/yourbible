@@ -121,6 +121,6 @@ describe("ArtifactMobileOverview", () => {
     fireEvent.pointerMove(rail, { pointerId: 1, clientX: 120, clientY: 126, timeStamp: 100 });
     fireEvent.pointerUp(rail, { pointerId: 1, clientX: 80, clientY: 126, timeStamp: 120 });
 
-    expect(screen.getByRole("tab", { name: "Insight 4" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Insight 3" })).toHaveAttribute("aria-selected", "true");
   });
 });
