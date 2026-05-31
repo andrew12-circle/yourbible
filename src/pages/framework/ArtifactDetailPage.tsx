@@ -56,6 +56,7 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
 import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
+import { scrollMobileInsightPickerIntoView } from "@/lib/framework/scrollMobileInsightPickerIntoView";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
@@ -350,9 +351,7 @@ export default function ArtifactDetailPage() {
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
   const [mobileNoteSectionOpen, setMobileNoteSectionOpen] = useState(false);
   const resetMobileStudyScroll = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      mobileBodyScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    });
+    scrollMobileInsightPickerIntoView(mobileBodyScrollRef.current);
   }, []);
   const {
     mobileInsightExploreClaimId,
