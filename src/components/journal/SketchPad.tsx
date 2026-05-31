@@ -42,7 +42,6 @@ const PAPER_OPTIONS: { id: Paper; label: string; icon: React.ComponentType<{ cla
   { id: "dot", label: "Dot", icon: Grid2X2 },
 ];
 
-const PAPER_STORAGE_KEY = "sketchpad:paper";
 const DEFAULT_PAPER: Paper = "ruled";
 
 /** Spacing in CSS pixels between rules / grid lines / dots. */
@@ -123,21 +122,11 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   useEffect(() => {
     palmRejectionRef.current = palmRejection;
   }, [palmRejection]);
-  const [paper, setPaper] = useState<Paper>(() => {
-    if (typeof window === "undefined") return DEFAULT_PAPER;
-    const stored = window.localStorage.getItem(PAPER_STORAGE_KEY);
-    return stored === "ruled" || stored === "graph" || stored === "dot" || stored === "blank"
-      ? (stored as Paper)
-      : DEFAULT_PAPER;
-  });
+  const [paper, setPaper] = useState<Paper>(DEFAULT_PAPER);
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(PAPER_STORAGE_KEY, paper);
-  }, [paper]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
