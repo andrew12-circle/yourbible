@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ArtifactMobileTab } from "@/hooks/useArtifactDetailMobileTabs";
 
-export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab) {
+export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab, onClose?: () => void) {
   const [claimId, setClaimId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -10,7 +10,8 @@ export function useArtifactMobileInsightExplore(mobileTab: ArtifactMobileTab) {
 
   const closeMobileInsightExplore = useCallback(() => {
     setClaimId(null);
-  }, []);
+    onClose?.();
+  }, [onClose]);
 
   return { mobileInsightExploreClaimId: claimId, setMobileInsightExploreClaimId: setClaimId, closeMobileInsightExplore };
 }

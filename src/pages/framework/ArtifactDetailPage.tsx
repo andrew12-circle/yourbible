@@ -349,11 +349,16 @@ export default function ArtifactDetailPage() {
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
   const [mobileNoteSectionOpen, setMobileNoteSectionOpen] = useState(false);
+  const resetMobileStudyScroll = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      mobileBodyScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, []);
   const {
     mobileInsightExploreClaimId,
     setMobileInsightExploreClaimId,
     closeMobileInsightExplore,
-  } = useArtifactMobileInsightExplore(mobileTab);
+  } = useArtifactMobileInsightExplore(mobileTab, resetMobileStudyScroll);
   const openNotesTabWithNote = useCallback(() => {
     setMobileNoteSectionOpen(true);
     openNotesTab();
