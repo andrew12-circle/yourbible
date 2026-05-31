@@ -175,10 +175,10 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   if (claims.length === 0) return null;
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("min-w-0 space-y-3", className)}>
       <div
         ref={railRef}
-        className="-mx-3 cursor-grab touch-pan-y snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scroll-padding-inline:0.75rem] [scrollbar-width:thin] sm:-mx-4 sm:[scroll-padding-inline:1rem]"
+        className="-mx-3 w-[calc(100%+1.5rem)] max-w-[calc(100%+1.5rem)] cursor-grab touch-pan-y snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scroll-padding-inline:0.75rem] [scrollbar-width:thin] sm:-mx-4 sm:w-[calc(100%+2rem)] sm:max-w-[calc(100%+2rem)] sm:[scroll-padding-inline:1rem]"
         role="list"
         aria-label="Key insight cards"
         onScroll={handleScroll}
@@ -187,7 +187,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         onPointerCancel={handleRailPointerEnd}
         onPointerUp={handleRailPointerEnd}
       >
-        <div className="flex min-w-min gap-3 px-3 sm:px-4">
+        <div className="flex w-max gap-3 px-3 sm:px-4">
           {claims.map((claim, idx) => {
             const primaryRef = claim.scripture_supports?.[0]?.ref;
             const accent = artifactMobileInsightHeroAccent(idx);
