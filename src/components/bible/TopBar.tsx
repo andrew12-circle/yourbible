@@ -40,11 +40,15 @@ interface Props {
   onFontScaleChange: (next: number) => void;
   /** Viewport under READER_SINGLE_PAGE_MAX — compact chrome + menu sheet */
   singlePage?: boolean;
-  /** Increment to open reader settings (e.g. footer book name tap). */
+  /** Increment to open reader settings from another reader control. */
   settingsOpenRequest?: number;
+  /** Incrementing request from page chrome labels to open navigation directly. */
+  navigationOpenRequest?: { id: number; target: NavigationPickerTarget } | null;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
+type PickerIntent = "reference" | "book" | "chapter";
+type NavigationPickerTarget = Exclude<PickerStep, "verse">;
 
 export function TopBar({
   reference, collapsed: _collapsed, focusMode, onToggleFocus,
@@ -53,12 +57,21 @@ export function TopBar({
   fontScale, onFontScaleChange,
   singlePage = false,
   settingsOpenRequest = 0,
+  navigationOpenRequest = null,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuPanel, setMobileMenuPanel] = useState<ReaderMenuPanel>("nav");
+  const [mobileMenuStep, setMobileMenuStep] = useState<NavigationPickerTarget>("book");
+  const [mobileMenuIntent, setMobileMenuIntent] = useState<PickerIntent>("reference");
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [step, setStep] = useState<PickerStep>("book");
+  const [pickerIntent, setPickerIntent] = useState<PickerIntent>("reference");
+  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
+  const [pickedChapter, setPickedChapter] = useState<number>(currentChapter ?? 1);
+  const [verseInput, setVerseInput] = useState("");
 
   useEffect(() => {
     if (focusMode) setOpen(false);
@@ -75,25 +88,52 @@ export function TopBar({
     setSettingsDropdownOpen(true);
   }, [settingsOpenRequest, singlePage]);
 
-  // Reference picker state
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [step, setStep] = useState<PickerStep>("book");
-  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
-  const [pickedChapter, setPickedChapter] = useState<number>(currentChapter ?? 1);
+  useEffect(() => {
+    if (!navigationOpenRequest) return;
+    const { target } = navigationOpenRequest;
+    if (singlePage) {
+      setMobileMenuPanel("nav");
+      setMobileMenuStep(target);
+      setMobileMenuIntent(target);
+      setMobileMenuOpen(true);
+      return;
+    }
+    setPickerIntent(target);
+    setStep(target);
+    setPickedBook(currentBook);
+    setPickedChapter(currentChapter);
+    setVerseInput("");
+    setOpen(true);
+    setPickerOpen(true);
+  }, [navigationOpenRequest, singlePage, currentBook, currentChapter]);
+
+  const openMobileMenu = () => {
+    setMobileMenuPanel("nav");
+    setMobileMenuStep("book");
+    setMobileMenuIntent("reference");
+    setMobileMenuOpen(true);
+  };
 
   const onOpenPicker = (next: boolean) => {
     setPickerOpen(next);
     if (next) {
       // Reset to "book" each time it opens, seeded with the current book/chapter
+      setPickerIntent("reference");
       setStep("book");
       setPickedBook(currentBook);
       setPickedChapter(currentChapter);
+      setVerseInput("");
     }
   };
 
   const pickBook = (b: BibleBook) => {
     setPickedBook(b);
     if (b.chapters === 1) {
+      if (pickerIntent !== "reference") {
+        onJumpTo(b, 1);
+        setPickerOpen(false);
+        return;
+      }
       // 1-chapter books skip straight to verse step
       setPickedChapter(1);
       setStep("verse");
@@ -103,6 +143,11 @@ export function TopBar({
   };
   const pickChapter = (c: number) => {
     setPickedChapter(c);
+    if (pickerIntent !== "reference") {
+      onJumpTo(pickedBook, c);
+      setPickerOpen(false);
+      return;
+    }
     setStep("verse");
   };
   const jump = (verse?: number) => {
@@ -115,7 +160,6 @@ export function TopBar({
   // ahead of time, so show a generous default and let the user type.
   const sameAsLoaded = !!currentBook && pickedBook?.abbr === currentBook.abbr && pickedChapter === currentChapter;
   const verseGridSize = sameAsLoaded && currentVerseCount > 0 ? currentVerseCount : 176; // Ps 119 max
-  const [verseInput, setVerseInput] = useState("");
 
   return (
     <>
@@ -151,6 +195,8 @@ export function TopBar({
             if (!next) setMobileMenuPanel("nav");
           }}
           initialPanel={mobileMenuPanel}
+          initialStep={mobileMenuStep}
+          initialIntent={mobileMenuIntent}
           reference={reference}
           currentBook={currentBook}
           currentChapter={currentChapter}
@@ -176,7 +222,7 @@ export function TopBar({
         <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={openMobileMenu}
             className="flex items-center gap-1.5 text-leather hover:text-leather-deep transition-colors min-w-0"
             aria-label="Open reader menu"
           >
@@ -184,7 +230,7 @@ export function TopBar({
             <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
           </button>
           <div className="flex items-center gap-0.5 shrink-0">
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} title="Reader menu" className="text-leather/80 hover:text-leather">
+            <Button variant="ghost" size="icon" onClick={openMobileMenu} title="Reader menu" className="text-leather/80 hover:text-leather">
               <Menu className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"} className="text-leather/80 hover:text-leather">

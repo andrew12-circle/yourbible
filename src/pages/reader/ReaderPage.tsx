@@ -41,6 +41,7 @@ const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
+type NavigationPickerTarget = "book" | "chapter";
 function pageTypoClass(fontChoice: string | undefined) {
   if (fontChoice === "sans") return `font-sans ${PAGE_TYPO_BASE}`;
   if (fontChoice === "sf") {
@@ -100,7 +101,10 @@ export default function ReaderPage() {
   const [passage, setPassage] = useState<Passage | null>(null);
   const [loadingPassage, setLoadingPassage] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [settingsOpenRequest, setSettingsOpenRequest] = useState(0);
+  const [navigationOpenRequest, setNavigationOpenRequest] = useState<{
+    id: number;
+    target: NavigationPickerTarget;
+  } | null>(null);
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -582,6 +586,15 @@ export default function ReaderPage() {
   const reference = `${book.name} ${chapter}`;
 
   // Header for first page of chapter
+  const openNavigationPicker = (target: NavigationPickerTarget) => {
+    setNavigationOpenRequest((prev) => ({
+      id: (prev?.id ?? 0) + 1,
+      target,
+    }));
+  };
+  const openBookPicker = () => openNavigationPicker("book");
+  const openChapterPicker = () => openNavigationPicker("chapter");
+
   const ChapterHeader = (
     <div className="text-center mb-6">
       <motion.h1
@@ -593,7 +606,14 @@ export default function ReaderPage() {
       </motion.h1>
       <div className="flex items-center justify-center gap-3 text-muted-foreground">
         <span className="h-px w-8 bg-gradient-to-r from-transparent to-gold/40" />
-        <span className="font-display text-[11px] uppercase tracking-[0.3em]">Chapter {chapter}</span>
+        <button
+          type="button"
+          onClick={openChapterPicker}
+          className="font-display text-[11px] uppercase tracking-[0.3em] hover:text-leather transition-colors"
+          aria-label={`Choose a different chapter in ${book.name}`}
+        >
+          Chapter {chapter}
+        </button>
         <span className="h-px w-8 bg-gradient-to-l from-transparent to-gold/40" />
       </div>
     </div>
@@ -694,8 +714,6 @@ export default function ReaderPage() {
     );
   };
 
-  const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
-
   // A single page surface (no scrolling — fixed area)
   const PageSurface = ({
     pageIdx,
@@ -722,9 +740,9 @@ export default function ReaderPage() {
         >
           <button
             type="button"
-            onClick={openReaderSettings}
+            onClick={openBookPicker}
             className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
-            aria-label={`${book.name} — open reader settings`}
+            aria-label={`${book.name} — choose a different book`}
           >
             {book.name}
           </button>
@@ -761,9 +779,9 @@ export default function ReaderPage() {
             <span className="inline-flex items-center gap-1">
               <button
                 type="button"
-                onClick={openReaderSettings}
+                onClick={openBookPicker}
                 className="hover:text-muted-foreground transition-colors"
-                aria-label={`${book.name} — open reader settings`}
+                aria-label={`${book.name} — choose a different book`}
               >
                 {book.name}
               </button>
@@ -824,7 +842,7 @@ export default function ReaderPage() {
         fontScale={fontScale}
         onFontScaleChange={updateFontScale}
         singlePage={singlePage}
-        settingsOpenRequest={settingsOpenRequest}
+        navigationOpenRequest={navigationOpenRequest}
       />
 
       <BookScene
