@@ -91,6 +91,7 @@ export interface SketchPadProps {
 }
 
 export default function SketchPad({ open, onClose, onSave, filename }: SketchPadProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   /** Offscreen layer that holds only strokes; eraser composites here so paper stays intact. */
@@ -104,6 +105,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const activePointerTypeRef = useRef<string | null>(null);
   /** Set once a stylus is seen this session — enables palm rejection. */
   const penSeenRef = useRef<boolean>(false);
+  const redrawFrameRef = useRef<number | null>(null);
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
@@ -135,27 +137,6 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     if (typeof window === "undefined") return;
     window.localStorage.setItem(PAPER_STORAGE_KEY, paper);
   }, [paper]);
-
-  const resizeCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapperRef.current;
-    if (!canvas || !wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    dprRef.current = dpr;
-    sizeRef.current = { w: rect.width, h: rect.height };
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-    if (!strokeLayerRef.current) {
-      strokeLayerRef.current = document.createElement("canvas");
-    }
-    const layer = strokeLayerRef.current;
-    layer.width = canvas.width;
-    layer.height = canvas.height;
-    redraw();
-  }, []);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -198,11 +179,90 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     ctx.restore();
   }, [paper]);
 
+  const scheduleRedraw = useCallback(() => {
+    if (redrawFrameRef.current != null) return;
+    redrawFrameRef.current = window.requestAnimationFrame(() => {
+      redrawFrameRef.current = null;
+      redraw();
+    });
+  }, [redraw]);
+
+  const flushRedraw = useCallback(() => {
+    if (redrawFrameRef.current != null) {
+      window.cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
+    }
+    redraw();
+  }, [redraw]);
+
+  const resizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapperRef.current;
+    if (!canvas || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    dprRef.current = dpr;
+    sizeRef.current = { w: rect.width, h: rect.height };
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    if (!strokeLayerRef.current) {
+      strokeLayerRef.current = document.createElement("canvas");
+    }
+    const layer = strokeLayerRef.current;
+    layer.width = canvas.width;
+    layer.height = canvas.height;
+    flushRedraw();
+  }, [flushRedraw]);
+
   // Repaint when the paper style changes (background only; strokes stay).
   useEffect(() => {
     if (!open) return;
-    redraw();
-  }, [paper, open, redraw]);
+    flushRedraw();
+  }, [paper, open, flushRedraw]);
+
+  // Safari/iPadOS can still open text-selection or callout UI from long-press
+  // gestures unless these native defaults are blocked with non-passive listeners.
+  useEffect(() => {
+    if (!open) return;
+    const root = rootRef.current;
+    const wrap = wrapperRef.current;
+    const canvas = canvasRef.current;
+    const drawingSurfaces = [wrap, canvas].filter(Boolean) as HTMLElement[];
+    const preventDefault = (event: Event) => event.preventDefault();
+    const nonPassive = { passive: false } as AddEventListenerOptions;
+
+    root?.addEventListener("selectstart", preventDefault);
+    root?.addEventListener("dragstart", preventDefault);
+    root?.addEventListener("contextmenu", preventDefault);
+
+    for (const surface of drawingSurfaces) {
+      surface.addEventListener("touchstart", preventDefault, nonPassive);
+      surface.addEventListener("touchmove", preventDefault, nonPassive);
+      surface.addEventListener("touchend", preventDefault, nonPassive);
+      surface.addEventListener("touchcancel", preventDefault, nonPassive);
+      surface.addEventListener("gesturestart", preventDefault, nonPassive);
+      surface.addEventListener("gesturechange", preventDefault, nonPassive);
+      surface.addEventListener("gestureend", preventDefault, nonPassive);
+    }
+
+    return () => {
+      root?.removeEventListener("selectstart", preventDefault);
+      root?.removeEventListener("dragstart", preventDefault);
+      root?.removeEventListener("contextmenu", preventDefault);
+
+      for (const surface of drawingSurfaces) {
+        surface.removeEventListener("touchstart", preventDefault, nonPassive);
+        surface.removeEventListener("touchmove", preventDefault, nonPassive);
+        surface.removeEventListener("touchend", preventDefault, nonPassive);
+        surface.removeEventListener("touchcancel", preventDefault, nonPassive);
+        surface.removeEventListener("gesturestart", preventDefault, nonPassive);
+        surface.removeEventListener("gesturechange", preventDefault, nonPassive);
+        surface.removeEventListener("gestureend", preventDefault, nonPassive);
+      }
+    };
+  }, [open]);
 
   // Initial size + window resize
   useEffect(() => {
@@ -216,6 +276,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       window.removeEventListener("orientationchange", onResize);
     };
   }, [open, resizeCanvas]);
+
+  useEffect(() => {
+    if (open) return;
+    if (redrawFrameRef.current != null) {
+      window.cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
+    }
+  }, [open]);
 
   // Reset state when reopened
   useEffect(() => {
@@ -336,7 +404,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     } else {
       stroke.points.push(getPoint(canvas, e));
     }
-    redraw();
+    scheduleRedraw();
+    e.preventDefault();
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -357,7 +426,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       strokesRef.current.push(stroke);
       setHasStrokes(true);
     }
-    redraw();
+    flushRedraw();
+    e.preventDefault();
   };
 
   const handleUndo = () => {
@@ -415,10 +485,18 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
   return (
     <div
+      ref={rootRef}
       role="dialog"
       aria-modal="true"
       aria-label="Sketch"
-      className="fixed inset-0 z-[80] flex flex-col bg-background"
+      className="fixed inset-0 z-[80] flex select-none flex-col bg-background"
+      style={{
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+        touchAction: "none",
+        overscrollBehavior: "none",
+      }}
+      onContextMenu={(event) => event.preventDefault()}
     >
       {/* Header */}
       <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-border/60 px-3">
@@ -597,6 +675,12 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
         <div
           ref={wrapperRef}
           className="relative h-full w-full overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm"
+          style={{
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+            touchAction: "none",
+            overscrollBehavior: "none",
+          }}
         >
           <canvas
             ref={canvasRef}
