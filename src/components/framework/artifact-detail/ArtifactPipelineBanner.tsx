@@ -29,8 +29,7 @@ function ArtifactPipelineBanner({
       <p className="text-xs text-muted-foreground">{hint}</p>
       {status === "fetching" && elapsed > 90 && (
         <p className="mt-2 text-xs text-amber-700">
-          Taking longer than expected. Long videos can take several minutes. You can also paste the transcript
-          yourself.
+          Taking longer than expected. Long videos can take several minutes; automatic retries are still running.
         </p>
       )}
       {(status === "fetching" || status === "transcribing") && (

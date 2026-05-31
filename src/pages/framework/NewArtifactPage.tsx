@@ -15,6 +15,7 @@ import {
   looksLikeYoutubeShowTranscriptPaste,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
+import { createTranscriptProcessingToken, startYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 
 const ONE_MB = 1024 * 1024;
@@ -46,7 +47,6 @@ export default function NewArtifactPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [busy, setBusy] = useState(false);
-  const createProcessingToken = () => crypto.randomUUID();
 
   useEffect(() => {
     const requestedMode = params.get("mode");
@@ -142,7 +142,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     const { data, error } = await supabase
       .from("artifacts")
       .insert({
@@ -173,7 +173,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || null,
@@ -188,9 +188,7 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message, variant: "destructive" });
       return;
     }
-    supabase.functions.invoke("framework-fetch-transcript", {
-      body: { artifact_id: data.id, url: url.trim(), processing_token: processingToken },
-    }).catch((e) => console.error(e));
+    void startYoutubeTranscriptFetch({ artifactId: data.id, url: url.trim(), processingToken });
     navigate(`/framework/artifacts/${data.id}`);
   };
 
@@ -204,7 +202,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || null,
@@ -252,7 +250,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     try {
       const ext = lower.endsWith(".zip") ? ".zip" : ".json";
       toast({ title: "Uploading export…", description: file.name });
@@ -286,7 +284,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     try {
       toast({ title: "Uploading PDF…", description: file.name });
       const path = await uploadToArtifactBucket(file, ".pdf");
@@ -313,7 +311,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     try {
       if (file.size <= ONE_MB) {
         const raw = await file.text();
@@ -396,7 +394,7 @@ export default function NewArtifactPage() {
       return;
     }
     setBusy(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || `Voice memo ${new Date().toLocaleDateString()}`,

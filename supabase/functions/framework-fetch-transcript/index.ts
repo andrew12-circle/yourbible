@@ -860,6 +860,7 @@ Deno.serve(async (req) => {
     const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
     const transcriptJob = processTranscript();
     if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(transcriptJob);
+    else await transcriptJob;
 
     return new Response(JSON.stringify({ ok: true, queued: true }), {
       status: 202,
