@@ -3,6 +3,7 @@ import {
   Eraser,
   Grid2X2,
   GripHorizontal,
+  Hand,
   PenLine,
   Redo2,
   RotateCcw,
@@ -99,12 +100,26 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const redoStackRef = useRef<Stroke[]>([]);
   const activeStrokeRef = useRef<Stroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  /** Pointer type of the in-progress stroke, so a pen can take over from a palm. */
+  const activePointerTypeRef = useRef<string | null>(null);
+  /** Set once a stylus is seen this session — enables palm rejection. */
+  const penSeenRef = useRef<boolean>(false);
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState<string>(PEN_COLORS[0].value);
   const [size, setSize] = useState<number>(PEN_SIZES[1]);
+  /**
+   * When on (default), once an Apple Pencil / stylus has been detected we
+   * ignore finger & palm (`touch`) input on the canvas — just like Apple Notes.
+   * Turn it off to draw with a finger.
+   */
+  const [palmRejection, setPalmRejection] = useState(true);
+  const palmRejectionRef = useRef(palmRejection);
+  useEffect(() => {
+    palmRejectionRef.current = palmRejection;
+  }, [palmRejection]);
   const [paper, setPaper] = useState<Paper>(() => {
     if (typeof window === "undefined") return "blank";
     const stored = window.localStorage.getItem(PAPER_STORAGE_KEY);
@@ -209,6 +224,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       redoStackRef.current = [];
       activeStrokeRef.current = null;
       activePointerIdRef.current = null;
+      activePointerTypeRef.current = null;
+      penSeenRef.current = false;
       setHasStrokes(false);
       setRedoCount(0);
       setTool("pen");
@@ -254,11 +271,36 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Don't start a new stroke if one is already in progress (palm-rejection
-    // heuristic for tablets with finger+stylus active).
-    if (activePointerIdRef.current != null) return;
+    // Remember that a stylus has touched the surface this session.
+    if (e.pointerType === "pen") penSeenRef.current = true;
+
+    // Palm rejection: once a stylus has been used, ignore finger / palm
+    // (`touch`) input on the canvas — matches Apple Notes behaviour.
+    if (
+      palmRejectionRef.current &&
+      penSeenRef.current &&
+      e.pointerType === "touch"
+    ) {
+      e.preventDefault();
+      return;
+    }
+
+    if (activePointerIdRef.current != null) {
+      // A stylus that arrives while a palm/finger stroke is in progress takes
+      // over: discard the stray stroke so the pen starts cleanly.
+      const takeover =
+        e.pointerType === "pen" && activePointerTypeRef.current === "touch";
+      if (!takeover) return;
+      try {
+        canvas.releasePointerCapture(activePointerIdRef.current);
+      } catch {
+        /* noop */
+      }
+      activeStrokeRef.current = null;
+    }
     canvas.setPointerCapture(e.pointerId);
     activePointerIdRef.current = e.pointerId;
+    activePointerTypeRef.current = e.pointerType;
     const pt = getPoint(canvas, e);
     activeStrokeRef.current = {
       tool,
@@ -308,6 +350,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       }
     }
     activePointerIdRef.current = null;
+    activePointerTypeRef.current = null;
     const stroke = activeStrokeRef.current;
     activeStrokeRef.current = null;
     if (stroke && stroke.points.length > 0) {
@@ -421,6 +464,20 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             label="Eraser"
           >
             <Eraser className="h-4 w-4" />
+          </ToolBtn>
+        </div>
+
+        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
+          <ToolBtn
+            active={palmRejection}
+            onClick={() => setPalmRejection((v) => !v)}
+            label={
+              palmRejection
+                ? "Palm rejection on — ignores finger/palm once a pencil is used"
+                : "Palm rejection off — finger drawing allowed"
+            }
+          >
+            <Hand className="h-4 w-4" />
           </ToolBtn>
         </div>
 
@@ -546,6 +603,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             className="block h-full w-full touch-none select-none"
             style={{
               touchAction: "none",
+              WebkitUserSelect: "none",
+              WebkitTouchCallout: "none",
               cursor: tool === "pen" ? "crosshair" : "cell",
             }}
             onPointerDown={onPointerDown}
@@ -558,7 +617,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground/70">
               <PenLine className="mb-2 h-6 w-6" />
               <p className="text-sm">Draw with finger, pencil, or stylus</p>
-              <p className="mt-1 text-xs">Saved as an image attached to this entry</p>
+              <p className="mt-1 text-xs">
+                Palm rejection is on — rest your hand freely once you start with the pencil
+              </p>
             </div>
           )}
         </div>
