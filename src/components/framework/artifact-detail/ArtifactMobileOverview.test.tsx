@@ -23,7 +23,29 @@ const multipleClaims = [
     verdict: null,
     scripture_supports: [{ ref: "1 John 4:1" }],
   },
+  {
+    id: "claim-3",
+    claim: "Hope should reshape attention over time.",
+    verdict: null,
+    scripture_supports: [{ ref: "Romans 12:2" }],
+  },
+  {
+    id: "claim-4",
+    claim: "Practice can deepen faithful imagination.",
+    verdict: null,
+    scripture_supports: [{ ref: "Philippians 4:8" }],
+  },
 ];
+
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetLeft", {
+    configurable: true,
+    get() {
+      const insightIndex = Number((this as HTMLElement).dataset?.insightIndex);
+      return Number.isFinite(insightIndex) ? insightIndex * 300 : 0;
+    },
+  });
+});
 
 afterEach(() => {
   cleanup();
@@ -79,5 +101,26 @@ describe("ArtifactMobileOverview", () => {
     fireEvent.click(insightTwoTab);
 
     expect(insightTwoTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("lets a fast horizontal flick advance through multiple insight cards", () => {
+    render(
+      <ArtifactMobileOverview
+        claims={multipleClaims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={multipleClaims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    const rail = screen.getByRole("list", { name: /key insight cards/i });
+    fireEvent.pointerDown(rail, { pointerId: 1, clientX: 320, clientY: 120, timeStamp: 0 });
+    fireEvent.pointerMove(rail, { pointerId: 1, clientX: 120, clientY: 126, timeStamp: 100 });
+    fireEvent.pointerUp(rail, { pointerId: 1, clientX: 80, clientY: 126, timeStamp: 120 });
+
+    expect(screen.getByRole("tab", { name: "Insight 3" })).toHaveAttribute("aria-selected", "true");
   });
 });
