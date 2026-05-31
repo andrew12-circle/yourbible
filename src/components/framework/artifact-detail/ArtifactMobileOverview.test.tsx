@@ -15,6 +15,16 @@ const claims = [
   },
 ];
 
+const multipleClaims = [
+  ...claims,
+  {
+    id: "claim-2",
+    claim: "Discernment should test claims before accepting them.",
+    verdict: null,
+    scripture_supports: [{ ref: "1 John 4:1" }],
+  },
+];
+
 const scrollIntoView = vi.fn();
 
 beforeEach(() => {
@@ -55,5 +65,27 @@ describe("ArtifactMobileOverview", () => {
 
     expect(onSelectClaim).toHaveBeenCalledWith("claim-1");
     expect(onNavigate).not.toHaveBeenCalledWith("#claims");
+  });
+
+  it("renders key insights as a snap-scrolling mobile rail", () => {
+    render(
+      <ArtifactMobileOverview
+        claims={multipleClaims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={multipleClaims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    const rail = screen.getByRole("list", { name: /key insight cards/i });
+    expect(rail).toHaveClass("overflow-x-auto", "snap-x", "snap-mandatory", "touch-pan-x");
+    expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));
+
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 });

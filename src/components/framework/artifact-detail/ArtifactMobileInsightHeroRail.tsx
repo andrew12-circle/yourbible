@@ -37,6 +37,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   const scrollFrameRef = useRef<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const railDragRef = useRef<{ pointerId: number; x: number; scrollLeft: number } | null>(null);
   const draggingRef = useRef(false);
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
@@ -122,16 +123,52 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     pointerStartRef.current = null;
   }, []);
 
+  const handleRailPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "touch") return;
+    const rail = railRef.current;
+    if (!rail) return;
+    railDragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      scrollLeft: rail.scrollLeft,
+    };
+    rail.setPointerCapture(event.pointerId);
+  }, []);
+
+  const handleRailPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    const drag = railDragRef.current;
+    const rail = railRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !rail) return;
+
+    const deltaX = event.clientX - drag.x;
+    if (Math.abs(deltaX) <= 4) return;
+    draggingRef.current = true;
+    rail.scrollLeft = drag.scrollLeft - deltaX;
+    event.preventDefault();
+  }, []);
+
+  const handleRailPointerEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    const drag = railDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    railDragRef.current = null;
+    railRef.current?.releasePointerCapture(event.pointerId);
+    updateSelectedFromScroll();
+  }, [updateSelectedFromScroll]);
+
   if (claims.length === 0) return null;
 
   return (
     <div className={cn("space-y-3", className)}>
       <div
         ref={railRef}
-        className="-mx-3 overflow-x-auto scroll-smooth pb-3 pt-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:-mx-4"
+        className="-mx-3 cursor-grab touch-pan-x snap-x snap-mandatory overflow-x-auto scroll-smooth pb-3 pt-0.5 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scroll-padding-inline:0.75rem] [scrollbar-width:thin] sm:-mx-4 sm:[scroll-padding-inline:1rem]"
         role="list"
         aria-label="Key insight cards"
         onScroll={handleScroll}
+        onPointerDown={handleRailPointerDown}
+        onPointerMove={handleRailPointerMove}
+        onPointerCancel={handleRailPointerEnd}
+        onPointerUp={handleRailPointerEnd}
       >
         <div className="flex min-w-min gap-3 px-3 sm:px-4">
           {claims.map((claim, idx) => {
@@ -140,7 +177,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
             return (
               <div
                 key={claim.id}
-                className={artifactMobileInsightHeroSlide}
+                className={cn(artifactMobileInsightHeroSlide, "snap-start")}
                 role="listitem"
                 data-insight-index={idx}
               >
