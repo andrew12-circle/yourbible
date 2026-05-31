@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
+import { restartYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
+
+const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 45;
+const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 60_000;
+const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 3;
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -51,6 +56,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef<number | null>(null);
   const prevStatusRef = useRef<string | null>(null);
+  const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
     setA((prev) => {
@@ -168,6 +174,21 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       clearInterval(tick);
     };
   }, [inFlight, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
+    if (elapsed < YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS) return;
+
+    const retry = autoRetryRef.current[a.id] ?? { count: 0, lastAt: 0 };
+    const now = Date.now();
+    if (retry.count >= YOUTUBE_FETCH_AUTO_RETRY_LIMIT) return;
+    if (now - retry.lastAt < YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS) return;
+
+    autoRetryRef.current[a.id] = { count: retry.count + 1, lastAt: now };
+    void restartYoutubeTranscriptFetch(a.id, a.url).then((result) => {
+      if (!result.ok) void loadStatusOnly();
+    });
+  }, [a, elapsed, loadStatusOnly]);
 
   const patchArtifactMetadata = useCallback(async (targetId: string) => {
     const { data } = await supabase

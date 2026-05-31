@@ -58,6 +58,7 @@ import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
 import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
+import { createTranscriptProcessingToken, startYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
 import {
   formatClaimVerdict,
   isDeferredVerdict,
@@ -361,7 +362,6 @@ export default function ArtifactDetailPage() {
 
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
-  const createProcessingToken = () => crypto.randomUUID();
 
   const navigateToArtifactHash = useCallback((hash: string) => {
     const sectionId = hash.replace(/^#/, "");
@@ -826,7 +826,7 @@ export default function ArtifactDetailPage() {
   const reanalyze = async () => {
     const normalized = normalizePastedTranscript(a.raw_text);
     const persistNormalized = normalized !== a.raw_text.trim();
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     await supabase
       .from("artifacts")
       .update({
@@ -918,19 +918,17 @@ export default function ArtifactDetailPage() {
 
   const retryFetch = async () => {
     if (!a.url) return;
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     await supabase.from("artifacts").update({ status: "fetching", error: null, processing_token: processingToken }).eq("id", a.id);
     setA({ ...a, status: "fetching", error: null });
-    supabase.functions
-      .invoke("framework-fetch-transcript", { body: { artifact_id: a.id, url: a.url, processing_token: processingToken } })
-      .catch((e) => console.error(e));
+    void startYoutubeTranscriptFetch({ artifactId: a.id, url: a.url, processingToken });
   };
 
   const submitPasted = async () => {
     if (!pasteText.trim()) return;
     const normalized = normalizePastedTranscript(pasteText);
     setSavingPaste(true);
-    const processingToken = createProcessingToken();
+    const processingToken = createTranscriptProcessingToken();
     await supabase
       .from("artifacts")
       .update({ raw_text: normalized, status: "analyzing", error: null, processing_token: processingToken })
@@ -1185,7 +1183,7 @@ export default function ArtifactDetailPage() {
     analyzing: "Reading the transcript and pulling out claims…",
   };
   const stageHint: Record<string, string> = {
-    fetching: "Looking for the video's official caption track. This usually takes a few seconds.",
+    fetching: "Looking for the video's caption track. If the handoff stalls, this page retries automatically.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
     analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
   };
