@@ -603,6 +603,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             className="block h-full w-full touch-none select-none"
             style={{
               touchAction: "none",
+              WebkitUserSelect: "none",
+              WebkitTouchCallout: "none",
               cursor: tool === "pen" ? "crosshair" : "cell",
             }}
             onPointerDown={onPointerDown}
@@ -615,7 +617,9 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground/70">
               <PenLine className="mb-2 h-6 w-6" />
               <p className="text-sm">Draw with finger, pencil, or stylus</p>
-              <p className="mt-1 text-xs">Saved as an image attached to this entry</p>
+              <p className="mt-1 text-xs">
+                Palm rejection is on — rest your hand freely once you start with the pencil
+              </p>
             </div>
           )}
         </div>
