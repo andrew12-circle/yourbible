@@ -350,6 +350,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       }
     }
     activePointerIdRef.current = null;
+    activePointerTypeRef.current = null;
     const stroke = activeStrokeRef.current;
     activeStrokeRef.current = null;
     if (stroke && stroke.points.length > 0) {
