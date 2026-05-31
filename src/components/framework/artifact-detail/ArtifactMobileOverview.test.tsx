@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import ArtifactMobileOverview from "./ArtifactMobileOverview";
 
 vi.mock("@/components/framework/ArtifactEntitiesPanel", () => ({
@@ -25,18 +25,8 @@ const multipleClaims = [
   },
 ];
 
-const scrollTo = vi.fn();
-
-beforeEach(() => {
-  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-    configurable: true,
-    value: scrollTo,
-  });
-});
-
 afterEach(() => {
   cleanup();
-  scrollTo.mockClear();
 });
 
 describe("ArtifactMobileOverview", () => {
@@ -85,11 +75,9 @@ describe("ArtifactMobileOverview", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
     expect(screen.getByRole("button", { name: "Next insight" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Insight 2" }));
+    const insightTwoTab = screen.getByRole("tab", { name: "Insight 2" });
+    fireEvent.click(insightTwoTab);
 
-    expect(scrollTo).toHaveBeenCalledWith({
-      left: 0,
-      behavior: "smooth",
-    });
+    expect(insightTwoTab).toHaveAttribute("aria-selected", "true");
   });
 });

@@ -35,27 +35,15 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
 }: Props<T>) {
   const railRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const scrollFrameRef = useRef<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [trackOffset, setTrackOffset] = useState(0);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const railDragRef = useRef<{ pointerId: number; x: number; y: number; scrollLeft: number } | null>(null);
   const draggingRef = useRef(false);
 
-  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
-    const rail = railRef.current;
+  const scrollToIndex = useCallback((index: number) => {
     const item = railRef.current?.querySelector<HTMLElement>(`[data-insight-index="${index}"]`);
-    if (!rail || !item) return;
-
-    setTrackOffset(item.offsetLeft);
-    const railRect = rail.getBoundingClientRect();
-    const itemRect = item.getBoundingClientRect();
-    const styles = window.getComputedStyle(rail);
-    const scrollPaddingLeft = Number.parseFloat(styles.scrollPaddingLeft) || 0;
-    rail.scrollTo({
-      left: rail.scrollLeft + itemRect.left - railRect.left - scrollPaddingLeft,
-      behavior,
-    });
+    if (item) setTrackOffset(item.offsetLeft);
   }, []);
 
   useEffect(() => {
@@ -66,43 +54,6 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
       scrollToIndex(idx);
     }
   }, [activeClaimId, claims, scrollToIndex]);
-
-  useEffect(() => {
-    return () => {
-      if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
-    };
-  }, []);
-
-  const updateSelectedFromScroll = useCallback(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-
-    const railCenter = rail.getBoundingClientRect().left + rail.clientWidth / 2;
-    const items = Array.from(rail.querySelectorAll<HTMLElement>("[data-insight-index]"));
-    let nearestIndex: number | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-
-    items.forEach((item) => {
-      const index = Number(item.dataset.insightIndex);
-      const rect = item.getBoundingClientRect();
-      const distance = Math.abs(rect.left + rect.width / 2 - railCenter);
-      if (Number.isFinite(index) && distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
-      }
-    });
-
-    if (nearestIndex == null) return;
-    setSelectedIndex((current) => (current === nearestIndex ? current : nearestIndex));
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    if (scrollFrameRef.current != null) return;
-    scrollFrameRef.current = requestAnimationFrame(() => {
-      scrollFrameRef.current = null;
-      updateSelectedFromScroll();
-    });
-  }, [updateSelectedFromScroll]);
 
   const handleTap = useCallback(
     (claimId: string, index: number, event: MouseEvent<HTMLButtonElement>) => {
@@ -166,8 +117,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     if (!drag || drag.pointerId !== event.pointerId) return;
     railDragRef.current = null;
     railRef.current?.releasePointerCapture(event.pointerId);
-    updateSelectedFromScroll();
-  }, [updateSelectedFromScroll]);
+  }, []);
 
   const selectInsight = useCallback((index: number) => {
     const nextIndex = Math.min(Math.max(index, 0), claims.length - 1);
@@ -184,7 +134,6 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden pb-3 pt-0.5 active:cursor-grabbing"
         role="list"
         aria-label="Key insight cards"
-        onScroll={handleScroll}
         onPointerDown={handleRailPointerDown}
         onPointerMove={handleRailPointerMove}
         onPointerCancel={handleRailPointerEnd}
