@@ -32,6 +32,7 @@ const rect = {
 
 describe("SketchPad", () => {
   beforeEach(() => {
+    window.localStorage.removeItem("sketchpad:paper");
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(canvasContext);
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect);
     Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
@@ -52,6 +53,15 @@ describe("SketchPad", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it("opens new sketches on notebook paper by default", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    expect(screen.getByRole("radio", { name: "Notebook paper" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("blocks browser selection and callout gestures on the sketch surface", () => {

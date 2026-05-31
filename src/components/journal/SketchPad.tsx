@@ -43,6 +43,7 @@ const PAPER_OPTIONS: { id: Paper; label: string; icon: React.ComponentType<{ cla
 ];
 
 const PAPER_STORAGE_KEY = "sketchpad:paper";
+const DEFAULT_PAPER: Paper = "ruled";
 
 /** Spacing in CSS pixels between rules / grid lines / dots. */
 const PAPER_SPACING = 28;
@@ -123,11 +124,11 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     palmRejectionRef.current = palmRejection;
   }, [palmRejection]);
   const [paper, setPaper] = useState<Paper>(() => {
-    if (typeof window === "undefined") return "blank";
+    if (typeof window === "undefined") return DEFAULT_PAPER;
     const stored = window.localStorage.getItem(PAPER_STORAGE_KEY);
     return stored === "ruled" || stored === "graph" || stored === "dot" || stored === "blank"
       ? (stored as Paper)
-      : "blank";
+      : DEFAULT_PAPER;
   });
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
@@ -499,11 +500,11 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       onContextMenu={(event) => event.preventDefault()}
     >
       {/* Header */}
-      <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-border/60 px-3">
+      <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-border/50 bg-white/95 px-3">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+          className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           title="Close sketch"
           aria-label="Close sketch"
         >
@@ -517,6 +518,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           onClick={handleSave}
           disabled={!hasStrokes || saving}
           size="sm"
+          variant="ghost"
+          className="h-8 rounded-full px-3 text-[13px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground"
         >
           {saving ? "Saving…" : "Save sketch"}
         </Button>
@@ -524,149 +527,140 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
 
       {/* Toolbar */}
       <div
-        className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2"
+        className="relative z-10 flex-shrink-0 border-b border-border/40 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl"
         // Tools shouldn't accidentally pick up pen events meant for the canvas.
         style={{ touchAction: "manipulation" }}
       >
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          <ToolBtn
-            active={tool === "pen"}
-            onClick={() => setTool("pen")}
-            label="Pen"
-          >
-            <PenLine className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            active={tool === "eraser"}
-            onClick={() => setTool("eraser")}
-            label="Eraser"
-          >
-            <Eraser className="h-4 w-4" />
-          </ToolBtn>
-        </div>
-
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          <ToolBtn
-            active={palmRejection}
-            onClick={() => setPalmRejection((v) => !v)}
-            label={
-              palmRejection
-                ? "Palm rejection on — ignores finger/palm once a pencil is used"
-                : "Palm rejection off — finger drawing allowed"
-            }
-          >
-            <Hand className="h-4 w-4" />
-          </ToolBtn>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {PEN_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => {
-                setColor(c.value);
-                if (tool === "eraser") setTool("pen");
-              }}
-              title={c.name}
-              aria-label={`Color ${c.name}`}
-              className={cn(
-                "h-6 w-6 rounded-full border transition",
-                color === c.value && tool === "pen"
-                  ? "ring-2 ring-offset-2 ring-offset-background ring-foreground border-transparent"
-                  : "border-border/70 hover:scale-110",
-              )}
-              style={{ background: c.value }}
-            />
-          ))}
-        </div>
-
         <div
-          className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5"
-          role="radiogroup"
-          aria-label="Paper style"
+          className="mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 rounded-[1.35rem] border border-black/10 bg-white/90 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)]"
+          role="toolbar"
+          aria-label="Sketch tools"
         >
-          {PAPER_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
-            const active = paper === opt.id;
-            return (
+          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+            <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
+              <PenLine className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
+              <Eraser className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn
+              active={palmRejection}
+              onClick={() => setPalmRejection((v) => !v)}
+              label={
+                palmRejection
+                  ? "Palm rejection on — ignores finger/palm once a pencil is used"
+                  : "Palm rejection off — finger drawing allowed"
+              }
+            >
+              <Hand className="h-4 w-4" />
+            </ToolBtn>
+          </div>
+
+          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+
+          <div className="flex items-center gap-1 rounded-full bg-slate-100/90 px-1.5 py-1">
+            {PEN_COLORS.map((c) => (
               <button
-                key={opt.id}
+                key={c.value}
                 type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setPaper(opt.id)}
-                title={`${opt.label} paper`}
-                aria-label={`${opt.label} paper`}
+                onClick={() => {
+                  setColor(c.value);
+                  if (tool === "eraser") setTool("pen");
+                }}
+                title={c.name}
+                aria-label={`Color ${c.name}`}
                 className={cn(
-                  "flex h-8 items-center gap-1.5 rounded px-2 text-[12px] transition",
-                  active
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "h-5 w-5 rounded-full border border-black/10 transition hover:scale-110",
+                  color === c.value &&
+                    tool === "pen" &&
+                    "ring-2 ring-blue-500 ring-offset-2 ring-offset-white",
+                )}
+                style={{ background: c.value }}
+              />
+            ))}
+          </div>
+
+          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+
+          <div
+            className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5"
+            role="radiogroup"
+            aria-label="Paper style"
+          >
+            {PAPER_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const active = paper === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setPaper(opt.id)}
+                  title={`${opt.label} paper`}
+                  aria-label={`${opt.label} paper`}
+                  className={cn(
+                    "flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition",
+                    active
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+                  )}
+                >
+                  {opt.id === "dot" ? (
+                    <span className="flex h-4 w-4 items-center justify-center" aria-hidden>
+                      <span className="block h-1 w-1 rounded-full bg-current" />
+                    </span>
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
+
+          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+            {PEN_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSize(s)}
+                title={`Size ${s}`}
+                aria-label={`Size ${s}`}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full transition",
+                  size === s
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-white/70",
                 )}
               >
-                {opt.id === "dot" ? (
-                  <span className="flex h-4 w-4 items-center justify-center" aria-hidden>
-                    <span className="block h-1 w-1 rounded-full bg-current" />
-                  </span>
-                ) : (
-                  <Icon className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">{opt.label}</span>
+                <span
+                  className="block rounded-full"
+                  style={{
+                    width: Math.min(s, 14),
+                    height: Math.min(s, 14),
+                    background: size === s ? "currentColor" : color,
+                  }}
+                />
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
 
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-card p-0.5">
-          {PEN_SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSize(s)}
-              title={`Size ${s}`}
-              aria-label={`Size ${s}`}
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded transition",
-                size === s
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <span
-                className="block rounded-full"
-                style={{
-                  width: Math.min(s, 14),
-                  height: Math.min(s, 14),
-                  background: size === s ? "currentColor" : color,
-                }}
-              />
-            </button>
-          ))}
-        </div>
+          <div className="mx-1 h-6 w-px bg-border/70" aria-hidden />
 
-        <div className="ml-auto flex items-center gap-1">
-          <ToolBtn
-            onClick={handleUndo}
-            disabled={!hasStrokes}
-            label="Undo"
-          >
-            <Undo2 className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            onClick={handleRedo}
-            disabled={redoCount === 0}
-            label="Redo"
-          >
-            <Redo2 className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn
-            onClick={handleClear}
-            disabled={!hasStrokes}
-            label="Clear"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </ToolBtn>
+          <div className="flex items-center gap-0.5 rounded-full bg-slate-100/90 p-0.5">
+            <ToolBtn onClick={handleUndo} disabled={!hasStrokes} label="Undo">
+              <Undo2 className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={handleRedo} disabled={redoCount === 0} label="Redo">
+              <Redo2 className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={handleClear} disabled={!hasStrokes} label="Clear">
+              <RotateCcw className="h-4 w-4" />
+            </ToolBtn>
+          </div>
         </div>
       </div>
 
@@ -710,7 +704,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       </div>
 
       {/* Footer hint */}
-      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
+      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/50 bg-white/90 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
           Closing without saving discards the sketch
@@ -744,11 +738,11 @@ function ToolBtn({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded transition",
+        "flex h-8 w-8 items-center justify-center rounded-full transition",
         active
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-        disabled && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground",
+          ? "bg-white text-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+        disabled && "cursor-not-allowed opacity-35 hover:bg-transparent hover:text-muted-foreground",
       )}
     >
       {children}
