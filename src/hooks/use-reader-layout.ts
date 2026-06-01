@@ -1,20 +1,56 @@
 import * as React from "react";
+import {
+  isCompactInkLayout,
+  isReaderSinglePageLayout,
+  isTabletPortraitLayout,
+  readViewportSize,
+  READER_SINGLE_PAGE_MAX,
+} from "@/lib/viewport/layoutMode";
 
-/** Phones and tablet portrait: one page at a time. Spread from 900px up. */
-export const READER_SINGLE_PAGE_MAX = 900;
+export { READER_SINGLE_PAGE_MAX };
 
-export function useReaderSinglePage() {
-  const [singlePage, setSinglePage] = React.useState<boolean | undefined>(undefined);
+function useViewportLayout<T>(selector: (size: ReturnType<typeof readViewportSize>) => T): T {
+  const [value, setValue] = React.useState<T>(() => selector(readViewportSize()));
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${READER_SINGLE_PAGE_MAX - 1}px)`);
-    const onChange = () => {
-      setSinglePage(window.innerWidth < READER_SINGLE_PAGE_MAX);
-    };
-    mql.addEventListener("change", onChange);
-    onChange();
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
+    const sync = () => setValue(selector(readViewportSize()));
+    const narrow = window.matchMedia(`(max-width: ${READER_SINGLE_PAGE_MAX - 1}px)`);
+    const wide = window.matchMedia("(min-width: 900px)");
+    const portrait = window.matchMedia("(orientation: portrait)");
+    const landscape = window.matchMedia("(orientation: landscape)");
 
-  return !!singlePage;
+    narrow.addEventListener("change", sync);
+    wide.addEventListener("change", sync);
+    portrait.addEventListener("change", sync);
+    landscape.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    sync();
+
+    return () => {
+      narrow.removeEventListener("change", sync);
+      wide.removeEventListener("change", sync);
+      portrait.removeEventListener("change", sync);
+      landscape.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+    };
+  }, [selector]);
+
+  return value;
+}
+
+/** Phones and tablet portrait: one page at a time. Spread on iPad landscape + desktop. */
+export function useReaderSinglePage() {
+  return useViewportLayout(isReaderSinglePageLayout);
+}
+
+/** iPad upright — mobile chrome with extra horizontal room. */
+export function useIsTabletPortrait() {
+  return useViewportLayout(isTabletPortraitLayout);
+}
+
+/** Compact ink toolbars (phone + tablet portrait). */
+export function useCompactInkLayout() {
+  return useViewportLayout(isCompactInkLayout);
 }

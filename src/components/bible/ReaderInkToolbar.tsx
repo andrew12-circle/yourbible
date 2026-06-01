@@ -8,6 +8,8 @@ type Props = {
   size: number;
   canUndo: boolean;
   canRedo: boolean;
+  /** iPad portrait — mobile placement with wider controls. */
+  tabletPortrait?: boolean;
   onTool: (t: InkTool) => void;
   onColor: (c: string) => void;
   onSize: (n: number) => void;
@@ -22,6 +24,7 @@ export function ReaderInkToolbar({
   size,
   canUndo,
   canRedo,
+  tabletPortrait = false,
   onTool,
   onColor,
   onSize,
@@ -31,15 +34,20 @@ export function ReaderInkToolbar({
 }: Props) {
   return (
     <div
-      className="pointer-events-auto fixed bottom-safe-20 left-1/2 z-[35] flex max-w-[min(100vw-1rem,28rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-full border border-paper-edge/80 bg-paper/95 px-2 py-1.5 shadow-lg backdrop-blur-sm"
+      className={cn(
+        "pointer-events-auto fixed bottom-safe-20 left-1/2 z-[35] flex -translate-x-1/2 items-center justify-center rounded-full border border-paper-edge/80 bg-paper/95 shadow-lg backdrop-blur-sm",
+        tabletPortrait
+          ? "max-w-[min(100vw-2rem,40rem)] flex-nowrap gap-1.5 px-3 py-2"
+          : "max-w-[min(100vw-1rem,28rem)] flex-wrap gap-1 px-2 py-1.5",
+      )}
       role="toolbar"
       aria-label="Ink tools"
       data-reader-ink-toolbar
     >
-      <ToolbarBtn active={tool === "fountain"} onClick={() => onTool("fountain")} label="Pen">
+      <ToolbarBtn active={tool === "fountain"} onClick={() => onTool("fountain")} label="Pen" large={tabletPortrait}>
         Pen
       </ToolbarBtn>
-      <ToolbarBtn active={tool === "eraser"} onClick={() => onTool("eraser")} label="Eraser">
+      <ToolbarBtn active={tool === "eraser"} onClick={() => onTool("eraser")} label="Eraser" large={tabletPortrait}>
         Eraser
       </ToolbarBtn>
       <span className="mx-0.5 h-5 w-px bg-paper-edge" aria-hidden />
@@ -50,7 +58,8 @@ export function ReaderInkToolbar({
           title={c.name}
           aria-label={c.name}
           className={cn(
-            "h-6 w-6 rounded-full border-2 transition-transform",
+            "rounded-full border-2 transition-transform",
+            tabletPortrait ? "h-7 w-7" : "h-6 w-6",
             color === c.value ? "border-leather scale-110" : "border-transparent",
           )}
           style={{ background: c.value }}
@@ -73,13 +82,13 @@ export function ReaderInkToolbar({
         </button>
       ))}
       <span className="mx-0.5 h-5 w-px bg-paper-edge" aria-hidden />
-      <ToolbarBtn active={false} disabled={!canUndo} onClick={onUndo} label="Undo">
+      <ToolbarBtn active={false} disabled={!canUndo} onClick={onUndo} label="Undo" large={tabletPortrait}>
         Undo
       </ToolbarBtn>
-      <ToolbarBtn active={false} disabled={!canRedo} onClick={onRedo} label="Redo">
+      <ToolbarBtn active={false} disabled={!canRedo} onClick={onRedo} label="Redo" large={tabletPortrait}>
         Redo
       </ToolbarBtn>
-      <ToolbarBtn active={false} disabled={!canUndo} onClick={onClear} label="Clear page ink">
+      <ToolbarBtn active={false} disabled={!canUndo} onClick={onClear} label="Clear page ink" large={tabletPortrait}>
         Clear
       </ToolbarBtn>
     </div>
@@ -92,12 +101,14 @@ function ToolbarBtn({
   disabled,
   onClick,
   label,
+  large = false,
 }: {
   children: React.ReactNode;
   active: boolean;
   disabled?: boolean;
   onClick: () => void;
   label: string;
+  large?: boolean;
 }) {
   return (
     <button
@@ -106,7 +117,8 @@ function ToolbarBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
+        "rounded-full px-2 py-1 font-medium transition-colors",
+        large ? "text-xs" : "text-[11px]",
         active ? "bg-leather text-paper" : "text-leather/80 hover:bg-paper-warm",
         disabled && "cursor-not-allowed opacity-40",
       )}

@@ -8,6 +8,8 @@ interface Props {
   rightPage: ReactNode;
   /** One page at a time (phones / narrow tablet). */
   singlePage?: boolean;
+  /** iPad portrait — single page with centered, narrower spread. */
+  tabletPortrait?: boolean;
   pageSide?: "left" | "right";
   ribbons?: ReactNode;
 }
@@ -76,6 +78,7 @@ export function BookScene({
   leftPage,
   rightPage,
   singlePage = false,
+  tabletPortrait = false,
   pageSide = "left",
   ribbons,
 }: Props) {
@@ -87,9 +90,9 @@ export function BookScene({
   const leftStack = Math.max(minStack, Math.round(totalStack * progress));
   const rightStack = Math.max(minStack, Math.round(totalStack * (1 - progress)));
 
-  const coverPadX = singlePage ? 10 : 14;
-  const coverPadTop = singlePage ? 12 : 16;
-  const coverPadBottom = singlePage ? 10 : 14;
+  const coverPadX = singlePage ? (tabletPortrait ? 14 : 10) : 14;
+  const coverPadTop = singlePage ? (tabletPortrait ? 14 : 12) : 16;
+  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : 10) : 14;
 
   return (
     <div
@@ -102,11 +105,18 @@ export function BookScene({
       <div
         className="relative z-10 w-full flex flex-col flex-1 min-h-0"
         style={{
-          maxWidth: singlePage ? "100%" : "min(1420px, 98vw)",
+          maxWidth: singlePage
+            ? tabletPortrait
+              ? "min(720px, 92vw)"
+              : "100%"
+            : "min(1420px, 98vw)",
         }}
       >
         <div
-          className="flex flex-col flex-1 min-h-0 w-full pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] px-2 sm:px-3"
+          className={
+            "flex flex-col flex-1 min-h-0 w-full pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] " +
+            (tabletPortrait ? "px-4" : "px-2 sm:px-3")
+          }
         >
           {/* Leather cover — visible on top, left, right, and bottom */}
           <div

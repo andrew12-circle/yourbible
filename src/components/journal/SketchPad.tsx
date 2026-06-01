@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PenLine, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
 import SketchRulerOverlay from "@/components/journal/sketch/SketchRulerOverlay";
 import {
@@ -120,6 +121,7 @@ export default function SketchPad({
   draftKey,
   onAutosave,
 }: SketchPadProps) {
+  const tabletPortrait = useIsTabletPortrait();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -857,8 +859,8 @@ export default function SketchPad({
             "Saving…"
           ) : (
             <>
-              <span className="hidden sm:inline">Save handwritten</span>
-              <span className="sm:hidden">Save</span>
+              <span className={tabletPortrait ? "inline" : "hidden sm:inline"}>Save handwritten</span>
+              <span className={tabletPortrait ? "hidden" : "sm:hidden"}>Save</span>
             </>
           )}
         </Button>
@@ -878,10 +880,11 @@ export default function SketchPad({
       />
 
       {/* Canvas */}
-      <div className={cn("relative min-h-0 flex-1 overflow-hidden p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
+      <div className={cn("relative min-h-0 flex-1 overflow-hidden", tabletPortrait ? "p-3" : "p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
         <SketchInkToolbar
           isNightMode={isNightMode}
           minimized={toolbarMinimized}
+          tabletPortrait={tabletPortrait}
           tool={tool}
           color={color}
           size={size}
@@ -912,7 +915,8 @@ export default function SketchPad({
         <div
           ref={wrapperRef}
           className={cn(
-            "relative h-full w-full overflow-auto rounded-lg border shadow-sm sm:rounded-xl",
+            "relative h-full w-full overflow-auto rounded-lg border shadow-sm",
+            tabletPortrait ? "max-w-[min(720px,100%)] mx-auto rounded-xl" : "sm:rounded-xl",
             isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white",
           )}
           style={{
@@ -1009,7 +1013,7 @@ export default function SketchPad({
       </div>
 
       {/* Footer hint */}
-      <footer className={cn("hidden flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px] sm:flex", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
+      <footer className={cn("hidden flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", !tabletPortrait && "sm:flex", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
           Closing without saving discards the handwritten note

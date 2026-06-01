@@ -52,6 +52,8 @@ type Props = {
   drawWithFinger: boolean;
   rulerVisible: boolean;
   snapToRuler: boolean;
+  /** iPad portrait — wider toolbar using extra horizontal space. */
+  tabletPortrait?: boolean;
   onToolChange: (tool: InkTool) => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
@@ -133,6 +135,7 @@ export default function SketchInkToolbar({
   drawWithFinger,
   rulerVisible,
   snapToRuler,
+  tabletPortrait = false,
   onToolChange,
   onColorChange,
   onSizeChange,
@@ -173,7 +176,10 @@ export default function SketchInkToolbar({
         role="toolbar"
         aria-label="Handwritten markup tools"
         className={cn(
-          "pointer-events-auto flex max-w-[min(100%,42rem)] items-center gap-1 rounded-2xl border px-1.5 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl",
+          "pointer-events-auto flex items-center gap-1 rounded-2xl border px-1.5 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl",
+          tabletPortrait
+            ? "max-w-[min(100%,48rem)] gap-1.5 px-2 py-1.5"
+            : "max-w-[min(100%,42rem)]",
           isNightMode
             ? "border-white/12 bg-neutral-900/92 text-slate-100"
             : "border-black/10 bg-neutral-800/90 text-white",
@@ -203,7 +209,12 @@ export default function SketchInkToolbar({
 
         <div className="mx-0.5 h-9 w-px bg-white/15" aria-hidden />
 
-        <div className="flex items-end gap-0.5 overflow-x-auto scrollbar-hide max-w-[min(52vw,280px)]">
+        <div
+          className={cn(
+            "flex items-end gap-0.5 overflow-x-auto scrollbar-hide",
+            tabletPortrait ? "max-w-[min(68vw,480px)]" : "max-w-[min(52vw,280px)]",
+          )}
+        >
           {TOOL_ITEMS.map(({ id, label, Icon }) => (
             <InkToolButton
               key={id}

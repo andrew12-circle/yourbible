@@ -30,7 +30,7 @@ import {
   sliceTextByHighlights,
   toolbarSelectionFromRange,
 } from "@/lib/bible/verseSelection";
-import { useReaderSinglePage } from "@/hooks/use-reader-layout";
+import { useReaderSinglePage, useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -138,6 +138,7 @@ export default function ReaderPage() {
   };
 
   const singlePage = useReaderSinglePage();
+  const tabletPortrait = useIsTabletPortrait();
   const { inkMode, toggleInkMode } = useReaderInkMode();
   const [inkTool, setInkTool] = useState<InkTool>("fountain");
   const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
@@ -939,6 +940,7 @@ export default function ReaderPage() {
           size={inkSize}
           canUndo={inkToolbarState.canUndo}
           canRedo={inkToolbarState.canRedo}
+          tabletPortrait={tabletPortrait}
           onTool={setInkTool}
           onColor={setInkColor}
           onSize={setInkSize}
@@ -951,6 +953,7 @@ export default function ReaderPage() {
       <BookScene
         progress={progress}
         singlePage={singlePage}
+        tabletPortrait={tabletPortrait}
         pageSide={mobileSide}
         ribbons={
           focusMode ? null : (
