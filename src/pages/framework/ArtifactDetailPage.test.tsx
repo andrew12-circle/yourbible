@@ -145,7 +145,7 @@ afterEach(() => {
 });
 
 describe("ArtifactDetailPage", () => {
-  it("keeps the full claims section available on pinned mobile YouTube artifacts with many claims", () => {
+  it("keeps pinned mobile YouTube artifacts on the key insights picker before review", () => {
     render(
       <TooltipProvider>
         <MemoryRouter initialEntries={["/framework/artifacts/artifact-1"]}>
@@ -158,7 +158,7 @@ describe("ArtifactDetailPage", () => {
 
     expect(screen.getByRole("heading", { name: "Key insights" })).toBeInTheDocument();
     expect(screen.getAllByText("28 insights").length).toBeGreaterThan(0);
-    expect(screen.getByTestId("full-claims-section")).toHaveTextContent("28 full claims");
+    expect(screen.queryByTestId("full-claims-section")).not.toBeInTheDocument();
   });
 
   it("scrolls back to the mobile insight picker when closing an explored insight", async () => {

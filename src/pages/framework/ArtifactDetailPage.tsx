@@ -1812,7 +1812,7 @@ export default function ArtifactDetailPage() {
         </details>
       )}
 
-      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube ? (
+      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
