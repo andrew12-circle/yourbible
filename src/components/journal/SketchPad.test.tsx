@@ -75,11 +75,11 @@ describe("SketchPad", () => {
     vi.restoreAllMocks();
   });
 
-  it("opens new handwritten notes on notebook paper by default", () => {
+  it("opens with fountain pen selected by default", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
-    expect(screen.getByRole("radio", { name: "Notebook paper" })).toHaveAttribute(
-      "aria-checked",
+    expect(screen.getByRole("button", { name: "Fountain pen" })).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
   });
@@ -114,22 +114,16 @@ describe("SketchPad", () => {
     expect(gesture.defaultPrevented).toBe(true);
   });
 
-  it("keeps mobile controls in one horizontal scroller with larger tap targets", () => {
+  it("shows Apple-style markup toolbar with pen variants", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
-    const toolbar = screen.getByRole("toolbar", { name: "Handwritten tools" });
-    expect(toolbar).toHaveClass("flex-nowrap");
-    expect(toolbar.parentElement).toHaveClass("overflow-x-auto");
-    expect(screen.getAllByRole("button", { name: "Pen" }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("button", { name: "Color Ink" })).toHaveClass("h-10");
+    const toolbar = screen.getByRole("toolbar", { name: "Handwritten markup tools" });
+    expect(toolbar).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fountain pen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Highlighter" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ruler" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eraser" })).toBeInTheDocument();
     expect(screen.getByText("Closing without saving discards the handwritten note").closest("footer")).toHaveClass("hidden");
-  });
-
-  it("shows pen and eraser in the header on mobile widths", () => {
-    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
-    const header = screen.getByRole("button", { name: "Close handwritten" }).closest("header");
-    expect(header?.querySelector('[aria-label="Pen"]')).toBeTruthy();
-    expect(header?.querySelector('[aria-label="Eraser"]')).toBeTruthy();
   });
 
   it("uses dark paper and night-safe ink when the device is in night mode", () => {
@@ -138,7 +132,7 @@ describe("SketchPad", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
     expect(canvasContext.fillStyle).toBe("#05070a");
-    expect(screen.getByRole("button", { name: "Color Ink" })).toHaveStyle({
+    expect(screen.getByRole("button", { name: "Color White" })).toHaveStyle({
       background: "#f8fafc",
     });
 

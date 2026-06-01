@@ -24,12 +24,13 @@ describe("sketchDraft", () => {
       paper: "ruled",
       color: "#111827",
       size: 4,
-      tool: "pen",
+      tool: "fountain",
     });
 
     const loaded = loadSketchDraft("test-entry");
     expect(loaded?.strokes).toHaveLength(1);
+    expect(loaded?.strokes[0].tool).toBe("fountain");
     expect(loaded?.strokes[0].points[0]).toEqual({ x: 1, y: 2, p: 0.5 });
-    expect(localStorage.getItem(sketchDraftStorageKey("test-entry"))).toContain('"version":1');
+    expect(localStorage.getItem(sketchDraftStorageKey("test-entry"))).toContain('"version":2');
   });
 });

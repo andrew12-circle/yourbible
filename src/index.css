@@ -597,6 +597,14 @@
     background: hsl(40 70% 78% / 0.45);
   }
 
+  /* Ink mode: text/controls must not steal pointer events from the canvas overlay. */
+  .reader-ink-active [data-reading-area],
+  .reader-ink-active [data-reading-area] *,
+  .reader-ink-active .verse-num,
+  .reader-ink-active button:not([data-reader-ink-layer] button) {
+    pointer-events: none !important;
+  }
+
   /* Subtle vignette over reading area */
   .page-vignette::before {
     content: '';

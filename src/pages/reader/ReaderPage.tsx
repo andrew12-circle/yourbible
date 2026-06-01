@@ -32,6 +32,7 @@ import {
 } from "@/lib/bible/verseSelection";
 import { useReaderSinglePage } from "@/hooks/use-reader-layout";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
@@ -138,7 +139,7 @@ export default function ReaderPage() {
 
   const singlePage = useReaderSinglePage();
   const { inkMode, toggleInkMode } = useReaderInkMode();
-  const [inkTool, setInkTool] = useState<InkTool>("pen");
+  const [inkTool, setInkTool] = useState<InkTool>("fountain");
   const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
   const [inkSize, setInkSize] = useState<number>(INK_PEN_SIZES[1]);
   const inkApisRef = useRef(new Map<string, ReaderInkLayerApi>());
@@ -771,13 +772,16 @@ export default function ReaderPage() {
     const globalPage = chaptersBefore + chapter; // good enough for footer
     return (
       <div
-        className="relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2"
+        className={cn(
+          "relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2",
+          inkMode && "reader-ink-active",
+        )}
         style={pageHorizontalPadding(side, singlePage)}
       >
         <div
           className={`flex-shrink-0 ${
             singlePage || side === "left" ? "text-left" : "text-right"
-          }`}
+          } ${inkMode ? "pointer-events-none" : ""}`}
         >
           <button
             type="button"
@@ -810,7 +814,10 @@ export default function ReaderPage() {
         {!focusMode ? (
           <div
             data-page-footer
-            className="flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest"
+            className={cn(
+              "flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest",
+              inkMode && "relative z-[21] pointer-events-none opacity-60",
+            )}
           >
             <button
               onClick={() => goPage(-1)}

@@ -1,4 +1,17 @@
-export type InkTool = "pen" | "eraser";
+/** Tools that produce ink strokes on the canvas. */
+export type InkDrawTool =
+  | "pencil"
+  | "fineline"
+  | "fountain"
+  | "marker"
+  | "highlighter"
+  | "eraser";
+
+/** Full toolbar selection, including non-drawing modes. */
+export type InkTool = InkDrawTool | "ruler" | "lasso";
+
+/** @deprecated Use InkDrawTool — kept for older saved strokes. */
+export type LegacyInkTool = "pen" | "eraser";
 
 export type InkPoint = {
   x: number;
@@ -8,7 +21,7 @@ export type InkPoint = {
 };
 
 export type InkStroke = {
-  tool: InkTool;
+  tool: InkDrawTool;
   color: string;
   size: number;
   points: InkPoint[];

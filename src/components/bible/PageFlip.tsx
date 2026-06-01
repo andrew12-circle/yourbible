@@ -17,7 +17,7 @@ export function PageFlip({ pageKey, children }: Props) {
           key={pageKey}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, pointerEvents: "none" }}
           transition={{ duration: 0.18, ease: "easeOut" }}
           className="absolute inset-0 h-full w-full overflow-hidden"
         >

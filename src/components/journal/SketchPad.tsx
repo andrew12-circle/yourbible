@@ -1,28 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Eraser,
-  Grid2X2,
-  GripHorizontal,
-  Hand,
-  PenLine,
-  Redo2,
-  RotateCcw,
-  Square,
-  Trash2,
-  Undo2,
-  X,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { PenLine, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
+import SketchRulerOverlay from "@/components/journal/sketch/SketchRulerOverlay";
 import {
   clearSketchDraft,
   loadSketchDraft,
   saveSketchDraft,
-  type SketchDraftPaper,
 } from "@/lib/journal/sketchDraft";
+import {
+  drawStroke as drawInkStroke,
+  projectPointOntoRuler,
+} from "@/lib/ink/strokeRender";
+import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
+import type { InkDrawTool, InkStroke, InkTool } from "@/lib/ink/types";
 import { cn } from "@/lib/utils";
-import { drawStroke as drawInkStroke } from "@/lib/ink/strokeRender";
 
 /**
  * Day One–style sketch surface.
@@ -39,19 +31,7 @@ import { drawStroke as drawInkStroke } from "@/lib/ink/strokeRender";
  * of the sketching session.
  */
 
-type Tool = "pen" | "eraser";
-
-type Paper = "blank" | "ruled" | "graph" | "dot";
-
-const PAPER_OPTIONS: { id: Paper; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "blank", label: "Blank", icon: Square },
-  { id: "ruled", label: "Notebook", icon: GripHorizontal },
-  { id: "graph", label: "Graph", icon: Grid2X2 },
-  // Reuse Grid2X2 for dot; we'll render an inline dot indicator instead of the icon
-  { id: "dot", label: "Dot", icon: Grid2X2 },
-];
-
-const DEFAULT_PAPER: Paper = "ruled";
+const DEFAULT_PAPER: SketchPaper = "ruled";
 
 /** Spacing in CSS pixels between rules / grid lines / dots. */
 const PAPER_SPACING = 28;
@@ -65,13 +45,7 @@ interface Point {
   p: number;
 }
 
-interface Stroke {
-  tool: Tool;
-  color: string;
-  /** Logical base width in CSS pixels (gets scaled by pressure). */
-  size: number;
-  points: Point[];
-}
+type Stroke = InkStroke;
 
 type PenColor = { name: string; value: string };
 
@@ -165,7 +139,20 @@ export default function SketchPad({
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
-  const [tool, setTool] = useState<Tool>("pen");
+  const [tool, setTool] = useState<InkTool>("fountain");
+  const lastDrawToolRef = useRef<InkDrawTool>("fountain");
+  const customColorRef = useRef<HTMLInputElement | null>(null);
+  const [rulerVisible, setRulerVisible] = useState(false);
+  const [rulerCenter, setRulerCenter] = useState({ x: 200, y: 200 });
+  const [rulerAngle, setRulerAngle] = useState(0);
+  const [rulerLength, setRulerLength] = useState(280);
+  const [snapToRuler, setSnapToRuler] = useState(true);
+  const [autoMinimizeToolbar, setAutoMinimizeToolbar] = useState(true);
+  const [toolbarMinimized, setToolbarMinimized] = useState(false);
+  const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
+    null,
+  );
+  const lassoPointsRef = useRef<Point[]>([]);
   const [isNightMode, setIsNightMode] = useState(prefersNightMode);
   const isNightModeRef = useRef(isNightMode);
   const [color, setColor] = useState<string>(() => getPenColors(prefersNightMode())[0].value);
@@ -180,7 +167,8 @@ export default function SketchPad({
   useEffect(() => {
     palmRejectionRef.current = palmRejection;
   }, [palmRejection]);
-  const [paper, setPaper] = useState<Paper>(DEFAULT_PAPER);
+  const [paper, setPaper] = useState<SketchPaper>(DEFAULT_PAPER);
+  const drawWithFinger = !palmRejection;
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -287,12 +275,14 @@ export default function SketchPad({
     if (!draftKey) return;
     saveSketchDraft(draftKey, {
       strokes: strokesRef.current,
-      paper: paper as SketchDraftPaper,
+      paper,
       color,
       size,
       tool,
+      rulerVisible,
+      rulerAngle,
     });
-  }, [draftKey, paper, color, size, tool]);
+  }, [draftKey, paper, color, size, tool, rulerVisible, rulerAngle]);
 
   const queueDraftSave = useCallback(() => {
     if (!draftKey) return;
@@ -362,6 +352,12 @@ export default function SketchPad({
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     dprRef.current = dpr;
     sizeRef.current = { w: rect.width, h: rect.height };
+    setRulerCenter((prev) =>
+      prev.x === 200 && prev.y === 200
+        ? { x: rect.width / 2, y: rect.height / 2 }
+        : prev,
+    );
+    setRulerLength((len) => (len === 280 ? Math.min(rect.width * 0.72, 360) : len));
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
@@ -457,7 +453,13 @@ export default function SketchPad({
     penSeenRef.current = false;
     setHasStrokes(strokesRef.current.length > 0);
     setRedoCount(0);
-    setTool(draft?.tool ?? "pen");
+    const restoredTool = draft?.tool ?? "fountain";
+    setTool(restoredTool);
+    if (restoredTool !== "ruler" && restoredTool !== "lasso") {
+      lastDrawToolRef.current = restoredTool;
+    }
+    setRulerVisible(draft?.rulerVisible ?? false);
+    setRulerAngle(draft?.rulerAngle ?? 0);
     setPaper(draft?.paper ?? DEFAULT_PAPER);
     setColor(
       draft?.color
@@ -471,6 +473,36 @@ export default function SketchPad({
       flushRedraw();
     });
   }, [open, draftKey, resizeCanvas, flushRedraw, resetView]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMove = (e: PointerEvent) => {
+      const drag = rulerDragRef.current;
+      if (!drag) return;
+      const wrap = wrapperRef.current;
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      if (drag.mode === "move") {
+        setRulerCenter({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      } else if (drag.mode === "rotate" && drag.startAngle != null && drag.startPointerAngle != null) {
+        const cx = rulerCenter.x + rect.left;
+        const cy = rulerCenter.y + rect.top;
+        const pointerAngle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+        setRulerAngle(drag.startAngle + (pointerAngle - drag.startPointerAngle));
+      }
+    };
+    const onUp = () => {
+      rulerDragRef.current = null;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [open, rulerCenter.x, rulerCenter.y]);
 
   useEffect(() => {
     if (!open) return;
@@ -508,8 +540,6 @@ export default function SketchPad({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    // Some browsers report 0 pressure for non-pen pointers; fall back to 0.5
-    // so strokes have consistent thickness.
     const raw = e.pressure;
     const p =
       e.pointerType === "pen" && raw > 0 && raw <= 1
@@ -520,14 +550,35 @@ export default function SketchPad({
     return { x, y, p };
   };
 
+  const maybeSnapPoint = useCallback(
+    (pt: Point): Point => {
+      if (!rulerVisible || !snapToRuler) return pt;
+      return projectPointOntoRuler(pt.x, pt.y, rulerCenter.x, rulerCenter.y, rulerAngle);
+    },
+    [rulerVisible, snapToRuler, rulerCenter.x, rulerCenter.y, rulerAngle],
+  );
+
+  const resolveDrawTool = useCallback((): InkDrawTool => {
+    if (tool === "ruler" || tool === "lasso") return lastDrawToolRef.current;
+    return tool;
+  }, [tool]);
+
+  const handleToolChange = useCallback((next: InkTool) => {
+    setTool(next);
+    if (next !== "ruler" && next !== "lasso") {
+      lastDrawToolRef.current = next;
+      const preset = INK_TOOL_PRESETS[next];
+      setSize(preset.defaultSize);
+      if (preset.defaultColor) setColor(preset.defaultColor);
+    }
+    if (next === "ruler") setRulerVisible(true);
+  }, []);
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Remember that a stylus has touched the surface this session.
     if (e.pointerType === "pen") penSeenRef.current = true;
 
-    // Palm rejection: once a stylus has been used, ignore finger / palm
-    // (`touch`) input on the canvas — matches Apple Notes behaviour.
     if (
       palmRejectionRef.current &&
       penSeenRef.current &&
@@ -537,9 +588,26 @@ export default function SketchPad({
       return;
     }
 
+    if (autoMinimizeToolbar) setToolbarMinimized(true);
+
+    const pt = maybeSnapPoint(getPoint(canvas, e));
+
+    if (tool === "ruler") {
+      setRulerCenter({ x: pt.x, y: pt.y });
+      setRulerVisible(true);
+      e.preventDefault();
+      return;
+    }
+
+    if (tool === "lasso") {
+      lassoPointsRef.current = [pt];
+      canvas.setPointerCapture(e.pointerId);
+      activePointerIdRef.current = e.pointerId;
+      e.preventDefault();
+      return;
+    }
+
     if (activePointerIdRef.current != null) {
-      // A stylus that arrives while a palm/finger stroke is in progress takes
-      // over: discard the stray stroke so the pen starts cleanly.
       const takeover =
         e.pointerType === "pen" && activePointerTypeRef.current === "touch";
       if (!takeover) return;
@@ -553,10 +621,10 @@ export default function SketchPad({
     canvas.setPointerCapture(e.pointerId);
     activePointerIdRef.current = e.pointerId;
     activePointerTypeRef.current = e.pointerType;
-    const pt = getPoint(canvas, e);
+    const drawTool = resolveDrawTool();
     activeStrokeRef.current = {
-      tool,
-      color,
+      tool: drawTool,
+      color: drawTool === "highlighter" ? color : color,
       size,
       points: [pt],
     };
@@ -570,23 +638,35 @@ export default function SketchPad({
     if (activePointerIdRef.current !== e.pointerId) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    if (tool === "lasso" && lassoPointsRef.current.length > 0) {
+      const pt = maybeSnapPoint(getPoint(canvas, e));
+      lassoPointsRef.current.push(pt);
+      scheduleRedraw();
+      e.preventDefault();
+      return;
+    }
+
     const stroke = activeStrokeRef.current;
     if (!stroke) return;
-    // Use coalesced events when available for smoother lines on high-Hz styluses.
     const events = typeof e.nativeEvent.getCoalescedEvents === "function"
       ? e.nativeEvent.getCoalescedEvents()
       : [];
+
     if (events.length > 0) {
       const rect = canvas.getBoundingClientRect();
       for (const ev of events) {
-        const x = ev.clientX - rect.left;
-        const y = ev.clientY - rect.top;
         const raw = ev.pressure;
         const p = raw > 0 && raw <= 1 ? raw : 0.5;
-        stroke.points.push({ x, y, p });
+        const snapped = maybeSnapPoint({
+          x: ev.clientX - rect.left,
+          y: ev.clientY - rect.top,
+          p,
+        });
+        stroke.points.push(snapped);
       }
     } else {
-      stroke.points.push(getPoint(canvas, e));
+      stroke.points.push(maybeSnapPoint(getPoint(canvas, e)));
     }
     scheduleRedraw();
     e.preventDefault();
@@ -604,14 +684,42 @@ export default function SketchPad({
     }
     activePointerIdRef.current = null;
     activePointerTypeRef.current = null;
+    if (tool === "lasso" && lassoPointsRef.current.length > 2) {
+      const xs = lassoPointsRef.current.map((p) => p.x);
+      const ys = lassoPointsRef.current.map((p) => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      strokesRef.current = strokesRef.current.filter((s) => {
+        const hit = s.points.some(
+          (p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
+        );
+        return !hit;
+      });
+      setHasStrokes(strokesRef.current.length > 0);
+      lassoPointsRef.current = [];
+      notifyStrokeChange();
+      flushRedraw();
+      if (autoMinimizeToolbar) {
+        window.setTimeout(() => setToolbarMinimized(false), 600);
+      }
+      e.preventDefault();
+      return;
+    }
+    lassoPointsRef.current = [];
+
     const stroke = activeStrokeRef.current;
     activeStrokeRef.current = null;
     if (stroke && stroke.points.length > 0) {
-      strokesRef.current.push(stroke);
+      strokesRef.current.push({ ...stroke, tool: normalizeInkDrawTool(stroke.tool) });
       setHasStrokes(true);
       notifyStrokeChange();
     }
     flushRedraw();
+    if (autoMinimizeToolbar) {
+      window.setTimeout(() => setToolbarMinimized(false), 600);
+    }
     e.preventDefault();
   };
 
@@ -734,24 +842,8 @@ export default function SketchPad({
         >
           <X className="h-4 w-4" />
         </button>
-        <div className={cn("flex items-center gap-0.5 lg:hidden", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90", "rounded-full p-0.5")}>
-          <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
-            <PenLine className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
-            <Eraser className="h-4 w-4" />
-          </ToolBtn>
-        </div>
         <div className={cn("flex-1 text-center text-[13px] font-medium", isNightMode ? "text-slate-300" : "text-muted-foreground")}>
           Handwritten
-        </div>
-        <div className="flex items-center gap-0.5 lg:hidden">
-          <ToolBtn onClick={() => setZoom(viewScale + 0.25)} disabled={viewScale >= MAX_VIEW_SCALE} label="Zoom in">
-            <ZoomIn className="h-4 w-4" />
-          </ToolBtn>
-          <ToolBtn onClick={() => setZoom(viewScale - 0.25)} disabled={viewScale <= MIN_VIEW_SCALE} label="Zoom out">
-            <ZoomOut className="h-4 w-4" />
-          </ToolBtn>
         </div>
         <Button
           type="button"
@@ -772,174 +864,51 @@ export default function SketchPad({
         </Button>
       </header>
 
-      {/* Toolbar */}
-      <div
-        className={cn("relative z-10 flex-shrink-0 overflow-x-auto overscroll-x-contain border-b px-2 py-1.5 shadow-sm backdrop-blur-xl sm:px-3 sm:py-2", isNightMode ? "border-white/10 bg-slate-950/90" : "border-border/40 bg-white/90")}
-        // Tools shouldn't accidentally pick up pen events meant for the canvas.
-        style={{ touchAction: "manipulation" }}
-      >
-        <div
-          className={cn("mx-auto flex w-max min-w-full max-w-none flex-nowrap items-center gap-1.5 rounded-[1.35rem] border p-1 shadow-[0_8px_24px_rgba(15,23,42,0.10)] sm:min-w-0 sm:max-w-6xl", isNightMode ? "border-white/10 bg-slate-900/90 shadow-black/30" : "border-black/10 bg-white/90")}
-          role="toolbar"
-          aria-label="Handwritten tools"
-        >
-          <div className={cn("hidden items-center gap-0.5 rounded-full p-0.5 lg:flex", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
-            <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
-              <PenLine className="h-4 w-4" />
-            </ToolBtn>
-            <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
-              <Eraser className="h-4 w-4" />
-            </ToolBtn>
-            <ToolBtn
-              active={palmRejection}
-              onClick={() => setPalmRejection((v) => !v)}
-              label={
-                palmRejection
-                  ? "Palm rejection on — ignores finger/palm once a pencil is used"
-                  : "Palm rejection off — finger drawing allowed"
-              }
-            >
-              <Hand className="h-4 w-4" />
-            </ToolBtn>
-          </div>
-
-          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
-
-          <div className={cn("flex items-center gap-1 rounded-full px-1.5 py-1", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
-            {penColors.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => {
-                  setColor(c.value);
-                  if (tool === "eraser") setTool("pen");
-                }}
-                title={c.name}
-                aria-label={`Color ${c.name}`}
-                className={cn(
-                  "h-10 w-10 flex-shrink-0 rounded-full border transition hover:scale-110 sm:h-5 sm:w-5",
-                  isNightMode ? "border-white/20" : "border-black/10",
-                  color === c.value &&
-                    tool === "pen" &&
-                    (isNightMode
-                      ? "ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-900"
-                      : "ring-2 ring-blue-500 ring-offset-2 ring-offset-white"),
-                )}
-                style={{ background: c.value }}
-              />
-            ))}
-          </div>
-
-          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
-
-          <div
-            className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}
-            role="radiogroup"
-            aria-label="Paper style"
-          >
-            {PAPER_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const active = paper === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setPaper(opt.id)}
-                  title={`${opt.label} paper`}
-                  aria-label={`${opt.label} paper`}
-                  className={cn(
-                    "flex h-10 flex-shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition sm:h-8 sm:px-2.5",
-                    active
-                      ? isNightMode
-                        ? "bg-slate-700 text-white shadow-sm"
-                        : "bg-white text-foreground shadow-sm"
-                      : isNightMode
-                        ? "text-slate-300 hover:bg-white/10 hover:text-white"
-                        : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
-                  )}
-                >
-                  {opt.id === "dot" ? (
-                    <span className="flex h-4 w-4 items-center justify-center" aria-hidden>
-                      <span className="block h-1 w-1 rounded-full bg-current" />
-                    </span>
-                  ) : (
-                    <Icon className="h-4 w-4" />
-                  )}
-                  <span className="hidden sm:inline">{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
-
-          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
-            {PEN_SIZES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSize(s)}
-                title={`Size ${s}`}
-                aria-label={`Size ${s}`}
-                className={cn(
-                  "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition sm:h-8 sm:w-8",
-                  size === s
-                    ? isNightMode
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "bg-white text-foreground shadow-sm"
-                    : isNightMode
-                      ? "text-slate-300 hover:bg-white/10"
-                      : "text-muted-foreground hover:bg-white/70",
-                )}
-              >
-                <span
-                  className="block rounded-full"
-                  style={{
-                    width: Math.min(s, 14),
-                    height: Math.min(s, 14),
-                    background: size === s ? "currentColor" : color,
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-
-          <div className={cn("mx-1 hidden h-6 w-px lg:block", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
-
-          <div className={cn("hidden items-center gap-0.5 rounded-full p-0.5 lg:flex", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
-            <ToolBtn onClick={() => setZoom(viewScale + 0.25)} disabled={viewScale >= MAX_VIEW_SCALE} label="Zoom in">
-              <ZoomIn className="h-4 w-4" />
-            </ToolBtn>
-            <ToolBtn onClick={() => setZoom(viewScale - 0.25)} disabled={viewScale <= MIN_VIEW_SCALE} label="Zoom out">
-              <ZoomOut className="h-4 w-4" />
-            </ToolBtn>
-            {viewScale > 1 || viewPan.x !== 0 || viewPan.y !== 0 ? (
-              <ToolBtn onClick={resetView} label="Reset zoom">
-                <span className="text-[10px] font-semibold tabular-nums">{Math.round(viewScale * 100)}%</span>
-              </ToolBtn>
-            ) : null}
-          </div>
-
-          <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
-
-          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
-            <ToolBtn onClick={handleUndo} disabled={!hasStrokes} label="Undo">
-              <Undo2 className="h-4 w-4" />
-            </ToolBtn>
-            <ToolBtn onClick={handleRedo} disabled={redoCount === 0} label="Redo">
-              <Redo2 className="h-4 w-4" />
-            </ToolBtn>
-            <ToolBtn onClick={handleClear} disabled={!hasStrokes} label="Clear">
-              <RotateCcw className="h-4 w-4" />
-            </ToolBtn>
-          </div>
-        </div>
-      </div>
+      <input
+        ref={customColorRef}
+        type="color"
+        className="sr-only"
+        value={color}
+        onChange={(e) => {
+          setColor(e.target.value);
+          if (tool === "eraser") handleToolChange("fountain");
+        }}
+        aria-hidden
+        tabIndex={-1}
+      />
 
       {/* Canvas */}
       <div className={cn("relative min-h-0 flex-1 overflow-hidden p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
+        <SketchInkToolbar
+          isNightMode={isNightMode}
+          minimized={toolbarMinimized}
+          tool={tool}
+          color={color}
+          size={size}
+          penColors={penColors}
+          paper={paper}
+          hasStrokes={hasStrokes}
+          redoCount={redoCount}
+          drawWithFinger={drawWithFinger}
+          rulerVisible={rulerVisible}
+          snapToRuler={snapToRuler}
+          onToolChange={handleToolChange}
+          onColorChange={(c) => {
+            setColor(c);
+            if (tool === "eraser") handleToolChange("fountain");
+          }}
+          onSizeChange={setSize}
+          onPaperChange={setPaper}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+          onDrawWithFingerChange={(v) => setPalmRejection(!v)}
+          onRulerVisibleChange={setRulerVisible}
+          onSnapToRulerChange={setSnapToRuler}
+          onAutoMinimizeChange={setAutoMinimizeToolbar}
+          autoMinimize={autoMinimizeToolbar}
+          customColorInputRef={customColorRef}
+        />
         <div
           ref={wrapperRef}
           className={cn(
@@ -965,6 +934,40 @@ export default function SketchPad({
               transformOrigin: "0 0",
             }}
           >
+            <SketchRulerOverlay
+              visible={rulerVisible}
+              centerX={rulerCenter.x}
+              centerY={rulerCenter.y}
+              angleDeg={rulerAngle}
+              lengthPx={rulerLength}
+              isNightMode={isNightMode}
+              onPointerDown={(e) => {
+                const wrap = wrapperRef.current;
+                if (!wrap) return;
+                const rect = wrap.getBoundingClientRect();
+                rulerDragRef.current = { mode: "move" };
+                setRulerCenter({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top,
+                });
+                e.preventDefault();
+              }}
+              onRotatePointerDown={(e) => {
+                const wrap = wrapperRef.current;
+                if (!wrap) return;
+                const rect = wrap.getBoundingClientRect();
+                const cx = rulerCenter.x + rect.left;
+                const cy = rulerCenter.y + rect.top;
+                const pointerAngle =
+                  (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+                rulerDragRef.current = {
+                  mode: "rotate",
+                  startAngle: rulerAngle,
+                  startPointerAngle: pointerAngle,
+                };
+                e.preventDefault();
+              }}
+            />
             <canvas
               ref={canvasRef}
               className="block h-full w-full touch-none select-none"
@@ -972,7 +975,14 @@ export default function SketchPad({
                 touchAction: "none",
                 WebkitUserSelect: "none",
                 WebkitTouchCallout: "none",
-                cursor: tool === "pen" ? "crosshair" : "cell",
+                cursor:
+                  tool === "eraser"
+                    ? "cell"
+                    : tool === "lasso"
+                      ? "crosshair"
+                      : tool === "ruler"
+                        ? "grab"
+                        : "crosshair",
               }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -990,7 +1000,7 @@ export default function SketchPad({
                 <PenLine className="mb-2 h-6 w-6" />
                 <p className="text-sm">Draw with finger, pencil, or stylus</p>
                 <p className="mt-1 max-w-xs px-4 text-xs">
-                  Pinch with two fingers to zoom the page. Palm rejection is on once you use a pencil.
+                  Fountain pen, highlighter, ruler, and more in the toolbar above. Pinch to zoom.
                 </p>
               </div>
             )}
@@ -1012,47 +1022,13 @@ export default function SketchPad({
   );
 }
 
-function ToolBtn({
-  children,
-  onClick,
-  active,
-  disabled,
-  label,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={cn(
-        "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition sm:h-8 sm:w-8",
-        active
-          ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
-          : "text-muted-foreground hover:bg-white/70 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
-        disabled &&
-          "cursor-not-allowed opacity-35 hover:bg-transparent hover:text-muted-foreground dark:hover:bg-transparent dark:hover:text-slate-300",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
   drawInkStroke(ctx, stroke, {
     colorForStroke: (hex) => mappedColorForMode(hex, isNightMode),
   });
 }
 
-function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number, isNightMode = false) {
+function drawPaper(ctx: CanvasRenderingContext2D, paper: SketchPaper, w: number, h: number, isNightMode = false) {
   if (paper === "blank") return;
   ctx.save();
   if (paper === "ruled") {

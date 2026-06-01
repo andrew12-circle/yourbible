@@ -242,8 +242,16 @@ export function useReaderInkMode(defaultOn = false) {
   }, []);
 
   const toggleInkMode = useCallback(() => {
-    setInkMode(!inkMode);
-  }, [inkMode, setInkMode]);
+    setInkModeState((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(LS_READER_INK_MODE, next ? "1" : "0");
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  }, []);
 
   return { inkMode, setInkMode, toggleInkMode };
 }

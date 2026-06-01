@@ -1,6 +1,7 @@
+import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkPoint, InkStroke } from "@/lib/ink/types";
 
-export const INK_PEN_SIZES = [2, 4, 6, 10, 16] as const;
+export const INK_PEN_SIZES = [2, 4, 6, 10, 16, 20] as const;
 
 export const INK_PEN_COLORS = [
   { name: "Ink", value: "#111827" },
@@ -12,11 +13,11 @@ export const INK_PEN_COLORS = [
 ] as const;
 
 export function strokeWidth(stroke: InkStroke, pressure: number): number {
-  if (stroke.tool === "eraser") return stroke.size * 2.5;
-  const min = 0.5;
-  const max = 1.6;
+  const preset = INK_TOOL_PRESETS[normalizeInkDrawTool(stroke.tool)];
+  if (stroke.tool === "eraser") return stroke.size * preset.widthMultiplier;
+  const { min, max } = preset.pressureRange;
   const factor = min + (max - min) * Math.max(0, Math.min(1, pressure));
-  return stroke.size * factor;
+  return stroke.size * preset.widthMultiplier * factor;
 }
 
 export function drawStroke(
@@ -24,18 +25,28 @@ export function drawStroke(
   stroke: InkStroke,
   opts?: { penOpacity?: number; colorForStroke?: (hex: string) => string },
 ) {
-  const pts = stroke.points;
+  const tool = normalizeInkDrawTool(stroke.tool);
+  const normalized: InkStroke = { ...stroke, tool };
+  const preset = INK_TOOL_PRESETS[tool];
+  const pts = normalized.points;
   if (pts.length === 0) return;
 
-  const penOpacity = opts?.penOpacity ?? 0.92;
+  const baseOpacity = (opts?.penOpacity ?? 1) * preset.opacity;
   const strokeColor =
-    opts?.colorForStroke?.(stroke.color) ?? hexWithAlpha(stroke.color, penOpacity);
-  ctx.lineCap = "round";
+    opts?.colorForStroke?.(normalized.color) ?? hexWithAlpha(normalized.color, baseOpacity);
+
+  ctx.lineCap = tool === "highlighter" ? "square" : "round";
   ctx.lineJoin = "round";
 
-  if (stroke.tool === "eraser") {
+  if (tool === "eraser") {
     ctx.globalCompositeOperation = "destination-out";
     ctx.strokeStyle = "rgba(0,0,0,1)";
+  } else if (tool === "highlighter") {
+    ctx.globalCompositeOperation = "multiply";
+    ctx.strokeStyle = strokeColor;
+  } else if (tool === "pencil") {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = strokeColor;
   } else {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = strokeColor;
@@ -43,10 +54,10 @@ export function drawStroke(
 
   if (pts.length === 1) {
     const p = pts[0];
-    const w = strokeWidth(stroke, p.p);
+    const w = strokeWidth(normalized, p.p);
     ctx.beginPath();
     ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
-    ctx.fillStyle = stroke.tool === "eraser" ? "rgba(0,0,0,1)" : strokeColor;
+    ctx.fillStyle = tool === "eraser" ? "rgba(0,0,0,1)" : strokeColor;
     ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     return;
@@ -57,7 +68,7 @@ export function drawStroke(
     const b = pts[i];
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
-    const w = strokeWidth(stroke, (a.p + b.p) / 2);
+    const w = strokeWidth(normalized, (a.p + b.p) / 2);
     ctx.lineWidth = w;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
@@ -67,7 +78,7 @@ export function drawStroke(
 
   const last = pts[pts.length - 1];
   const prev = pts[pts.length - 2];
-  const wLast = strokeWidth(stroke, last.p);
+  const wLast = strokeWidth(normalized, last.p);
   ctx.lineWidth = wLast;
   ctx.beginPath();
   ctx.moveTo((prev.x + last.x) / 2, (prev.y + last.y) / 2);
@@ -103,4 +114,21 @@ export function getInkPointFromCanvasEvent(
         ? pressure
         : 0.5;
   return { x, y, p };
+}
+
+/** Project point onto infinite line through (cx,cy) at angleDeg (CSS y-down). */
+export function projectPointOntoRuler(
+  x: number,
+  y: number,
+  cx: number,
+  cy: number,
+  angleDeg: number,
+): InkPoint {
+  const rad = (angleDeg * Math.PI) / 180;
+  const dx = Math.cos(rad);
+  const dy = Math.sin(rad);
+  const vx = x - cx;
+  const vy = y - cy;
+  const t = vx * dx + vy * dy;
+  return { x: cx + t * dx, y: cy + t * dy, p: 0.5 };
 }

@@ -36,7 +36,7 @@ export function ReaderInkToolbar({
       aria-label="Ink tools"
       data-reader-ink-toolbar
     >
-      <ToolbarBtn active={tool === "pen"} onClick={() => onTool("pen")} label="Pen">
+      <ToolbarBtn active={tool === "fountain"} onClick={() => onTool("fountain")} label="Pen">
         Pen
       </ToolbarBtn>
       <ToolbarBtn active={tool === "eraser"} onClick={() => onTool("eraser")} label="Eraser">

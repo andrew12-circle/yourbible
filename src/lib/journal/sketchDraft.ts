@@ -1,7 +1,10 @@
 /** In-browser draft for handwritten journal strokes (survives page leave). */
 
+import { normalizeInkDrawTool } from "@/lib/ink/toolPresets";
+import type { InkDrawTool, InkTool } from "@/lib/ink/types";
+
 export type SketchDraftStroke = {
-  tool: "pen" | "eraser";
+  tool: InkDrawTool | "pen";
   color: string;
   size: number;
   points: { x: number; y: number; p: number }[];
@@ -9,7 +12,19 @@ export type SketchDraftStroke = {
 
 export type SketchDraftPaper = "blank" | "ruled" | "graph" | "dot";
 
-export type SketchDraftV1 = {
+export type SketchDraftV2 = {
+  version: 2;
+  strokes: SketchDraftStroke[];
+  paper: SketchDraftPaper;
+  color: string;
+  size: number;
+  tool: InkTool;
+  rulerVisible?: boolean;
+  rulerAngle?: number;
+  updatedAt: string;
+};
+
+type SketchDraftV1 = {
   version: 1;
   strokes: SketchDraftStroke[];
   paper: SketchDraftPaper;
@@ -25,30 +40,53 @@ export function sketchDraftStorageKey(key: string) {
   return `${DRAFT_PREFIX}${key}`;
 }
 
-export function loadSketchDraft(key: string): SketchDraftV1 | null {
+function normalizeStrokes(strokes: SketchDraftStroke[]): SketchDraftStroke[] {
+  return strokes.map((s) => ({
+    ...s,
+    tool: normalizeInkDrawTool(s.tool),
+  }));
+}
+
+export function loadSketchDraft(key: string): SketchDraftV2 | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(sketchDraftStorageKey(key));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SketchDraftV1;
-    if (parsed?.version !== 1 || !Array.isArray(parsed.strokes)) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as SketchDraftV2 | SketchDraftV1;
+    if (!parsed || !Array.isArray(parsed.strokes)) return null;
+    if (parsed.version === 2) {
+      return {
+        ...parsed,
+        strokes: normalizeStrokes(parsed.strokes),
+        tool: parsed.tool ?? "fountain",
+      };
+    }
+    return {
+      version: 2,
+      strokes: normalizeStrokes(parsed.strokes),
+      paper: parsed.paper,
+      color: parsed.color,
+      size: parsed.size,
+      tool: parsed.tool === "eraser" ? "eraser" : "fountain",
+      updatedAt: parsed.updatedAt,
+    };
   } catch {
     return null;
   }
 }
 
-export function saveSketchDraft(key: string, draft: Omit<SketchDraftV1, "version" | "updatedAt">) {
+export function saveSketchDraft(key: string, draft: Omit<SketchDraftV2, "version" | "updatedAt">) {
   if (typeof window === "undefined") return;
-  const payload: SketchDraftV1 = {
-    version: 1,
+  const payload: SketchDraftV2 = {
+    version: 2,
     ...draft,
+    strokes: normalizeStrokes(draft.strokes),
     updatedAt: new Date().toISOString(),
   };
   try {
     window.localStorage.setItem(sketchDraftStorageKey(key), JSON.stringify(payload));
   } catch {
-    /* quota — ignore */
+    /* quota */
   }
 }
 

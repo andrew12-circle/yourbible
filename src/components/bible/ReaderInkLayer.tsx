@@ -194,8 +194,13 @@ export default function ReaderInkLayer({
     if (!active) return;
     resizeCanvas();
     const ro = new ResizeObserver(() => resizeCanvas());
-    if (wrapRef.current) ro.observe(wrapRef.current);
-    return () => ro.disconnect();
+    const wrap = wrapRef.current;
+    if (wrap) ro.observe(wrap);
+    const raf = window.requestAnimationFrame(() => resizeCanvas());
+    return () => {
+      window.cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, [active, resizeCanvas]);
 
   useEffect(() => {
@@ -205,15 +210,21 @@ export default function ReaderInkLayer({
   useEffect(() => {
     if (!active) return;
     const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
     const preventDefault = (event: Event) => event.preventDefault();
     const nonPassive = { passive: false } as AddEventListenerOptions;
-    canvas?.addEventListener("touchstart", preventDefault, nonPassive);
-    canvas?.addEventListener("touchmove", preventDefault, nonPassive);
-    canvas?.addEventListener("contextmenu", preventDefault);
+    const surfaces = [wrap, canvas].filter(Boolean) as HTMLElement[];
+    for (const el of surfaces) {
+      el.addEventListener("touchstart", preventDefault, nonPassive);
+      el.addEventListener("touchmove", preventDefault, nonPassive);
+      el.addEventListener("contextmenu", preventDefault);
+    }
     return () => {
-      canvas?.removeEventListener("touchstart", preventDefault);
-      canvas?.removeEventListener("touchmove", preventDefault);
-      canvas?.removeEventListener("contextmenu", preventDefault);
+      for (const el of surfaces) {
+        el.removeEventListener("touchstart", preventDefault);
+        el.removeEventListener("touchmove", preventDefault);
+        el.removeEventListener("contextmenu", preventDefault);
+      }
     };
   }, [active]);
 
@@ -297,12 +308,16 @@ export default function ReaderInkLayer({
   return (
     <div
       ref={wrapRef}
-      className={cn("pointer-events-none absolute inset-0 z-[4]", className)}
+      className={cn(
+        "absolute inset-0 z-[20] touch-none select-none",
+        className,
+      )}
       data-reader-ink-layer={layerId}
+      style={{ touchAction: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
     >
       <canvas
         ref={canvasRef}
-        className="pointer-events-auto h-full w-full touch-none select-none"
+        className="block h-full w-full"
         style={{ touchAction: "none" }}
         aria-label="Ink layer — draw on this page"
         onPointerDown={onPointerDown}
