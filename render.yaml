@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: youtube-transcript-worker
+    runtime: docker
+    rootDir: worker/youtube-transcript
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: WORKER_TOKEN
+        generateValue: true
+      - key: PORT
+        value: "8000"

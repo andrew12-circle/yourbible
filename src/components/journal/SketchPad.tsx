@@ -58,6 +58,9 @@ const PEN_SIZES = [2, 4, 6, 10, 16];
 
 const DAY_CANVAS_BG = "#ffffff";
 const NIGHT_CANVAS_BG = "#05070a";
+/** Classic legal-pad yellow (day) and warm dark amber (night). */
+const LEGAL_PAD_DAY_BG = "#fff9c4";
+const LEGAL_PAD_NIGHT_BG = "#1a1708";
 const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
 export interface SketchPadProps {
@@ -198,7 +201,7 @@ export default function SketchPad({
     // 1. Paint the paper (background + ruled / grid / dot pattern).
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = isNightMode ? NIGHT_CANVAS_BG : DAY_CANVAS_BG;
+    ctx.fillStyle = canvasBackground(paper, isNightMode);
     ctx.fillRect(0, 0, w, h);
     drawPaper(ctx, paper, w, h, isNightMode);
     ctx.restore();
@@ -1013,29 +1016,58 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode =
   });
 }
 
+function canvasBackground(paper: SketchPaper, isNightMode: boolean): string {
+  if (paper === "legal") return isNightMode ? LEGAL_PAD_NIGHT_BG : LEGAL_PAD_DAY_BG;
+  return isNightMode ? NIGHT_CANVAS_BG : DAY_CANVAS_BG;
+}
+
+function drawRuledNotebook(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  isNightMode: boolean,
+  variant: "ruled" | "legal",
+) {
+  ctx.strokeStyle =
+    variant === "legal"
+      ? isNightMode
+        ? "rgba(251, 191, 36, 0.28)"
+        : "rgba(59, 130, 246, 0.42)"
+      : isNightMode
+        ? "rgba(96, 165, 250, 0.34)"
+        : "rgba(99, 162, 214, 0.55)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let y = PAPER_SPACING * 1.25; y < h; y += PAPER_SPACING) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+  }
+  ctx.stroke();
+
+  if (w > NOTEBOOK_MARGIN_X + 40) {
+    ctx.strokeStyle =
+      variant === "legal"
+        ? isNightMode
+          ? "rgba(248, 113, 113, 0.5)"
+          : "rgba(220, 38, 38, 0.5)"
+        : isNightMode
+          ? "rgba(248, 113, 113, 0.44)"
+          : "rgba(220, 38, 38, 0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(NOTEBOOK_MARGIN_X, 0);
+    ctx.lineTo(NOTEBOOK_MARGIN_X, h);
+    ctx.stroke();
+  }
+}
+
 function drawPaper(ctx: CanvasRenderingContext2D, paper: SketchPaper, w: number, h: number, isNightMode = false) {
   if (paper === "blank") return;
   ctx.save();
   if (paper === "ruled") {
-    // Faint blue horizontal rules + a red left margin, like a school notebook.
-    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.34)" : "rgba(99, 162, 214, 0.55)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    // Start a bit below the top so the page doesn't feel cramped.
-    for (let y = PAPER_SPACING * 1.25; y < h; y += PAPER_SPACING) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-    }
-    ctx.stroke();
-
-    if (w > NOTEBOOK_MARGIN_X + 40) {
-      ctx.strokeStyle = isNightMode ? "rgba(248, 113, 113, 0.44)" : "rgba(220, 38, 38, 0.45)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(NOTEBOOK_MARGIN_X, 0);
-      ctx.lineTo(NOTEBOOK_MARGIN_X, h);
-      ctx.stroke();
-    }
+    drawRuledNotebook(ctx, w, h, isNightMode, "ruled");
+  } else if (paper === "legal") {
+    drawRuledNotebook(ctx, w, h, isNightMode, "legal");
   } else if (paper === "graph") {
     ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.24)" : "rgba(99, 162, 214, 0.35)";
     ctx.lineWidth = 1;

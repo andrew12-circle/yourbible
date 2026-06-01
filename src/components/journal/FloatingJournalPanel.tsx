@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PanelRightClose, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft } from "lucide-react";
+import { PanelRightClose, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,10 @@ import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import FloatingJournalResearchChatTab from "@/components/journal/FloatingJournalResearchChatTab";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import SketchPad from "@/components/journal/SketchPad";
+import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { usePendingJournalSketch } from "@/hooks/usePendingJournalSketch";
 import { cn } from "@/lib/utils";
 
 const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
@@ -116,6 +119,16 @@ export default function FloatingJournalPanel({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const {
+    sketchOpen,
+    setSketchOpen,
+    previewUrl,
+    hasPendingSketch,
+    handleSketchSave,
+    clearPendingSketch,
+    attachSketchToEntry,
+  } = usePendingJournalSketch();
+  const sketchDraftKey = `floating:${artifactId?.trim() || GLOBAL_FLOATING_DRAFT_KEY}`;
 
   const [geom, setGeom] = useState<PanelPersist>(() => {
     const w = typeof window !== "undefined" ? window.innerWidth : 1200;
@@ -494,7 +507,7 @@ export default function FloatingJournalPanel({
   };
 
   const saveEntry = async () => {
-    if (!body.trim() && !title.trim()) {
+    if (!body.trim() && !title.trim() && !hasPendingSketch) {
       toast({ title: "Write something first", variant: "destructive" });
       return;
     }
@@ -531,19 +544,26 @@ export default function FloatingJournalPanel({
         return;
       }
       const entryId = data.id;
+      let linkErr: { message: string } | null = null;
       if (artifactId) {
-        const { error: linkErr } = await supabase.from("journal_entry_links").insert({
+        const { error } = await supabase.from("journal_entry_links").insert({
           user_id: userId,
           entry_id: entryId,
           target_kind: "artifact",
           target_ref: { id: artifactId },
         });
-        if (linkErr) {
-          toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
-        } else {
-          toast({ title: "Journal entry saved" });
-        }
-      } else {
+        if (error) linkErr = error;
+      }
+      if (linkErr) {
+        toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
+      }
+      if (hasPendingSketch) {
+        await attachSketchToEntry(userId, entryId, {
+          onBody: (nextBody) => setBody(nextBody),
+          onTitle: (nextTitle) => setTitle(nextTitle),
+        });
+      }
+      if (!linkErr) {
         toast({ title: "Journal entry saved" });
       }
       try {
@@ -551,6 +571,8 @@ export default function FloatingJournalPanel({
       } catch {
         /* ignore */
       }
+      setTitle("");
+      setBody("");
     } finally {
       setSaving(false);
     }
@@ -590,7 +612,20 @@ export default function FloatingJournalPanel({
         placeholder="Title (optional)"
         className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
       />
-      <div className="mb-2 flex shrink-0 items-center justify-end">
+      <div className="mb-2 flex shrink-0 items-center justify-end gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-8 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            dictateRef.current?.stop();
+            setSketchOpen(true);
+          }}
+        >
+          <PenLine className="mr-1 h-3.5 w-3.5" />
+          Handwrite
+        </Button>
         <DictateButton
           ref={dictateRef}
           userId={userId}
@@ -600,6 +635,17 @@ export default function FloatingJournalPanel({
           onInterim={setDictInterim}
         />
       </div>
+      {previewUrl ? (
+        <JournalSketchInline
+          sketches={[{ id: "pending", storage_path: "", url: previewUrl }]}
+          className="mb-2 shrink-0"
+          onOpenSketch={() => {
+            dictateRef.current?.stop();
+            setSketchOpen(true);
+          }}
+          onRemove={clearPendingSketch}
+        />
+      ) : null}
       <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:border-neutral-800 dark:bg-neutral-900/60 dark:shadow-none">
         <PolishedTextarea
           ref={textareaRef}
@@ -793,6 +839,13 @@ export default function FloatingJournalPanel({
             className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-nwse-resize touch-none rounded-tl-md border border-border bg-muted/50 hover:bg-muted dark:border-neutral-700 dark:bg-neutral-800/80 dark:hover:bg-neutral-700"
           />
       </div>
+
+      <SketchPad
+        open={sketchOpen}
+        onClose={() => setSketchOpen(false)}
+        draftKey={sketchDraftKey}
+        onSave={handleSketchSave}
+      />
     </div>
   );
 }

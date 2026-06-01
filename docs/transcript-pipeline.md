@@ -6,6 +6,9 @@
 |------|----------|------|-------|
 | 0 | **YouTube transcript worker** (preferred) | `TRANSCRIPT_WORKER_URL` set | Self-hosted Python `youtube-transcript-api` service; most reliable for captioned videos. Source in `worker/youtube-transcript/`. Falls through on 404 (no captions). |
 | 1 | YouTube captions (scrape) | Always first | Free, fast; breaks when captions disabled |
+| 1b | **youtube-transcript-plus** | After innertube | Free; Innertube caption path (npm), often works when raw timedtext scrape fails |
+| 1c | **Invidious mirrors** | After transcript-plus | Free; public Invidious instances (fallback) |
+| 1d | **Browser Invidious** (client) | On each fetch/retry | Free; tries Invidious from the user’s browser before the edge function |
 | 2 | **AssemblyAI** | `ASSEMBLYAI_API_KEY` + `TRANSCRIPT_TIER2_ENABLED` | Accepts YouTube watch URLs via `audio_url`; utterances + optional speaker labels |
 | 3 | **Deepgram** | `DEEPGRAM_API_KEY` + resolved direct audio URL | Watch URLs fail; edge resolves `googlevideo` audio from player/InnerTube, or use `DEEPGRAM_AUDIO_URL` |
 | 4 | Gemini video clips | `GEMINI_API_KEY` | Last resort; chunked for long videos |

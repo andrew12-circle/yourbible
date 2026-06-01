@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearSketchDraft,
   loadSketchDraft,
+  normalizeSketchDraftPaper,
   saveSketchDraft,
   sketchDraftStorageKey,
 } from "./sketchDraft";
@@ -32,5 +33,10 @@ describe("sketchDraft", () => {
     expect(loaded?.strokes[0].tool).toBe("fountain");
     expect(loaded?.strokes[0].points[0]).toEqual({ x: 1, y: 2, p: 0.5 });
     expect(localStorage.getItem(sketchDraftStorageKey("test-entry"))).toContain('"version":2');
+  });
+
+  it("normalizes paper types including yellow pad", () => {
+    expect(normalizeSketchDraftPaper("legal")).toBe("legal");
+    expect(normalizeSketchDraftPaper("unknown")).toBe("ruled");
   });
 });

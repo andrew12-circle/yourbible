@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     const dataUrl = `data:${mime};base64,${u8ToBase64(bytes)}`;
 
     const prompt =
-      `You are transcribing a personal journal sketch: handwriting (and maybe simple doodles) on lined, graph, dot, or blank paper.
+      `You are transcribing a personal journal sketch: handwriting (and maybe simple doodles) on lined, yellow legal pad, graph, dot, or blank paper.
 Read the image and output the legible text in natural reading order (top to bottom, left to right).
 Preserve line breaks and short paragraphs where the writer clearly started a new line.
 Use plain text only (no markdown headings).

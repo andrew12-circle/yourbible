@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "node:fs/promises": path.resolve(__dirname, "./src/lib/shims/node-fs-promises.ts"),
+      "node:path": path.resolve(__dirname, "./src/lib/shims/node-path.ts"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },

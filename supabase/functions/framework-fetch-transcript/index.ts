@@ -1,5 +1,5 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Order: captions → AssemblyAI (tier 2) → Deepgram (audio URL) → Gemini clips.
+// Order: worker → captions → Invidious mirrors → AssemblyAI → Deepgram → Gemini clips.
 // YOUTUBE_DATA_API_KEY enriches description/chapters only (not caption download).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
@@ -26,6 +26,8 @@ import {
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
+import { fetchInvidiousTranscript } from "../_shared/youtubeInvidiousTranscript.ts";
+import { fetchTranscriptPlusCaptions } from "../_shared/youtubeTranscriptPlus.ts";
 import {
   fetchInnertubeTranscript,
   fetchTimedTextTranscript,
@@ -449,14 +451,10 @@ async function geminiTranscribeYouTube(opts: GeminiTranscribeOpts): Promise<stri
     }],
   };
 
-  const generationConfigs = [
-    { temperature: 0, maxOutputTokens: 65536 },
-    { temperature: 0, maxOutputTokens: 8192, mediaResolution: "LOW" as const },
-  ];
+  const generationConfig = { temperature: 0, maxOutputTokens: 65536 };
 
   let lastError = "";
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const generationConfig = generationConfigs[Math.min(attempt, generationConfigs.length - 1)];
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
@@ -535,10 +533,16 @@ function buildTranscriptFailureMessage(tierAttempts: string[], geminiError?: str
   } else if (!Deno.env.get("GEMINI_API_KEY")) {
     steps.push("Gemini: skipped — GEMINI_API_KEY not set on edge function");
   }
+  const edgeBlocked = steps.some((s) =>
+    s.includes("no longer available") || s.includes("transcript-plus")
+  );
+  const hint = edgeBlocked
+    ? "YouTube often blocks server fetches; retry after deploying the latest app build (browser caption fetch) or paste from YouTube (⋯ → Show transcript)."
+    : "For long videos, paste from YouTube (⋯ → Show transcript) if automatic fetch keeps failing.";
   return [
     "Could not fetch transcript.",
     `Attempts: ${steps.join("; ")}.`,
-    "For long videos, paste from YouTube (⋯ → Show transcript) if automatic fetch keeps failing.",
+    hint,
   ].join(" ");
 }
 
@@ -633,6 +637,39 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
       };
     }
     tierAttempts.push("Captions (innertube): no segments returned");
+
+    const transcriptPlus = await fetchTranscriptPlusCaptions(videoId).catch((e) => {
+      tierAttempts.push(`Captions (transcript-plus): ${String((e as Error).message ?? e)}`);
+      return null;
+    });
+    if (transcriptPlus) {
+      const fetch = outcomeFromTimedText(transcriptPlus, "caption", "youtube_transcript_plus");
+      return {
+        fetch,
+        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
+        chaptersBundle: captionResult,
+      };
+    } else if (!tierAttempts.some((t) => t.startsWith("Captions (transcript-plus):"))) {
+      tierAttempts.push("Captions (transcript-plus): no segments returned");
+    }
+
+    const invidious = await fetchInvidiousTranscript(videoId).catch((e) => {
+      const msg = String((e as Error).message ?? e);
+      tierAttempts.push(
+        msg.length > 200 ? `Captions (invidious): ${msg.slice(0, 200)}…` : `Captions (invidious): ${msg}`,
+      );
+      return null;
+    });
+    if (invidious) {
+      const fetch = outcomeFromTimedText(invidious, "caption", "youtube_invidious");
+      return {
+        fetch,
+        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
+        chaptersBundle: captionResult,
+      };
+    } else if (!tierAttempts.some((t) => t.startsWith("Captions (invidious):"))) {
+      tierAttempts.push("Captions (invidious): no track returned");
+    }
   }
 
   try {
@@ -684,8 +721,16 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
     throw new Error(buildTranscriptFailureMessage(tierAttempts));
   }
 
+  const geminiMaxSec = Number(Deno.env.get("TRANSCRIPT_GEMINI_MAX_SECONDS") ?? "7200");
+  const durationHint = metadata.durationSeconds ?? captionResult?.durationSeconds;
+  if (durationHint != null && durationHint > geminiMaxSec) {
+    tierAttempts.push(
+      `Gemini: skipped — video longer than ${Math.floor(geminiMaxSec / 60)} minutes (set TRANSCRIPT_GEMINI_MAX_SECONDS or paste transcript)`,
+    );
+    throw new Error(buildTranscriptFailureMessage(tierAttempts));
+  }
+
   try {
-    const durationHint = metadata.durationSeconds ?? captionResult?.durationSeconds;
     const text = await transcribeYouTubeWithGemini(watchUrl, durationHint);
     const fetch = outcomeFromTimedText(text, "gemini", "gemini_video_clips");
     const mergedMetadata = {
@@ -715,7 +760,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { artifact_id, url, processing_token } = (await req.json()) as { artifact_id?: string; url?: string; processing_token?: string };
+    const { artifact_id, url, processing_token, pre_fetched_captions } = (await req.json()) as {
+      artifact_id?: string;
+      url?: string;
+      processing_token?: string;
+      pre_fetched_captions?: string;
+    };
     if (!artifact_id || !url || !processing_token) {
       return new Response(JSON.stringify({ error: "artifact_id, url, and processing_token required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -753,7 +803,14 @@ Deno.serve(async (req) => {
 
     const processTranscript = async () => {
       try {
-        const result = await transcribeYouTubeVideo(url);
+        const prefetched = pre_fetched_captions?.trim();
+        const result = prefetched
+          ? await (async (): Promise<YoutubeTranscribeOutcome> => {
+            const metadata = await getYouTubeMetadata(url).catch(() => ({}));
+            const fetch = outcomeFromTimedText(prefetched, "caption", "browser_captions");
+            return { fetch, metadata, chaptersBundle: null };
+          })()
+          : await transcribeYouTubeVideo(url);
         const uploaderName = result.metadata.channelTitle ?? null;
         const vid = extractYouTubeVideoId(url);
         let desc = result.chaptersBundle?.description ?? "";

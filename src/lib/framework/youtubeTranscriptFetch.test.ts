@@ -6,6 +6,14 @@ import {
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { supabase } from "@/integrations/supabase/client";
 
+vi.mock("@/lib/framework/youtubeInvidiousCaptions", () => ({
+  fetchYoutubeCaptionsViaInvidious: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock("@/lib/framework/youtubeTranscriptPlusClient", () => ({
+  fetchYoutubeCaptionsInBrowser: vi.fn(() => Promise.resolve(null)),
+}));
+
 vi.mock("@/integrations/supabase/client", () => {
   const maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
   const eqForSelect = vi.fn(() => ({ maybeSingle }));

@@ -1,8 +1,10 @@
-import { Clock, Loader2, Maximize2, Minimize2, PanelRightClose } from "lucide-react";
+import { Clock, Loader2, Maximize2, Minimize2, PanelRightClose, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { DictateButton } from "@/components/journal/DictateButton";
+import SketchPad from "@/components/journal/SketchPad";
+import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import { useArtifactJournalEditor } from "@/hooks/useArtifactJournalEditor";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,12 @@ export default function ArtifactEmbeddedJournal({
     persistDraftNow,
     showTimestamp,
     defaultTitlePlaceholder,
+    sketchOpen,
+    setSketchOpen,
+    previewUrl,
+    handleSketchSave,
+    clearPendingSketch,
+    sketchDraftKey,
   } = useArtifactJournalEditor({
     userId,
     artifactId,
@@ -157,7 +165,20 @@ export default function ArtifactEmbeddedJournal({
           placeholder={defaultTitlePlaceholder ? `Title (optional)` : "Title (optional)"}
           className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0"
         />
-        <div className="mb-2 flex shrink-0 items-center justify-end">
+        <div className="mb-2 flex shrink-0 items-center justify-end gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              dictateRef.current?.stop();
+              setSketchOpen(true);
+            }}
+          >
+            <PenLine className="mr-1 h-3.5 w-3.5" />
+            Handwrite
+          </Button>
           <DictateButton
             ref={dictateRef}
             userId={userId}
@@ -165,6 +186,17 @@ export default function ArtifactEmbeddedJournal({
             onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
           />
         </div>
+        {previewUrl ? (
+          <JournalSketchInline
+            sketches={[{ id: "pending", storage_path: "", url: previewUrl }]}
+            className="mb-2 shrink-0"
+            onOpenSketch={() => {
+              dictateRef.current?.stop();
+              setSketchOpen(true);
+            }}
+            onRemove={clearPendingSketch}
+          />
+        ) : null}
         <PolishedTextarea
           ref={textareaRef}
           value={body}
@@ -185,6 +217,13 @@ export default function ArtifactEmbeddedJournal({
           </Button>
         </div>
       </div>
+
+      <SketchPad
+        open={sketchOpen}
+        onClose={() => setSketchOpen(false)}
+        draftKey={sketchDraftKey}
+        onSave={handleSketchSave}
+      />
     </section>
   );
 }

@@ -26,7 +26,7 @@ import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
 import { cn } from "@/lib/utils";
 import { InkToolSilhouette, InkToolSilhouetteSlot } from "./InkToolSilhouette";
 
-export type SketchPaper = "blank" | "ruled" | "graph" | "dot";
+export type SketchPaper = "blank" | "ruled" | "legal" | "graph" | "dot";
 
 type PenColor = { name: string; value: string };
 
@@ -391,6 +391,7 @@ export default function SketchInkToolbar({
                 <DropdownMenuRadioItem value="ruled">
                   <GripHorizontal className="mr-2 h-3.5 w-3.5" /> Notebook
                 </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="blank">
                   <Square className="mr-2 h-3.5 w-3.5" /> Blank
                 </DropdownMenuRadioItem>
@@ -434,6 +435,7 @@ export default function SketchInkToolbar({
               <DropdownMenuLabel>Paper</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
                 <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="blank">Blank</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="graph">Graph</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="dot">Dot</DropdownMenuRadioItem>

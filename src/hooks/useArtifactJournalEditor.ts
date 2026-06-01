@@ -9,6 +9,7 @@ import {
 } from "@/lib/journal/floatingJournalDraft";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
+import { usePendingJournalSketch } from "@/hooks/usePendingJournalSketch";
 
 const TEXTAREA_AUTOSIZE_MAX_DOCKED = 360;
 const TEXTAREA_AUTOSIZE_MAX_EXPANDED = 720;
@@ -37,6 +38,15 @@ export function useArtifactJournalEditor({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const {
+    sketchOpen,
+    setSketchOpen,
+    previewUrl,
+    hasPendingSketch,
+    handleSketchSave,
+    clearPendingSketch,
+    attachSketchToEntry,
+  } = usePendingJournalSketch();
 
   const dateLine = useMemo(
     () =>
@@ -170,7 +180,7 @@ export function useArtifactJournalEditor({
 
   const saveEntry = useCallback(async () => {
     const saveTags = artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"];
-    if (!body.trim() && !title.trim()) {
+    if (!body.trim() && !title.trim() && !hasPendingSketch) {
       toast({ title: "Write something first", variant: "destructive" });
       return;
     }
@@ -215,7 +225,14 @@ export function useArtifactJournalEditor({
       });
       if (linkErr) {
         toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
-      } else {
+      }
+      if (hasPendingSketch) {
+        await attachSketchToEntry(userId, entryId, {
+          onBody: (nextBody) => setBody(nextBody),
+          onTitle: (nextTitle) => setTitle(nextTitle),
+        });
+      }
+      if (!linkErr) {
         toast({ title: "Journal entry saved" });
       }
       try {
@@ -223,10 +240,12 @@ export function useArtifactJournalEditor({
       } catch {
         /* ignore */
       }
+      setTitle("");
+      setBody("");
     } finally {
       setSaving(false);
     }
-  }, [artifactId, artifactKind, body, draftKey, title, userId]);
+  }, [artifactId, artifactKind, attachSketchToEntry, body, draftKey, hasPendingSketch, title, userId]);
 
   const showTimestamp = typeof getPlaybackSeconds === "function";
 
@@ -244,5 +263,12 @@ export function useArtifactJournalEditor({
     persistDraftNow,
     showTimestamp,
     defaultTitlePlaceholder: artifactTitle,
+    sketchOpen,
+    setSketchOpen,
+    previewUrl,
+    hasPendingSketch,
+    handleSketchSave,
+    clearPendingSketch,
+    sketchDraftKey: `artifact:${artifactId}`,
   };
 }

@@ -10,7 +10,15 @@ export type SketchDraftStroke = {
   points: { x: number; y: number; p: number }[];
 };
 
-export type SketchDraftPaper = "blank" | "ruled" | "graph" | "dot";
+export type SketchDraftPaper = "blank" | "ruled" | "legal" | "graph" | "dot";
+
+const VALID_SKETCH_PAPER = new Set<SketchDraftPaper>(["blank", "ruled", "legal", "graph", "dot"]);
+
+export function normalizeSketchDraftPaper(value: unknown): SketchDraftPaper {
+  return typeof value === "string" && VALID_SKETCH_PAPER.has(value as SketchDraftPaper)
+    ? (value as SketchDraftPaper)
+    : "ruled";
+}
 
 export type SketchDraftV2 = {
   version: 2;
@@ -58,13 +66,14 @@ export function loadSketchDraft(key: string): SketchDraftV2 | null {
       return {
         ...parsed,
         strokes: normalizeStrokes(parsed.strokes),
+        paper: normalizeSketchDraftPaper(parsed.paper),
         tool: parsed.tool ?? "fountain",
       };
     }
     return {
       version: 2,
       strokes: normalizeStrokes(parsed.strokes),
-      paper: parsed.paper,
+      paper: normalizeSketchDraftPaper(parsed.paper),
       color: parsed.color,
       size: parsed.size,
       tool: parsed.tool === "eraser" ? "eraser" : "fountain",

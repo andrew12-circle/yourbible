@@ -105,6 +105,22 @@ npx supabase secrets set \
   --project-ref itmcsyrnpcnrwviigppe
 ```
 
+Sync transcript keys from local `.env` (when present):
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/sync-transcript-secrets.ps1
+```
+
+**AssemblyAI** is strongly recommended for long videos without captions (accepts YouTube watch URLs). **Deepgram** needs a direct audio URL; the edge function resolves one when possible.
+
+### YouTube transcript worker (free, captioned videos)
+
+1. Deploy via [Render Blueprint](https://dashboard.render.com/blueprints) using root [`render.yaml`](../render.yaml) (Docker service in `worker/youtube-transcript/`).
+2. Copy the service URL and `WORKER_TOKEN` from Render env vars into `.env` as `TRANSCRIPT_WORKER_URL` and `TRANSCRIPT_WORKER_TOKEN`.
+3. Run `scripts/sync-transcript-secrets.ps1`, then redeploy `framework-fetch-transcript`.
+
+Or run `powershell -ExecutionPolicy Bypass -File scripts/deploy-transcript-worker.ps1` for a short checklist.
+
 Other keys as needed (see [`.env.example`](../.env.example)):
 
 ```bash

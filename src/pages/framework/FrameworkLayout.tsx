@@ -37,7 +37,7 @@ interface Props {
   headerLeading?: ReactNode;
   /** One-line title on mobile when `headerLeading` is set (immersive artifact detail). */
   immersiveCompactTitle?: string;
-  /** Mobile immersive: back + trailing only; title lives in page body (e.g. YouTube detail). */
+  /** Phone/tablet immersive (<lg): hide framework header; title lives in page body (e.g. YouTube detail). */
   immersiveMobileMinimal?: boolean;
   /** Desktop artifact detail: hide framework header at lg+ (hero owns navigation). */
   immersiveDesktopMinimal?: boolean;
@@ -104,9 +104,9 @@ export default function FrameworkLayout({
     if (!root) return;
 
     const sync = () => {
-      const phone = window.matchMedia(`(max-width: ${ARTIFACT_TABLET_MIN_PX - 1}px)`).matches;
       const pipVideoLayout = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_PIP_MIN_PX}px)`).matches;
-      if (phone || pipVideoLayout) {
+      // Phone + tablet: framework header hidden; pinned video uses top-0 (see ArtifactYoutubeVideoBlock).
+      if (!pipVideoLayout) {
         root.style.setProperty("--artifact-header-h", "0px");
         return;
       }
@@ -141,7 +141,7 @@ export default function FrameworkLayout({
       className={cn(
         "min-h-screen bg-background font-sans text-foreground",
         immersiveMobileMinimal &&
-          "max-md:flex max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:flex-col max-md:overflow-hidden max-md:[--artifact-header-h:0px] md:max-lg:[--artifact-header-h:4.75rem] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]",
+          "max-lg:flex max-lg:h-[100dvh] max-lg:max-h-[100dvh] max-lg:flex-col max-lg:overflow-hidden max-lg:[--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]",
       )}
       style={
         immersiveMobileMinimal
@@ -157,7 +157,7 @@ export default function FrameworkLayout({
         data-artifact-framework-header
         className={cn(
           "sticky top-0 z-30 border-b backdrop-blur-md max-md:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]",
-          hideMobileFrameworkHeader && "max-md:hidden",
+          hideMobileFrameworkHeader && "max-lg:hidden",
           hideDesktopFrameworkHeader && "lg:hidden",
           immersive
             ? "border-border/60 bg-background/92 shadow-sm supports-[backdrop-filter]:bg-background/85"
@@ -325,7 +325,7 @@ export default function FrameworkLayout({
           "mx-auto px-4 sm:px-5",
           immersive
             ? hideMobileFrameworkHeader
-              ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-hidden max-md:px-0 max-md:py-0 max-md:pb-0 sm:py-6 sm:pb-8 md:py-4 md:pb-6 lg:px-0 lg:py-0 lg:pb-0"
+              ? "max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:px-0 lg:py-0 lg:pb-0"
               : hideDesktopFrameworkHeader
                 ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
                 : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"
