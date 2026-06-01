@@ -31,15 +31,23 @@ const TAP_MOVE_THRESHOLD_PX = 12;
 const MAX_FLICK_VELOCITY = 1.2;
 const MOMENTUM_PROJECTION_MS = 300;
 
+/** Scripture link only — card buttons must allow horizontal rail drag on touch. */
 function isInteractiveInsightTarget(target: EventTarget | null) {
   return Boolean(
     target instanceof Element &&
-      target.closest("button, a, [role='link'], [data-insight-no-drag]"),
+      target.closest("a[href], [role='link'][tabindex], [data-insight-no-drag]"),
   );
 }
 
 function clampVelocity(velocity: number) {
   return Math.min(Math.max(velocity, -MAX_FLICK_VELOCITY), MAX_FLICK_VELOCITY);
+}
+
+function insightIndexFromTarget(target: EventTarget | null) {
+  const slide = (target as Element | null)?.closest<HTMLElement>("[data-insight-index]");
+  if (!slide) return null;
+  const index = Number(slide.dataset.insightIndex);
+  return Number.isFinite(index) ? index : null;
 }
 
 export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
@@ -54,7 +62,6 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [trackOffset, setTrackOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const railDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -63,6 +70,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     lastX: number;
     lastTime: number;
     velocity: number;
+    insightIndex: number | null;
   } | null>(null);
   const draggingRef = useRef(false);
 
@@ -117,50 +125,6 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     [onSelectClaim, scrollToIndex],
   );
 
-  const handleCardPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    pointerStartRef.current = { x: event.clientX, y: event.clientY };
-    draggingRef.current = false;
-  }, []);
-
-  const handleCardPointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const start = pointerStartRef.current;
-    if (!start) return;
-    const deltaX = Math.abs(event.clientX - start.x);
-    const deltaY = Math.abs(event.clientY - start.y);
-    if (deltaX > TAP_MOVE_THRESHOLD_PX && deltaX > deltaY) draggingRef.current = true;
-  }, []);
-
-  const handleCardPointerUp = useCallback(
-    (claimId: string, index: number, event: PointerEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      const start = pointerStartRef.current;
-      pointerStartRef.current = null;
-
-      if (draggingRef.current) {
-        draggingRef.current = false;
-        return;
-      }
-      if (!start) return;
-
-      const deltaX = Math.abs(event.clientX - start.x);
-      const deltaY = Math.abs(event.clientY - start.y);
-      if (deltaX > TAP_MOVE_THRESHOLD_PX || deltaY > TAP_MOVE_THRESHOLD_PX) return;
-
-      handleTap(claimId, index);
-    },
-    [handleTap],
-  );
-
-  const handleCardClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    if (draggingRef.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      draggingRef.current = false;
-    }
-  }, []);
-
   const handleRailPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (isInteractiveInsightTarget(event.target)) return;
     draggingRef.current = false;
@@ -172,8 +136,8 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
       lastX: event.clientX,
       lastTime: event.timeStamp,
       velocity: 0,
+      insightIndex: insightIndexFromTarget(event.target),
     };
-    railRef.current?.setPointerCapture?.(event.pointerId);
   }, [trackOffset]);
 
   const handleRailPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -183,6 +147,10 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
     if (Math.abs(deltaX) <= 4 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+    if (!draggingRef.current) {
+      railRef.current?.setPointerCapture?.(event.pointerId);
+    }
 
     const elapsedMs = Math.max(event.timeStamp - drag.lastTime, 1);
     drag.velocity = (drag.lastX - event.clientX) / elapsedMs;
@@ -207,6 +175,13 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     const deltaY = Math.abs(event.clientY - drag.startY);
     if (deltaX <= TAP_MOVE_THRESHOLD_PX && deltaY <= TAP_MOVE_THRESHOLD_PX) {
       draggingRef.current = false;
+      if (!isInteractiveInsightTarget(event.target)) {
+        const index =
+          drag.insightIndex ??
+          insightIndexFromTarget(event.target);
+        const claim = index != null ? claims[index] : undefined;
+        if (claim) handleTap(claim.id, index);
+      }
       return;
     }
 
@@ -216,7 +191,46 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     const nextIndex = nearestIndexForOffset(momentumOffset);
     setSelectedIndex(nextIndex);
     scrollToIndex(nextIndex);
-  }, [clampOffset, nearestIndexForOffset, scrollToIndex]);
+    draggingRef.current = false;
+  }, [claims, clampOffset, handleTap, nearestIndexForOffset, scrollToIndex]);
+
+  const handleCardPointerDown = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      draggingRef.current = false;
+      if (!isInteractiveInsightTarget(event.target)) {
+        handleRailPointerDown(event as unknown as PointerEvent<HTMLDivElement>);
+        event.stopPropagation();
+      }
+    },
+    [handleRailPointerDown],
+  );
+
+  const handleCardPointerMove = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      if (isInteractiveInsightTarget(event.target)) return;
+      handleRailPointerMove(event as unknown as PointerEvent<HTMLDivElement>);
+      event.stopPropagation();
+    },
+    [handleRailPointerMove],
+  );
+
+  const handleCardPointerUp = useCallback(
+    (_claimId: string, _index: number, event: PointerEvent<HTMLButtonElement>) => {
+      if (!isInteractiveInsightTarget(event.target)) {
+        handleRailPointerEnd(event as unknown as PointerEvent<HTMLDivElement>);
+        event.stopPropagation();
+      }
+    },
+    [handleRailPointerEnd],
+  );
+
+  const handleCardClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    if (draggingRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      draggingRef.current = false;
+    }
+  }, []);
 
   const selectInsight = useCallback((index: number) => {
     const nextIndex = Math.min(Math.max(index, 0), claims.length - 1);
@@ -236,7 +250,11 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     >
       <div
         ref={railRef}
-        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden rounded-2xl bg-white pb-3 pt-1 shadow-sm ring-1 ring-border/30 active:cursor-grabbing md:rounded-3xl md:pb-4 md:pt-2"
+        className={cn(
+          "w-full max-w-full cursor-grab overflow-hidden rounded-2xl bg-white pb-3 pt-1 shadow-sm ring-1 ring-border/30 active:cursor-grabbing md:rounded-3xl md:pb-4 md:pt-2",
+          "touch-pan-x overscroll-x-contain",
+          isDragging && "touch-none",
+        )}
         role="list"
         aria-label="Key insight cards"
         onPointerDown={handleRailPointerDown}
@@ -272,8 +290,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                   onPointerDown={handleCardPointerDown}
                   onPointerMove={handleCardPointerMove}
                   onPointerCancel={(event) => {
-                    event.stopPropagation();
-                    pointerStartRef.current = null;
+                    handleRailPointerEnd(event as unknown as PointerEvent<HTMLDivElement>);
                   }}
                   onPointerUp={(event) => handleCardPointerUp(claim.id, idx, event)}
                   onClick={handleCardClick}

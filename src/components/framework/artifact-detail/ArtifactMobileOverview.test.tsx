@@ -95,7 +95,7 @@ describe("ArtifactMobileOverview", () => {
     );
 
     const rail = screen.getByRole("list", { name: /key insight cards/i });
-    expect(rail).toHaveClass("overflow-hidden", "touch-pan-y");
+    expect(rail).toHaveClass("overflow-hidden", "touch-pan-x", "overscroll-x-contain");
     expect(screen.getAllByRole("listitem")).toHaveLength(multipleClaims.length);
     expect(screen.getByRole("button", { name: "Next insight" })).toBeInTheDocument();
 
@@ -122,6 +122,51 @@ describe("ArtifactMobileOverview", () => {
     fireEvent.pointerDown(rail, { pointerId: 1, clientX: 320, clientY: 120, timeStamp: 0 });
     fireEvent.pointerMove(rail, { pointerId: 1, clientX: 120, clientY: 126, timeStamp: 100 });
     fireEvent.pointerUp(rail, { pointerId: 1, clientX: 80, clientY: 126, timeStamp: 120 });
+
+    expect(screen.getByRole("tab", { name: "Insight 3" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens claim review when pointerup lands on the rail after a card tap", () => {
+    const onSelectClaim = vi.fn();
+
+    render(
+      <ArtifactMobileOverview
+        claims={claims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={claims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={onSelectClaim}
+      />,
+    );
+
+    const rail = screen.getByRole("list", { name: /key insight cards/i });
+    const card = screen.getByRole("button", { name: /Wisdom should lead/i });
+
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(rail, { pointerId: 1, clientX: 10, clientY: 10 });
+
+    expect(onSelectClaim).toHaveBeenCalledWith("claim-1");
+  });
+
+  it("advances the insight rail when dragging from an insight card", () => {
+    render(
+      <ArtifactMobileOverview
+        claims={multipleClaims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={multipleClaims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /Wisdom should lead/i });
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 300, clientY: 120, timeStamp: 0 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 100, clientY: 124, timeStamp: 100 });
+    fireEvent.pointerUp(card, { pointerId: 1, clientX: 60, clientY: 124, timeStamp: 120 });
 
     expect(screen.getByRole("tab", { name: "Insight 3" })).toHaveAttribute("aria-selected", "true");
   });

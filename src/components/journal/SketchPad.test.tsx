@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveSketchDraft } from "@/lib/journal/sketchDraft";
 import SketchPad from "./SketchPad";
 
 const canvasContext = {
@@ -72,6 +73,7 @@ describe("SketchPad", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.removeItem("yourbible:sketch-draft:pad-test");
     vi.restoreAllMocks();
   });
 
@@ -178,5 +180,21 @@ describe("SketchPad", () => {
     canvas.dispatchEvent(pointerDown);
 
     expect(pointerDown.defaultPrevented).toBe(true);
+  });
+
+  it("keeps yellow pad after canvas resize", () => {
+    saveSketchDraft("pad-test", {
+      strokes: [],
+      paper: "legal",
+      color: "#007aff",
+      size: 4,
+      tool: "fountain",
+    });
+
+    render(<SketchPad open draftKey="pad-test" onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(canvasContext.fillStyle).toBe("#fff9c4");
+
+    window.dispatchEvent(new Event("resize"));
+    expect(canvasContext.fillStyle).toBe("#fff9c4");
   });
 });

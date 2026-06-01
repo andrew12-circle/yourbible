@@ -347,6 +347,34 @@ export default function SketchPad({
     flushRedraw();
   }, [flushRedraw]);
 
+  const flushRedrawRef = useRef(flushRedraw);
+  const resizeCanvasRef = useRef(resizeCanvas);
+  const resetViewRef = useRef(resetView);
+  flushRedrawRef.current = flushRedraw;
+  resizeCanvasRef.current = resizeCanvas;
+  resetViewRef.current = resetView;
+
+  const handlePaperChange = useCallback(
+    (next: SketchPaper) => {
+      setPaper(next);
+      if (!draftKey) return;
+      if (draftTimerRef.current) {
+        clearTimeout(draftTimerRef.current);
+        draftTimerRef.current = null;
+      }
+      saveSketchDraft(draftKey, {
+        strokes: strokesRef.current,
+        paper: next,
+        color,
+        size,
+        tool,
+        rulerVisible,
+        rulerAngle,
+      });
+    },
+    [color, draftKey, rulerAngle, rulerVisible, size, tool],
+  );
+
   // Repaint when the paper style changes (background only; strokes stay).
   useEffect(() => {
     if (!open) return;
@@ -443,12 +471,12 @@ export default function SketchPad({
         : getSketchPenColors(isNightModeRef.current)[0].value,
     );
     setSize(draft?.size ?? PEN_SIZES[1]);
-    resetView();
+    resetViewRef.current();
     requestAnimationFrame(() => {
-      resizeCanvas();
-      flushRedraw();
+      resizeCanvasRef.current();
+      flushRedrawRef.current();
     });
-  }, [open, draftKey, resizeCanvas, flushRedraw, resetView]);
+  }, [open, draftKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -874,7 +902,7 @@ export default function SketchPad({
             else if (tool === "lasso") setTool(lastDrawToolRef.current);
           }}
           onSizeChange={setSize}
-          onPaperChange={setPaper}
+          onPaperChange={handlePaperChange}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onClear={handleClear}
