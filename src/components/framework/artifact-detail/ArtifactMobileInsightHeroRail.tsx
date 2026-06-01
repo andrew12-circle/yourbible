@@ -26,8 +26,16 @@ type Props<T extends ClaimLike> = {
   className?: string;
 };
 
+const TAP_MOVE_THRESHOLD_PX = 12;
 const MAX_FLICK_VELOCITY = 1.2;
 const MOMENTUM_PROJECTION_MS = 300;
+
+function isInteractiveInsightTarget(target: EventTarget | null) {
+  return Boolean(
+    target instanceof Element &&
+      target.closest("button, a, [role='link'], [data-insight-no-drag]"),
+  );
+}
 
 function clampVelocity(velocity: number) {
   return Math.min(Math.max(velocity, -MAX_FLICK_VELOCITY), MAX_FLICK_VELOCITY);
@@ -100,13 +108,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   }, [activeClaimId, claims, scrollToIndex]);
 
   const handleTap = useCallback(
-    (claimId: string, index: number, event: MouseEvent<HTMLButtonElement>) => {
-      if (draggingRef.current) {
-        event.preventDefault();
-        event.stopPropagation();
-        draggingRef.current = false;
-        return;
-      }
+    (claimId: string, index: number) => {
       setSelectedIndex(index);
       scrollToIndex(index);
       onSelectClaim(claimId);
@@ -114,24 +116,52 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     [onSelectClaim, scrollToIndex],
   );
 
-  const handlePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleCardPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
     draggingRef.current = false;
   }, []);
 
-  const handlePointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleCardPointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     const start = pointerStartRef.current;
     if (!start) return;
     const deltaX = Math.abs(event.clientX - start.x);
     const deltaY = Math.abs(event.clientY - start.y);
-    if (deltaX > 8 && deltaX > deltaY) draggingRef.current = true;
+    if (deltaX > TAP_MOVE_THRESHOLD_PX && deltaX > deltaY) draggingRef.current = true;
   }, []);
 
-  const handlePointerEnd = useCallback(() => {
-    pointerStartRef.current = null;
+  const handleCardPointerUp = useCallback(
+    (claimId: string, index: number, event: PointerEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      const start = pointerStartRef.current;
+      pointerStartRef.current = null;
+
+      if (draggingRef.current) {
+        draggingRef.current = false;
+        return;
+      }
+      if (!start) return;
+
+      const deltaX = Math.abs(event.clientX - start.x);
+      const deltaY = Math.abs(event.clientY - start.y);
+      if (deltaX > TAP_MOVE_THRESHOLD_PX || deltaY > TAP_MOVE_THRESHOLD_PX) return;
+
+      handleTap(claimId, index);
+    },
+    [handleTap],
+  );
+
+  const handleCardClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    if (draggingRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      draggingRef.current = false;
+    }
   }, []);
 
   const handleRailPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (isInteractiveInsightTarget(event.target)) return;
     draggingRef.current = false;
     railDragRef.current = {
       pointerId: event.pointerId,
@@ -171,6 +201,13 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
       railRef.current.releasePointerCapture(event.pointerId);
     }
     setIsDragging(false);
+
+    const deltaX = Math.abs(event.clientX - drag.startX);
+    const deltaY = Math.abs(event.clientY - drag.startY);
+    if (deltaX <= TAP_MOVE_THRESHOLD_PX && deltaY <= TAP_MOVE_THRESHOLD_PX) {
+      draggingRef.current = false;
+      return;
+    }
 
     if (!draggingRef.current) return;
     const releaseOffset = clampOffset(drag.startOffset - (event.clientX - drag.startX));
@@ -225,11 +262,14 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                     accent.card,
                     activeClaimId === claim.id && "ring-2 ring-violet-500/50 ring-offset-2 ring-offset-background",
                   )}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerCancel={handlePointerEnd}
-                  onPointerUp={handlePointerEnd}
-                  onClick={(event) => handleTap(claim.id, idx, event)}
+                  onPointerDown={handleCardPointerDown}
+                  onPointerMove={handleCardPointerMove}
+                  onPointerCancel={(event) => {
+                    event.stopPropagation();
+                    pointerStartRef.current = null;
+                  }}
+                  onPointerUp={(event) => handleCardPointerUp(claim.id, idx, event)}
+                  onClick={handleCardClick}
                 >
                   <div className="space-y-4 text-left">
                     <span className={cn(artifactMobileInsightHeroNumber, accent.number)}>{idx + 1}</span>
