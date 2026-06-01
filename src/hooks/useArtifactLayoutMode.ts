@@ -37,12 +37,14 @@ export function isArtifactLayoutDesktop(mode: ArtifactLayoutMode): boolean {
   return mode === "desktop";
 }
 
-/** Phone only: video sticks under in-page chrome while scrolling. */
+/**
+ * Phone + tablet: pinned video, bottom dock, and mobile study overview (not legacy collapsible stack).
+ */
 export function isArtifactStickyVideo(mode: ArtifactLayoutMode, hasYouTube: boolean): boolean {
-  return hasYouTube && mode === "phone";
+  return hasYouTube && mode !== "desktop";
 }
 
-/** Tablet + desktop: inline slot + floating PiP when scrolling study content (not sticky). */
+/** Desktop only: split study pane + floating PiP while scrolling. */
 export function isArtifactPipVideo(mode: ArtifactLayoutMode, hasYouTube: boolean): boolean {
-  return hasYouTube && mode !== "phone";
+  return hasYouTube && mode === "desktop";
 }

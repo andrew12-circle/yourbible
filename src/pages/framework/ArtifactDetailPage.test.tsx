@@ -27,7 +27,8 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/hooks/useArtifactLayoutMode", () => ({
   useArtifactLayoutMode: () => "phone",
   isArtifactLayoutDesktop: (mode: string) => mode === "desktop",
-  isArtifactStickyVideo: (mode: string, hasYouTube: boolean) => hasYouTube && mode === "phone",
+  isArtifactStickyVideo: (mode: string, hasYouTube: boolean) => hasYouTube && mode !== "desktop",
+  isArtifactPipVideo: (mode: string, hasYouTube: boolean) => hasYouTube && mode === "desktop",
 }));
 
 vi.mock("@/hooks/useArtifactDetailData", () => ({

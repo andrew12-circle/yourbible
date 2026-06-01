@@ -6,8 +6,8 @@ export const ARTIFACT_TABLET_MIN_PX = 768;
 /** Viewport width at which study layout uses split pane + side transcript. Matches `lg`. */
 export const ARTIFACT_VIDEO_DESKTOP_MIN_PX = 1024;
 
-/** Viewport width at which video uses PiP on scroll (tablet + desktop). Phones use sticky. Matches `md`. */
-export const ARTIFACT_VIDEO_PIP_MIN_PX = ARTIFACT_TABLET_MIN_PX;
+/** Viewport width at which video uses PiP on scroll (desktop only). Phone/tablet use sticky pinned video. */
+export const ARTIFACT_VIDEO_PIP_MIN_PX = ARTIFACT_VIDEO_DESKTOP_MIN_PX;
 
 /** Shared surfaces for artifact detail study layout */
 export const artifactCard = cn(
