@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
+import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
@@ -20,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { isJournalSketchAsset, upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
@@ -719,7 +721,13 @@ export default function NewJournalEntryPage() {
   const triggerPhotos = () => photoInputRef.current?.click();
   const triggerAudio = () => dictateRef.current?.toggle();
   const triggerPrompts = () => navigate("/journal/prompts");
-  const triggerTemplates = () => toast({ title: "Templates coming soon" });
+  const triggerHandwritten = () => setSketchOpen(true);
+
+  const { sketches: existingSketches, attachments: existingAttachments } =
+    partitionJournalPhotos(existingPhotos);
+  const pendingSketches = pendingFiles.filter((f) => isJournalSketchAsset(f.name));
+  const pendingAttachments = pendingFiles.filter((f) => !isJournalSketchAsset(f.name));
+  const sketchDraftKey = `compose:${editId ?? journalId ?? "new"}`;
 
   const dictateButton = (
     <DictateButton
@@ -759,6 +767,14 @@ export default function NewJournalEntryPage() {
             className="flex-1 min-w-0 text-left text-[15px] font-semibold tracking-tight truncate"
           >
             {dateLabel}
+          </button>
+          <button
+            type="button"
+            onClick={triggerHandwritten}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-muted"
+            aria-label="Handwritten"
+          >
+            <PenLine className="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -877,9 +893,45 @@ export default function NewJournalEntryPage() {
                 {dictInterim}
               </p>
             ) : null}
-            {(existingPhotos.length > 0 || pendingFiles.length > 0) && (
+            {existingSketches.length > 0 ? (
+              <JournalSketchInline
+                sketches={existingSketches}
+                className="mt-4"
+                onOpenSketch={triggerHandwritten}
+                onRemove={removeExistingPhoto}
+              />
+            ) : null}
+            {pendingSketches.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {pendingSketches.map((f, i) => (
+                  <div
+                    key={`${f.name}-${i}`}
+                    className="group relative overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm"
+                  >
+                    <button type="button" onClick={triggerHandwritten} className="block w-full">
+                      <img
+                        src={URL.createObjectURL(f)}
+                        alt="Handwritten journal note"
+                        className="w-full max-h-[min(72vh,640px)] object-contain bg-white"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingFiles((arr) => arr.filter((file) => file !== f))
+                      }
+                      className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white"
+                      aria-label="Remove handwritten note"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {(existingAttachments.length > 0 || pendingAttachments.length > 0) && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {existingPhotos.map((p) => (
+                {existingAttachments.map((p) => (
                   <div key={p.id} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
                     {p.url ? <img src={p.url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted" />}
                     <button
@@ -891,12 +943,12 @@ export default function NewJournalEntryPage() {
                     </button>
                   </div>
                 ))}
-                {pendingFiles.map((f, i) => (
+                {pendingAttachments.map((f, i) => (
                   <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
                     <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
                     <button
                       type="button"
-                      onClick={() => setPendingFiles((arr) => arr.filter((_, j) => j !== i))}
+                      onClick={() => setPendingFiles((arr) => arr.filter((file) => file !== f))}
                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center"
                     >
                       <X className="w-3 h-3" />
@@ -954,7 +1006,7 @@ export default function NewJournalEntryPage() {
             <div className="rounded-2xl border border-border bg-background shadow-sm">
               <div className="grid grid-cols-5 gap-1 p-1.5">
                 <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={triggerPhotos} />
-                <ToolbarTile icon={<FileText className="w-5 h-5" />} label="Templates" onClick={triggerTemplates} />
+                <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={triggerHandwritten} />
                 <ToolbarTile icon={<Lightbulb className="w-5 h-5" />} label="Prompts" onClick={triggerPrompts} />
                 <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={triggerAudio} />
                 <ToolbarTile
@@ -1107,8 +1159,32 @@ export default function NewJournalEntryPage() {
       <SketchPad
         open={sketchOpen}
         onClose={() => setSketchOpen(false)}
+        draftKey={sketchDraftKey}
+        onAutosave={
+          editId && user
+            ? async (file) => {
+                const { storage_path, photo_id } = await upsertEntrySketchPhoto(user.id, editId, file);
+                const urls = await getSignedPhotoUrls([storage_path]);
+                setExistingPhotos((prev) => {
+                  const rest = prev.filter((p) => p.storage_path !== storage_path);
+                  return [
+                    ...rest,
+                    {
+                      id: photo_id ?? `sketch-${editId}`,
+                      storage_path,
+                      url: urls[storage_path],
+                    },
+                  ];
+                });
+                setPendingFiles((arr) => arr.filter((f) => !isJournalSketchAsset(f.name)));
+              }
+            : undefined
+        }
         onSave={(file) => {
-          setPendingFiles((arr) => [...arr, file]);
+          setPendingFiles((arr) => [
+            ...arr.filter((f) => !isJournalSketchAsset(f.name)),
+            file,
+          ]);
         }}
         filename={editId ? `sketch-${editId}` : undefined}
       />

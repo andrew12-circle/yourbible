@@ -29,6 +29,8 @@ import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKind
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
+import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
+import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
 
 interface EntryRow {
@@ -254,6 +256,8 @@ export default function EntryEditorPane({
     !inlineChatMode &&
     isChatJournalExport(entry.body, entry.summary);
 
+  const { sketches: sketchPhotos, attachments: attachmentPhotos } = partitionJournalPhotos(photos);
+
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
     const ta = bodyRef.current;
@@ -470,9 +474,21 @@ export default function EntryEditorPane({
             className="text-[22px] font-semibold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0"
           />
 
-          {photos.length > 0 && !inlineChatMode && (
-            <div className={`my-4 grid gap-2 ${photos.length === 1 ? "" : "grid-cols-2"}`}>
-              {photos.map((p) => (
+          {!inlineChatMode && sketchPhotos.length > 0 ? (
+            <JournalSketchInline
+              sketches={sketchPhotos}
+              className="my-4"
+              onOpenSketch={() => {
+                dictateRef.current?.stop();
+                setSketchOpen(true);
+              }}
+              onRemove={removePhoto}
+            />
+          ) : null}
+
+          {attachmentPhotos.length > 0 && !inlineChatMode && (
+            <div className={`my-4 grid gap-2 ${attachmentPhotos.length === 1 ? "" : "grid-cols-2"}`}>
+              {attachmentPhotos.map((p) => (
                 <div key={p.id} className="relative group rounded-lg overflow-hidden">
                   {p.url && <img src={p.url} alt="" className="w-full max-h-96 object-cover" />}
                   <button
@@ -603,6 +619,27 @@ export default function EntryEditorPane({
       <SketchPad
         open={sketchOpen}
         onClose={() => setSketchOpen(false)}
+        draftKey={entry ? `entry:${entry.id}` : undefined}
+        onAutosave={
+          user
+            ? async (file) => {
+                const { storage_path, photo_id } = await upsertEntrySketchPhoto(user.id, entry.id, file);
+                const urls = await getSignedPhotoUrls([storage_path]);
+                setPhotos((prev) => {
+                  const rest = prev.filter((p) => p.storage_path !== storage_path);
+                  return [
+                    ...rest,
+                    {
+                      id: photo_id ?? `sketch-${entry.id}`,
+                      storage_path,
+                      url: urls[storage_path],
+                    },
+                  ];
+                });
+                onChanged();
+              }
+            : undefined
+        }
         onSave={async (file) => {
           const dt = new DataTransfer();
           dt.items.add(file);
