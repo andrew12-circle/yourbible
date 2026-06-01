@@ -50,6 +50,7 @@ export default function ArtifactClaimsRail<T extends { id: string }>({
   const railContent = (
     <div
       ref={railRef}
+      data-claims-rail
       className={cn(isMobile ? artifactMobileClaimsRail : artifactDesktopClaimsRail, className)}
       role="list"
       aria-label="Claims"
@@ -93,14 +94,14 @@ export default function ArtifactClaimsRail<T extends { id: string }>({
                 ) : null}
               </div>
               {group.claims.map((claim) => (
-                <div key={claim.id} role="listitem">
+                <div key={claim.id} role="listitem" className="shrink-0 snap-start">
                   {renderClaimCard(claim, indexFor(claim))}
                 </div>
               ))}
             </div>
           ))
         : claims.map((claim, idx) => (
-            <div key={claim.id} role="listitem">
+            <div key={claim.id} role="listitem" className="shrink-0 snap-start">
               {renderClaimCard(claim, idx)}
             </div>
           ))}

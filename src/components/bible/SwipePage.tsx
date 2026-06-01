@@ -123,10 +123,13 @@ export function SwipePage({
   side,
   onTurn,
   children,
+  inkMode = false,
 }: {
   side: "left" | "right";
   onTurn: (delta: 1 | -1) => void;
   children: ReactNode;
+  /** When true, margin swipe strips are disabled so ink gestures are not interrupted. */
+  inkMode?: boolean;
 }) {
   const [gesturing, setGesturing] = useState(false);
   const outerGesturing = useRef(false);
@@ -160,18 +163,22 @@ export function SwipePage({
       }
     >
       {children}
-      <SwipeMarginStrip
-        edge="outer"
-        side={side}
-        onTurn={onTurn}
-        onGesturing={onOuterGesturing}
-      />
-      <SwipeMarginStrip
-        edge="inner"
-        side={side}
-        onTurn={onTurn}
-        onGesturing={onInnerGesturing}
-      />
+      {!inkMode ? (
+        <>
+          <SwipeMarginStrip
+            edge="outer"
+            side={side}
+            onTurn={onTurn}
+            onGesturing={onOuterGesturing}
+          />
+          <SwipeMarginStrip
+            edge="inner"
+            side={side}
+            onTurn={onTurn}
+            onGesturing={onInnerGesturing}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

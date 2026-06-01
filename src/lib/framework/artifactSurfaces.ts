@@ -75,10 +75,17 @@ export {
   artifactStudyTabActive as artifactDesktopTabActive,
 } from "@/lib/framework/artifactStudyTheme";
 
+/** Shared horizontal scroll track (snap variant applied per surface). */
+export const artifactHorizontalRailBase = cn(
+  "flex gap-3 overflow-x-auto overflow-y-hidden scrollbar-hide",
+  "-mx-1 px-1 pb-1 touch-pan-x overscroll-x-contain",
+  "[-webkit-overflow-scrolling:touch]",
+);
+
 /** Horizontal snap scroll rail (breaks out of section padding). */
 export const artifactHorizontalRail = cn(
-  "flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-hide",
-  "-mx-1 px-1 pb-1 touch-pan-x",
+  artifactHorizontalRailBase,
+  "snap-x snap-mandatory",
 );
 
 /** Rail card (~72% viewport width on phone). */
@@ -98,7 +105,7 @@ export const artifactDesktopClaimCard = cn(
 
 /** Mobile claim card in a horizontal rail — wide cards under pinned video. */
 export const artifactMobileClaimCard = cn(
-  "flex w-[min(92vw,420px)] max-w-[420px] shrink-0 snap-start flex-col",
+  "flex w-[min(92vw,420px)] max-w-[420px] shrink-0 flex-col",
   "overflow-hidden rounded-2xl border border-border/60 bg-white",
   "shadow-[0_4px_24px_rgba(0,0,0,0.1)]",
   "max-h-[min(65vh,640px)]",
@@ -112,8 +119,8 @@ export const artifactDesktopClaimsRail = cn(
 
 /** Horizontal rail for mobile claim cards (break out of study column padding). */
 export const artifactMobileClaimsRail = cn(
-  artifactHorizontalRail,
-  "items-stretch gap-3 pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4",
+  artifactHorizontalRailBase,
+  "snap-x snap-proximity items-stretch gap-3 pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4",
 );
 
 /** Desktop cinematic hero — full-bleed thumbnail + dark gradient overlay. */

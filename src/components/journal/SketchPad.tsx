@@ -11,9 +11,18 @@ import {
   Trash2,
   Undo2,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  clearSketchDraft,
+  loadSketchDraft,
+  saveSketchDraft,
+  type SketchDraftPaper,
+} from "@/lib/journal/sketchDraft";
 import { cn } from "@/lib/utils";
+import { drawStroke as drawInkStroke } from "@/lib/ink/strokeRender";
 
 /**
  * Day One–style sketch surface.
@@ -103,6 +112,10 @@ export interface SketchPadProps {
    * timestamp-based name.
    */
   filename?: string;
+  /** `localStorage` key segment for stroke drafts (survives leaving the page). */
+  draftKey?: string;
+  /** Upload PNG periodically while drawing (requires a saved journal entry). */
+  onAutosave?: (file: File) => void | Promise<void>;
 }
 
 function prefersNightMode() {
@@ -120,10 +133,23 @@ function mappedColorForMode(color: string, isNightMode: boolean) {
   return targetColors.find((c) => c.name === source?.name)?.value ?? targetColors[0].value;
 }
 
-export default function SketchPad({ open, onClose, onSave, filename }: SketchPadProps) {
+const MIN_VIEW_SCALE = 1;
+const MAX_VIEW_SCALE = 3;
+const AUTOSAVE_MS = 1800;
+const DRAFT_SAVE_MS = 400;
+
+export default function SketchPad({
+  open,
+  onClose,
+  onSave,
+  filename,
+  draftKey,
+  onAutosave,
+}: SketchPadProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const transformRef = useRef<HTMLDivElement | null>(null);
   /** Offscreen layer that holds only strokes; eraser composites here so paper stays intact. */
   const strokeLayerRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -158,7 +184,30 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
   const [hasStrokes, setHasStrokes] = useState(false);
   const [redoCount, setRedoCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [viewScale, setViewScale] = useState(1);
+  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const viewScaleRef = useRef(1);
+  const viewPanRef = useRef({ x: 0, y: 0 });
+  const pinchRef = useRef<{
+    dist: number;
+    scale: number;
+    panX: number;
+    panY: number;
+    midX: number;
+    midY: number;
+  } | null>(null);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosavingRef = useRef(false);
   const penColors = getPenColors(isNightMode);
+
+  useEffect(() => {
+    viewScaleRef.current = viewScale;
+  }, [viewScale]);
+
+  useEffect(() => {
+    viewPanRef.current = viewPan;
+  }, [viewPan]);
 
   useEffect(() => {
     isNightModeRef.current = isNightMode;
@@ -234,6 +283,77 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     redraw();
   }, [redraw]);
 
+  const persistDraft = useCallback(() => {
+    if (!draftKey) return;
+    saveSketchDraft(draftKey, {
+      strokes: strokesRef.current,
+      paper: paper as SketchDraftPaper,
+      color,
+      size,
+      tool,
+    });
+  }, [draftKey, paper, color, size, tool]);
+
+  const queueDraftSave = useCallback(() => {
+    if (!draftKey) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      draftTimerRef.current = null;
+      persistDraft();
+    }, DRAFT_SAVE_MS);
+  }, [draftKey, persistDraft]);
+
+  const exportPngFile = useCallback(async (): Promise<File | null> => {
+    const canvas = canvasRef.current;
+    if (!canvas || strokesRef.current.length === 0) return null;
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/png"),
+    );
+    if (!blob) return null;
+    const base = filename || `sketch-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    return new File([blob], `${base}.png`, { type: "image/png" });
+  }, [filename]);
+
+  const flushAutosave = useCallback(async () => {
+    if (!onAutosave || autosavingRef.current || strokesRef.current.length === 0) return;
+    const file = await exportPngFile();
+    if (!file) return;
+    autosavingRef.current = true;
+    try {
+      await onAutosave(file);
+    } catch (err) {
+      console.warn("sketch autosave failed", err);
+    } finally {
+      autosavingRef.current = false;
+    }
+  }, [exportPngFile, onAutosave]);
+
+  const queueAutosave = useCallback(() => {
+    if (!onAutosave) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void flushAutosave();
+    }, AUTOSAVE_MS);
+  }, [flushAutosave, onAutosave]);
+
+  const notifyStrokeChange = useCallback(() => {
+    queueDraftSave();
+    queueAutosave();
+  }, [queueAutosave, queueDraftSave]);
+
+  const clampViewScale = (scale: number) =>
+    Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, scale));
+
+  const setZoom = useCallback((next: number) => {
+    setViewScale(clampViewScale(next));
+  }, []);
+
+  const resetView = useCallback(() => {
+    setViewScale(1);
+    setViewPan({ x: 0, y: 0 });
+  }, []);
+
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const wrap = wrapperRef.current;
@@ -276,11 +396,14 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     root?.addEventListener("dragstart", preventDefault);
     root?.addEventListener("contextmenu", preventDefault);
 
+    const preventSingleTouchScroll = (event: TouchEvent) => {
+      if (event.touches.length >= 2) return;
+      event.preventDefault();
+    };
+
     for (const surface of drawingSurfaces) {
-      surface.addEventListener("touchstart", preventDefault, nonPassive);
-      surface.addEventListener("touchmove", preventDefault, nonPassive);
-      surface.addEventListener("touchend", preventDefault, nonPassive);
-      surface.addEventListener("touchcancel", preventDefault, nonPassive);
+      surface.addEventListener("touchstart", preventSingleTouchScroll, nonPassive);
+      surface.addEventListener("touchmove", preventSingleTouchScroll, nonPassive);
       surface.addEventListener("gesturestart", preventDefault, nonPassive);
       surface.addEventListener("gesturechange", preventDefault, nonPassive);
       surface.addEventListener("gestureend", preventDefault, nonPassive);
@@ -292,10 +415,8 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       root?.removeEventListener("contextmenu", preventDefault);
 
       for (const surface of drawingSurfaces) {
-        surface.removeEventListener("touchstart", preventDefault, nonPassive);
-        surface.removeEventListener("touchmove", preventDefault, nonPassive);
-        surface.removeEventListener("touchend", preventDefault, nonPassive);
-        surface.removeEventListener("touchcancel", preventDefault, nonPassive);
+        surface.removeEventListener("touchstart", preventSingleTouchScroll, nonPassive);
+        surface.removeEventListener("touchmove", preventSingleTouchScroll, nonPassive);
         surface.removeEventListener("gesturestart", preventDefault, nonPassive);
         surface.removeEventListener("gesturechange", preventDefault, nonPassive);
         surface.removeEventListener("gestureend", preventDefault, nonPassive);
@@ -324,24 +445,48 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     }
   }, [open]);
 
-  // Reset state when reopened
+  // Reset / restore when opened
   useEffect(() => {
-    if (open) {
-      strokesRef.current = [];
-      redoStackRef.current = [];
-      activeStrokeRef.current = null;
-      activePointerIdRef.current = null;
-      activePointerTypeRef.current = null;
-      penSeenRef.current = false;
-      setHasStrokes(false);
-      setRedoCount(0);
-      setTool("pen");
-      setColor(getPenColors(isNightModeRef.current)[0].value);
-      setSize(PEN_SIZES[1]);
-      // Give layout a tick to mount before sizing
-      requestAnimationFrame(() => resizeCanvas());
-    }
-  }, [open, resizeCanvas]);
+    if (!open) return;
+    const draft = draftKey ? loadSketchDraft(draftKey) : null;
+    strokesRef.current = draft?.strokes ?? [];
+    redoStackRef.current = [];
+    activeStrokeRef.current = null;
+    activePointerIdRef.current = null;
+    activePointerTypeRef.current = null;
+    penSeenRef.current = false;
+    setHasStrokes(strokesRef.current.length > 0);
+    setRedoCount(0);
+    setTool(draft?.tool ?? "pen");
+    setPaper(draft?.paper ?? DEFAULT_PAPER);
+    setColor(
+      draft?.color
+        ? mappedColorForMode(draft.color, isNightModeRef.current)
+        : getPenColors(isNightModeRef.current)[0].value,
+    );
+    setSize(draft?.size ?? PEN_SIZES[1]);
+    resetView();
+    requestAnimationFrame(() => {
+      resizeCanvas();
+      flushRedraw();
+    });
+  }, [open, draftKey, resizeCanvas, flushRedraw, resetView]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onHide = () => {
+      persistDraft();
+      void flushAutosave();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [open, persistDraft, flushAutosave]);
 
   // Esc to close
   useEffect(() => {
@@ -464,6 +609,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     if (stroke && stroke.points.length > 0) {
       strokesRef.current.push(stroke);
       setHasStrokes(true);
+      notifyStrokeChange();
     }
     flushRedraw();
     e.preventDefault();
@@ -476,6 +622,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       setHasStrokes(strokesRef.current.length > 0);
       setRedoCount(redoStackRef.current.length);
       redraw();
+      notifyStrokeChange();
     }
   };
 
@@ -486,6 +633,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       setHasStrokes(true);
       setRedoCount(redoStackRef.current.length);
       redraw();
+      notifyStrokeChange();
     }
   };
 
@@ -497,20 +645,17 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     setHasStrokes(false);
     setRedoCount(0);
     redraw();
+    notifyStrokeChange();
   };
 
   const handleSave = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !hasStrokes || saving) return;
+    if (!hasStrokes || saving) return;
     setSaving(true);
     try {
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/png"),
-      );
-      if (!blob) throw new Error("Could not export handwritten note");
-      const base = filename || `sketch-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-      const file = new File([blob], `${base}.png`, { type: "image/png" });
+      const file = await exportPngFile();
+      if (!file) throw new Error("Could not export handwritten note");
       await onSave(file);
+      if (draftKey) clearSketchDraft(draftKey);
       onClose();
     } catch (err) {
       console.error("handwritten save error", err);
@@ -518,6 +663,45 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
     } finally {
       setSaving(false);
     }
+  };
+
+  const touchDistance = (touches: React.TouchList | TouchList) => {
+    const a = touches[0];
+    const b = touches[1];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  };
+
+  const handleWrapTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 2) return;
+    const dist = touchDistance(e.touches);
+    pinchRef.current = {
+      dist,
+      scale: viewScaleRef.current,
+      panX: viewPanRef.current.x,
+      panY: viewPanRef.current.y,
+      midX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+    };
+    e.preventDefault();
+  };
+
+  const handleWrapTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const pinch = pinchRef.current;
+    if (!pinch || e.touches.length !== 2) return;
+    const dist = touchDistance(e.touches);
+    const nextScale = clampViewScale(pinch.scale * (dist / pinch.dist));
+    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    setViewScale(nextScale);
+    setViewPan({
+      x: pinch.panX + (midX - pinch.midX),
+      y: pinch.panY + (midY - pinch.midY),
+    });
+    e.preventDefault();
+  };
+
+  const handleWrapTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length < 2) pinchRef.current = null;
   };
 
   if (!open) return null;
@@ -550,8 +734,24 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
         >
           <X className="h-4 w-4" />
         </button>
+        <div className={cn("flex items-center gap-0.5 lg:hidden", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90", "rounded-full p-0.5")}>
+          <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
+            <PenLine className="h-4 w-4" />
+          </ToolBtn>
+          <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
+            <Eraser className="h-4 w-4" />
+          </ToolBtn>
+        </div>
         <div className={cn("flex-1 text-center text-[13px] font-medium", isNightMode ? "text-slate-300" : "text-muted-foreground")}>
           Handwritten
+        </div>
+        <div className="flex items-center gap-0.5 lg:hidden">
+          <ToolBtn onClick={() => setZoom(viewScale + 0.25)} disabled={viewScale >= MAX_VIEW_SCALE} label="Zoom in">
+            <ZoomIn className="h-4 w-4" />
+          </ToolBtn>
+          <ToolBtn onClick={() => setZoom(viewScale - 0.25)} disabled={viewScale <= MIN_VIEW_SCALE} label="Zoom out">
+            <ZoomOut className="h-4 w-4" />
+          </ToolBtn>
         </div>
         <Button
           type="button"
@@ -583,7 +783,7 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
           role="toolbar"
           aria-label="Handwritten tools"
         >
-          <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+          <div className={cn("hidden items-center gap-0.5 rounded-full p-0.5 lg:flex", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
             <ToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
               <PenLine className="h-4 w-4" />
             </ToolBtn>
@@ -706,6 +906,22 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
             ))}
           </div>
 
+          <div className={cn("mx-1 hidden h-6 w-px lg:block", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
+
+          <div className={cn("hidden items-center gap-0.5 rounded-full p-0.5 lg:flex", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
+            <ToolBtn onClick={() => setZoom(viewScale + 0.25)} disabled={viewScale >= MAX_VIEW_SCALE} label="Zoom in">
+              <ZoomIn className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={() => setZoom(viewScale - 0.25)} disabled={viewScale <= MIN_VIEW_SCALE} label="Zoom out">
+              <ZoomOut className="h-4 w-4" />
+            </ToolBtn>
+            {viewScale > 1 || viewPan.x !== 0 || viewPan.y !== 0 ? (
+              <ToolBtn onClick={resetView} label="Reset zoom">
+                <span className="text-[10px] font-semibold tabular-nums">{Math.round(viewScale * 100)}%</span>
+              </ToolBtn>
+            ) : null}
+          </div>
+
           <div className={cn("mx-1 h-6 w-px", isNightMode ? "bg-white/10" : "bg-border/70")} aria-hidden />
 
           <div className={cn("flex items-center gap-0.5 rounded-full p-0.5", isNightMode ? "bg-slate-800/90" : "bg-slate-100/90")}>
@@ -726,38 +942,59 @@ export default function SketchPad({ open, onClose, onSave, filename }: SketchPad
       <div className={cn("relative min-h-0 flex-1 overflow-hidden p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
         <div
           ref={wrapperRef}
-          className={cn("relative h-full w-full overflow-hidden rounded-lg border shadow-sm sm:rounded-xl", isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white")}
+          className={cn(
+            "relative h-full w-full overflow-auto rounded-lg border shadow-sm sm:rounded-xl",
+            isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white",
+          )}
           style={{
             WebkitUserSelect: "none",
             WebkitTouchCallout: "none",
             touchAction: "none",
             overscrollBehavior: "none",
           }}
+          onTouchStart={handleWrapTouchStart}
+          onTouchMove={handleWrapTouchMove}
+          onTouchEnd={handleWrapTouchEnd}
+          onTouchCancel={handleWrapTouchEnd}
         >
-          <canvas
-            ref={canvasRef}
-            className="block h-full w-full touch-none select-none"
+          <div
+            ref={transformRef}
+            className="relative h-full min-h-full w-full min-w-full"
             style={{
-              touchAction: "none",
-              WebkitUserSelect: "none",
-              WebkitTouchCallout: "none",
-              cursor: tool === "pen" ? "crosshair" : "cell",
+              transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`,
+              transformOrigin: "0 0",
             }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            onPointerLeave={onPointerUp}
-          />
-          {!hasStrokes && activeStrokeRef.current == null && (
-            <div className={cn("pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center", isNightMode ? "text-slate-400/80" : "text-muted-foreground/70")}>
-              <PenLine className="mb-2 h-6 w-6" />
-              <p className="text-sm">Draw with finger, pencil, or stylus</p>
-              <p className="mt-1 text-xs">
-                Palm rejection is on — rest your hand freely once you start with the pencil
-              </p>
-            </div>
-          )}
+          >
+            <canvas
+              ref={canvasRef}
+              className="block h-full w-full touch-none select-none"
+              style={{
+                touchAction: "none",
+                WebkitUserSelect: "none",
+                WebkitTouchCallout: "none",
+                cursor: tool === "pen" ? "crosshair" : "cell",
+              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerUp}
+            />
+            {!hasStrokes && activeStrokeRef.current == null && (
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center",
+                  isNightMode ? "text-slate-400/80" : "text-muted-foreground/70",
+                )}
+              >
+                <PenLine className="mb-2 h-6 w-6" />
+                <p className="text-sm">Draw with finger, pencil, or stylus</p>
+                <p className="mt-1 max-w-xs px-4 text-xs">
+                  Pinch with two fingers to zoom the page. Palm rejection is on once you use a pencil.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -810,58 +1047,9 @@ function ToolBtn({
 }
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
-  const pts = stroke.points;
-  if (pts.length === 0) return;
-
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  if (stroke.tool === "eraser") {
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.strokeStyle = "rgba(0,0,0,1)";
-  } else {
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = mappedColorForMode(stroke.color, isNightMode);
-  }
-
-  // Single tap → dot
-  if (pts.length === 1) {
-    const p = pts[0];
-    const w = strokeWidth(stroke, p.p);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
-    ctx.fillStyle =
-      stroke.tool === "eraser" ? "rgba(0,0,0,1)" : mappedColorForMode(stroke.color, isNightMode);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    return;
-  }
-
-  // Draw as a sequence of short quadratic segments for smoothing. Width is
-  // adjusted per segment so pressure variation is preserved.
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    const midX = (a.x + b.x) / 2;
-    const midY = (a.y + b.y) / 2;
-    const w = strokeWidth(stroke, (a.p + b.p) / 2);
-    ctx.lineWidth = w;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.quadraticCurveTo(a.x, a.y, midX, midY);
-    ctx.stroke();
-  }
-  // Cap off the last segment
-  const last = pts[pts.length - 1];
-  const prev = pts[pts.length - 2];
-  const wLast = strokeWidth(stroke, last.p);
-  ctx.lineWidth = wLast;
-  ctx.beginPath();
-  ctx.moveTo((prev.x + last.x) / 2, (prev.y + last.y) / 2);
-  ctx.lineTo(last.x, last.y);
-  ctx.stroke();
-
-  ctx.globalCompositeOperation = "source-over";
+  drawInkStroke(ctx, stroke, {
+    colorForStroke: (hex) => mappedColorForMode(hex, isNightMode),
+  });
 }
 
 function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: number, isNightMode = false) {
@@ -912,13 +1100,4 @@ function drawPaper(ctx: CanvasRenderingContext2D, paper: Paper, w: number, h: nu
     }
   }
   ctx.restore();
-}
-
-function strokeWidth(stroke: Stroke, pressure: number) {
-  // Eraser is uniform; pen scales with pressure (0.5 = base width).
-  if (stroke.tool === "eraser") return stroke.size * 2.5;
-  const min = 0.5;
-  const max = 1.6;
-  const factor = min + (max - min) * Math.max(0, Math.min(1, pressure));
-  return stroke.size * factor;
 }

@@ -8,6 +8,7 @@ import {
   Minus,
   Moon,
   Network,
+  PenLine,
   Plus,
   Settings,
   X,
@@ -40,6 +41,8 @@ interface Props {
   onBookmark: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
+  inkMode?: boolean;
+  onToggleInkMode?: () => void;
 }
 
 export function ReaderMobileMenu({
@@ -58,6 +61,8 @@ export function ReaderMobileMenu({
   onBookmark,
   focusMode,
   onToggleFocus,
+  inkMode = false,
+  onToggleInkMode,
   initialPanel = "nav",
 }: Props) {
   const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
@@ -336,6 +341,19 @@ export function ReaderMobileMenu({
                 >
                   <BookmarkPlus className="w-4 h-4" />
                   Bookmark
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10"
+                  onClick={() => {
+                    onToggleInkMode?.();
+                    close();
+                  }}
+                  disabled={!onToggleInkMode}
+                >
+                  <PenLine className="w-4 h-4" />
+                  {inkMode ? "Exit ink mode" : "Write on page"}
                 </Button>
                 <Button
                   type="button"

@@ -187,11 +187,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
     if (!claimChanged && inView) return;
 
     markProgrammaticScroll();
-    el.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: useClaimsRail ? "center" : "nearest",
-    });
+    scrollArtifactClaimIntoView(el, { horizontalRail: useClaimsRail });
   }, [
     playerReady,
     activeClaimId,

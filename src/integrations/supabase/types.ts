@@ -1644,6 +1644,48 @@ export type Database = {
         }
         Relationships: []
       }
+      reader_page_ink: {
+        Row: {
+          anchor_verse: number | null
+          book: string
+          chapter: number
+          created_at: string
+          id: string
+          layout_fingerprint: string
+          page_index: number
+          side: string
+          strokes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anchor_verse?: number | null
+          book: string
+          chapter: number
+          created_at?: string
+          id?: string
+          layout_fingerprint: string
+          page_index: number
+          side: string
+          strokes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anchor_verse?: number | null
+          book?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          layout_fingerprint?: string
+          page_index?: number
+          side?: string
+          strokes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_plans: {
         Row: {
           created_at: string

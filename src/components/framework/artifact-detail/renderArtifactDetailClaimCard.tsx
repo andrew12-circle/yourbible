@@ -442,11 +442,18 @@ export function renderArtifactDetailClaimCard(
         data-claim-playback-active={playbackActive ? "" : undefined}
         className={cn(
           mobileRail ? artifactMobileClaimCard : artifactDesktopClaimCard,
+          mobileRail && "touch-pan-x",
           playbackActive && "ring-2 ring-violet-500/35 ring-offset-2 ring-offset-background",
           isDeferredVerdict(c.verdict) && !playbackActive && "ring-1 ring-amber-300/50",
         )}
       >
-        <header className={cn("shrink-0 space-y-2.5 border-b border-border/50 pb-4 pt-5", railPadX)}>
+        <header
+          className={cn(
+            "shrink-0 space-y-2.5 border-b border-border/50 pb-4 pt-5",
+            railPadX,
+            mobileRail && "touch-pan-x",
+          )}
+        >
           <span
             className="font-mono text-sm font-medium tabular-nums text-muted-foreground"
             aria-label={`Claim ${claimNumber}`}
@@ -476,7 +483,8 @@ export function renderArtifactDetailClaimCard(
         </header>
         <div
           className={cn(
-            "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-4 scrollbar-thin",
+            "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain py-4 scrollbar-thin",
+            mobileRail ? "touch-pan-y" : "overscroll-contain",
             railPadX,
           )}
         >
@@ -486,7 +494,13 @@ export function renderArtifactDetailClaimCard(
           <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
           {scriptureSection}
         </div>
-        <footer className={cn("shrink-0 border-t border-border/50 bg-white py-3.5", railPadX)}>
+        <footer
+          className={cn(
+            "shrink-0 border-t border-border/50 bg-white py-3.5",
+            railPadX,
+            mobileRail && "touch-pan-x",
+          )}
+        >
           {claimToolbar}
         </footer>
       </article>

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderMobileMenu, type ReaderMenuPanel } from "@/components/bible/ReaderMobileMenu";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ interface Props {
   singlePage?: boolean;
   /** Increment to open reader settings (e.g. footer book name tap). */
   settingsOpenRequest?: number;
+  inkMode?: boolean;
+  onToggleInkMode?: () => void;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -53,6 +55,8 @@ export function TopBar({
   fontScale, onFontScaleChange,
   singlePage = false,
   settingsOpenRequest = 0,
+  inkMode = false,
+  onToggleInkMode,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
@@ -164,6 +168,8 @@ export function TopBar({
           onBookmark={onBookmark}
           focusMode={focusMode}
           onToggleFocus={onToggleFocus}
+          inkMode={inkMode}
+          onToggleInkMode={onToggleInkMode}
         />
       )}
 
@@ -184,6 +190,18 @@ export function TopBar({
             <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
           </button>
           <div className="flex items-center gap-0.5 shrink-0">
+            {onToggleInkMode ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleInkMode}
+                title={inkMode ? "Exit ink mode" : "Write on page"}
+                className={inkMode ? "text-leather bg-gold/15" : "text-leather/80 hover:text-leather"}
+                aria-pressed={inkMode}
+              >
+                <PenLine className="w-4 h-4" />
+              </Button>
+            ) : null}
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} title="Reader menu" className="text-leather/80 hover:text-leather">
               <Menu className="w-4 h-4" />
             </Button>
@@ -371,6 +389,18 @@ export function TopBar({
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
+              {onToggleInkMode ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleInkMode}
+                title={inkMode ? "Exit ink mode" : "Write on page (ink mode)"}
+                className={inkMode ? "text-leather bg-gold/15" : "text-leather/80 hover:text-leather"}
+                aria-pressed={inkMode}
+              >
+                <PenLine className="w-4 h-4" />
+              </Button>
+              ) : null}
               <Button variant="ghost" size="icon" onClick={onBookmark} title="Bookmark this page" className="text-leather/80 hover:text-leather">
                 <BookmarkPlus className="w-4 h-4" />
               </Button>

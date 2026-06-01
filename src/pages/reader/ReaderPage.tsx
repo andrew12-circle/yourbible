@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,12 @@ import { toast } from "@/hooks/use-toast";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
+import ReaderInkLayer, { type ReaderInkLayerApi } from "@/components/bible/ReaderInkLayer";
+import { ReaderInkToolbar } from "@/components/bible/ReaderInkToolbar";
+import { useReaderInkMode } from "@/hooks/useReaderPageInk";
+import { computeReaderLayoutFingerprint } from "@/lib/ink/layoutFingerprint";
+import { INK_PEN_COLORS, INK_PEN_SIZES } from "@/lib/ink/strokeRender";
+import type { InkTool } from "@/lib/ink/types";
 
 const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
@@ -131,6 +137,14 @@ export default function ReaderPage() {
   };
 
   const singlePage = useReaderSinglePage();
+  const { inkMode, toggleInkMode } = useReaderInkMode();
+  const [inkTool, setInkTool] = useState<InkTool>("pen");
+  const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
+  const [inkSize, setInkSize] = useState<number>(INK_PEN_SIZES[1]);
+  const inkApisRef = useRef(new Map<string, ReaderInkLayerApi>());
+  const [activeInkLayerId, setActiveInkLayerId] = useState<string | null>(null);
+  const [inkToolbarState, setInkToolbarState] = useState({ canUndo: false, canRedo: false });
+  const [staleLayoutInk, setStaleLayoutInk] = useState(false);
 
   // Persist last-read position so the home screen can offer "continue".
   useEffect(() => {
@@ -230,6 +244,21 @@ export default function ReaderPage() {
   // exactly what the reader sees on any screen size. The page surface
   // registers itself via the ref callback below.
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const layoutFingerprint = useMemo(
+    () =>
+      computeReaderLayoutFingerprint({
+        bibleId: bibleId || "default",
+        fontScale,
+        pageWidth: Math.max(180, pageBox.w),
+        pageHeight: Math.max(180, pageBox.h),
+        singlePage,
+      }),
+    [bibleId, fontScale, pageBox.w, pageBox.h, singlePage],
+  );
+
+  useEffect(() => {
+    setStaleLayoutInk(false);
+  }, [layoutFingerprint]);
   const articleRoRef = useRef<ResizeObserver | null>(null);
   const articleElRef = useRef<HTMLElement | null>(null);
   const flipLockUntil = useRef(0);
@@ -396,6 +425,13 @@ export default function ReaderPage() {
 
   // ---- Native text selection → toolbar (apply via toolbar actions only) ----
   useEffect(() => {
+    if (inkMode) {
+      tbSelRef.current = null;
+      setTbSel(null);
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+
     let syncRaf: number | null = null;
     let selecting = false;
 
@@ -480,7 +516,7 @@ export default function ReaderPage() {
       document.removeEventListener("pointerdown", dismissToolbarUnlessToolbar);
       if (syncRaf != null) cancelAnimationFrame(syncRaf);
     };
-  }, [verseLengths]);
+  }, [verseLengths, inkMode]);
 
   // Keep the selected text visible above a docked or floating toolbar.
   useEffect(() => {
@@ -500,6 +536,29 @@ export default function ReaderPage() {
       window.scrollBy({ top: r.top - TOOLBAR_GAP - toolbarH - margin - 8, behavior: "smooth" });
     }
   }, [tbSel]);
+
+  const defaultInkLayerId = singlePage
+    ? `${book.abbr}-${chapter}-${chapterPage}-left`
+    : `${book.abbr}-${chapter}-${chapterPage}-left`;
+  const focusedInkLayerId = activeInkLayerId ?? defaultInkLayerId;
+
+  const runInkAction = useCallback(
+    (action: "undo" | "redo" | "clear") => {
+      const api = inkApisRef.current.get(focusedInkLayerId);
+      if (!api) return;
+      if (action === "undo") api.undo();
+      else if (action === "redo") api.redo();
+      else api.clear();
+      setInkToolbarState(api.getState());
+    },
+    [focusedInkLayerId],
+  );
+
+  useEffect(() => {
+    if (!inkMode) return;
+    const api = inkApisRef.current.get(focusedInkLayerId);
+    if (api) setInkToolbarState(api.getState());
+  }, [inkMode, focusedInkLayerId, chapterPage, book.abbr, chapter]);
 
   const pinnedSelection = (): ToolbarSelection | null =>
     tbSelRef.current ?? tbSel;
@@ -738,7 +797,9 @@ export default function ReaderPage() {
           <article
             ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
             data-reading-area
-            className={`flex-1 min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} selectable-text`}
+            className={`flex-1 min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
+              inkMode ? "!select-none" : "selectable-text"
+            }`}
             style={{ fontSize: `${fontScale}em` }}
           >
             <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
@@ -777,6 +838,32 @@ export default function ReaderPage() {
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
+        ) : null}
+        {inkMode ? (
+          <ReaderInkLayer
+            layerId={`${book.abbr}-${chapter}-${pageIdx}-${side}`}
+            active
+            userId={user?.id}
+            pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
+            layoutFingerprint={layoutFingerprint}
+            anchorVerse={slice[0]?.number ?? null}
+            tool={inkTool}
+            color={inkColor}
+            size={inkSize}
+            onFocus={setActiveInkLayerId}
+            onRegister={(id, api) => {
+              inkApisRef.current.set(id, api);
+            }}
+            onUnregister={(id) => {
+              inkApisRef.current.delete(id);
+            }}
+            onStateChange={(id, state) => {
+              if (id === focusedInkLayerId) setInkToolbarState(state);
+            }}
+            onStaleLayout={(stale) => {
+              if (stale) setStaleLayoutInk(true);
+            }}
+          />
         ) : null}
       </div>
     );
@@ -825,7 +912,34 @@ export default function ReaderPage() {
         onFontScaleChange={updateFontScale}
         singlePage={singlePage}
         settingsOpenRequest={settingsOpenRequest}
+        inkMode={inkMode}
+        onToggleInkMode={toggleInkMode}
       />
+
+      {staleLayoutInk && inkMode ? (
+        <div
+          className="fixed left-1/2 top-[calc(var(--safe-area-inset-top)+3.5rem)] z-[34] max-w-md -translate-x-1/2 rounded-lg border border-amber-200/80 bg-amber-50/95 px-3 py-2 text-center text-xs text-amber-950 shadow-sm backdrop-blur-sm"
+          role="status"
+        >
+          Layout changed — ink from your previous text size or page layout is hidden.
+        </div>
+      ) : null}
+
+      {inkMode && !focusMode ? (
+        <ReaderInkToolbar
+          tool={inkTool}
+          color={inkColor}
+          size={inkSize}
+          canUndo={inkToolbarState.canUndo}
+          canRedo={inkToolbarState.canRedo}
+          onTool={setInkTool}
+          onColor={setInkColor}
+          onSize={setInkSize}
+          onUndo={() => runInkAction("undo")}
+          onRedo={() => runInkAction("redo")}
+          onClear={() => runInkAction("clear")}
+        />
+      ) : null}
 
       <BookScene
         progress={progress}
@@ -843,7 +957,7 @@ export default function ReaderPage() {
           )
         }
         leftPage={
-          <SwipePage side="left" onTurn={goPage}>
+          <SwipePage side="left" onTurn={goPage} inkMode={inkMode}>
             <PageFlip
               pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`}
               direction={flipDirection}
@@ -854,7 +968,7 @@ export default function ReaderPage() {
           </SwipePage>
         }
         rightPage={
-          <SwipePage side={singlePage ? "left" : "right"} onTurn={goPage}>
+          <SwipePage side={singlePage ? "left" : "right"} onTurn={goPage} inkMode={inkMode}>
             <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={singlePage ? "left" : "right"}>
               <PageSurface pageIdx={rightIdx} side={singlePage ? "left" : "right"} />
             </PageFlip>
@@ -866,12 +980,12 @@ export default function ReaderPage() {
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className="fixed top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0"
+        className={`fixed top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className="fixed top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0"
+        className={`fixed top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
 
       {/* Headless paginator — measures and reports splits */}
@@ -922,7 +1036,7 @@ export default function ReaderPage() {
       {/* Toolbar that appears above the user's selection. Highlighter swatches,
           a pen for underlining, a note shortcut, and a clear control. */}
       <SelectionToolbar
-        open={!!tbSel}
+        open={!!tbSel && !inkMode}
         paletteId={profile?.highlight_palette ?? "classic"}
         selection={tbSel}
         currentColor={tbSel ? hlFor(tbSel.verses[0])?.color ?? null : null}
