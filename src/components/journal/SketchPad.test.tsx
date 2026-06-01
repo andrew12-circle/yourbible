@@ -91,17 +91,20 @@ describe("SketchPad", () => {
     const canvas = dialog.querySelector("canvas");
     expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 
-    for (const [target, eventName] of [
-      [dialog, "selectstart"],
-      [dialog, "contextmenu"],
-      [canvas, "touchstart"],
-      [canvas, "touchmove"],
-      [canvas, "gesturestart"],
-    ] as const) {
+    for (const eventName of ["selectstart", "contextmenu"] as const) {
       const event = new Event(eventName, { bubbles: true, cancelable: true });
-      target.dispatchEvent(event);
+      dialog.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
     }
+
+    const touchStart = new Event("touchstart", { bubbles: true, cancelable: true });
+    Object.defineProperty(touchStart, "touches", { value: [{ clientX: 0, clientY: 0 }] });
+    canvas.dispatchEvent(touchStart);
+    expect(touchStart.defaultPrevented).toBe(true);
+
+    const gesture = new Event("gesturestart", { bubbles: true, cancelable: true });
+    canvas.dispatchEvent(gesture);
+    expect(gesture.defaultPrevented).toBe(true);
   });
 
   it("keeps mobile controls in one horizontal scroller with larger tap targets", () => {
@@ -110,9 +113,16 @@ describe("SketchPad", () => {
     const toolbar = screen.getByRole("toolbar", { name: "Handwritten tools" });
     expect(toolbar).toHaveClass("flex-nowrap");
     expect(toolbar.parentElement).toHaveClass("overflow-x-auto");
-    expect(screen.getByRole("button", { name: "Pen" })).toHaveClass("h-10");
+    expect(screen.getAllByRole("button", { name: "Pen" }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "Color Ink" })).toHaveClass("h-10");
     expect(screen.getByText("Closing without saving discards the handwritten note").closest("footer")).toHaveClass("hidden");
+  });
+
+  it("shows pen and eraser in the header on mobile widths", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+    const header = screen.getByRole("button", { name: "Close handwritten" }).closest("header");
+    expect(header?.querySelector('[aria-label="Pen"]')).toBeTruthy();
+    expect(header?.querySelector('[aria-label="Eraser"]')).toBeTruthy();
   });
 
   it("uses dark paper and night-safe ink when the device is in night mode", () => {

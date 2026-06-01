@@ -396,8 +396,8 @@ export default function SketchPad({
     root?.addEventListener("dragstart", preventDefault);
     root?.addEventListener("contextmenu", preventDefault);
 
-    const preventSingleTouchScroll = (event: TouchEvent) => {
-      if (event.touches.length >= 2) return;
+    const preventSingleTouchScroll = (event: Event) => {
+      if (!(event instanceof TouchEvent) || !event.touches || event.touches.length >= 2) return;
       event.preventDefault();
     };
 
@@ -672,7 +672,7 @@ export default function SketchPad({
   };
 
   const handleWrapTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length !== 2) return;
+    if (!e.touches || e.touches.length !== 2) return;
     const dist = touchDistance(e.touches);
     pinchRef.current = {
       dist,
@@ -687,7 +687,7 @@ export default function SketchPad({
 
   const handleWrapTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     const pinch = pinchRef.current;
-    if (!pinch || e.touches.length !== 2) return;
+    if (!pinch || !e.touches || e.touches.length !== 2) return;
     const dist = touchDistance(e.touches);
     const nextScale = clampViewScale(pinch.scale * (dist / pinch.dist));
     const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -701,7 +701,7 @@ export default function SketchPad({
   };
 
   const handleWrapTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length < 2) pinchRef.current = null;
+    if (!e.touches || e.touches.length < 2) pinchRef.current = null;
   };
 
   if (!open) return null;

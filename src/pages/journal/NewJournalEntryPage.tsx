@@ -6,7 +6,7 @@ import { JournalSketchInline, partitionJournalPhotos } from "@/components/journa
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
-  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, FileText, Lightbulb,
+  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, Lightbulb,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
