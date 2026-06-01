@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   artifactDesktopHero,
-  artifactVideoRadius,
   formatArtifactDate,
   formatArtifactDuration,
 } from "@/lib/framework/artifactSurfaces";
@@ -279,7 +278,7 @@ export default function ArtifactDesktopHero({
       >
         <div
           id="video"
-          className={cn("relative aspect-video w-full bg-black", artifactVideoRadius, "rounded-b-none rounded-t-2xl")}
+          className={cn("relative aspect-video w-full overflow-hidden rounded-2xl bg-black")}
         >
           {videoSlot}
         </div>
