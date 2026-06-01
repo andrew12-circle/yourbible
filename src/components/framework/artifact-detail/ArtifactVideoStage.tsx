@@ -147,7 +147,7 @@ export default function ArtifactVideoStage({
 
   const videoBlock = (
     <div
-      ref={videoSlotRef}
+      ref={heroEmbed ? undefined : videoSlotRef}
       className={cn(
         "relative w-full shrink-0 overflow-hidden bg-black",
         heroEmbed ? "h-full min-h-[inherit]" : cn("aspect-video", artifactVideoRadius),

@@ -208,6 +208,23 @@ export function useArtifactYoutubePip(options: {
     };
   }, [enabled, mainScrollRef, embedVisibleRef]);
 
+  /** Scrolled back to top of study column — restore inline player immediately. */
+  useEffect(() => {
+    if (!enabled) return;
+    const root = mainScrollRef.current;
+    if (!root) return;
+
+    const onScroll = () => {
+      if (!pipModeRef.current) return;
+      if (root.scrollTop <= 48) {
+        setPipMode(false);
+      }
+    };
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [enabled, mainScrollRef]);
+
   useEffect(() => {
     if (!artifactId) return;
     const saved = readPipLayoutFromSession(artifactId);

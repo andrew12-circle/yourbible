@@ -8,8 +8,8 @@ export const PIP_VIEWPORT_PAD = 8;
 export const PIP_ENTER_VISIBLE_RATIO = 0.1;
 /** Above this ratio while not in PiP, cancel a pending enter (wider band reduces scroll flicker). */
 export const PIP_ENTER_CANCEL_RATIO = 0.25;
-/** Above this visible ratio, restore the in-flow player. */
-export const PIP_EXIT_VISIBLE_RATIO = 0.5;
+/** Above this visible ratio, restore the in-flow player (hero card anchor). */
+export const PIP_EXIT_VISIBLE_RATIO = 0.28;
 export const PIP_ENTER_DELAY_MS = 100;
 export const PIP_EXIT_DELAY_MS = 150;
 export const PIP_IO_THRESHOLDS = [0, 0.1, 0.25, 0.5, 0.75, 1] as const;
@@ -40,8 +40,8 @@ export function pipVisibilitySignal(inPip: boolean, intersectionRatio: number): 
     if (intersectionRatio >= PIP_ENTER_CANCEL_RATIO) return "cancel_enter";
     return "hold";
   }
-  if (intersectionRatio > PIP_EXIT_VISIBLE_RATIO) return "exit";
-  return intersectionRatio <= PIP_EXIT_VISIBLE_RATIO ? "cancel_exit" : "hold";
+  if (intersectionRatio >= PIP_EXIT_VISIBLE_RATIO) return "exit";
+  return "cancel_exit";
 }
 
 const ARTIFACT_YOUTUBE_PIP_SS_PREFIX = "yb_artifact_youtube_pip_v1:";

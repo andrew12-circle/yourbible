@@ -1387,6 +1387,7 @@ export default function ArtifactDetailPage() {
         {youTubeVideoId ? (
           desktopPremiumYoutube ? (
             <ArtifactDetailDesktopShell
+              videoSlotRef={youtubePip.videoSlotRef}
               hero={{
                 displayTitle,
                 statusLabel: formatArtifactStatus(a.status),
