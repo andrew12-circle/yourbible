@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   isCompactInkLayout,
   isReaderSinglePageLayout,
+  isTabletLayout,
   isTabletPortraitLayout,
   readViewportSize,
   READER_SINGLE_PAGE_MAX,
@@ -48,6 +49,11 @@ export function useReaderSinglePage() {
 /** iPad upright — mobile chrome with extra horizontal room. */
 export function useIsTabletPortrait() {
   return useViewportLayout(isTabletPortraitLayout);
+}
+
+/** iPad / tablet width — full-bleed sketch paper, no letterboxed page. */
+export function useIsTablet() {
+  return useViewportLayout(isTabletLayout);
 }
 
 /** Compact ink toolbars (phone + tablet portrait). */

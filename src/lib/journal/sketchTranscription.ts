@@ -4,6 +4,7 @@ export type SketchTranscriptionResult = {
   ok: boolean;
   body?: string;
   text?: string;
+  title?: string;
   skipped?: boolean;
   error?: string;
 };
@@ -26,6 +27,7 @@ export async function transcribeJournalSketch(opts: {
     ok: true,
     body: d.body,
     ...(typeof d.text === "string" ? { text: d.text } : {}),
+    ...(typeof d.title === "string" && d.title.trim() ? { title: d.title.trim() } : {}),
     ...(d.skipped === true ? { skipped: true } : {}),
   };
 }

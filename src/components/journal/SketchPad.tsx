@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PenLine, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIsTabletPortrait } from "@/hooks/use-reader-layout";
+import { useIsTablet, useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
 import SketchRulerOverlay from "@/components/journal/sketch/SketchRulerOverlay";
 import {
@@ -93,6 +93,7 @@ export default function SketchPad({
   onAutosave,
 }: SketchPadProps) {
   const tabletPortrait = useIsTabletPortrait();
+  const tablet = useIsTablet();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -884,16 +885,19 @@ export default function SketchPad({
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
             toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]",
-            tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
-            isNightMode ? "bg-black" : "bg-muted/40",
+            tablet ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
+            isNightMode ? "bg-black" : tablet ? "bg-white" : "bg-muted/40",
           )}
         >
         <div
           ref={wrapperRef}
           className={cn(
-            "relative h-full w-full overflow-auto rounded-lg border shadow-sm",
-            tabletPortrait ? "max-w-[min(720px,100%)] mx-auto rounded-xl" : "sm:rounded-xl",
-            isNightMode ? "border-white/10 bg-black" : "border-border/60 bg-white",
+            "relative h-full w-full overflow-hidden",
+            tablet
+              ? "rounded-none border-0 shadow-none"
+              : "rounded-lg border shadow-sm sm:rounded-xl",
+            isNightMode ? "bg-black" : "bg-white",
+            !tablet && (isNightMode ? "border-white/10" : "border-border/60"),
           )}
           style={{
             WebkitUserSelect: "none",
@@ -908,7 +912,7 @@ export default function SketchPad({
         >
           <div
             ref={transformRef}
-            className="relative h-full min-h-full w-full min-w-full"
+            className="relative h-full w-full"
             style={{
               transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`,
               transformOrigin: "0 0",

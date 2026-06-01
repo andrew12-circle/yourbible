@@ -203,7 +203,7 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
       .update({ body: nextBody })
       .eq("id", entry_id)
       .eq("user_id", u.user.id)
-      .select("body")
+      .select("id,title,body")
       .maybeSingle();
 
     if (upErr || !updated) {
@@ -213,8 +213,47 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
       });
     }
 
+    let suggestedTitle: string | null = null;
+    if (!updated.title?.trim() && transcribed.length >= 20) {
+      const titleRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                `Title a private faith journal entry from transcribed handwriting. Reply with ONLY JSON: {"title":"..."}. 4–12 words, sentence case, no trailing period.`,
+            },
+            { role: "user", content: transcribed.slice(0, 4000) },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (titleRes.ok) {
+        try {
+          const titleJson = await titleRes.json();
+          const content = titleJson.choices?.[0]?.message?.content;
+          if (typeof content === "string") {
+            const parsed = JSON.parse(content) as { title?: string };
+            suggestedTitle = typeof parsed.title === "string" ? parsed.title.trim().slice(0, 120) : null;
+          }
+        } catch {
+          suggestedTitle = null;
+        }
+      }
+      if (suggestedTitle) {
+        await supabase
+          .from("journal_entries")
+          .update({ title: suggestedTitle })
+          .eq("id", entry_id)
+          .eq("user_id", u.user.id);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, text: transcribed, body: updated.body }),
+      JSON.stringify({ ok: true, text: transcribed, body: updated.body, title: suggestedTitle }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

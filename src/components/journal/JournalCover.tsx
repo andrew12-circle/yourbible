@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, Menu } from "lucide-react";
 import { Journal } from "@/lib/journal/journals";
+import { journalCoverObjectPosition } from "@/lib/journal/covers";
+import { useJournalCoverBanner } from "@/hooks/useJournalCoverBanner";
 
 interface Props {
   journal: Journal | null; // null = aggregate "All Entries"
@@ -29,27 +31,52 @@ export default function JournalCover({
 }: Props) {
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
   const title = titleOverride ?? journal?.name ?? "All Entries";
+  const { coverUrl, focal, hasPhoto } = useJournalCoverBanner(journal);
+
+  const colorGradient = journal
+    ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
+    : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)";
 
   return (
     <header className="relative">
-      {/* Big colored cover */}
-      <div
-        className="relative pt-3 pb-12 px-5 overflow-hidden"
-        style={{
-          background: journal
-            ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
-            : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)",
-        }}
-      >
-        {/* subtle highlight */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(80% 50% at 100% 0%, rgba(255,255,255,0.18), transparent 60%)",
-          }}
-        />
-        <div className="flex items-center justify-between text-white">
+      <div className="relative pt-3 pb-12 px-5 overflow-hidden">
+        {hasPhoto && coverUrl ? (
+          <>
+            <img
+              src={coverUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              style={{
+                objectPosition: journalCoverObjectPosition({
+                  cover_focal_x: focal.x,
+                  cover_focal_y: focal.y,
+                }),
+              }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-black/15"
+              aria-hidden
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute inset-0"
+              style={{ background: colorGradient }}
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(80% 50% at 100% 0%, rgba(255,255,255,0.18), transparent 60%)",
+              }}
+              aria-hidden
+            />
+          </>
+        )}
+
+        <div className="relative flex items-center justify-between text-white">
           <div className="flex items-center gap-1">
             <button
               onClick={onOpenRail}
@@ -75,13 +102,12 @@ export default function JournalCover({
               {subtitle}
             </p>
           )}
-          <h1 className="text-[44px] leading-[1.02] font-bold tracking-tight text-white">
+          <h1 className="text-[44px] leading-[1.02] font-bold tracking-tight text-white drop-shadow-sm">
             {title}
           </h1>
         </div>
       </div>
 
-      {/* White card with tabs sliding up underneath */}
       <div className="relative -mt-5 bg-background rounded-t-[22px] shadow-[0_-10px_30px_-18px_hsl(0_0%_0%/0.25)]">
         {tabs && tabs.length > 0 && (
           <div className="flex items-center gap-6 px-5 pt-3.5 pb-0.5 overflow-x-auto scrollbar-hide">

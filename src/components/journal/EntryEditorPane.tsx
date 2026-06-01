@@ -32,6 +32,8 @@ import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
 import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
+import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
+import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
 
 interface EntryRow {
   id: string;
@@ -76,6 +78,7 @@ export default function EntryEditorPane({
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleSuggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryRef = useRef<EntryRow | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
@@ -119,6 +122,27 @@ export default function EntryEditorPane({
 
   const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
 
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (titleSuggestTimer.current) clearTimeout(titleSuggestTimer.current);
+    };
+  }, []);
+
+  const scheduleTitleSuggestion = (row: EntryRow) => {
+    if (!shouldSuggestJournalTitle(row.title, row.body, row.summary)) return;
+    if (titleSuggestTimer.current) clearTimeout(titleSuggestTimer.current);
+    titleSuggestTimer.current = setTimeout(async () => {
+      const cur = entryRef.current;
+      if (!cur || cur.id !== row.id || cur.title?.trim()) return;
+      const res = await suggestJournalEntryTitle({ entryId: cur.id, body: cur.body });
+      if (!res.ok || !res.title) return;
+      entryRef.current = { ...cur, title: res.title };
+      setEntry((prev) => (prev?.id === cur.id ? { ...prev, title: res.title } : prev));
+      onChanged();
+    }, 2500);
+  };
+
   // Autosave on entry mutation
   const queueSave = (patch: Partial<EntryRow>) => {
     const cur = entryRef.current;
@@ -136,7 +160,10 @@ export default function EntryEditorPane({
         .eq("user_id", user.id);
       setSaving(false);
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
-      else onChanged();
+      else {
+        onChanged();
+        if ("body" in patch && !("title" in patch)) scheduleTitleSuggestion(merged);
+      }
     }, 400);
   };
   queueSaveRef.current = queueSave;
@@ -666,8 +693,9 @@ export default function EntryEditorPane({
               clearTimeout(saveTimer.current);
               saveTimer.current = null;
             }
-            entryRef.current = { ...cur, body: result.body };
-            setEntry({ ...entryRef.current });
+            const next = { ...cur, body: result.body, ...(result.title ? { title: result.title } : {}) };
+            entryRef.current = next;
+            setEntry(next);
           }
           onChanged();
           toast({ title: "Handwritten note transcribed", description: "Text was added to your journal body." });

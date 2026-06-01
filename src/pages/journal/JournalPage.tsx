@@ -22,6 +22,7 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
+import { useJournalTitleBackfill } from "@/hooks/useJournalTitleBackfill";
 import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
 
 interface Entry extends EntryListData {
@@ -181,7 +182,7 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
     let query = supabase
       .from("journal_entries")
       .select(
-        "id,title,body,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
+        "id,title,body,summary,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
       )
       .order("pinned", { ascending: false })
       .order("entry_at_ts", { ascending: false })
@@ -221,6 +222,12 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }, []);
+
+  const applySuggestedTitle = useCallback(
+    (id: string, title: string) => patchEntry(id, { title }),
+    [patchEntry],
+  );
+  useJournalTitleBackfill(entries, applySuggestedTitle);
 
   const handlePin = useCallback(
     async (id: string, pinned: boolean) => {

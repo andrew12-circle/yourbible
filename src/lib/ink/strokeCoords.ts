@@ -1,7 +1,7 @@
 import type { InkStroke, StoredInkStroke } from "@/lib/ink/types";
 
 export function normalizeStrokes(strokes: InkStroke[], width: number, height: number): StoredInkStroke[] {
-  if (width <= 0 || height <= 0) return strokes;
+  if (width <= 0 || height <= 0) return [];
   return strokes.map((s) => ({
     ...s,
     points: s.points.map((p) => ({

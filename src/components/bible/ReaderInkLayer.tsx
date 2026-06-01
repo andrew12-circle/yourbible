@@ -230,7 +230,7 @@ export default function ReaderInkLayer({
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !active) return;
+    if (!canvas || !active || canvasSize.w <= 0 || canvasSize.h <= 0) return;
     onFocus?.(layerId);
     if (e.pointerType === "pen") penSeenRef.current = true;
     if (palmRejectionRef.current && penSeenRef.current && e.pointerType === "touch") {
@@ -309,7 +309,7 @@ export default function ReaderInkLayer({
     <div
       ref={wrapRef}
       className={cn(
-        "absolute inset-0 z-[20] touch-none select-none",
+        "pointer-events-auto absolute inset-0 z-[25] touch-none select-none",
         className,
       )}
       data-reader-ink-layer={layerId}

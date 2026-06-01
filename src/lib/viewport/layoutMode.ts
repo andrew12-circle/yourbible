@@ -46,6 +46,11 @@ export function isTabletPortraitLayout(size: ViewportSize = readViewportSize()):
   return !landscape && width >= TABLET_MIN_PX && width < READER_DESKTOP_MIN_PX;
 }
 
+/** iPad / tablet — sketch paper fills viewport width (portrait or landscape). */
+export function isTabletLayout(size: ViewportSize = readViewportSize()): boolean {
+  return size.width >= TABLET_MIN_PX;
+}
+
 /** Phone or tablet portrait — compact ink / sketch toolbars. */
 export function isCompactInkLayout(size: ViewportSize = readViewportSize()): boolean {
   return isReaderSinglePageLayout(size);

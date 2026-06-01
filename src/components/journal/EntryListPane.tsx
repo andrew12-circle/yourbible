@@ -8,7 +8,8 @@ import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META, type JournalEntryKind } from "@/lib/journal/entryKinds";
-import { entryListPreview, getChatJournalPreview } from "@/lib/journal/chatJournalEntry";
+import { entryDisplayPreview, entryDisplayTitle, isTextOnlyJournalEntry } from "@/lib/journal/entryDisplay";
+import { useJournalTitleBackfill } from "@/hooks/useJournalTitleBackfill";
 import SwipeableEntryRow from "./SwipeableEntryRow";
 import {
   deleteJournalEntry,
@@ -109,6 +110,12 @@ export default function EntryListPane({
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }, []);
+
+  const applySuggestedTitle = useCallback(
+    (id: string, title: string) => patchEntry(id, { title }),
+    [patchEntry],
+  );
+  useJournalTitleBackfill(entries, applySuggestedTitle);
 
   const handlePin = useCallback(
     async (id: string, pinned: boolean) => {
@@ -323,6 +330,10 @@ function EntryRow({
   const tempStr = e.weather_temp_c != null ? formatTemp(e.weather_temp_c) : null;
   const faithKind = coerceJournalEntryKind(e.entry_kind);
   const isChat = e.entry_kind === "chat";
+  const displayTitle = entryDisplayTitle({ ...e, photo_url: photoUrl });
+  const preview = entryDisplayPreview({ ...e, photo_url: photoUrl });
+  const textOnly = isTextOnlyJournalEntry({ ...e, photo_url: photoUrl });
+  const untitled = !e.title?.trim();
 
   const content = (
     <button
@@ -343,8 +354,14 @@ function EntryRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-1.5">
           {e.pinned && <Pin className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-amber-500 fill-amber-500"}`} />}
-          <h3 className="text-[14px] font-semibold tracking-tight truncate flex-1 leading-snug">
-            {e.title || getChatJournalPreview(e.body, e.summary) || firstLine(e.body) || <span className={`italic font-normal ${active ? "" : "text-muted-foreground"}`}>No title</span>}
+          <h3
+            className={`tracking-tight flex-1 leading-snug ${
+              textOnly
+                ? "text-[13px] font-medium line-clamp-3"
+                : "text-[14px] font-semibold truncate"
+            } ${untitled && !displayTitle ? `italic font-normal ${active ? "" : "text-muted-foreground"}` : ""}`}
+          >
+            {displayTitle || "No title"}
           </h3>
           {e.analyze_for_mirror && <Sparkles className={`w-3 h-3 mt-1 flex-shrink-0 ${active ? "" : "text-violet-500"}`} />}
           {isChat && (
@@ -363,9 +380,11 @@ function EntryRow({
             </span>
           )}
         </div>
-        <p className={`text-[12px] line-clamp-2 leading-snug ${active ? "opacity-85" : "text-muted-foreground"}`}>
-          {entryListPreview(e.body, e.title, e.summary)}
-        </p>
+        {preview && (
+          <p className={`line-clamp-2 leading-snug ${active ? "opacity-85 text-[12px]" : "text-muted-foreground text-[12px]"}`}>
+            {preview}
+          </p>
+        )}
         <div className={`text-[11px] mt-1 flex items-center gap-2 flex-wrap ${active ? "opacity-80" : "text-muted-foreground/80"}`}>
           <span className="tabular-nums">{time}</span>
           {e.location_name && (
@@ -438,7 +457,7 @@ function CalendarMini({ entries, selectedId, onSelect }: {
                   selectedId === e.id ? "bg-primary text-primary-foreground" : "hover:bg-muted/40"
                 }`}
               >
-                {e.title || getChatJournalPreview(e.body, e.summary) || firstLine(e.body) || "Untitled"}
+                {entryDisplayTitle(e) || "Untitled"}
               </button>
             ))}
           </div>
@@ -446,10 +465,6 @@ function CalendarMini({ entries, selectedId, onSelect }: {
       })}
     </div>
   );
-}
-
-function firstLine(s: string) {
-  return (s || "").split("\n")[0]?.slice(0, 80) ?? "";
 }
 function formatMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number);

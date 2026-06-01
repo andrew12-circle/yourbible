@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadLocalReaderInk, saveLocalReaderInk, listLocalInkFingerprintsForPage } from "@/lib/ink/localInkStore";
 import { LS_READER_INK_MODE } from "@/lib/ink/layoutFingerprint";
 import { denormalizeStrokes, normalizeStrokes } from "@/lib/ink/strokeCoords";
-import type { InkStroke, ReaderPageInkKey } from "@/lib/ink/types";
+import type { InkStroke, ReaderPageInkKey, StoredInkStroke } from "@/lib/ink/types";
 
 type Options = {
   userId: string | undefined;
@@ -22,26 +22,29 @@ export function useReaderPageInk({
   canvasSize,
   enabled,
 }: Options) {
-  const [strokes, setStrokesState] = useState<InkStroke[]>([]);
-  const [redoStack, setRedoStack] = useState<InkStroke[]>([]);
+  const [storedStrokes, setStoredStrokes] = useState<StoredInkStroke[]>([]);
+  const [redoStack, setRedoStack] = useState<StoredInkStroke[]>([]);
   const [loading, setLoading] = useState(false);
   const [staleFingerprint, setStaleFingerprint] = useState<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
-  const strokesRef = useRef(strokes);
-  strokesRef.current = strokes;
+  const storedRef = useRef(storedStrokes);
+  storedRef.current = storedStrokes;
+
+  const strokes = useMemo(() => {
+    const { w, h } = canvasSize;
+    if (w <= 0 || h <= 0) return [];
+    return denormalizeStrokes(storedStrokes, w, h);
+  }, [storedStrokes, canvasSize.w, canvasSize.h]);
 
   const persist = useCallback(
-    async (next: InkStroke[]) => {
-      const { w, h } = canvasSize;
-      if (w <= 0 || h <= 0) return;
-      const normalized = normalizeStrokes(next, w, h);
+    async (next: StoredInkStroke[]) => {
       saveLocalReaderInk(
         layoutFingerprint,
         pageKey.book,
         pageKey.chapter,
         pageKey.pageIndex,
         pageKey.side,
-        normalized,
+        next,
       );
       if (!userId) return;
       const row = {
@@ -52,18 +55,18 @@ export function useReaderPageInk({
         side: pageKey.side,
         layout_fingerprint: layoutFingerprint,
         anchor_verse: anchorVerse,
-        strokes: normalized,
+        strokes: next,
         updated_at: new Date().toISOString(),
       };
       await supabase.from("reader_page_ink").upsert(row, {
         onConflict: "user_id,book,chapter,page_index,side,layout_fingerprint",
       });
     },
-    [anchorVerse, canvasSize, layoutFingerprint, pageKey, userId],
+    [anchorVerse, layoutFingerprint, pageKey, userId],
   );
 
   const scheduleSave = useCallback(
-    (next: InkStroke[]) => {
+    (next: StoredInkStroke[]) => {
       if (saveTimerRef.current != null) window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = window.setTimeout(() => {
         saveTimerRef.current = null;
@@ -73,9 +76,9 @@ export function useReaderPageInk({
     [persist],
   );
 
-  const setStrokes = useCallback(
-    (updater: InkStroke[] | ((prev: InkStroke[]) => InkStroke[])) => {
-      setStrokesState((prev) => {
+  const updateStored = useCallback(
+    (updater: StoredInkStroke[] | ((prev: StoredInkStroke[]) => StoredInkStroke[])) => {
+      setStoredStrokes((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
         scheduleSave(next);
         return next;
@@ -84,6 +87,7 @@ export function useReaderPageInk({
     [scheduleSave],
   );
 
+  // Load when the page or layout fingerprint changes — not on every canvas resize.
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
@@ -91,7 +95,6 @@ export function useReaderPageInk({
     setStaleFingerprint(null);
 
     (async () => {
-      const { w, h } = canvasSize;
       let local = loadLocalReaderInk(
         layoutFingerprint,
         pageKey.book,
@@ -113,7 +116,7 @@ export function useReaderPageInk({
           .maybeSingle();
 
         if (data?.strokes && Array.isArray(data.strokes)) {
-          local = data.strokes as typeof local;
+          local = data.strokes as StoredInkStroke[];
         } else if (!local) {
           const { data: legacy } = await supabase
             .from("reader_page_ink")
@@ -146,9 +149,7 @@ export function useReaderPageInk({
       }
 
       if (cancelled) return;
-      const denorm =
-        local && w > 0 && h > 0 ? denormalizeStrokes(local, w, h) : [];
-      setStrokesState(denorm);
+      setStoredStrokes(local ?? []);
       setRedoStack([]);
       setLoading(false);
     })();
@@ -164,31 +165,33 @@ export function useReaderPageInk({
     pageKey.pageIndex,
     pageKey.side,
     layoutFingerprint,
-    canvasSize.w,
-    canvasSize.h,
   ]);
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current != null) {
         window.clearTimeout(saveTimerRef.current);
-        void persist(strokesRef.current);
+        void persist(storedRef.current);
       }
     };
   }, [persist]);
 
   const pushStroke = useCallback(
     (stroke: InkStroke) => {
-      setStrokes((prev) => [...prev, stroke]);
+      const { w, h } = canvasSize;
+      if (w <= 0 || h <= 0) return;
+      const normalized = normalizeStrokes([stroke], w, h);
+      if (normalized.length === 0) return;
+      updateStored((prev) => [...prev, normalized[0]!]);
       setRedoStack([]);
     },
-    [setStrokes],
+    [canvasSize.w, canvasSize.h, updateStored],
   );
 
   const undo = useCallback(() => {
-    setStrokesState((prev) => {
+    setStoredStrokes((prev) => {
       if (prev.length === 0) return prev;
-      const popped = prev[prev.length - 1];
+      const popped = prev[prev.length - 1]!;
       setRedoStack((r) => [...r, popped]);
       const next = prev.slice(0, -1);
       scheduleSave(next);
@@ -199,16 +202,31 @@ export function useReaderPageInk({
   const redo = useCallback(() => {
     setRedoStack((redo) => {
       if (redo.length === 0) return redo;
-      const stroke = redo[redo.length - 1];
-      setStrokes((prev) => [...prev, stroke]);
+      const stroke = redo[redo.length - 1]!;
+      updateStored((prev) => [...prev, stroke]);
       return redo.slice(0, -1);
     });
-  }, [setStrokes]);
+  }, [updateStored]);
 
   const clearAll = useCallback(() => {
-    setStrokes([]);
+    updateStored([]);
     setRedoStack([]);
-  }, [setStrokes]);
+  }, [updateStored]);
+
+  const setStrokes = useCallback(
+    (updater: InkStroke[] | ((prev: InkStroke[]) => InkStroke[])) => {
+      const { w, h } = canvasSize;
+      if (w <= 0 || h <= 0) return;
+      setStoredStrokes((prev) => {
+        const pixelPrev = denormalizeStrokes(prev, w, h);
+        const pixelNext = typeof updater === "function" ? updater(pixelPrev) : updater;
+        const next = normalizeStrokes(pixelNext, w, h);
+        scheduleSave(next);
+        return next;
+      });
+    },
+    [canvasSize.w, canvasSize.h, scheduleSave],
+  );
 
   return {
     strokes,

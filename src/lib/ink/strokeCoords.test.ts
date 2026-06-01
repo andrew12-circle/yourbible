@@ -23,8 +23,9 @@ describe("strokeCoords", () => {
     expect(restored[0].points[1].y).toBeCloseTo(250, 5);
   });
 
-  it("returns empty denormalized strokes for invalid canvas size", () => {
-    const normalized = normalizeStrokes([sampleStroke()], 0, 0);
+  it("returns empty normalized and denormalized strokes for invalid canvas size", () => {
+    expect(normalizeStrokes([sampleStroke()], 0, 0)).toEqual([]);
+    const normalized = normalizeStrokes([sampleStroke()], 400, 800);
     expect(denormalizeStrokes(normalized, 0, 0)).toEqual([]);
   });
 });

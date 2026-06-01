@@ -36,6 +36,9 @@ verify_jwt = true
 [functions.journal-sketch-to-text]
 verify_jwt = true
 
+[functions.journal-suggest-title]
+verify_jwt = true
+
 [functions.journal-voice-to-text]
 verify_jwt = true
 

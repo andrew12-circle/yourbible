@@ -3,7 +3,11 @@ import { Pin, Sparkles, MapPin, MessageCircle } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
-import { entryListPreview, getChatJournalPreview } from "@/lib/journal/chatJournalEntry";
+import {
+  entryDisplayPreview,
+  entryDisplayTitle,
+  isTextOnlyJournalEntry,
+} from "@/lib/journal/entryDisplay";
 import SwipeableEntryRow from "./SwipeableEntryRow";
 
 export interface EntryListData {
@@ -43,12 +47,16 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
   const isChat = entry.entry_kind === "chat";
   const href = isChat ? `/journal/chat/${entry.id}` : `/journal/${entry.id}`;
 
+  const displayTitle = entryDisplayTitle(entry);
+  const preview = entryDisplayPreview(entry);
+  const textOnly = isTextOnlyJournalEntry(entry);
+  const untitled = !entry.title?.trim();
+
   const row = (
     <Link
       to={href}
       className="group flex gap-4 px-5 py-4 active:bg-muted/40 hover:bg-muted/20 transition-colors"
     >
-      {/* Day One-style date stamp */}
       <div className="flex-shrink-0 w-11 text-center pt-0.5">
         <div className="text-[10px] font-semibold tracking-[0.12em] text-red-500">
           {dow}
@@ -63,10 +71,14 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
           {entry.pinned && (
             <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500 mt-1 flex-shrink-0" />
           )}
-          <h3 className="text-[16px] font-semibold tracking-tight truncate flex-1 leading-snug">
-            {entry.title || getChatJournalPreview(entry.body, entry.summary) || firstLine(entry.body) || (
-              <span className="italic font-normal text-muted-foreground">No title</span>
-            )}
+          <h3
+            className={`tracking-tight flex-1 leading-snug ${
+              textOnly
+                ? "text-[15px] font-medium line-clamp-4"
+                : "text-[16px] font-semibold truncate leading-snug"
+            } ${untitled && !displayTitle ? "italic font-normal text-muted-foreground" : ""}`}
+          >
+            {displayTitle || "No title"}
           </h3>
           {entry.analyze_for_mirror && (
             <Sparkles className="w-3.5 h-3.5 text-violet-500 mt-1 flex-shrink-0" />
@@ -80,9 +92,15 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
             </span>
           )}
         </div>
-        <p className="text-[14px] text-muted-foreground line-clamp-2 leading-snug">
-          {entryListPreview(entry.body, entry.title, entry.summary)}
-        </p>
+        {preview && (
+          <p
+            className={`text-muted-foreground leading-snug ${
+              textOnly ? "text-[14px] line-clamp-3 mt-1" : "text-[14px] line-clamp-2"
+            }`}
+          >
+            {preview}
+          </p>
+        )}
         <div className="text-[12px] text-muted-foreground/80 mt-2 flex items-center gap-2 flex-wrap">
           <span className="tabular-nums">{time}</span>
           {entry.location_name && (
@@ -124,8 +142,4 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
       {row}
     </SwipeableEntryRow>
   );
-}
-
-function firstLine(s: string) {
-  return (s || "").split("\n")[0]?.slice(0, 80) ?? "";
 }

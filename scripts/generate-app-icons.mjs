@@ -10,7 +10,7 @@ import sharp from "sharp";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "public");
 const sourcePng = path.join(publicDir, "app-icon-source.png");
-const vectorTargets = ["app-icon.svg", "favicon.svg"];
+const vectorTargets = ["app-icon.svg", "favicon.svg", "icon.svg"];
 
 const rasterTargets = [
   { name: "app-icon-512.png", size: 512 },
