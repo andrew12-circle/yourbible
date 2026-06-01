@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import {
   ChevronUp,
   Grid2X2,
@@ -130,40 +130,39 @@ function ToolbarTray({
   );
 }
 
-function PillCircleButton({
-  isNightMode,
-  disabled,
-  label,
-  onClick,
-  children,
-  className,
-}: {
+const SKETCH_MENU_CONTENT_CLASS = "z-[100]";
+
+type PillCircleButtonProps = ComponentPropsWithoutRef<"button"> & {
   isNightMode: boolean;
-  disabled?: boolean;
   label: string;
-  onClick?: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "grid h-10 w-10 shrink-0 place-items-center rounded-full border-none transition",
-        isNightMode
-          ? "bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(0,0,0,0.28)] hover:bg-white/[0.18] disabled:opacity-30"
-          : "bg-[rgba(245,245,247,0.85)] text-neutral-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_6px_16px_rgba(0,0,0,0.08)] hover:bg-[rgba(245,245,247,0.95)] disabled:opacity-30",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
+  children: ReactNode;
+};
+
+const PillCircleButton = forwardRef<HTMLButtonElement, PillCircleButtonProps>(
+  function PillCircleButton(
+    { isNightMode, label, children, className, type = "button", ...props },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        aria-label={label}
+        title={label}
+        className={cn(
+          "grid h-10 w-10 shrink-0 place-items-center rounded-full border-none transition",
+          isNightMode
+            ? "bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(0,0,0,0.28)] hover:bg-white/[0.18] disabled:opacity-30"
+            : "bg-[rgba(245,245,247,0.85)] text-neutral-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_6px_16px_rgba(0,0,0,0.08)] hover:bg-[rgba(245,245,247,0.95)] disabled:opacity-30",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  },
+);
 
 export default function SketchInkToolbar({
   isNightMode,
@@ -193,6 +192,7 @@ export default function SketchInkToolbar({
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
+  const canPickColor = tool !== "eraser";
   const customColorActive =
     isDrawTool && !APPLE_PALETTE.some((c) => colorMatchesPalette(color, c.value));
 
@@ -303,7 +303,7 @@ export default function SketchInkToolbar({
         <ToolbarTray isNightMode={isNightMode} aria-label="Colors">
           <div className="grid grid-cols-3 gap-1 p-0.5" role="group">
             {APPLE_PALETTE.map((c) => {
-              const selected = isDrawTool && colorMatchesPalette(color, c.value);
+              const selected = colorMatchesPalette(color, c.value);
               return (
                 <button
                   key={c.value}
@@ -311,7 +311,7 @@ export default function SketchInkToolbar({
                   title={c.name}
                   aria-label={`Color ${c.name}`}
                   aria-pressed={selected}
-                  disabled={!isDrawTool}
+                  disabled={!canPickColor}
                   onClick={() => onColorChange(c.value)}
                   className={cn(
                     "h-5 w-5 rounded-full border border-white/90 transition hover:scale-105 disabled:opacity-40",
@@ -327,7 +327,7 @@ export default function SketchInkToolbar({
               title="Custom color"
               aria-label="Custom color"
               aria-pressed={customColorActive}
-              disabled={!isDrawTool}
+              disabled={!canPickColor}
               onClick={() => customColorInputRef?.current?.click()}
               className={cn(
                 "h-5 w-5 rounded-full border border-white/90 disabled:opacity-40",
@@ -371,7 +371,7 @@ export default function SketchInkToolbar({
                 <MoreHorizontal className="h-5 w-5" strokeWidth={2} />
               </PillCircleButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className={cn("w-56", SKETCH_MENU_CONTENT_CLASS)}>
               <DropdownMenuLabel>Markup</DropdownMenuLabel>
               <DropdownMenuCheckboxItem
                 checked={drawWithFinger}
@@ -430,7 +430,7 @@ export default function SketchInkToolbar({
                 <Plus className="h-5 w-5" strokeWidth={2} />
               </PillCircleButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className={SKETCH_MENU_CONTENT_CLASS}>
               <DropdownMenuLabel>Paper</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
                 <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>

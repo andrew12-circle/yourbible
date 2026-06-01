@@ -14,6 +14,10 @@ import {
   normalizeInkPressure,
   projectPointOntoRuler,
 } from "@/lib/ink/strokeRender";
+import {
+  getSketchPenColors,
+  mappedSketchColorForMode,
+} from "@/lib/journal/sketchInkColors";
 import { rulerSpanLength } from "@/lib/journal/sketchRuler";
 import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkDrawTool, InkStroke, InkTool } from "@/lib/ink/types";
@@ -50,30 +54,6 @@ interface Point {
 
 type Stroke = InkStroke;
 
-type PenColor = { name: string; value: string };
-
-const DAY_PEN_COLORS: PenColor[] = [
-  { name: "Ink", value: "#111827" },
-  { name: "Slate", value: "#64748b" },
-  { name: "Red", value: "#dc2626" },
-  { name: "Amber", value: "#d97706" },
-  { name: "Emerald", value: "#059669" },
-  { name: "Sky", value: "#0284c7" },
-  { name: "Indigo", value: "#4338ca" },
-  { name: "Rose", value: "#e11d48" },
-];
-
-const NIGHT_PEN_COLORS: PenColor[] = [
-  { name: "Ink", value: "#f8fafc" },
-  { name: "Slate", value: "#cbd5e1" },
-  { name: "Red", value: "#fb7185" },
-  { name: "Amber", value: "#fbbf24" },
-  { name: "Emerald", value: "#34d399" },
-  { name: "Sky", value: "#60a5fa" },
-  { name: "Indigo", value: "#a78bfa" },
-  { name: "Rose", value: "#f472b6" },
-];
-
 const PEN_SIZES = [2, 4, 6, 10, 16];
 
 const DAY_CANVAS_BG = "#ffffff";
@@ -97,17 +77,6 @@ export interface SketchPadProps {
 
 function prefersNightMode() {
   return typeof window !== "undefined" && window.matchMedia?.(NIGHT_MODE_QUERY).matches === true;
-}
-
-function getPenColors(isNightMode: boolean) {
-  return isNightMode ? NIGHT_PEN_COLORS : DAY_PEN_COLORS;
-}
-
-function mappedColorForMode(color: string, isNightMode: boolean) {
-  const targetColors = getPenColors(isNightMode);
-  if (targetColors.some((c) => c.value === color)) return color;
-  const source = [...DAY_PEN_COLORS, ...NIGHT_PEN_COLORS].find((c) => c.value === color);
-  return targetColors.find((c) => c.name === source?.name)?.value ?? targetColors[0].value;
 }
 
 const MIN_VIEW_SCALE = 1;
@@ -158,7 +127,7 @@ export default function SketchPad({
   const lassoPointsRef = useRef<Point[]>([]);
   const [isNightMode, setIsNightMode] = useState(prefersNightMode);
   const isNightModeRef = useRef(isNightMode);
-  const [color, setColor] = useState<string>(() => getPenColors(prefersNightMode())[0].value);
+  const [color, setColor] = useState<string>(() => getSketchPenColors(prefersNightMode())[0].value);
   const [size, setSize] = useState<number>(PEN_SIZES[1]);
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
@@ -190,7 +159,7 @@ export default function SketchPad({
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosavingRef = useRef(false);
-  const penColors = getPenColors(isNightMode);
+  const penColors = getSketchPenColors(isNightMode);
 
   useEffect(() => {
     viewScaleRef.current = viewScale;
@@ -214,7 +183,7 @@ export default function SketchPad({
   }, []);
 
   useEffect(() => {
-    setColor((current) => mappedColorForMode(current, isNightMode));
+    setColor((current) => mappedSketchColorForMode(current, isNightMode));
   }, [isNightMode]);
 
   const redraw = useCallback(() => {
@@ -466,8 +435,8 @@ export default function SketchPad({
     setPaper(draft?.paper ?? DEFAULT_PAPER);
     setColor(
       draft?.color
-        ? mappedColorForMode(draft.color, isNightModeRef.current)
-        : getPenColors(isNightModeRef.current)[0].value,
+        ? mappedSketchColorForMode(draft.color, isNightModeRef.current)
+        : getSketchPenColors(isNightModeRef.current)[0].value,
     );
     setSize(draft?.size ?? PEN_SIZES[1]);
     resetView();
@@ -898,6 +867,7 @@ export default function SketchPad({
           onColorChange={(c) => {
             setColor(c);
             if (tool === "eraser") handleToolChange("fountain");
+            else if (tool === "lasso") setTool(lastDrawToolRef.current);
           }}
           onSizeChange={setSize}
           onPaperChange={setPaper}
@@ -1035,7 +1005,7 @@ export default function SketchPad({
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
   drawInkStroke(ctx, stroke, {
-    colorForStroke: (hex) => mappedColorForMode(hex, isNightMode),
+    colorForStroke: (hex) => mappedSketchColorForMode(hex, isNightMode),
   });
 }
 
