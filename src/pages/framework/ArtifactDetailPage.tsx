@@ -651,7 +651,9 @@ export default function ArtifactDetailPage() {
           : { id: "video", hash: "#video", label: "Video" },
       );
     }
-    if (a.url) sections.push({ id: "chapters", hash: "#chapters", label: "Chapters" });
+    if (a.url && youtubeChaptersList.length > 0) {
+      sections.push({ id: "chapters", hash: "#chapters", label: "Chapters" });
+    }
     if (a.kind === "youtube" && youtubeChaptersList.length === 0) {
       sections.push({ id: "teachings", hash: "#study-spine-teachings", label: "Teachings" });
     }
@@ -1208,7 +1210,8 @@ export default function ArtifactDetailPage() {
     analyzing: "Reading the transcript and pulling out claims…",
   };
   const stageHint: Record<string, string> = {
-    fetching: "Looking for the video's caption track. If the handoff stalls, this page retries automatically.",
+    fetching:
+      "Pulling captions from YouTube (or our transcript service). If nothing happens in ~20s, this page retries automatically.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
     analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
   };

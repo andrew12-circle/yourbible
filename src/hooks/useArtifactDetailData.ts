@@ -3,11 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
-import { restartYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
+import {
+  resumeYoutubeTranscriptFetch,
+  restartYoutubeTranscriptFetch,
+} from "@/lib/framework/youtubeTranscriptFetch";
 
-const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 45;
-const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 60_000;
-const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 3;
+const YOUTUBE_FETCH_ENSURE_AFTER_MS = 6_000;
+const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
+const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
+const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -57,6 +61,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const startedRef = useRef<number | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
+  const ensureFetchRef = useRef<string | null>(null);
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
     setA((prev) => {
@@ -149,6 +154,10 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   }, [applyArtifact, artifactId, loadFull]);
 
   useEffect(() => {
+    ensureFetchRef.current = null;
+  }, [artifactId]);
+
+  useEffect(() => {
     if (!userId || !artifactId) return;
     setArtifactLoaded(false);
     void loadFull();
@@ -174,6 +183,30 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       clearInterval(tick);
     };
   }, [inFlight, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "fetching" || !a.url?.trim()) return;
+    if (a.raw_text?.trim()) return;
+    if (ensureFetchRef.current === a.id) return;
+
+    const artifactId = a.id;
+    const artifactUrl = a.url.trim();
+    const timer = window.setTimeout(() => {
+      ensureFetchRef.current = artifactId;
+      void (async () => {
+        const { data } = await supabase
+          .from("artifacts")
+          .select("status,raw_text")
+          .eq("id", artifactId)
+          .maybeSingle();
+        if (data?.status !== "fetching" || (data.raw_text ?? "").trim()) return;
+        const result = await resumeYoutubeTranscriptFetch(artifactId, artifactUrl);
+        if (!result.ok) await loadStatusOnly();
+      })();
+    }, YOUTUBE_FETCH_ENSURE_AFTER_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [artifactLoaded, a, loadStatusOnly]);
 
   useEffect(() => {
     if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;

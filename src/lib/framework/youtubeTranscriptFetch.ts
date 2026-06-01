@@ -58,6 +58,34 @@ export async function startYoutubeTranscriptFetch({
   }
 }
 
+/** Re-invoke fetch with the artifact's current token (no token rotation). */
+export async function resumeYoutubeTranscriptFetch(
+  artifactId: string,
+  url: string,
+): Promise<TranscriptFetchResult> {
+  const { data, error } = await supabase
+    .from("artifacts")
+    .select("processing_token")
+    .eq("id", artifactId)
+    .maybeSingle();
+  if (error) {
+    return { ok: false, error: `Could not read artifact: ${error.message}` };
+  }
+  const token =
+    typeof data?.processing_token === "string" && data.processing_token.trim()
+      ? data.processing_token
+      : null;
+  if (token) {
+    return startYoutubeTranscriptFetch({
+      artifactId,
+      url,
+      processingToken: token,
+      markError: false,
+    });
+  }
+  return restartYoutubeTranscriptFetch(artifactId, url);
+}
+
 export async function restartYoutubeTranscriptFetch(
   artifactId: string,
   url: string,

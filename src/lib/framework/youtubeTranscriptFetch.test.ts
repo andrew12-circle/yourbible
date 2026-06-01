@@ -1,28 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  resumeYoutubeTranscriptFetch,
   restartYoutubeTranscriptFetch,
   startYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => {
-  const eq = vi.fn(() => Promise.resolve({ error: null }));
-  const update = vi.fn(() => ({ eq }));
-  const from = vi.fn(() => ({ update }));
+  const maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
+  const eqForSelect = vi.fn(() => ({ maybeSingle }));
+  const eqForUpdate = vi.fn(() => Promise.resolve({ error: null }));
+  const update = vi.fn(() => ({ eq: eqForUpdate }));
+  const select = vi.fn(() => ({ eq: eqForSelect }));
+  const from = vi.fn(() => ({ update, select }));
   return {
     supabase: {
       functions: { invoke: vi.fn() },
       from,
-      __mocks: { eq, update, from },
+      __mocks: { eqForSelect, eqForUpdate, update, select, from, maybeSingle },
     },
   };
 });
 
 type SupabaseMock = typeof supabase & {
   __mocks: {
-    eq: ReturnType<typeof vi.fn>;
+    eqForSelect: ReturnType<typeof vi.fn>;
+    eqForUpdate: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    select: ReturnType<typeof vi.fn>;
     from: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -30,7 +37,8 @@ const mockedSupabase = supabase as SupabaseMock;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedSupabase.__mocks.eq.mockResolvedValue({ error: null });
+  mockedSupabase.__mocks.maybeSingle.mockResolvedValue({ data: null, error: null });
+  mockedSupabase.__mocks.eqForUpdate.mockResolvedValue({ error: null });
 });
 
 afterEach(() => {
@@ -79,7 +87,31 @@ describe("youtube transcript fetch helper", () => {
       status: "error",
       error: "Could not start transcript fetch: Function not found",
     });
-    expect(mockedSupabase.__mocks.eq).toHaveBeenCalledWith("id", "artifact-1");
+    expect(mockedSupabase.__mocks.eqForUpdate).toHaveBeenCalledWith("id", "artifact-1");
+  });
+
+  it("resumes with the existing processing token when present", async () => {
+    mockedSupabase.__mocks.maybeSingle.mockResolvedValue({
+      data: { processing_token: "existing-token" },
+      error: null,
+    });
+    vi.mocked(mockedSupabase.functions.invoke).mockResolvedValue({ data: { ok: true }, error: null });
+
+    const result = await resumeYoutubeTranscriptFetch(
+      "artifact-1",
+      "https://www.youtube.com/watch?v=abc123def45",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(mockedSupabase.__mocks.select).toHaveBeenCalledWith("processing_token");
+    expect(mockedSupabase.functions.invoke).toHaveBeenCalledWith("framework-fetch-transcript", {
+      body: {
+        artifact_id: "artifact-1",
+        url: "https://www.youtube.com/watch?v=abc123def45",
+        processing_token: "existing-token",
+      },
+    });
+    expect(mockedSupabase.__mocks.update).not.toHaveBeenCalled();
   });
 
   it("queues a fresh token before restarting a stuck fetch", async () => {

@@ -188,7 +188,21 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message, variant: "destructive" });
       return;
     }
-    void startYoutubeTranscriptFetch({ artifactId: data.id, url: url.trim(), processingToken });
+    const started = await startYoutubeTranscriptFetch({
+      artifactId: data.id,
+      url: url.trim(),
+      processingToken,
+    });
+    setBusy(false);
+    if (!started.ok) {
+      toast({
+        title: "Could not start transcript fetch",
+        description: started.error ?? "Try again or paste the transcript manually.",
+        variant: "destructive",
+      });
+      navigate(`/framework/artifacts/${data.id}`);
+      return;
+    }
     navigate(`/framework/artifacts/${data.id}`);
   };
 
