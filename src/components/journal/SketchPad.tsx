@@ -11,8 +11,10 @@ import {
 } from "@/lib/journal/sketchDraft";
 import {
   drawStroke as drawInkStroke,
+  normalizeInkPressure,
   projectPointOntoRuler,
 } from "@/lib/ink/strokeRender";
+import { rulerSpanLength } from "@/lib/journal/sketchRuler";
 import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkDrawTool, InkStroke, InkTool } from "@/lib/ink/types";
 import { cn } from "@/lib/utils";
@@ -146,8 +148,8 @@ export default function SketchPad({
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const [rulerVisible, setRulerVisible] = useState(false);
   const [rulerCenter, setRulerCenter] = useState({ x: 200, y: 200 });
-  const [rulerAngle, setRulerAngle] = useState(0);
-  const [rulerLength, setRulerLength] = useState(280);
+  const [rulerAngle, setRulerAngle] = useState(35);
+  const [rulerLength, setRulerLength] = useState(400);
   const [snapToRuler, setSnapToRuler] = useState(true);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
@@ -358,7 +360,7 @@ export default function SketchPad({
         ? { x: rect.width / 2, y: rect.height / 2 }
         : prev,
     );
-    setRulerLength((len) => (len === 280 ? Math.min(rect.width * 0.72, 360) : len));
+    setRulerLength(rulerSpanLength(rect.width, rect.height));
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
@@ -539,16 +541,11 @@ export default function SketchPad({
 
   const getPoint = (canvas: HTMLCanvasElement, e: React.PointerEvent): Point => {
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const raw = e.pressure;
-    const p =
-      e.pointerType === "pen" && raw > 0 && raw <= 1
-        ? raw
-        : raw > 0 && raw <= 1
-          ? raw
-          : 0.5;
-    return { x, y, p };
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      p: normalizeInkPressure(e.pressure, e.pointerType),
+    };
   };
 
   const maybeSnapPoint = useCallback(
@@ -564,16 +561,28 @@ export default function SketchPad({
     return tool;
   }, [tool]);
 
-  const handleToolChange = useCallback((next: InkTool) => {
-    setTool(next);
-    if (next !== "ruler" && next !== "lasso") {
-      lastDrawToolRef.current = next;
-      const preset = INK_TOOL_PRESETS[next];
-      setSize(preset.defaultSize);
-      if (preset.defaultColor) setColor(preset.defaultColor);
-    }
-    if (next === "ruler") setRulerVisible(true);
-  }, []);
+  const handleToolChange = useCallback(
+    (next: InkTool) => {
+      if (next === "ruler") {
+        if (rulerVisible) {
+          setRulerVisible(false);
+          setTool(lastDrawToolRef.current);
+          return;
+        }
+        setRulerVisible(true);
+        setTool("ruler");
+        return;
+      }
+      setTool(next);
+      if (next !== "lasso") {
+        lastDrawToolRef.current = next;
+        const preset = INK_TOOL_PRESETS[next];
+        setSize(preset.defaultSize);
+        if (preset.defaultColor) setColor(preset.defaultColor);
+      }
+    },
+    [rulerVisible],
+  );
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -654,13 +663,12 @@ export default function SketchPad({
 
     if (events.length > 0) {
       const rect = canvas.getBoundingClientRect();
+      const pointerType = e.pointerType;
       for (const ev of events) {
-        const raw = ev.pressure;
-        const p = raw > 0 && raw <= 1 ? raw : 0.5;
         const snapped = maybeSnapPoint({
           x: ev.clientX - rect.left,
           y: ev.clientY - rect.top,
-          p,
+          p: normalizeInkPressure(ev.pressure, ev.pointerType || pointerType),
         });
         stroke.points.push(snapped);
       }
@@ -870,39 +878,46 @@ export default function SketchPad({
         tabIndex={-1}
       />
 
-      <SketchInkToolbar
-        isNightMode={isNightMode}
-        collapsed={toolbarCollapsed}
-        onCollapsedChange={setToolbarCollapsed}
-        tabletPortrait={tabletPortrait}
-        tool={tool}
-        color={color}
-        size={size}
-        penColors={penColors}
-        paper={paper}
-        hasStrokes={hasStrokes}
-        redoCount={redoCount}
-        drawWithFinger={drawWithFinger}
-        rulerVisible={rulerVisible}
-        snapToRuler={snapToRuler}
-        onToolChange={handleToolChange}
-        onColorChange={(c) => {
-          setColor(c);
-          if (tool === "eraser") handleToolChange("fountain");
-        }}
-        onSizeChange={setSize}
-        onPaperChange={setPaper}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onClear={handleClear}
-        onDrawWithFingerChange={(v) => setPalmRejection(!v)}
-        onRulerVisibleChange={setRulerVisible}
-        onSnapToRulerChange={setSnapToRuler}
-        customColorInputRef={customColorRef}
-      />
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <SketchInkToolbar
+          isNightMode={isNightMode}
+          collapsed={toolbarCollapsed}
+          onCollapsedChange={setToolbarCollapsed}
+          tabletPortrait={tabletPortrait}
+          tool={tool}
+          color={color}
+          size={size}
+          penColors={penColors}
+          paper={paper}
+          hasStrokes={hasStrokes}
+          redoCount={redoCount}
+          drawWithFinger={drawWithFinger}
+          rulerVisible={rulerVisible}
+          snapToRuler={snapToRuler}
+          onToolChange={handleToolChange}
+          onColorChange={(c) => {
+            setColor(c);
+            if (tool === "eraser") handleToolChange("fountain");
+          }}
+          onSizeChange={setSize}
+          onPaperChange={setPaper}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+          onDrawWithFingerChange={(v) => setPalmRejection(!v)}
+          onSnapToRulerChange={setSnapToRuler}
+          customColorInputRef={customColorRef}
+        />
 
-      {/* Canvas */}
-      <div className={cn("relative min-h-0 flex-1 overflow-hidden", tabletPortrait ? "p-3" : "p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
+        {/* Canvas — pill floats over top edge via negative margin */}
+        <div
+          className={cn(
+            "relative flex min-h-0 flex-1 flex-col",
+            toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]",
+            tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
+            isNightMode ? "bg-black" : "bg-muted/40",
+          )}
+        >
         <div
           ref={wrapperRef}
           className={cn(
@@ -1000,6 +1015,7 @@ export default function SketchPad({
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
 

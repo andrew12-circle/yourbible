@@ -35,6 +35,7 @@ import ArtifactClaimsSection from "@/components/framework/artifact-detail/Artifa
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
 import ArtifactDetailLoadingSkeleton from "@/components/framework/artifact-detail/ArtifactDetailLoadingSkeleton";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
+import ArtifactEmbeddedJournal from "@/components/framework/artifact-detail/ArtifactEmbeddedJournal";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
 import {
   isArtifactLayoutDesktop,
@@ -346,7 +347,9 @@ export default function ArtifactDetailPage() {
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const floatingJournalOpen = useFloatingJournalStore((s) => s.panelOpen);
-  const toggleFloatingJournal = useFloatingJournalStore((s) => s.togglePanel);
+  const artifactJournalMode = useFloatingJournalStore((s) => s.artifactJournalMode);
+  const artifactJournalOpen = artifactJournalMode !== "closed";
+  const artifactJournalExpanded = artifactJournalMode === "expanded";
   const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab } =
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
@@ -545,6 +548,7 @@ export default function ArtifactDetailPage() {
     });
     return () => {
       useFloatingJournalStore.getState().setRouteArtifact(null);
+      useFloatingJournalStore.getState().setArtifactJournalMode("closed");
     };
   }, [a?.id, a?.title, a?.kind]);
 
@@ -767,6 +771,57 @@ export default function ArtifactDetailPage() {
       setDesktopInsightExploreClaimId(null);
     }
   }, [desktopPremiumStudyPane]);
+
+  const openArtifactJournal = useCallback(
+    (mode: "docked" | "expanded" = "docked") => {
+      const store = useFloatingJournalStore.getState();
+      store.setFloatingClaimResearch(null);
+      store.setPanelOpen(false);
+      store.setArtifactJournalMode(mode);
+      if (!isDesktop) openStudyTab();
+      if (mode === "expanded" && pipEnabled) {
+        youtubePip.enterPip();
+      }
+    },
+    [isDesktop, openStudyTab, pipEnabled, youtubePip],
+  );
+
+  const closeArtifactJournal = useCallback(() => {
+    const wasExpanded = useFloatingJournalStore.getState().artifactJournalMode === "expanded";
+    useFloatingJournalStore.getState().setArtifactJournalMode("closed");
+    if (wasExpanded && youtubePip.pipMode) {
+      youtubePip.scrollVideoIntoView();
+    }
+  }, [youtubePip]);
+
+  const toggleArtifactJournal = useCallback(() => {
+    if (artifactJournalOpen) closeArtifactJournal();
+    else openArtifactJournal("docked");
+  }, [artifactJournalOpen, closeArtifactJournal, openArtifactJournal]);
+
+  const expandArtifactJournal = useCallback(() => {
+    openArtifactJournal("expanded");
+  }, [openArtifactJournal]);
+
+  const dockArtifactJournal = useCallback(() => {
+    useFloatingJournalStore.getState().setArtifactJournalMode("docked");
+    if (youtubePip.pipMode) {
+      youtubePip.scrollVideoIntoView();
+    }
+  }, [youtubePip]);
+
+  const handleRestoreFromPip = useCallback(() => {
+    youtubePip.scrollVideoIntoView();
+    if (useFloatingJournalStore.getState().artifactJournalMode === "expanded") {
+      useFloatingJournalStore.getState().setArtifactJournalMode("docked");
+    }
+  }, [youtubePip]);
+
+  useEffect(() => {
+    if (artifactJournalMode === "expanded" && pipEnabled && !youtubePip.pipMode) {
+      youtubePip.enterPip();
+    }
+  }, [artifactJournalMode, pipEnabled, youtubePip]);
 
   if (loading) {
     return (
@@ -1072,6 +1127,7 @@ export default function ArtifactDetailPage() {
       matchedBeliefId: claim.matched_belief_id,
       artifactTitle: a.title,
     });
+    useFloatingJournalStore.getState().setArtifactJournalMode("closed");
     useFloatingJournalStore.getState().setPanelOpen(true);
   };
 
@@ -1094,7 +1150,10 @@ export default function ArtifactDetailPage() {
     openStudyJournal();
     const routeId = useFloatingJournalStore.getState().routeArtifact?.id;
     const insertTarget = floatingJournalInsertRef.current;
-    if (insertTarget?.artifactId === a.id && routeId === a.id) {
+    const journalOpen =
+      useFloatingJournalStore.getState().panelOpen ||
+      useFloatingJournalStore.getState().artifactJournalMode !== "closed";
+    if (insertTarget?.artifactId === a.id && routeId === a.id && journalOpen) {
       const block = `\n\n---\n\n#### Transcript · ${formatTranscriptClock(t)}\n\n> ${snippet}\n\n`;
       insertTarget.append(block);
       toast({
@@ -1126,10 +1185,14 @@ export default function ArtifactDetailPage() {
     const t = getCurrentPlaybackSeconds();
     const t0 = Math.max(0, t - 10);
     const panelOpen = useFloatingJournalStore.getState().panelOpen;
+    const inlineJournal = useFloatingJournalStore.getState().artifactJournalMode !== "closed";
     const routeId = useFloatingJournalStore.getState().routeArtifact?.id;
     const insertTarget = floatingJournalInsertRef.current;
     const journalTied =
-      panelOpen && routeId === a.id && insertTarget?.artifactId === a.id && a.kind === "youtube";
+      (panelOpen || inlineJournal) &&
+      routeId === a.id &&
+      insertTarget?.artifactId === a.id &&
+      a.kind === "youtube";
 
     let toastDescription: string | null = null;
     if (journalTied) {
@@ -1187,10 +1250,7 @@ export default function ArtifactDetailPage() {
     await saveMoment("belief_seed", { label: "Belief seed", body: text, startSeconds: seconds });
   };
 
-  const openStudyJournal = () => {
-    useFloatingJournalStore.getState().setFloatingClaimResearch(null);
-    useFloatingJournalStore.getState().setPanelOpen(true);
-  };
+  const openStudyJournal = () => openArtifactJournal("docked");
 
   const claimCardContext: RenderClaimCardContext = {
     isDesktop,
@@ -1247,6 +1307,22 @@ export default function ArtifactDetailPage() {
   );
 
   const displayTitle = a.title?.trim() || mergedVideoMeta.title?.trim() || "Untitled video";
+
+  const embeddedJournalPanel =
+    user && artifactJournalOpen ? (
+      <ArtifactEmbeddedJournal
+        userId={user.id}
+        artifactId={a.id}
+        artifactTitle={displayTitle}
+        artifactKind={a.kind}
+        getPlaybackSeconds={canCapturePlaybackForJournal ? getPlaybackSeconds : undefined}
+        viewMode={artifactJournalExpanded ? "expanded" : "docked"}
+        onExpand={expandArtifactJournal}
+        onDock={dockArtifactJournal}
+        onClose={closeArtifactJournal}
+      />
+    ) : null;
+
   const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
 
@@ -1270,7 +1346,10 @@ export default function ArtifactDetailPage() {
     className?: string;
   }) =>
     !isDesktop ? (
-      <TabsContent value="study" className="mt-0 px-3 pb-8 focus-visible:outline-none sm:px-4">
+      <TabsContent
+        value="study"
+        className="mt-0 px-4 pb-10 focus-visible:outline-none sm:px-5 md:px-8 md:pb-14"
+      >
         <div className={artifactStudyBodyMobile}>{children}</div>
       </TabsContent>
     ) : (
@@ -1415,7 +1494,7 @@ export default function ArtifactDetailPage() {
                 onPasteTranscript: () => setPasteOpen(true),
                 onWrapUp: () => setWrapUpOpen(true),
                 onReanalyze: reanalyze,
-                videoInPip: youtubePip.pipMode,
+                videoInPip: youtubePip.pipMode || artifactJournalExpanded,
               }}
               videoBlock={
                 <ArtifactYoutubeVideoBlock
@@ -1441,6 +1520,7 @@ export default function ArtifactDetailPage() {
                   onStudyJournal={openStudyJournal}
                   onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
                   onOpenJournalFull={() => openJournalFromArtifact()}
+                  onScrollVideoIntoView={handleRestoreFromPip}
                 />
               }
             />
@@ -1490,9 +1570,11 @@ export default function ArtifactDetailPage() {
             onMenuReanalyze={reanalyze}
             backTo="/framework/artifacts"
             mobileChromeHost={mobileChromeHost}
+            onScrollVideoIntoView={handleRestoreFromPip}
           />
           )
         ) : null}
+        {embeddedJournalPanel && !mobilePinnedPane ? embeddedJournalPanel : null}
         <div
           ref={mobileBodyScrollRef}
           className={cn(
@@ -1506,7 +1588,9 @@ export default function ArtifactDetailPage() {
           )}
         >
           {mobilePinnedPane ? <div ref={setMobileChromeHost} className="shrink-0" /> : null}
-      {isDesktop || (mobileTab !== "transcript" && mobileTab !== "notes") ? (
+          {embeddedJournalPanel && mobilePinnedPane ? embeddedJournalPanel : null}
+      {!artifactJournalExpanded &&
+      (isDesktop || (mobileTab !== "transcript" && mobileTab !== "notes")) ? (
         <div className={cn(desktopPremiumYoutube && artifactDesktopBodySheet)}>
         <ArtifactSectionNav
           sections={navSections}
@@ -1972,8 +2056,8 @@ export default function ArtifactDetailPage() {
           activeTab={mobileTab}
           onStudyClick={openStudyTab}
           onTranscriptClick={openTranscriptTab}
-          journalActive={floatingJournalOpen}
-          onJournalClick={toggleFloatingJournal}
+          journalActive={artifactJournalOpen || floatingJournalOpen}
+          onJournalClick={toggleArtifactJournal}
           onMenuClick={() => setMobileMenuOpen(true)}
         />
       ) : null}

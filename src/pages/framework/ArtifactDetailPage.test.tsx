@@ -66,7 +66,12 @@ vi.mock("@/hooks/useArtifactEntityCount", () => ({
 vi.mock("@/hooks/useArtifactVideoPlayback", () => ({
   useArtifactVideoPlayback: () => ({
     pipEnabled: false,
-    youtubePip: { videoSlotRef: { current: null }, pipMode: false },
+    youtubePip: {
+      videoSlotRef: { current: null },
+      pipMode: false,
+      enterPip: vi.fn(),
+      scrollVideoIntoView: vi.fn(),
+    },
     youtubePlayer: { setPlaybackRate: vi.fn() },
     seekVideoToSeconds: vi.fn(),
     scrollTranscriptToSeconds: vi.fn(),
@@ -88,12 +93,17 @@ vi.mock("@/hooks/useArtifactVideoPlayback", () => ({
 
 vi.mock("@/lib/journal/floatingJournalStore", () => ({
   useFloatingJournalStore: Object.assign(
-    (selector: (state: { panelOpen: boolean; togglePanel: () => void }) => unknown) =>
-      selector({ panelOpen: false, togglePanel: vi.fn() }),
+    (selector: (state: { panelOpen: boolean; artifactJournalMode: string; togglePanel: () => void }) => unknown) =>
+      selector({ panelOpen: false, artifactJournalMode: "closed", togglePanel: vi.fn() }),
     {
       getState: () => ({
         setPlaybackCaptureAvailable: vi.fn(),
         setRouteArtifact: vi.fn(),
+        setArtifactJournalMode: vi.fn(),
+        setPanelOpen: vi.fn(),
+        setFloatingClaimResearch: vi.fn(),
+        artifactJournalMode: "closed",
+        panelOpen: false,
       }),
     },
   ),
@@ -183,7 +193,9 @@ describe("ArtifactDetailPage", () => {
       </TooltipProvider>,
     );
 
-    fireEvent.click(screen.getByText("Claim 1"));
+    const claimCard = screen.getByText("Claim 1");
+    fireEvent.pointerDown(claimCard, { clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(claimCard, { clientX: 10, clientY: 10 });
     fireEvent.click(await screen.findByRole("button", { name: "Back to study" }));
 
     await waitFor(() => {

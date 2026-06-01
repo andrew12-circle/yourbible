@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { artifactHorizontalRail } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactHorizontalRail,
+  artifactHorizontalRailBase,
+  artifactMobileStudyRailBleed,
+} from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -280,7 +284,9 @@ export default function ArtifactEntitiesPanel({
     return (
       <div
         className={cn(
-          artifactHorizontalRail,
+          variant === "mobileRail"
+            ? cn(artifactHorizontalRailBase, "snap-x snap-mandatory", artifactMobileStudyRailBleed)
+            : artifactHorizontalRail,
           variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
         )}
       >

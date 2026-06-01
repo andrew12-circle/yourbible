@@ -24,45 +24,39 @@ import {
 import type { InkDrawTool, InkTool } from "@/lib/ink/types";
 import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
 import { cn } from "@/lib/utils";
-import {
-  IconEraser,
-  IconFineline,
-  IconFountain,
-  IconHighlighter,
-  IconLasso,
-  IconMarker,
-  IconPencil,
-  IconRainbowSwatch,
-  IconRuler,
-  SketchToolIcon,
-} from "./SketchToolIcons";
+import { InkToolSilhouette, InkToolSilhouetteSlot } from "./InkToolSilhouette";
 
 export type SketchPaper = "blank" | "ruled" | "graph" | "dot";
 
 type PenColor = { name: string; value: string };
 
-export const SKETCH_TOOL_ITEMS: {
-  id: InkTool;
-  label: string;
-  Icon: React.ComponentType<{ active?: boolean; variant?: "toolbar" | "chip" }>;
-}[] = [
-  { id: "pencil", label: "Pencil", Icon: IconPencil },
-  { id: "fineline", label: "Fine tip", Icon: IconFineline },
-  { id: "fountain", label: "Fountain pen", Icon: IconFountain },
-  { id: "marker", label: "Marker", Icon: IconMarker },
-  { id: "highlighter", label: "Highlighter", Icon: IconHighlighter },
-  { id: "eraser", label: "Eraser", Icon: IconEraser },
-  { id: "ruler", label: "Ruler", Icon: IconRuler },
-  { id: "lasso", label: "Lasso", Icon: IconLasso },
+/** Tool strip order — matches Apple Pencil / Handwritten reference. */
+export const SKETCH_TOOL_ITEMS: { id: InkTool; label: string }[] = [
+  { id: "fineline", label: "Fine tip" },
+  { id: "fountain", label: "Pen" },
+  { id: "marker", label: "Marker" },
+  { id: "pencil", label: "Pencil" },
+  { id: "highlighter", label: "Highlighter" },
+  { id: "eraser", label: "Eraser" },
+  { id: "ruler", label: "Ruler" },
+  { id: "lasso", label: "Lasso" },
 ];
 
-const PALETTE = [
-  { name: "White", value: "#f8fafc" },
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Green", value: "#22c55e" },
-  { name: "Yellow", value: "#eab308" },
-  { name: "Red", value: "#ef4444" },
+const APPLE_PALETTE = [
+  { name: "White", value: "#ffffff" },
+  { name: "Blue", value: "#007aff" },
+  { name: "Green", value: "#34c759" },
+  { name: "Yellow", value: "#ffcc00" },
+  { name: "Red", value: "#ff3b30" },
 ] as const;
+
+function normalizeHex(c: string) {
+  return c.trim().toLowerCase();
+}
+
+function colorMatchesPalette(current: string, swatch: string) {
+  return normalizeHex(current) === normalizeHex(swatch);
+}
 
 type Props = {
   isNightMode: boolean;
@@ -87,34 +81,83 @@ type Props = {
   onRedo: () => void;
   onClear: () => void;
   onDrawWithFingerChange: (v: boolean) => void;
-  onRulerVisibleChange: (v: boolean) => void;
   onSnapToRulerChange: (v: boolean) => void;
   customColorInputRef?: React.RefObject<HTMLInputElement | null>;
 };
 
-function InkToolButton({
-  active,
+const COLOR_SWATCH_SHADOW =
+  "shadow-[inset_0_1px_2px_rgba(255,255,255,0.7),inset_0_-2px_4px_rgba(0,0,0,0.12),0_4px_10px_rgba(0,0,0,0.08)]";
+
+function ToolbarDivider({ isNightMode }: { isNightMode: boolean }) {
+  return (
+    <div
+      className={cn(
+        "mx-1 h-11 w-px shrink-0 self-center",
+        isNightMode
+          ? "bg-gradient-to-b from-transparent via-white/20 to-transparent"
+          : "bg-gradient-to-b from-transparent via-black/12 to-transparent",
+      )}
+      aria-hidden
+    />
+  );
+}
+
+/** Inset tray groups a toolbar zone (tools, colors, actions). */
+function ToolbarTray({
+  isNightMode,
+  className,
+  children,
+  "aria-label": ariaLabel,
+}: {
+  isNightMode: boolean;
+  className?: string;
+  children: React.ReactNode;
+  "aria-label"?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center rounded-2xl p-0.5",
+        isNightMode
+          ? "bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.35)]"
+          : "bg-black/[0.045] shadow-[inset_0_1px_2px_rgba(0,0,0,0.07),inset_0_-1px_0_rgba(255,255,255,0.65)]",
+        className,
+      )}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </div>
+  );
+}
+
+function PillCircleButton({
+  isNightMode,
+  disabled,
   label,
   onClick,
   children,
+  className,
 }: {
-  active: boolean;
+  isNightMode: boolean;
+  disabled?: boolean;
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={label}
+      disabled={disabled}
       aria-label={label}
-      aria-pressed={active}
+      title={label}
       className={cn(
-        "flex h-[52px] w-10 shrink-0 flex-col items-center justify-end rounded-xl pb-1 transition",
-        active
-          ? "bg-white/15 ring-1 ring-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
-          : "hover:bg-white/10 opacity-85 hover:opacity-100",
+        "grid h-10 w-10 shrink-0 place-items-center rounded-full border-none transition",
+        isNightMode
+          ? "bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(0,0,0,0.28)] hover:bg-white/[0.18] disabled:opacity-30"
+          : "bg-[rgba(245,245,247,0.85)] text-neutral-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_6px_16px_rgba(0,0,0,0.08)] hover:bg-[rgba(245,245,247,0.95)] disabled:opacity-30",
+        className,
       )}
     >
       {children}
@@ -145,12 +188,13 @@ export default function SketchInkToolbar({
   onRedo,
   onClear,
   onDrawWithFingerChange,
-  onRulerVisibleChange,
   onSnapToRulerChange,
   customColorInputRef,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
+  const customColorActive =
+    isDrawTool && !APPLE_PALETTE.some((c) => colorMatchesPalette(color, c.value));
 
   const selectTool = (next: InkTool) => {
     onToolChange(next);
@@ -159,27 +203,32 @@ export default function SketchInkToolbar({
       onSizeChange(preset.defaultSize);
       if (preset.defaultColor) onColorChange(preset.defaultColor);
     }
-    if (next === "ruler") onRulerVisibleChange(true);
   };
 
-  const barChrome = cn(
-    "flex-shrink-0 border-b",
-    isNightMode ? "border-white/10 bg-neutral-900" : "border-border/60 bg-neutral-100",
+  const pillChrome = cn(
+    "sticky top-3 z-50 mx-auto flex h-[78px] w-fit max-w-[calc(100%-1rem)] shrink-0 items-center gap-0 rounded-full px-2",
+    "border backdrop-blur-[36px] backdrop-saturate-[180%]",
+    isNightMode
+      ? "border-white/[0.14] bg-[rgba(18,18,22,0.82)] shadow-[0_22px_56px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.4)]"
+      : "border-[rgba(255,255,255,0.9)] bg-[rgba(255,255,255,0.82)] shadow-[0_20px_48px_rgba(0,0,0,0.16),0_4px_10px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.98),inset_0_-1px_0_rgba(0,0,0,0.04)]",
+    tabletPortrait && "px-2.5",
   );
+
+  const ringOffset = isNightMode ? "ring-offset-[rgba(18,18,22,0.76)]" : "ring-offset-[rgba(255,255,255,0.78)]";
 
   if (collapsed) {
     return (
-      <div className={cn(barChrome, "flex items-center justify-center py-2")}>
+      <div className="pointer-events-none sticky top-3 z-50 flex justify-center px-3">
         <button
           type="button"
           onClick={() => onCollapsedChange(false)}
           aria-label="Show markup tools"
           aria-expanded={false}
           className={cn(
-            "relative flex h-14 w-14 items-center justify-center rounded-full border-[3px] shadow-lg transition active:scale-95",
+            "pointer-events-auto relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg transition active:scale-95",
             isNightMode
-              ? "border-white/25 bg-neutral-800 hover:bg-neutral-700"
-              : "border-neutral-300 bg-white hover:bg-neutral-50",
+              ? "border-white/25 bg-[rgba(18,18,22,0.78)] backdrop-blur-[32px] hover:bg-[rgba(28,28,32,0.88)]"
+              : "border-black/[0.08] bg-[rgba(255,255,255,0.72)] backdrop-blur-[32px] hover:bg-[rgba(255,255,255,0.82)]",
           )}
           style={{ borderColor: isDrawTool ? color : undefined }}
         >
@@ -188,246 +237,218 @@ export default function SketchInkToolbar({
             style={{ background: isDrawTool ? color : "#94a3b8" }}
             aria-hidden
           />
-          <SketchToolIcon tool={tool} active variant="chip" />
+          <InkToolSilhouette
+            tool={tool}
+            active
+            accentColor={isDrawTool ? color : undefined}
+            variant="chip"
+          />
         </button>
       </div>
     );
   }
 
   return (
-    <div className={cn(barChrome, "relative z-20")}>
+    <div className="pointer-events-none sticky top-3 z-50 flex justify-center px-3">
       <div
         role="toolbar"
         aria-label="Handwritten markup tools"
-        className={cn(
-          "mx-auto flex w-full max-w-6xl items-center gap-1 px-2 py-1.5",
-          tabletPortrait && "max-w-[min(100%,52rem)] gap-1.5 px-3",
-        )}
+        className={cn(pillChrome, "pointer-events-auto overflow-visible")}
         style={{ touchAction: "manipulation" }}
       >
-        <div
-          className={cn(
-            "flex items-center gap-0.5 rounded-xl px-0.5 py-0.5",
-            isNightMode ? "bg-black/30" : "bg-black/10",
-          )}
-        >
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!hasStrokes}
-            aria-label="Undo"
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-35",
-              isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
-            )}
-          >
-            <Undo2 className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
-          </button>
-          <button
-            type="button"
-            onClick={onRedo}
+        <ToolbarTray isNightMode={isNightMode} aria-label="Undo and redo" className="gap-0.5 px-1">
+          <PillCircleButton isNightMode={isNightMode} label="Undo" disabled={!hasStrokes} onClick={onUndo}>
+            <Undo2 className="h-4 w-4" strokeWidth={2} />
+          </PillCircleButton>
+          <PillCircleButton
+            isNightMode={isNightMode}
+            label="Redo"
             disabled={redoCount === 0}
-            aria-label="Redo"
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-35",
-              isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
-            )}
+            onClick={onRedo}
           >
-            <Redo2 className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
-          </button>
-        </div>
+            <Redo2 className="h-4 w-4" strokeWidth={2} />
+          </PillCircleButton>
+        </ToolbarTray>
+
+        <ToolbarDivider isNightMode={isNightMode} />
 
         <div
-          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
-          aria-hidden
-        />
-
-        <div
+          role="group"
+          aria-label="Drawing tools"
           className={cn(
-            "flex min-w-0 flex-1 items-end justify-center gap-0.5 overflow-x-auto scrollbar-hide",
+            "tool-group mr-3 flex min-w-0 max-w-[min(52vw,320px)] shrink-0 items-center gap-1.5 overflow-x-auto rounded-[18px] p-1.5 scrollbar-hide sm:max-w-none",
+            isNightMode ? "bg-white/[0.08]" : "bg-[rgba(255,255,255,0.32)]",
           )}
         >
-          {SKETCH_TOOL_ITEMS.map(({ id, label, Icon }) => (
-            <InkToolButton
-              key={id}
-              active={tool === id || (id === "ruler" && rulerVisible)}
-              label={label}
-              onClick={() => selectTool(id)}
-            >
-              <Icon active={tool === id || (id === "ruler" && rulerVisible)} variant="toolbar" />
-            </InkToolButton>
-          ))}
+          {SKETCH_TOOL_ITEMS.map(({ id, label }) => {
+            const active = tool === id || (id === "ruler" && rulerVisible);
+            return (
+              <InkToolSilhouetteSlot
+                key={id}
+                tool={id}
+                active={active}
+                isNightMode={isNightMode}
+                accentColor={
+                  active && id !== "eraser" && id !== "ruler" && id !== "lasso" ? color : undefined
+                }
+                label={label}
+                onClick={() => selectTool(id)}
+              />
+            );
+          })}
         </div>
 
-        <div
-          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
-          aria-hidden
-        />
+        <ToolbarDivider isNightMode={isNightMode} />
 
-        <div className="grid shrink-0 grid-cols-3 gap-1" role="group" aria-label="Colors">
-          {PALETTE.map((c) => (
+        <ToolbarTray isNightMode={isNightMode} aria-label="Colors">
+          <div className="grid grid-cols-3 gap-1 p-0.5" role="group">
+            {APPLE_PALETTE.map((c) => {
+              const selected = isDrawTool && colorMatchesPalette(color, c.value);
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  title={c.name}
+                  aria-label={`Color ${c.name}`}
+                  aria-pressed={selected}
+                  disabled={!isDrawTool}
+                  onClick={() => onColorChange(c.value)}
+                  className={cn(
+                    "h-5 w-5 rounded-full border border-white/90 transition hover:scale-105 disabled:opacity-40",
+                    COLOR_SWATCH_SHADOW,
+                    selected && cn("ring-[1.5px] ring-white/95 ring-offset-1", ringOffset),
+                  )}
+                  style={{ background: c.value }}
+                />
+              );
+            })}
             <button
-              key={c.value}
               type="button"
-              title={c.name}
-              aria-label={`Color ${c.name}`}
+              title="Custom color"
+              aria-label="Custom color"
+              aria-pressed={customColorActive}
               disabled={!isDrawTool}
-              onClick={() => onColorChange(c.value)}
+              onClick={() => customColorInputRef?.current?.click()}
               className={cn(
-                "h-5 w-5 rounded-full border transition hover:scale-110 disabled:opacity-40",
-                isNightMode ? "border-white/30" : "border-black/15",
-                color === c.value &&
-                  isDrawTool &&
-                  "ring-2 ring-offset-1",
-                color === c.value && isDrawTool && (isNightMode ? "ring-sky-300 ring-offset-neutral-900" : "ring-blue-500 ring-offset-neutral-100"),
+                "h-5 w-5 rounded-full border border-white/90 disabled:opacity-40",
+                COLOR_SWATCH_SHADOW,
+                customColorActive && cn("ring-[1.5px] ring-white/95 ring-offset-1", ringOffset),
               )}
-              style={{ background: c.value }}
+              style={{
+                background:
+                  "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+              }}
             />
-          ))}
-          <button
-            type="button"
-            title="Custom color"
-            aria-label="Custom color"
+          </div>
+        </ToolbarTray>
+
+        <ToolbarDivider isNightMode={isNightMode} />
+
+        <ToolbarTray isNightMode={isNightMode} aria-label="Markup actions" className="gap-0.5 px-1">
+          <PillCircleButton
+            isNightMode={isNightMode}
+            label={`Stroke size ${size}`}
             disabled={!isDrawTool}
-            onClick={() => customColorInputRef?.current?.click()}
-            className="flex h-5 w-5 items-center justify-center rounded-full disabled:opacity-40"
-          >
-            <IconRainbowSwatch />
-          </button>
-        </div>
-
-        <div
-          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
-          aria-hidden
-        />
-
-        <button
-          type="button"
-          aria-label="Stroke size"
-          title={`Size ${size}`}
-          disabled={!isDrawTool}
-          onClick={() => {
-            const sizes = [2, 4, 6, 10, 16, 20];
-            const idx = sizes.indexOf(size);
-            onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
-          }}
-          className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
-            isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
-          )}
-        >
-          <span
-            className="block rounded-full"
-            style={{
-              width: Math.min(size, 12),
-              height: Math.min(size, 12),
-              background: isDrawTool ? color : isNightMode ? "#94a3b8" : "#64748b",
+            onClick={() => {
+              const sizes = [2, 4, 6, 10, 16, 20];
+              const idx = sizes.indexOf(size);
+              onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
             }}
-          />
-        </button>
+          >
+            <span
+              className="block rounded-full"
+              style={{
+                width: Math.min(size + 4, 14),
+                height: Math.min(size + 4, 14),
+                background: isDrawTool ? color : isNightMode ? "#94a3b8" : "#64748b",
+              }}
+            />
+          </PillCircleButton>
 
-        <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="More tools"
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
-              )}
-            >
-              <MoreHorizontal className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Markup</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={drawWithFinger}
-              onCheckedChange={(v) => onDrawWithFingerChange(v === true)}
-            >
-              Draw with finger
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={snapToRuler}
-              onCheckedChange={(v) => onSnapToRulerChange(v === true)}
-            >
-              Snap strokes to ruler
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Paper</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
-              <DropdownMenuRadioItem value="ruled">
-                <GripHorizontal className="mr-2 h-3.5 w-3.5" /> Notebook
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="blank">
-                <Square className="mr-2 h-3.5 w-3.5" /> Blank
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="graph">
-                <Grid2X2 className="mr-2 h-3.5 w-3.5" /> Graph
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dot">Dot grid</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onClear} disabled={!hasStrokes} className="text-destructive">
-              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear page
-            </DropdownMenuItem>
-            {penColors.length > 6 ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>All colors</DropdownMenuLabel>
-                <div className="flex flex-wrap gap-1.5 p-2">
-                  {penColors.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      title={c.name}
-                      className="h-6 w-6 rounded-full border"
-                      style={{ background: c.value }}
-                      onClick={() => onColorChange(c.value)}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+            <DropdownMenuTrigger asChild>
+              <PillCircleButton isNightMode={isNightMode} label="More tools">
+                <MoreHorizontal className="h-5 w-5" strokeWidth={2} />
+              </PillCircleButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Markup</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={drawWithFinger}
+                onCheckedChange={(v) => onDrawWithFingerChange(v === true)}
+              >
+                Draw with finger
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={snapToRuler}
+                onCheckedChange={(v) => onSnapToRulerChange(v === true)}
+              >
+                Snap strokes to ruler
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Paper</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
+                <DropdownMenuRadioItem value="ruled">
+                  <GripHorizontal className="mr-2 h-3.5 w-3.5" /> Notebook
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="blank">
+                  <Square className="mr-2 h-3.5 w-3.5" /> Blank
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="graph">
+                  <Grid2X2 className="mr-2 h-3.5 w-3.5" /> Graph
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dot">Dot grid</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onClear} disabled={!hasStrokes} className="text-destructive">
+                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear page
+              </DropdownMenuItem>
+              {penColors.length > 6 ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>All colors</DropdownMenuLabel>
+                  <div className="flex flex-wrap gap-1.5 p-2">
+                    {penColors.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        title={c.name}
+                        className="h-6 w-6 rounded-full border"
+                        style={{ background: c.value }}
+                        onClick={() => onColorChange(c.value)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Paper type"
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
-              )}
-            >
-              <Plus className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Paper</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
-              <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="blank">Blank</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="graph">Graph</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dot">Dot</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <PillCircleButton isNightMode={isNightMode} label="Paper type">
+                <Plus className="h-5 w-5" strokeWidth={2} />
+              </PillCircleButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Paper</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
+                <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="blank">Blank</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="graph">Graph</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dot">Dot</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <button
-          type="button"
-          onClick={() => onCollapsedChange(true)}
-          aria-label="Minimize tools"
-          title="Minimize tools"
-          className={cn(
-            "ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-            isNightMode ? "hover:bg-white/10 text-slate-200" : "hover:bg-black/10 text-neutral-700",
-          )}
-        >
-          <ChevronUp className="h-4 w-4" />
-        </button>
+          <PillCircleButton
+            isNightMode={isNightMode}
+            label="Minimize tools"
+            onClick={() => onCollapsedChange(true)}
+          >
+            <ChevronUp className="h-5 w-5" strokeWidth={2} />
+          </PillCircleButton>
+        </ToolbarTray>
       </div>
     </div>
   );

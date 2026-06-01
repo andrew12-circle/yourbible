@@ -41,8 +41,9 @@ export const INK_TOOL_PRESETS: Record<InkDrawTool, InkToolPreset> = {
     id: "fountain",
     label: "Fountain pen",
     defaultSize: 4,
-    pressureRange: { min: 0.5, max: 1.65 },
-    opacity: 0.92,
+    /** Hairline at light touch, broad swell when pressed (see fountainStroke.ts). */
+    pressureRange: { min: 0.1, max: 2.35 },
+    opacity: 0.94,
     widthMultiplier: 1,
   },
   marker: {

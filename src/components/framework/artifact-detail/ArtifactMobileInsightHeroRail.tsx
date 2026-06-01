@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { artifactMobileStudyRailBleed } from "@/lib/framework/artifactSurfaces";
 import {
   artifactMobileInsightHeroCard,
   artifactMobileInsightHeroAccent,
@@ -226,10 +227,16 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   if (claims.length === 0) return null;
 
   return (
-    <div className={cn("w-[calc(100vw-2rem)] max-w-[420px] min-w-0 space-y-3 overflow-hidden", className)}>
+    <div
+      className={cn(
+        "min-w-0 w-full space-y-4 overflow-hidden",
+        artifactMobileStudyRailBleed,
+        className,
+      )}
+    >
       <div
         ref={railRef}
-        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden rounded-2xl bg-white pb-3 pt-1 active:cursor-grabbing"
+        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden rounded-2xl bg-white pb-3 pt-1 shadow-sm ring-1 ring-border/30 active:cursor-grabbing md:rounded-3xl md:pb-4 md:pt-2"
         role="list"
         aria-label="Key insight cards"
         onPointerDown={handleRailPointerDown}
@@ -240,7 +247,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         <div
           ref={trackRef}
           className={cn(
-            "flex w-max gap-3",
+            "flex w-max gap-3 md:gap-4",
             isDragging ? "transition-none" : "transition-transform duration-500 ease-out",
           )}
           style={{ transform: `translate3d(-${trackOffset}px, 0, 0)` }}
@@ -311,7 +318,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         </div>
       </div>
       {claims.length > 1 ? (
-        <div className="flex w-full items-center justify-between gap-3 px-1">
+        <div className="flex w-full max-w-full items-center justify-between gap-3 px-1 md:px-2">
           <button
             type="button"
             aria-label="Previous insight"

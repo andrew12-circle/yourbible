@@ -85,6 +85,8 @@ type Props = {
   insightExploreOpen?: boolean;
   /** Desktop premium: player fills the cinematic hero (not a separate card). */
   heroEmbed?: boolean;
+  /** PiP restore (e.g. dock expanded journal after maximize on overlay). */
+  onScrollVideoIntoView?: () => void;
 };
 
 function ArtifactYoutubeVideoBlock({
@@ -133,7 +135,9 @@ function ArtifactYoutubeVideoBlock({
   insightExplorePanel,
   insightExploreOpen = false,
   heroEmbed = false,
+  onScrollVideoIntoView,
 }: Props) {
+  const restoreVideo = onScrollVideoIntoView ?? youtubePip.scrollVideoIntoView;
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const usesPipVideo = isArtifactPipVideo(layoutMode, true);
@@ -268,7 +272,7 @@ function ArtifactYoutubeVideoBlock({
             playback.activatePlayer({ autoplay: false });
             youtubePlayer.reinit();
           }}
-          onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+          onScrollVideoIntoView={restoreVideo}
         >
           {!stickyMode ? captureSection : null}
         </ArtifactVideoStage>
@@ -310,7 +314,7 @@ function ArtifactYoutubeVideoBlock({
           layout={youtubePip.pipOverlayLayout}
           isPlaying={playback.isPlaying}
           onTogglePlay={playback.togglePlayback}
-          onScrollVideoIntoView={youtubePip.scrollVideoIntoView}
+          onScrollVideoIntoView={restoreVideo}
           onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
           onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
           onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}

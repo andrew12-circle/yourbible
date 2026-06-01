@@ -1,3 +1,4 @@
+import { drawFountainStroke } from "@/lib/ink/fountainStroke";
 import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkPoint, InkStroke } from "@/lib/ink/types";
 
@@ -34,6 +35,11 @@ export function drawStroke(
   const baseOpacity = (opts?.penOpacity ?? 1) * preset.opacity;
   const strokeColor =
     opts?.colorForStroke?.(normalized.color) ?? hexWithAlpha(normalized.color, baseOpacity);
+
+  if (tool === "fountain") {
+    drawFountainStroke(ctx, normalized, strokeColor, baseOpacity);
+    return;
+  }
 
   ctx.lineCap = tool === "highlighter" ? "square" : "round";
   ctx.lineJoin = "round";
@@ -97,6 +103,12 @@ function hexWithAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+export function normalizeInkPressure(pressure: number, pointerType: string): number {
+  if (pointerType === "pen" && pressure > 0 && pressure <= 1) return pressure;
+  if (pressure > 0 && pressure <= 1) return pressure;
+  return 0.5;
+}
+
 export function getInkPointFromCanvasEvent(
   canvas: HTMLCanvasElement,
   clientX: number,
@@ -107,28 +119,7 @@ export function getInkPointFromCanvasEvent(
   const rect = canvas.getBoundingClientRect();
   const x = clientX - rect.left;
   const y = clientY - rect.top;
-  const p =
-    pointerType === "pen" && pressure > 0 && pressure <= 1
-      ? pressure
-      : pressure > 0 && pressure <= 1
-        ? pressure
-        : 0.5;
-  return { x, y, p };
+  return { x, y, p: normalizeInkPressure(pressure, pointerType) };
 }
 
-/** Project point onto infinite line through (cx,cy) at angleDeg (CSS y-down). */
-export function projectPointOntoRuler(
-  x: number,
-  y: number,
-  cx: number,
-  cy: number,
-  angleDeg: number,
-): InkPoint {
-  const rad = (angleDeg * Math.PI) / 180;
-  const dx = Math.cos(rad);
-  const dy = Math.sin(rad);
-  const vx = x - cx;
-  const vy = y - cy;
-  const t = vx * dx + vy * dy;
-  return { x: cx + t * dx, y: cy + t * dy, p: 0.5 };
-}
+export { projectPointOntoRuler, RULER_BAND_HEIGHT } from "@/lib/journal/sketchRuler";

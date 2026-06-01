@@ -78,7 +78,7 @@ describe("SketchPad", () => {
   it("opens with fountain pen selected by default", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Fountain pen" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Pen" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -119,7 +119,7 @@ describe("SketchPad", () => {
 
     const toolbar = screen.getByRole("toolbar", { name: "Handwritten markup tools" });
     expect(toolbar).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Fountain pen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pen" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Minimize tools" })).toBeInTheDocument();
     expect(screen.getByText("Closing without saving discards the handwritten note").closest("footer")).toHaveClass("hidden");
   });
@@ -140,7 +140,7 @@ describe("SketchPad", () => {
 
     expect(canvasContext.fillStyle).toBe("#05070a");
     expect(screen.getByRole("button", { name: "Color White" })).toHaveStyle({
-      background: "#f8fafc",
+      background: "#ffffff",
     });
 
     const canvas = screen.getByRole("dialog", { name: "Handwritten" }).querySelector("canvas");

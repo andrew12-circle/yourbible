@@ -40,11 +40,11 @@ export default function ArtifactMobileOverview({
   return (
     <section
       id="overview"
-      className={cn("space-y-10", className)}
+      className={cn("space-y-10 md:space-y-12", className)}
       aria-label="Study overview"
     >
       {claimsCount > 0 ? (
-        <div id="key-insights" className="scroll-mt-4 space-y-4">
+        <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
           <ArtifactStudySectionHeader
             title="Key insights"
             count={claimsCount}
@@ -59,7 +59,7 @@ export default function ArtifactMobileOverview({
         </div>
       ) : null}
 
-      <div id="people-themes" className="scroll-mt-4 space-y-4">
+      <div id="people-themes" className="scroll-mt-4 space-y-4 md:space-y-5">
         <ArtifactStudySectionHeader
           title="People & themes"
           count={entitiesCount}

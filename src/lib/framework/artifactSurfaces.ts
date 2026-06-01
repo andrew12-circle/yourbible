@@ -49,6 +49,17 @@ export const artifactStudySectionContentMobile = "pb-4 pt-1.5";
 /** Mobile study column: airy section blocks (replaces flat divider stack). */
 export const artifactStudyBodyMobile = cn(
   "space-y-10 bg-background pb-10",
+  "md:mx-auto md:max-w-3xl md:space-y-12",
+);
+
+/**
+ * Horizontal rails break out of study column padding so cards can use full width
+ * without `100vw` overflow (which clips on iPad).
+ */
+export const artifactMobileStudyRailBleed = cn(
+  "-mx-4 w-[calc(100%+2rem)] px-4",
+  "sm:-mx-5 sm:w-[calc(100%+2.5rem)] sm:px-5",
+  "md:-mx-8 md:w-[calc(100%+4rem)] md:px-8",
 );
 
 /** Mobile premium section title (Playfair). */
@@ -120,7 +131,8 @@ export const artifactDesktopClaimsRail = cn(
 /** Horizontal rail for mobile claim cards (break out of study column padding). */
 export const artifactMobileClaimsRail = cn(
   artifactHorizontalRailBase,
-  "snap-x snap-proximity items-stretch gap-3 pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4",
+  "snap-x snap-proximity items-stretch gap-3 pb-2",
+  artifactMobileStudyRailBleed,
 );
 
 /** Desktop cinematic hero — full-bleed thumbnail + dark gradient overlay. */

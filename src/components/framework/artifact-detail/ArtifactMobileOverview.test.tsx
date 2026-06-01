@@ -73,7 +73,9 @@ describe("ArtifactMobileOverview", () => {
     expect(screen.queryByText("Study spine")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /view all/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Wisdom should lead/i }));
+    const card = screen.getByRole("button", { name: /Wisdom should lead/i });
+    fireEvent.pointerDown(card, { clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(card, { clientX: 10, clientY: 10 });
 
     expect(onSelectClaim).toHaveBeenCalledWith("claim-1");
     expect(onNavigate).not.toHaveBeenCalledWith("#claims");

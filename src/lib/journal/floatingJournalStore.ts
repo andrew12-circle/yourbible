@@ -44,8 +44,13 @@ function writeLauncherTucked(tucked: boolean) {
   }
 }
 
+/** Inline journal on artifact detail: docked under video, or expanded (desktop → PiP video). */
+export type ArtifactJournalMode = "closed" | "docked" | "expanded";
+
 interface FloatingJournalState {
   panelOpen: boolean;
+  /** Artifact detail: full-width journal in the study column (not the floating mini panel). */
+  artifactJournalMode: ArtifactJournalMode;
   routeArtifact: FloatingJournalRouteArtifact | null;
   /** When set, floating journal shows Write + Chat for claim research (cleared on close / "Journal here"). */
   floatingClaimResearch: FloatingClaimResearchHandoff | null;
@@ -54,6 +59,7 @@ interface FloatingJournalState {
   launcherTucked: boolean;
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
+  setArtifactJournalMode: (mode: ArtifactJournalMode) => void;
   setRouteArtifact: (artifact: FloatingJournalRouteArtifact | null) => void;
   setFloatingClaimResearch: (handoff: FloatingClaimResearchHandoff | null) => void;
   setPlaybackCaptureAvailable: (v: boolean) => void;
@@ -63,6 +69,7 @@ interface FloatingJournalState {
 
 export const useFloatingJournalStore = create<FloatingJournalState>((set) => ({
   panelOpen: false,
+  artifactJournalMode: "closed",
   routeArtifact: null,
   floatingClaimResearch: null,
   playbackCaptureAvailable: false,
@@ -72,6 +79,8 @@ export const useFloatingJournalStore = create<FloatingJournalState>((set) => ({
   setPanelOpen: (open) => set({ panelOpen: open }),
 
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+
+  setArtifactJournalMode: (mode) => set({ artifactJournalMode: mode }),
 
   setRouteArtifact: (artifact) => set({ routeArtifact: artifact }),
 

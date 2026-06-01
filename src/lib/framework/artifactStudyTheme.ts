@@ -67,7 +67,7 @@ export const artifactInsightPreviewCard = cn(
 
 /** Mobile Key insights hero — dark quote cards on a plain white rail. */
 export const artifactMobileInsightHeroCard = cn(
-  "flex min-h-[300px] w-full shrink-0 flex-col justify-between rounded-3xl p-5 text-left sm:p-6",
+  "flex min-h-[300px] w-full shrink-0 flex-col justify-between rounded-3xl p-5 text-left sm:p-6 md:min-h-[320px] md:p-7",
   "border border-white/10 bg-gradient-to-br from-stone-900 via-stone-950 to-black",
   "shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition active:scale-[0.99]",
 );
@@ -98,9 +98,12 @@ export function artifactMobileInsightHeroAccent(index: number) {
   return artifactMobileInsightHeroAccents[index % artifactMobileInsightHeroAccents.length];
 }
 
-/** Width for one hero insight slide, leaving a peek of the next card on phones. */
-export const artifactMobileInsightHeroSlide =
-  "w-[78vw] min-w-[248px] max-w-[292px] shrink-0 grow-0";
+/** Width for one hero insight slide — % of rail so iPad/tablet never clips at viewport edge. */
+export const artifactMobileInsightHeroSlide = cn(
+  "w-[min(86%,300px)] min-w-[248px] max-w-[300px] shrink-0 grow-0",
+  "sm:w-[min(84%,340px)] sm:max-w-[340px]",
+  "md:w-[min(420px,calc(100%-2.75rem))] md:max-w-[420px]",
+);
 
 export const artifactMobileInsightHeroNumber = "font-display text-4xl font-semibold tabular-nums leading-none";
 export const artifactMobileInsightHeroQuote =

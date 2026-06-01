@@ -29,8 +29,8 @@ export default function ArtifactStudySectionHeader({
 
   return (
     <div className={cn("min-w-0 flex-1", className)}>
-      <div className="flex items-start justify-between gap-3">
-        <h3 className={artifactStudySectionTitle}>{title}</h3>
+      <div className="flex items-start justify-between gap-3 md:gap-4">
+        <h3 className={cn(artifactStudySectionTitle, "md:text-xl")}>{title}</h3>
         {countText ? (
           <span className={cn("shrink-0 pt-0.5 text-xs tabular-nums", artifactStudyCount)}>{countText}</span>
         ) : null}
