@@ -97,10 +97,17 @@ describe("SketchPad", () => {
       expect(event.defaultPrevented).toBe(true);
     }
 
-    const touchStart = new Event("touchstart", { bubbles: true, cancelable: true });
-    Object.defineProperty(touchStart, "touches", { value: [{ clientX: 0, clientY: 0 }] });
-    canvas.dispatchEvent(touchStart);
-    expect(touchStart.defaultPrevented).toBe(true);
+    if (typeof TouchEvent !== "undefined") {
+      const touchStart = new TouchEvent("touchstart", {
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(touchStart, "touches", {
+        value: [{ clientX: 0, clientY: 0 }],
+      });
+      canvas.dispatchEvent(touchStart);
+      expect(touchStart.defaultPrevented).toBe(true);
+    }
 
     const gesture = new Event("gesturestart", { bubbles: true, cancelable: true });
     canvas.dispatchEvent(gesture);

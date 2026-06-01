@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
 import { listEntryLinks, type EntryLink } from "@/lib/journal/links";
 import {
@@ -47,7 +48,7 @@ export default function JournalEntryPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [entry, setEntry] = useState<Entry | null>(null);
-  const [photos, setPhotos] = useState<{ id: string; url?: string }[]>([]);
+  const [photos, setPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [beliefStatement, setBeliefStatement] = useState<string | null>(null);
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
@@ -71,7 +72,13 @@ export default function JournalEntryPage() {
       .select("id,storage_path")
       .eq("entry_id", id);
     const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
-    setPhotos((ph ?? []).map((p) => ({ id: p.id, url: urls[p.storage_path] })));
+    setPhotos(
+      (ph ?? []).map((p) => ({
+        id: p.id,
+        storage_path: p.storage_path,
+        url: urls[p.storage_path],
+      })),
+    );
     const { data: s } = await supabase
       .from("journal_entry_scores")
       .select("axes,themes,assumptions")
@@ -193,15 +200,29 @@ export default function JournalEntryPage() {
 
       {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
 
-      {photos.length > 0 && (
-        <div className={`mb-5 grid gap-2 ${photos.length === 1 ? "" : "grid-cols-2"}`}>
-          {photos.map((p) =>
-            p.url ? (
-              <img key={p.id} src={p.url} alt="" className="w-full rounded-lg object-cover max-h-96" />
-            ) : null,
-          )}
-        </div>
-      )}
+      {(() => {
+        const { sketches, attachments } = partitionJournalPhotos(photos);
+        return (
+          <>
+            {sketches.length > 0 ? (
+              <JournalSketchInline
+                sketches={sketches}
+                className="mb-5"
+                onOpenSketch={() => navigate(`/journal/${entry.id}/edit`)}
+              />
+            ) : null}
+            {attachments.length > 0 ? (
+              <div className={`mb-5 grid gap-2 ${attachments.length === 1 ? "" : "grid-cols-2"}`}>
+                {attachments.map((p) =>
+                  p.url ? (
+                    <img key={p.id} src={p.url} alt="" className="w-full rounded-lg object-cover max-h-96" />
+                  ) : null,
+                )}
+              </div>
+            ) : null}
+          </>
+        );
+      })()}
 
       {renderListening ? (
         <ListeningSectionsView body={entry.body} />
