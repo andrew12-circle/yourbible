@@ -93,18 +93,19 @@ export interface TranscriptPanelProps {
   onFormatTranscript?: () => void;
   /** Flush layout when embedded directly under mobile video tabs. */
   embeddedInMobileTab?: boolean;
-  /** Mobile YouTube transcript tab: full-height sheet layout and per-line bookmark menu. */
+  /** Mobile YouTube transcript tab or desktop study rail layout. */
   variant?: "default" | "youtubeMobile" | "desktopStudy";
   setPlaybackRate?: (rate: number) => void;
   getIsPlaying?: () => boolean;
   onPauseVideo?: () => void;
   onResumePlayback?: () => void;
+  /** Per-line bookmark menu: note, save, journal, research later. */
   segmentBookmarkActions?: {
     onSaveBookmark: (seconds: number, snippet: string) => void;
     onJournal: (seconds: number, snippet: string) => void;
     onResearchLater: (seconds: number, snippet: string) => void;
   };
-  /** Mobile segment note dialog (youtubeMobile). */
+  /** Timestamped note dialog from the bookmark menu. */
   noteBody?: string;
   onNoteBodyChange?: (value: string) => void;
   notePolishResetKey?: string;
@@ -159,8 +160,11 @@ export default function TranscriptPanel({
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
   const useOuterScroll = youtubeMobile && Boolean(outerScrollContainerRef);
-  const toolbarSubtitle = desktopStudy
-    ? "Tap a line to jump and follow along. Bookmark important moments."
+  const segmentBookmarkMenu = Boolean(segmentBookmarkActions);
+  const toolbarSubtitle = studyTranscript
+    ? segmentBookmarkMenu
+      ? "Tap a line to jump. Use the bookmark on a line for notes, journal, or research later."
+      : "Tap a line to jump and follow along. Bookmark important moments."
     : canBookmark && onBookmarkSegment
       ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
       : "Click a line to jump. Timestamps marked ~ are approximate.";
@@ -595,19 +599,24 @@ export default function TranscriptPanel({
                     !showTimestamps && "pl-1",
                     canBookmark &&
                       segment.startSeconds != null &&
-                      (studyTranscript ? "pr-10" : onBookmarkSegment && "pr-9 sm:pr-10"),
+                      (segmentBookmarkMenu || studyTranscript || onBookmarkSegment) &&
+                      (studyTranscript || segmentBookmarkMenu ? "pr-10" : "pr-9 sm:pr-10"),
                   )}
                 >
                   <HighlightedText text={segment.text} query={search} />
                 </p>
-                {canBookmark && segment.startSeconds != null && youtubeMobile && segmentBookmarkActions ? (
+                {canBookmark && segment.startSeconds != null && segmentBookmarkActions ? (
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
+                    size={studyTranscript ? "sm" : "icon"}
                     className={cn(
-                      "absolute right-2 top-2 h-8 w-8 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-blue-100/70 hover:text-blue-700",
-                      isActive && "bg-white/75 text-blue-700 shadow-sm hover:bg-white",
+                      "absolute top-2 h-8 w-8 shrink-0 text-muted-foreground",
+                      studyTranscript
+                        ? "right-2 rounded-full p-0 hover:bg-blue-100/70 hover:text-blue-700"
+                        : "right-1.5 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
+                      studyTranscript && isActive && "bg-white/75 text-blue-700 shadow-sm hover:bg-white",
+                      studyTranscript && "opacity-100",
                     )}
                     disabled={bookmarking}
                     aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
@@ -631,14 +640,8 @@ export default function TranscriptPanel({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      "absolute right-1.5 top-2 h-8 w-8 shrink-0 text-muted-foreground",
-                      desktopStudy
-                        ? "rounded-full hover:bg-blue-100/70 hover:text-blue-700"
-                        : "hover:text-foreground",
-                      desktopStudy && isActive && "bg-white/75 text-blue-700 shadow-sm hover:bg-white",
-                      !desktopStudy &&
-                        "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
-                      desktopStudy && "opacity-100",
+                      "absolute right-1.5 top-2 h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground",
+                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
                     )}
                     disabled={bookmarking}
                     aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
@@ -673,7 +676,7 @@ export default function TranscriptPanel({
         />
       ) : null}
 
-      {youtubeMobile && menuActions ? (
+      {segmentBookmarkMenu && menuActions ? (
         <TranscriptSegmentBookmarkSheet
           open={Boolean(bookmarkMenuSegment)}
           onOpenChange={(open) => {
@@ -691,7 +694,7 @@ export default function TranscriptPanel({
         />
       ) : null}
 
-      {youtubeMobile && onSaveSegmentNote && onNoteBodyChange ? (
+      {segmentBookmarkMenu && onSaveSegmentNote && onNoteBodyChange ? (
         <Dialog
           open={segmentNoteOpen}
           onOpenChange={(open) => {

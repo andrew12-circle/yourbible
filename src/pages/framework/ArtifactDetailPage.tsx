@@ -1288,9 +1288,6 @@ export default function ArtifactDetailPage() {
       onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
       canBookmark={canCaptureMoments}
       bookmarking={savingMoment}
-      onBookmarkSegment={
-        isDesktop ? (seconds, snippet) => void bookmarkAtSeconds(seconds, snippet) : undefined
-      }
       onCopy={copyTranscript}
       onJournal={() => openJournalFromArtifact()}
       fullPageJournalLabel="Full-page journal"
@@ -1315,7 +1312,7 @@ export default function ArtifactDetailPage() {
       onPauseVideo={videoPlayback.pauseVideo}
       onResumePlayback={videoPlayback.playVideo}
       segmentBookmarkActions={
-        !isDesktop && a.kind === "youtube"
+        canCaptureMoments
           ? {
               onSaveBookmark: (seconds, snippet) => void bookmarkAtSeconds(seconds, snippet),
               onJournal: journalTranscriptSegment,
