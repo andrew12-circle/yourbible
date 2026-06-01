@@ -14,6 +14,8 @@ type Props = {
   claimIndex: number;
   claimCardContext: RenderClaimCardContext;
   onBack: () => void;
+  backLabel?: string;
+  backAriaLabel?: string;
   className?: string;
 };
 
@@ -22,6 +24,8 @@ export default function ArtifactMobileInsightExplorePanel({
   claimIndex,
   claimCardContext,
   onBack,
+  backLabel = "Back",
+  backAriaLabel = "Back to study",
   className,
 }: Props) {
   const accent = artifactMobileInsightHeroAccent(claimIndex);
@@ -52,10 +56,10 @@ export default function ArtifactMobileInsightExplorePanel({
           size="sm"
           className="h-8 shrink-0 gap-1.5 px-2 text-xs font-medium text-foreground"
           onClick={onBack}
-          aria-label="Back to study"
+          aria-label={backAriaLabel}
         >
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          Back
+          {backLabel}
         </Button>
         {actions}
         <span className={cn("shrink-0 font-display text-lg font-semibold tabular-nums", accent.number)}>

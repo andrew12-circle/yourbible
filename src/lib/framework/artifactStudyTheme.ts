@@ -65,28 +65,28 @@ export const artifactInsightPreviewCard = cn(
   "w-[min(280px,42vw)] max-w-[300px]",
 );
 
-/** Mobile Key insights hero — dark gradient quote cards (mockup). */
+/** Mobile Key insights hero — dark quote cards on a plain white rail. */
 export const artifactMobileInsightHeroCard = cn(
   "flex min-h-[300px] w-full shrink-0 flex-col justify-between rounded-3xl p-5 text-left sm:p-6",
   "border border-white/10 bg-gradient-to-br from-stone-900 via-stone-950 to-black",
-  "shadow-[0_12px_48px_rgba(0,0,0,0.35)] transition active:scale-[0.99]",
+  "shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition active:scale-[0.99]",
 );
 
 export const artifactMobileInsightHeroAccents = [
   {
-    card: "border-white/20 shadow-[0_16px_52px_-24px_rgba(255,255,255,0.45),0_12px_48px_rgba(0,0,0,0.35)]",
+    card: "border-white/15",
     number: "text-white",
   },
   {
-    card: "border-red-400/30 shadow-[0_16px_52px_-24px_rgba(248,113,113,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    card: "border-red-400/25",
     number: "text-red-400",
   },
   {
-    card: "border-sky-400/30 shadow-[0_16px_52px_-24px_rgba(56,189,248,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    card: "border-sky-400/25",
     number: "text-sky-400",
   },
   {
-    card: "border-emerald-400/30 shadow-[0_16px_52px_-24px_rgba(52,211,153,0.7),0_12px_48px_rgba(0,0,0,0.35)]",
+    card: "border-emerald-400/25",
     number: "text-emerald-400",
   },
 ] as const;

@@ -122,10 +122,10 @@ export const artifactDesktopHero = cn(
   "min-h-[280px] sm:min-h-[320px]",
 );
 
-/** Desktop study body — light sheet overlapping hero. */
+/** Desktop study body — content below the inline hero video card. */
 export const artifactDesktopBodySheet = cn(
-  "relative z-10 -mt-7 rounded-t-[1.75rem] bg-background",
-  "px-4 pb-10 pt-7 shadow-[0_-12px_48px_rgba(0,0,0,0.1)] sm:px-6 sm:pt-8",
+  "relative z-10 mt-6",
+  "px-4 pb-10 sm:px-6",
 );
 
 /** Desktop transcript column — light floating study panel. */

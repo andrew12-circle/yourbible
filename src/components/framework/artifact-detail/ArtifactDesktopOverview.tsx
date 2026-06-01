@@ -51,6 +51,7 @@ export default function ArtifactDesktopOverview({
             title="Key claims"
             count={claimsCount}
             countLabel={`${claimsCount} claims extracted`}
+            description="Tap a card to open the full review — transcript, scripture, and verdicts."
             actionLabel="View all"
             onAction={() => onNavigate("#claims")}
           />

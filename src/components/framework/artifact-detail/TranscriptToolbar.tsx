@@ -137,24 +137,12 @@ export default function TranscriptToolbar({
           {!hideSecondaryActions ? (
             <>
               <ClaimIconActionButton label="Copy transcript" icon={Copy} tone="defer" onClick={onCopy} />
-              {desktopStudy ? (
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-violet-600 transition hover:bg-violet-500/10"
-                  aria-label={fullPageJournalLabel}
-                  title={fullPageJournalLabel}
-                  onClick={onJournal}
-                >
-                  <MessageCircle className="h-4 w-4" aria-hidden />
-                </button>
-              ) : (
-                <ClaimIconActionButton
-                  label={fullPageJournalLabel}
-                  icon={NotebookPen}
-                  tone="reflect"
-                  onClick={onJournal}
-                />
-              )}
+              <ClaimIconActionButton
+                label={fullPageJournalLabel}
+                icon={desktopStudy ? MessageCircle : NotebookPen}
+                tone={desktopStudy ? "research" : "reflect"}
+                onClick={onJournal}
+              />
             </>
           ) : null}
           {!desktopStudy && showFormatButton && onFormatTranscript ? (

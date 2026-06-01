@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { Loader2, Maximize2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
@@ -63,10 +63,9 @@ export default function ArtifactVideoStage({
   const inlineEmbedSrc =
     staticEmbedSrc ?? (youTubeVideoId ? buildYouTubeEmbedSrc(youTubeVideoId) : null);
 
-  const staticIframeInPip = pipMode && useStaticPip;
+  const staticPipActive = pipMode && useStaticPip;
   const showStaticIframe = Boolean(inlineEmbedSrc) && !showApiPlayer;
-  const showInlineApi = !pipMode && showApiPlayer;
-  const showPipApi = pipMode && showApiPlayer;
+  const apiPipActive = pipMode && showApiPlayer;
 
   const pipShellStyle = {
     left: pipLayout.left,
@@ -75,27 +74,54 @@ export default function ArtifactVideoStage({
     height: pipHeight,
   };
 
-  const showPipLoading =
-    showPipApi && playerActivated && playerInitTimedOut && !playerReady;
-  const showPipPauseOverlay =
-    showPipApi && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
-  const showPipThumbnail =
-    showPipApi && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
+  const pipShellChrome = cn(
+    "fixed z-[90] overflow-hidden bg-black",
+    artifactVideoRadius,
+    "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
+  );
 
-  const apiPlayerShell = showInlineApi || showPipApi ? (
+  const pipPortalTarget = typeof document !== "undefined" ? document.body : null;
+
+  const showPipLoading =
+    apiPipActive && playerActivated && playerInitTimedOut && !playerReady;
+  const showPipPauseOverlay =
+    apiPipActive && playerActivated && playerReady && !isPlaying && Boolean(onTogglePlay);
+  const showPipThumbnail =
+    apiPipActive && playerActivated && (showPipLoading || showPipPauseOverlay || playerInitTimedOut);
+
+  /** One static iframe — reposition with CSS on PiP enter/exit (no portal remount). */
+  const staticEmbedShell =
+    showStaticIframe && inlineEmbedSrc ? (
+      <div
+        data-youtube-static-shell
+        className={staticPipActive ? pipShellChrome : "absolute inset-0 z-[2] overflow-hidden bg-black"}
+        style={staticPipActive ? pipShellStyle : undefined}
+      >
+        <iframe
+          data-youtube-static-embed
+          key={youTubeVideoId}
+          src={inlineEmbedSrc}
+          title="YouTube video"
+          className="h-full w-full border-0 bg-black"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+          onLoad={onStaticEmbedLoad}
+        />
+      </div>
+    ) : null;
+
+  /** One API player shell — same element moves inline ↔ PiP (layoutKey only resizes). */
+  const apiPlayerShell = showApiPlayer ? (
     <div
       data-youtube-player-shell
       className={cn(
-        showPipApi
-          ? cn(
-              "fixed z-[80]",
-              artifactVideoRadius,
-              "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
-            )
+        apiPipActive
+          ? pipShellChrome
           : "absolute inset-0 z-[2] overflow-hidden rounded-[inherit] bg-black",
         showPipPauseOverlay && "cursor-pointer",
       )}
-      style={showPipApi ? pipShellStyle : undefined}
+      style={apiPipActive ? pipShellStyle : undefined}
       onClick={showPipPauseOverlay ? onTogglePlay : undefined}
     >
       <div className="relative h-full w-full">
@@ -103,7 +129,7 @@ export default function ArtifactVideoStage({
           <img src={thumb} alt="" className="absolute inset-0 z-[1] h-full w-full object-cover" />
         ) : null}
         <div
-          ref={showPipApi || showInlineApi ? playerMountRef : undefined}
+          ref={playerMountRef}
           className="relative h-full w-full [&_iframe]:block [&_iframe]:h-full [&_iframe]:w-full"
         />
         {showPipLoading && onReinitPlayer ? (
@@ -125,58 +151,22 @@ export default function ArtifactVideoStage({
       className={cn(
         "relative w-full shrink-0 overflow-hidden bg-black",
         heroEmbed ? "h-full min-h-[inherit]" : cn("aspect-video", artifactVideoRadius),
-        pipMode && "overflow-visible",
       )}
+      aria-hidden={pipMode ? true : undefined}
     >
-      {showStaticIframe ? (
-        <iframe
-          data-youtube-static-embed
-          key={youTubeVideoId}
-          src={inlineEmbedSrc!}
-          title="YouTube video"
-          className={cn(
-            "border-0 bg-black",
-            staticIframeInPip
-              ? cn("fixed z-[80]", artifactVideoRadius)
-              : "absolute inset-0 z-[2] h-full w-full",
-          )}
-          style={staticIframeInPip ? pipShellStyle : undefined}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          referrerPolicy="strict-origin-when-cross-origin"
-          allowFullScreen
-          onLoad={onStaticEmbedLoad}
-        />
-      ) : null}
-
-      {showInlineApi ? apiPlayerShell : null}
-      {showPipApi && typeof document !== "undefined"
-        ? createPortal(apiPlayerShell, document.body)
+      {!staticPipActive ? staticEmbedShell : null}
+      {!apiPipActive ? apiPlayerShell : null}
+      {staticPipActive && staticEmbedShell && pipPortalTarget
+        ? createPortal(staticEmbedShell, pipPortalTarget)
         : null}
-
-      {pipMode && useStaticPip ? (
-        <div
-          className="absolute inset-0 z-[1] flex items-center justify-center bg-muted/20"
-          aria-hidden={false}
-        >
-          <button
-            type="button"
-            onClick={onScrollVideoIntoView}
-            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-background"
-          >
-            <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-            Restore video
-          </button>
-        </div>
-      ) : null}
+      {apiPipActive && apiPlayerShell && pipPortalTarget
+        ? createPortal(apiPlayerShell, pipPortalTarget)
+        : null}
     </div>
   );
 
   if (heroEmbed) {
-    return (
-      <div id="video" className="h-full min-h-[inherit] w-full">
-        {videoBlock}
-      </div>
-    );
+    return videoBlock;
   }
 
   if (stickyMode) {
@@ -207,7 +197,7 @@ export default function ArtifactVideoStage({
   return (
     <section
       id="video"
-      className={cn(artifactCard, artifactScrollMt, "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3", pipMode && "overflow-visible")}
+      className={cn(artifactCard, artifactScrollMt, "mb-0 p-3 sm:p-4 lg:mb-0 lg:p-3")}
     >
       <div className="p-3 sm:p-4 lg:p-0">{videoBlock}</div>
       {children ? <div className="p-3 sm:p-4 lg:p-4">{children}</div> : null}

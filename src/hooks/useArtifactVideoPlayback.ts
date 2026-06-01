@@ -126,6 +126,22 @@ export function useArtifactVideoPlayback(options: {
     return () => window.clearInterval(tick);
   }, [apiPlayerWanted, artifactId, persistSeconds, staticTelemetry]);
 
+  /** Static embed stays mounted; resume if YouTube pauses during inline ↔ PiP reposition. */
+  useEffect(() => {
+    if (apiPlayerWanted || !pipEnabled) return;
+    if (!staticTelemetry.getIsPlaying()) return;
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        if (!staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+    };
+  }, [apiPlayerWanted, pipEnabled, staticTelemetry, youtubePip.pipMode]);
+
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);

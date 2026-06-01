@@ -10,6 +10,9 @@ type Props = {
   claims: RenderClaimCardClaim[];
   claimCardContext: RenderClaimCardContext;
   onBack: () => void;
+  backLabel?: string;
+  backAriaLabel?: string;
+  panelClassName?: string;
 };
 
 export default function ArtifactMobileInsightExploreSlot({
@@ -18,6 +21,9 @@ export default function ArtifactMobileInsightExploreSlot({
   claims,
   claimCardContext,
   onBack,
+  backLabel,
+  backAriaLabel,
+  panelClassName,
 }: Props) {
   if (!enabled || !claimId) return null;
   const idx = claims.findIndex((c) => c.id === claimId);
@@ -29,6 +35,9 @@ export default function ArtifactMobileInsightExploreSlot({
       claimIndex={idx}
       claimCardContext={claimCardContext}
       onBack={onBack}
+      backLabel={backLabel}
+      backAriaLabel={backAriaLabel}
+      className={panelClassName}
     />
   );
 }

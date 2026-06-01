@@ -229,7 +229,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
     <div className={cn("w-[calc(100vw-2rem)] max-w-[420px] min-w-0 space-y-3 overflow-hidden", className)}>
       <div
         ref={railRef}
-        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden pb-3 pt-0.5 active:cursor-grabbing"
+        className="w-full max-w-full cursor-grab touch-pan-y overflow-hidden rounded-2xl bg-white pb-3 pt-1 active:cursor-grabbing"
         role="list"
         aria-label="Key insight cards"
         onPointerDown={handleRailPointerDown}

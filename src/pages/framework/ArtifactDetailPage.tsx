@@ -17,6 +17,7 @@ import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel"
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
 import { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
+import ArtifactDesktopClaimFocus from "@/components/framework/artifact-detail/ArtifactDesktopClaimFocus";
 import ArtifactDesktopOverview from "@/components/framework/artifact-detail/ArtifactDesktopOverview";
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
@@ -55,7 +56,7 @@ import {
   artifactStudyBodyMobile,
 } from "@/lib/framework/artifactSurfaces";
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
-import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
+import { resolveDesktopPremiumStudyPane } from "@/lib/framework/artifactDesktopStudyPane";
 import { scrollMobileInsightPickerIntoView } from "@/lib/framework/scrollMobileInsightPickerIntoView";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
@@ -350,6 +351,7 @@ export default function ArtifactDetailPage() {
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
+  const [desktopInsightExploreClaimId, setDesktopInsightExploreClaimId] = useState<string | null>(null);
   const [mobileNoteSectionOpen, setMobileNoteSectionOpen] = useState(false);
   const resetMobileStudyScroll = useCallback(() => {
     scrollMobileInsightPickerIntoView(mobileBodyScrollRef.current);
@@ -609,6 +611,12 @@ export default function ArtifactDetailPage() {
   );
 
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
+  const desktopPremiumStudyPane = useMemo(
+    () => (desktopPremiumYoutube ? resolveDesktopPremiumStudyPane(pageSectionHash) : null),
+    [desktopPremiumYoutube, pageSectionHash],
+  );
+  const showDesktopOverviewPane = desktopPremiumStudyPane === "overview";
+  const showDesktopClaimsPane = desktopPremiumStudyPane === "claims";
   const claimsHorizontalRail = desktopPremiumYoutube || (!isDesktop && Boolean(youTubeVideoId));
 
   useEffect(() => {
@@ -739,11 +747,23 @@ export default function ArtifactDetailPage() {
     (claimId: string) => {
       openStudyTab();
       setMobileInsightExploreClaimId(claimId);
-      const claim = claims.find((c) => c.id === claimId);
-      if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
     },
-    [claims, claimSources, openStudyTab, playClaimAtSource, setMobileInsightExploreClaimId],
+    [openStudyTab, setMobileInsightExploreClaimId],
   );
+
+  const openDesktopInsightExplore = useCallback((claimId: string) => {
+    setDesktopInsightExploreClaimId(claimId);
+  }, []);
+
+  const closeDesktopInsightExplore = useCallback(() => {
+    setDesktopInsightExploreClaimId(null);
+  }, []);
+
+  useEffect(() => {
+    if (desktopPremiumStudyPane !== "overview") {
+      setDesktopInsightExploreClaimId(null);
+    }
+  }, [desktopPremiumStudyPane]);
 
   if (loading) {
     return (
@@ -1378,22 +1398,9 @@ export default function ArtifactDetailPage() {
                 durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
                 createdAt: a.created_at,
                 isPlaying: videoPlayback.isPlaying,
-                onPlayStudy: () => {
-                  if (videoPlayback.playerReady) {
-                    if (!videoPlayback.isPlaying) videoPlayback.activateAndPlay();
-                    else videoPlayback.pauseVideo();
-                  } else {
-                    videoPlayback.activateAndPlay();
-                  }
-                  navigateToArtifactHash("#overview");
-                },
-                onPlayVideo: () => {
-                  if (videoPlayback.playerReady) {
-                    if (!videoPlayback.isPlaying) videoPlayback.playVideo();
-                    else videoPlayback.pauseVideo();
-                  } else {
-                    videoPlayback.activateAndPlay();
-                  }
+                onTogglePlay: () => {
+                  if (videoPlayback.playerReady) togglePlayback();
+                  else videoPlayback.activateAndPlay();
                 },
                 onAddNote: () => navigateToArtifactHash("#capture"),
                 showPaste: a.kind === "youtube",
@@ -1402,6 +1409,7 @@ export default function ArtifactDetailPage() {
                 onPasteTranscript: () => setPasteOpen(true),
                 onWrapUp: () => setWrapUpOpen(true),
                 onReanalyze: reanalyze,
+                videoInPip: youtubePip.pipMode,
               }}
               videoBlock={
                 <ArtifactYoutubeVideoBlock
@@ -1505,24 +1513,30 @@ export default function ArtifactDetailPage() {
           )}
         />
 
-      {desktopPremiumYoutube && a.status === "ready" ? (
-        <ArtifactDesktopOverview
-          claims={claims}
-          artifactId={a.id}
-          artifactStatus={a.status}
-          claimsCount={claims.length}
-          claimSources={claimSources}
-          onNavigate={navigateToArtifactHash}
-          onSelectClaim={(claimId) => {
-            navigateToArtifactHash("#claims");
-            scrollToClaimById(claimId);
-          }}
-          onSeeScripture={scrollToClaimById}
-          onSeeInTranscript={(claimId) => {
-            const claim = claims.find((c) => c.id === claimId);
-            if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
-          }}
-        />
+      {showDesktopOverviewPane && desktopPremiumYoutube && a.status === "ready" ? (
+        desktopInsightExploreClaimId ? (
+          <ArtifactDesktopClaimFocus
+            claimId={desktopInsightExploreClaimId}
+            claims={claims}
+            claimCardContext={claimCardContext}
+            onBack={closeDesktopInsightExplore}
+          />
+        ) : (
+          <ArtifactDesktopOverview
+            claims={claims}
+            artifactId={a.id}
+            artifactStatus={a.status}
+            claimsCount={claims.length}
+            claimSources={claimSources}
+            onNavigate={navigateToArtifactHash}
+            onSelectClaim={openDesktopInsightExplore}
+            onSeeScripture={openDesktopInsightExplore}
+            onSeeInTranscript={(claimId) => {
+              const claim = claims.find((c) => c.id === claimId);
+              if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
+            }}
+          />
+        )
       ) : null}
       {a.kind === "youtube" && !youTubeVideoId && (() => {
         const meta: ArtifactMetadata = {
@@ -1642,7 +1656,7 @@ export default function ArtifactDetailPage() {
           onSeeScripture={openMobileInsightExplore}
         />
       ) : null}
-      {desktopPremiumYoutube && a.status === "ready" && claims.length > 0 ? (
+      {showDesktopClaimsPane && desktopPremiumYoutube && a.status === "ready" && claims.length > 0 ? (
         <ArtifactClaimsSection
           anchorId="claims"
           claims={claims}
@@ -1940,7 +1954,7 @@ export default function ArtifactDetailPage() {
         </Tabs>
 
         <aside
-          className="hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-1 lg:pr-1"
+          className="relative z-0 hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-1 lg:pr-1"
           aria-label="Transcript"
         >
           {transcriptPanel}

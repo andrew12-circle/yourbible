@@ -225,16 +225,7 @@ export function renderArtifactDetailClaimCard(
       </div>
       {source ? (
         <div className="space-y-4">
-          <button
-            type="button"
-            disabled={!canPlayClaim && source.startSeconds == null}
-            onClick={() => ctx.playClaimAtSource(c, source)}
-            className={cn(
-              "w-full space-y-3.5 rounded-2xl text-left transition-colors",
-              (canPlayClaim || source.startSeconds != null) &&
-                "cursor-pointer hover:bg-slate-50/80 -mx-2 px-2 py-1 dark:hover:bg-slate-900/35",
-            )}
-          >
+          <div className="w-full space-y-3.5 rounded-2xl text-left">
             {sourceClock ? (
               <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
                 [{sourceClock}]
@@ -254,7 +245,7 @@ export function renderArtifactDetailClaimCard(
                 Transcript excerpt unavailable.
               </p>
             )}
-          </button>
+          </div>
           <Button
             size="sm"
             variant="outline"

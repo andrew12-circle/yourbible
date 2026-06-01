@@ -47,6 +47,14 @@ export function useStaticYouTubeEmbedTelemetry(options: {
 
       if (msg.event === "infoDelivery" && msg.info && typeof msg.info === "object") {
         applyEmbedCurrentTime(currentTimeRef, currentTimeFromEmbedInfo(msg.info));
+        const state = msg.info.playerState;
+        if (typeof state === "number") {
+          const playing = embedStateIsPlaying(state);
+          if (playing !== isPlayingRef.current) {
+            isPlayingRef.current = playing;
+            setIsPlaying(playing);
+          }
+        }
       }
     };
 
