@@ -163,15 +163,16 @@ export function IconHighlighter({ className, active, variant = "toolbar" }: Icon
 
 /** Block eraser with sleeve. */
 export function IconEraser({ className, active, variant = "toolbar" }: IconProps) {
+  const id = useId().replace(/:/g, "");
   return (
     <ToolSvg className={className} variant={variant}>
       <defs>
-        <linearGradient id="eraser-pink" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id={`${id}-eraser`} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor={active ? "#fda4af" : "#fb7185"} />
           <stop offset="100%" stopColor={active ? "#e11d48" : "#f43f5e"} />
         </linearGradient>
       </defs>
-      <rect x="7" y="10" width="14" height="20" rx="2" fill="url(#eraser-pink)" />
+      <rect x="7" y="10" width="14" height="20" rx="2" fill={`url(#${id}-eraser)`} />
       <path d="M7 10 L21 10 L20 14 L8 14 Z" fill={active ? "#fff1f2" : "#ffe4e6"} />
       <rect x="8" y="30" width="12" height="8" rx="1.5" fill={active ? "#9f1239" : "#be123c"} />
       <rect x="9" y="32" width="10" height="1" rx="0.5" fill="#fecdd3" opacity="0.6" />

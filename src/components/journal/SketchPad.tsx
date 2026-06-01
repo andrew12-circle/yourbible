@@ -149,8 +149,7 @@ export default function SketchPad({
   const [rulerAngle, setRulerAngle] = useState(0);
   const [rulerLength, setRulerLength] = useState(280);
   const [snapToRuler, setSnapToRuler] = useState(true);
-  const [autoMinimizeToolbar, setAutoMinimizeToolbar] = useState(true);
-  const [toolbarMinimized, setToolbarMinimized] = useState(false);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
     null,
   );
@@ -590,8 +589,6 @@ export default function SketchPad({
       return;
     }
 
-    if (autoMinimizeToolbar) setToolbarMinimized(true);
-
     const pt = maybeSnapPoint(getPoint(canvas, e));
 
     if (tool === "ruler") {
@@ -703,9 +700,6 @@ export default function SketchPad({
       lassoPointsRef.current = [];
       notifyStrokeChange();
       flushRedraw();
-      if (autoMinimizeToolbar) {
-        window.setTimeout(() => setToolbarMinimized(false), 600);
-      }
       e.preventDefault();
       return;
     }
@@ -719,9 +713,6 @@ export default function SketchPad({
       notifyStrokeChange();
     }
     flushRedraw();
-    if (autoMinimizeToolbar) {
-      window.setTimeout(() => setToolbarMinimized(false), 600);
-    }
     e.preventDefault();
   };
 
@@ -879,39 +870,39 @@ export default function SketchPad({
         tabIndex={-1}
       />
 
+      <SketchInkToolbar
+        isNightMode={isNightMode}
+        collapsed={toolbarCollapsed}
+        onCollapsedChange={setToolbarCollapsed}
+        tabletPortrait={tabletPortrait}
+        tool={tool}
+        color={color}
+        size={size}
+        penColors={penColors}
+        paper={paper}
+        hasStrokes={hasStrokes}
+        redoCount={redoCount}
+        drawWithFinger={drawWithFinger}
+        rulerVisible={rulerVisible}
+        snapToRuler={snapToRuler}
+        onToolChange={handleToolChange}
+        onColorChange={(c) => {
+          setColor(c);
+          if (tool === "eraser") handleToolChange("fountain");
+        }}
+        onSizeChange={setSize}
+        onPaperChange={setPaper}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onClear={handleClear}
+        onDrawWithFingerChange={(v) => setPalmRejection(!v)}
+        onRulerVisibleChange={setRulerVisible}
+        onSnapToRulerChange={setSnapToRuler}
+        customColorInputRef={customColorRef}
+      />
+
       {/* Canvas */}
       <div className={cn("relative min-h-0 flex-1 overflow-hidden", tabletPortrait ? "p-3" : "p-1.5 sm:p-3", isNightMode ? "bg-black" : "bg-muted/40")}>
-        <SketchInkToolbar
-          isNightMode={isNightMode}
-          minimized={toolbarMinimized}
-          tabletPortrait={tabletPortrait}
-          tool={tool}
-          color={color}
-          size={size}
-          penColors={penColors}
-          paper={paper}
-          hasStrokes={hasStrokes}
-          redoCount={redoCount}
-          drawWithFinger={drawWithFinger}
-          rulerVisible={rulerVisible}
-          snapToRuler={snapToRuler}
-          onToolChange={handleToolChange}
-          onColorChange={(c) => {
-            setColor(c);
-            if (tool === "eraser") handleToolChange("fountain");
-          }}
-          onSizeChange={setSize}
-          onPaperChange={setPaper}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onClear={handleClear}
-          onDrawWithFingerChange={(v) => setPalmRejection(!v)}
-          onRulerVisibleChange={setRulerVisible}
-          onSnapToRulerChange={setSnapToRuler}
-          onAutoMinimizeChange={setAutoMinimizeToolbar}
-          autoMinimize={autoMinimizeToolbar}
-          customColorInputRef={customColorRef}
-        />
         <div
           ref={wrapperRef}
           className={cn(

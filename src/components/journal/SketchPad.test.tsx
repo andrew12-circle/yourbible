@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SketchPad from "./SketchPad";
 
@@ -114,16 +114,23 @@ describe("SketchPad", () => {
     expect(gesture.defaultPrevented).toBe(true);
   });
 
-  it("shows Apple-style markup toolbar with pen variants", () => {
+  it("shows docked markup toolbar with pen variants", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
     const toolbar = screen.getByRole("toolbar", { name: "Handwritten markup tools" });
     expect(toolbar).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fountain pen" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Highlighter" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ruler" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Eraser" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Minimize tools" })).toBeInTheDocument();
     expect(screen.getByText("Closing without saving discards the handwritten note").closest("footer")).toHaveClass("hidden");
+  });
+
+  it("minimizes to a circular chip showing the active pen", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Minimize tools" }));
+
+    expect(screen.queryByRole("toolbar", { name: "Handwritten markup tools" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show markup tools" })).toBeInTheDocument();
   });
 
   it("uses dark paper and night-safe ink when the device is in night mode", () => {

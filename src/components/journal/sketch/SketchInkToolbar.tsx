@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ChevronUp,
   Grid2X2,
   GripHorizontal,
   MoreHorizontal,
@@ -33,46 +34,17 @@ import {
   IconPencil,
   IconRainbowSwatch,
   IconRuler,
+  SketchToolIcon,
 } from "./SketchToolIcons";
 
 export type SketchPaper = "blank" | "ruled" | "graph" | "dot";
 
 type PenColor = { name: string; value: string };
 
-type Props = {
-  isNightMode: boolean;
-  minimized: boolean;
-  tool: InkTool;
-  color: string;
-  size: number;
-  penColors: PenColor[];
-  paper: SketchPaper;
-  hasStrokes: boolean;
-  redoCount: number;
-  drawWithFinger: boolean;
-  rulerVisible: boolean;
-  snapToRuler: boolean;
-  /** iPad portrait — wider toolbar using extra horizontal space. */
-  tabletPortrait?: boolean;
-  onToolChange: (tool: InkTool) => void;
-  onColorChange: (color: string) => void;
-  onSizeChange: (size: number) => void;
-  onPaperChange: (paper: SketchPaper) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onClear: () => void;
-  onDrawWithFingerChange: (v: boolean) => void;
-  onRulerVisibleChange: (v: boolean) => void;
-  onSnapToRulerChange: (v: boolean) => void;
-  onAutoMinimizeChange: (v: boolean) => void;
-  autoMinimize: boolean;
-  customColorInputRef?: React.RefObject<HTMLInputElement | null>;
-};
-
-const TOOL_ITEMS: {
+export const SKETCH_TOOL_ITEMS: {
   id: InkTool;
   label: string;
-  Icon: React.ComponentType<{ active?: boolean }>;
+  Icon: React.ComponentType<{ active?: boolean; variant?: "toolbar" | "chip" }>;
 }[] = [
   { id: "pencil", label: "Pencil", Icon: IconPencil },
   { id: "fineline", label: "Fine tip", Icon: IconFineline },
@@ -91,6 +63,34 @@ const PALETTE = [
   { name: "Yellow", value: "#eab308" },
   { name: "Red", value: "#ef4444" },
 ] as const;
+
+type Props = {
+  isNightMode: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  tool: InkTool;
+  color: string;
+  size: number;
+  penColors: PenColor[];
+  paper: SketchPaper;
+  hasStrokes: boolean;
+  redoCount: number;
+  drawWithFinger: boolean;
+  rulerVisible: boolean;
+  snapToRuler: boolean;
+  tabletPortrait?: boolean;
+  onToolChange: (tool: InkTool) => void;
+  onColorChange: (color: string) => void;
+  onSizeChange: (size: number) => void;
+  onPaperChange: (paper: SketchPaper) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onClear: () => void;
+  onDrawWithFingerChange: (v: boolean) => void;
+  onRulerVisibleChange: (v: boolean) => void;
+  onSnapToRulerChange: (v: boolean) => void;
+  customColorInputRef?: React.RefObject<HTMLInputElement | null>;
+};
 
 function InkToolButton({
   active,
@@ -111,10 +111,10 @@ function InkToolButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "flex h-11 w-9 shrink-0 flex-col items-center justify-end rounded-lg pb-0.5 transition",
+        "flex h-[52px] w-10 shrink-0 flex-col items-center justify-end rounded-xl pb-1 transition",
         active
-          ? "bg-white/20 ring-1 ring-white/35"
-          : "hover:bg-white/10 opacity-90 hover:opacity-100",
+          ? "bg-white/15 ring-1 ring-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+          : "hover:bg-white/10 opacity-85 hover:opacity-100",
       )}
     >
       {children}
@@ -124,7 +124,8 @@ function InkToolButton({
 
 export default function SketchInkToolbar({
   isNightMode,
-  minimized,
+  collapsed,
+  onCollapsedChange,
   tool,
   color,
   size,
@@ -146,13 +147,10 @@ export default function SketchInkToolbar({
   onDrawWithFingerChange,
   onRulerVisibleChange,
   onSnapToRulerChange,
-  onAutoMinimizeChange,
-  autoMinimize,
   customColorInputRef,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
-  const displayColors = isNightMode ? PALETTE : PALETTE;
 
   const selectTool = (next: InkTool) => {
     onToolChange(next);
@@ -164,73 +162,110 @@ export default function SketchInkToolbar({
     if (next === "ruler") onRulerVisibleChange(true);
   };
 
+  const barChrome = cn(
+    "flex-shrink-0 border-b",
+    isNightMode ? "border-white/10 bg-neutral-900" : "border-border/60 bg-neutral-100",
+  );
+
+  if (collapsed) {
+    return (
+      <div className={cn(barChrome, "flex items-center justify-center py-2")}>
+        <button
+          type="button"
+          onClick={() => onCollapsedChange(false)}
+          aria-label="Show markup tools"
+          aria-expanded={false}
+          className={cn(
+            "relative flex h-14 w-14 items-center justify-center rounded-full border-[3px] shadow-lg transition active:scale-95",
+            isNightMode
+              ? "border-white/25 bg-neutral-800 hover:bg-neutral-700"
+              : "border-neutral-300 bg-white hover:bg-neutral-50",
+          )}
+          style={{ borderColor: isDrawTool ? color : undefined }}
+        >
+          <span
+            className="absolute inset-1 rounded-full opacity-20"
+            style={{ background: isDrawTool ? color : "#94a3b8" }}
+            aria-hidden
+          />
+          <SketchToolIcon tool={tool} active variant="chip" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center px-2 transition-all duration-300 sm:top-3",
-        minimized && "translate-y-[-120%] opacity-0",
-      )}
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
-    >
+    <div className={cn(barChrome, "relative z-20")}>
       <div
         role="toolbar"
         aria-label="Handwritten markup tools"
         className={cn(
-          "pointer-events-auto flex items-center gap-1 rounded-2xl border px-1.5 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl",
-          tabletPortrait
-            ? "max-w-[min(100%,48rem)] gap-1.5 px-2 py-1.5"
-            : "max-w-[min(100%,42rem)]",
-          isNightMode
-            ? "border-white/12 bg-neutral-900/92 text-slate-100"
-            : "border-black/10 bg-neutral-800/90 text-white",
+          "mx-auto flex w-full max-w-6xl items-center gap-1 px-2 py-1.5",
+          tabletPortrait && "max-w-[min(100%,52rem)] gap-1.5 px-3",
         )}
         style={{ touchAction: "manipulation" }}
       >
-        <div className="flex items-center gap-0.5 rounded-xl bg-black/25 px-0.5 py-0.5">
+        <div
+          className={cn(
+            "flex items-center gap-0.5 rounded-xl px-0.5 py-0.5",
+            isNightMode ? "bg-black/30" : "bg-black/10",
+          )}
+        >
           <button
             type="button"
             onClick={onUndo}
             disabled={!hasStrokes}
             aria-label="Undo"
-            className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-35 hover:bg-white/10"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-35",
+              isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
+            )}
           >
-            <Undo2 className="h-4 w-4" />
+            <Undo2 className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
           </button>
           <button
             type="button"
             onClick={onRedo}
             disabled={redoCount === 0}
             aria-label="Redo"
-            className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-35 hover:bg-white/10"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-35",
+              isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
+            )}
           >
-            <Redo2 className="h-4 w-4" />
+            <Redo2 className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
           </button>
         </div>
 
-        <div className="mx-0.5 h-9 w-px bg-white/15" aria-hidden />
+        <div
+          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
+          aria-hidden
+        />
 
         <div
           className={cn(
-            "flex items-end gap-0.5 overflow-x-auto scrollbar-hide",
-            tabletPortrait ? "max-w-[min(68vw,480px)]" : "max-w-[min(52vw,280px)]",
+            "flex min-w-0 flex-1 items-end justify-center gap-0.5 overflow-x-auto scrollbar-hide",
           )}
         >
-          {TOOL_ITEMS.map(({ id, label, Icon }) => (
+          {SKETCH_TOOL_ITEMS.map(({ id, label, Icon }) => (
             <InkToolButton
               key={id}
               active={tool === id || (id === "ruler" && rulerVisible)}
               label={label}
               onClick={() => selectTool(id)}
             >
-              <Icon active={tool === id || (id === "ruler" && rulerVisible)} />
+              <Icon active={tool === id || (id === "ruler" && rulerVisible)} variant="toolbar" />
             </InkToolButton>
           ))}
         </div>
 
-        <div className="mx-0.5 h-9 w-px bg-white/15" aria-hidden />
+        <div
+          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
+          aria-hidden
+        />
 
-        <div className="grid grid-cols-3 gap-1 p-0.5" role="group" aria-label="Colors">
-          {displayColors.map((c) => (
+        <div className="grid shrink-0 grid-cols-3 gap-1" role="group" aria-label="Colors">
+          {PALETTE.map((c) => (
             <button
               key={c.value}
               type="button"
@@ -239,8 +274,12 @@ export default function SketchInkToolbar({
               disabled={!isDrawTool}
               onClick={() => onColorChange(c.value)}
               className={cn(
-                "h-5 w-5 rounded-full border border-white/25 transition hover:scale-110 disabled:opacity-40",
-                color === c.value && isDrawTool && "ring-2 ring-white ring-offset-1 ring-offset-neutral-800",
+                "h-5 w-5 rounded-full border transition hover:scale-110 disabled:opacity-40",
+                isNightMode ? "border-white/30" : "border-black/15",
+                color === c.value &&
+                  isDrawTool &&
+                  "ring-2 ring-offset-1",
+                color === c.value && isDrawTool && (isNightMode ? "ring-sky-300 ring-offset-neutral-900" : "ring-blue-500 ring-offset-neutral-100"),
               )}
               style={{ background: c.value }}
             />
@@ -253,11 +292,14 @@ export default function SketchInkToolbar({
             onClick={() => customColorInputRef?.current?.click()}
             className="flex h-5 w-5 items-center justify-center rounded-full disabled:opacity-40"
           >
-            <IconRainbowSwatch className="h-5 w-5" />
+            <IconRainbowSwatch />
           </button>
         </div>
 
-        <div className="mx-0.5 h-9 w-px bg-white/15" aria-hidden />
+        <div
+          className={cn("mx-0.5 h-10 w-px shrink-0", isNightMode ? "bg-white/15" : "bg-black/15")}
+          aria-hidden
+        />
 
         <button
           type="button"
@@ -269,11 +311,18 @@ export default function SketchInkToolbar({
             const idx = sizes.indexOf(size);
             onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-35 hover:bg-white/10"
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
+            isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
+          )}
         >
           <span
-            className="block rounded-full bg-current"
-            style={{ width: Math.min(size, 12), height: Math.min(size, 12) }}
+            className="block rounded-full"
+            style={{
+              width: Math.min(size, 12),
+              height: Math.min(size, 12),
+              background: isDrawTool ? color : isNightMode ? "#94a3b8" : "#64748b",
+            }}
           />
         </button>
 
@@ -282,19 +331,16 @@ export default function SketchInkToolbar({
             <button
               type="button"
               aria-label="More tools"
-              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10"
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
+              )}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Markup</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={autoMinimize}
-              onCheckedChange={(v) => onAutoMinimizeChange(v === true)}
-            >
-              Auto-minimize toolbar
-            </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={drawWithFinger}
               onCheckedChange={(v) => onDrawWithFingerChange(v === true)}
@@ -350,10 +396,13 @@ export default function SketchInkToolbar({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Paper and options"
-              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10"
+              aria-label="Paper type"
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                isNightMode ? "hover:bg-white/10" : "hover:bg-black/10",
+              )}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className={cn("h-4 w-4", isNightMode ? "text-slate-100" : "text-neutral-800")} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -366,6 +415,19 @@ export default function SketchInkToolbar({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <button
+          type="button"
+          onClick={() => onCollapsedChange(true)}
+          aria-label="Minimize tools"
+          title="Minimize tools"
+          className={cn(
+            "ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+            isNightMode ? "hover:bg-white/10 text-slate-200" : "hover:bg-black/10 text-neutral-700",
+          )}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );
