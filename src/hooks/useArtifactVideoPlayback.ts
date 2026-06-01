@@ -129,11 +129,11 @@ export function useArtifactVideoPlayback(options: {
   /** Static embed stays mounted; resume if YouTube pauses during inline ↔ PiP reposition. */
   useEffect(() => {
     if (apiPlayerWanted || !pipEnabled) return;
-    if (!staticTelemetry.getIsPlaying()) return;
+    if (!staticTelemetry.isPlayingRef.current) return;
     let raf2 = 0;
     const raf1 = window.requestAnimationFrame(() => {
       raf2 = window.requestAnimationFrame(() => {
-        if (!staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
+        staticTelemetry.playVideo();
       });
     });
     return () => {

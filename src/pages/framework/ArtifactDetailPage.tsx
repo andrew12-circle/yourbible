@@ -730,6 +730,7 @@ export default function ArtifactDetailPage() {
 
   const playClaimAtSource = useCallback(
     (claim: Claim, source: TranscriptSegment | null | undefined) => {
+      scrollToClaimById(claim.id);
       const seconds = getClaimSeekSeconds(claim, source ?? null);
       if (seconds == null) {
         jumpToTranscriptSource(source ?? null);
@@ -740,7 +741,7 @@ export default function ArtifactDetailPage() {
       }
       seekVideoToSeconds(seconds, { play: true });
     },
-    [jumpToTranscriptSource, seekVideoToSeconds],
+    [jumpToTranscriptSource, scrollToClaimById, seekVideoToSeconds],
   );
 
   const openMobileInsightExplore = useCallback(
@@ -1381,7 +1382,11 @@ export default function ArtifactDetailPage() {
           ref={mainScrollRef}
           className={cn(
             "min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scrollbar-hover-thin",
-            mobilePinnedPane ? "relative h-full min-h-0 w-full" : "space-y-5 sm:space-y-6",
+            mobilePinnedPane
+              ? "relative h-full min-h-0 w-full"
+              : desktopPremiumYoutube
+                ? "space-y-3"
+                : "space-y-5 sm:space-y-6",
           )}
         >
         {youTubeVideoId ? (

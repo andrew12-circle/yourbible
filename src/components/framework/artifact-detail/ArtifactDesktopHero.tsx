@@ -274,59 +274,20 @@ export default function ArtifactDesktopHero({
       <section
         ref={videoSlotRef}
         className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
-        aria-label="Artifact overview"
+        aria-label="Video"
       >
+        <h1 className="sr-only">{displayTitle}</h1>
         <div
           id="video"
           className={cn("relative aspect-video w-full overflow-hidden rounded-2xl bg-black")}
         >
           {videoSlot}
         </div>
-
-        <div className="space-y-2.5 px-4 py-3.5 sm:px-5 sm:py-4">
-          <div className="flex items-start justify-between gap-3">
-            <Link
-              to={backTo}
-              className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Back to artifacts
-            </Link>
-            <HeroStatusBadge inFlight={inFlight} statusLabel={statusLabel} />
-          </div>
-
-          <h1 className="line-clamp-3 font-display text-lg font-semibold leading-snug tracking-tight text-foreground sm:text-xl">
-            {displayTitle}
-          </h1>
-
-          <HeroMetaRow
-            channel={channel}
-            channelUrl={channelUrl}
-            durationLabel={durationLabel}
-            dateLabel={dateLabel}
-          />
-
-          <HeroActions
-            isPlaying={isPlaying}
-            onTogglePlay={onTogglePlay}
-            onAddNote={onAddNote}
-            hasMenu={hasMenu}
-            showPaste={showPaste}
-            showWrapUp={showWrapUp}
-            showReanalyze={showReanalyze}
-            onPasteTranscript={onPasteTranscript}
-            onWrapUp={onWrapUp}
-            onReanalyze={onReanalyze}
-            showPlayButton={false}
-            compact
-          />
-
-          {videoInPip ? (
-            <p className="text-xs text-muted-foreground">
-              Video is in picture-in-picture. Use restore on the floating player to return it here.
-            </p>
-          ) : null}
-        </div>
+        {videoInPip ? (
+          <p className="sr-only">
+            Video is in picture-in-picture. Use restore on the floating player to return it here.
+          </p>
+        ) : null}
       </section>
     );
   }

@@ -87,6 +87,7 @@ describe("ArtifactClaimsSection", () => {
       </TooltipProvider>,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Follow playback" }));
     expect(screen.getByRole("button", { name: "Following playback" })).toBeInTheDocument();
 
     act(() => {

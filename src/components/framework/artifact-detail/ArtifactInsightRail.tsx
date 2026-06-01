@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactHorizontalRail } from "@/lib/framework/artifactSurfaces";
 import {
+  artifactInsightClaimNumberColor,
   artifactMobileInsightHeroAccent,
   artifactMobileInsightHeroCard,
   artifactMobileInsightHeroLink,
@@ -114,7 +115,7 @@ export default function ArtifactInsightRail<T extends ClaimLike>({
               >
                 <div className="space-y-4 text-left">
                   <span
-                    className={cn(artifactMobileInsightHeroNumber, accent.number)}
+                    className={cn(artifactMobileInsightHeroNumber, artifactInsightClaimNumberColor)}
                     aria-label={`Claim ${idx + 1}`}
                   >
                     {idx + 1}

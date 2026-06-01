@@ -65,7 +65,7 @@ export default function ArtifactSectionNav({
       className={cn(
         "-mx-0.5 hidden md:block",
         isDesktopVariant
-          ? "mb-6 border-b border-border/50"
+          ? "mb-4 border-b border-border/50"
           : "mb-4 rounded-2xl border border-border/40 bg-muted/40 p-1.5 backdrop-blur-md supports-[backdrop-filter]:bg-muted/30 sm:rounded-full sm:border-0 sm:p-1",
         stickyVideoLayout
           ? artifactSectionNavStickyBelowVideo

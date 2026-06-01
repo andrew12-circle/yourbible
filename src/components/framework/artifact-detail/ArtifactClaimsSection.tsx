@@ -84,13 +84,12 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   hideStudySectionHeader = false,
 }: Props<T>) {
   const isDesktop = useIsDesktop();
-  const [followPlayback, setFollowPlayback] = useState(true);
+  const [followPlayback, setFollowPlayback] = useState(false);
   const [playbackTick, setPlaybackTick] = useState(0);
   const prevActiveClaimIdRef = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
   const userPausedFollowUntilRef = useRef(0);
-  const defaultedFollowOnReadyRef = useRef(false);
 
   const timedClaimsCount = useMemo(() => {
     if (!getClaimSeekSeconds) return 0;
@@ -109,10 +108,16 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   );
 
   const activeClaimId = useMemo(() => {
-    if (!showFollowControl || !getPlaybackSeconds) return null;
+    if (!followPlayback || !showFollowControl || !getPlaybackSeconds) return null;
     void playbackTick;
     return findActiveClaimId(claims, seekForClaim, getPlaybackSeconds());
-  }, [showFollowControl, getPlaybackSeconds, claims, seekForClaim, playbackTick]);
+  }, [followPlayback, showFollowControl, getPlaybackSeconds, claims, seekForClaim, playbackTick]);
+
+  const beginFollowFromClaimPlay = useCallback(() => {
+    userPausedFollowUntilRef.current = 0;
+    prevActiveClaimIdRef.current = null;
+    setFollowPlayback(true);
+  }, []);
 
   const renderClaimCard = useCallback(
     (claim: T, claimIndex: number) =>
@@ -125,22 +130,16 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
           : (claimCardContext.layout ?? "stack"),
         activeClaimId: activeClaimId ?? null,
         followPlaybackActive: followPlayback,
+        beginClaimsFollowPlayback: beginFollowFromClaimPlay,
       }),
-    [claimCardContext, useClaimsRail, isDesktop, activeClaimId, followPlayback],
+    [claimCardContext, useClaimsRail, isDesktop, activeClaimId, followPlayback, beginFollowFromClaimPlay],
   );
 
   useEffect(() => {
-    if (!playerReady) return;
-    const ms = followPlayback ? 250 : 500;
-    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), ms);
+    if (!playerReady || !followPlayback) return;
+    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), 250);
     return () => window.clearInterval(id);
   }, [playerReady, followPlayback]);
-
-  useEffect(() => {
-    if (!playerReady || defaultedFollowOnReadyRef.current) return;
-    defaultedFollowOnReadyRef.current = true;
-    setFollowPlayback(true);
-  }, [playerReady]);
 
   const markProgrammaticScroll = useCallback(() => {
     programmaticScrollRef.current = true;
@@ -395,7 +394,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
             />
             <ArtifactInsightCarousel
               claims={claims}
-              activeClaimId={activeClaimId ?? mobileOpenClaimId}
+              activeClaimId={(followPlayback ? activeClaimId : null) ?? mobileOpenClaimId}
               onSelectClaim={handleCarouselSelect}
               variant="desktop"
               onSeeScripture={onSeeScripture}
@@ -432,7 +431,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
           {!hideMobileInsightPreview ? (
             <ArtifactInsightCarousel
               claims={claims}
-              activeClaimId={activeClaimId ?? mobileOpenClaimId}
+              activeClaimId={(followPlayback ? activeClaimId : null) ?? mobileOpenClaimId}
               onSelectClaim={handleCarouselSelect}
               variant="mobile"
             />

@@ -1,4 +1,3 @@
-import { createPortal } from "react-dom";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
@@ -80,8 +79,6 @@ export default function ArtifactVideoStage({
     "shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/15",
   );
 
-  const pipPortalTarget = typeof document !== "undefined" ? document.body : null;
-
   const showPipLoading =
     apiPipActive && playerActivated && playerInitTimedOut && !playerReady;
   const showPipPauseOverlay =
@@ -154,14 +151,8 @@ export default function ArtifactVideoStage({
       )}
       aria-hidden={pipMode ? true : undefined}
     >
-      {!staticPipActive ? staticEmbedShell : null}
-      {!apiPipActive ? apiPlayerShell : null}
-      {staticPipActive && staticEmbedShell && pipPortalTarget
-        ? createPortal(staticEmbedShell, pipPortalTarget)
-        : null}
-      {apiPipActive && apiPlayerShell && pipPortalTarget
-        ? createPortal(apiPlayerShell, pipPortalTarget)
-        : null}
+      {staticEmbedShell}
+      {apiPlayerShell}
     </div>
   );
 

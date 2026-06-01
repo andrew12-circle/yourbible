@@ -122,9 +122,9 @@ export const artifactDesktopHero = cn(
   "min-h-[280px] sm:min-h-[320px]",
 );
 
-/** Desktop study body — content below the inline hero video card. */
+/** Desktop study body — section nav + study content below the video card. */
 export const artifactDesktopBodySheet = cn(
-  "relative z-10 mt-6",
+  "relative z-10 mt-0",
   "px-4 pb-10 sm:px-6",
 );
 

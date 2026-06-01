@@ -73,8 +73,19 @@ export type RenderClaimCardContext = {
   layout?: "stack" | "desktopRail" | "mobileRail";
   activeClaimId?: string | null;
   followPlaybackActive?: boolean;
+  /** Enables claim follow-scroll when the user starts playback from a claim card. */
+  beginClaimsFollowPlayback?: () => void;
   actionsPlacement?: "inline" | "external";
 };
+
+function playClaimFromSource(
+  ctx: RenderClaimCardContext,
+  claim: RenderClaimCardClaim,
+  source: TranscriptSegment | null | undefined,
+) {
+  ctx.beginClaimsFollowPlayback?.();
+  ctx.playClaimAtSource(claim, source);
+}
 
 type RenderClaimActionsOptions = {
   bordered?: boolean;
@@ -251,7 +262,7 @@ export function renderArtifactDetailClaimCard(
             variant="outline"
             className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800 dark:border-border/60 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-950/30"
             disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
-            onClick={() => ctx.playClaimAtSource(c, source)}
+            onClick={() => playClaimFromSource(ctx, c, source)}
           >
             <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
             {canPlayClaim && (sourceClock || chapterClock)
@@ -270,7 +281,7 @@ export function renderArtifactDetailClaimCard(
             size="sm"
             variant="outline"
             className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800"
-            onClick={() => ctx.playClaimAtSource(c, source)}
+            onClick={() => playClaimFromSource(ctx, c, source)}
           >
             <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
             {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}

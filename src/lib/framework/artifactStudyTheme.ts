@@ -72,22 +72,25 @@ export const artifactMobileInsightHeroCard = cn(
   "shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition active:scale-[0.99]",
 );
 
+/** Claim index on dark insight cards — always green. */
+export const artifactInsightClaimNumberColor = "text-emerald-400";
+
 export const artifactMobileInsightHeroAccents = [
   {
     card: "border-white/15",
-    number: "text-white",
-  },
-  {
-    card: "border-red-400/25",
-    number: "text-red-400",
-  },
-  {
-    card: "border-sky-400/25",
-    number: "text-sky-400",
+    number: artifactInsightClaimNumberColor,
   },
   {
     card: "border-emerald-400/25",
-    number: "text-emerald-400",
+    number: artifactInsightClaimNumberColor,
+  },
+  {
+    card: "border-emerald-400/20",
+    number: artifactInsightClaimNumberColor,
+  },
+  {
+    card: "border-emerald-400/20",
+    number: artifactInsightClaimNumberColor,
   },
 ] as const;
 
