@@ -43,6 +43,11 @@ export async function transcribeJournalSketch(opts: {
   };
 }
 
+const transcribeInFlight = new Map<
+  string,
+  Promise<SketchTranscriptionResult & { storage_path: string; photo_id: string | null }>
+>();
+
 /** Upload the canonical sketch PNG and run handwriting → text (and summary when configured). */
 export async function upsertSketchAndTranscribe(
   userId: string,
@@ -51,15 +56,27 @@ export async function upsertSketchAndTranscribe(
 ): Promise<
   SketchTranscriptionResult & { storage_path: string; photo_id: string | null }
 > {
-  const { storage_path, photo_id } = await upsertEntrySketchPhoto(userId, entryId, file);
-  const transcription = await transcribeJournalSketch({ entryId, storagePath: storage_path });
-  const title = await ensureTitleAfterSketch(entryId, transcription);
-  return {
-    ...transcription,
-    storage_path,
-    photo_id,
-    ...(title ? { title } : {}),
-  };
+  const existing = transcribeInFlight.get(entryId);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const { storage_path, photo_id } = await upsertEntrySketchPhoto(userId, entryId, file);
+      const transcription = await transcribeJournalSketch({ entryId, storagePath: storage_path });
+      const title = await ensureTitleAfterSketch(entryId, transcription);
+      return {
+        ...transcription,
+        storage_path,
+        photo_id,
+        ...(title ? { title } : {}),
+      };
+    } finally {
+      transcribeInFlight.delete(entryId);
+    }
+  })();
+
+  transcribeInFlight.set(entryId, promise);
+  return promise;
 }
 
 async function ensureTitleAfterSketch(

@@ -41,6 +41,7 @@ export default function JournalPage() {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [dayOneImportOpen, setDayOneImportOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -48,34 +49,46 @@ export default function JournalPage() {
   }, [user, reloadKey]);
 
   const createNew = async () => {
-    if (!user) return;
-    const jid = journalId ?? (await getDefaultJournalId(user.id));
-    const ctx = await getCurrentContext().catch(() => ({} as any));
-    const now = new Date();
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .insert({
-        user_id: user.id,
-        journal_id: jid,
-        title: null,
-        body: "",
-        tags: [],
-        entry_at_ts: now.toISOString(),
-        entry_at: now.toISOString().slice(0, 10),
-        analyze_for_mirror: false,
-        location_name: ctx.location_name ?? null,
-        lat: ctx.lat ?? null,
-        lng: ctx.lng ?? null,
-        weather: ctx.weather ?? null,
-        weather_temp_c: ctx.weather_temp_c ?? null,
-        weather_icon: ctx.weather_icon ?? null,
-      })
-      .select("id")
-      .maybeSingle();
-    if (error || !data) return;
-    setReloadKey((k) => k + 1);
-    if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
-    else navigate(`/journal/e/${data.id}`);
+    if (!user || creating) return;
+    setCreating(true);
+    try {
+      const jid = journalId ?? (await getDefaultJournalId(user.id));
+      const ctx = await getCurrentContext().catch(() => ({} as Record<string, never>));
+      const now = new Date();
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: user.id,
+          journal_id: jid,
+          title: null,
+          body: "",
+          tags: [],
+          entry_at_ts: now.toISOString(),
+          entry_at: now.toISOString().slice(0, 10),
+          analyze_for_mirror: false,
+          location_name: ctx.location_name ?? null,
+          lat: ctx.lat ?? null,
+          lng: ctx.lng ?? null,
+          weather: ctx.weather ?? null,
+          weather_temp_c: ctx.weather_temp_c ?? null,
+          weather_icon: ctx.weather_icon ?? null,
+        })
+        .select("id")
+        .maybeSingle();
+      if (error || !data) {
+        toast({
+          title: "Couldn't create entry",
+          description: error?.message ?? "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setReloadKey((k) => k + 1);
+      if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
+      else navigate(`/journal/e/${data.id}`);
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (loading) return null;

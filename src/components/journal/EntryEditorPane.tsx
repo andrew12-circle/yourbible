@@ -30,6 +30,7 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
+import { autosaveSketchPhoto } from "@/lib/journal/sketchPhotos";
 import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
@@ -78,35 +79,100 @@ export default function EntryEditorPane({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleSuggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveGenerationRef = useRef(0);
   const entryRef = useRef<EntryRow | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
+  const [loadingEntry, setLoadingEntry] = useState(false);
+  const [entryNotFound, setEntryNotFound] = useState(false);
+
+  const reloadEntryFromServer = useCallback(async (id: string) => {
+    const { data } = await supabase
+      .from("journal_entries")
+      .select(
+        "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+      )
+      .eq("id", id)
+      .maybeSingle();
+    const row = (data as EntryRow | null) ?? null;
+    if (row && entryRef.current?.id === id) {
+      entryRef.current = row;
+      setEntry(row);
+    }
+    return row;
+  }, []);
+
+  const applySketchUpload = useCallback(
+    async (entryId: string, upload: { storage_path: string; photo_id: string | null }) => {
+      const urls = await getSignedPhotoUrls([upload.storage_path]);
+      setPhotos((prev) => {
+        const rest = prev.filter((p) => p.storage_path !== upload.storage_path);
+        return [
+          ...rest,
+          {
+            id: upload.photo_id ?? `sketch-${entryId}`,
+            storage_path: upload.storage_path,
+            url: urls[upload.storage_path],
+          },
+        ];
+      });
+    },
+    [],
+  );
 
   // Load entry
   useEffect(() => {
-    if (!entryId) { setEntry(null); setPhotos([]); return; }
+    if (!entryId) {
+      setEntry(null);
+      setPhotos([]);
+      setLoadingEntry(false);
+      setEntryNotFound(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingEntry(true);
+    setEntryNotFound(false);
+    setEntry(null);
+    setPhotos([]);
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("journal_entries")
         .select(
           "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
         )
         .eq("id", entryId)
         .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setLoadingEntry(false);
+        toast({ title: "Couldn't load entry", description: error.message, variant: "destructive" });
+        return;
+      }
       const row = (data as EntryRow | null) ?? null;
+      if (!row) {
+        setLoadingEntry(false);
+        setEntryNotFound(true);
+        return;
+      }
       setEntry(row);
-      setReplyWithAi(row?.entry_kind === "chat");
+      setReplyWithAi(row.entry_kind === "chat");
       setChatDraft("");
       const { data: ph } = await supabase
         .from("journal_photos")
         .select("id,storage_path")
         .eq("entry_id", entryId);
+      if (cancelled) return;
       const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
+      if (cancelled) return;
       setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
+      setLoadingEntry(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [entryId]);
 
   useEffect(() => {
@@ -150,7 +216,9 @@ export default function EntryEditorPane({
     entryRef.current = merged;
     setEntry(merged);
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    const generation = ++saveGenerationRef.current;
     saveTimer.current = setTimeout(async () => {
+      if (generation !== saveGenerationRef.current) return;
       setSaving(true);
       const { error } = await supabase
         .from("journal_entries")
@@ -158,6 +226,7 @@ export default function EntryEditorPane({
         .eq("id", merged.id)
         .eq("user_id", user.id);
       setSaving(false);
+      if (generation !== saveGenerationRef.current) return;
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
       else {
         onChanged();
@@ -363,6 +432,24 @@ export default function EntryEditorPane({
     else toast({ title: "Entry scored — see Worldview Mirror" });
     onChanged();
   };
+
+  if (entryId && loadingEntry) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (entryId && entryNotFound) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+        <NotebookText className="w-12 h-12 text-muted-foreground/40 mb-3" />
+        <p className="text-[15px] font-semibold">Entry not found</p>
+        <p className="text-[13px] text-muted-foreground mt-1">This entry may have been deleted.</p>
+      </div>
+    );
+  }
 
   if (!entry) {
     entryRef.current = null;
@@ -647,38 +734,10 @@ export default function EntryEditorPane({
         onClose={() => setSketchOpen(false)}
         draftKey={entry ? `entry:${entry.id}` : undefined}
         onAutosave={
-          user
+          user && entry
             ? async (file) => {
-                const result = await upsertSketchAndTranscribe(user.id, entry.id, file);
-                const urls = await getSignedPhotoUrls([result.storage_path]);
-                setPhotos((prev) => {
-                  const rest = prev.filter((p) => p.storage_path !== result.storage_path);
-                  return [
-                    ...rest,
-                    {
-                      id: result.photo_id ?? `sketch-${entry.id}`,
-                      storage_path: result.storage_path,
-                      url: urls[result.storage_path],
-                    },
-                  ];
-                });
-                if (result.ok && result.body && !result.skipped) {
-                  const cur = entryRef.current;
-                  if (cur?.id === entry.id) {
-                    if (saveTimer.current) {
-                      clearTimeout(saveTimer.current);
-                      saveTimer.current = null;
-                    }
-                    const next = {
-                      ...cur,
-                      body: result.body,
-                      ...(result.title ? { title: result.title } : {}),
-                      ...(result.summary ? { summary: result.summary } : {}),
-                    };
-                    entryRef.current = next;
-                    setEntry(next);
-                  }
-                }
+                const upload = await autosaveSketchPhoto(user.id, entry.id, file);
+                await applySketchUpload(entry.id, upload);
                 onChanged();
               }
             : undefined
@@ -686,46 +745,27 @@ export default function EntryEditorPane({
         onSave={async (file) => {
           if (!user || !entry) return;
           toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
+          if (saveTimer.current) {
+            clearTimeout(saveTimer.current);
+            saveTimer.current = null;
+          }
+          saveGenerationRef.current += 1;
           const result = await upsertSketchAndTranscribe(user.id, entry.id, file);
-          const urls = await getSignedPhotoUrls([result.storage_path]);
-          setPhotos((prev) => {
-            const rest = prev.filter((p) => p.storage_path !== result.storage_path);
-            return [
-              ...rest,
-              {
-                id: result.photo_id ?? `sketch-${entry.id}`,
-                storage_path: result.storage_path,
-                url: urls[result.storage_path],
-              },
-            ];
-          });
+          await applySketchUpload(entry.id, result);
           if (!result.ok) {
             toast({
-              title: "Handwritten note saved",
-              description: result.error,
+              title: "Transcription failed",
+              description: result.error ?? "Your sketch was saved — try again.",
               variant: "destructive",
             });
             return;
           }
           if (result.skipped) {
             toast({ title: "Handwritten note saved", description: "This handwritten note was already transcribed." });
+            onChanged();
             return;
           }
-          const cur = entryRef.current;
-          if (cur?.id === entry.id) {
-            if (saveTimer.current) {
-              clearTimeout(saveTimer.current);
-              saveTimer.current = null;
-            }
-            const next = {
-              ...cur,
-              body: result.body,
-              ...(result.title ? { title: result.title } : {}),
-              ...(result.summary ? { summary: result.summary } : {}),
-            };
-            entryRef.current = next;
-            setEntry(next);
-          }
+          await reloadEntryFromServer(entry.id);
           onChanged();
           toast({
             title: result.title ? "Entry named and transcribed" : "Handwritten note transcribed",

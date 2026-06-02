@@ -1,773 +1,57 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
-import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { DictateButton } from "@/components/journal/DictateButton";
+import { ToolbarTile } from "@/components/journal/new-entry/NewJournalEntryToolbar";
+import { NewJournalEntryBodyEditor } from "@/components/journal/new-entry/NewJournalEntryBodyEditor";
 import SketchPad from "@/components/journal/SketchPad";
-import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
-import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import {
-  X, Loader2, MapPin, BookOpen, Sparkles, Trash2, PenLine, Ear, ChevronDown,
-  ChevronLeft, MoreHorizontal, Image as ImageIcon, Mic, MessageCircle, Lightbulb,
+  Loader2,
+  MapPin,
+  BookOpen,
+  Sparkles,
+  PenLine,
+  ChevronDown,
+  ChevronLeft,
+  MoreHorizontal,
+  Image as ImageIcon,
+  Mic,
+  MessageCircle,
+  Lightbulb,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
-import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
-import { isJournalSketchAsset } from "@/lib/journal/sketchPhotos";
-import {
-  transcribeEntrySketchPaths,
-  upsertSketchAndTranscribe,
-} from "@/lib/journal/sketchTranscription";
-import { getDefaultJournalId } from "@/lib/journal/journals";
-import { getCurrentContext } from "@/lib/journal/context";
-import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
-import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
-import {
-  coerceJournalEntryKind,
-  ENTRY_KIND_META,
-  kindToLifeSegment,
-  parseJournalEntryKindParam,
-  type JournalEntryKind,
-} from "@/lib/journal/entryKinds";
-import {
-  LISTENING_SECTIONS,
-  composeListeningBody,
-  isListeningBody,
-  isListeningEmpty,
-  parseListeningBody,
-  type ListeningSectionKey,
-  type ListeningSections,
-} from "@/lib/journal/listeningEntry";
-import {
-  composeChatTranscript,
-  loadInlineChatTurns,
-  type InlineChatTurn,
-} from "@/lib/journal/inlineJournalChat";
-import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
-import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
-
-interface BeliefOpt {
-  id: string;
-  topic: string;
-  statement: string;
-}
+import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 
 export default function NewJournalEntryPage() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { id: editId } = useParams<{ id: string }>();
-  const [params] = useSearchParams();
-  const kbInset = useKeyboardInset();
+  const p = useNewJournalEntryPage();
 
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [mood, setMood] = useState<number | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
-  const [entryKind, setEntryKind] = useState<JournalEntryKind | null>(null);
-  const [entryAt, setEntryAt] = useState<string>(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-  });
-  const [verseRef, setVerseRef] = useState<string>("");
-  const [beliefId, setBeliefId] = useState<string>("");
-  const [beliefs, setBeliefs] = useState<BeliefOpt[]>([]);
-  const [locationName, setLocationName] = useState("");
-  const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
-  // Default OFF for every new entry. Users explicitly opt-in per entry via the
-  // "Journal with AI" toggle. We intentionally do NOT remember this across entries
-  // so a normal journal stays a normal journal unless asked.
-  const [replyWithAi, setReplyWithAi] = useState<boolean>(false);
-  const [journalId, setJournalId] = useState<string | null>(null);
-  const [promptId, setPromptId] = useState<string | null>(null);
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [weather, setWeather] = useState<string | null>(null);
-  const [weatherTempC, setWeatherTempC] = useState<number | null>(null);
-  const [weatherIcon, setWeatherIcon] = useState<string | null>(null);
-
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [existingPhotos, setExistingPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [_busyLabel, setBusyLabel] = useState("Saving");
-  // Inline AI conversation (chat-while-you-write)
-  const [inlineEntryId, setInlineEntryId] = useState<string | null>(null);
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
-  const [aiBusy, setAiBusy] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const chatBottomRef = useRef<HTMLDivElement | null>(null);
-  const dictateRef = useRef<DictateButtonHandle | null>(null);
-  const [dictInterim, setDictInterim] = useState("");
-  const [sketchOpen, setSketchOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [dateOpen, setDateOpen] = useState(false);
-  const [journalName, setJournalName] = useState<string>("Journal");
-  const [composerFocused, setComposerFocused] = useState(false);
-  const composerLockScrollYRef = useRef<number | null>(null);
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const [listeningSections, setListeningSections] = useState<ListeningSections>({
-    thought: "",
-    words: "",
-    plan: "",
-    interpretation: "",
-  });
-  const lastSyncedListeningKey = useRef<string | null>(null);
-  useLockBodyScrollWhenKeyboardActive(
-    replyWithAi && entryKind !== "vent" && entryKind !== "listening" && composerFocused,
-    composerLockScrollYRef,
-  );
-
-  // Auto-scroll the chat transcript to the latest message (like ChatGPT)
-  useEffect(() => {
-    const el = chatScrollRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-      chatBottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-    });
-  }, [chatTurns.length, aiBusy]);
-
-  // Pre-fill from verse capture
-  useEffect(() => {
-    const v = params.get("verse");
-    const r = params.get("ref");
-    const jid = params.get("journalId");
-    const pid = params.get("promptId");
-    const promptText = params.get("prompt");
-    const artifactTitle = params.get("artifactTitle");
-    const artifactUrl = params.get("artifactUrl");
-    const artifactTime = params.get("artifactTime");
-    const artifactTranscript = params.get("artifactTranscript");
-    const artifactClaims = params.get("artifactClaims");
-    if (jid) setJournalId(jid);
-    if (pid) setPromptId(pid);
-    if (r) setVerseRef(r);
-    if (v) {
-      setTitle((t) => t || (r ? `Reflection on ${r}` : "Verse reflection"));
-      setBody(
-        (b) =>
-          b ||
-          `${r ? `${r}\n` : ""}"${v}"\n\n`,
-      );
-    }
-    if (promptText && !v) {
-      setTitle((t) => t || promptText.slice(0, 80));
-      setBody((b) => b || `> ${promptText}\n\n`);
-    }
-    if (artifactTranscript) {
-      const decodedTitle = artifactTitle ? decodeURIComponent(artifactTitle) : "YouTube artifact reflection";
-      const decodedUrl = artifactUrl ? decodeURIComponent(artifactUrl) : "";
-      const decodedTranscript = decodeURIComponent(artifactTranscript);
-      const decodedClaims = artifactClaims ? decodeURIComponent(artifactClaims) : "";
-      setTitle((t) => t || decodedTitle);
-      setBody((b) =>
-        b ||
-        [
-          decodedUrl ? `Source: ${decodedUrl}` : "",
-          artifactTime ? `Timestamp: ${artifactTime}s` : "",
-          "",
-          decodedClaims ? "Major key points extracted:" : "",
-          decodedClaims,
-          decodedClaims ? "" : "",
-          "Transcript:",
-          decodedTranscript,
-          "",
-          "Journal response:",
-          "- What challenged my current beliefs?",
-          "- What do I keep, reject, or revise?",
-          "- What should become a memory or action?",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      );
-      setTags((ts) => (ts.length ? ts : ["artifact", "youtube"]));
-    }
-    const kindInit = parseJournalEntryKindParam(params.get("kind"));
-    if (kindInit === "chat" && !editId) {
-      navigate("/my-ai", { replace: true });
-      return;
-    }
-    if (kindInit) {
-      if (kindInit === "vent" && !editId) {
-        // Vents have a dedicated, deliberately minimal UI.
-        navigate("/journal/vent", { replace: true });
-        return;
-      }
-      setEntryKind(kindInit);
-      setTitle((t) => t || `New ${ENTRY_KIND_META[kindInit].newTitleHint}`);
-      if (kindInit !== "vent" && kindInit !== "listening") {
-        setBody((b) => b || `${ENTRY_KIND_META[kindInit].placeholder}\n\n`);
-      }
-    }
-  }, [params, editId, navigate]);
-
-  useEffect(() => {
-    if (entryKind !== "listening") return;
-    if (!isListeningEmpty(listeningSections)) return;
-    if (!body.trim()) return;
-    const parsed = parseListeningBody(body);
-    if (isListeningEmpty(parsed)) return;
-    setListeningSections(parsed);
-    lastSyncedListeningKey.current = JSON.stringify(parsed);
-    // Only re-hydrate sections when the kind switches; later edits flow through the per-section state below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryKind]);
-
-  useEffect(() => {
-    if (entryKind !== "listening") return;
-    const key = JSON.stringify(listeningSections);
-    if (key === lastSyncedListeningKey.current) return;
-    lastSyncedListeningKey.current = key;
-    const composed = composeListeningBody(listeningSections);
-    setBody(composed);
-  }, [listeningSections, entryKind]);
-
-  const setListeningSection = (key: ListeningSectionKey, value: string) => {
-    setListeningSections((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // After URL prefill: apply floating-panel expand handoff (route state + localStorage fallback)
-  const handoffAppliedForKey = useRef<string | null>(null);
-  useEffect(() => {
-    if (editId) return;
-    const fromState = (location.state as { journalHandoff?: JournalExpandHandoffPayload } | null)?.journalHandoff;
-    let handoff: JournalExpandHandoffPayload | null = fromState ?? null;
-    if (!handoff) {
-      try {
-        const raw = localStorage.getItem(JOURNAL_EXPAND_HANDOFF_KEY);
-        if (raw) handoff = JSON.parse(raw) as JournalExpandHandoffPayload;
-      } catch {
-        /* ignore */
-      }
-    }
-    if (!handoff || typeof handoff.body !== "string") return;
-    if (handoffAppliedForKey.current === location.key) return;
-    handoffAppliedForKey.current = location.key;
-
-    setBody(handoff.body);
-    if (handoff.title?.trim()) setTitle(handoff.title);
-    if (handoff.tags?.length) setTags(handoff.tags);
-    try {
-      localStorage.removeItem(JOURNAL_EXPAND_HANDOFF_KEY);
-    } catch {
-      /* ignore */
-    }
-    if (fromState) {
-      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
-    }
-  }, [editId, location.key, location.pathname, location.search, location.state, navigate]);
-
-  // Load existing entry
-  useEffect(() => {
-    if (!editId || !user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("id", editId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!data) return;
-      setTitle(data.title ?? "");
-      setBody(data.body ?? "");
-      setMood(data.mood);
-      setTags(data.tags ?? []);
-      const loadedKind = coerceJournalEntryKind((data as { entry_kind?: string | null }).entry_kind);
-      setEntryKind(loadedKind);
-      if (loadedKind === "listening" || isListeningBody(data.body)) {
-        const parsed = parseListeningBody(data.body);
-        setListeningSections(parsed);
-        lastSyncedListeningKey.current = JSON.stringify(parsed);
-      }
-      setVerseRef(data.verse_ref ?? "");
-      setBeliefId(data.belief_id ?? "");
-      setLocationName(data.location_name ?? "");
-      setAnalyzeForMirror(!!data.analyze_for_mirror);
-      setJournalId(data.journal_id ?? null);
-      setLat(data.lat ?? null);
-      setLng(data.lng ?? null);
-      setWeather(data.weather ?? null);
-      setWeatherTempC(data.weather_temp_c ?? null);
-      setWeatherIcon(data.weather_icon ?? null);
-      const dt = new Date(data.entry_at_ts);
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
-      setEntryAt(dt.toISOString().slice(0, 16));
-
-      if (loadedKind === "chat") {
-        setInlineEntryId(editId);
-        setReplyWithAi(true);
-        const { data: chatRow } = await supabase
-          .from("my_ai_chats")
-          .select("id")
-          .eq("journal_entry_id", editId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (chatRow?.id) {
-          setChatId(chatRow.id);
-          await loadChatTurns(chatRow.id);
-        }
-      }
-
-      const { data: photos } = await supabase
-        .from("journal_photos")
-        .select("id,storage_path")
-        .eq("entry_id", editId);
-      const urls = await getSignedPhotoUrls((photos ?? []).map((p) => p.storage_path));
-      setExistingPhotos(
-        (photos ?? []).map((p) => ({ id: p.id, storage_path: p.storage_path, url: urls[p.storage_path] })),
-      );
-    })();
-  }, [editId, user]);
-
-  // Load beliefs for picker
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("belief_nodes")
-      .select("id,topic,statement")
-      .order("topic")
-      .then(({ data }) => setBeliefs((data as BeliefOpt[]) ?? []));
-  }, [user]);
-
-  // Default journal + auto-context on new entries
-  useEffect(() => {
-    if (editId || !user) return;
-    (async () => {
-      if (!journalId) {
-        const def = await getDefaultJournalId(user.id);
-        if (def) setJournalId(def);
-      }
-      if (lat == null && !locationName) {
-        const ctx = await getCurrentContext();
-        if (ctx.lat != null) setLat(ctx.lat);
-        if (ctx.lng != null) setLng(ctx.lng);
-        if (ctx.location_name && !locationName) setLocationName(ctx.location_name);
-        if (ctx.weather) setWeather(ctx.weather);
-        if (ctx.weather_temp_c != null) setWeatherTempC(ctx.weather_temp_c);
-        if (ctx.weather_icon) setWeatherIcon(ctx.weather_icon);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId, user]);
-
-  const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
-
-  const dateLabel = useMemo(() => {
-    try {
-      const d = new Date(entryAt);
-      const datePart = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-      const timePart = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-      return `${datePart}  ${timePart}`;
-    } catch {
-      return "Today";
-    }
-  }, [entryAt]);
-
-  useEffect(() => {
-    if (!journalId) return;
-    supabase
-      .from("journals")
-      .select("name")
-      .eq("id", journalId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.name) setJournalName(data.name);
-      });
-  }, [journalId]);
-
-  if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
-
-  const useMyLocation = () => {
-    if (!navigator.geolocation) {
-      toast({ title: "Geolocation not available", variant: "destructive" });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=12`,
-            { headers: { Accept: "application/json" } },
-          );
-          const j = await r.json();
-          const name =
-            j?.address?.city ||
-            j?.address?.town ||
-            j?.address?.village ||
-            j?.address?.county ||
-            j?.display_name?.split(",")[0] ||
-            `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-          setLocationName(name);
-        } catch {
-          setLocationName(`${latitude.toFixed(3)}, ${longitude.toFixed(3)}`);
-        }
-      },
-      () => toast({ title: "Couldn't get location", variant: "destructive" }),
-      { timeout: 8000 },
-    );
-  };
-
-  const removeExistingPhoto = async (photoId: string, storage_path: string) => {
-    setExistingPhotos((ps) => ps.filter((p) => p.id !== photoId));
-    await supabase.storage.from("journal-photos").remove([storage_path]).catch(() => {});
-    await supabase.from("journal_photos").delete().eq("id", photoId);
-  };
-
-  const loadChatTurns = async (cId: string) => {
-    setChatTurns(await loadInlineChatTurns(cId));
-  };
-
-  const ensureChatEntry = async (): Promise<{ entryId: string; chatId: string } | null> => {
-    if (!user) return null;
-    let eId = inlineEntryId ?? editId ?? null;
-    let cId = chatId;
-    const ts = new Date(entryAt);
-
-    if (!eId) {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: user.id,
-          journal_id: journalId,
-          title: title.trim() || null,
-          body: "",
-          mood,
-          tags,
-          verse_ref: verseRef.trim() || null,
-          belief_id: beliefId || null,
-          prompt_id: promptId,
-          location_name: locationName.trim() || null,
-          lat, lng, weather, weather_temp_c: weatherTempC, weather_icon: weatherIcon,
-          analyze_for_mirror: false,
-          entry_at_ts: ts.toISOString(),
-          entry_at: ts.toISOString().slice(0, 10),
-          entry_kind: "chat",
-        })
-        .select("id")
-        .maybeSingle();
-      if (error || !data) {
-        toast({ title: "Couldn't start AI chat", description: error?.message, variant: "destructive" });
-        return null;
-      }
-      eId = data.id;
-      setInlineEntryId(eId);
-    } else if (editId) {
-      // Make sure existing entry is marked as chat
-      await supabase
-        .from("journal_entries")
-        .update({ entry_kind: "chat" })
-        .eq("id", eId)
-        .eq("user_id", user.id);
-    }
-
-    if (!cId) {
-      const { data: existing } = await supabase
-        .from("my_ai_chats")
-        .select("id")
-        .eq("journal_entry_id", eId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (existing?.id) {
-        cId = existing.id;
-      } else {
-        const { data: created, error: cErr } = await supabase
-          .from("my_ai_chats")
-          .insert({ user_id: user.id, journal_entry_id: eId, title: title.trim() || null })
-          .select("id")
-          .maybeSingle();
-        if (cErr || !created) {
-          toast({ title: "Couldn't start AI chat", description: cErr?.message, variant: "destructive" });
-          return null;
-        }
-        cId = created.id;
-      }
-      setChatId(cId);
-    }
-    return { entryId: eId!, chatId: cId! };
-  };
-
-  const sendToAi = async () => {
-    const text = body.trim();
-    if (!text || aiBusy) return;
-    dictateRef.current?.stop();
-    setAiBusy(true);
-    try {
-      const ensured = await ensureChatEntry();
-      if (!ensured) return;
-      // Optimistically render the user turn
-      const tempId = `tmp-${Date.now()}`;
-      setChatTurns((prev) => [...prev, { id: tempId, role: "user", content: text }]);
-      setBody("");
-      const { data, error } = await supabase.functions.invoke("my-ai-chat", {
-        body: {
-          chat_id: ensured.chatId,
-          message: text,
-          mode: "journal",
-          journal_entry_id: ensured.entryId,
-          include_general_knowledge: true,
-        },
-      });
-      if (error) {
-        throw new Error(await edgeFunctionErrorMessage("my-ai-chat", error, data));
-      }
-      const payload = data as { error?: string; chat_id?: string } | null;
-      if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
-      await loadChatTurns(ensured.chatId);
-      setTimeout(() => {
-        chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
-      }, 50);
-    } catch (e) {
-      toast({ title: "AI reply failed", description: String(e), variant: "destructive" });
-      setBody((b) => (b ? b : text));
-      // Drop optimistic user turn on failure
-      setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
-  const save = async () => {
-    dictateRef.current?.stop();
-    const hasChat = chatTurns.length > 0;
-    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length && !hasChat) {
-      toast({ title: "Write something or add a photo first", variant: "destructive" });
-      return;
-    }
-    setBusy(true);
-    setBusyLabel("Saving");
-    const ts = new Date(entryAt);
-
-    // Inline AI chat mode: the entry already exists, body holds composed transcript
-    const isInlineChat = !!inlineEntryId && hasChat;
-    const composedBody = isInlineChat ? composeChatTranscript(chatTurns, body) : body;
-    const finalKind = isInlineChat ? "chat" : entryKind;
-
-    const payload = {
-      user_id: user.id,
-      journal_id: journalId,
-      title: title.trim() || null,
-      body: composedBody,
-      mood,
-      tags,
-      verse_ref: verseRef.trim() || null,
-      belief_id: beliefId || null,
-      prompt_id: promptId,
-      location_name: locationName.trim() || null,
-      lat,
-      lng,
-      weather,
-      weather_temp_c: weatherTempC,
-      weather_icon: weatherIcon,
-      // Vents are private — never include in mirror analysis regardless of toggle state.
-      analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
-      entry_at_ts: ts.toISOString(),
-      entry_at: ts.toISOString().slice(0, 10),
-      entry_kind: finalKind,
-    };
-
-    let entryId = editId ?? inlineEntryId ?? null;
-    if (entryId) {
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", entryId)
-        .eq("user_id", user.id);
-      if (error) {
-        setBusy(false);
-        toast({ title: "Save failed", description: error.message, variant: "destructive" });
-        return;
-      }
-    } else {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert(payload)
-        .select("id")
-        .maybeSingle();
-      if (error || !data) {
-        setBusy(false);
-        toast({ title: "Save failed", description: error?.message, variant: "destructive" });
-        return;
-      }
-      entryId = data.id;
-    }
-
-    if (pendingFiles.length && entryId) {
-      setBusyLabel("Uploading photos");
-      try {
-        const uploaded = await uploadEntryPhotos(user.id, entryId, pendingFiles);
-        await supabase.from("journal_photos").insert(
-          uploaded.map((u) => ({
-            user_id: user.id,
-            entry_id: entryId!,
-            storage_path: u.storage_path,
-            width: u.width,
-            height: u.height,
-          })),
-        );
-        const { data: photoRows } = await supabase
-          .from("journal_photos")
-          .select("storage_path")
-          .eq("entry_id", entryId!);
-        const { sketches } = partitionJournalPhotos(photoRows ?? []);
-        if (sketches.length) {
-          setBusyLabel("Reading handwriting");
-          const tx = await transcribeEntrySketchPaths(
-            entryId!,
-            sketches.map((s) => s.storage_path),
-          );
-          if (!tx.ok) {
-            toast({
-              title: "Photos saved",
-              description: tx.error,
-              variant: "destructive",
-            });
-          } else if (tx.transcribed > 0 || tx.title) {
-            const { data: refreshed } = await supabase
-              .from("journal_entries")
-              .select("body,title,summary")
-              .eq("id", entryId!)
-              .maybeSingle();
-            if (refreshed?.body) setBody(refreshed.body);
-            if (refreshed?.title) setTitle(refreshed.title);
-            else if (tx.title) setTitle(tx.title);
-            toast({
-              title: tx.title || refreshed?.title ? "Entry named and transcribed" : "Handwritten note transcribed",
-              description:
-                tx.title || refreshed?.title
-                  ? `“${tx.title ?? refreshed?.title}” — ${refreshed?.summary ? "summary and full text" : "full text"} added.`
-                  : refreshed?.summary
-                    ? "Summary and full text were added to your entry."
-                    : "Handwriting was added to your journal body.",
-            });
-          }
-        }
-      } catch (e) {
-        toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
-      }
-    }
-
-    if (analyzeForMirror && entryId) {
-      supabase.functions.invoke("journal-score-entry", { body: { entry_id: entryId } }).catch((e) =>
-        console.error("score err", e),
-      );
-    }
-
-    if (isInlineChat) {
-      navigate(`/journal/${entryId}`);
-      return;
-    }
-
-    if (replyWithAi && canReplyWithAi && entryId) {
-      setBusyLabel("Opening AI reply");
-      try {
-        // Mark as chat so JournalChatPage will load it and the finalize flow applies.
-        await supabase
-          .from("journal_entries")
-          .update({ entry_kind: "chat" })
-          .eq("id", entryId)
-          .eq("user_id", user.id);
-        // Attach a chat thread if one doesn't already exist.
-        const { data: existing } = await supabase
-          .from("my_ai_chats")
-          .select("id")
-          .eq("journal_entry_id", entryId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (!existing?.id) {
-          await supabase
-            .from("my_ai_chats")
-            .insert({ user_id: user.id, journal_entry_id: entryId, title: title.trim() || null });
-        }
-      } catch (e) {
-        toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
-      }
-      navigate(`/journal/chat/${entryId}`);
-      return;
-    }
-
-    navigate(`/journal/${entryId}`);
-  };
-
-  const lifeSegment = entryKind ? kindToLifeSegment(entryKind) : null;
-  const layoutBack = editId
-    ? `/journal/${editId}`
-    : entryKind === "vent"
-      ? "/journal/vent"
-      : lifeSegment
-        ? `/journal/life/${lifeSegment}`
-        : "/journal";
-  const layoutTitle = editId ? "Edit entry" : entryKind ? `New ${ENTRY_KIND_META[entryKind].label}` : "New entry";
-  const bodyPlaceholder = entryKind
-    ? ENTRY_KIND_META[entryKind].placeholder
-    : "What happened today? What are you carrying?";
-  const isVent = entryKind === "vent";
-  const isListening = entryKind === "listening";
-  const canReplyWithAi = !isVent && !isListening;
-  const inlineChatMode = replyWithAi && canReplyWithAi;
-
-  const openChatMode = async () => {
-    if (!canReplyWithAi) {
-      toast({ title: "Not available for this entry type" });
-      return;
-    }
-    setReplyWithAi(true);
-    await ensureChatEntry();
-    setTimeout(() => {
-      chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
-    }, 50);
-  };
-
-  const triggerPhotos = () => photoInputRef.current?.click();
-  const triggerAudio = () => dictateRef.current?.toggle();
-  const triggerPrompts = () => navigate("/journal/prompts");
-  const triggerHandwritten = () => setSketchOpen(true);
-
-  const { sketches: existingSketches, attachments: existingAttachments } =
-    partitionJournalPhotos(existingPhotos);
-  const pendingSketches = pendingFiles.filter((f) => isJournalSketchAsset(f.name));
-  const pendingAttachments = pendingFiles.filter((f) => !isJournalSketchAsset(f.name));
-  const sketchDraftKey = `compose:${editId ?? journalId ?? "new"}`;
+  if (p.loading) return null;
+  if (!p.user) return <Navigate to="/auth" replace />;
 
   const dictateButton = (
     <DictateButton
-      ref={dictateRef}
-      userId={user?.id}
+      ref={p.dictateRef}
+      userId={p.user.id}
       size="md"
       className="h-9 w-9 shrink-0 rounded-full"
-      onAppend={(chunk) => setBody((b) => mergeDictatedText(b, chunk))}
-      onInterim={setDictInterim}
+      onAppend={p.appendDictatedText}
+      onInterim={p.setDictInterim}
     />
   );
 
-  const weatherLabel = weatherTempC != null
-    ? `${Math.round((weatherTempC * 9) / 5 + 32)}\u00b0F`
-    : (weather ?? "");
-
-  // Mark unused vars used to satisfy lint
-  void layoutTitle;
-  void listeningCanSave;
-
   return (
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
-      {/* Day One style header */}
       <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate(layoutBack)}
+            onClick={() => p.navigate(p.layoutBack)}
             className="-ml-1 px-1 h-9 flex items-center text-primary"
             aria-label="Back"
           >
@@ -775,14 +59,14 @@ export default function NewJournalEntryPage() {
           </button>
           <button
             type="button"
-            onClick={() => setDateOpen(true)}
+            onClick={() => p.setDateOpen(true)}
             className="flex-1 min-w-0 text-left text-[15px] font-semibold tracking-tight truncate"
           >
-            {dateLabel}
+            {p.dateLabel}
           </button>
           <button
             type="button"
-            onClick={triggerHandwritten}
+            onClick={p.triggerHandwritten}
             className="h-9 w-9 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-muted"
             aria-label="Handwritten"
           >
@@ -790,40 +74,40 @@ export default function NewJournalEntryPage() {
           </button>
           <button
             type="button"
-            onClick={() => setMoreOpen(true)}
+            onClick={() => p.setMoreOpen(true)}
             className="h-9 w-9 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-muted"
             aria-label="More options"
           >
             <MoreHorizontal className="w-5 h-5" />
           </button>
           <Button
-            onClick={save}
-            disabled={busy}
+            onClick={() => void p.save()}
+            disabled={p.busy}
             size="sm"
             variant="ghost"
             className="text-primary text-[15px] font-semibold px-2"
           >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Done"}
+            {p.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Done"}
           </Button>
         </div>
         <div className="max-w-3xl mx-auto px-3 sm:px-5 pb-2 flex items-center gap-2 text-[12px] text-muted-foreground">
           <span className="uppercase tracking-wider font-semibold text-primary truncate max-w-[40%]">
-            {journalName}
+            {p.journalName}
           </span>
-          {(locationName || weatherLabel) && <span aria-hidden>·</span>}
-          {locationName && (
+          {(p.locationName || p.weatherLabel) && <span aria-hidden>·</span>}
+          {p.locationName && (
             <button
               type="button"
-              onClick={() => setMoreOpen(true)}
+              onClick={() => p.setMoreOpen(true)}
               className="truncate max-w-[40%] hover:text-foreground"
             >
-              {locationName}
+              {p.locationName}
             </button>
           )}
-          {weatherLabel && (
+          {p.weatherLabel && (
             <span className="inline-flex items-center gap-1 text-muted-foreground/80">
-              {locationName && <span aria-hidden>·</span>}
-              <span>{weatherLabel}</span>
+              {p.locationName && <span aria-hidden>·</span>}
+              <span>{p.weatherLabel}</span>
             </span>
           )}
         </div>
@@ -834,204 +118,94 @@ export default function NewJournalEntryPage() {
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 9.5rem)" }}
       >
         <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          value={p.title}
+          onChange={(e) => p.setTitle(e.target.value)}
           placeholder="Title"
           className="border-0 bg-transparent px-0 text-[22px] leading-tight font-display font-semibold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/40"
         />
 
-        {isListening ? (
-          <section
-            className="mt-2 rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-700/40 dark:bg-amber-900/20"
-            aria-label="Listening entry"
-          >
-            <div className="mb-3 flex items-start gap-3">
-              <div className="rounded-full border border-amber-300 bg-amber-100/80 p-2 text-amber-700 dark:border-amber-600 dark:bg-amber-800/40 dark:text-amber-200">
-                <Ear className="h-4 w-4" aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium leading-tight">Listening — heard from God</div>
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                  {ENTRY_KIND_META.listening.shortHint}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              {LISTENING_SECTIONS.map((section) => (
-                <div key={section.key} className="rounded-lg border border-border bg-background/80 p-3">
-                  <Label
-                    htmlFor={`listening-${section.key}`}
-                    className="text-[11px] uppercase tracking-wider text-muted-foreground"
-                  >
-                    {section.label}
-                  </Label>
-                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/85">
-                    {section.hint}
-                  </p>
-                  <PolishedTextarea
-                    polishResetKey={section.key}
-                    id={`listening-${section.key}`}
-                    value={listeningSections[section.key]}
-                    onChange={(e) => setListeningSection(section.key, e.target.value)}
-                    rows={section.rows}
-                    placeholder={section.placeholder}
-                    className="mt-2 font-sans text-[15px] leading-relaxed"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : inlineChatMode ? (
-          <InlineJournalChatTranscript
-            scrollRef={chatScrollRef}
-            bottomRef={chatBottomRef}
-            turns={chatTurns}
-            aiBusy={aiBusy}
-            seedUserText={body}
-            dictInterim={dictInterim}
-            className="flex-1 -mx-3 sm:-mx-5 px-3 sm:px-5 overflow-y-auto"
-          />
-        ) : (
-          <>
-            <PolishedTextarea
-              polishResetKey={editId ?? "journal-new"}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={bodyPlaceholder}
-              className="mt-1 flex-1 min-h-[60dvh] resize-none border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
-            />
-            {dictInterim.trim() ? (
-              <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-                {dictInterim}
-              </p>
-            ) : null}
-            {existingSketches.length > 0 ? (
-              <JournalSketchInline
-                sketches={existingSketches}
-                className="mt-4"
-                onOpenSketch={triggerHandwritten}
-                onRemove={removeExistingPhoto}
-              />
-            ) : null}
-            {pendingSketches.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {pendingSketches.map((f, i) => (
-                  <div
-                    key={`${f.name}-${i}`}
-                    className="group relative overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm"
-                  >
-                    <button type="button" onClick={triggerHandwritten} className="block w-full">
-                      <img
-                        src={URL.createObjectURL(f)}
-                        alt="Handwritten journal note"
-                        className="w-full max-h-[min(72vh,640px)] object-contain bg-white"
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPendingFiles((arr) => arr.filter((file) => file !== f))
-                      }
-                      className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white"
-                      aria-label="Remove handwritten note"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {(existingAttachments.length > 0 || pendingAttachments.length > 0) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {existingAttachments.map((p) => (
-                  <div key={p.id} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
-                    {p.url ? <img src={p.url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted" />}
-                    <button
-                      type="button"
-                      onClick={() => removeExistingPhoto(p.id, p.storage_path)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {pendingAttachments.map((f, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
-                    <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPendingFiles((arr) => arr.filter((file) => file !== f))}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        <NewJournalEntryBodyEditor
+          editId={p.editId}
+          isListening={p.isListening}
+          inlineChatMode={p.inlineChatMode}
+          body={p.body}
+          setBody={p.setBody}
+          bodyPlaceholder={p.bodyPlaceholder}
+          listeningSections={p.listeningSections}
+          setListeningSection={p.setListeningSection}
+          chatScrollRef={p.chatScrollRef}
+          chatBottomRef={p.chatBottomRef}
+          chatTurns={p.chatTurns}
+          aiBusy={p.aiBusy}
+          dictInterim={p.dictInterim}
+          existingSketches={p.existingSketches}
+          existingAttachments={p.existingAttachments}
+          pendingSketches={p.pendingSketches}
+          pendingAttachments={p.pendingAttachments}
+          onOpenSketch={p.triggerHandwritten}
+          onRemoveExistingPhoto={(id, path) => void p.removeExistingPhoto(id, path)}
+          onRemovePendingFile={p.removePendingFile}
+        />
       </main>
 
       <input
-        ref={photoInputRef}
+        ref={p.photoInputRef}
         type="file"
         accept="image/*"
         multiple
         className="hidden"
         onChange={(e) => {
-          setPendingFiles((arr) => [...arr, ...Array.from(e.target.files ?? [])]);
+          p.handlePhotoInputChange(e.target.files);
           e.target.value = "";
         }}
       />
-      {!inlineChatMode ? (
+      {!p.inlineChatMode ? (
         <div className="sr-only" aria-hidden>
           {dictateButton}
         </div>
       ) : null}
 
-      {/* Bottom toolbar / chat composer (fixed) */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-xl"
         style={{
           paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
-          transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
+          transform: p.kbInset ? `translateY(-${p.kbInset}px)` : undefined,
           transition: "transform 120ms ease-out",
         }}
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 pt-2">
-          {inlineChatMode ? (
+          {p.inlineChatMode ? (
             <InlineJournalChatComposer
-              value={body}
-              onChange={setBody}
-              onSend={() => void sendToAi()}
-              onExit={() => setReplyWithAi(false)}
+              value={p.body}
+              onChange={p.setBody}
+              onSend={() => void p.sendToAi()}
+              onExit={() => p.setReplyWithAi(false)}
               dictateControl={dictateButton}
               onPointerDown={() => {
-                composerLockScrollYRef.current = window.scrollY;
+                p.composerLockScrollYRef.current = window.scrollY;
               }}
-              onFocus={() => setComposerFocused(true)}
-              onBlur={() => setComposerFocused(false)}
-              aiBusy={aiBusy}
+              onFocus={() => p.setComposerFocused(true)}
+              onBlur={() => p.setComposerFocused(false)}
+              aiBusy={p.aiBusy}
             />
           ) : (
             <div className="rounded-2xl border border-border bg-background shadow-sm">
               <div className="grid grid-cols-5 gap-1 p-1.5">
-                <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={triggerPhotos} />
-                <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={triggerHandwritten} />
-                <ToolbarTile icon={<Lightbulb className="w-5 h-5" />} label="Prompts" onClick={triggerPrompts} />
-                <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={triggerAudio} />
+                <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={p.triggerPhotos} />
+                <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={p.triggerHandwritten} />
+                <ToolbarTile icon={<Lightbulb className="w-5 h-5" />} label="Prompts" onClick={p.triggerPrompts} />
+                <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={p.triggerAudio} />
                 <ToolbarTile
                   icon={<MessageCircle className="w-5 h-5" />}
                   label="Chat AI"
-                  onClick={() => void openChatMode()}
-                  disabled={!canReplyWithAi}
+                  onClick={() => void p.openChatMode()}
+                  disabled={!p.canReplyWithAi}
                   accent
                 />
               </div>
               <button
                 type="button"
-                onClick={() => setMoreOpen(true)}
+                onClick={() => p.setMoreOpen(true)}
                 className="w-full flex items-center justify-center gap-1 text-[12px] text-muted-foreground py-1.5 hover:text-foreground"
               >
                 <ChevronDown className="w-3.5 h-3.5" /> More
@@ -1041,22 +215,18 @@ export default function NewJournalEntryPage() {
         </div>
       </div>
 
-      <Sheet open={dateOpen} onOpenChange={setDateOpen}>
+      <Sheet open={p.dateOpen} onOpenChange={p.setDateOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader>
             <SheetTitle>When</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
-            <Input
-              type="datetime-local"
-              value={entryAt}
-              onChange={(e) => setEntryAt(e.target.value)}
-            />
+            <Input type="datetime-local" value={p.entryAt} onChange={(e) => p.setEntryAt(e.target.value)} />
           </div>
         </SheetContent>
       </Sheet>
 
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+      <Sheet open={p.moreOpen} onOpenChange={p.setMoreOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[85dvh] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Entry details</SheetTitle>
@@ -1065,10 +235,10 @@ export default function NewJournalEntryPage() {
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entry type</Label>
               <select
-                value={entryKind ?? ""}
+                value={p.entryKind ?? ""}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setEntryKind(v ? coerceJournalEntryKind(v) : null);
+                  p.setEntryKind(v ? coerceJournalEntryKind(v) : null);
                 }}
                 className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
@@ -1083,23 +253,27 @@ export default function NewJournalEntryPage() {
 
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mood</Label>
-              <div className="mt-2"><MoodPicker value={mood} onChange={setMood} /></div>
+              <div className="mt-2">
+                <MoodPicker value={p.mood} onChange={p.setMood} />
+              </div>
             </section>
 
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tags</Label>
-              <div className="mt-2"><TagInput tags={tags} onChange={setTags} /></div>
+              <div className="mt-2">
+                <TagInput tags={p.tags} onChange={p.setTags} />
+              </div>
             </section>
 
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Where</Label>
               <div className="mt-2 flex gap-2">
                 <Input
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
+                  value={p.locationName}
+                  onChange={(e) => p.setLocationName(e.target.value)}
                   placeholder="Location (optional)"
                 />
-                <Button type="button" size="icon" variant="outline" onClick={useMyLocation} title="Use my location">
+                <Button type="button" size="icon" variant="outline" onClick={p.useMyLocation} title="Use my location">
                   <MapPin className="w-4 h-4" />
                 </Button>
               </div>
@@ -1111,8 +285,8 @@ export default function NewJournalEntryPage() {
                   <BookOpen className="w-3 h-3" /> Linked verse
                 </Label>
                 <Input
-                  value={verseRef}
-                  onChange={(e) => setVerseRef(e.target.value)}
+                  value={p.verseRef}
+                  onChange={(e) => p.setVerseRef(e.target.value)}
                   placeholder="e.g. John 14:27"
                   className="mt-2"
                 />
@@ -1120,12 +294,12 @@ export default function NewJournalEntryPage() {
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Linked belief</Label>
                 <select
-                  value={beliefId}
-                  onChange={(e) => setBeliefId(e.target.value)}
+                  value={p.beliefId}
+                  onChange={(e) => p.setBeliefId(e.target.value)}
                   className="mt-2 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">— none —</option>
-                  {beliefs.map((b) => (
+                  {p.beliefs.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.topic}: {b.statement.slice(0, 60)}
                     </option>
@@ -1139,16 +313,18 @@ export default function NewJournalEntryPage() {
                 <Sparkles className="w-5 h-5 text-amber-500 mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="analyze" className="font-medium">Include in worldview mirror</Label>
+                    <Label htmlFor="analyze" className="font-medium">
+                      Include in worldview mirror
+                    </Label>
                     <Switch
                       id="analyze"
-                      checked={!isVent && analyzeForMirror}
-                      onCheckedChange={setAnalyzeForMirror}
-                      disabled={isVent}
+                      checked={!p.isVent && p.analyzeForMirror}
+                      onCheckedChange={p.setAnalyzeForMirror}
+                      disabled={p.isVent}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {isVent
+                    {p.isVent
                       ? "Vents are private — never analyzed by the mirror."
                       : "Lovable AI scores this entry for your weekly mirror report."}
                   </p>
@@ -1160,7 +336,10 @@ export default function NewJournalEntryPage() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => { setMoreOpen(false); setSketchOpen(true); }}
+              onClick={() => {
+                p.setMoreOpen(false);
+                p.setSketchOpen(true);
+              }}
             >
               <PenLine className="w-4 h-4 mr-2" /> Add handwritten
             </Button>
@@ -1169,114 +348,14 @@ export default function NewJournalEntryPage() {
       </Sheet>
 
       <SketchPad
-        open={sketchOpen}
-        onClose={() => setSketchOpen(false)}
-        draftKey={sketchDraftKey}
-        onAutosave={
-          editId && user
-            ? async (file) => {
-                const r = await upsertSketchAndTranscribe(user.id, editId, file);
-                const urls = await getSignedPhotoUrls([r.storage_path]);
-                setExistingPhotos((prev) => {
-                  const rest = prev.filter((p) => p.storage_path !== r.storage_path);
-                  return [
-                    ...rest,
-                    {
-                      id: r.photo_id ?? `sketch-${editId}`,
-                      storage_path: r.storage_path,
-                      url: urls[r.storage_path],
-                    },
-                  ];
-                });
-                setPendingFiles((arr) => arr.filter((f) => !isJournalSketchAsset(f.name)));
-                if (r.ok && r.body && !r.skipped) setBody(r.body);
-                if (r.ok && r.title) setTitle(r.title);
-              }
-            : undefined
-        }
-        onSave={async (file) => {
-          if (editId && user) {
-            toast({
-              title: "Reading your handwritten note…",
-              description: "AI is transcribing your handwriting.",
-            });
-            const r = await upsertSketchAndTranscribe(user.id, editId, file);
-            const urls = await getSignedPhotoUrls([r.storage_path]);
-            setExistingPhotos((prev) => {
-              const rest = prev.filter((p) => p.storage_path !== r.storage_path);
-              return [
-                ...rest,
-                {
-                  id: r.photo_id ?? `sketch-${editId}`,
-                  storage_path: r.storage_path,
-                  url: urls[r.storage_path],
-                },
-              ];
-            });
-            setPendingFiles((arr) => arr.filter((f) => !isJournalSketchAsset(f.name)));
-            if (!r.ok) {
-              toast({ title: "Handwritten note saved", description: r.error, variant: "destructive" });
-              return;
-            }
-            if (r.skipped) {
-              toast({ title: "Handwritten note saved" });
-              return;
-            }
-            if (r.body) setBody(r.body);
-            if (r.title) setTitle(r.title);
-            toast({
-              title: r.title ? "Entry named and transcribed" : "Handwritten note transcribed",
-              description: r.title
-                ? `“${r.title}” — ${r.summary ? "summary and full text" : "text"} added to your entry.`
-                : r.summary
-                  ? "Summary and full text were added to your entry."
-                  : "Text was added to your journal body.",
-            });
-            return;
-          }
-          setPendingFiles((arr) => [
-            ...arr.filter((f) => !isJournalSketchAsset(f.name)),
-            file,
-          ]);
-        }}
-        onUnsavedExit={(file) => {
-          setPendingFiles((arr) => [
-            ...arr.filter((f) => !isJournalSketchAsset(f.name)),
-            file,
-          ]);
-          toast({
-            title: "Handwritten note kept",
-            description: "Save your entry to attach it to your journal.",
-          });
-        }}
-        filename={editId ? `sketch-${editId}` : undefined}
+        open={p.sketchOpen}
+        onClose={() => p.setSketchOpen(false)}
+        draftKey={p.sketchDraftKey}
+        onAutosave={p.editId && p.user ? p.handleSketchAutosave : undefined}
+        onSave={p.handleSketchSave}
+        onUnsavedExit={p.handleSketchUnsavedExit}
+        filename={p.editId ? `sketch-${p.editId}` : undefined}
       />
     </div>
-  );
-}
-
-function ToolbarTile({
-  icon, label, onClick, disabled, accent,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  accent?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition text-[11px] font-medium",
-        disabled ? "text-muted-foreground/40" : "text-foreground hover:bg-muted active:bg-muted/80",
-        accent && !disabled && "text-primary",
-      )}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
   );
 }

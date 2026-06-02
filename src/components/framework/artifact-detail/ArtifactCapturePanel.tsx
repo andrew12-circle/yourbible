@@ -215,7 +215,7 @@ export default function ArtifactCapturePanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[min(100vw-2rem,18rem)]">
-              <DropdownMenuItem onClick={onStudyJournal}>Study journal (floating panel)</DropdownMenuItem>
+              <DropdownMenuItem onClick={onStudyJournal}>Study journal</DropdownMenuItem>
               <DropdownMenuItem disabled={!canCapture} onClick={onOpenJournalTimestamp}>
                 Full-page journal at current time
               </DropdownMenuItem>

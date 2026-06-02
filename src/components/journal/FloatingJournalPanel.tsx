@@ -515,7 +515,14 @@ export default function FloatingJournalPanel({
     setSaving(true);
     try {
       const journalId = await getDefaultJournalId(userId);
-      const ctx = await getCurrentContext();
+      const ctx = await getCurrentContext().catch(() => ({
+        location_name: null as string | null,
+        lat: null as number | null,
+        lng: null as number | null,
+        weather: null as string | null,
+        weather_temp_c: null as number | null,
+        weather_icon: null as string | null,
+      }));
       const ts = new Date();
       const payload = {
         user_id: userId,

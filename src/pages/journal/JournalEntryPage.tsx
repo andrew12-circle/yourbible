@@ -61,13 +61,28 @@ export default function JournalEntryPage() {
   const [links, setLinks] = useState<EntryLink[]>([]);
   const [openingAi, setOpeningAi] = useState(false);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
+  const [entryLoading, setEntryLoading] = useState(true);
+  const [entryNotFound, setEntryNotFound] = useState(false);
   const autoTranscribeAttempted = useRef(false);
   const titleSuggestAttempted = useRef(false);
 
   const load = async () => {
     if (!id) return;
-    const { data } = await supabase.from("journal_entries").select("*").eq("id", id).maybeSingle();
-    setEntry(data as Entry | null);
+    setEntryLoading(true);
+    setEntryNotFound(false);
+    const { data, error } = await supabase.from("journal_entries").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      setEntryLoading(false);
+      toast({ title: "Couldn't load entry", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data) {
+      setEntry(null);
+      setEntryLoading(false);
+      setEntryNotFound(true);
+      return;
+    }
+    setEntry(data as Entry);
     if (data?.belief_id) {
       const { data: b } = await supabase
         .from("belief_nodes")
@@ -95,6 +110,7 @@ export default function JournalEntryPage() {
       .maybeSingle();
     setScore((s as Score | null) ?? null);
     setLinks(await listEntryLinks(id));
+    setEntryLoading(false);
   };
 
   useEffect(() => {
@@ -130,6 +146,7 @@ export default function JournalEntryPage() {
           description: tx.error,
           variant: "destructive",
         });
+        autoTranscribeAttempted.current = false;
         return;
       }
       if (tx.transcribed > 0 || tx.title) {
@@ -157,11 +174,13 @@ export default function JournalEntryPage() {
 
   const transcribeSketchNow = async () => {
     if (!entry || sketchStoragePaths.length === 0 || transcribingSketch) return;
+    autoTranscribeAttempted.current = true;
     setTranscribingSketch(true);
     const tx = await transcribeEntrySketchPaths(entry.id, sketchStoragePaths);
     setTranscribingSketch(false);
     if (!tx.ok) {
       toast({ title: "Couldn't read handwriting", description: tx.error, variant: "destructive" });
+      autoTranscribeAttempted.current = false;
       return;
     }
     if (tx.transcribed > 0 || tx.title) {
@@ -177,7 +196,28 @@ export default function JournalEntryPage() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
-  if (!entry) return <JournalLayout title="Entry" back="/journal">Loading…</JournalLayout>;
+  if (entryLoading) {
+    return (
+      <JournalLayout title="Entry" back="/journal">
+        <div className="flex justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      </JournalLayout>
+    );
+  }
+  if (entryNotFound || !entry) {
+    return (
+      <JournalLayout title="Entry not found" back="/journal">
+        <div className="text-center py-16 px-6">
+          <p className="text-[15px] font-semibold">Entry not found</p>
+          <p className="text-[13px] text-muted-foreground mt-1 mb-4">This entry may have been deleted.</p>
+          <Button asChild variant="outline">
+            <Link to="/journal">Back to journal</Link>
+          </Button>
+        </div>
+      </JournalLayout>
+    );
+  }
 
   const remove = async () => {
     if (!confirm("Delete this entry permanently?")) return;

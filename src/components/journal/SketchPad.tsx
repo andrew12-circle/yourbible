@@ -10,18 +10,16 @@ import {
   saveSketchDraft,
 } from "@/lib/journal/sketchDraft";
 import {
-  drawStroke as drawInkStroke,
   normalizeInkPressure,
   projectPointOntoRuler,
 } from "@/lib/ink/strokeRender";
-import {
-  getSketchPenColors,
-  mappedSketchColorForMode,
-} from "@/lib/journal/sketchInkColors";
+import { getSketchPenColors, mappedSketchColorForMode } from "@/lib/journal/sketchInkColors";
 import { rulerSpanLength } from "@/lib/journal/sketchRuler";
+import { canvasBackground, drawPaper, drawStroke } from "@/lib/journal/sketchCanvasDraw";
 import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkDrawTool, InkStroke, InkTool } from "@/lib/ink/types";
 import { cn } from "@/lib/utils";
+import { useSketchPadPersistence } from "@/hooks/useSketchPadCanvas";
 
 /**
  * Day One–style sketch surface.
@@ -40,11 +38,6 @@ import { cn } from "@/lib/utils";
 
 const DEFAULT_PAPER: SketchPaper = "ruled";
 
-/** Spacing in CSS pixels between rules / grid lines / dots. */
-const PAPER_SPACING = 28;
-/** Notebook left margin in CSS pixels. */
-const NOTEBOOK_MARGIN_X = 56;
-
 interface Point {
   x: number;
   y: number;
@@ -56,11 +49,6 @@ type Stroke = InkStroke;
 
 const PEN_SIZES = [2, 4, 6, 10, 16];
 
-const DAY_CANVAS_BG = "#ffffff";
-const NIGHT_CANVAS_BG = "#05070a";
-/** Classic legal-pad yellow (day) and warm dark amber (night). */
-const LEGAL_PAD_DAY_BG = "#fff9c4";
-const LEGAL_PAD_NIGHT_BG = "#1a1708";
 const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
 export interface SketchPadProps {
@@ -89,8 +77,6 @@ function prefersNightMode() {
 
 const MIN_VIEW_SCALE = 1;
 const MAX_VIEW_SCALE = 3;
-const AUTOSAVE_MS = 1800;
-const DRAFT_SAVE_MS = 400;
 
 export default function SketchPad({
   open,
@@ -166,10 +152,6 @@ export default function SketchPad({
     midX: number;
     midY: number;
   } | null>(null);
-  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autosavingRef = useRef(false);
-  /** Distinguishes explicit Save from dismiss (X / Esc) for unsaved-exit handling. */
   const savedViaButtonRef = useRef(false);
   const penColors = getSketchPenColors(isNightMode);
 
@@ -268,15 +250,6 @@ export default function SketchPad({
     });
   }, [draftKey, paper, color, size, tool, rulerVisible, rulerAngle]);
 
-  const queueDraftSave = useCallback(() => {
-    if (!draftKey) return;
-    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-    draftTimerRef.current = setTimeout(() => {
-      draftTimerRef.current = null;
-      persistDraft();
-    }, DRAFT_SAVE_MS);
-  }, [draftKey, persistDraft]);
-
   const exportPngFile = useCallback(async (): Promise<File | null> => {
     const canvas = canvasRef.current;
     if (!canvas || strokesRef.current.length === 0) return null;
@@ -288,33 +261,13 @@ export default function SketchPad({
     return new File([blob], `${base}.png`, { type: "image/png" });
   }, [filename]);
 
-  const flushAutosave = useCallback(async () => {
-    if (!onAutosave || autosavingRef.current || strokesRef.current.length === 0) return;
-    const file = await exportPngFile();
-    if (!file) return;
-    autosavingRef.current = true;
-    try {
-      await onAutosave(file);
-    } catch (err) {
-      console.warn("sketch autosave failed", err);
-    } finally {
-      autosavingRef.current = false;
-    }
-  }, [exportPngFile, onAutosave]);
-
-  const queueAutosave = useCallback(() => {
-    if (!onAutosave) return;
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(() => {
-      autosaveTimerRef.current = null;
-      void flushAutosave();
-    }, AUTOSAVE_MS);
-  }, [flushAutosave, onAutosave]);
-
-  const notifyStrokeChange = useCallback(() => {
-    queueDraftSave();
-    queueAutosave();
-  }, [queueAutosave, queueDraftSave]);
+  const { notifyStrokeChange, flushAutosave, clearTimers, draftTimerRef } = useSketchPadPersistence({
+    draftKey,
+    onAutosave,
+    exportPng: exportPngFile,
+    persistDraft,
+    hasStrokes: () => strokesRef.current.length > 0,
+  });
 
   const clampViewScale = (scale: number) =>
     Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, scale));
@@ -517,19 +470,12 @@ export default function SketchPad({
   }, [open, rulerCenter.x, rulerCenter.y]);
 
   const flushPendingPersistence = useCallback(() => {
-    if (draftTimerRef.current) {
-      clearTimeout(draftTimerRef.current);
-      draftTimerRef.current = null;
-    }
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
+    clearTimers();
     if (strokesRef.current.length > 0 && !savedViaButtonRef.current) {
       persistDraft();
     }
     void flushAutosave();
-  }, [flushAutosave, persistDraft]);
+  }, [clearTimers, flushAutosave, persistDraft]);
 
   useEffect(() => {
     if (!open) return;
@@ -1092,89 +1038,4 @@ export default function SketchPad({
       </footer>
     </div>
   );
-}
-
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, isNightMode = false) {
-  drawInkStroke(ctx, stroke, {
-    colorForStroke: (hex) => mappedSketchColorForMode(hex, isNightMode),
-  });
-}
-
-function canvasBackground(paper: SketchPaper, isNightMode: boolean): string {
-  if (paper === "legal") return isNightMode ? LEGAL_PAD_NIGHT_BG : LEGAL_PAD_DAY_BG;
-  return isNightMode ? NIGHT_CANVAS_BG : DAY_CANVAS_BG;
-}
-
-function drawRuledNotebook(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  isNightMode: boolean,
-  variant: "ruled" | "legal",
-) {
-  ctx.strokeStyle =
-    variant === "legal"
-      ? isNightMode
-        ? "rgba(251, 191, 36, 0.28)"
-        : "rgba(59, 130, 246, 0.42)"
-      : isNightMode
-        ? "rgba(96, 165, 250, 0.34)"
-        : "rgba(99, 162, 214, 0.55)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let y = PAPER_SPACING * 1.25; y < h; y += PAPER_SPACING) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-  }
-  ctx.stroke();
-
-  if (w > NOTEBOOK_MARGIN_X + 40) {
-    ctx.strokeStyle =
-      variant === "legal"
-        ? isNightMode
-          ? "rgba(248, 113, 113, 0.5)"
-          : "rgba(220, 38, 38, 0.5)"
-        : isNightMode
-          ? "rgba(248, 113, 113, 0.44)"
-          : "rgba(220, 38, 38, 0.45)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(NOTEBOOK_MARGIN_X, 0);
-    ctx.lineTo(NOTEBOOK_MARGIN_X, h);
-    ctx.stroke();
-  }
-}
-
-function drawPaper(ctx: CanvasRenderingContext2D, paper: SketchPaper, w: number, h: number, isNightMode = false) {
-  if (paper === "blank") return;
-  ctx.save();
-  if (paper === "ruled") {
-    drawRuledNotebook(ctx, w, h, isNightMode, "ruled");
-  } else if (paper === "legal") {
-    drawRuledNotebook(ctx, w, h, isNightMode, "legal");
-  } else if (paper === "graph") {
-    ctx.strokeStyle = isNightMode ? "rgba(96, 165, 250, 0.24)" : "rgba(99, 162, 214, 0.35)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-    }
-    for (let y = PAPER_SPACING; y < h; y += PAPER_SPACING) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-    }
-    ctx.stroke();
-  } else if (paper === "dot") {
-    ctx.fillStyle = isNightMode ? "rgba(203, 213, 225, 0.44)" : "rgba(120, 120, 130, 0.45)";
-    const r = 1;
-    for (let y = PAPER_SPACING; y < h; y += PAPER_SPACING) {
-      for (let x = PAPER_SPACING; x < w; x += PAPER_SPACING) {
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-  ctx.restore();
 }

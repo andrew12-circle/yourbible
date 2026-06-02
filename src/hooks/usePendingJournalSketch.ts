@@ -47,11 +47,15 @@ export function usePendingJournalSketch() {
       if (!pendingSketchFile) return;
       toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
       const result = await upsertSketchAndTranscribe(userId, entryId, pendingSketchFile);
-      clearPendingSketch();
       if (!result.ok) {
-        toast({ title: "Handwritten note saved", description: result.error, variant: "destructive" });
+        toast({
+          title: "Transcription failed",
+          description: result.error ?? "Your sketch is still attached — try saving again.",
+          variant: "destructive",
+        });
         return;
       }
+      clearPendingSketch();
       if (result.skipped) {
         toast({ title: "Handwritten note attached" });
         return;

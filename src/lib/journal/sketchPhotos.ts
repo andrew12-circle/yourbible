@@ -44,3 +44,14 @@ export async function upsertEntrySketchPhoto(
   if (insertError) throw insertError;
   return { storage_path, photo_id: inserted?.id ?? null };
 }
+
+export type SketchPhotoUpload = { storage_path: string; photo_id: string | null };
+
+/** Upload sketch PNG only (no OCR) — used for periodic autosave while drawing. */
+export async function autosaveSketchPhoto(
+  userId: string,
+  entryId: string,
+  file: File,
+): Promise<SketchPhotoUpload> {
+  return upsertEntrySketchPhoto(userId, entryId, file);
+}

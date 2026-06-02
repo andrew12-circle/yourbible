@@ -7,6 +7,7 @@ import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import { useArtifactJournalEditor } from "@/hooks/useArtifactJournalEditor";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { useIsDesktop } from "@/hooks/use-desktop";
 import { cn } from "@/lib/utils";
 
 const JOURNAL_HEADER_BG = "#38BDF8";
@@ -37,6 +38,7 @@ export default function ArtifactEmbeddedJournal({
   className,
 }: ArtifactEmbeddedJournalProps) {
   const expanded = viewMode === "expanded";
+  const isDesktop = useIsDesktop();
   const {
     title,
     setTitle,
@@ -112,8 +114,8 @@ export default function ArtifactEmbeddedJournal({
               size="icon"
               variant="ghost"
               className="h-8 w-8 text-white hover:bg-white/15 hover:text-white"
-              aria-label="Expand journal; video becomes picture-in-picture"
-              title="Expand journal (video → PiP)"
+              aria-label={isDesktop ? "Expand journal; video becomes picture-in-picture" : "Expand journal"}
+              title={isDesktop ? "Expand journal (video → PiP)" : "Expand journal"}
               onClick={() => {
                 persistDraftNow();
                 onExpand();
@@ -162,7 +164,7 @@ export default function ArtifactEmbeddedJournal({
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={defaultTitlePlaceholder ? `Title (optional)` : "Title (optional)"}
+          placeholder={defaultTitlePlaceholder || "Title (optional)"}
           className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0"
         />
         <div className="mb-2 flex shrink-0 items-center justify-end gap-1">

@@ -9,10 +9,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+function missingEnvResponse(name: string): Response {
+  return new Response(JSON.stringify({ error: `${name} missing on server` }), {
+    status: 500,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 function mimeFromPath(path: string): string {
   const ext = (path.split(".").pop() || "png").toLowerCase();
@@ -59,6 +61,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!GEMINI_API_KEY) return missingEnvResponse("GEMINI_API_KEY");
+    if (!SUPABASE_URL) return missingEnvResponse("SUPABASE_URL");
+    if (!SUPABASE_ANON_KEY) return missingEnvResponse("SUPABASE_ANON_KEY");
+    if (!SERVICE_ROLE) return missingEnvResponse("SUPABASE_SERVICE_ROLE_KEY");
+
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: auth } },
@@ -84,7 +95,7 @@ Deno.serve(async (req) => {
 
     const { data: entry } = await supabase
       .from("journal_entries")
-      .select("id,body,summary,user_id")
+      .select("id,title,body,summary,user_id")
       .eq("id", entry_id)
       .maybeSingle();
     if (!entry || entry.user_id !== u.user.id) {

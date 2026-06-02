@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle } from "lucide-react";
+import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -61,9 +61,13 @@ export default function EntryListPane({
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("list");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
+    setLoading(true);
+    setLoadError(null);
     let query = supabase
       .from("journal_entries")
       .select(
@@ -79,7 +83,13 @@ export default function EntryListPane({
       // Hide vents from the main journal feed — they live only on /journal/vent.
       query = query.or("entry_kind.is.null,entry_kind.neq.vent");
     }
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) {
+      setLoadError(error.message);
+      setLoading(false);
+      toast({ title: "Couldn't load entries", description: error.message, variant: "destructive" });
+      return;
+    }
     const list = (data as Entry[]) ?? [];
     setEntries(list);
 
@@ -103,6 +113,7 @@ export default function EntryListPane({
     } else {
       setPhotoUrls({});
     }
+    setLoading(false);
   };
 
   useEffect(() => { load();   }, [user, journalId, reloadKey, entryKindFilter]);
@@ -227,9 +238,23 @@ export default function EntryListPane({
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
-        {view === "list" && (
+        {loading && entries.length === 0 && !loadError && (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {loadError && (
+          <div className="text-center py-16 px-6">
+            <p className="text-[15px] font-semibold">Couldn&apos;t load entries</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">{loadError}</p>
+            <button type="button" onClick={() => void load()} className="text-primary text-sm font-medium">
+              Try again
+            </button>
+          </div>
+        )}
+        {view === "list" && !loadError && (
           <>
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <div className="text-center py-16 px-6">
                 <p className="text-[15px] font-semibold">No entries yet</p>
                 <button onClick={onNew} className="mt-3 text-primary text-sm font-medium">

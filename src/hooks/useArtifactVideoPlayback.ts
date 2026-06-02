@@ -4,7 +4,7 @@ import { useArtifactPlaybackPersistence } from "@/hooks/useArtifactPlaybackPersi
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
-import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
+import { resolvePlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
@@ -276,16 +276,27 @@ export function useArtifactVideoPlayback(options: {
   }, [activatePlayer, apiPlayerWanted, staticTelemetry]);
 
   const togglePlayback = useCallback(() => {
-    if (apiPlayerWanted && youtubePlayer.playerReady) {
-      youtubePlayer.togglePlayback();
+    if (apiPlayerWanted) {
+      if (youtubePlayer.playerReady) {
+        youtubePlayer.togglePlayback();
+      } else {
+        activatePlayer({ autoplay: true });
+      }
       return;
     }
     staticTelemetry.togglePlayback();
-  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.playerReady, youtubePlayer.togglePlayback]);
+  }, [
+    activatePlayer,
+    apiPlayerWanted,
+    staticTelemetry,
+    youtubePlayer.playerReady,
+    youtubePlayer.togglePlayback,
+  ]);
 
   const getPlaybackSeconds = useCallback(() => {
     if (apiPlayerWanted && youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
-    return staticTelemetry.getCurrentTime() || playbackFallbackRef.current;
+    const staticTime = staticTelemetry.getCurrentTime();
+    return resolvePlaybackSeconds(staticTime, playbackFallbackRef.current);
   }, [
     apiPlayerWanted,
     staticTelemetry,
