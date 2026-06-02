@@ -309,8 +309,10 @@ export default function FrameworkDashboard() {
 
       <section
         className="relative overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm animate-fade-up"
-        style={hasRecentArtifacts ? { animationDelay: "60ms", animationFillMode: "backwards" } : undefined}
         style={{
+          ...(hasRecentArtifacts
+            ? { animationDelay: "60ms", animationFillMode: "backwards" as const }
+            : null),
           backgroundImage:
             "radial-gradient(ellipse 80% 60% at 100% 0%, hsl(var(--primary) / 0.10) 0%, transparent 60%)," +
             "radial-gradient(ellipse 70% 50% at 0% 100%, hsl(38 80% 70% / 0.18) 0%, transparent 65%)," +

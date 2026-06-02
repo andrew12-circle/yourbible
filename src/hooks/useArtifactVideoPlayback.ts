@@ -4,6 +4,7 @@ import { useArtifactPlaybackPersistence } from "@/hooks/useArtifactPlaybackPersi
 import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
+import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import { resolvePlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
