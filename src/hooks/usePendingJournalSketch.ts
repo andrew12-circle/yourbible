@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
-import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
-import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
+import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
+import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 
 /** Holds a sketch PNG until the parent journal entry is saved. */
 export function usePendingJournalSketch() {
@@ -46,8 +46,7 @@ export function usePendingJournalSketch() {
     ) => {
       if (!pendingSketchFile) return;
       toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
-      const { storage_path } = await upsertEntrySketchPhoto(userId, entryId, pendingSketchFile);
-      const result = await transcribeJournalSketch({ entryId, storagePath: storage_path });
+      const result = await upsertSketchAndTranscribe(userId, entryId, pendingSketchFile);
       clearPendingSketch();
       if (!result.ok) {
         toast({ title: "Handwritten note saved", description: result.error, variant: "destructive" });
@@ -58,8 +57,18 @@ export function usePendingJournalSketch() {
         return;
       }
       if (result.body) opts?.onBody?.(result.body);
-      if (result.title) opts?.onTitle?.(result.title);
-      toast({ title: "Handwritten note transcribed", description: "Text was added to your journal entry." });
+      let namedTitle = result.title;
+      if (!namedTitle && result.body) {
+        const suggested = await suggestJournalEntryTitle({ entryId, body: result.body });
+        if (suggested.ok) namedTitle = suggested.title;
+      }
+      if (namedTitle) opts?.onTitle?.(namedTitle);
+      toast({
+        title: namedTitle ? "Entry named and transcribed" : "Handwritten note transcribed",
+        description: namedTitle
+          ? `“${namedTitle}” — text was added to your journal entry.`
+          : "Text was added to your journal entry.",
+      });
     },
     [pendingSketchFile, clearPendingSketch],
   );

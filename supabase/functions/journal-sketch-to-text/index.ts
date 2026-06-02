@@ -30,6 +30,22 @@ async function pathFingerprint(storagePath: string): Promise<string> {
     .slice(0, 24);
 }
 
+function needsAutoTitle(title: string | null | undefined): boolean {
+  const t = String(title ?? "").trim();
+  if (!t) return true;
+  return /^(entry|untitled|new\s+(journal|entry)(?:\s+entry)?|journal\s+entry)$/i.test(t);
+}
+
+function proseForMeta(body: string): string {
+  return body
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^\*\*From your sketch\*\*[^\n]*\n+/im, "")
+    .replace(/^---\n/gm, "\n")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function u8ToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunk = 0x8000;
@@ -68,7 +84,7 @@ Deno.serve(async (req) => {
 
     const { data: entry } = await supabase
       .from("journal_entries")
-      .select("id,body,user_id")
+      .select("id,body,summary,user_id")
       .eq("id", entry_id)
       .maybeSingle();
     if (!entry || entry.user_id !== u.user.id) {
@@ -94,9 +110,66 @@ Deno.serve(async (req) => {
     const marker = `<!-- sketch-tx:${await pathFingerprint(storage_path)} -->`;
     const bodyStr = String(entry.body ?? "");
     if (bodyStr.includes(marker)) {
-      return new Response(JSON.stringify({ ok: true, skipped: true, body: bodyStr }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      let suggestedTitle: string | null = null;
+      let suggestedSummary: string | null = null;
+      const prose = proseForMeta(bodyStr);
+      const needsTitle = needsAutoTitle(entry.title) && prose.length >= 20;
+      const needsSummary = !String(entry.summary ?? "").trim() && prose.length >= 40;
+      if (needsTitle || needsSummary) {
+        const metaRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [
+              {
+                role: "system",
+                content:
+                  `You help title and summarize a private faith journal entry from transcribed handwriting. Reply with ONLY JSON: {"title":"..."|null,"summary":"..."|null}. Title: 4–12 words, sentence case, no trailing period, or null if not needed. Summary: one warm paragraph (2–4 sentences, <= 500 chars), or null if not needed.`,
+              },
+              { role: "user", content: prose.slice(0, 6000) },
+            ],
+            response_format: { type: "json_object" },
+          }),
+        });
+        if (metaRes.ok) {
+          try {
+            const metaJson = await metaRes.json();
+            const content = metaJson.choices?.[0]?.message?.content;
+            if (typeof content === "string") {
+              const parsed = JSON.parse(content) as { title?: string | null; summary?: string | null };
+              if (needsTitle && typeof parsed.title === "string" && parsed.title.trim()) {
+                suggestedTitle = parsed.title.trim().slice(0, 120);
+              }
+              if (needsSummary && typeof parsed.summary === "string" && parsed.summary.trim()) {
+                suggestedSummary = parsed.summary.trim().slice(0, 900);
+              }
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        if (suggestedTitle || suggestedSummary) {
+          await supabase
+            .from("journal_entries")
+            .update({
+              ...(suggestedTitle ? { title: suggestedTitle } : {}),
+              ...(suggestedSummary ? { summary: suggestedSummary } : {}),
+            })
+            .eq("id", entry_id)
+            .eq("user_id", u.user.id);
+        }
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          skipped: true,
+          body: bodyStr,
+          title: suggestedTitle,
+          summary: suggestedSummary,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -214,8 +287,11 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
     }
 
     let suggestedTitle: string | null = null;
-    if (!updated.title?.trim() && transcribed.length >= 20) {
-      const titleRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    let suggestedSummary: string | null = null;
+    const needsTitle = needsAutoTitle(updated.title) && transcribed.length >= 20;
+    const needsSummary = !String(entry.summary ?? "").trim() && transcribed.length >= 40;
+    if (needsTitle || needsSummary) {
+      const metaRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -224,36 +300,50 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
             {
               role: "system",
               content:
-                `Title a private faith journal entry from transcribed handwriting. Reply with ONLY JSON: {"title":"..."}. 4–12 words, sentence case, no trailing period.`,
+                `You help title and summarize a private faith journal entry from transcribed handwriting. Reply with ONLY JSON: {"title":"..."|null,"summary":"..."|null}. Title: 4–12 words, sentence case, no trailing period, or null if not needed. Summary: one warm paragraph (2–4 sentences, <= 500 chars), second person optional, specific to what they wrote — or null if not needed.`,
             },
-            { role: "user", content: transcribed.slice(0, 4000) },
+            { role: "user", content: transcribed.slice(0, 6000) },
           ],
           response_format: { type: "json_object" },
         }),
       });
-      if (titleRes.ok) {
+      if (metaRes.ok) {
         try {
-          const titleJson = await titleRes.json();
-          const content = titleJson.choices?.[0]?.message?.content;
+          const metaJson = await metaRes.json();
+          const content = metaJson.choices?.[0]?.message?.content;
           if (typeof content === "string") {
-            const parsed = JSON.parse(content) as { title?: string };
-            suggestedTitle = typeof parsed.title === "string" ? parsed.title.trim().slice(0, 120) : null;
+            const parsed = JSON.parse(content) as { title?: string | null; summary?: string | null };
+            if (needsTitle && typeof parsed.title === "string" && parsed.title.trim()) {
+              suggestedTitle = parsed.title.trim().slice(0, 120);
+            }
+            if (needsSummary && typeof parsed.summary === "string" && parsed.summary.trim()) {
+              suggestedSummary = parsed.summary.trim().slice(0, 900);
+            }
           }
         } catch {
-          suggestedTitle = null;
+          /* ignore parse errors */
         }
       }
-      if (suggestedTitle) {
-        await supabase
-          .from("journal_entries")
-          .update({ title: suggestedTitle })
-          .eq("id", entry_id)
-          .eq("user_id", u.user.id);
-      }
+    }
+    if (suggestedTitle || suggestedSummary) {
+      await supabase
+        .from("journal_entries")
+        .update({
+          ...(suggestedTitle ? { title: suggestedTitle } : {}),
+          ...(suggestedSummary ? { summary: suggestedSummary } : {}),
+        })
+        .eq("id", entry_id)
+        .eq("user_id", u.user.id);
     }
 
     return new Response(
-      JSON.stringify({ ok: true, text: transcribed, body: updated.body, title: suggestedTitle }),
+      JSON.stringify({
+        ok: true,
+        text: transcribed,
+        body: updated.body,
+        title: suggestedTitle,
+        summary: suggestedSummary,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

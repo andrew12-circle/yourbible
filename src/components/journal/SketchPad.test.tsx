@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { saveSketchDraft } from "@/lib/journal/sketchDraft";
+import { loadSketchDraft, saveSketchDraft, sketchDraftStorageKey } from "@/lib/journal/sketchDraft";
 import SketchPad from "./SketchPad";
 
 const canvasContext = {
@@ -69,6 +69,12 @@ describe("SketchPad", () => {
       return 1;
     });
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(function mockToBlob(
+      this: HTMLCanvasElement,
+      callback: BlobCallback,
+    ) {
+      callback(new Blob(["png"], { type: "image/png" }));
+    });
   });
 
   afterEach(() => {
@@ -196,5 +202,73 @@ describe("SketchPad", () => {
 
     window.dispatchEvent(new Event("resize"));
     expect(canvasContext.fillStyle).toBe("#fff9c4");
+  });
+
+  it("flushes stroke draft to localStorage when closing without Save", async () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <SketchPad open draftKey="pad-test" onClose={onClose} onSave={vi.fn()} />,
+    );
+
+    const canvas = screen.getByRole("dialog", { name: "Handwritten" }).querySelector("canvas");
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+
+    const pointerDown = new Event("pointerdown", { bubbles: true, cancelable: true });
+    Object.assign(pointerDown, {
+      clientX: 40,
+      clientY: 60,
+      pointerId: 2,
+      pointerType: "pen",
+      pressure: 0.5,
+    });
+    canvas.dispatchEvent(pointerDown);
+
+    const pointerUp = new Event("pointerup", { bubbles: true, cancelable: true });
+    Object.assign(pointerUp, { pointerId: 2, pointerType: "pen" });
+    canvas.dispatchEvent(pointerUp);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close handwritten" }));
+
+    await vi.waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    const draft = loadSketchDraft("pad-test");
+    expect(draft?.strokes.length).toBeGreaterThan(0);
+    unmount();
+  });
+
+  it("calls onUnsavedExit with a PNG when closing after drawing", async () => {
+    const onUnsavedExit = vi.fn();
+    render(
+      <SketchPad
+        open
+        draftKey="pad-exit"
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onUnsavedExit={onUnsavedExit}
+      />,
+    );
+
+    const canvas = screen.getByRole("dialog", { name: "Handwritten" }).querySelector("canvas");
+    const pointerDown = new Event("pointerdown", { bubbles: true, cancelable: true });
+    Object.assign(pointerDown, {
+      clientX: 10,
+      clientY: 20,
+      pointerId: 3,
+      pointerType: "pen",
+      pressure: 0.5,
+    });
+    canvas.dispatchEvent(pointerDown);
+    const pointerUp = new Event("pointerup", { bubbles: true, cancelable: true });
+    Object.assign(pointerUp, { pointerId: 3, pointerType: "pen" });
+    canvas.dispatchEvent(pointerUp);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close handwritten" }));
+
+    await vi.waitFor(() => {
+      expect(onUnsavedExit).toHaveBeenCalledWith(expect.objectContaining({ type: "image/png" }));
+    });
+    window.localStorage.removeItem(sketchDraftStorageKey("pad-exit"));
   });
 });

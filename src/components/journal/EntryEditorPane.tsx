@@ -30,8 +30,7 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
-import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
-import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
+import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
 
@@ -650,31 +649,56 @@ export default function EntryEditorPane({
         onAutosave={
           user
             ? async (file) => {
-                const { storage_path, photo_id } = await upsertEntrySketchPhoto(user.id, entry.id, file);
-                const urls = await getSignedPhotoUrls([storage_path]);
+                const result = await upsertSketchAndTranscribe(user.id, entry.id, file);
+                const urls = await getSignedPhotoUrls([result.storage_path]);
                 setPhotos((prev) => {
-                  const rest = prev.filter((p) => p.storage_path !== storage_path);
+                  const rest = prev.filter((p) => p.storage_path !== result.storage_path);
                   return [
                     ...rest,
                     {
-                      id: photo_id ?? `sketch-${entry.id}`,
-                      storage_path,
-                      url: urls[storage_path],
+                      id: result.photo_id ?? `sketch-${entry.id}`,
+                      storage_path: result.storage_path,
+                      url: urls[result.storage_path],
                     },
                   ];
                 });
+                if (result.ok && result.body && !result.skipped) {
+                  const cur = entryRef.current;
+                  if (cur?.id === entry.id) {
+                    if (saveTimer.current) {
+                      clearTimeout(saveTimer.current);
+                      saveTimer.current = null;
+                    }
+                    const next = {
+                      ...cur,
+                      body: result.body,
+                      ...(result.title ? { title: result.title } : {}),
+                      ...(result.summary ? { summary: result.summary } : {}),
+                    };
+                    entryRef.current = next;
+                    setEntry(next);
+                  }
+                }
                 onChanged();
               }
             : undefined
         }
         onSave={async (file) => {
-          const dt = new DataTransfer();
-          dt.items.add(file);
-          const inserted = await onPickPhotos(dt.files);
-          const path = inserted?.[0]?.storage_path;
-          if (!path || !user || !entry) return;
+          if (!user || !entry) return;
           toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
-          const result = await transcribeJournalSketch({ entryId: entry.id, storagePath: path });
+          const result = await upsertSketchAndTranscribe(user.id, entry.id, file);
+          const urls = await getSignedPhotoUrls([result.storage_path]);
+          setPhotos((prev) => {
+            const rest = prev.filter((p) => p.storage_path !== result.storage_path);
+            return [
+              ...rest,
+              {
+                id: result.photo_id ?? `sketch-${entry.id}`,
+                storage_path: result.storage_path,
+                url: urls[result.storage_path],
+              },
+            ];
+          });
           if (!result.ok) {
             toast({
               title: "Handwritten note saved",
@@ -693,12 +717,24 @@ export default function EntryEditorPane({
               clearTimeout(saveTimer.current);
               saveTimer.current = null;
             }
-            const next = { ...cur, body: result.body, ...(result.title ? { title: result.title } : {}) };
+            const next = {
+              ...cur,
+              body: result.body,
+              ...(result.title ? { title: result.title } : {}),
+              ...(result.summary ? { summary: result.summary } : {}),
+            };
             entryRef.current = next;
             setEntry(next);
           }
           onChanged();
-          toast({ title: "Handwritten note transcribed", description: "Text was added to your journal body." });
+          toast({
+            title: result.title ? "Entry named and transcribed" : "Handwritten note transcribed",
+            description: result.title
+              ? `“${result.title}” — ${result.summary ? "summary and full text" : "text"} added to your entry.`
+              : result.summary
+                ? "Summary and full text were added to your journal body."
+                : "Text was added to your journal body.",
+          });
         }}
         filename={`sketch-${entry.id}`}
       />

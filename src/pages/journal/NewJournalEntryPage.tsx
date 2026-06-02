@@ -21,8 +21,11 @@ import { toast } from "@/hooks/use-toast";
 import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
-import { isJournalSketchAsset, upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
-import { transcribeJournalSketch } from "@/lib/journal/sketchTranscription";
+import { isJournalSketchAsset } from "@/lib/journal/sketchPhotos";
+import {
+  transcribeEntrySketchPaths,
+  upsertSketchAndTranscribe,
+} from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
@@ -614,33 +617,42 @@ export default function NewJournalEntryPage() {
             height: u.height,
           })),
         );
-        let txError: string | undefined;
-        let transcribedCount = 0;
-        for (let i = 0; i < pendingFiles.length; i++) {
-          const f = pendingFiles[i];
-          const isSketch = f.type === "image/png" && /sketch-/i.test(f.name);
-          if (!isSketch) continue;
-          const path = uploaded[i]?.storage_path;
-          if (!path) continue;
+        const { data: photoRows } = await supabase
+          .from("journal_photos")
+          .select("storage_path")
+          .eq("entry_id", entryId!);
+        const { sketches } = partitionJournalPhotos(photoRows ?? []);
+        if (sketches.length) {
           setBusyLabel("Reading handwriting");
-          const r = await transcribeJournalSketch({ entryId: entryId!, storagePath: path });
-          if (!r.ok) {
-            txError = r.error;
-            break;
+          const tx = await transcribeEntrySketchPaths(
+            entryId!,
+            sketches.map((s) => s.storage_path),
+          );
+          if (!tx.ok) {
+            toast({
+              title: "Photos saved",
+              description: tx.error,
+              variant: "destructive",
+            });
+          } else if (tx.transcribed > 0 || tx.title) {
+            const { data: refreshed } = await supabase
+              .from("journal_entries")
+              .select("body,title,summary")
+              .eq("id", entryId!)
+              .maybeSingle();
+            if (refreshed?.body) setBody(refreshed.body);
+            if (refreshed?.title) setTitle(refreshed.title);
+            else if (tx.title) setTitle(tx.title);
+            toast({
+              title: tx.title || refreshed?.title ? "Entry named and transcribed" : "Handwritten note transcribed",
+              description:
+                tx.title || refreshed?.title
+                  ? `“${tx.title ?? refreshed?.title}” — ${refreshed?.summary ? "summary and full text" : "full text"} added.`
+                  : refreshed?.summary
+                    ? "Summary and full text were added to your entry."
+                    : "Handwriting was added to your journal body.",
+            });
           }
-          if (!r.skipped) transcribedCount += 1;
-        }
-        if (txError) {
-          toast({
-            title: "Photos saved",
-            description: txError,
-            variant: "destructive",
-          });
-        } else if (transcribedCount > 0) {
-          toast({
-            title: "Handwritten note transcribed",
-            description: "Handwriting was added to your journal body.",
-          });
         }
       } catch (e) {
         toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
@@ -751,7 +763,7 @@ export default function NewJournalEntryPage() {
   return (
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
       {/* Day One style header */}
-      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[var(--safe-area-inset-top)]">
+      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
             type="button"
@@ -1163,28 +1175,79 @@ export default function NewJournalEntryPage() {
         onAutosave={
           editId && user
             ? async (file) => {
-                const { storage_path, photo_id } = await upsertEntrySketchPhoto(user.id, editId, file);
-                const urls = await getSignedPhotoUrls([storage_path]);
+                const r = await upsertSketchAndTranscribe(user.id, editId, file);
+                const urls = await getSignedPhotoUrls([r.storage_path]);
                 setExistingPhotos((prev) => {
-                  const rest = prev.filter((p) => p.storage_path !== storage_path);
+                  const rest = prev.filter((p) => p.storage_path !== r.storage_path);
                   return [
                     ...rest,
                     {
-                      id: photo_id ?? `sketch-${editId}`,
-                      storage_path,
-                      url: urls[storage_path],
+                      id: r.photo_id ?? `sketch-${editId}`,
+                      storage_path: r.storage_path,
+                      url: urls[r.storage_path],
                     },
                   ];
                 });
                 setPendingFiles((arr) => arr.filter((f) => !isJournalSketchAsset(f.name)));
+                if (r.ok && r.body && !r.skipped) setBody(r.body);
+                if (r.ok && r.title) setTitle(r.title);
               }
             : undefined
         }
-        onSave={(file) => {
+        onSave={async (file) => {
+          if (editId && user) {
+            toast({
+              title: "Reading your handwritten note…",
+              description: "AI is transcribing your handwriting.",
+            });
+            const r = await upsertSketchAndTranscribe(user.id, editId, file);
+            const urls = await getSignedPhotoUrls([r.storage_path]);
+            setExistingPhotos((prev) => {
+              const rest = prev.filter((p) => p.storage_path !== r.storage_path);
+              return [
+                ...rest,
+                {
+                  id: r.photo_id ?? `sketch-${editId}`,
+                  storage_path: r.storage_path,
+                  url: urls[r.storage_path],
+                },
+              ];
+            });
+            setPendingFiles((arr) => arr.filter((f) => !isJournalSketchAsset(f.name)));
+            if (!r.ok) {
+              toast({ title: "Handwritten note saved", description: r.error, variant: "destructive" });
+              return;
+            }
+            if (r.skipped) {
+              toast({ title: "Handwritten note saved" });
+              return;
+            }
+            if (r.body) setBody(r.body);
+            if (r.title) setTitle(r.title);
+            toast({
+              title: r.title ? "Entry named and transcribed" : "Handwritten note transcribed",
+              description: r.title
+                ? `“${r.title}” — ${r.summary ? "summary and full text" : "text"} added to your entry.`
+                : r.summary
+                  ? "Summary and full text were added to your entry."
+                  : "Text was added to your journal body.",
+            });
+            return;
+          }
           setPendingFiles((arr) => [
             ...arr.filter((f) => !isJournalSketchAsset(f.name)),
             file,
           ]);
+        }}
+        onUnsavedExit={(file) => {
+          setPendingFiles((arr) => [
+            ...arr.filter((f) => !isJournalSketchAsset(f.name)),
+            file,
+          ]);
+          toast({
+            title: "Handwritten note kept",
+            description: "Save your entry to attach it to your journal.",
+          });
         }}
         filename={editId ? `sketch-${editId}` : undefined}
       />

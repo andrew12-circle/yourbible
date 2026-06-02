@@ -506,11 +506,6 @@ export function useYouTubeEmbedPlayer(options: {
       if (document.hidden) {
         resumeOnVisibleRef.current = playingRef.current;
         persistPlayback();
-        try {
-          playerRef.current.pauseVideo();
-        } catch {
-          /* ignore */
-        }
       } else {
         persistPlayback();
         const shouldResume = resumeOnVisibleRef.current;

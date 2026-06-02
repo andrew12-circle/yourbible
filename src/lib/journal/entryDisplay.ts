@@ -103,11 +103,15 @@ export function entryDisplayPreview(entry: EntryDisplayInput): string {
   return entryListPreview(entry.body ?? "", entry.title ?? null, entry.summary);
 }
 
+const PLACEHOLDER_ENTRY_TITLES =
+  /^(entry|untitled|new\s+(journal|entry)(?:\s+entry)?|journal\s+entry)$/i;
+
 export function shouldSuggestJournalTitle(
   title: string | null | undefined,
   body: string | null | undefined,
   summary?: string | null,
 ): boolean {
-  if (title?.trim()) return false;
+  const t = title?.trim() ?? "";
+  if (t && !PLACEHOLDER_ENTRY_TITLES.test(t)) return false;
   return extractReadableProse(body, summary).length >= 40;
 }

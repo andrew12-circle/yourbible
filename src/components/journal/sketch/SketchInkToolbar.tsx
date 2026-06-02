@@ -206,7 +206,7 @@ export default function SketchInkToolbar({
   };
 
   const pillChrome = cn(
-    "sticky top-3 z-50 mx-auto flex h-[78px] w-fit max-w-[calc(100%-1rem)] shrink-0 items-center gap-0 rounded-full px-2",
+    "sticky top-1 z-50 mx-auto flex h-[78px] w-fit max-w-[calc(100%-1rem)] shrink-0 items-center gap-0 rounded-full px-2",
     "border backdrop-blur-[36px] backdrop-saturate-[180%]",
     isNightMode
       ? "border-white/[0.14] bg-[rgba(18,18,22,0.82)] shadow-[0_22px_56px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.4)]"
@@ -218,7 +218,7 @@ export default function SketchInkToolbar({
 
   if (collapsed) {
     return (
-      <div className="pointer-events-none sticky top-3 z-50 flex justify-center px-3">
+      <div className="pointer-events-none sticky top-1 z-50 flex justify-center px-3">
         <button
           type="button"
           onClick={() => onCollapsedChange(false)}
@@ -249,7 +249,7 @@ export default function SketchInkToolbar({
   }
 
   return (
-    <div className="pointer-events-none sticky top-3 z-50 flex justify-center px-3">
+    <div className="pointer-events-none sticky top-1 z-50 flex justify-center px-3">
       <div
         role="toolbar"
         aria-label="Handwritten markup tools"

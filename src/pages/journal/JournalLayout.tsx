@@ -21,7 +21,7 @@ export default function JournalLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 backdrop-blur-2xl bg-background/70 border-b border-border/60 pt-[var(--safe-area-inset-top)]">
+      <header className="sticky top-0 z-20 backdrop-blur-2xl bg-background/70 border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
         <div className="max-w-3xl mx-auto px-4 h-11 flex items-center gap-1">
           <Link
             to={back}

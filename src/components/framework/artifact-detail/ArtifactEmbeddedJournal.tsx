@@ -223,6 +223,7 @@ export default function ArtifactEmbeddedJournal({
         onClose={() => setSketchOpen(false)}
         draftKey={sketchDraftKey}
         onSave={handleSketchSave}
+        onUnsavedExit={handleSketchSave}
       />
     </section>
   );

@@ -845,6 +845,7 @@ export default function FloatingJournalPanel({
         onClose={() => setSketchOpen(false)}
         draftKey={sketchDraftKey}
         onSave={handleSketchSave}
+        onUnsavedExit={handleSketchSave}
       />
     </div>
   );

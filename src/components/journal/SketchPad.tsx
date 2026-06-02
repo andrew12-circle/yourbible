@@ -76,6 +76,11 @@ export interface SketchPadProps {
   draftKey?: string;
   /** Upload PNG periodically while drawing (requires a saved journal entry). */
   onAutosave?: (file: File) => void | Promise<void>;
+  /**
+   * When the pad closes with ink that was not saved via the Save button, export a
+   * PNG and pass it here (e.g. attach to a compose draft before the entry exists).
+   */
+  onUnsavedExit?: (file: File) => void | Promise<void>;
 }
 
 function prefersNightMode() {
@@ -94,6 +99,7 @@ export default function SketchPad({
   filename,
   draftKey,
   onAutosave,
+  onUnsavedExit,
 }: SketchPadProps) {
   const tabletPortrait = useIsTabletPortrait();
   const tablet = useIsTablet();
@@ -163,6 +169,8 @@ export default function SketchPad({
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosavingRef = useRef(false);
+  /** Distinguishes explicit Save from dismiss (X / Esc) for unsaved-exit handling. */
+  const savedViaButtonRef = useRef(false);
   const penColors = getSketchPenColors(isNightMode);
 
   useEffect(() => {
@@ -508,27 +516,64 @@ export default function SketchPad({
     };
   }, [open, rulerCenter.x, rulerCenter.y]);
 
+  const flushPendingPersistence = useCallback(() => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (strokesRef.current.length > 0 && !savedViaButtonRef.current) {
+      persistDraft();
+    }
+    void flushAutosave();
+  }, [flushAutosave, persistDraft]);
+
   useEffect(() => {
     if (!open) return;
     const onHide = () => {
-      persistDraft();
-      void flushAutosave();
+      flushPendingPersistence();
     };
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", onHide);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", onHide);
-      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+      flushPendingPersistence();
     };
-  }, [open, persistDraft, flushAutosave]);
+  }, [open, flushPendingPersistence]);
+
+  const finalizeClose = useCallback(async () => {
+    flushPendingPersistence();
+    if (
+      !savedViaButtonRef.current &&
+      strokesRef.current.length > 0 &&
+      onUnsavedExit
+    ) {
+      const file = await exportPngFile();
+      if (file) {
+        try {
+          await onUnsavedExit(file);
+        } catch (err) {
+          console.warn("sketch unsaved exit failed", err);
+        }
+      }
+    }
+    savedViaButtonRef.current = false;
+    onClose();
+  }, [exportPngFile, flushPendingPersistence, onClose, onUnsavedExit]);
+
+  const requestClose = useCallback(() => {
+    void finalizeClose();
+  }, [finalizeClose]);
 
   // Esc to close
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) handleRedo();
         else handleUndo();
@@ -764,10 +809,12 @@ export default function SketchPad({
     try {
       const file = await exportPngFile();
       if (!file) throw new Error("Could not export handwritten note");
+      savedViaButtonRef.current = true;
       await onSave(file);
       if (draftKey) clearSketchDraft(draftKey);
-      onClose();
+      await finalizeClose();
     } catch (err) {
+      savedViaButtonRef.current = false;
       console.error("handwritten save error", err);
       window.alert(`Couldn't save handwritten note: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -833,11 +880,17 @@ export default function SketchPad({
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {/* Header */}
-      <header className={cn("flex h-11 flex-shrink-0 items-center gap-2 border-b px-3", isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95")}>
+      {/* Header — extend background under status bar; controls sit below clock/Wi‑Fi */}
+      <header
+        className={cn(
+          "flex-shrink-0 border-b px-3 pt-[env(safe-area-inset-top,0px)]",
+          isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95",
+        )}
+      >
+        <div className="flex h-11 items-center gap-2">
         <button
           type="button"
-          onClick={onClose}
+          onClick={requestClose}
           className={cn("rounded-full p-1.5 transition", isNightMode ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
           title="Close handwritten"
           aria-label="Close handwritten"
@@ -864,6 +917,7 @@ export default function SketchPad({
             </>
           )}
         </Button>
+        </div>
       </header>
 
       <input
@@ -1028,7 +1082,9 @@ export default function SketchPad({
       <footer className={cn("hidden flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", !tabletPortrait && "sm:flex", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
-          Closing without saving discards the handwritten note
+          {draftKey || onUnsavedExit
+            ? "Your strokes are kept — use Save handwritten to attach, or reopen to continue drawing"
+            : "Closing without saving discards the handwritten note"}
         </span>
         <span className="hidden sm:inline tabular-nums">
           Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, this can be transcribed into your entry

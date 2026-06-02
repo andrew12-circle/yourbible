@@ -39,7 +39,7 @@ export default function JournalCover({
 
   return (
     <header className="relative">
-      <div className="relative pt-3 pb-12 px-5 overflow-hidden">
+      <div className="relative pt-[calc(var(--safe-area-inset-top)+0.75rem)] pb-12 px-5 overflow-hidden">
         {hasPhoto && coverUrl ? (
           <>
             <img

@@ -35,6 +35,7 @@ export function useArtifactVideoPlayback(options: {
     artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
   );
   const appliedRemoteResumeRef = useRef(false);
+  const resumeStaticOnVisibleRef = useRef(false);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
@@ -142,10 +143,54 @@ export function useArtifactVideoPlayback(options: {
     };
   }, [apiPlayerWanted, pipEnabled, staticTelemetry, youtubePip.pipMode]);
 
+  const restoreStaticEmbedProgress = useCallback(
+    (opts?: { resume?: boolean }) => {
+      if (apiPlayerWanted) return;
+      const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
+      if (seconds > 0) staticTelemetry.seekTo(seconds, true);
+      if (opts?.resume) staticTelemetry.playVideo();
+    },
+    [apiPlayerWanted, staticTelemetry],
+  );
+
+  /** Tab/app background: persist position; on return, seek + resume (iOS often reloads the iframe). */
+  useEffect(() => {
+    if (apiPlayerWanted) return;
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        resumeStaticOnVisibleRef.current = staticTelemetry.getIsPlaying();
+        const t = staticTelemetry.getCurrentTime();
+        playbackFallbackRef.current = t;
+        persistSeconds(t);
+        return;
+      }
+      const shouldResume = resumeStaticOnVisibleRef.current;
+      resumeStaticOnVisibleRef.current = false;
+      const t = staticTelemetry.getCurrentTime();
+      playbackFallbackRef.current = Math.max(playbackFallbackRef.current, t);
+      persistSeconds(playbackFallbackRef.current);
+      restoreStaticEmbedProgress({ resume: shouldResume });
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      onVisibility();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [apiPlayerWanted, persistSeconds, restoreStaticEmbedProgress, staticTelemetry]);
+
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
-  }, []);
+    restoreStaticEmbedProgress();
+  }, [restoreStaticEmbedProgress]);
 
   const staticEmbedSrc = useMemo(() => {
     if (!youTubeVideoId) return null;

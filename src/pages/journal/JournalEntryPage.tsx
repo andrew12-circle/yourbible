@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear } from "lucide-react";
+import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalLayout from "./JournalLayout";
@@ -10,6 +10,12 @@ import { toast } from "@/hooks/use-toast";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
+import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
+import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
+import {
+  entryBodyHasSketchTranscription,
+  transcribeEntrySketchPaths,
+} from "@/lib/journal/sketchTranscription";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
 import { listEntryLinks, type EntryLink } from "@/lib/journal/links";
 import {
@@ -54,6 +60,9 @@ export default function JournalEntryPage() {
   const [scoring, setScoring] = useState(false);
   const [links, setLinks] = useState<EntryLink[]>([]);
   const [openingAi, setOpeningAi] = useState(false);
+  const [transcribingSketch, setTranscribingSketch] = useState(false);
+  const autoTranscribeAttempted = useRef(false);
+  const titleSuggestAttempted = useRef(false);
 
   const load = async () => {
     if (!id) return;
@@ -90,9 +99,81 @@ export default function JournalEntryPage() {
 
   useEffect(() => {
     if (!user) return;
+    autoTranscribeAttempted.current = false;
+    titleSuggestAttempted.current = false;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
+
+  const sketchStoragePaths = useMemo(() => {
+    const { sketches } = partitionJournalPhotos(photos);
+    return sketches.map((s) => s.storage_path);
+  }, [photos]);
+
+  const needsSketchTranscription =
+    !!entry &&
+    sketchStoragePaths.length > 0 &&
+    !entryBodyHasSketchTranscription(entry.body);
+
+  useEffect(() => {
+    if (!entry || !needsSketchTranscription || autoTranscribeAttempted.current || transcribingSketch) {
+      return;
+    }
+    autoTranscribeAttempted.current = true;
+    setTranscribingSketch(true);
+    (async () => {
+      const tx = await transcribeEntrySketchPaths(entry.id, sketchStoragePaths);
+      setTranscribingSketch(false);
+      if (!tx.ok) {
+        toast({
+          title: "Couldn't read handwriting",
+          description: tx.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (tx.transcribed > 0 || tx.title) {
+        await load();
+        toast({
+          title: tx.title ? "Entry named and transcribed" : "Handwritten note transcribed",
+          description: tx.title
+            ? `“${tx.title}” — your handwriting is below the sketch.`
+            : "Your handwriting was typed out below the sketch.",
+        });
+      }
+    })();
+  }, [entry, needsSketchTranscription, sketchStoragePaths, transcribingSketch]);
+
+  useEffect(() => {
+    if (!entry || titleSuggestAttempted.current) return;
+    if (!shouldSuggestJournalTitle(entry.title, entry.body, entry.summary)) return;
+    titleSuggestAttempted.current = true;
+    void suggestJournalEntryTitle({ entryId: entry.id, body: entry.body }).then((res) => {
+      if (res.ok && res.title) {
+        setEntry((prev) => (prev?.id === entry.id ? { ...prev, title: res.title } : prev));
+      }
+    });
+  }, [entry]);
+
+  const transcribeSketchNow = async () => {
+    if (!entry || sketchStoragePaths.length === 0 || transcribingSketch) return;
+    setTranscribingSketch(true);
+    const tx = await transcribeEntrySketchPaths(entry.id, sketchStoragePaths);
+    setTranscribingSketch(false);
+    if (!tx.ok) {
+      toast({ title: "Couldn't read handwriting", description: tx.error, variant: "destructive" });
+      return;
+    }
+    if (tx.transcribed > 0 || tx.title) {
+      await load();
+      toast({
+        title: tx.title ? "Entry named and transcribed" : "Handwritten note transcribed",
+        description: tx.title ? `“${tx.title}”` : undefined,
+      });
+    } else {
+      toast({ title: "Already transcribed" });
+    }
+  };
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -151,10 +232,11 @@ export default function JournalEntryPage() {
     entry.entry_kind === "listening" || isListeningBody(entry.body);
   const isChatEntry = entry.entry_kind === "chat";
   const showChatJournalView = isChatJournalExport(entry.body, entry.summary);
+  const entryHeading = entry.title?.trim() || null;
 
   return (
     <JournalLayout
-      title="Entry"
+      title={entryHeading ?? "Entry"}
       back="/journal"
       right={
         <div className="flex items-center gap-1">
@@ -198,18 +280,48 @@ export default function JournalEntryPage() {
         </div>
       )}
 
-      {entry.title && <h1 className="font-display text-2xl mb-4">{entry.title}</h1>}
+      {entryHeading ? (
+        <h1 className="font-display text-2xl mb-4">{entryHeading}</h1>
+      ) : null}
 
       {(() => {
         const { sketches, attachments } = partitionJournalPhotos(photos);
         return (
           <>
             {sketches.length > 0 ? (
-              <JournalSketchInline
-                sketches={sketches}
-                className="mb-5"
-                onOpenSketch={() => navigate(`/journal/${entry.id}/edit`)}
-              />
+              <>
+                <JournalSketchInline
+                  sketches={sketches}
+                  className="mb-3"
+                  onOpenSketch={() => navigate(`/journal/${entry.id}/edit`)}
+                />
+                {needsSketchTranscription ? (
+                  <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+                    <PenLine className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="flex-1 text-muted-foreground">
+                      {transcribingSketch
+                        ? "AI is reading your handwriting…"
+                        : "Handwriting saved — tap to type it out below."}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={transcribingSketch}
+                      onClick={() => void transcribeSketchNow()}
+                    >
+                      {transcribingSketch ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                          Reading…
+                        </>
+                      ) : (
+                        "Transcribe handwriting"
+                      )}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             ) : null}
             {attachments.length > 0 ? (
               <div className={`mb-5 grid gap-2 ${attachments.length === 1 ? "" : "grid-cols-2"}`}>
@@ -239,9 +351,36 @@ export default function JournalEntryPage() {
             : <span className="italic text-muted-foreground">No body</span>}
         </div>
       ) : (
-        /* Sans: match journal editors under .app-theme (Cormorant reserved for explicit scripture opt-in). */
-        <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap mb-6">
-          {entry.body || <span className="italic text-muted-foreground">No body</span>}
+        <div className="mb-6 space-y-4">
+          {entry.summary?.trim() ? (
+            <section aria-label="Entry summary">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Summary
+              </p>
+              <p className="font-sans text-[16px] leading-relaxed text-foreground whitespace-pre-wrap">
+                {entry.summary}
+              </p>
+            </section>
+          ) : null}
+          <section aria-label="Entry body">
+            {entry.summary?.trim() ? (
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Full text
+              </p>
+            ) : null}
+            <div className="font-sans text-[16px] leading-relaxed whitespace-pre-wrap">
+              {transcribingSketch && !entry.body?.trim() ? (
+                <span className="inline-flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Reading your handwriting…
+                </span>
+              ) : entry.body ? (
+                entry.body
+              ) : (
+                <span className="italic text-muted-foreground">No body</span>
+              )}
+            </div>
+          </section>
         </div>
       )}
 
