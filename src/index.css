@@ -604,6 +604,10 @@
   .reader-ink-active button:not([data-reader-ink-layer] button) {
     pointer-events: none !important;
   }
+  .reader-ink-active [data-reader-ink-layer],
+  .reader-ink-active [data-reader-ink-layer] * {
+    pointer-events: auto !important;
+  }
 
   /* Subtle vignette over reading area */
   .page-vignette::before {

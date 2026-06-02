@@ -42,6 +42,10 @@ export const SKETCH_TOOL_ITEMS: { id: InkTool; label: string }[] = [
   { id: "lasso", label: "Lasso" },
 ];
 
+const READER_TOOL_ITEMS = SKETCH_TOOL_ITEMS.filter(
+  (t) => t.id !== "ruler" && t.id !== "lasso",
+);
+
 const APPLE_PALETTE = [
   { name: "White", value: "#ffffff" },
   { name: "Blue", value: "#007aff" },
@@ -59,6 +63,8 @@ function colorMatchesPalette(current: string, swatch: string) {
 }
 
 type Props = {
+  /** `reader` — Bible page ink (no ruler/lasso/paper). */
+  variant?: "sketch" | "reader";
   isNightMode: boolean;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
@@ -165,6 +171,7 @@ const PillCircleButton = forwardRef<HTMLButtonElement, PillCircleButtonProps>(
 );
 
 export default function SketchInkToolbar({
+  variant = "sketch",
   isNightMode,
   collapsed,
   onCollapsedChange,
@@ -191,6 +198,8 @@ export default function SketchInkToolbar({
   customColorInputRef,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const isReader = variant === "reader";
+  const toolItems = isReader ? READER_TOOL_ITEMS : SKETCH_TOOL_ITEMS;
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
   const canPickColor = tool !== "eraser";
   const customColorActive =
@@ -222,7 +231,7 @@ export default function SketchInkToolbar({
         <button
           type="button"
           onClick={() => onCollapsedChange(false)}
-          aria-label="Show markup tools"
+          aria-label={isReader ? "Show ink tools" : "Show markup tools"}
           aria-expanded={false}
           className={cn(
             "pointer-events-auto relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg transition active:scale-95",
@@ -252,8 +261,9 @@ export default function SketchInkToolbar({
     <div className="pointer-events-none sticky top-1 z-50 flex justify-center px-3">
       <div
         role="toolbar"
-        aria-label="Handwritten markup tools"
+        aria-label={isReader ? "Bible page ink tools" : "Handwritten markup tools"}
         className={cn(pillChrome, "pointer-events-auto overflow-visible")}
+        data-reader-ink-toolbar={isReader ? "" : undefined}
         style={{ touchAction: "manipulation" }}
       >
         <ToolbarTray isNightMode={isNightMode} aria-label="Undo and redo" className="gap-0.5 px-1">
@@ -280,7 +290,7 @@ export default function SketchInkToolbar({
             isNightMode ? "bg-white/[0.08]" : "bg-[rgba(255,255,255,0.32)]",
           )}
         >
-          {SKETCH_TOOL_ITEMS.map(({ id, label }) => {
+          {toolItems.map(({ id, label }) => {
             const active = tool === id || (id === "ruler" && rulerVisible);
             return (
               <InkToolSilhouetteSlot
@@ -365,46 +375,50 @@ export default function SketchInkToolbar({
             />
           </PillCircleButton>
 
-          <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+          <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen} modal={false}>
             <DropdownMenuTrigger asChild>
               <PillCircleButton isNightMode={isNightMode} label="More tools">
                 <MoreHorizontal className="h-5 w-5" strokeWidth={2} />
               </PillCircleButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={cn("w-56", SKETCH_MENU_CONTENT_CLASS)}>
-              <DropdownMenuLabel>Markup</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={drawWithFinger}
-                onCheckedChange={(v) => onDrawWithFingerChange(v === true)}
-              >
-                Draw with finger
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={snapToRuler}
-                onCheckedChange={(v) => onSnapToRulerChange(v === true)}
-              >
-                Snap strokes to ruler
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Paper</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
-                <DropdownMenuRadioItem value="ruled">
-                  <GripHorizontal className="mr-2 h-3.5 w-3.5" /> Notebook
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="blank">
-                  <Square className="mr-2 h-3.5 w-3.5" /> Blank
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="graph">
-                  <Grid2X2 className="mr-2 h-3.5 w-3.5" /> Graph
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dot">Dot grid</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
+              {!isReader ? (
+                <>
+                  <DropdownMenuLabel>Markup</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
+                    checked={drawWithFinger}
+                    onCheckedChange={(v) => onDrawWithFingerChange(v === true)}
+                  >
+                    Draw with finger
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={snapToRuler}
+                    onCheckedChange={(v) => onSnapToRulerChange(v === true)}
+                  >
+                    Snap strokes to ruler
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Paper</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
+                    <DropdownMenuRadioItem value="ruled">
+                      <GripHorizontal className="mr-2 h-3.5 w-3.5" /> Notebook
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="blank">
+                      <Square className="mr-2 h-3.5 w-3.5" /> Blank
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="graph">
+                      <Grid2X2 className="mr-2 h-3.5 w-3.5" /> Graph
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="dot">Dot grid</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
               <DropdownMenuItem onClick={onClear} disabled={!hasStrokes} className="text-destructive">
                 <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear page
               </DropdownMenuItem>
-              {penColors.length > 6 ? (
+              {!isReader && penColors.length > 6 ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>All colors</DropdownMenuLabel>
@@ -425,23 +439,25 @@ export default function SketchInkToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <PillCircleButton isNightMode={isNightMode} label="Paper type">
-                <Plus className="h-5 w-5" strokeWidth={2} />
-              </PillCircleButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className={SKETCH_MENU_CONTENT_CLASS}>
-              <DropdownMenuLabel>Paper</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
-                <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="blank">Blank</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="graph">Graph</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dot">Dot</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isReader ? (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <PillCircleButton isNightMode={isNightMode} label="Paper type">
+                  <Plus className="h-5 w-5" strokeWidth={2} />
+                </PillCircleButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={SKETCH_MENU_CONTENT_CLASS}>
+                <DropdownMenuLabel>Paper</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={paper} onValueChange={(v) => onPaperChange(v as SketchPaper)}>
+                  <DropdownMenuRadioItem value="ruled">Notebook</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="legal">Yellow pad</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="blank">Blank</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="graph">Graph</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dot">Dot</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
 
           <PillCircleButton
             isNightMode={isNightMode}

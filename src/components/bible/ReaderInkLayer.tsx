@@ -9,15 +9,22 @@ import {
   drawStroke,
   getInkPointFromCanvasEvent,
 } from "@/lib/ink/strokeRender";
-import type { InkStroke, InkTool, ReaderPageInkKey } from "@/lib/ink/types";
+import { normalizeInkDrawTool } from "@/lib/ink/toolPresets";
+import type { InkDrawTool, InkStroke, InkTool, ReaderPageInkKey } from "@/lib/ink/types";
 import { useReaderPageInk } from "@/hooks/useReaderPageInk";
 import { cn } from "@/lib/utils";
+
+export type ReaderInkLayerState = {
+  canUndo: boolean;
+  canRedo: boolean;
+  redoCount: number;
+};
 
 export type ReaderInkLayerApi = {
   undo: () => void;
   redo: () => void;
   clear: () => void;
-  getState: () => { canUndo: boolean; canRedo: boolean };
+  getState: () => ReaderInkLayerState;
 };
 
 type Props = {
@@ -34,7 +41,7 @@ type Props = {
   onFocus?: (layerId: string) => void;
   onRegister?: (layerId: string, api: ReaderInkLayerApi) => void;
   onUnregister?: (layerId: string) => void;
-  onStateChange?: (layerId: string, state: { canUndo: boolean; canRedo: boolean }) => void;
+  onStateChange?: (layerId: string, state: ReaderInkLayerState) => void;
   onStaleLayout?: (hasStale: boolean) => void;
 };
 
@@ -65,7 +72,8 @@ export default function ReaderInkLayer({
   const activePointerIdRef = useRef<number | null>(null);
   const activePointerTypeRef = useRef<string | null>(null);
   const penSeenRef = useRef(false);
-  const palmRejectionRef = useRef(true);
+  /** Bible reader allows finger drawing — no palm rejection. */
+  const palmRejectionRef = useRef(false);
   const toolRef = useRef({ tool, color, size });
   toolRef.current = { tool, color, size };
 
@@ -86,8 +94,16 @@ export default function ReaderInkLayer({
     layoutFingerprint,
     anchorVerse,
     canvasSize,
+    liveCanvasSizeRef: sizeRef,
     enabled: active,
   });
+
+  useEffect(() => {
+    if (!active) return;
+    penSeenRef.current = false;
+    activePointerIdRef.current = null;
+    activeStrokeRef.current = null;
+  }, [active, layerId]);
 
   useEffect(() => {
     onStaleLayout?.(Boolean(staleFingerprint));
@@ -97,6 +113,7 @@ export default function ReaderInkLayer({
     onStateChange?.(layerId, {
       canUndo: strokes.length > 0,
       canRedo: redoStack.length > 0,
+      redoCount: redoStack.length,
     });
   }, [layerId, strokes.length, redoStack.length, onStateChange]);
 
@@ -111,6 +128,7 @@ export default function ReaderInkLayer({
       getState: () => ({
         canUndo: strokes.length > 0,
         canRedo: redoStack.length > 0,
+        redoCount: redoStack.length,
       }),
     };
     onRegister?.(layerId, api);
@@ -228,9 +246,16 @@ export default function ReaderInkLayer({
     };
   }, [active]);
 
-  const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+  const resolveDrawTool = (): InkDrawTool => {
+    const t = toolRef.current.tool;
+    if (t === "ruler" || t === "lasso") return "fountain";
+    return normalizeInkDrawTool(t);
+  };
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !active || canvasSize.w <= 0 || canvasSize.h <= 0) return;
+    const { w, h } = sizeRef.current;
+    if (!canvas || !active || w <= 0 || h <= 0) return;
     onFocus?.(layerId);
     if (e.pointerType === "pen") penSeenRef.current = true;
     if (palmRejectionRef.current && penSeenRef.current && e.pointerType === "touch") {
@@ -250,14 +275,15 @@ export default function ReaderInkLayer({
     canvas.setPointerCapture(e.pointerId);
     activePointerIdRef.current = e.pointerId;
     activePointerTypeRef.current = e.pointerType;
-    const { tool: t, color: c, size: s } = toolRef.current;
+    const { color: c, size: s } = toolRef.current;
+    const drawTool = resolveDrawTool();
     const pt = getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType);
-    activeStrokeRef.current = { tool: t, color: c, size: s, points: [pt] };
+    activeStrokeRef.current = { tool: drawTool, color: c, size: s, points: [pt] };
     flushRedraw();
     e.preventDefault();
   };
 
-  const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerIdRef.current !== e.pointerId) return;
     const canvas = canvasRef.current;
     const stroke = activeStrokeRef.current;
@@ -281,7 +307,7 @@ export default function ReaderInkLayer({
     e.preventDefault();
   };
 
-  const finishStroke = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+  const finishStroke = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerIdRef.current !== e.pointerId) return;
     const canvas = canvasRef.current;
     if (canvas) {
@@ -309,21 +335,22 @@ export default function ReaderInkLayer({
     <div
       ref={wrapRef}
       className={cn(
-        "pointer-events-auto absolute inset-0 z-[25] touch-none select-none",
+        "pointer-events-auto absolute inset-0 z-[28] touch-none select-none",
         className,
       )}
       data-reader-ink-layer={layerId}
       style={{ touchAction: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+      aria-label="Ink layer — draw on this page"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={finishStroke}
+      onPointerCancel={finishStroke}
     >
       <canvas
         ref={canvasRef}
         className="block h-full w-full"
         style={{ touchAction: "none" }}
-        aria-label="Ink layer — draw on this page"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={finishStroke}
-        onPointerCancel={finishStroke}
+        aria-hidden
       />
     </div>
   );

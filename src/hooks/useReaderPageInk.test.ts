@@ -64,4 +64,35 @@ describe("useReaderPageInk", () => {
     expect(result.current.strokes).toHaveLength(1);
     expect(result.current.strokes[0]?.points[0]?.x).toBeCloseTo(42, 0);
   });
+
+  it("persists strokes via liveCanvasSizeRef when state size is still zero", async () => {
+    const liveRef = { current: { w: 400, h: 600 } };
+
+    const { result } = renderHook(() =>
+      useReaderPageInk({
+        userId: undefined,
+        pageKey,
+        layoutFingerprint: "fp1",
+        anchorVerse: 1,
+        canvasSize: { w: 0, h: 0 },
+        liveCanvasSizeRef: liveRef,
+        enabled: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    act(() => {
+      result.current.pushStroke({
+        tool: "fountain",
+        color: "#111827",
+        size: 4,
+        points: [{ x: 40, y: 50, p: 0.5 }],
+      });
+    });
+
+    expect(result.current.strokes).toHaveLength(1);
+  });
 });

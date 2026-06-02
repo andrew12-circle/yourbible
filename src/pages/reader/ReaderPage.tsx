@@ -145,7 +145,12 @@ export default function ReaderPage() {
   const [inkSize, setInkSize] = useState<number>(INK_PEN_SIZES[1]);
   const inkApisRef = useRef(new Map<string, ReaderInkLayerApi>());
   const [activeInkLayerId, setActiveInkLayerId] = useState<string | null>(null);
-  const [inkToolbarState, setInkToolbarState] = useState({ canUndo: false, canRedo: false });
+  const [inkToolbarState, setInkToolbarState] = useState({
+    canUndo: false,
+    canRedo: false,
+    redoCount: 0,
+  });
+  const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false);
   const [staleLayoutInk, setStaleLayoutInk] = useState(false);
 
   // Persist last-read position so the home screen can offer "continue".
@@ -539,8 +544,9 @@ export default function ReaderPage() {
     }
   }, [tbSel]);
 
+  const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
   const defaultInkLayerId = singlePage
-    ? `${book.abbr}-${chapter}-${chapterPage}-left`
+    ? `${book.abbr}-${chapter}-${chapterPage}-${mobileSide}`
     : `${book.abbr}-${chapter}-${chapterPage}-left`;
   const focusedInkLayerId = activeInkLayerId ?? defaultInkLayerId;
 
@@ -561,6 +567,23 @@ export default function ReaderPage() {
     const api = inkApisRef.current.get(focusedInkLayerId);
     if (api) setInkToolbarState(api.getState());
   }, [inkMode, focusedInkLayerId, chapterPage, book.abbr, chapter]);
+
+  useEffect(() => {
+    if (!inkMode) {
+      setInkToolbarCollapsed(false);
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (inkToolbarCollapsed) {
+        toggleInkMode();
+      } else {
+        setInkToolbarCollapsed(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inkMode, inkToolbarCollapsed, toggleInkMode]);
 
   const pinnedSelection = (): ToolbarSelection | null =>
     tbSelRef.current ?? tbSel;
@@ -799,18 +822,46 @@ export default function ReaderPage() {
             <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
           </div>
         ) : (
-          <article
-            ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
-            data-reading-area
-            className={`flex-1 min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
-              inkMode ? "!select-none" : "selectable-text"
-            }`}
-            style={{ fontSize: `${fontScale}em` }}
-          >
-            <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
-              {slice.map(renderVerse)}
-            </p>
-          </article>
+          <div className="relative flex flex-1 min-h-0 min-w-0">
+            <article
+              ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
+              data-reading-area
+              className={`h-full min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
+                inkMode ? "!select-none" : "selectable-text"
+              }`}
+              style={{ fontSize: `${fontScale}em` }}
+            >
+              <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
+                {slice.map(renderVerse)}
+              </p>
+            </article>
+            {inkMode ? (
+              <ReaderInkLayer
+                layerId={`${book.abbr}-${chapter}-${pageIdx}-${side}`}
+                active
+                userId={user?.id}
+                pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
+                layoutFingerprint={layoutFingerprint}
+                anchorVerse={slice[0]?.number ?? null}
+                tool={inkTool}
+                color={inkColor}
+                size={inkSize}
+                onFocus={setActiveInkLayerId}
+                onRegister={(id, api) => {
+                  inkApisRef.current.set(id, api);
+                }}
+                onUnregister={(id) => {
+                  inkApisRef.current.delete(id);
+                }}
+                onStateChange={(id, state) => {
+                  if (id === focusedInkLayerId) setInkToolbarState(state);
+                }}
+                onStaleLayout={(stale) => {
+                  if (stale) setStaleLayoutInk(true);
+                }}
+              />
+            ) : null}
+          </div>
         )}
         {!focusMode ? (
           <div
@@ -847,32 +898,6 @@ export default function ReaderPage() {
             </button>
           </div>
         ) : null}
-        {inkMode ? (
-          <ReaderInkLayer
-            layerId={`${book.abbr}-${chapter}-${pageIdx}-${side}`}
-            active
-            userId={user?.id}
-            pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
-            layoutFingerprint={layoutFingerprint}
-            anchorVerse={slice[0]?.number ?? null}
-            tool={inkTool}
-            color={inkColor}
-            size={inkSize}
-            onFocus={setActiveInkLayerId}
-            onRegister={(id, api) => {
-              inkApisRef.current.set(id, api);
-            }}
-            onUnregister={(id) => {
-              inkApisRef.current.delete(id);
-            }}
-            onStateChange={(id, state) => {
-              if (id === focusedInkLayerId) setInkToolbarState(state);
-            }}
-            onStaleLayout={(stale) => {
-              if (stale) setStaleLayoutInk(true);
-            }}
-          />
-        ) : null}
       </div>
     );
   };
@@ -880,8 +905,6 @@ export default function ReaderPage() {
   // Determine left & right page indices
   const leftIdx = chapterPage;
   const rightIdx = singlePage ? chapterPage : chapterPage + 1;
-  // Mobile alternates the visible side based on parity (odd = right page, even = left page)
-  const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
 
   return (
     <div
@@ -938,8 +961,10 @@ export default function ReaderPage() {
           tool={inkTool}
           color={inkColor}
           size={inkSize}
-          canUndo={inkToolbarState.canUndo}
-          canRedo={inkToolbarState.canRedo}
+          collapsed={inkToolbarCollapsed}
+          onCollapsedChange={setInkToolbarCollapsed}
+          hasStrokes={inkToolbarState.canUndo}
+          redoCount={inkToolbarState.redoCount}
           tabletPortrait={tabletPortrait}
           onTool={setInkTool}
           onColor={setInkColor}
