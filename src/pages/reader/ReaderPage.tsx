@@ -152,6 +152,15 @@ export default function ReaderPage() {
   });
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false);
   const [staleLayoutInk, setStaleLayoutInk] = useState(false);
+  const inkAnchorRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const bindInkAnchor = useCallback(
+    (id: string) => (el: HTMLDivElement | null) => {
+      if (el) inkAnchorRefs.current.set(id, el);
+      else inkAnchorRefs.current.delete(id);
+    },
+    [],
+  );
 
   // Persist last-read position so the home screen can offer "continue".
   useEffect(() => {
@@ -569,6 +578,39 @@ export default function ReaderPage() {
   }, [inkMode, focusedInkLayerId, chapterPage, book.abbr, chapter]);
 
   useEffect(() => {
+    document.body.classList.toggle("reader-ink-mode", inkMode);
+    return () => document.body.classList.remove("reader-ink-mode");
+  }, [inkMode]);
+
+  // Block native text selection while writing — especially on iOS Safari.
+  useEffect(() => {
+    if (!inkMode) return;
+
+    const clearSelection = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      sel.removeAllRanges();
+    };
+
+    const blockSelectStart = (e: Event) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-reader-ink-toolbar], [data-reader-ink-layer]")) return;
+      if (t?.closest("[data-reading-area], [data-ink-anchor]")) {
+        e.preventDefault();
+      }
+    };
+
+    clearSelection();
+    document.addEventListener("selectionchange", clearSelection);
+    document.addEventListener("selectstart", blockSelectStart, true);
+    return () => {
+      document.removeEventListener("selectionchange", clearSelection);
+      document.removeEventListener("selectstart", blockSelectStart, true);
+      clearSelection();
+    };
+  }, [inkMode]);
+
+  useEffect(() => {
     if (!inkMode) {
       setInkToolbarCollapsed(false);
       return;
@@ -794,6 +836,7 @@ export default function ReaderPage() {
     const slice = verses.slice(start, end);
     // Compute global page number across the canon (very approximate)
     const globalPage = chaptersBefore + chapter; // good enough for footer
+    const inkLayerId = `${book.abbr}-${chapter}-${pageIdx}-${side}`;
     return (
       <div
         className={cn(
@@ -822,11 +865,15 @@ export default function ReaderPage() {
             <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
           </div>
         ) : (
-          <div className="relative flex flex-1 min-h-0 min-w-0">
+          <div
+            ref={bindInkAnchor(inkLayerId)}
+            data-ink-anchor={inkLayerId}
+            className="relative flex flex-1 min-h-0 min-w-0"
+          >
             <article
               ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
               data-reading-area
-              className={`h-full min-h-0 overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
+              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
                 inkMode ? "!select-none" : "selectable-text"
               }`}
               style={{ fontSize: `${fontScale}em` }}
@@ -835,34 +882,35 @@ export default function ReaderPage() {
                 {slice.map(renderVerse)}
               </p>
             </article>
-            {inkMode ? (
-              <ReaderInkLayer
-                layerId={`${book.abbr}-${chapter}-${pageIdx}-${side}`}
-                active
-                userId={user?.id}
-                pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
-                layoutFingerprint={layoutFingerprint}
-                anchorVerse={slice[0]?.number ?? null}
-                tool={inkTool}
-                color={inkColor}
-                size={inkSize}
-                onFocus={setActiveInkLayerId}
-                onRegister={(id, api) => {
-                  inkApisRef.current.set(id, api);
-                }}
-                onUnregister={(id) => {
-                  inkApisRef.current.delete(id);
-                }}
-                onStateChange={(id, state) => {
-                  if (id === focusedInkLayerId) setInkToolbarState(state);
-                }}
-                onStaleLayout={(stale) => {
-                  if (stale) setStaleLayoutInk(true);
-                }}
-              />
-            ) : null}
           </div>
         )}
+        {inkMode && !loadingPassage ? (
+          <ReaderInkLayer
+            layerId={inkLayerId}
+            active
+            getAnchorEl={() => inkAnchorRefs.current.get(inkLayerId) ?? null}
+            userId={user?.id}
+            pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
+            layoutFingerprint={layoutFingerprint}
+            anchorVerse={slice[0]?.number ?? null}
+            tool={inkTool}
+            color={inkColor}
+            size={inkSize}
+            onFocus={setActiveInkLayerId}
+            onRegister={(id, api) => {
+              inkApisRef.current.set(id, api);
+            }}
+            onUnregister={(id) => {
+              inkApisRef.current.delete(id);
+            }}
+            onStateChange={(id, state) => {
+              if (id === focusedInkLayerId) setInkToolbarState(state);
+            }}
+            onStaleLayout={(stale) => {
+              if (stale) setStaleLayoutInk(true);
+            }}
+          />
+        ) : null}
         {!focusMode ? (
           <div
             data-page-footer
@@ -1066,7 +1114,7 @@ export default function ReaderPage() {
       )}
 
       {/* Live pencil underline that tracks the current text selection */}
-      <SelectionPencilOverlay />
+      <SelectionPencilOverlay enabled={!inkMode} />
 
       {/* Toolbar that appears above the user's selection. Highlighter swatches,
           a pen for underlining, a note shortcut, and a clear control. */}

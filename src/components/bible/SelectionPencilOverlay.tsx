@@ -5,10 +5,19 @@ import { useEffect, useState } from "react";
  * window text selection. It tracks `selectionchange` and updates the rects.
  * Purely cosmetic — does not interfere with selection, clicks, or scrolling.
  */
-export function SelectionPencilOverlay() {
+type Props = {
+  /** When false, do not track or render selection guides (e.g. Bible ink mode). */
+  enabled?: boolean;
+};
+
+export function SelectionPencilOverlay({ enabled = true }: Props) {
   const [rects, setRects] = useState<DOMRect[]>([]);
 
   useEffect(() => {
+    if (!enabled) {
+      setRects([]);
+      return;
+    }
     const update = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
@@ -30,9 +39,9 @@ export function SelectionPencilOverlay() {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [enabled]);
 
-  if (rects.length === 0) return null;
+  if (!enabled || rects.length === 0) return null;
 
   return (
     <svg
