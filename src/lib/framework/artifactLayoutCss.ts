@@ -29,3 +29,15 @@ export const ARTIFACT_MOBILE_DOCK_H = "5.5rem";
 
 /** Collapsed header = video + sticky toolbar (meta scrolled away). */
 export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
+
+/** Mobile journal tab: break out to viewport width (matches pinned video). */
+export const artifactMobileJournalFullBleed = cn(
+  "relative w-full min-w-0 max-w-none self-stretch",
+  "max-lg:w-[100vw] max-lg:max-w-[100vw] max-lg:[margin-inline:calc(50%-50vw)]",
+);
+
+/** Horizontal inset for journal controls/text under pinned video. */
+export const artifactMobileJournalEdgePad = cn(
+  "px-[max(1rem,env(safe-area-inset-left,0px))]",
+  "pr-[max(1rem,env(safe-area-inset-right,0px))]",
+);

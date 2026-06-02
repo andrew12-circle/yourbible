@@ -13,6 +13,8 @@ type Props = {
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
   insightExplorePanel?: ReactNode;
   insightExploreOpen?: boolean;
+  /** Journal tab: hide back link, title, and channel under the pinned video. */
+  hideVideoMeta?: boolean;
 };
 
 /** Title/channel scroll away; quick actions + Study/Transcript tabs stay pinned under the fixed video. */
@@ -26,6 +28,7 @@ export default function ArtifactMobilePinnedScrollChrome({
   backTo = "/framework/artifacts",
   insightExplorePanel,
   insightExploreOpen = false,
+  hideVideoMeta = false,
 }: Props) {
   const stickyChromeRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,19 +52,21 @@ export default function ArtifactMobilePinnedScrollChrome({
     const ro = new ResizeObserver(sync);
     ro.observe(sticky);
     return () => ro.disconnect();
-  }, [insightExploreOpen, insightExplorePanel]);
+  }, [hideVideoMeta, insightExploreOpen, insightExplorePanel]);
 
   return (
     <div className="shrink-0 lg:hidden">
-      <ArtifactMobileVideoMeta
-        displayTitle={displayTitle}
-        channel={channel}
-        channelUrl={channelUrl}
-        providerName={providerName}
-        thumbnailUrl={thumbnailUrl}
-        youTubeVideoId={youTubeVideoId}
-        backTo={backTo}
-      />
+      {!hideVideoMeta ? (
+        <ArtifactMobileVideoMeta
+          displayTitle={displayTitle}
+          channel={channel}
+          channelUrl={channelUrl}
+          providerName={providerName}
+          thumbnailUrl={thumbnailUrl}
+          youTubeVideoId={youTubeVideoId}
+          backTo={backTo}
+        />
+      ) : null}
       {insightExploreOpen && insightExplorePanel ? (
         <div
           ref={stickyChromeRef}

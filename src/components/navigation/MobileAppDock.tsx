@@ -13,7 +13,7 @@ type DockItemProps = {
 type Props = {
   className?: string;
   layoutRootSelector?: string;
-  activeTab?: "study" | "transcript" | "notes";
+  activeTab?: "study" | "transcript" | "notes" | "journal";
   onStudyClick?: () => void;
   onTranscriptClick?: () => void;
   journalActive?: boolean;
@@ -93,7 +93,7 @@ export default function MobileAppDock({
         <DockItem
           label="Journal"
           icon={NotebookPen}
-          active={journalActive}
+          active={journalActive ?? activeTab === "journal"}
           onClick={onJournalClick}
         />
         <DockItem label="More" icon={Menu} onClick={onMenuClick} />

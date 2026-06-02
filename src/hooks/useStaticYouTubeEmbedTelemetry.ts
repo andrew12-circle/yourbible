@@ -73,12 +73,12 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       }
     };
 
-    const pollVideoData = () => {
+    const pollCurrentTime = () => {
       const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
       if (!iframe?.contentWindow) return;
       try {
         iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "getVideoData", args: [] }),
+          JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
           "https://www.youtube.com",
         );
       } catch {
@@ -87,9 +87,9 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     };
 
     startListening();
-    pollVideoData();
+    pollCurrentTime();
     const listenInterval = window.setInterval(startListening, 2000);
-    const pollInterval = window.setInterval(pollVideoData, 250);
+    const pollInterval = window.setInterval(pollCurrentTime, 250);
 
     return () => {
       window.removeEventListener("message", onMessage);

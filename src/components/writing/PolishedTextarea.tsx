@@ -12,6 +12,8 @@ const DEFAULT_IDLE_MS = 2000;
 export type PolishedTextareaProps = Omit<TextareaProps, "value" | "onChange" | "spellCheck"> & {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  /** Wrapper around the textarea (e.g. flex-1 under pinned video journal). */
+  wrapperClassName?: string;
   /** When AI assist is on, also polish after this many ms with no edits (default 2000). */
   idleDebounceMs?: number;
   enableIdlePolish?: boolean;
@@ -32,6 +34,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       enableIdlePolish = true,
       polishResetKey,
       className,
+      wrapperClassName,
       disabled,
       onBlur,
       onAfterBlurAssist,
@@ -110,7 +113,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     };
 
     return (
-      <div className="relative">
+      <div className={cn("relative", wrapperClassName)}>
         <Textarea
           {...rest}
           ref={setRefs}

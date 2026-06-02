@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PenLine, Trash2, X } from "lucide-react";
+import { Keyboard, PenLine, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsTablet, useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
@@ -69,6 +69,12 @@ export interface SketchPadProps {
    * PNG and pass it here (e.g. attach to a compose draft before the entry exists).
    */
   onUnsavedExit?: (file: File) => void | Promise<void>;
+  /** Full-screen modal (default) or fill the parent panel (artifact journal under video). */
+  layout?: "modal" | "inline";
+  /** Shown in the inline header (e.g. video title). */
+  inlineTitle?: string;
+  /** Inline under artifact video: edge-to-edge paper and toolbar. */
+  fullBleed?: boolean;
 }
 
 function prefersNightMode() {
@@ -86,7 +92,11 @@ export default function SketchPad({
   draftKey,
   onAutosave,
   onUnsavedExit,
+  layout = "modal",
+  inlineTitle,
+  fullBleed = false,
 }: SketchPadProps) {
+  const isInline = layout === "inline";
   const tabletPortrait = useIsTabletPortrait();
   const tablet = useIsTablet();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -812,24 +822,35 @@ export default function SketchPad({
   return (
     <div
       ref={rootRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Handwritten"
-      className={cn("fixed inset-0 z-[80] flex select-none flex-col", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background")}
+      role={isInline ? undefined : "dialog"}
+      aria-modal={isInline ? undefined : true}
+      aria-label={isInline ? undefined : "Handwritten"}
+      className={cn(
+        "flex select-none flex-col",
+        isInline
+          ? "relative h-full min-h-0 w-full flex-1"
+          : cn("fixed inset-0 z-[80]", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background"),
+        isInline && (isNightMode ? "bg-white dark:bg-slate-950" : "bg-background"),
+      )}
       style={{
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
-        height: "100dvh",
-        paddingBottom: "env(safe-area-inset-bottom)",
-        touchAction: "none",
-        overscrollBehavior: "none",
+        ...(isInline
+          ? { touchAction: "none", overscrollBehavior: "none" }
+          : {
+              height: "100dvh",
+              paddingBottom: "env(safe-area-inset-bottom)",
+              touchAction: "none",
+              overscrollBehavior: "none",
+            }),
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {/* Header — extend background under status bar; controls sit below clock/Wi‑Fi */}
       <header
         className={cn(
-          "flex-shrink-0 border-b px-3 pt-[env(safe-area-inset-top,0px)]",
+          "flex-shrink-0 border-b",
+          isInline && fullBleed ? "px-2" : "px-3",
+          isInline ? "pt-0" : "pt-[env(safe-area-inset-top,0px)]",
           isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95",
         )}
       >
@@ -838,13 +859,18 @@ export default function SketchPad({
           type="button"
           onClick={requestClose}
           className={cn("rounded-full p-1.5 transition", isNightMode ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
-          title="Close handwritten"
-          aria-label="Close handwritten"
+          title={isInline ? "Back to typed journal" : "Close handwritten"}
+          aria-label={isInline ? "Back to typed journal" : "Close handwritten"}
         >
-          <X className="h-4 w-4" />
+          {isInline ? <Keyboard className="h-4 w-4" /> : <X className="h-4 w-4" />}
         </button>
-        <div className={cn("flex-1 text-center text-[13px] font-medium", isNightMode ? "text-slate-300" : "text-muted-foreground")}>
-          Handwritten
+        <div
+          className={cn(
+            "min-w-0 flex-1 truncate text-center text-[13px] font-medium",
+            isNightMode ? "text-slate-300" : "text-muted-foreground",
+          )}
+        >
+          {isInline ? inlineTitle?.trim() || "Handwritten" : "Handwritten"}
         </div>
         <Button
           type="button"
@@ -852,14 +878,14 @@ export default function SketchPad({
           disabled={!hasStrokes || saving}
           size="sm"
           variant="ghost"
-          className={cn("h-8 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
+          className={cn("h-8 shrink-0 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
         >
           {saving ? (
             "Saving…"
           ) : (
             <>
-              <span className={tabletPortrait ? "inline" : "hidden sm:inline"}>Save handwritten</span>
-              <span className={tabletPortrait ? "hidden" : "sm:hidden"}>Save</span>
+              <span className={isInline || tabletPortrait ? "inline" : "hidden sm:inline"}>Save handwritten</span>
+              <span className={isInline || tabletPortrait ? "hidden" : "sm:hidden"}>Save</span>
             </>
           )}
         </Button>
@@ -916,7 +942,13 @@ export default function SketchPad({
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
             toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]",
-            tablet ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
+            isInline && fullBleed
+              ? "px-0 pb-0"
+              : tablet
+                ? "px-0 pb-0"
+                : tabletPortrait
+                  ? "px-3 pb-3"
+                  : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
             isNightMode ? "bg-black" : tablet ? "bg-white" : "bg-muted/40",
           )}
         >
@@ -924,11 +956,11 @@ export default function SketchPad({
           ref={wrapperRef}
           className={cn(
             "relative h-full w-full overflow-hidden",
-            tablet
+            (tablet || (isInline && fullBleed))
               ? "rounded-none border-0 shadow-none"
               : "rounded-lg border shadow-sm sm:rounded-xl",
             isNightMode ? "bg-black" : "bg-white",
-            !tablet && (isNightMode ? "border-white/10" : "border-border/60"),
+            !tablet && !(isInline && fullBleed) && (isNightMode ? "border-white/10" : "border-border/60"),
           )}
           style={{
             WebkitUserSelect: "none",
@@ -1024,7 +1056,7 @@ export default function SketchPad({
         </div>
       </div>
 
-      {/* Footer hint */}
+      {!isInline ? (
       <footer className={cn("hidden flex-shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px]", !tabletPortrait && "sm:flex", isNightMode ? "border-white/10 bg-slate-950/90 text-slate-400" : "border-border/50 bg-white/90 text-muted-foreground")}>
         <span className="inline-flex items-center gap-1">
           <Trash2 className="h-3 w-3" />
@@ -1036,6 +1068,7 @@ export default function SketchPad({
           Ctrl/⌘ Z undo · ⇧ Ctrl/⌘ Z redo · After save, this can be transcribed into your entry
         </span>
       </footer>
+      ) : null}
     </div>
   );
 }

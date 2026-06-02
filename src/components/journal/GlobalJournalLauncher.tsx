@@ -26,7 +26,7 @@ function isArtifactDetailRoute(pathname: string) {
 }
 
 export default function GlobalJournalLauncher() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { user } = useAuth();
   const panelOpen = useFloatingJournalStore((s) => s.panelOpen);
   const artifactJournalMode = useFloatingJournalStore((s) => s.artifactJournalMode);
@@ -41,7 +41,7 @@ export default function GlobalJournalLauncher() {
   const hidden = !user || journalLauncherHidden(pathname);
   const hideSideTabOnMobileArtifact = isArtifactDetailRoute(pathname);
   const onArtifactDetail = isArtifactDetailRoute(pathname);
-  const inlineArtifactJournal = onArtifactDetail && artifactJournalMode !== "closed";
+  const inlineArtifactJournal = onArtifactDetail && (artifactJournalMode !== "closed" || hash === "#journal");
 
   useEffect(() => {
     if (isJournalRoute(pathname) && panelOpen) {
@@ -104,11 +104,14 @@ export default function GlobalJournalLauncher() {
             title="Journal"
             onClick={() => {
               if (onArtifactDetail) {
-                if (artifactJournalMode !== "closed") {
+                if (window.location.hash === "#journal") {
                   setArtifactJournalMode("closed");
+                  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+                  window.dispatchEvent(new HashChangeEvent("hashchange"));
                 } else {
                   setPanelOpen(false);
                   setArtifactJournalMode("docked");
+                  window.location.hash = "journal";
                 }
                 return;
               }

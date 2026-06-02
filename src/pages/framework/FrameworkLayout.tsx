@@ -325,7 +325,7 @@ export default function FrameworkLayout({
           "mx-auto px-4 sm:px-5",
           immersive
             ? hideMobileFrameworkHeader
-              ? "max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:px-0 lg:py-0 lg:pb-0"
+              ? "max-lg:mx-0 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:mx-0 lg:px-0 lg:py-0 lg:pb-0"
               : hideDesktopFrameworkHeader
                 ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
                 : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"

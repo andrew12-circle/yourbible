@@ -61,7 +61,7 @@ type Props = {
   onOpenJournalTimestamp: () => void;
   onOpenJournalFull: () => void;
   /** Mobile sticky layout: which tab is active (controls capture section visibility). */
-  mobileActiveTab?: "study" | "transcript" | "notes";
+  mobileActiveTab?: "study" | "transcript" | "notes" | "journal";
   mobileMenuOpen?: boolean;
   onMobileMenuOpenChange?: (open: boolean) => void;
   menuSections?: ArtifactNavSection[];
@@ -236,6 +236,7 @@ function ArtifactYoutubeVideoBlock({
         backTo={backTo}
         insightExplorePanel={insightExplorePanel}
         insightExploreOpen={insightExploreOpen}
+        hideVideoMeta={mobileActiveTab === "journal"}
       />
     ) : null;
 

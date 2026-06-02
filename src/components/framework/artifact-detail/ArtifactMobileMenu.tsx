@@ -1,4 +1,19 @@
-import { Bookmark, FileText, ListOrdered, Menu, RefreshCw, ScrollText, Sparkles } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bookmark,
+  BookOpen,
+  Clock,
+  FileText,
+  LayoutList,
+  ListOrdered,
+  Menu,
+  NotebookPen,
+  RefreshCw,
+  ScrollText,
+  Sparkles,
+  Video,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { ArtifactNavSection } from "@/components/framework/artifact-detail/ArtifactSectionNav";
@@ -29,6 +44,69 @@ type Props = {
   onOpenJournalTimestamp?: () => void;
   onOpenJournalFull?: () => void;
 };
+
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  overview: Sparkles,
+  video: Video,
+  chapters: LayoutList,
+  teachings: BookOpen,
+  claims: Sparkles,
+  "claims-index": ListOrdered,
+  capture: Bookmark,
+  notes: NotebookPen,
+};
+
+function MenuSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mb-5 last:mb-0">
+      <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/75">
+        {title}
+      </p>
+      <ul className="space-y-0.5">{children}</ul>
+    </div>
+  );
+}
+
+function MenuItem({
+  icon: Icon,
+  label,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        disabled={disabled}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition",
+          active
+            ? "bg-muted font-medium text-foreground"
+            : "text-foreground/90 hover:bg-muted/60",
+          disabled && "cursor-not-allowed opacity-50",
+        )}
+        onClick={onClick}
+      >
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+            active ? "bg-background text-foreground shadow-sm ring-1 ring-border/40" : "bg-muted/45 text-muted-foreground",
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 leading-snug">{label}</span>
+      </button>
+    </li>
+  );
+}
 
 export default function ArtifactMobileMenu({
   open,
@@ -80,175 +158,88 @@ export default function ArtifactMobileMenu({
         </SheetTrigger>
       ) : null}
       <SheetContent side="right" className="flex w-[min(100%,320px)] flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border/60 px-4 py-3 text-left">
-          <SheetTitle className="font-display text-base font-normal">Study menu</SheetTitle>
+        <SheetHeader className="border-b border-border/60 px-4 py-3.5 text-left">
+          <SheetTitle className="font-display text-base font-semibold tracking-tight">Study menu</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="flex-1 overflow-y-auto px-2 py-4">
           {hasTranscript ? (
-            <div className="mb-4">
-              <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                View
-              </p>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
-                onClick={() => run(onOpenTranscript)}
-              >
-                <ScrollText className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                Transcript
-              </button>
-            </div>
+            <MenuSection title="View">
+              <MenuItem icon={ScrollText} label="Transcript" onClick={() => run(onOpenTranscript)} />
+            </MenuSection>
           ) : null}
 
           {sections.length > 0 ? (
-            <div className="mb-4">
-              <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                On this page
-              </p>
-              <ul className="space-y-0.5">
-                {sections.map((section) => {
-                  const active = resolvedHash === section.hash;
-                  return (
-                    <li key={section.id}>
-                      <button
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition",
-                          active
-                            ? "bg-muted font-medium text-foreground"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                        )}
-                        onClick={() => run(() => onNavigateSection(section.hash))}
-                      >
-                        {section.icon === "index" ? (
-                          <ListOrdered className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                        ) : null}
-                        {section.label}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <MenuSection title="On this page">
+              {sections.map((section) => {
+                const Icon =
+                  SECTION_ICONS[section.id] ?? (section.icon === "index" ? ListOrdered : LayoutList);
+                return (
+                  <MenuItem
+                    key={section.id}
+                    icon={Icon}
+                    label={section.label}
+                    active={resolvedHash === section.hash}
+                    onClick={() => run(() => onNavigateSection(section.hash))}
+                  />
+                );
+              })}
+            </MenuSection>
           ) : null}
 
           {showCaptureActions ? (
-            <div className="mb-4">
-              <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Capture
-              </p>
-              <ul className="space-y-0.5">
-                {onBookmark ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
-                      disabled={!canCapture || captureSaving}
-                      onClick={() => run(onBookmark)}
-                    >
-                      <Bookmark className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      Bookmark current moment
-                    </button>
-                  </li>
-                ) : null}
-                {onBelieve ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
-                      disabled={captureSaving}
-                      onClick={() => run(onBelieve)}
-                    >
-                      <Sparkles className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      I believe this
-                    </button>
-                  </li>
-                ) : null}
-                {onStudyJournal ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50"
-                      onClick={() => run(onStudyJournal)}
-                    >
-                      Study journal
-                    </button>
-                  </li>
-                ) : null}
-                {onOpenJournalTimestamp ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
-                      disabled={!canCapture}
-                      onClick={() => run(onOpenJournalTimestamp)}
-                    >
-                      Full-page journal at current time
-                    </button>
-                  </li>
-                ) : null}
-                {onOpenJournalFull ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50 disabled:opacity-50"
-                      disabled={!hasTranscript}
-                      onClick={() => run(onOpenJournalFull)}
-                    >
-                      Full-page journal (full video)
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            </div>
+            <MenuSection title="Capture">
+              {onBookmark ? (
+                <MenuItem
+                  icon={Bookmark}
+                  label="Bookmark current moment"
+                  disabled={!canCapture || captureSaving}
+                  onClick={() => run(onBookmark)}
+                />
+              ) : null}
+              {onBelieve ? (
+                <MenuItem
+                  icon={Sparkles}
+                  label="I believe this"
+                  disabled={captureSaving}
+                  onClick={() => run(onBelieve)}
+                />
+              ) : null}
+              {onStudyJournal ? (
+                <MenuItem icon={NotebookPen} label="Study journal" onClick={() => run(onStudyJournal)} />
+              ) : null}
+              {onOpenJournalTimestamp ? (
+                <MenuItem
+                  icon={Clock}
+                  label="Full-page journal at current time"
+                  disabled={!canCapture}
+                  onClick={() => run(onOpenJournalTimestamp)}
+                />
+              ) : null}
+              {onOpenJournalFull ? (
+                <MenuItem
+                  icon={BookOpen}
+                  label="Full-page journal (full video)"
+                  disabled={!hasTranscript}
+                  onClick={() => run(onOpenJournalFull)}
+                />
+              ) : null}
+            </MenuSection>
           ) : null}
 
-          {(showPaste || showWrapUp || showReanalyze) && (
-            <div>
-              <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Artifact
-              </p>
-              <ul className="space-y-0.5">
-                {showPaste ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50"
-                      onClick={() => run(onPaste)}
-                    >
-                      <FileText className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      Paste transcript
-                    </button>
-                  </li>
-                ) : null}
-                {showWrapUp ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50"
-                      onClick={() => run(onWrapUp)}
-                    >
-                      <Sparkles className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      Wrap up studying
-                    </button>
-                  </li>
-                ) : null}
-                {showReanalyze ? (
-                  <li>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/50"
-                      onClick={() => run(onReanalyze)}
-                    >
-                      <RefreshCw className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      Re-analyze
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          )}
+          {showPaste || showWrapUp || showReanalyze ? (
+            <MenuSection title="Artifact">
+              {showPaste ? (
+                <MenuItem icon={FileText} label="Paste transcript" onClick={() => run(onPaste)} />
+              ) : null}
+              {showWrapUp ? (
+                <MenuItem icon={Sparkles} label="Wrap up studying" onClick={() => run(onWrapUp)} />
+              ) : null}
+              {showReanalyze ? (
+                <MenuItem icon={RefreshCw} label="Re-analyze" onClick={() => run(onReanalyze)} />
+              ) : null}
+            </MenuSection>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

@@ -67,12 +67,16 @@ export function useArtifactJournalEditor({
       if (d) {
         const j = JSON.parse(d) as { title?: string; body?: string };
         if (typeof j.body === "string") setBody(j.body);
-        if (typeof j.title === "string") setTitle(j.title);
+        if (typeof j.title === "string" && j.title.trim()) {
+          setTitle(j.title.trim());
+          return;
+        }
       }
     } catch {
       /* ignore */
     }
-  }, [draftKey]);
+    if (artifactTitle?.trim()) setTitle(artifactTitle.trim());
+  }, [draftKey, artifactTitle]);
 
   useEffect(() => {
     floatingJournalInsertRef.current = {

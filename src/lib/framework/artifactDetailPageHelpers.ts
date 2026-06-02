@@ -1,10 +1,6 @@
-import {
-  cleanTranscriptQuoteForDisplay,
-} from "@/lib/normalizePastedTranscript";
-import {
-  formatClaimSourceClock,
-  type TranscriptSegment,
-} from "@/lib/transcriptSplit";
+import { cleanTranscriptQuoteForDisplay } from "@/lib/normalizePastedTranscript";
+import type { ClaimEpistemology } from "@/lib/framework/epistemology";
+import { formatClaimSourceClock, type TranscriptSegment } from "@/lib/transcriptSplit";
 
 export function formatArtifactKind(kind: string): string {
   if (kind === "youtube") return "YouTube";
@@ -42,14 +38,21 @@ const SOURCE_STOPWORDS = new Set([
   "while", "with", "would", "your",
 ]);
 
-type ClaimSourceLike = {
+export type ArtifactDetailClaimSource = {
+  id: string;
   claim: string;
-  doctrine_tags?: string[];
-  scripture_supports?: { ref: string; note?: string }[];
-  scripture_challenges?: { ref: string; note?: string }[];
+  tone: string | null;
+  doctrine_tags: string[];
+  scripture_supports: { ref: string; note?: string }[];
+  scripture_challenges: { ref: string; note?: string }[];
+  match_relation: string | null;
+  matched_belief_id: string | null;
+  bias_flags: string[];
+  verdict: string | null;
+  epistemology?: ClaimEpistemology | null;
 };
 
-function sourceTermsForClaim(claim: ClaimSourceLike) {
+function sourceTermsForClaim(claim: ArtifactDetailClaimSource) {
   const sourceText = [
     claim.claim,
     ...(claim.doctrine_tags ?? []),
@@ -68,7 +71,7 @@ function sourceTermsForClaim(claim: ClaimSourceLike) {
   );
 }
 
-export function findClaimSource(claim: ClaimSourceLike, segments: TranscriptSegment[]) {
+export function findClaimSource(claim: ArtifactDetailClaimSource, segments: TranscriptSegment[]) {
   const terms = sourceTermsForClaim(claim);
   if (!terms.length) return null;
 
@@ -84,24 +87,19 @@ export function findClaimSource(claim: ClaimSourceLike, segments: TranscriptSegm
   return best.segment;
 }
 
-export type MatchedBeliefLike = {
+export type ArtifactDetailMatchedBelief = {
+  id: string;
+  topic: string;
   statement: string;
   answer: string | null;
   confidence: number;
 };
 
-type ClaimResearchLike = ClaimSourceLike & {
-  verdict?: string | null;
-  tone?: string | null;
-  match_relation?: string | null;
-  bias_flags?: string[];
-};
-
 export function buildClaimResearchMarkdown(
   artifactTitle: string | null,
-  claim: ClaimResearchLike,
+  claim: ArtifactDetailClaimSource,
   source: TranscriptSegment | null | undefined,
-  belief: MatchedBeliefLike | undefined,
+  belief: ArtifactDetailMatchedBelief | undefined,
 ): string {
   const lines: string[] = [];
   lines.push("## Artifact claim research");
@@ -187,7 +185,7 @@ export function buildClaimResearchMarkdown(
 
 export function buildClaimResearchJournalTitle(
   artifactTitle: string | null,
-  claim: { claim: string },
+  claim: Pick<ArtifactDetailClaimSource, "claim">,
 ): string {
   const clip = claim.claim.trim().slice(0, 70);
   const suffix = claim.claim.trim().length > 70 ? "…" : "";
