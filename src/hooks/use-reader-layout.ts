@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   isCompactInkLayout,
+  isHandwrittenPreferredLayout,
   isReaderSinglePageLayout,
   isTabletLayout,
   isTabletPortraitLayout,
@@ -59,4 +60,9 @@ export function useIsTablet() {
 /** Compact ink toolbars (phone + tablet portrait). */
 export function useCompactInkLayout() {
   return useViewportLayout(isCompactInkLayout);
+}
+
+/** iPad artifact journal: open handwritten by default (not iPhone or desktop). */
+export function useHandwrittenPreferredJournal() {
+  return useViewportLayout(isHandwrittenPreferredLayout);
 }

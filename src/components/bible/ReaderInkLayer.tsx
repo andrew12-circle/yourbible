@@ -87,6 +87,8 @@ export default function ReaderInkLayer({
   const activeStrokeRef = useRef<InkStroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const activePointerTypeRef = useRef<string | null>(null);
+  /** Committed strokes for immediate canvas redraw (React state can lag one frame). */
+  const displayStrokesRef = useRef<InkStroke[]>([]);
   const toolRef = useRef({ tool, color, size });
   toolRef.current = { tool, color, size };
 
@@ -131,11 +133,20 @@ export default function ReaderInkLayer({
   onUnregisterRef.current = onUnregister;
   const lastNotifiedStateRef = useRef<ReaderInkLayerState | null>(null);
   const flushRedrawRef = useRef<() => void>(() => {});
+  const pointerCleanupRef = useRef<(() => void) | null>(null);
+  const layerIdRef = useRef(layerId);
+  layerIdRef.current = layerId;
 
   useEffect(() => {
-    if (!active) return;
-    activePointerIdRef.current = null;
-    activeStrokeRef.current = null;
+    if (loading) return;
+    displayStrokesRef.current = strokes;
+    flushRedrawRef.current();
+  }, [strokes, loading]);
+
+  useEffect(() => {
+    if (!active) {
+      displayStrokesRef.current = [];
+    }
   }, [active, layerId]);
 
   useEffect(() => {
@@ -205,7 +216,7 @@ export default function ReaderInkLayer({
     lctx.setTransform(1, 0, 0, 1, 0, 0);
     lctx.clearRect(0, 0, layer.width, layer.height);
     lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    for (const stroke of strokes) {
+    for (const stroke of displayStrokesRef.current) {
       drawStroke(lctx, stroke);
     }
     if (activeStrokeRef.current) {
@@ -217,7 +228,7 @@ export default function ReaderInkLayer({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(layer, 0, 0);
     ctx.restore();
-  }, [strokes]);
+  }, []);
 
   const flushRedraw = useCallback(() => {
     if (redrawFrameRef.current != null) {
@@ -228,6 +239,147 @@ export default function ReaderInkLayer({
   }, [redraw]);
 
   flushRedrawRef.current = flushRedraw;
+
+  const detachPointerHandlers = useCallback(() => {
+    pointerCleanupRef.current?.();
+    pointerCleanupRef.current = null;
+  }, []);
+
+  const attachPointerHandlers = useCallback(() => {
+    if (!active || pointerCleanupRef.current) return;
+    const wrap = wrapRef.current;
+    if (!wrap || sizeRef.current.w <= 0 || sizeRef.current.h <= 0) return;
+
+    const resolveDrawToolLocal = () => {
+      const t = toolRef.current.tool;
+      if (t === "ruler" || t === "lasso") return "fountain";
+      return normalizeInkDrawTool(t);
+    };
+
+    const commitStroke = (stroke: InkStroke) => {
+      const committed: InkStroke = {
+        ...stroke,
+        tool: normalizeInkDrawTool(stroke.tool),
+        points: stroke.points.map((p) => ({ ...p })),
+      };
+      displayStrokesRef.current = [...displayStrokesRef.current, committed];
+      pushStrokeRef.current(committed);
+      onStrokeStartRef.current?.();
+      flushRedrawRef.current();
+    };
+
+    const finishStroke = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== e.pointerId) return;
+      try {
+        wrap.releasePointerCapture(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      activePointerIdRef.current = null;
+      activePointerTypeRef.current = null;
+      const stroke = activeStrokeRef.current;
+      activeStrokeRef.current = null;
+      if (stroke && stroke.points.length > 0) {
+        commitStroke(stroke);
+      } else {
+        flushRedrawRef.current();
+      }
+      e.preventDefault();
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      const canvas = canvasRef.current;
+      const { w, h } = sizeRef.current;
+      if (!canvas || w <= 0 || h <= 0) return;
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      onFocusRef.current?.(layerIdRef.current);
+
+      if (activePointerIdRef.current != null) {
+        const takeover = e.pointerType === "pen" && activePointerTypeRef.current === "touch";
+        if (!takeover) return;
+        try {
+          wrap.releasePointerCapture(activePointerIdRef.current);
+        } catch {
+          /* noop */
+        }
+        activeStrokeRef.current = null;
+      }
+
+      wrap.setPointerCapture(e.pointerId);
+      activePointerIdRef.current = e.pointerId;
+      activePointerTypeRef.current = e.pointerType;
+      const { color: c, size: s } = toolRef.current;
+      const drawTool = resolveDrawToolLocal();
+      const pt = getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType);
+      activeStrokeRef.current = { tool: drawTool, color: c, size: s, points: [pt] };
+      flushRedrawRef.current();
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== e.pointerId) return;
+      const canvas = canvasRef.current;
+      const stroke = activeStrokeRef.current;
+      if (!canvas || !stroke) return;
+      const coalesced =
+        typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+      if (coalesced.length > 0) {
+        for (const ev of coalesced) {
+          stroke.points.push(
+            getInkPointFromCanvasEvent(canvas, ev.clientX, ev.clientY, ev.pressure, e.pointerType),
+          );
+        }
+      } else {
+        stroke.points.push(
+          getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType),
+        );
+      }
+      if (redrawFrameRef.current == null) {
+        redrawFrameRef.current = window.requestAnimationFrame(() => {
+          redrawFrameRef.current = null;
+          flushRedrawRef.current();
+        });
+      }
+      e.preventDefault();
+    };
+
+    const preventDefault = (e: Event) => e.preventDefault();
+    const nonPassive = { passive: false } as AddEventListenerOptions;
+
+    const onPointerDownWithSelectionClear = (e: PointerEvent) => {
+      window.getSelection()?.removeAllRanges();
+      onPointerDown(e);
+    };
+
+    wrap.addEventListener("pointerdown", onPointerDownWithSelectionClear, nonPassive);
+    wrap.addEventListener("pointermove", onPointerMove, nonPassive);
+    wrap.addEventListener("pointerup", finishStroke, nonPassive);
+    wrap.addEventListener("pointercancel", finishStroke, nonPassive);
+    wrap.addEventListener("touchstart", preventDefault, nonPassive);
+    wrap.addEventListener("touchmove", preventDefault, nonPassive);
+    wrap.addEventListener("contextmenu", preventDefault);
+    wrap.addEventListener("selectstart", preventDefault, nonPassive);
+    wrap.addEventListener("dragstart", preventDefault);
+    window.addEventListener("pointerup", finishStroke, nonPassive);
+    window.addEventListener("pointercancel", finishStroke, nonPassive);
+
+    pointerCleanupRef.current = () => {
+      wrap.removeEventListener("pointerdown", onPointerDownWithSelectionClear);
+      wrap.removeEventListener("pointermove", onPointerMove);
+      wrap.removeEventListener("pointerup", finishStroke);
+      wrap.removeEventListener("pointercancel", finishStroke);
+      wrap.removeEventListener("touchstart", preventDefault);
+      wrap.removeEventListener("touchmove", preventDefault);
+      wrap.removeEventListener("contextmenu", preventDefault);
+      wrap.removeEventListener("selectstart", preventDefault);
+      wrap.removeEventListener("dragstart", preventDefault);
+      window.removeEventListener("pointerup", finishStroke);
+      window.removeEventListener("pointercancel", finishStroke);
+      activePointerIdRef.current = null;
+      activeStrokeRef.current = null;
+    };
+  }, [active]);
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -252,7 +404,8 @@ export default function ReaderInkLayer({
     layer.width = canvas.width;
     layer.height = canvas.height;
     flushRedraw();
-  }, [flushRedraw]);
+    attachPointerHandlers();
+  }, [attachPointerHandlers, flushRedraw]);
 
   const syncOverlayLayoutRef = useRef<() => void>(() => {});
   const overlayLayoutRafRef = useRef<number | null>(null);
@@ -320,128 +473,10 @@ export default function ReaderInkLayer({
     resizeCanvas();
   }, [active, overlayLayout.width, overlayLayout.height, resizeCanvas]);
 
-  useEffect(() => {
-    flushRedraw();
-  }, [strokes, loading, flushRedraw]);
-
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap || !active) return;
-
-    const resolveDrawToolLocal = () => {
-      const t = toolRef.current.tool;
-      if (t === "ruler" || t === "lasso") return "fountain";
-      return normalizeInkDrawTool(t);
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      const canvas = canvasRef.current;
-      const { w, h } = sizeRef.current;
-      if (!canvas || w <= 0 || h <= 0) return;
-      if (e.button !== 0 && e.pointerType === "mouse") return;
-      onFocusRef.current?.(layerId);
-
-      if (activePointerIdRef.current != null) {
-        const takeover = e.pointerType === "pen" && activePointerTypeRef.current === "touch";
-        if (!takeover) return;
-        try {
-          wrap.releasePointerCapture(activePointerIdRef.current);
-        } catch {
-          /* noop */
-        }
-        activeStrokeRef.current = null;
-      }
-
-      wrap.setPointerCapture(e.pointerId);
-      activePointerIdRef.current = e.pointerId;
-      activePointerTypeRef.current = e.pointerType;
-      const { color: c, size: s } = toolRef.current;
-      const drawTool = resolveDrawToolLocal();
-      const pt = getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType);
-      activeStrokeRef.current = { tool: drawTool, color: c, size: s, points: [pt] };
-      onStrokeStartRef.current?.();
-      flushRedrawRef.current();
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (activePointerIdRef.current !== e.pointerId) return;
-      const canvas = canvasRef.current;
-      const stroke = activeStrokeRef.current;
-      if (!canvas || !stroke) return;
-      const coalesced =
-        typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
-      if (coalesced.length > 0) {
-        for (const ev of coalesced) {
-          stroke.points.push(
-            getInkPointFromCanvasEvent(canvas, ev.clientX, ev.clientY, ev.pressure, e.pointerType),
-          );
-        }
-      } else {
-        stroke.points.push(
-          getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType),
-        );
-      }
-      if (redrawFrameRef.current == null) {
-        redrawFrameRef.current = window.requestAnimationFrame(() => {
-          redrawFrameRef.current = null;
-          flushRedrawRef.current();
-        });
-      }
-      e.preventDefault();
-    };
-
-    const finishStroke = (e: PointerEvent) => {
-      if (activePointerIdRef.current !== e.pointerId) return;
-      try {
-        wrap.releasePointerCapture(e.pointerId);
-      } catch {
-        /* noop */
-      }
-      activePointerIdRef.current = null;
-      activePointerTypeRef.current = null;
-      const stroke = activeStrokeRef.current;
-      activeStrokeRef.current = null;
-      if (stroke && stroke.points.length > 0) {
-        pushStrokeRef.current(stroke);
-        flushRedrawRef.current();
-      } else {
-        flushRedrawRef.current();
-      }
-      e.preventDefault();
-    };
-
-    const preventDefault = (e: Event) => e.preventDefault();
-    const nonPassive = { passive: false } as AddEventListenerOptions;
-
-    const onPointerDownWithSelectionClear = (e: PointerEvent) => {
-      window.getSelection()?.removeAllRanges();
-      onPointerDown(e);
-    };
-
-    wrap.addEventListener("pointerdown", onPointerDownWithSelectionClear, nonPassive);
-    wrap.addEventListener("pointermove", onPointerMove, nonPassive);
-    wrap.addEventListener("pointerup", finishStroke, nonPassive);
-    wrap.addEventListener("pointercancel", finishStroke, nonPassive);
-    wrap.addEventListener("touchstart", preventDefault, nonPassive);
-    wrap.addEventListener("touchmove", preventDefault, nonPassive);
-    wrap.addEventListener("contextmenu", preventDefault);
-    wrap.addEventListener("selectstart", preventDefault, nonPassive);
-    wrap.addEventListener("dragstart", preventDefault);
-
-    return () => {
-      wrap.removeEventListener("pointerdown", onPointerDownWithSelectionClear);
-      wrap.removeEventListener("pointermove", onPointerMove);
-      wrap.removeEventListener("pointerup", finishStroke);
-      wrap.removeEventListener("pointercancel", finishStroke);
-      wrap.removeEventListener("touchstart", preventDefault);
-      wrap.removeEventListener("touchmove", preventDefault);
-      wrap.removeEventListener("contextmenu", preventDefault);
-      wrap.removeEventListener("selectstart", preventDefault);
-      wrap.removeEventListener("dragstart", preventDefault);
-    };
-  }, [active, layerId, overlayLayout.width, overlayLayout.height]);
+  useLayoutEffect(() => {
+    attachPointerHandlers();
+    return detachPointerHandlers;
+  }, [active, layerId, attachPointerHandlers, detachPointerHandlers]);
 
   if (!active || overlayLayout.width <= 0 || overlayLayout.height <= 0) return null;
 

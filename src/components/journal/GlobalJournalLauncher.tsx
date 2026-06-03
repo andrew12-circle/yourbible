@@ -39,9 +39,11 @@ export default function GlobalJournalLauncher() {
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
   const hidden = !user || journalLauncherHidden(pathname);
-  const hideSideTabOnMobileArtifact = isArtifactDetailRoute(pathname);
   const onArtifactDetail = isArtifactDetailRoute(pathname);
-  const inlineArtifactJournal = onArtifactDetail && (artifactJournalMode !== "closed" || hash === "#journal");
+  const artifactJournalActive =
+    onArtifactDetail && (artifactJournalMode !== "closed" || hash === "#journal");
+  const hideSideLauncherTab = artifactJournalActive;
+  const inlineArtifactJournal = artifactJournalActive;
 
   useEffect(() => {
     if (isJournalRoute(pathname) && panelOpen) {
@@ -50,6 +52,7 @@ export default function GlobalJournalLauncher() {
   }, [pathname, panelOpen, setPanelOpen]);
 
   if (hidden) return null;
+  if (hideSideLauncherTab) return null;
 
   const readerJournal = pathname.startsWith("/read/");
 
@@ -66,7 +69,6 @@ export default function GlobalJournalLauncher() {
         className={cn(
           "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
           "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
-          hideSideTabOnMobileArtifact && "max-md:hidden",
           readerJournal
             ? "border-gold/25 bg-navy text-gold-bright"
             : "border-primary/20 bg-primary text-primary-foreground",

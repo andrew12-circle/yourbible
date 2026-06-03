@@ -30,10 +30,20 @@ export const ARTIFACT_MOBILE_DOCK_H = "5.5rem";
 /** Collapsed header = video + sticky toolbar (meta scrolled away). */
 export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
 
-/** Mobile journal tab: break out to viewport width (matches pinned video). */
+/** Mobile journal tab: break out to viewport width (typed editor under pinned video). */
 export const artifactMobileJournalFullBleed = cn(
   "relative w-full min-w-0 max-w-none self-stretch",
-  "max-lg:w-[100vw] max-lg:max-w-[100vw] max-lg:[margin-inline:calc(50%-50vw)]",
+  "w-[100vw] max-w-[100vw] [margin-inline:calc(50%-50vw)]",
+);
+
+/**
+ * Handwritten journal under the pinned video — same horizontal edge alignment as
+ * `ArtifactYoutubeVideoBlock` (`fixed inset-x-0`, full viewport width).
+ */
+export const artifactMobileHandwriteUnderVideo = cn(
+  "fixed inset-x-0 z-[38] flex min-h-0 w-full max-w-[100vw] flex-col overflow-hidden bg-white",
+  "top-[var(--artifact-mobile-video-h,56.25vw)]",
+  "bottom-[calc(var(--artifact-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]",
 );
 
 /** Horizontal inset for journal controls/text under pinned video. */

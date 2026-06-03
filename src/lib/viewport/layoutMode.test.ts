@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isCompactInkLayout,
+  isHandwrittenPreferredLayout,
   isReaderSinglePageLayout,
   isReaderSpreadLayout,
   isTabletPortraitLayout,
@@ -35,5 +36,12 @@ describe("layoutMode", () => {
   it("treats compact ink the same as single-page reader chrome", () => {
     expect(isCompactInkLayout(vp(834, 1194, false))).toBe(true);
     expect(isCompactInkLayout(vp(1194, 834, true))).toBe(false);
+  });
+
+  it("prefers handwritten journal on iPad artifact band only", () => {
+    expect(isHandwrittenPreferredLayout(vp(390, 844, false))).toBe(false);
+    expect(isHandwrittenPreferredLayout(vp(834, 1194, false))).toBe(true);
+    expect(isHandwrittenPreferredLayout(vp(1024, 1366, false))).toBe(false);
+    expect(isHandwrittenPreferredLayout(vp(1280, 800, true))).toBe(false);
   });
 });

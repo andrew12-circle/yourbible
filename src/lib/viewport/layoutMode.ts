@@ -1,5 +1,10 @@
+import {
+  ARTIFACT_TABLET_MIN_PX,
+  ARTIFACT_VIDEO_DESKTOP_MIN_PX,
+} from "@/lib/framework/artifactSurfaces";
+
 /** Width at which we treat the viewport as tablet-sized (iPad portrait minimum). */
-export const TABLET_MIN_PX = 768;
+export const TABLET_MIN_PX = ARTIFACT_TABLET_MIN_PX;
 
 /** Legacy width gate — phones and narrow viewports always use single-page reader chrome. */
 export const READER_SINGLE_PAGE_MAX = 900;
@@ -54,4 +59,13 @@ export function isTabletLayout(size: ViewportSize = readViewportSize()): boolean
 /** Phone or tablet portrait — compact ink / sketch toolbars. */
 export function isCompactInkLayout(size: ViewportSize = readViewportSize()): boolean {
   return isReaderSinglePageLayout(size);
+}
+
+/**
+ * iPad / tablet artifact band: handwritten journal by default; phones and desktop use typing.
+ * Matches artifact layout below desktop (768px–1023px).
+ */
+export function isHandwrittenPreferredLayout(size: ViewportSize = readViewportSize()): boolean {
+  const { width } = size;
+  return width >= ARTIFACT_TABLET_MIN_PX && width < ARTIFACT_VIDEO_DESKTOP_MIN_PX;
 }

@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Clock, Loader2, Maximize2, Minimize2, PanelRightClose, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +11,9 @@ import { useArtifactJournalEditor } from "@/hooks/useArtifactJournalEditor";
 import { isArtifactLayoutDesktop, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { useIsDesktop } from "@/hooks/use-desktop";
+import { useHandwrittenPreferredJournal } from "@/hooks/use-reader-layout";
 import {
+  artifactMobileHandwriteUnderVideo,
   artifactMobileJournalEdgePad,
   artifactMobileJournalFullBleed,
 } from "@/lib/framework/artifactLayoutCss";
@@ -49,7 +53,10 @@ export default function ArtifactEmbeddedJournal({
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const isDesktopViewport = useIsDesktop();
+  const preferHandwritten = useHandwrittenPreferredJournal();
+  const { hash } = useLocation();
   const inlineHandwrite = !isDesktop;
+  const dismissedHandwriteRef = useRef(false);
   const {
     title,
     setTitle,
@@ -70,6 +77,9 @@ export default function ArtifactEmbeddedJournal({
     handleSketchSave,
     clearPendingSketch,
     sketchDraftKey,
+    savedSketchUrl,
+    handleSketchAutosave,
+    startNewHandwritePage,
   } = useArtifactJournalEditor({
     userId,
     artifactId,
@@ -89,21 +99,52 @@ export default function ArtifactEmbeddedJournal({
     if (artifactTitle?.trim() && !title.trim()) {
       setTitle(artifactTitle.trim());
     }
+    dismissedHandwriteRef.current = false;
     setSketchOpen(true);
   };
 
+  const exitHandwriteToTyping = () => {
+    dismissedHandwriteRef.current = true;
+    setSketchOpen(false);
+  };
+
+  useEffect(() => {
+    if (fillUnderVideo) {
+      if (hash !== "#journal") {
+        dismissedHandwriteRef.current = false;
+        return;
+      }
+      if (!inlineHandwrite || !preferHandwritten || dismissedHandwriteRef.current) return;
+      setSketchOpen(true);
+      return;
+    }
+    if (!inlineHandwrite || !preferHandwritten || dismissedHandwriteRef.current) return;
+    setSketchOpen(true);
+  }, [
+    artifactId,
+    fillUnderVideo,
+    hash,
+    inlineHandwrite,
+    preferHandwritten,
+    setSketchOpen,
+  ]);
+
   const handwriteActive = sketchOpen && inlineHandwrite;
+  const handwriteUnderVideo = handwriteActive && fillUnderVideo;
 
   return (
     <section
       className={cn(
-        "flex min-h-0 w-full flex-col border-t border-border/70 bg-card shadow-[0_-4px_24px_-8px_rgba(15,23,42,0.12)] dark:shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.45)]",
-        fillUnderVideo
+        "flex min-h-0 w-full flex-col",
+        handwriteUnderVideo
+          ? artifactMobileHandwriteUnderVideo
+          : "border-t border-border/70 bg-card shadow-[0_-4px_24px_-8px_rgba(15,23,42,0.12)] dark:shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.45)]",
+        fillUnderVideo && !handwriteUnderVideo
           ? cn(
               "min-h-0 flex-1 border-t-0 bg-background px-0 py-0 shadow-none",
               artifactMobileJournalFullBleed,
             )
-          : handwriteActive
+          : handwriteActive && !fillUnderVideo
             ? "min-h-[min(52dvh,560px)] flex-1"
             : expanded
               ? "min-h-[min(70dvh,720px)] flex-1"
@@ -176,10 +217,14 @@ export default function ArtifactEmbeddedJournal({
           open
           fullBleed={fillUnderVideo}
           inlineTitle={fillUnderVideo ? "Handwritten" : artifactTitle || title || "Journal"}
-          onClose={() => setSketchOpen(false)}
+          onClose={exitHandwriteToTyping}
           draftKey={sketchDraftKey}
+          clearDraftOnSave={false}
+          backgroundImageUrl={savedSketchUrl}
+          onAutosave={handleSketchAutosave}
           onSave={handleSketchSave}
-          onUnsavedExit={handleSketchSave}
+          showNewPage
+          onNewPage={startNewHandwritePage}
         />
       ) : (
         <div

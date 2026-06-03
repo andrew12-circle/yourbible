@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  fetchEntrySketchPhoto,
+  fetchLatestArtifactJournalEntry,
+} from "@/lib/journal/artifactJournalEntry";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import {
@@ -8,6 +12,8 @@ import {
   formatJournalPlaybackTimestamp,
 } from "@/lib/journal/floatingJournalDraft";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
+import { clearSketchDraft } from "@/lib/journal/sketchDraft";
+import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
 import { usePendingJournalSketch } from "@/hooks/usePendingJournalSketch";
 
@@ -38,6 +44,9 @@ export function useArtifactJournalEditor({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [entryId, setEntryId] = useState<string | null>(null);
+  const [savedSketchUrl, setSavedSketchUrl] = useState<string | null>(null);
+  const linkedEntryLoadedRef = useRef(false);
   const {
     sketchOpen,
     setSketchOpen,
@@ -60,6 +69,7 @@ export function useArtifactJournalEditor({
   );
 
   const draftKey = floatingJournalDraftStorageKey(userId, artifactId);
+  const sketchDraftKey = `artifact:${artifactId}`;
 
   useLayoutEffect(() => {
     try {
@@ -69,14 +79,146 @@ export function useArtifactJournalEditor({
         if (typeof j.body === "string") setBody(j.body);
         if (typeof j.title === "string" && j.title.trim()) {
           setTitle(j.title.trim());
-          return;
         }
+      } else if (artifactTitle?.trim()) {
+        setTitle(artifactTitle.trim());
       }
     } catch {
-      /* ignore */
+      if (artifactTitle?.trim()) setTitle(artifactTitle.trim());
     }
-    if (artifactTitle?.trim()) setTitle(artifactTitle.trim());
   }, [draftKey, artifactTitle]);
+
+  useEffect(() => {
+    let cancelled = false;
+    linkedEntryLoadedRef.current = false;
+    (async () => {
+      const linked = await fetchLatestArtifactJournalEntry(userId, artifactId);
+      if (cancelled) return;
+      linkedEntryLoadedRef.current = true;
+      if (!linked) return;
+      setEntryId(linked.id);
+      setTitle(linked.title ?? "");
+      setBody(linked.body ?? "");
+      const sketch = await fetchEntrySketchPhoto(userId, linked.id);
+      if (!cancelled && sketch?.url) setSavedSketchUrl(sketch.url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, artifactId]);
+
+  const buildEntryPayload = useCallback(async () => {
+    const journalId = await getDefaultJournalId(userId);
+    const ctx = await getCurrentContext();
+    const ts = new Date();
+    const saveTags = artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"];
+    return {
+      journalId,
+      ts,
+      saveTags,
+      row: {
+        user_id: userId,
+        journal_id: journalId,
+        title: title.trim() || null,
+        body,
+        mood: null as number | null,
+        tags: saveTags,
+        verse_ref: null as string | null,
+        belief_id: null as string | null,
+        prompt_id: null as string | null,
+        location_name: ctx.location_name?.trim() || null,
+        lat: ctx.lat,
+        lng: ctx.lng,
+        weather: ctx.weather,
+        weather_temp_c: ctx.weather_temp_c,
+        weather_icon: ctx.weather_icon,
+        analyze_for_mirror: false,
+        entry_at_ts: ts.toISOString(),
+        entry_at: ts.toISOString().slice(0, 10),
+      },
+    };
+  }, [artifactKind, body, title, userId]);
+
+  const ensureLinkedEntry = useCallback(async (): Promise<string | null> => {
+    if (entryId) return entryId;
+    const { row } = await buildEntryPayload();
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .insert(row)
+      .select("id")
+      .maybeSingle();
+    if (error || !data?.id) {
+      toast({ title: "Couldn't start journal page", description: error?.message, variant: "destructive" });
+      return null;
+    }
+    const newId = data.id;
+    const { error: linkErr } = await supabase.from("journal_entry_links").insert({
+      user_id: userId,
+      entry_id: newId,
+      target_kind: "artifact",
+      target_ref: { id: artifactId },
+    });
+    if (linkErr) {
+      toast({ title: "Page started; link failed", description: linkErr.message, variant: "destructive" });
+    }
+    setEntryId(newId);
+    return newId;
+  }, [artifactId, buildEntryPayload, entryId, userId]);
+
+  const handleArtifactSketchSave = useCallback(
+    async (file: File) => {
+      const targetId = await ensureLinkedEntry();
+      if (!targetId) return;
+      try {
+        await upsertEntrySketchPhoto(userId, targetId, file);
+        const sketch = await fetchEntrySketchPhoto(userId, targetId);
+        if (sketch?.url) setSavedSketchUrl(sketch.url);
+        clearPendingSketch();
+        toast({
+          title: "Handwriting saved",
+          description: "Your strokes are still here — keep drawing or switch to the keyboard.",
+        });
+      } catch (err) {
+        toast({
+          title: "Couldn't save handwriting",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+        return;
+      }
+      setSketchOpen(false);
+    },
+    [clearPendingSketch, ensureLinkedEntry, setSketchOpen, userId],
+  );
+
+  const handleSketchAutosave = useCallback(
+    async (file: File) => {
+      const targetId = entryId ?? (await ensureLinkedEntry());
+      if (!targetId) return;
+      try {
+        await upsertEntrySketchPhoto(userId, targetId, file);
+        const sketch = await fetchEntrySketchPhoto(userId, targetId);
+        if (sketch?.url) setSavedSketchUrl(sketch.url);
+      } catch (err) {
+        console.warn("artifact sketch autosave failed", err);
+      }
+    },
+    [ensureLinkedEntry, entryId, userId],
+  );
+
+  const startNewHandwritePage = useCallback(() => {
+    clearSketchDraft(sketchDraftKey);
+    clearPendingSketch();
+    setEntryId(null);
+    setSavedSketchUrl(null);
+    setTitle(artifactTitle?.trim() ?? "");
+    setBody("");
+    setSketchOpen(true);
+    toast({
+      title: "New page",
+      description: "Save the entry when you're ready to keep this page in your journal.",
+    });
+  }, [artifactTitle, clearPendingSketch, setSketchOpen, sketchDraftKey]);
 
   useEffect(() => {
     floatingJournalInsertRef.current = {
@@ -183,73 +325,88 @@ export function useArtifactJournalEditor({
   }, [getPlaybackSeconds]);
 
   const saveEntry = useCallback(async () => {
-    const saveTags = artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"];
-    if (!body.trim() && !title.trim() && !hasPendingSketch) {
+    if (!body.trim() && !title.trim() && !hasPendingSketch && !entryId) {
       toast({ title: "Write something first", variant: "destructive" });
       return;
     }
     dictateRef.current?.stop();
     setSaving(true);
+    const wasUpdate = Boolean(entryId);
     try {
-      const journalId = await getDefaultJournalId(userId);
-      const ctx = await getCurrentContext();
-      const ts = new Date();
-      const payload = {
-        user_id: userId,
-        journal_id: journalId,
-        title: title.trim() || null,
-        body,
-        mood: null as number | null,
-        tags: saveTags,
-        verse_ref: null as string | null,
-        belief_id: null as string | null,
-        prompt_id: null as string | null,
-        location_name: ctx.location_name?.trim() || null,
-        lat: ctx.lat,
-        lng: ctx.lng,
-        weather: ctx.weather,
-        weather_temp_c: ctx.weather_temp_c,
-        weather_icon: ctx.weather_icon,
-        analyze_for_mirror: false,
-        entry_at_ts: ts.toISOString(),
-        entry_at: ts.toISOString().slice(0, 10),
-      };
+      const { row } = await buildEntryPayload();
+      let savedId = entryId;
 
-      const { data, error } = await supabase.from("journal_entries").insert(payload).select("id").maybeSingle();
-      if (error || !data?.id) {
-        toast({ title: "Save failed", description: error?.message, variant: "destructive" });
-        return;
+      if (savedId) {
+        const { error } = await supabase
+          .from("journal_entries")
+          .update({
+            title: row.title,
+            body: row.body,
+            location_name: row.location_name,
+            lat: row.lat,
+            lng: row.lng,
+            weather: row.weather,
+            weather_temp_c: row.weather_temp_c,
+            weather_icon: row.weather_icon,
+          })
+          .eq("id", savedId)
+          .eq("user_id", userId);
+        if (error) {
+          toast({ title: "Save failed", description: error.message, variant: "destructive" });
+          return;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("journal_entries")
+          .insert(row)
+          .select("id")
+          .maybeSingle();
+        if (error || !data?.id) {
+          toast({ title: "Save failed", description: error?.message, variant: "destructive" });
+          return;
+        }
+        savedId = data.id;
+        setEntryId(savedId);
+        const { error: linkErr } = await supabase.from("journal_entry_links").insert({
+          user_id: userId,
+          entry_id: savedId,
+          target_kind: "artifact",
+          target_ref: { id: artifactId },
+        });
+        if (linkErr) {
+          toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
+        }
       }
-      const entryId = data.id;
-      const { error: linkErr } = await supabase.from("journal_entry_links").insert({
-        user_id: userId,
-        entry_id: entryId,
-        target_kind: "artifact",
-        target_ref: { id: artifactId },
-      });
-      if (linkErr) {
-        toast({ title: "Entry saved; link failed", description: linkErr.message, variant: "destructive" });
-      }
-      if (hasPendingSketch) {
-        await attachSketchToEntry(userId, entryId, {
+
+      if (hasPendingSketch && savedId) {
+        await attachSketchToEntry(userId, savedId, {
           onBody: (nextBody) => setBody(nextBody),
           onTitle: (nextTitle) => setTitle(nextTitle),
         });
+        const sketch = await fetchEntrySketchPhoto(userId, savedId);
+        if (sketch?.url) setSavedSketchUrl(sketch.url);
       }
-      if (!linkErr) {
-        toast({ title: "Journal entry saved" });
-      }
+
+      toast({ title: wasUpdate ? "Journal entry updated" : "Journal entry saved" });
       try {
-        localStorage.removeItem(draftKey);
+        localStorage.setItem(draftKey, JSON.stringify({ title, body }));
       } catch {
         /* ignore */
       }
-      setTitle("");
-      setBody("");
     } finally {
       setSaving(false);
     }
-  }, [artifactId, artifactKind, attachSketchToEntry, body, draftKey, hasPendingSketch, title, userId]);
+  }, [
+    artifactId,
+    attachSketchToEntry,
+    body,
+    buildEntryPayload,
+    draftKey,
+    entryId,
+    hasPendingSketch,
+    title,
+    userId,
+  ]);
 
   const showTimestamp = typeof getPlaybackSeconds === "function";
 
@@ -271,8 +428,12 @@ export function useArtifactJournalEditor({
     setSketchOpen,
     previewUrl,
     hasPendingSketch,
-    handleSketchSave,
+    handleSketchSave: handleArtifactSketchSave,
     clearPendingSketch,
-    sketchDraftKey: `artifact:${artifactId}`,
+    sketchDraftKey,
+    savedSketchUrl,
+    entryId,
+    handleSketchAutosave,
+    startNewHandwritePage,
   };
 }

@@ -41,6 +41,8 @@ export function useReaderPageInk({
   const saveTimerRef = useRef<number | null>(null);
   const storedRef = useRef(storedStrokes);
   storedRef.current = storedStrokes;
+  const canvasSizeRef = useRef(canvasSize);
+  canvasSizeRef.current = canvasSize;
 
   const strokes = useMemo(() => {
     const { w, h } = readCanvasSize(canvasSize, liveCanvasSizeRef);
@@ -211,14 +213,14 @@ export function useReaderPageInk({
 
   const pushStroke = useCallback(
     (stroke: InkStroke) => {
-      const { w, h } = readCanvasSize(canvasSize, liveCanvasSizeRef);
+      const { w, h } = readCanvasSize(canvasSizeRef.current, liveCanvasSizeRef);
       if (w <= 0 || h <= 0) return;
       const normalized = normalizeStrokes([stroke], w, h);
       if (normalized.length === 0) return;
       updateStored((prev) => [...prev, normalized[0]!]);
       setRedoStack([]);
     },
-    [canvasSize, liveCanvasSizeRef, updateStored],
+    [liveCanvasSizeRef, updateStored],
   );
 
   const undo = useCallback(() => {
@@ -248,7 +250,7 @@ export function useReaderPageInk({
 
   const setStrokes = useCallback(
     (updater: InkStroke[] | ((prev: InkStroke[]) => InkStroke[])) => {
-      const { w, h } = readCanvasSize(canvasSize, liveCanvasSizeRef);
+      const { w, h } = readCanvasSize(canvasSizeRef.current, liveCanvasSizeRef);
       if (w <= 0 || h <= 0) return;
       setStoredStrokes((prev) => {
         const pixelPrev = denormalizeStrokes(prev, w, h);
@@ -258,7 +260,7 @@ export function useReaderPageInk({
         return next;
       });
     },
-    [canvasSize, liveCanvasSizeRef, scheduleSave],
+    [liveCanvasSizeRef, scheduleSave],
   );
 
   return {

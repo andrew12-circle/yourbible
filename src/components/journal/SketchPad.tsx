@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, PenLine, Trash2, X } from "lucide-react";
+import { Keyboard, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIsTablet, useIsTabletPortrait } from "@/hooks/use-reader-layout";
+import { useHandwrittenPreferredJournal, useIsTablet, useIsTabletPortrait } from "@/hooks/use-reader-layout";
+import { useLockPageZoom } from "@/hooks/useLockPageZoom";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
 import SketchRulerOverlay from "@/components/journal/sketch/SketchRulerOverlay";
 import {
@@ -75,6 +76,13 @@ export interface SketchPadProps {
   inlineTitle?: string;
   /** Inline under artifact video: edge-to-edge paper and toolbar. */
   fullBleed?: boolean;
+  /** Keep stroke draft after Save (continue editing the same page). */
+  clearDraftOnSave?: boolean;
+  /** Restored PNG when stroke draft is empty (returning to a saved page). */
+  backgroundImageUrl?: string | null;
+  /** Show "New page" in the header (artifact journal). */
+  showNewPage?: boolean;
+  onNewPage?: () => void;
 }
 
 function prefersNightMode() {
@@ -95,10 +103,18 @@ export default function SketchPad({
   layout = "modal",
   inlineTitle,
   fullBleed = false,
+  clearDraftOnSave = true,
+  backgroundImageUrl = null,
+  showNewPage = false,
+  onNewPage,
 }: SketchPadProps) {
   const isInline = layout === "inline";
   const tabletPortrait = useIsTabletPortrait();
   const tablet = useIsTablet();
+  const preferHandwritten = useHandwrittenPreferredJournal();
+  const disableViewZoom = preferHandwritten;
+  const edgeToEdgePaper = Boolean(isInline && fullBleed) || tablet;
+  useLockPageZoom(open && disableViewZoom);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +178,7 @@ export default function SketchPad({
     midX: number;
     midY: number;
   } | null>(null);
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const savedViaButtonRef = useRef(false);
   const penColors = getSketchPenColors(isNightMode);
 
@@ -172,6 +189,13 @@ export default function SketchPad({
   useEffect(() => {
     viewPanRef.current = viewPan;
   }, [viewPan]);
+
+  useEffect(() => {
+    if (!open || !disableViewZoom) return;
+    setViewScale(1);
+    setViewPan({ x: 0, y: 0 });
+    pinchRef.current = null;
+  }, [open, disableViewZoom]);
 
   useEffect(() => {
     isNightModeRef.current = isNightMode;
@@ -204,6 +228,10 @@ export default function SketchPad({
     ctx.fillStyle = canvasBackground(paper, isNightMode);
     ctx.fillRect(0, 0, w, h);
     drawPaper(ctx, paper, w, h, isNightMode);
+    const bg = backgroundImageRef.current;
+    if (bg?.complete && bg.naturalWidth > 0) {
+      ctx.drawImage(bg, 0, 0, w, h);
+    }
     ctx.restore();
 
     // 2. Re-render the strokes on the offscreen layer so the eraser only
@@ -415,6 +443,29 @@ export default function SketchPad({
       redrawFrameRef.current = null;
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !backgroundImageUrl) {
+      backgroundImageRef.current = null;
+      return;
+    }
+    const draft = draftKey ? loadSketchDraft(draftKey) : null;
+    const hasDraftStrokes = (draft?.strokes?.length ?? 0) > 0;
+    if (hasDraftStrokes) {
+      backgroundImageRef.current = null;
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      backgroundImageRef.current = img;
+      flushRedrawRef.current();
+    };
+    img.onerror = () => {
+      backgroundImageRef.current = null;
+    };
+    img.src = backgroundImageUrl;
+  }, [open, backgroundImageUrl, draftKey]);
 
   // Reset / restore when opened
   useEffect(() => {
@@ -767,7 +818,7 @@ export default function SketchPad({
       if (!file) throw new Error("Could not export handwritten note");
       savedViaButtonRef.current = true;
       await onSave(file);
-      if (draftKey) clearSketchDraft(draftKey);
+      if (draftKey && clearDraftOnSave) clearSketchDraft(draftKey);
       await finalizeClose();
     } catch (err) {
       savedViaButtonRef.current = false;
@@ -785,6 +836,7 @@ export default function SketchPad({
   };
 
   const handleWrapTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (disableViewZoom) return;
     if (!e.touches || e.touches.length !== 2) return;
     const dist = touchDistance(e.touches);
     pinchRef.current = {
@@ -799,6 +851,7 @@ export default function SketchPad({
   };
 
   const handleWrapTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (disableViewZoom) return;
     const pinch = pinchRef.current;
     if (!pinch || !e.touches || e.touches.length !== 2) return;
     const dist = touchDistance(e.touches);
@@ -814,6 +867,7 @@ export default function SketchPad({
   };
 
   const handleWrapTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (disableViewZoom) return;
     if (!e.touches || e.touches.length < 2) pinchRef.current = null;
   };
 
@@ -828,9 +882,11 @@ export default function SketchPad({
       className={cn(
         "flex select-none flex-col",
         isInline
-          ? "relative h-full min-h-0 w-full flex-1"
+          ? cn(
+              "relative h-full min-h-0 w-full max-w-none flex-1",
+              fullBleed ? "bg-white dark:bg-slate-950" : isNightMode ? "bg-white dark:bg-slate-950" : "bg-background",
+            )
           : cn("fixed inset-0 z-[80]", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background"),
-        isInline && (isNightMode ? "bg-white dark:bg-slate-950" : "bg-background"),
       )}
       style={{
         WebkitUserSelect: "none",
@@ -849,7 +905,7 @@ export default function SketchPad({
       <header
         className={cn(
           "flex-shrink-0 border-b",
-          isInline && fullBleed ? "px-2" : "px-3",
+          edgeToEdgePaper ? "px-0" : isInline && fullBleed ? "px-2" : "px-3",
           isInline ? "pt-0" : "pt-[env(safe-area-inset-top,0px)]",
           isNightMode ? "border-white/10 bg-slate-950/95" : "border-border/50 bg-white/95",
         )}
@@ -872,6 +928,22 @@ export default function SketchPad({
         >
           {isInline ? inlineTitle?.trim() || "Handwritten" : "Handwritten"}
         </div>
+        {showNewPage && onNewPage ? (
+          <Button
+            type="button"
+            onClick={onNewPage}
+            size="sm"
+            variant="ghost"
+            className={cn(
+              "h-8 shrink-0 rounded-full px-2.5 text-[12px] font-medium",
+              isNightMode
+                ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            New page
+          </Button>
+        ) : null}
         <Button
           type="button"
           onClick={handleSave}
@@ -942,25 +1014,19 @@ export default function SketchPad({
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
             toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]",
-            isInline && fullBleed
-              ? "px-0 pb-0"
-              : tablet
-                ? "px-0 pb-0"
-                : tabletPortrait
-                  ? "px-3 pb-3"
-                  : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
-            isNightMode ? "bg-black" : tablet ? "bg-white" : "bg-muted/40",
+            edgeToEdgePaper ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
+            isNightMode ? "bg-black" : edgeToEdgePaper ? "bg-white" : "bg-muted/40",
           )}
         >
         <div
           ref={wrapperRef}
           className={cn(
             "relative h-full w-full overflow-hidden",
-            (tablet || (isInline && fullBleed))
+            edgeToEdgePaper
               ? "rounded-none border-0 shadow-none"
               : "rounded-lg border shadow-sm sm:rounded-xl",
             isNightMode ? "bg-black" : "bg-white",
-            !tablet && !(isInline && fullBleed) && (isNightMode ? "border-white/10" : "border-border/60"),
+            !edgeToEdgePaper && (isNightMode ? "border-white/10" : "border-border/60"),
           )}
           style={{
             WebkitUserSelect: "none",
@@ -1037,20 +1103,6 @@ export default function SketchPad({
               onPointerCancel={onPointerUp}
               onPointerLeave={onPointerUp}
             />
-            {!hasStrokes && activeStrokeRef.current == null && (
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center",
-                  isNightMode ? "text-slate-400/80" : "text-muted-foreground/70",
-                )}
-              >
-                <PenLine className="mb-2 h-6 w-6" />
-                <p className="text-sm">Draw with finger, pencil, or stylus</p>
-                <p className="mt-1 max-w-xs px-4 text-xs">
-                  Fountain pen, highlighter, ruler, and more in the toolbar above. Pinch to zoom.
-                </p>
-              </div>
-            )}
           </div>
         </div>
         </div>
