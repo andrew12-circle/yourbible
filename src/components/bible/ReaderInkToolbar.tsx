@@ -14,6 +14,7 @@ type Props = {
   hasStrokes: boolean;
   redoCount: number;
   tabletPortrait?: boolean;
+  compactInkLayout?: boolean;
   onTool: (t: InkTool) => void;
   onColor: (c: string) => void;
   onSize: (n: number) => void;
@@ -34,6 +35,7 @@ export function ReaderInkToolbar({
   hasStrokes,
   redoCount,
   tabletPortrait = false,
+  compactInkLayout = false,
   onTool,
   onColor,
   onSize,
@@ -57,11 +59,16 @@ export function ReaderInkToolbar({
   return (
     <div
       className={cn(
-        "pointer-events-none fixed inset-x-0 z-[36] flex px-3",
+        "pointer-events-none fixed z-[36] flex",
+        compactInkLayout
+          ? "left-[max(0.5rem,env(safe-area-inset-left,0px))] right-[max(0.5rem,env(safe-area-inset-right,0px))]"
+          : "inset-x-0 px-3",
         collapsed ? "justify-end" : "justify-center",
         tabletPortrait
           ? "top-[calc(var(--safe-area-inset-top)+3rem)]"
-          : "top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          : compactInkLayout
+            ? "top-[calc(var(--safe-area-inset-top)+3.5rem)]"
+            : "top-[calc(var(--safe-area-inset-top)+3.25rem)]",
       )}
     >
       <input
@@ -79,7 +86,12 @@ export function ReaderInkToolbar({
       <div
         className={cn(
           "pointer-events-auto flex min-w-0",
-          collapsed ? "justify-end" : "w-full max-w-[100vw] justify-center",
+          collapsed
+            ? "justify-end"
+            : cn(
+                "w-full justify-center",
+                compactInkLayout ? "max-w-full" : "max-w-[100vw]",
+              ),
         )}
       >
         <SketchInkToolbar
@@ -89,6 +101,7 @@ export function ReaderInkToolbar({
           onCollapsedChange={onCollapsedChange}
           collapsedAnchor="end"
           tabletPortrait={tabletPortrait}
+          compactInkLayout={compactInkLayout}
           tool={tool}
           color={color}
           size={size}

@@ -171,6 +171,11 @@ export default function ReaderInkLayer({
       pendingCommitCountRef.current > 0
     ) {
       pendingCommitCountRef.current = 0;
+      if (strokes.length > 0) {
+        displayStrokesRef.current = strokes;
+        flushRedrawRef.current();
+      }
+      return;
     }
   }, [strokes]);
 
@@ -365,8 +370,10 @@ export default function ReaderInkLayer({
       pendingCommitCountRef.current += 1;
       displayStrokesRef.current = [...displayStrokesRef.current, committed];
       pushStrokeRef.current(committed);
-      onStrokeStartRef.current?.();
       flushRedrawRef.current();
+      window.requestAnimationFrame(() => {
+        onStrokeStartRef.current?.();
+      });
     };
 
     const finishStroke = (e: PointerEvent) => {
@@ -579,6 +586,11 @@ export default function ReaderInkLayer({
     const w = rect.width;
     const h = rect.height;
     if (w <= 0 || h <= 0) return;
+    const prev = sizeRef.current;
+    if (prev.w === w && prev.h === h && canvas.width > 0) {
+      attachPointerHandlers();
+      return;
+    }
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     dprRef.current = dpr;
     sizeRef.current = { w, h };
@@ -637,10 +649,12 @@ export default function ReaderInkLayer({
     const anchor = getAnchorElRef.current();
     const ro = anchor ? new ResizeObserver(() => scheduleSyncOverlayLayout()) : null;
     if (anchor && ro) ro.observe(anchor);
-    const onScroll = () => scheduleSyncOverlayLayout();
+    const onLayoutChange = () => scheduleSyncOverlayLayout();
     const onResize = () => scheduleSyncOverlayLayout();
-    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onLayoutChange);
+    vv?.addEventListener("scroll", onLayoutChange);
     const raf = window.requestAnimationFrame(syncOverlayLayout);
     return () => {
       window.cancelAnimationFrame(raf);
@@ -649,8 +663,9 @@ export default function ReaderInkLayer({
         overlayLayoutRafRef.current = null;
       }
       ro?.disconnect();
-      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onResize);
+      vv?.removeEventListener("resize", onLayoutChange);
+      vv?.removeEventListener("scroll", onLayoutChange);
     };
   }, [active, syncOverlayLayout, scheduleSyncOverlayLayout, layerId]);
 

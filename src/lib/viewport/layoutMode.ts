@@ -6,11 +6,8 @@ import {
 /** Width at which we treat the viewport as tablet-sized (iPad portrait minimum). */
 export const TABLET_MIN_PX = ARTIFACT_TABLET_MIN_PX;
 
-/** Legacy width gate — phones and narrow viewports always use single-page reader chrome. */
+/** Width below which portrait layouts use compact reader chrome (mobile menu). */
 export const READER_SINGLE_PAGE_MAX = 900;
-
-/** Landscape spread needs enough height to distinguish tablets from phones on their side. */
-export const READER_SPREAD_MIN_HEIGHT_PX = 600;
 
 /** Large monitors — spread even in portrait. */
 export const READER_DESKTOP_MIN_PX = 1200;
@@ -29,20 +26,25 @@ export function readViewportSize(): ViewportSize {
 }
 
 /**
- * Two-page spread: iPad landscape + desktop. Single page: phones and tablet portrait.
- * Uses height so phone landscape (wide but short) stays on the mobile layout.
+ * Two-page spread: any landscape (including phones) + large portrait monitors.
+ * Single page: phone/tablet portrait only.
  */
 export function isReaderSpreadLayout(size: ViewportSize = readViewportSize()): boolean {
   const { width, height, landscape } = size;
-  if (landscape && width >= READER_SINGLE_PAGE_MAX && height >= READER_SPREAD_MIN_HEIGHT_PX) {
-    return true;
-  }
+  if (landscape) return true;
   if (width >= READER_DESKTOP_MIN_PX && height >= 800) return true;
   return false;
 }
 
 export function isReaderSinglePageLayout(size: ViewportSize = readViewportSize()): boolean {
   return !isReaderSpreadLayout(size);
+}
+
+/** Compact top bar / menus — phones in any orientation, tablet portrait. */
+export function isReaderCompactChrome(size: ViewportSize = readViewportSize()): boolean {
+  const { width, landscape } = size;
+  if (landscape) return width < READER_SINGLE_PAGE_MAX;
+  return width < READER_DESKTOP_MIN_PX;
 }
 
 /** iPad upright — mobile chrome, but wider than a phone. */
@@ -58,7 +60,7 @@ export function isTabletLayout(size: ViewportSize = readViewportSize()): boolean
 
 /** Phone or tablet portrait — compact ink / sketch toolbars. */
 export function isCompactInkLayout(size: ViewportSize = readViewportSize()): boolean {
-  return isReaderSinglePageLayout(size);
+  return isReaderCompactChrome(size);
 }
 
 /**

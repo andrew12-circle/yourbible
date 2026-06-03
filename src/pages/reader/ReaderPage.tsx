@@ -30,7 +30,7 @@ import {
   sliceTextByHighlights,
   toolbarSelectionFromRange,
 } from "@/lib/bible/verseSelection";
-import { useReaderSinglePage, useIsTabletPortrait } from "@/hooks/use-reader-layout";
+import { useReaderSpread, useReaderCompactChrome, useIsTabletPortrait, useCompactInkLayout } from "@/hooks/use-reader-layout";
 import { ChevronLeft, ChevronRight, Loader2, NotebookPen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -141,8 +141,10 @@ export default function ReaderPage() {
     localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
   };
 
-  const singlePage = useReaderSinglePage();
+  const readerSpread = useReaderSpread();
+  const compactChrome = useReaderCompactChrome();
   const tabletPortrait = useIsTabletPortrait();
+  const compactInkLayout = useCompactInkLayout();
   const { inkMode, toggleInkMode } = useReaderInkMode();
   const [inkTool, setInkTool] = useState<InkTool>("fountain");
   const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
@@ -286,9 +288,9 @@ export default function ReaderPage() {
         fontScale,
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
-        singlePage,
+        singlePage: !readerSpread,
       }),
-    [bibleId, fontScale, pageBox.w, pageBox.h, singlePage],
+    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread],
   );
 
   useEffect(() => {
@@ -297,7 +299,13 @@ export default function ReaderPage() {
   const articleRoRef = useRef<ResizeObserver | null>(null);
   const articleElRef = useRef<HTMLElement | null>(null);
   const flipLockUntil = useRef(0);
-  const measureArticle = (el: HTMLElement | null) => {
+  const PAGE_BOX_QUANT = 12;
+  const quantizePageBox = useCallback((width: number, height: number) => {
+    const w = Math.round(width / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
+    const h = Math.round(height / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
+    return { w, h };
+  }, []);
+  const measureArticle = useCallback((el: HTMLElement | null) => {
     if (articleRoRef.current) {
       articleRoRef.current.disconnect();
       articleRoRef.current = null;
@@ -306,10 +314,9 @@ export default function ReaderPage() {
     if (!el) return;
     const recompute = () => {
       if (performance.now() < flipLockUntil.current) return;
-      const width = Math.round(el.clientWidth);
-      const height = Math.round(el.clientHeight);
-      setPageBox(prev =>
-        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      const next = quantizePageBox(el.clientWidth, el.clientHeight);
+      setPageBox((prev) =>
+        prev.w === next.w && prev.h === next.h ? prev : next,
       );
     };
     const ro = new ResizeObserver(recompute);
@@ -317,31 +324,33 @@ export default function ReaderPage() {
     if (el.parentElement) ro.observe(el.parentElement);
     articleRoRef.current = ro;
     recompute();
-  };
+  }, [quantizePageBox]);
   // Recompute on viewport changes too (orientation/resize/zoom).
   useEffect(() => {
     const onResize = () => {
       if (performance.now() < flipLockUntil.current) return;
       const el = articleElRef.current;
       if (!el) return;
-      const width = Math.round(el.clientWidth);
-      const height = Math.round(el.clientHeight);
-      setPageBox(prev =>
-        prev.w === width && prev.h === height ? prev : { w: width, h: height },
+      const next = quantizePageBox(el.clientWidth, el.clientHeight);
+      setPageBox((prev) =>
+        prev.w === next.w && prev.h === next.h ? prev : next,
       );
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
+      vv?.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [quantizePageBox]);
 
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
   // Reset when chapter / size changes
-  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, singlePage, fontScale]);
+  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, readerSpread, fontScale]);
   const verses = passage?.verses ?? [];
   const verseLengths = useMemo(() => {
     const m = new Map<number, number>();
@@ -398,14 +407,13 @@ export default function ReaderPage() {
       else break;
     }
     // On desktop spreads, snap to an even page so the verse is on the spread.
-    if (!singlePage && target % 2 === 1) target -= 1;
+    if (readerSpread && target % 2 === 1) target -= 1;
     setChapterPage(Math.max(0, target));
     setPendingVerse(null);
-  }, [pendingVerse, splits, singlePage]);
+  }, [pendingVerse, splits, readerSpread]);
 
-  // For desktop spreads we show TWO consecutive pages: chapterPage and chapterPage+1.
-  // For mobile we show only one. So advance by 1 (mobile) or 2 (desktop).
-  const pagesPerTurn = singlePage ? 1 : 2;
+  // Spread shows two consecutive pages; portrait mobile shows one page per turn.
+  const pagesPerTurn = readerSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
     flipLockUntil.current = performance.now() + 280;
@@ -573,9 +581,9 @@ export default function ReaderPage() {
   }, [tbSel]);
 
   const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
-  const defaultInkLayerId = singlePage
-    ? `${book.abbr}-${chapter}-${chapterPage}-${mobileSide}`
-    : `${book.abbr}-${chapter}-${chapterPage}-left`;
+  const defaultInkLayerId = readerSpread
+    ? `${book.abbr}-${chapter}-${chapterPage}-left`
+    : `${book.abbr}-${chapter}-${chapterPage}-${mobileSide}`;
   const focusedInkLayerId = activeInkLayerId ?? defaultInkLayerId;
   const focusedInkLayerIdRef = useRef(focusedInkLayerId);
   focusedInkLayerIdRef.current = focusedInkLayerId;
@@ -604,7 +612,9 @@ export default function ReaderPage() {
   }, []);
 
   const handleInkStrokeStart = useCallback(() => {
-    setInkToolbarCollapsed((prev) => (prev ? prev : true));
+    window.requestAnimationFrame(() => {
+      setInkToolbarCollapsed((prev) => (prev ? prev : true));
+    });
   }, []);
 
   const runInkAction = useCallback(
@@ -911,11 +921,11 @@ export default function ReaderPage() {
           "relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2",
           inkMode && "reader-ink-active",
         )}
-        style={pageHorizontalPadding(side, singlePage)}
+        style={pageHorizontalPadding(side, !readerSpread)}
       >
         <div
           className={`flex-shrink-0 ${
-            singlePage || side === "left" ? "text-left" : "text-right"
+            !readerSpread || side === "left" ? "text-left" : "text-right"
           } ${inkMode ? "pointer-events-none" : ""}`}
         >
           <button
@@ -939,7 +949,7 @@ export default function ReaderPage() {
             className="relative flex flex-1 min-h-0 min-w-0"
           >
             <article
-              ref={pageIdx === leftIdx && side === (singlePage ? mobileSide : "left") ? measureArticle : undefined}
+              ref={pageIdx === leftIdx && side === (readerSpread ? "left" : mobileSide) ? measureArticle : undefined}
               data-reading-area
               className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
                 inkMode ? "!select-none" : "selectable-text"
@@ -1013,7 +1023,7 @@ export default function ReaderPage() {
 
   // Determine left & right page indices
   const leftIdx = chapterPage;
-  const rightIdx = singlePage ? chapterPage : chapterPage + 1;
+  const rightIdx = readerSpread ? chapterPage + 1 : chapterPage;
 
   return (
     <div
@@ -1050,7 +1060,7 @@ export default function ReaderPage() {
         }}
         fontScale={fontScale}
         onFontScaleChange={updateFontScale}
-        singlePage={singlePage}
+        singlePage={compactChrome}
         settingsOpenRequest={settingsOpenRequest}
         inkMode={inkMode}
         onToggleInkMode={toggleInkMode}
@@ -1075,6 +1085,7 @@ export default function ReaderPage() {
           hasStrokes={inkToolbarState.canUndo}
           redoCount={inkToolbarState.redoCount}
           tabletPortrait={tabletPortrait}
+          compactInkLayout={compactInkLayout}
           onTool={setInkTool}
           onColor={setInkColor}
           onSize={setInkSize}
@@ -1087,14 +1098,14 @@ export default function ReaderPage() {
 
       <BookScene
         progress={progress}
-        singlePage={singlePage}
+        singlePage={!readerSpread}
         tabletPortrait={tabletPortrait}
         pageSide={mobileSide}
         ribbons={
           focusMode ? null : (
             <Ribbons
               ribbons={bookmarks as RibbonData[]}
-              anchor={singlePage ? "spine" : "gutter"}
+              anchor={readerSpread ? "gutter" : "spine"}
               swaying={false}
               onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
               onAddAt={(p) => setBmDialog({ position: p })}
@@ -1113,9 +1124,9 @@ export default function ReaderPage() {
           </SwipePage>
         }
         rightPage={
-          <SwipePage side={singlePage ? "left" : "right"} onTurn={goPage} inkMode={inkMode}>
-            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={singlePage ? "left" : "right"}>
-              {renderPageSurface(rightIdx, singlePage ? "left" : "right")}
+          <SwipePage side={readerSpread ? "right" : "left"} onTurn={goPage} inkMode={inkMode}>
+            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={readerSpread ? "right" : "left"}>
+              {renderPageSurface(rightIdx, readerSpread ? "right" : "left")}
             </PageFlip>
           </SwipePage>
         }
@@ -1153,7 +1164,7 @@ export default function ReaderPage() {
       )}
 
       <AnimatePresence>
-        {focusMode && !singlePage && (
+        {focusMode && readerSpread && (
           <motion.button
             type="button"
             initial={{ opacity: 0, y: 10 }}

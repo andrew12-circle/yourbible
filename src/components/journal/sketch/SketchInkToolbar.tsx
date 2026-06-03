@@ -27,7 +27,8 @@ import {
   INK_ERASER_SIZES,
   nextInkEraserSize,
 } from "@/lib/ink/eraser";
-import { INK_PEN_SIZES, INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
+import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
+import { INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import { cn } from "@/lib/utils";
 import { InkToolSilhouette, InkToolSilhouetteSlot } from "./InkToolSilhouette";
 import { ScrollableInkToolStrip } from "./ScrollableInkToolStrip";
@@ -88,6 +89,8 @@ type Props = {
   rulerVisible: boolean;
   snapToRuler: boolean;
   tabletPortrait?: boolean;
+  /** Phone / compact portrait — full-width ink dock with horizontal scroll. */
+  compactInkLayout?: boolean;
   /** Collapsed pen chip alignment (artifact journal: top-left; Bible reader: top-right). */
   collapsedAnchor?: "center" | "start" | "end";
   /** Pin toolbar over the paper (no reserved vertical space). */
@@ -201,6 +204,7 @@ export default function SketchInkToolbar({
   rulerVisible,
   snapToRuler,
   tabletPortrait = false,
+  compactInkLayout = false,
   collapsedAnchor = "center",
   floatOverPaper = false,
   onToolChange,
@@ -237,13 +241,20 @@ export default function SketchInkToolbar({
   };
 
   const pillChrome = cn(
-    "sticky top-1 z-50 mx-auto flex h-[78px] w-max min-w-0 max-w-[min(calc(100vw-1.5rem),640px)] shrink items-center gap-0 rounded-full px-2",
+    "sticky top-1 z-50 mx-auto flex min-w-0 shrink items-center gap-0 rounded-full px-2",
     "border backdrop-blur-[36px] backdrop-saturate-[180%]",
+    isReader || compactInkLayout
+      ? cn(
+          "h-[72px] w-full",
+          "max-w-[min(calc(100vw-env(safe-area-inset-left,0px)-env(safe-area-inset-right,0px)-0.75rem),640px)]",
+        )
+      : cn(
+          "h-[78px] w-max max-w-[min(calc(100vw-1.5rem),640px)]",
+          tabletPortrait && "px-2.5",
+        ),
     isNightMode
       ? "border-white/[0.14] bg-[rgba(18,18,22,0.82)] shadow-[0_22px_56px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.4)]"
       : "border-[rgba(255,255,255,0.9)] bg-[rgba(255,255,255,0.82)] shadow-[0_20px_48px_rgba(0,0,0,0.16),0_4px_10px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.98),inset_0_-1px_0_rgba(0,0,0,0.04)]",
-    tabletPortrait && "px-2.5",
-    isReader && "max-w-[min(calc(100vw-1rem),36rem)]",
   );
 
   const ringOffset = isNightMode ? "ring-offset-[rgba(18,18,22,0.76)]" : "ring-offset-[rgba(255,255,255,0.78)]";
@@ -322,8 +333,8 @@ export default function SketchInkToolbar({
         data-reader-ink-toolbar={isReader ? "" : undefined}
         style={{ touchAction: "manipulation" }}
       >
-        <div className="flex min-w-0 max-w-full items-center gap-0 overflow-x-auto overscroll-x-contain scrollbar-hide">
-        <ToolbarTray isNightMode={isNightMode} aria-label="Undo, redo, and eraser" className="gap-0.5 px-1">
+        <div className="flex min-w-0 w-full max-w-full items-center gap-0 overflow-x-auto overscroll-x-contain scrollbar-hide">
+        <ToolbarTray isNightMode={isNightMode} aria-label="Undo, redo, and eraser" className="shrink-0 gap-0.5 px-1">
           <PillCircleButton isNightMode={isNightMode} label="Undo" disabled={!hasStrokes} onClick={onUndo}>
             <Undo2 className="h-4 w-4" strokeWidth={2} />
           </PillCircleButton>
@@ -351,7 +362,13 @@ export default function SketchInkToolbar({
         <ScrollableInkToolStrip
           isNightMode={isNightMode}
           aria-label="Drawing tools"
-          className={cn(isReader ? "mr-1 min-w-0 max-w-[min(42vw,240px)]" : "mr-3 min-w-0 max-w-[min(52vw,320px)] sm:max-w-none")}
+          className={cn(
+            isReader || compactInkLayout
+              ? "min-w-0 flex-1"
+              : "mr-3 min-w-0 max-w-[min(52vw,320px)] sm:max-w-none",
+            !isReader && !compactInkLayout && "mr-3",
+            isReader && !compactInkLayout && "mr-1 min-w-0 max-w-[min(42vw,240px)]",
+          )}
           trayClassName={isNightMode ? "bg-white/[0.08]" : "bg-[rgba(255,255,255,0.32)]"}
         >
           {toolItems.map(({ id, label }) => {
@@ -374,7 +391,7 @@ export default function SketchInkToolbar({
 
         <ToolbarDivider isNightMode={isNightMode} />
 
-        <ToolbarTray isNightMode={isNightMode} aria-label="Colors">
+        <ToolbarTray isNightMode={isNightMode} aria-label="Colors" className="shrink-0">
           <div className="grid grid-cols-3 gap-1 p-0.5" role="group">
             {APPLE_PALETTE.map((c) => {
               const selected = colorMatchesPalette(color, c.value);
@@ -418,7 +435,7 @@ export default function SketchInkToolbar({
 
         <ToolbarDivider isNightMode={isNightMode} />
 
-        <ToolbarTray isNightMode={isNightMode} aria-label="Markup actions" className="gap-0.5 px-1">
+        <ToolbarTray isNightMode={isNightMode} aria-label="Markup actions" className="shrink-0 gap-0.5 px-1">
           <PillCircleButton
             isNightMode={isNightMode}
             label={isEraser ? `Eraser size ${size}` : `Stroke size ${size}`}

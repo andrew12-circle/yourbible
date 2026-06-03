@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isCompactInkLayout,
   isHandwrittenPreferredLayout,
+  isReaderCompactChrome,
   isReaderSinglePageLayout,
   isReaderSpreadLayout,
   isTabletPortraitLayout,
@@ -13,9 +14,14 @@ function vp(width: number, height: number, landscape = width > height): Viewport
 }
 
 describe("layoutMode", () => {
-  it("keeps phones on single-page layout in any orientation", () => {
+  it("keeps phones on single-page layout in portrait", () => {
     expect(isReaderSinglePageLayout(vp(390, 844, false))).toBe(true);
-    expect(isReaderSinglePageLayout(vp(844, 390, true))).toBe(true);
+  });
+
+  it("uses spread layout for phone landscape", () => {
+    expect(isReaderSpreadLayout(vp(844, 390, true))).toBe(true);
+    expect(isReaderSinglePageLayout(vp(844, 390, true))).toBe(false);
+    expect(isReaderCompactChrome(vp(844, 390, true))).toBe(true);
   });
 
   it("uses spread layout for iPad landscape", () => {
@@ -33,8 +39,9 @@ describe("layoutMode", () => {
     expect(isReaderSpreadLayout(vp(1440, 900, false))).toBe(true);
   });
 
-  it("treats compact ink the same as single-page reader chrome", () => {
+  it("treats compact ink on portrait and phone landscape", () => {
     expect(isCompactInkLayout(vp(834, 1194, false))).toBe(true);
+    expect(isCompactInkLayout(vp(844, 390, true))).toBe(true);
     expect(isCompactInkLayout(vp(1194, 834, true))).toBe(false);
   });
 

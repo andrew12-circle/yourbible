@@ -2,7 +2,9 @@ import * as React from "react";
 import {
   isCompactInkLayout,
   isHandwrittenPreferredLayout,
+  isReaderCompactChrome,
   isReaderSinglePageLayout,
+  isReaderSpreadLayout,
   isTabletLayout,
   isTabletPortraitLayout,
   readViewportSize,
@@ -42,9 +44,19 @@ function useViewportLayout<T>(selector: (size: ReturnType<typeof readViewportSiz
   return value;
 }
 
-/** Phones and tablet portrait: one page at a time. Spread on iPad landscape + desktop. */
+/** Portrait-only single page. Landscape uses a two-page spread (including phones). */
 export function useReaderSinglePage() {
   return useViewportLayout(isReaderSinglePageLayout);
+}
+
+/** Open book — left and right pages visible together. */
+export function useReaderSpread() {
+  return useViewportLayout(isReaderSpreadLayout);
+}
+
+/** Mobile menu + compact header (phones, tablet portrait). */
+export function useReaderCompactChrome() {
+  return useViewportLayout(isReaderCompactChrome);
 }
 
 /** iPad upright — mobile chrome with extra horizontal room. */
