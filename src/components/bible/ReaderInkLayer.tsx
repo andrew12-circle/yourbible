@@ -405,6 +405,7 @@ export default function ReaderInkLayer({
       activeStrokeRef.current = null;
       if (stroke && stroke.points.length > 0) {
         pushStrokeRef.current(stroke);
+        flushRedrawRef.current();
       } else {
         flushRedrawRef.current();
       }

@@ -48,16 +48,8 @@ export function useReaderPageInk({
     return denormalizeStrokes(storedStrokes, w, h);
   }, [storedStrokes, canvasSize.w, canvasSize.h, liveCanvasSizeRef]);
 
-  const persist = useCallback(
+  const persistRemote = useCallback(
     async (next: StoredInkStroke[]) => {
-      saveLocalReaderInk(
-        layoutFingerprint,
-        pageKey.book,
-        pageKey.chapter,
-        pageKey.pageIndex,
-        pageKey.side,
-        next,
-      );
       if (!userId) return;
       const row = {
         user_id: userId,
@@ -77,15 +69,30 @@ export function useReaderPageInk({
     [anchorVerse, layoutFingerprint, pageKey, userId],
   );
 
+  const persistLocal = useCallback(
+    (next: StoredInkStroke[]) => {
+      saveLocalReaderInk(
+        layoutFingerprint,
+        pageKey.book,
+        pageKey.chapter,
+        pageKey.pageIndex,
+        pageKey.side,
+        next,
+      );
+    },
+    [layoutFingerprint, pageKey],
+  );
+
   const scheduleSave = useCallback(
     (next: StoredInkStroke[]) => {
+      persistLocal(next);
       if (saveTimerRef.current != null) window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = window.setTimeout(() => {
         saveTimerRef.current = null;
-        void persist(next);
+        void persistRemote(next);
       }, 800);
     },
-    [persist],
+    [persistLocal, persistRemote],
   );
 
   const updateStored = useCallback(
@@ -161,7 +168,21 @@ export function useReaderPageInk({
       }
 
       if (cancelled) return;
-      setStoredStrokes(local ?? []);
+
+      const loadedFromDisk = loadLocalReaderInk(
+        layoutFingerprint,
+        pageKey.book,
+        pageKey.chapter,
+        pageKey.pageIndex,
+        pageKey.side,
+      );
+      const loaded = loadedFromDisk ?? local ?? [];
+
+      setStoredStrokes((prev) => {
+        // User may have drawn while the fetch was in flight — never clobber live ink.
+        if (prev.length > 0) return prev;
+        return loaded;
+      });
       setRedoStack([]);
       setLoading(false);
     })();
@@ -183,10 +204,10 @@ export function useReaderPageInk({
     return () => {
       if (saveTimerRef.current != null) {
         window.clearTimeout(saveTimerRef.current);
-        void persist(storedRef.current);
+        void persistRemote(storedRef.current);
       }
     };
-  }, [persist]);
+  }, [persistRemote]);
 
   const pushStroke = useCallback(
     (stroke: InkStroke) => {
