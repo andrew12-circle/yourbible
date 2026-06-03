@@ -37,7 +37,10 @@ import { toast } from "@/hooks/use-toast";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
-import ReaderInkLayer, { type ReaderInkLayerApi } from "@/components/bible/ReaderInkLayer";
+import ReaderInkLayer, {
+  type ReaderInkLayerApi,
+  type ReaderInkLayerState,
+} from "@/components/bible/ReaderInkLayer";
 import { ReaderInkToolbar } from "@/components/bible/ReaderInkToolbar";
 import { useReaderInkMode } from "@/hooks/useReaderPageInk";
 import { computeReaderLayoutFingerprint } from "@/lib/ink/layoutFingerprint";
@@ -558,23 +561,61 @@ export default function ReaderPage() {
     ? `${book.abbr}-${chapter}-${chapterPage}-${mobileSide}`
     : `${book.abbr}-${chapter}-${chapterPage}-left`;
   const focusedInkLayerId = activeInkLayerId ?? defaultInkLayerId;
+  const focusedInkLayerIdRef = useRef(focusedInkLayerId);
+  focusedInkLayerIdRef.current = focusedInkLayerId;
+
+  const handleInkRegister = useCallback((id: string, api: ReaderInkLayerApi) => {
+    inkApisRef.current.set(id, api);
+  }, []);
+
+  const handleInkUnregister = useCallback((id: string) => {
+    inkApisRef.current.delete(id);
+  }, []);
+
+  const handleInkStateChange = useCallback((id: string, state: ReaderInkLayerState) => {
+    if (id !== focusedInkLayerIdRef.current) return;
+    setInkToolbarState((prev) =>
+      prev.canUndo === state.canUndo &&
+      prev.canRedo === state.canRedo &&
+      prev.redoCount === state.redoCount
+        ? prev
+        : state,
+    );
+  }, []);
+
+  const handleInkStaleLayout = useCallback((stale: boolean) => {
+    if (stale) setStaleLayoutInk(true);
+  }, []);
+
+  const handleInkStrokeStart = useCallback(() => {
+    setInkToolbarCollapsed(true);
+  }, []);
 
   const runInkAction = useCallback(
     (action: "undo" | "redo" | "clear") => {
-      const api = inkApisRef.current.get(focusedInkLayerId);
+      const api = inkApisRef.current.get(focusedInkLayerIdRef.current);
       if (!api) return;
       if (action === "undo") api.undo();
       else if (action === "redo") api.redo();
       else api.clear();
       setInkToolbarState(api.getState());
     },
-    [focusedInkLayerId],
+    [],
   );
 
   useEffect(() => {
     if (!inkMode) return;
     const api = inkApisRef.current.get(focusedInkLayerId);
-    if (api) setInkToolbarState(api.getState());
+    if (api) {
+      setInkToolbarState((prev) => {
+        const next = api.getState();
+        return prev.canUndo === next.canUndo &&
+          prev.canRedo === next.canRedo &&
+          prev.redoCount === next.redoCount
+          ? prev
+          : next;
+      });
+    }
   }, [inkMode, focusedInkLayerId, chapterPage, book.abbr, chapter]);
 
   useEffect(() => {
@@ -897,18 +938,11 @@ export default function ReaderPage() {
             color={inkColor}
             size={inkSize}
             onFocus={setActiveInkLayerId}
-            onRegister={(id, api) => {
-              inkApisRef.current.set(id, api);
-            }}
-            onUnregister={(id) => {
-              inkApisRef.current.delete(id);
-            }}
-            onStateChange={(id, state) => {
-              if (id === focusedInkLayerId) setInkToolbarState(state);
-            }}
-            onStaleLayout={(stale) => {
-              if (stale) setStaleLayoutInk(true);
-            }}
+            onRegister={handleInkRegister}
+            onUnregister={handleInkUnregister}
+            onStateChange={handleInkStateChange}
+            onStaleLayout={handleInkStaleLayout}
+            onStrokeStart={handleInkStrokeStart}
           />
         ) : null}
         {!focusMode ? (

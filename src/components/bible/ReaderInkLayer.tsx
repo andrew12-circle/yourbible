@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -52,6 +53,8 @@ type Props = {
   onUnregister?: (layerId: string) => void;
   onStateChange?: (layerId: string, state: ReaderInkLayerState) => void;
   onStaleLayout?: (hasStale: boolean) => void;
+  /** Collapse the floating ink toolbar when the user starts a stroke. */
+  onStrokeStart?: () => void;
 };
 
 const EMPTY_LAYOUT: OverlayLayout = { left: 0, top: 0, width: 0, height: 0 };
@@ -73,6 +76,7 @@ export default function ReaderInkLayer({
   onUnregister,
   onStateChange,
   onStaleLayout,
+  onStrokeStart,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -115,6 +119,17 @@ export default function ReaderInkLayer({
   pushStrokeRef.current = pushStroke;
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
+  const onStrokeStartRef = useRef(onStrokeStart);
+  onStrokeStartRef.current = onStrokeStart;
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
+  const onStaleLayoutRef = useRef(onStaleLayout);
+  onStaleLayoutRef.current = onStaleLayout;
+  const onRegisterRef = useRef(onRegister);
+  onRegisterRef.current = onRegister;
+  const onUnregisterRef = useRef(onUnregister);
+  onUnregisterRef.current = onUnregister;
+  const lastNotifiedStateRef = useRef<ReaderInkLayerState | null>(null);
   const flushRedrawRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -124,16 +139,32 @@ export default function ReaderInkLayer({
   }, [active, layerId]);
 
   useEffect(() => {
-    onStaleLayout?.(Boolean(staleFingerprint));
-  }, [staleFingerprint, onStaleLayout]);
+    if (!staleFingerprint) return;
+    onStaleLayoutRef.current?.(true);
+  }, [staleFingerprint]);
 
   useEffect(() => {
-    onStateChange?.(layerId, {
+    const next: ReaderInkLayerState = {
       canUndo: strokes.length > 0,
       canRedo: redoStack.length > 0,
       redoCount: redoStack.length,
-    });
-  }, [layerId, strokes.length, redoStack.length, onStateChange]);
+    };
+    const prev = lastNotifiedStateRef.current;
+    if (
+      prev &&
+      prev.canUndo === next.canUndo &&
+      prev.canRedo === next.canRedo &&
+      prev.redoCount === next.redoCount
+    ) {
+      return;
+    }
+    lastNotifiedStateRef.current = next;
+    onStateChangeRef.current?.(layerId, next);
+  }, [layerId, strokes.length, redoStack.length]);
+
+  useEffect(() => {
+    lastNotifiedStateRef.current = null;
+  }, [layerId]);
 
   useEffect(() => {
     const api: ReaderInkLayerApi = {
@@ -149,9 +180,9 @@ export default function ReaderInkLayer({
         redoCount: redoStack.length,
       }),
     };
-    onRegister?.(layerId, api);
-    return () => onUnregister?.(layerId);
-  }, [layerId, undo, redo, clearAll, strokes.length, redoStack.length, onRegister, onUnregister]);
+    onRegisterRef.current?.(layerId, api);
+    return () => onUnregisterRef.current?.(layerId);
+  }, [layerId, undo, redo, clearAll, strokes.length, redoStack.length]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -209,7 +240,7 @@ export default function ReaderInkLayer({
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     dprRef.current = dpr;
     sizeRef.current = { w, h };
-    setCanvasSize({ w, h });
+    setCanvasSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
     canvas.width = Math.max(1, Math.floor(w * dpr));
@@ -223,6 +254,9 @@ export default function ReaderInkLayer({
     flushRedraw();
   }, [flushRedraw]);
 
+  const syncOverlayLayoutRef = useRef<() => void>(() => {});
+  const overlayLayoutRafRef = useRef<number | null>(null);
+
   const syncOverlayLayout = useCallback(() => {
     const anchor = getAnchorElRef.current();
     if (!anchor) {
@@ -231,13 +265,27 @@ export default function ReaderInkLayer({
       return;
     }
     const r = anchor.getBoundingClientRect();
+    const left = Math.round(r.left);
+    const top = Math.round(r.top);
     const width = Math.max(0, Math.round(r.width));
     const height = Math.max(0, Math.round(r.height));
-    setOverlayLayout({
-      left: r.left,
-      top: r.top,
-      width,
-      height,
+    setOverlayLayout((prev) =>
+      prev.left === left &&
+      prev.top === top &&
+      prev.width === width &&
+      prev.height === height
+        ? prev
+        : { left, top, width, height },
+    );
+  }, []);
+
+  syncOverlayLayoutRef.current = syncOverlayLayout;
+
+  const scheduleSyncOverlayLayout = useCallback(() => {
+    if (overlayLayoutRafRef.current != null) return;
+    overlayLayoutRafRef.current = window.requestAnimationFrame(() => {
+      overlayLayoutRafRef.current = null;
+      syncOverlayLayoutRef.current();
     });
   }, []);
 
@@ -248,25 +296,28 @@ export default function ReaderInkLayer({
     }
     syncOverlayLayout();
     const anchor = getAnchorElRef.current();
-    const ro = anchor ? new ResizeObserver(() => syncOverlayLayout()) : null;
+    const ro = anchor ? new ResizeObserver(() => scheduleSyncOverlayLayout()) : null;
     if (anchor && ro) ro.observe(anchor);
-    const onScroll = () => syncOverlayLayout();
-    const onResize = () => syncOverlayLayout();
+    const onScroll = () => scheduleSyncOverlayLayout();
+    const onResize = () => scheduleSyncOverlayLayout();
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
     const raf = window.requestAnimationFrame(syncOverlayLayout);
     return () => {
       window.cancelAnimationFrame(raf);
+      if (overlayLayoutRafRef.current != null) {
+        window.cancelAnimationFrame(overlayLayoutRafRef.current);
+        overlayLayoutRafRef.current = null;
+      }
       ro?.disconnect();
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onResize);
     };
-  }, [active, syncOverlayLayout, layerId]);
+  }, [active, syncOverlayLayout, scheduleSyncOverlayLayout, layerId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active || overlayLayout.width <= 0 || overlayLayout.height <= 0) return;
-    const raf = window.requestAnimationFrame(() => resizeCanvas());
-    return () => window.cancelAnimationFrame(raf);
+    resizeCanvas();
   }, [active, overlayLayout.width, overlayLayout.height, resizeCanvas]);
 
   useEffect(() => {
@@ -294,7 +345,7 @@ export default function ReaderInkLayer({
         const takeover = e.pointerType === "pen" && activePointerTypeRef.current === "touch";
         if (!takeover) return;
         try {
-          canvas.releasePointerCapture(activePointerIdRef.current);
+          wrap.releasePointerCapture(activePointerIdRef.current);
         } catch {
           /* noop */
         }
@@ -308,6 +359,7 @@ export default function ReaderInkLayer({
       const drawTool = resolveDrawToolLocal();
       const pt = getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType);
       activeStrokeRef.current = { tool: drawTool, color: c, size: s, points: [pt] };
+      onStrokeStartRef.current?.();
       flushRedrawRef.current();
       e.preventDefault();
       e.stopPropagation();
@@ -342,13 +394,10 @@ export default function ReaderInkLayer({
 
     const finishStroke = (e: PointerEvent) => {
       if (activePointerIdRef.current !== e.pointerId) return;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        try {
-          canvas.releasePointerCapture(e.pointerId);
-        } catch {
-          /* noop */
-        }
+      try {
+        wrap.releasePointerCapture(e.pointerId);
+      } catch {
+        /* noop */
       }
       activePointerIdRef.current = null;
       activePointerTypeRef.current = null;
@@ -391,7 +440,7 @@ export default function ReaderInkLayer({
       wrap.removeEventListener("selectstart", preventDefault);
       wrap.removeEventListener("dragstart", preventDefault);
     };
-  }, [active, layerId]);
+  }, [active, layerId, overlayLayout.width, overlayLayout.height]);
 
   if (!active || overlayLayout.width <= 0 || overlayLayout.height <= 0) return null;
 
@@ -408,7 +457,7 @@ export default function ReaderInkLayer({
         top: overlayLayout.top,
         width: overlayLayout.width,
         height: overlayLayout.height,
-        zIndex: 32,
+        zIndex: 40,
         touchAction: "none",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
