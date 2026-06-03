@@ -119,7 +119,7 @@ describe("ReaderInkLayer", () => {
     render(
       <ReaderInkLayer
         layerId="GEN-1-0-left"
-        active
+        interactive
         getAnchorEl={() => anchor}
         userId={undefined}
         pageKey={pageKey}
@@ -180,7 +180,7 @@ describe("ReaderInkLayer", () => {
     render(
       <ReaderInkLayer
         layerId="GEN-1-0-left"
-        active
+        interactive
         getAnchorEl={() => anchor}
         userId="user-1"
         pageKey={pageKey}
@@ -216,7 +216,7 @@ describe("ReaderInkLayer", () => {
     const { rerender } = render(
       <ReaderInkLayer
         layerId="GEN-1-0-left"
-        active
+        interactive
         getAnchorEl={() => anchor}
         userId={undefined}
         pageKey={pageKey}
@@ -251,7 +251,7 @@ describe("ReaderInkLayer", () => {
     rerender(
       <ReaderInkLayer
         layerId="GEN-1-0-left"
-        active
+        interactive
         getAnchorEl={() => anchor}
         userId={undefined}
         pageKey={pageKey}
@@ -283,7 +283,7 @@ describe("ReaderInkLayer", () => {
         {collapsed ? <div data-toolbar-collapsed /> : null}
         <ReaderInkLayer
           layerId="GEN-1-0-left"
-          active
+          interactive
           getAnchorEl={() => anchor}
           userId={undefined}
           pageKey={pageKey}
@@ -330,5 +330,68 @@ describe("ReaderInkLayer", () => {
 
     const storageKey = readerInkStorageKey("fp-rerender", "GEN", 1, 0, "left");
     expect(JSON.parse(localStorage.getItem(storageKey)!).strokes).toHaveLength(1);
+  });
+
+  it("keeps ink visible after pen mode is turned off", async () => {
+    const onStateChange = vi.fn();
+
+    const { rerender } = render(
+      <ReaderInkLayer
+        layerId="GEN-1-0-left"
+        interactive
+        getAnchorEl={() => anchor}
+        userId={undefined}
+        pageKey={pageKey}
+        layoutFingerprint="fp-view"
+        anchorVerse={1}
+        tool="fountain"
+        color="#111827"
+        size={4}
+        onStateChange={onStateChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector("[data-reader-ink-layer]")).toBeTruthy();
+    });
+
+    const layer = document.querySelector("[data-reader-ink-layer]") as HTMLElement;
+
+    await act(async () => {
+      dispatchPointer(layer, "pointerdown", 4, 80, 120);
+      dispatchPointer(layer, "pointermove", 4, 140, 160);
+      dispatchPointer(layer, "pointerup", 4, 140, 160);
+    });
+
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(
+        "GEN-1-0-left",
+        expect.objectContaining({ canUndo: true }),
+      );
+    });
+
+    rerender(
+      <ReaderInkLayer
+        layerId="GEN-1-0-left"
+        interactive={false}
+        getAnchorEl={() => anchor}
+        userId={undefined}
+        pageKey={pageKey}
+        layoutFingerprint="fp-view"
+        anchorVerse={1}
+        tool="fountain"
+        color="#111827"
+        size={4}
+        onStateChange={onStateChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector("[data-reader-ink-layer]")).toBeTruthy();
+      expect(onStateChange).toHaveBeenCalledWith(
+        "GEN-1-0-left",
+        expect.objectContaining({ canUndo: true }),
+      );
+    });
   });
 });

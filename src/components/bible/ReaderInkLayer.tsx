@@ -43,7 +43,8 @@ type OverlayLayout = {
 
 type Props = {
   layerId: string;
-  active: boolean;
+  /** Allow drawing and erasing (pen mode). Ink stays visible when false. */
+  interactive: boolean;
   /** Reading-area element used to position the fixed ink overlay. */
   getAnchorEl: () => HTMLElement | null;
   userId: string | undefined;
@@ -67,7 +68,7 @@ const EMPTY_LAYOUT: OverlayLayout = { left: 0, top: 0, width: 0, height: 0 };
 
 export default function ReaderInkLayer({
   layerId,
-  active,
+  interactive,
   getAnchorEl,
   userId,
   pageKey,
@@ -121,7 +122,7 @@ export default function ReaderInkLayer({
     anchorVerse,
     canvasSize,
     liveCanvasSizeRef: sizeRef,
-    enabled: active,
+    enabled: true,
   });
 
   const pushStrokeRef = useRef(pushStroke);
@@ -178,14 +179,6 @@ export default function ReaderInkLayer({
       return;
     }
   }, [strokes]);
-
-  useEffect(() => {
-    if (!active) {
-      displayStrokesRef.current = [];
-      pendingCommitCountRef.current = 0;
-      lassoPointsRef.current = [];
-    }
-  }, [active, layerId]);
 
   useEffect(() => {
     if (!staleFingerprint) return;
@@ -317,7 +310,7 @@ export default function ReaderInkLayer({
   }, []);
 
   const attachPointerHandlers = useCallback(() => {
-    if (!active || pointerCleanupRef.current) return;
+    if (!interactive || pointerCleanupRef.current) return;
     const wrap = wrapRef.current;
     if (!wrap || sizeRef.current.w <= 0 || sizeRef.current.h <= 0) return;
 
@@ -576,7 +569,7 @@ export default function ReaderInkLayer({
       activeStrokeRef.current = null;
       lassoPointsRef.current = [];
     };
-  }, [active]);
+  }, [interactive]);
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -641,10 +634,6 @@ export default function ReaderInkLayer({
   }, []);
 
   useEffect(() => {
-    if (!active) {
-      setOverlayLayout(EMPTY_LAYOUT);
-      return;
-    }
     syncOverlayLayout();
     const anchor = getAnchorElRef.current();
     const ro = anchor ? new ResizeObserver(() => scheduleSyncOverlayLayout()) : null;
@@ -667,25 +656,26 @@ export default function ReaderInkLayer({
       vv?.removeEventListener("resize", onLayoutChange);
       vv?.removeEventListener("scroll", onLayoutChange);
     };
-  }, [active, syncOverlayLayout, scheduleSyncOverlayLayout, layerId]);
+  }, [syncOverlayLayout, scheduleSyncOverlayLayout, layerId]);
 
   useLayoutEffect(() => {
-    if (!active || overlayLayout.width <= 0 || overlayLayout.height <= 0) return;
+    if (overlayLayout.width <= 0 || overlayLayout.height <= 0) return;
     resizeCanvas();
-  }, [active, overlayLayout.width, overlayLayout.height, resizeCanvas]);
+  }, [overlayLayout.width, overlayLayout.height, resizeCanvas]);
 
   useLayoutEffect(() => {
     attachPointerHandlers();
     return detachPointerHandlers;
-  }, [active, layerId, attachPointerHandlers, detachPointerHandlers]);
+  }, [interactive, layerId, attachPointerHandlers, detachPointerHandlers]);
 
-  if (!active || overlayLayout.width <= 0 || overlayLayout.height <= 0) return null;
+  if (overlayLayout.width <= 0 || overlayLayout.height <= 0) return null;
 
   const overlay = (
     <div
       ref={wrapRef}
       className={cn(
-        "fixed touch-none select-none",
+        "fixed select-none",
+        interactive ? "touch-none" : "pointer-events-none touch-none",
         className,
       )}
       data-reader-ink-layer={layerId}
@@ -694,12 +684,13 @@ export default function ReaderInkLayer({
         top: overlayLayout.top,
         width: overlayLayout.width,
         height: overlayLayout.height,
-        zIndex: 40,
+        zIndex: interactive ? 40 : 15,
         touchAction: "none",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
       }}
-      aria-label="Ink layer — draw on this page"
+      aria-label={interactive ? "Ink layer — draw on this page" : "Handwritten notes on this page"}
+      aria-hidden={!interactive && strokes.length === 0 ? true : undefined}
     >
       <canvas
         ref={canvasRef}

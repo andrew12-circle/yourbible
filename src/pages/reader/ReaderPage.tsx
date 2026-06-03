@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BOOKS, findBookByAbbr } from "@/data/books";
-import { fetchPassage, listBibles, type BibleEntry, type Passage, type PassageVerse } from "@/lib/bible/api";
+import type { PassageVerse } from "@/lib/bible/api";
+import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
@@ -24,6 +26,13 @@ import { Paginator } from "@/components/bible/Paginator";
 import { PageFlip } from "@/components/bible/PageFlip";
 import { SwipePage } from "@/components/bible/SwipePage";
 import { useChapterData, useBookmarks } from "@/hooks/useUserData";
+import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
+import { usePassage } from "@/hooks/usePassage";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useReaderAudio } from "@/hooks/useReaderAudio";
+import { useRecordReadingActivity } from "@/hooks/useReadingActivity";
+import { BibleSearchDialog } from "@/components/bible/BibleSearchDialog";
+import OfflineBanner from "@/components/OfflineBanner";
 import { getPalette } from "@/lib/bible/palettes";
 import {
   highlightIntervalsForVerse,
@@ -48,7 +57,6 @@ import { clearReaderInkChapter } from "@/lib/ink/readerInkChapterClear";
 import { INK_PEN_COLORS, INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import type { InkTool } from "@/lib/ink/types";
 
-const LS_BIBLE_KEY = "yb.bibleId";
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
@@ -105,11 +113,49 @@ export default function ReaderPage() {
     [params.book],
   );
   const chapter = Math.max(1, Math.min(book.chapters, parseInt(params.chapter ?? "1", 10) || 1));
+  const reference = useMemo(() => `${book.name} ${chapter}`, [book.name, chapter]);
 
-  const [bibles, setBibles] = useState<BibleEntry[]>([]);
+  const online = useOnlineStatus();
+  const { data: bibles = [], isError: biblesError } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
-  const [passage, setPassage] = useState<Passage | null>(null);
-  const [loadingPassage, setLoadingPassage] = useState(false);
+  const {
+    data: passage,
+    isLoading: loadingPassage,
+    isError: passageError,
+  } = usePassage(bibleId, book.abbr, chapter);
+  const showCachedHint = !online || (passageError && !!passage);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const readerAudio = useReaderAudio(reference, passage);
+  useRecordReadingActivity(user?.id, book.abbr, chapter);
+
+  useEffect(() => {
+    if (bibles.length === 0) return;
+    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    if (next && next !== bibleId) {
+      setBibleId(next);
+      localStorage.setItem(LS_BIBLE_KEY, next);
+    } else if (!bibleId && next) {
+      setBibleId(next);
+      localStorage.setItem(LS_BIBLE_KEY, next);
+    }
+  }, [bibles, bibleId]);
+
+  useEffect(() => {
+    if (biblesError) {
+      toast({ variant: "destructive", title: "Couldn't load translations", description: "Check your API.Bible key." });
+    }
+  }, [biblesError]);
+
+  useEffect(() => {
+    if (passageError && !passage) {
+      toast({
+        variant: "destructive",
+        title: "Couldn't load passage",
+        description: online ? "Check your connection and try again." : "This chapter is not saved for offline reading yet.",
+      });
+    }
+  }, [passageError, passage, online]);
+
   const [focusMode, setFocusMode] = useState(false);
   const [settingsOpenRequest, setSettingsOpenRequest] = useState(0);
 
@@ -234,47 +280,6 @@ export default function ReaderPage() {
   };
 
   // (long-press highlight removed — we now use native drag-selection)
-
-  // ---- Load translations ----
-  useEffect(() => {
-    listBibles().then(list => {
-      setBibles(list);
-      if (!bibleId && list.length) {
-        // Default translation preference: Christian Standard Bible first, then
-        // common fallbacks if CSB isn't available in the API catalog.
-        const pref = ["CSB", "KJV", "WEB", "ESV", "NIV", "NLT"];
-        const byAbbr = (code: string) =>
-          list.find(b => b.abbreviation.toUpperCase() === code);
-        const byName = list.find(b =>
-          /christian\s+standard\s+bible/i.test(b.name) ||
-          /\bcsb\b/i.test(b.name),
-        );
-        const found =
-          byName ??
-          pref.map(byAbbr).find(Boolean) ??
-          list[0];
-        setBibleId(found.id);
-        localStorage.setItem(LS_BIBLE_KEY, found.id);
-      }
-    }).catch(err => {
-      console.error(err);
-      toast({ variant: "destructive", title: "Couldn't load translations", description: "Check your API.Bible key." });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---- Load passage ----
-  useEffect(() => {
-    if (!bibleId) return;
-    let cancelled = false;
-    setLoadingPassage(true);
-    setPassage(null);
-    fetchPassage(bibleId, book.abbr, chapter)
-      .then(p => { if (!cancelled) setPassage(p); })
-      .catch(err => { console.error(err); toast({ variant: "destructive", title: "Couldn't load passage", description: String(err.message ?? err) }); })
-      .finally(() => { if (!cancelled) setLoadingPassage(false); });
-    return () => { cancelled = true; };
-  }, [bibleId, book.abbr, chapter]);
 
   // ---- Page measurement ----
   // We measure the *actual* rendered page article so pagination matches
@@ -789,7 +794,6 @@ export default function ReaderPage() {
     setNoteOpen({ verse: sel.verses[0] });
     clearWindowSelection();
   };
-  const reference = `${book.name} ${chapter}`;
 
   // Header for first page of chapter
   const ChapterHeader = (
@@ -962,10 +966,10 @@ export default function ReaderPage() {
             </article>
           </div>
         )}
-        {inkMode && !loadingPassage ? (
+        {!loadingPassage ? (
           <ReaderInkLayer
             layerId={inkLayerId}
-            active
+            interactive={inkMode}
             getAnchorEl={getInkAnchorEl(inkLayerId)}
             userId={user?.id}
             pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
@@ -1033,6 +1037,8 @@ export default function ReaderPage() {
     >
       <MarkerSvgFilter />
 
+      <OfflineBanner showCachedHint={showCachedHint && !!passage} />
+
       <TopBar
         reference={reference}
         collapsed={false}
@@ -1041,6 +1047,12 @@ export default function ReaderPage() {
         bibleId={bibleId}
         bibles={bibles}
         onChangeBible={(id) => { setBibleId(id); localStorage.setItem(LS_BIBLE_KEY, id); }}
+        onSearch={() => setSearchOpen(true)}
+        onToggleAudio={() => void readerAudio.toggle()}
+        audioPlaying={readerAudio.playing}
+        audioLoading={readerAudio.loading}
+        audioDisabled={readerAudio.disabled}
+        online={online}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
@@ -1221,10 +1233,20 @@ export default function ReaderPage() {
         }}
         onOpenCompanion={() => {
           if (!tbSel) return;
+          if (!online) {
+            toast({ variant: "destructive", title: "Companion needs internet", description: "Reconnect to use AI features." });
+            return;
+          }
           openCompanion(buildScope(tbSel.verses), "journal");
+        }}
+        onShare={() => {
+          if (!tbSel) return;
+          void sharePassageSelection(reference, passage ?? null, tbSel.verses);
         }}
         onClose={() => clearWindowSelection()}
       />
+
+      <BibleSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} bibleId={bibleId} />
 
       {noteOpen && (
         <NoteDialog

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderMobileMenu, type ReaderMenuPanel } from "@/components/bible/ReaderMobileMenu";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,12 @@ interface Props {
   settingsOpenRequest?: number;
   inkMode?: boolean;
   onToggleInkMode?: () => void;
+  onSearch?: () => void;
+  onToggleAudio?: () => void;
+  audioPlaying?: boolean;
+  audioLoading?: boolean;
+  audioDisabled?: boolean;
+  online?: boolean;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -57,6 +63,12 @@ export function TopBar({
   settingsOpenRequest = 0,
   inkMode = false,
   onToggleInkMode,
+  onSearch,
+  onToggleAudio,
+  audioPlaying = false,
+  audioLoading = false,
+  audioDisabled = false,
+  online = true,
 }: Props) {
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
@@ -400,6 +412,43 @@ export function TopBar({
               >
                 <PenLine className="w-4 h-4" />
               </Button>
+              ) : null}
+              {onSearch ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onSearch}
+                  title={online ? "Search Scripture" : "Search requires internet"}
+                  disabled={!online}
+                  className="text-leather/80 hover:text-leather disabled:opacity-40"
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              ) : null}
+              {onToggleAudio ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleAudio}
+                  title={
+                    audioDisabled
+                      ? "Audio unavailable offline"
+                      : audioPlaying
+                        ? "Pause chapter audio"
+                        : "Listen to chapter"
+                  }
+                  disabled={audioDisabled || audioLoading}
+                  className="text-leather/80 hover:text-leather disabled:opacity-40"
+                  aria-pressed={audioPlaying}
+                >
+                  {audioLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  ) : audioPlaying ? (
+                    <Pause className="w-4 h-4" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </Button>
               ) : null}
               <Button variant="ghost" size="icon" onClick={onBookmark} title="Bookmark this page" className="text-leather/80 hover:text-leather">
                 <BookmarkPlus className="w-4 h-4" />

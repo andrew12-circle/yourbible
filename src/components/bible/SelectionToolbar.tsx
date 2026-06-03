@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import type { VerseRange } from "@/lib/bible/verseSelection";
-import { Trash2, NotebookPen, PenLine, Network, BookOpenText } from "lucide-react";
+import { Trash2, NotebookPen, PenLine, Network, BookOpenText, Share2 } from "lucide-react";
 
 function useDockToolbar() {
   const [dock, setDock] = useState(() =>
@@ -93,6 +93,7 @@ interface Props {
   onNote: () => void;
   onTestFramework?: () => void;
   onOpenCompanion?: () => void;
+  onShare?: () => void;
   onClose: () => void;
 }
 
@@ -110,6 +111,7 @@ export function SelectionToolbar({
   onNote,
   onTestFramework,
   onOpenCompanion,
+  onShare,
   onClose,
 }: Props) {
   const palette = getPalette(paletteId);
@@ -226,6 +228,20 @@ export function SelectionToolbar({
               className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
             >
               <BookOpenText className="w-4 h-4" />
+            </button>
+          )}
+          {onShare && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={onShare}
+              title="Share selection"
+              className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
+            >
+              <Share2 className="w-4 h-4" />
             </button>
           )}
           {(currentColor || currentlyUnderlined) && (

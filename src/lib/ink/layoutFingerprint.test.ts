@@ -18,6 +18,24 @@ describe("computeReaderLayoutFingerprint", () => {
     );
   });
 
+  it("does not change when only the bible translation changes", () => {
+    const base = computeReaderLayoutFingerprint({
+      bibleId: "abc123",
+      fontScale: 1,
+      pageWidth: 320,
+      pageHeight: 480,
+      singlePage: false,
+    });
+    const otherBible = computeReaderLayoutFingerprint({
+      bibleId: "xyz789",
+      fontScale: 1,
+      pageWidth: 320,
+      pageHeight: 480,
+      singlePage: false,
+    });
+    expect(otherBible).toBe(base);
+  });
+
   it("changes when font scale or page box changes", () => {
     const base = computeReaderLayoutFingerprint({
       bibleId: "abc123",

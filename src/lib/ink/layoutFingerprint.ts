@@ -1,9 +1,8 @@
 import type { ReaderLayoutFingerprintInput } from "@/lib/ink/types";
 
-/** Stable hash for pagination + typography settings (ink is keyed per fingerprint). */
+/** Stable hash for page typography/layout — ink follows the page, not the translation. */
 export function computeReaderLayoutFingerprint(input: ReaderLayoutFingerprintInput): string {
   const payload = [
-    input.bibleId,
     input.fontScale.toFixed(3),
     Math.round(input.pageWidth),
     Math.round(input.pageHeight),

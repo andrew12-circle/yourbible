@@ -15,6 +15,7 @@ import { parseHomeLayoutMedia, resolveHomeMediaUrl } from "@/lib/profile/homeMed
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
+import { BibleHomeWidgets } from "@/components/home/BibleHomeWidgets";
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
 
@@ -408,6 +409,7 @@ export default function HomePage() {
             >
               {page.type === "widgets" ? (
                 <div ref={widgetsRef}>
+                  <BibleHomeWidgets />
                   <LifePrioritiesPanel />
                   {todayPrompt && (
                     <button

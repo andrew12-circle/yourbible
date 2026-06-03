@@ -1,9 +1,13 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import AppErrorBoundary from "@/components/AppErrorBoundary";
+import OfflineBanner from "@/components/OfflineBanner";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import HomePage from "./pages/HomePage";
@@ -56,28 +60,19 @@ import LifeWeeksPage from "./pages/life/LifeWeeksPage";
 import LifePrioritiesPage from "./pages/life/LifePrioritiesPage";
 import HabitsPage from "./pages/life/HabitsPage";
 import TodosPage from "./pages/life/TodosPage";
-
-const queryClient = new QueryClient();
-
-/** Apply Apple-style white theme to <body> on every route except the Bible reader. */
-function ThemeSwitcher() {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    const isReader = pathname.startsWith("/read/");
-    document.body.classList.toggle("app-theme", !isReader);
-  }, [pathname]);
-  return null;
-}
+import ReadingPlansPage from "./pages/bible/ReadingPlansPage";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeSwitcher />
-          <Routes>
+    <AppErrorBoundary>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppOfflineBanner />
+          <AuthProvider>
+            <ThemeSwitcher />
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/home" element={<HomePage />} />
@@ -87,6 +82,7 @@ const App = () => (
             <Route path="/partner/accept" element={<PartnerAcceptPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/read/:book/:chapter" element={<ReaderPage />} />
+            <Route path="/reading-plans" element={<ReadingPlansPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sleep" element={<SleepPage />} />
             <Route path="/life-weeks" element={<LifeWeeksPage />} />
@@ -151,7 +147,26 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </AppErrorBoundary>
   </QueryClientProvider>
 );
+
+/** Offline banner on app routes (reader shows its own with cache hints). */
+function AppOfflineBanner() {
+  const { pathname } = useLocation();
+  const online = useOnlineStatus();
+  if (online || pathname.startsWith("/read/")) return null;
+  return <OfflineBanner />;
+}
+
+/** Apply Apple-style white theme to <body> on every route except the Bible reader. */
+function ThemeSwitcher() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const isReader = pathname.startsWith("/read/");
+    document.body.classList.toggle("app-theme", !isReader);
+  }, [pathname]);
+  return null;
+}
 
 export default App;

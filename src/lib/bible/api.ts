@@ -24,17 +24,59 @@ export async function listBibles(): Promise<BibleEntry[]> {
   return (json?.data ?? []) as BibleEntry[];
 }
 
-export async function fetchPassage(bibleId: string, book: string, chapter: number): Promise<Passage> {
+export async function fetchPassage(
+  bibleId: string,
+  book: string,
+  chapter: number,
+  signal?: AbortSignal,
+): Promise<Passage> {
   const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
   u.searchParams.set("bibleId", bibleId);
   u.searchParams.set("book", book);
   u.searchParams.set("chapter", String(chapter));
-  const r = await fetch(u.toString(), { headers: { Authorization: `Bearer ${ANON}`, apikey: ANON } });
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
+    signal,
+  });
   if (!r.ok) {
     const err = await r.text();
     throw new Error(`passage ${r.status}: ${err}`);
   }
   return r.json();
+}
+
+export interface BibleSearchHit {
+  reference: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+}
+
+export async function searchBible(
+  bibleId: string,
+  query: string,
+  limit = 25,
+  signal?: AbortSignal,
+): Promise<BibleSearchHit[]> {
+  const u = new URL(`${FUNCTIONS_BASE}/bible-search`);
+  u.searchParams.set("bibleId", bibleId);
+  u.searchParams.set("q", query);
+  u.searchParams.set("limit", String(limit));
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
+    signal,
+  });
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`search ${r.status}: ${err}`);
+  }
+  const json = (await r.json()) as { results?: BibleSearchHit[] };
+  return json.results ?? [];
+}
+
+export function passagePlainText(passage: Passage): string {
+  return passage.verses.map((v) => `${v.number} ${v.text}`).join(" ");
 }
 
 export async function streamVerseAI(opts: {
