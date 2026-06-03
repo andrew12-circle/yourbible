@@ -14,7 +14,7 @@ export default function ArtifactDetailStudyColumnWrapper({ isDesktop, children, 
     return (
       <TabsContent
         value="study"
-        className="mt-0 px-4 pb-10 focus-visible:outline-none data-[state=inactive]:hidden sm:px-5 md:px-8 md:pb-14"
+        className="mt-0 px-0 pb-10 focus-visible:outline-none data-[state=inactive]:hidden md:pb-14"
       >
         <div className={artifactStudyBodyMobile}>{children}</div>
       </TabsContent>

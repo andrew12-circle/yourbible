@@ -12,6 +12,7 @@ import {
   artifactScrollMtMobile,
   artifactScrollMtMobilePane,
   artifactStudySectionContentMobile,
+  artifactMobileStudyContentInset,
 } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +107,12 @@ export default function ArtifactCollapsibleSection({
       id={id}
       open={open}
       onOpenChange={onOpenChange}
-      className={cn(scrollMt, isDesktop ? "mb-4" : "mb-0", className)}
+      className={cn(
+        scrollMt,
+        isDesktop ? "mb-4" : "mb-0",
+        !isDesktop && pinnedVideoPane && artifactMobileStudyContentInset,
+        className,
+      )}
     >
       <CollapsibleTrigger
         id={triggerId}

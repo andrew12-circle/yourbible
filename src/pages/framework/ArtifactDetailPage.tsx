@@ -57,6 +57,7 @@ import {
   artifactDesktopBodySheet,
   artifactMobileDockPadding,
   artifactMobilePinnedHeaderPadding,
+  artifactMobileStudyContentInset,
   artifactPremiumCard,
   artifactScrollMt,
 } from "@/lib/framework/artifactSurfaces";
@@ -1330,7 +1331,7 @@ export default function ArtifactDetailPage() {
         className={cn(
           "space-y-6 lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-6",
           artifactSplitPaneHeightClass,
-          mobilePinnedPane && "flex min-h-0 flex-1 flex-col space-y-0 overflow-hidden",
+          mobilePinnedPane && "flex min-h-0 flex-1 flex-col space-y-0 overflow-x-visible overflow-y-hidden",
         )}
       >
         <Tabs
@@ -1338,7 +1339,7 @@ export default function ArtifactDetailPage() {
           onValueChange={handleMobileTabChange}
           className={cn(
             "min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col",
-            mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
+            mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
           )}
         >
         <div
@@ -1471,7 +1472,7 @@ export default function ArtifactDetailPage() {
                   artifactMobileDockPadding,
                   mobileTab === "journal"
                     ? "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden"
-                    : "h-full min-h-0 w-full overflow-y-auto overscroll-contain",
+                    : "h-full min-h-0 w-full overflow-x-visible overflow-y-auto overscroll-contain",
                 )
               : "contents",
           )}
@@ -1487,6 +1488,7 @@ export default function ArtifactDetailPage() {
           stickyVideoLayout={false}
           variant={desktopPremiumYoutube ? "desktop" : "default"}
           className={cn(
+            !isDesktop && !desktopPremiumYoutube && artifactMobileStudyContentInset,
             !isDesktop && stickyVideoMode && !showMobileOverview && "sticky top-0 z-[28]",
             showMobileOverview && "hidden",
           )}

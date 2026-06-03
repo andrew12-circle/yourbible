@@ -3,6 +3,7 @@ import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detai
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
+import { artifactMobileStudyContentInset } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
 type ClaimLike = {
@@ -52,6 +53,7 @@ export default function ArtifactMobileOverview({
             title="Key insights"
             count={claimsCount}
             countLabel={`${claimsCount} insights`}
+            className={artifactMobileStudyContentInset}
           />
           <ArtifactMobileInsightHeroRail
             claims={claims}
@@ -69,12 +71,15 @@ export default function ArtifactMobileOverview({
           countLabel={entitiesCount != null ? `${entitiesCount} mentioned` : undefined}
           actionLabel={entitiesExpanded ? undefined : "Explore all"}
           onAction={entitiesExpanded ? undefined : () => setEntitiesExpanded(true)}
+          className={artifactMobileStudyContentInset}
         />
-        <ArtifactEntitiesPanel
-          artifactId={artifactId}
-          artifactStatus={artifactStatus}
-          variant={entitiesExpanded ? "default" : "mobileRail"}
-        />
+        <div className={entitiesExpanded ? artifactMobileStudyContentInset : undefined}>
+          <ArtifactEntitiesPanel
+            artifactId={artifactId}
+            artifactStatus={artifactStatus}
+            variant={entitiesExpanded ? "default" : "mobileRail"}
+          />
+        </div>
       </div>
     </section>
   );

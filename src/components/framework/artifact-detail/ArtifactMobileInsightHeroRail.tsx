@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
-import { artifactMobileStudyRailBleed } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactMobileStudyContentInset,
+  artifactMobileStudyRailLeadingPad,
+} from "@/lib/framework/artifactSurfaces";
 import {
   artifactMobileInsightHeroCard,
   artifactMobileInsightHeroAccent,
@@ -241,17 +244,12 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
   if (claims.length === 0) return null;
 
   return (
-    <div
-      className={cn(
-        "min-w-0 w-full space-y-4 overflow-hidden",
-        artifactMobileStudyRailBleed,
-        className,
-      )}
-    >
+    <div className={cn("w-full min-w-0 max-w-none space-y-4", className)}>
       <div
         ref={railRef}
         className={cn(
-          "w-full max-w-full cursor-grab overflow-hidden rounded-2xl bg-white pb-3 pt-1 shadow-sm ring-1 ring-border/30 active:cursor-grabbing md:rounded-3xl md:pb-4 md:pt-2",
+          "w-full max-w-none cursor-grab overflow-hidden active:cursor-grabbing",
+          artifactMobileStudyRailLeadingPad,
           "touch-pan-x overscroll-x-contain",
           isDragging && "touch-none",
         )}
@@ -335,7 +333,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
         </div>
       </div>
       {claims.length > 1 ? (
-        <div className="flex w-full max-w-full items-center justify-between gap-3 px-1 md:px-2">
+        <div className={cn("flex w-full max-w-none items-center justify-between gap-3", artifactMobileStudyContentInset)}>
           <button
             type="button"
             aria-label="Previous insight"

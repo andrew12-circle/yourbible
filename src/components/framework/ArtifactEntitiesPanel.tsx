@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   artifactHorizontalRail,
   artifactHorizontalRailBase,
-  artifactMobileStudyRailBleed,
+  artifactMobileStudyRailLeadingPad,
 } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -285,7 +285,11 @@ export default function ArtifactEntitiesPanel({
       <div
         className={cn(
           variant === "mobileRail"
-            ? cn(artifactHorizontalRailBase, "snap-x snap-mandatory", artifactMobileStudyRailBleed)
+            ? cn(
+                artifactHorizontalRailBase,
+                "snap-x snap-mandatory w-full max-w-none",
+                artifactMobileStudyRailLeadingPad,
+              )
             : artifactHorizontalRail,
           variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
         )}

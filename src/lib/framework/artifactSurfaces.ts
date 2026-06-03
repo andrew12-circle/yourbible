@@ -46,10 +46,20 @@ export const artifactStudySectionTriggerMobile = cn(
 /** Mobile study section body below trigger. */
 export const artifactStudySectionContentMobile = "pb-4 pt-1.5";
 
-/** Mobile study column: airy section blocks (replaces flat divider stack). */
+/** Mobile study column: full-width rails; section copy keeps right inset via `artifactMobileStudyContentInset`. */
 export const artifactStudyBodyMobile = cn(
   "space-y-10 bg-background pb-10",
-  "md:mx-auto md:max-w-3xl md:space-y-12",
+  "lg:mx-auto lg:max-w-3xl lg:space-y-12",
+);
+
+/** Horizontal inset for study titles/accordions; rails stay edge-to-edge on the right. */
+export const artifactMobileStudyContentInset = cn(
+  "px-4 sm:px-5 md:px-8",
+);
+
+/** Left inset for horizontal rails (matches study titles); right edge stays on screen. */
+export const artifactMobileStudyRailLeadingPad = cn(
+  "pl-4 sm:pl-5 md:pl-8",
 );
 
 /**
@@ -60,6 +70,13 @@ export const artifactMobileStudyRailBleed = cn(
   "-mx-4 w-[calc(100%+2rem)] px-4",
   "sm:-mx-5 sm:w-[calc(100%+2.5rem)] sm:px-5",
   "md:-mx-8 md:w-[calc(100%+4rem)] md:px-8",
+);
+
+/** @deprecated Prefer flush study column (pr-0) + `artifactMobileStudyContentInset` on text blocks. */
+export const artifactMobileInsightHeroRailBleed = cn(
+  "-mr-4 w-[calc(100%+1rem)]",
+  "sm:-mr-5 sm:w-[calc(100%+1.25rem)]",
+  "md:-mr-8 md:w-[calc(100%+2rem)]",
 );
 
 /** Mobile premium section title (Playfair). */

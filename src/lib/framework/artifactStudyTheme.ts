@@ -98,11 +98,11 @@ export function artifactMobileInsightHeroAccent(index: number) {
   return artifactMobileInsightHeroAccents[index % artifactMobileInsightHeroAccents.length];
 }
 
-/** Width for one hero insight slide — % of rail so iPad/tablet never clips at viewport edge. */
+/** Width for one hero insight slide — sized for viewport minus leading pad and a right peek. */
 export const artifactMobileInsightHeroSlide = cn(
-  "w-[min(86%,300px)] min-w-[248px] max-w-[300px] shrink-0 grow-0",
-  "sm:w-[min(84%,340px)] sm:max-w-[340px]",
-  "md:w-[min(420px,calc(100%-2.75rem))] md:max-w-[420px]",
+  "w-[min(300px,calc(100vw-3.75rem))] min-w-[248px] shrink-0 grow-0",
+  "sm:w-[min(340px,calc(100vw-4.25rem))]",
+  "md:w-[min(340px,calc(100vw-5rem))]",
 );
 
 export const artifactMobileInsightHeroNumber = "font-display text-4xl font-semibold tabular-nums leading-none";
