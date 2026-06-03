@@ -30,26 +30,41 @@ function IconSvg({
   );
 }
 
-export function FinePenIcon({
-  accentColor = "#007AFF",
-  className,
-}: SketchToolIconProps) {
+/** Apple Pencil — white barrel, tapered cone, metallic nib (tip up). */
+export function FinePenIcon({ className }: SketchToolIconProps) {
   const id = useId().replace(/:/g, "");
-  const bodyId = `${id}-fineBody`;
+  const bodyId = `${id}-apBody`;
+  const taperId = `${id}-apTaper`;
+  const nibId = `${id}-apNib`;
 
   return (
     <IconSvg className={className}>
       <defs>
-        <linearGradient id={bodyId} x1="11" y1="13" x2="21" y2="13" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#4B5563" />
-          <stop offset=".45" stopColor="#111827" />
-          <stop offset="1" stopColor="#050505" />
+        <linearGradient id={bodyId} x1="10" y1="4" x2="22" y2="4" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#ECECEF" />
+          <stop offset="0.45" stopColor="#FFFFFF" />
+          <stop offset="1" stopColor="#DADADF" />
+        </linearGradient>
+        <linearGradient id={taperId} x1="11" y1="22" x2="21" y2="38" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FAFAFC" />
+          <stop offset="1" stopColor="#EBEBF0" />
+        </linearGradient>
+        <linearGradient id={nibId} x1="14" y1="38" x2="18" y2="47" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#B8B8BE" />
+          <stop offset="0.35" stopColor="#F4F4F6" />
+          <stop offset="0.65" stopColor="#D8D8DE" />
+          <stop offset="1" stopColor="#9E9EA8" />
         </linearGradient>
       </defs>
-      <path d="M16 3L20 13H12L16 3Z" fill={accentColor} />
-      <rect x="11" y="13" width="10" height="28" rx="5" fill={`url(#${bodyId})`} />
-      <rect x="13" y="16" width="2" height="22" rx="1" fill="white" opacity=".18" />
-      <path d="M14 41H18L16 47L14 41Z" fill="#111" />
+      <g transform="rotate(180 16 24)">
+        <rect x="11" y="4" width="10" height="18" rx="5" fill={`url(#${bodyId})`} />
+        <rect x="12.4" y="6" width="1.8" height="14" rx="0.9" fill="#FFFFFF" opacity="0.65" />
+        <ellipse cx="16" cy="22" rx="5.2" ry="0.75" fill="#C8C8D0" opacity="0.55" />
+        <path d="M11 22.4 H21 L17.8 37.2 H14.2 Z" fill={`url(#${taperId})`} />
+        <path d="M11.6 23.2 L14.4 36.4" stroke="#FFFFFF" strokeWidth="0.7" opacity="0.35" strokeLinecap="round" />
+        <path d="M14.2 37.2 H17.8 L16 47 Z" fill={`url(#${nibId})`} />
+        <path d="M15.1 39.5 L16 45.8" stroke="#FFFFFF" strokeWidth="0.55" opacity="0.75" strokeLinecap="round" />
+      </g>
     </IconSvg>
   );
 }

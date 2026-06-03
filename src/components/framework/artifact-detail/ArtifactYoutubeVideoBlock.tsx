@@ -16,6 +16,7 @@ import {
   isArtifactPipVideo,
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
+import { artifactMobileJournalEdgePad } from "@/lib/framework/artifactLayoutCss";
 import { cn } from "@/lib/utils";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
@@ -246,7 +247,12 @@ function ArtifactYoutubeVideoBlock({
         ref={mobileVideoOnlyRef}
         className={cn(
           mobilePinnedLayout &&
-            "fixed top-0 left-0 right-0 z-[39] w-full max-w-[100vw] bg-background",
+            cn(
+              "fixed top-0 left-0 right-0 z-[39] w-full max-w-[100vw] bg-background",
+              "pt-[env(safe-area-inset-top,0px)]",
+              artifactMobileJournalEdgePad,
+              "pb-2",
+            ),
           !mobilePinnedLayout && "lg:contents",
         )}
       >

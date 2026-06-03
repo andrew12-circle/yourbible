@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Clock, Keyboard, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHandwrittenPreferredJournal, useIsTablet, useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import { useLockPageZoom } from "@/hooks/useLockPageZoom";
@@ -49,6 +49,10 @@ interface Point {
 type Stroke = InkStroke;
 
 const PEN_SIZES = [2, 4, 6, 10, 16];
+/** Default ink for artifact journal handwritten (fine tip, black, size 6). */
+const JOURNAL_HANDWRITE_TOOL: InkDrawTool = "fineline";
+const JOURNAL_HANDWRITE_COLOR = "#000000";
+const JOURNAL_HANDWRITE_SIZE = 6;
 
 const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
@@ -83,6 +87,12 @@ export interface SketchPadProps {
   /** Show "New page" in the header (artifact journal). */
   showNewPage?: boolean;
   onNewPage?: () => void;
+  /** Title + source block on the ruled notebook page (artifact journal). */
+  journalPageHeader?: ReactNode;
+  /** Saved timestamp marks list (artifact journal handwritten). */
+  journalTimestampStrip?: ReactNode;
+  /** Clock control in top-right chrome (artifact journal). */
+  onInsertTimestamp?: () => void;
 }
 
 function prefersNightMode() {
@@ -107,11 +117,17 @@ export default function SketchPad({
   backgroundImageUrl = null,
   showNewPage = false,
   onNewPage,
+  journalPageHeader = null,
+  journalTimestampStrip = null,
+  onInsertTimestamp,
 }: SketchPadProps) {
   const isInline = layout === "inline";
+  const journalHandwriteChrome = isInline && fullBleed;
   const tabletPortrait = useIsTabletPortrait();
   const tablet = useIsTablet();
   const preferHandwritten = useHandwrittenPreferredJournal();
+  /** iPad/tablet inline journal: reject palm immediately, not only after first pen stroke. */
+  const strictPalmRejection = journalHandwriteChrome || (isInline && preferHandwritten);
   const disableViewZoom = preferHandwritten;
   const edgeToEdgePaper = Boolean(isInline && fullBleed) || tablet;
   useLockPageZoom(open && disableViewZoom);
@@ -134,23 +150,31 @@ export default function SketchPad({
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
-  const [tool, setTool] = useState<InkTool>("fountain");
-  const lastDrawToolRef = useRef<InkDrawTool>("fountain");
+  const [tool, setTool] = useState<InkTool>(() =>
+    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
+  );
+  const lastDrawToolRef = useRef<InkDrawTool>(
+    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
+  );
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const [rulerVisible, setRulerVisible] = useState(false);
   const [rulerCenter, setRulerCenter] = useState({ x: 200, y: 200 });
   const [rulerAngle, setRulerAngle] = useState(35);
   const [rulerLength, setRulerLength] = useState(400);
   const [snapToRuler, setSnapToRuler] = useState(true);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(journalHandwriteChrome);
   const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
     null,
   );
   const lassoPointsRef = useRef<Point[]>([]);
   const [isNightMode, setIsNightMode] = useState(prefersNightMode);
   const isNightModeRef = useRef(isNightMode);
-  const [color, setColor] = useState<string>(() => getSketchPenColors(prefersNightMode())[0].value);
-  const [size, setSize] = useState<number>(PEN_SIZES[1]);
+  const [color, setColor] = useState<string>(() =>
+    journalHandwriteChrome ? JOURNAL_HANDWRITE_COLOR : getSketchPenColors(prefersNightMode())[0].value,
+  );
+  const [size, setSize] = useState<number>(() =>
+    journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1],
+  );
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
    * ignore finger & palm (`touch`) input on the canvas — just like Apple Notes.
@@ -467,6 +491,10 @@ export default function SketchPad({
     img.src = backgroundImageUrl;
   }, [open, backgroundImageUrl, draftKey]);
 
+  useEffect(() => {
+    if (open && journalHandwriteChrome) setToolbarCollapsed(true);
+  }, [open, journalHandwriteChrome]);
+
   // Reset / restore when opened
   useEffect(() => {
     if (!open) return;
@@ -476,10 +504,11 @@ export default function SketchPad({
     activeStrokeRef.current = null;
     activePointerIdRef.current = null;
     activePointerTypeRef.current = null;
-    penSeenRef.current = false;
+    penSeenRef.current = strictPalmRejection && palmRejection;
     setHasStrokes(strokesRef.current.length > 0);
     setRedoCount(0);
-    const restoredTool = draft?.tool ?? "fountain";
+    const restoredTool =
+      draft?.tool ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain");
     setTool(restoredTool);
     if (restoredTool !== "ruler" && restoredTool !== "lasso") {
       lastDrawToolRef.current = restoredTool;
@@ -490,15 +519,17 @@ export default function SketchPad({
     setColor(
       draft?.color
         ? mappedSketchColorForMode(draft.color, isNightModeRef.current)
-        : getSketchPenColors(isNightModeRef.current)[0].value,
+        : journalHandwriteChrome
+          ? JOURNAL_HANDWRITE_COLOR
+          : getSketchPenColors(isNightModeRef.current)[0].value,
     );
-    setSize(draft?.size ?? PEN_SIZES[1]);
+    setSize(draft?.size ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1]));
     resetViewRef.current();
     requestAnimationFrame(() => {
       resizeCanvasRef.current();
       flushRedrawRef.current();
     });
-  }, [open, draftKey]);
+  }, [open, draftKey, journalHandwriteChrome, palmRejection, strictPalmRejection]);
 
   useEffect(() => {
     if (!open) return;
@@ -642,11 +673,7 @@ export default function SketchPad({
     if (!canvas) return;
     if (e.pointerType === "pen") penSeenRef.current = true;
 
-    if (
-      palmRejectionRef.current &&
-      penSeenRef.current &&
-      e.pointerType === "touch"
-    ) {
+    if (palmRejectionRef.current && penSeenRef.current && e.pointerType === "touch") {
       e.preventDefault();
       return;
     }
@@ -884,7 +911,13 @@ export default function SketchPad({
         isInline
           ? cn(
               "relative h-full min-h-0 w-full max-w-none flex-1",
-              fullBleed ? "bg-white dark:bg-slate-950" : isNightMode ? "bg-white dark:bg-slate-950" : "bg-background",
+              fullBleed
+                ? journalHandwriteChrome
+                  ? "bg-background"
+                  : "bg-muted/50 dark:bg-muted/35"
+                : isNightMode
+                  ? "bg-white dark:bg-slate-950"
+                  : "bg-background",
             )
           : cn("fixed inset-0 z-[80]", isNightMode ? "dark bg-slate-950 text-slate-100" : "bg-background"),
       )}
@@ -902,6 +935,7 @@ export default function SketchPad({
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
+      {!journalHandwriteChrome ? (
       <header
         className={cn(
           "flex-shrink-0 border-b",
@@ -911,58 +945,71 @@ export default function SketchPad({
         )}
       >
         <div className="flex h-11 items-center gap-2">
-        <button
-          type="button"
-          onClick={requestClose}
-          className={cn("rounded-full p-1.5 transition", isNightMode ? "text-slate-300 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
-          title={isInline ? "Back to typed journal" : "Close handwritten"}
-          aria-label={isInline ? "Back to typed journal" : "Close handwritten"}
-        >
-          {isInline ? <Keyboard className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </button>
-        <div
-          className={cn(
-            "min-w-0 flex-1 truncate text-center text-[13px] font-medium",
-            isNightMode ? "text-slate-300" : "text-muted-foreground",
-          )}
-        >
-          {isInline ? inlineTitle?.trim() || "Handwritten" : "Handwritten"}
-        </div>
-        {showNewPage && onNewPage ? (
-          <Button
-            type="button"
-            onClick={onNewPage}
-            size="sm"
-            variant="ghost"
-            className={cn(
-              "h-8 shrink-0 rounded-full px-2.5 text-[12px] font-medium",
-              isNightMode
-                ? "text-slate-300 hover:bg-white/10 hover:text-white"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            New page
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={!hasStrokes || saving}
-          size="sm"
-          variant="ghost"
-          className={cn("h-8 shrink-0 rounded-full px-3 text-[13px] font-medium", isNightMode ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500" : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground")}
-        >
-          {saving ? (
-            "Saving…"
-          ) : (
-            <>
-              <span className={isInline || tabletPortrait ? "inline" : "hidden sm:inline"}>Save handwritten</span>
-              <span className={isInline || tabletPortrait ? "hidden" : "sm:hidden"}>Save</span>
-            </>
-          )}
-        </Button>
+            <button
+              type="button"
+              onClick={requestClose}
+              className={cn(
+                "rounded-full p-1.5 transition",
+                isNightMode
+                  ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              title={isInline ? "Back to typed journal" : "Close handwritten"}
+              aria-label={isInline ? "Back to typed journal" : "Close handwritten"}
+            >
+              {isInline ? <Keyboard className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </button>
+            <div
+              className={cn(
+                "min-w-0 flex-1 truncate text-center text-[13px] font-medium",
+                isNightMode ? "text-slate-300" : "text-muted-foreground",
+              )}
+            >
+              {isInline ? inlineTitle?.trim() || "Handwritten" : "Handwritten"}
+            </div>
+            {showNewPage && onNewPage ? (
+              <Button
+                type="button"
+                onClick={onNewPage}
+                size="sm"
+                variant="ghost"
+                className={cn(
+                  "h-8 shrink-0 rounded-full px-2.5 text-[12px] font-medium",
+                  isNightMode
+                    ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                New page
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={!hasStrokes || saving}
+              size="sm"
+              variant="ghost"
+              className={cn(
+                "h-8 shrink-0 rounded-full px-3 text-[13px] font-medium",
+                isNightMode
+                  ? "text-sky-300 hover:bg-sky-400/10 hover:text-sky-200 disabled:text-slate-500"
+                  : "text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:text-muted-foreground",
+              )}
+            >
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <span className={isInline || tabletPortrait ? "inline" : "hidden sm:inline"}>
+                    Save handwritten
+                  </span>
+                  <span className={isInline || tabletPortrait ? "hidden" : "sm:hidden"}>Save</span>
+                </>
+              )}
+            </Button>
         </div>
       </header>
+      ) : null}
 
       <input
         ref={customColorRef}
@@ -978,11 +1025,13 @@ export default function SketchPad({
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {!journalHandwriteChrome ? (
         <SketchInkToolbar
           isNightMode={isNightMode}
           collapsed={toolbarCollapsed}
           onCollapsedChange={setToolbarCollapsed}
           tabletPortrait={tabletPortrait}
+          collapsedAnchor="center"
           tool={tool}
           color={color}
           size={size}
@@ -1008,22 +1057,194 @@ export default function SketchPad({
           onSnapToRulerChange={setSnapToRuler}
           customColorInputRef={customColorRef}
         />
+        ) : null}
 
-        {/* Canvas — pill floats over top edge via negative margin */}
         <div
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
-            toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]",
+            !journalHandwriteChrome &&
+              (toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]"),
             edgeToEdgePaper ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
-            isNightMode ? "bg-black" : edgeToEdgePaper ? "bg-white" : "bg-muted/40",
+            isNightMode
+              ? "bg-black"
+              : edgeToEdgePaper
+                ? journalHandwriteChrome
+                  ? "bg-background"
+                  : "bg-muted/50 dark:bg-muted/35"
+                : "bg-muted/40",
           )}
         >
+        {journalHandwriteChrome ? (
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+            <div className="absolute top-2 right-2 z-[55] flex items-center gap-1 pr-[max(0.25rem,env(safe-area-inset-right,0px))]">
+              {onInsertTimestamp ? (
+                <button
+                  type="button"
+                  onClick={onInsertTimestamp}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition hover:bg-muted hover:text-foreground"
+                  title="Timestamp"
+                  aria-label="Timestamp"
+                >
+                  <Clock className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={requestClose}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition hover:bg-muted hover:text-foreground"
+                title="Back to typed journal"
+                aria-label="Back to typed journal"
+              >
+                <Keyboard className="h-4 w-4" aria-hidden />
+              </button>
+              {showNewPage && onNewPage ? (
+                <button
+                  type="button"
+                  onClick={onNewPage}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition hover:bg-muted hover:text-foreground"
+                  title="New page"
+                  aria-label="New page"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={!hasStrokes || saving}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-blue-600 shadow-sm ring-1 ring-border/50 transition hover:bg-blue-50 disabled:opacity-40"
+                title="Save handwritten"
+                aria-label="Save handwritten"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            </div>
+            {journalPageHeader}
+            {journalTimestampStrip}
+            <div
+              ref={wrapperRef}
+              className="relative min-h-0 flex-1 overflow-hidden"
+              style={{
+                WebkitUserSelect: "none",
+                WebkitTouchCallout: "none",
+                touchAction: "none",
+                overscrollBehavior: "none",
+              }}
+              onTouchStart={handleWrapTouchStart}
+              onTouchMove={handleWrapTouchMove}
+              onTouchEnd={handleWrapTouchEnd}
+              onTouchCancel={handleWrapTouchEnd}
+            >
+              <SketchInkToolbar
+                isNightMode={isNightMode}
+                collapsed={toolbarCollapsed}
+                onCollapsedChange={setToolbarCollapsed}
+                tabletPortrait={tabletPortrait}
+                collapsedAnchor="start"
+                floatOverPaper
+                tool={tool}
+                color={color}
+                size={size}
+                penColors={penColors}
+                paper={paper}
+                hasStrokes={hasStrokes}
+                redoCount={redoCount}
+                drawWithFinger={drawWithFinger}
+                rulerVisible={rulerVisible}
+                snapToRuler={snapToRuler}
+                onToolChange={handleToolChange}
+                onColorChange={(c) => {
+                  setColor(c);
+                  if (tool === "eraser") handleToolChange("fountain");
+                  else if (tool === "lasso") setTool(lastDrawToolRef.current);
+                }}
+                onSizeChange={setSize}
+                onPaperChange={handlePaperChange}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onClear={handleClear}
+                onDrawWithFingerChange={(v) => setPalmRejection(!v)}
+                onSnapToRulerChange={setSnapToRuler}
+                customColorInputRef={customColorRef}
+              />
+              <div
+                ref={transformRef}
+                className="relative h-full w-full"
+                style={{
+                  transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`,
+                  transformOrigin: "0 0",
+                }}
+              >
+            <SketchRulerOverlay
+              visible={rulerVisible}
+              centerX={rulerCenter.x}
+              centerY={rulerCenter.y}
+              angleDeg={rulerAngle}
+              lengthPx={rulerLength}
+              isNightMode={isNightMode}
+              onPointerDown={(e) => {
+                const wrap = wrapperRef.current;
+                if (!wrap) return;
+                const rect = wrap.getBoundingClientRect();
+                rulerDragRef.current = { mode: "move" };
+                setRulerCenter({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top,
+                });
+                e.preventDefault();
+              }}
+              onRotatePointerDown={(e) => {
+                const wrap = wrapperRef.current;
+                if (!wrap) return;
+                const rect = wrap.getBoundingClientRect();
+                const cx = rulerCenter.x + rect.left;
+                const cy = rulerCenter.y + rect.top;
+                const pointerAngle =
+                  (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+                rulerDragRef.current = {
+                  mode: "rotate",
+                  startAngle: rulerAngle,
+                  startPointerAngle: pointerAngle,
+                };
+                e.preventDefault();
+              }}
+            />
+            <canvas
+              ref={canvasRef}
+              className="block h-full w-full touch-none select-none"
+              style={{
+                touchAction: "none",
+                WebkitUserSelect: "none",
+                WebkitTouchCallout: "none",
+                cursor:
+                  tool === "eraser"
+                    ? "cell"
+                    : tool === "lasso"
+                      ? "crosshair"
+                      : tool === "ruler"
+                        ? "grab"
+                        : "crosshair",
+              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerUp}
+            />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div
           ref={wrapperRef}
           className={cn(
             "relative h-full w-full overflow-hidden",
             edgeToEdgePaper
-              ? "rounded-none border-0 shadow-none"
+              ? "mx-2 mb-2 rounded-lg border border-border/40 shadow-sm"
               : "rounded-lg border shadow-sm sm:rounded-xl",
             isNightMode ? "bg-black" : "bg-white",
             !edgeToEdgePaper && (isNightMode ? "border-white/10" : "border-border/60"),
@@ -1105,6 +1326,7 @@ export default function SketchPad({
             />
           </div>
         </div>
+        )}
         </div>
       </div>
 

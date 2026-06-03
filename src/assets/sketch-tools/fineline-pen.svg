@@ -1,14 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" fill="none" shape-rendering="geometricPrecision">
   <defs>
-    <linearGradient id="body" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3a3a3c"/>
-      <stop offset="50%" stop-color="#141416"/>
-      <stop offset="100%" stop-color="#252528"/>
+    <linearGradient id="apBody" x1="10" y1="4" x2="22" y2="4" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ECECEF"/>
+      <stop offset="0.45" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DADADF"/>
+    </linearGradient>
+    <linearGradient id="apTaper" x1="11" y1="22" x2="21" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAFAFC"/>
+      <stop offset="1" stop-color="#EBEBF0"/>
+    </linearGradient>
+    <linearGradient id="apNib" x1="14" y1="38" x2="18" y2="47" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B8B8BE"/>
+      <stop offset="0.35" stop-color="#F4F4F6"/>
+      <stop offset="0.65" stop-color="#D8D8DE"/>
+      <stop offset="1" stop-color="#9E9EA8"/>
     </linearGradient>
   </defs>
-  <rect x="11" y="5" width="10" height="26" rx="5" fill="url(#body)"/>
-  <rect x="11" y="20" width="10" height="2" rx="0.6" fill="#007aff"/>
-  <path d="M16 48 L17.5 45 L14.5 45 Z" fill="#007aff"/>
-  <line x1="11.6" y1="5" x2="11.6" y2="26" stroke="rgba(255,255,255,0.26)" stroke-width="0.6" stroke-linecap="round"/>
-  <ellipse cx="16" cy="4.5" rx="4" ry="1" fill="rgba(255,255,255,0.14)"/>
+  <g transform="rotate(180 16 24)">
+    <rect x="11" y="4" width="10" height="18" rx="5" fill="url(#apBody)"/>
+    <rect x="12.4" y="6" width="1.8" height="14" rx="0.9" fill="#FFFFFF" opacity="0.65"/>
+    <ellipse cx="16" cy="22" rx="5.2" ry="0.75" fill="#C8C8D0" opacity="0.55"/>
+    <path d="M11 22.4 H21 L17.8 37.2 H14.2 Z" fill="url(#apTaper)"/>
+    <path d="M11.6 23.2 L14.4 36.4" stroke="#FFFFFF" stroke-width="0.7" opacity="0.35" stroke-linecap="round"/>
+    <path d="M14.2 37.2 H17.8 L16 47 Z" fill="url(#apNib)"/>
+    <path d="M15.1 39.5 L16 45.8" stroke="#FFFFFF" stroke-width="0.55" opacity="0.75" stroke-linecap="round"/>
+  </g>
 </svg>

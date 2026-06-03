@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ArtifactMobileOverview from "./ArtifactMobileOverview";
 
 vi.mock("@/components/framework/ArtifactEntitiesPanel", () => ({
-  default: () => <div>People and themes rail</div>,
+  default: ({ variant }: { variant?: string }) => (
+    <div>{variant === "default" ? "Full entity index" : "People and themes rail"}</div>
+  ),
 }));
 
 const claims = [
@@ -169,5 +171,22 @@ describe("ArtifactMobileOverview", () => {
     fireEvent.pointerUp(card, { pointerId: 1, clientX: 60, clientY: 124, timeStamp: 120 });
 
     expect(screen.getByRole("tab", { name: "Insight 3" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("expands the full people and themes index from explore all", () => {
+    render(
+      <ArtifactMobileOverview
+        claims={claims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={claims.length}
+        entitiesCount={2}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /explore all/i }));
+    expect(screen.getByText("Full entity index")).toBeInTheDocument();
   });
 });

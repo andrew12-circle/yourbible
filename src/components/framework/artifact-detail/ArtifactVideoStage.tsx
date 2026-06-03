@@ -57,6 +57,7 @@ export default function ArtifactVideoStage({
   variant = "default",
 }: Props) {
   const heroEmbed = variant === "hero";
+  const pinnedMobile = Boolean(mobilePinnedHeader);
   const thumb = thumbnailUrl || youtubeHqThumbnail(youTubeVideoId);
   const pipHeight = pipTotalHeightPx(pipLayout.width);
   const inlineEmbedSrc =
@@ -147,7 +148,14 @@ export default function ArtifactVideoStage({
       ref={heroEmbed ? undefined : videoSlotRef}
       className={cn(
         "relative w-full shrink-0 overflow-hidden bg-black",
-        heroEmbed ? "h-full min-h-[inherit]" : cn("aspect-video", artifactVideoRadius),
+        heroEmbed
+          ? "h-full min-h-[inherit]"
+          : cn(
+              "aspect-video",
+              pinnedMobile
+                ? "rounded-2xl shadow-sm ring-1 ring-border/50"
+                : artifactVideoRadius,
+            ),
       )}
       aria-hidden={pipMode ? true : undefined}
     >
@@ -167,8 +175,8 @@ export default function ArtifactVideoStage({
         <div
           id="video"
           className={cn(
-            "z-[29] w-full shrink-0 bg-black pt-[env(safe-area-inset-top,0px)]",
-            pinned ? "relative" : "sticky",
+            "z-[29] w-full shrink-0",
+            pinned ? "relative bg-transparent" : "sticky bg-black pt-[env(safe-area-inset-top,0px)]",
           )}
           style={
             pinned ? undefined : { top: "var(--artifact-header-h, 0px)" }

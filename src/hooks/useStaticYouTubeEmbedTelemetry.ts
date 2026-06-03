@@ -11,9 +11,14 @@ import {
   parseYouTubeEmbedMessage,
 } from "@/lib/youtube/embedTelemetry";
 
-function applyEmbedCurrentTime(currentTimeRef: { current: number }, t: unknown) {
+function applyEmbedCurrentTime(
+  currentTimeRef: { current: number },
+  lastTelemetryAtRef: { current: number },
+  t: unknown,
+) {
   if (typeof t !== "number" || !Number.isFinite(t)) return;
-  currentTimeRef.current = Math.max(0, Math.round(t));
+  currentTimeRef.current = Math.max(0, t);
+  lastTelemetryAtRef.current = Date.now();
 }
 
 /** Track playhead + playing state from the in-slot YouTube embed (enablejsapi=1). */
@@ -23,9 +28,33 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   initialSeconds?: number;
 }) {
   const { videoSlotRef, enabled, initialSeconds = 0 } = options;
-  const currentTimeRef = useRef(Math.max(0, Math.round(initialSeconds)));
+  const currentTimeRef = useRef(Math.max(0, initialSeconds));
+  const lastTelemetryAtRef = useRef(0);
   const isPlayingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const s = Math.max(0, initialSeconds);
+    currentTimeRef.current = s;
+  }, [initialSeconds]);
+
+  const requestCurrentTime = useCallback(() => {
+    const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
+    if (!iframe?.contentWindow) return;
+    try {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
+        "https://www.youtube.com",
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [videoSlotRef]);
+
+  const isTelemetryFresh = useCallback((maxAgeMs = 2500) => {
+    if (lastTelemetryAtRef.current <= 0) return false;
+    return Date.now() - lastTelemetryAtRef.current <= maxAgeMs;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -46,7 +75,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       }
 
       if (msg.event === "infoDelivery" && msg.info && typeof msg.info === "object") {
-        applyEmbedCurrentTime(currentTimeRef, currentTimeFromEmbedInfo(msg.info));
+        applyEmbedCurrentTime(currentTimeRef, lastTelemetryAtRef, currentTimeFromEmbedInfo(msg.info));
         const state = msg.info.playerState;
         if (typeof state === "number") {
           const playing = embedStateIsPlaying(state);
@@ -73,30 +102,17 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       }
     };
 
-    const pollCurrentTime = () => {
-      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
-      if (!iframe?.contentWindow) return;
-      try {
-        iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
-          "https://www.youtube.com",
-        );
-      } catch {
-        /* ignore */
-      }
-    };
-
     startListening();
-    pollCurrentTime();
+    requestCurrentTime();
     const listenInterval = window.setInterval(startListening, 2000);
-    const pollInterval = window.setInterval(pollCurrentTime, 250);
+    const pollInterval = window.setInterval(requestCurrentTime, 250);
 
     return () => {
       window.removeEventListener("message", onMessage);
       window.clearInterval(listenInterval);
       window.clearInterval(pollInterval);
     };
-  }, [enabled, videoSlotRef]);
+  }, [enabled, requestCurrentTime, videoSlotRef]);
 
   const runCommand = useCallback(
     (func: YouTubeEmbedCommand, args: number[] = []) => {
@@ -125,9 +141,10 @@ export function useStaticYouTubeEmbedTelemetry(options: {
 
   const seekTo = useCallback(
     (seconds: number, allowSeekAhead = true) => {
-      const s = Math.max(0, Math.round(seconds));
+      const s = Math.max(0, seconds);
       currentTimeRef.current = s;
-      runCommand("seekTo", [s, allowSeekAhead ? 1 : 0]);
+      lastTelemetryAtRef.current = Date.now();
+      runCommand("seekTo", [Math.round(s), allowSeekAhead ? 1 : 0]);
     },
     [runCommand],
   );
@@ -140,6 +157,8 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     pauseVideo,
     togglePlayback,
     seekTo,
+    requestCurrentTime,
+    isTelemetryFresh,
     currentTimeRef,
     isPlayingRef,
   };

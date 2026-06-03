@@ -168,6 +168,37 @@ describe("SketchPad", () => {
     expect(canvasContext.fillStyle).toBe("#f8fafc");
   });
 
+  it("opens inline artifact journal with fine tip pen and stroke size 6 by default", () => {
+    render(
+      <SketchPad open layout="inline" fullBleed onClose={vi.fn()} onSave={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
+
+    expect(screen.getByRole("button", { name: "Fine tip" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("blocks finger touch on inline artifact journal before the pencil is used", () => {
+    render(<SketchPad open layout="inline" fullBleed onClose={vi.fn()} onSave={vi.fn()} />);
+
+    const canvas = document.querySelector("canvas");
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+
+    const palmTouch = new Event("pointerdown", { bubbles: true, cancelable: true });
+    Object.assign(palmTouch, {
+      clientX: 20,
+      clientY: 30,
+      pointerId: 9,
+      pointerType: "touch",
+    });
+    canvas!.dispatchEvent(palmTouch);
+
+    expect(palmTouch.defaultPrevented).toBe(true);
+  });
+
   it("prevents pointer defaults while drawing", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 

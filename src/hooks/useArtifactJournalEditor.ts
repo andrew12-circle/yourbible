@@ -9,9 +9,23 @@ import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import {
   floatingJournalDraftStorageKey,
-  formatJournalPlaybackTimestamp,
 } from "@/lib/journal/floatingJournalDraft";
+import {
+  appendJournalTimestampToNotes,
+  buildJournalTimestampInsert,
+  composeJournalNotesWithTimestampBlocks,
+  extractJournalTimestampBlocks,
+  parseJournalTimestampMarkers,
+  stripJournalTimestampBlocks,
+} from "@/lib/journal/artifactJournalTimestamps";
+import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
+import {
+  composeArtifactJournalBody,
+  hasArtifactJournalSourceContent,
+  splitArtifactJournalBody,
+  type ArtifactJournalSourceInput,
+} from "@/lib/journal/artifactJournalEntrySource";
 import { clearSketchDraft } from "@/lib/journal/sketchDraft";
 import { upsertEntrySketchPhoto } from "@/lib/journal/sketchPhotos";
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
@@ -25,7 +39,15 @@ export type UseArtifactJournalEditorOptions = {
   artifactId: string;
   artifactTitle?: string;
   artifactKind?: string;
+  channel?: string | null;
+  channelUrl?: string | null;
+  author?: string | null;
+  thumbnailUrl?: string | null;
+  youTubeVideoId?: string | null;
+  providerName?: string | null;
   getPlaybackSeconds?: () => number | null;
+  transcriptSegments?: TranscriptSegment[];
+  onSeekPlayback?: (seconds: number) => void;
   expanded?: boolean;
 };
 
@@ -34,7 +56,15 @@ export function useArtifactJournalEditor({
   artifactId,
   artifactTitle,
   artifactKind = "text",
+  channel,
+  channelUrl,
+  author,
+  thumbnailUrl,
+  youTubeVideoId,
+  providerName,
   getPlaybackSeconds,
+  transcriptSegments = [],
+  onSeekPlayback,
   expanded = false,
 }: UseArtifactJournalEditorOptions) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -71,22 +101,70 @@ export function useArtifactJournalEditor({
   const draftKey = floatingJournalDraftStorageKey(userId, artifactId);
   const sketchDraftKey = `artifact:${artifactId}`;
 
+  const defaultEntryTitle = artifactTitle?.trim() ?? "";
+
+  const buildSourceInput = useCallback(
+    (entryTitle?: string): ArtifactJournalSourceInput => ({
+      entryTitle: (entryTitle ?? title).trim() || defaultEntryTitle || null,
+      channel,
+      channelUrl,
+      author,
+      thumbnailUrl,
+      youTubeVideoId,
+      providerName,
+    }),
+    [
+      author,
+      channel,
+      channelUrl,
+      defaultEntryTitle,
+      providerName,
+      thumbnailUrl,
+      title,
+      youTubeVideoId,
+    ],
+  );
+
+  const composeBodyForSave = useCallback(
+    (notes: string, entryTitle?: string) => composeArtifactJournalBody(notes, buildSourceInput(entryTitle)),
+    [buildSourceInput],
+  );
+
+  const persistEntrySourceBody = useCallback(
+    async (targetId: string, notes: string) => {
+      const composed = composeBodyForSave(notes);
+      const entryTitle = title.trim() || defaultEntryTitle || null;
+      await supabase
+        .from("journal_entries")
+        .update({ body: composed, title: entryTitle })
+        .eq("id", targetId)
+        .eq("user_id", userId);
+    },
+    [composeBodyForSave, defaultEntryTitle, title, userId],
+  );
+
   useLayoutEffect(() => {
     try {
       const d = localStorage.getItem(draftKey);
       if (d) {
-        const j = JSON.parse(d) as { title?: string; body?: string };
-        if (typeof j.body === "string") setBody(j.body);
-        if (typeof j.title === "string" && j.title.trim()) {
-          setTitle(j.title.trim());
-        }
-      } else if (artifactTitle?.trim()) {
-        setTitle(artifactTitle.trim());
+        const j = JSON.parse(d) as { title?: string; body?: string; notes?: string };
+        const rawNotes = typeof j.notes === "string" ? j.notes : j.body ?? "";
+        const { notes } = splitArtifactJournalBody(rawNotes);
+        setBody(notes);
+        const draftTitle = typeof j.title === "string" ? j.title.trim() : "";
+        setTitle(draftTitle || defaultEntryTitle);
+      } else {
+        setTitle(defaultEntryTitle);
       }
     } catch {
-      if (artifactTitle?.trim()) setTitle(artifactTitle.trim());
+      setTitle(defaultEntryTitle);
     }
-  }, [draftKey, artifactTitle]);
+  }, [draftKey, defaultEntryTitle]);
+
+  useEffect(() => {
+    if (!defaultEntryTitle) return;
+    setTitle((current) => (current.trim() ? current : defaultEntryTitle));
+  }, [defaultEntryTitle]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,15 +175,17 @@ export function useArtifactJournalEditor({
       linkedEntryLoadedRef.current = true;
       if (!linked) return;
       setEntryId(linked.id);
-      setTitle(linked.title ?? "");
-      setBody(linked.body ?? "");
+      const savedTitle = (linked.title ?? "").trim();
+      setTitle(savedTitle || defaultEntryTitle);
+      const { notes } = splitArtifactJournalBody(linked.body ?? "");
+      setBody(notes);
       const sketch = await fetchEntrySketchPhoto(userId, linked.id);
       if (!cancelled && sketch?.url) setSavedSketchUrl(sketch.url);
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId, artifactId]);
+  }, [userId, artifactId, defaultEntryTitle]);
 
   const buildEntryPayload = useCallback(async () => {
     const journalId = await getDefaultJournalId(userId);
@@ -119,8 +199,8 @@ export function useArtifactJournalEditor({
       row: {
         user_id: userId,
         journal_id: journalId,
-        title: title.trim() || null,
-        body,
+        title: title.trim() || defaultEntryTitle || null,
+        body: composeBodyForSave(body),
         mood: null as number | null,
         tags: saveTags,
         verse_ref: null as string | null,
@@ -137,7 +217,7 @@ export function useArtifactJournalEditor({
         entry_at: ts.toISOString().slice(0, 10),
       },
     };
-  }, [artifactKind, body, title, userId]);
+  }, [artifactKind, body, composeBodyForSave, defaultEntryTitle, title, userId]);
 
   const ensureLinkedEntry = useCallback(async (): Promise<string | null> => {
     if (entryId) return entryId;
@@ -171,6 +251,7 @@ export function useArtifactJournalEditor({
       if (!targetId) return;
       try {
         await upsertEntrySketchPhoto(userId, targetId, file);
+        await persistEntrySourceBody(targetId, body);
         const sketch = await fetchEntrySketchPhoto(userId, targetId);
         if (sketch?.url) setSavedSketchUrl(sketch.url);
         clearPendingSketch();
@@ -188,7 +269,7 @@ export function useArtifactJournalEditor({
       }
       setSketchOpen(false);
     },
-    [clearPendingSketch, ensureLinkedEntry, setSketchOpen, userId],
+    [body, clearPendingSketch, ensureLinkedEntry, persistEntrySourceBody, setSketchOpen, userId],
   );
 
   const handleSketchAutosave = useCallback(
@@ -197,13 +278,14 @@ export function useArtifactJournalEditor({
       if (!targetId) return;
       try {
         await upsertEntrySketchPhoto(userId, targetId, file);
+        await persistEntrySourceBody(targetId, body);
         const sketch = await fetchEntrySketchPhoto(userId, targetId);
         if (sketch?.url) setSavedSketchUrl(sketch.url);
       } catch (err) {
         console.warn("artifact sketch autosave failed", err);
       }
     },
-    [ensureLinkedEntry, entryId, userId],
+    [body, ensureLinkedEntry, entryId, persistEntrySourceBody, userId],
   );
 
   const startNewHandwritePage = useCallback(() => {
@@ -211,14 +293,14 @@ export function useArtifactJournalEditor({
     clearPendingSketch();
     setEntryId(null);
     setSavedSketchUrl(null);
-    setTitle(artifactTitle?.trim() ?? "");
+    setTitle(defaultEntryTitle);
     setBody("");
     setSketchOpen(true);
     toast({
       title: "New page",
       description: "Save the entry when you're ready to keep this page in your journal.",
     });
-  }, [artifactTitle, clearPendingSketch, setSketchOpen, sketchDraftKey]);
+  }, [clearPendingSketch, defaultEntryTitle, setSketchOpen, sketchDraftKey]);
 
   useEffect(() => {
     floatingJournalInsertRef.current = {
@@ -229,8 +311,11 @@ export function useArtifactJournalEditor({
         const s = focused ? ta.selectionStart : null;
         const e = focused ? ta.selectionEnd : null;
         setBody((prev) => {
+          const blocks = extractJournalTimestampBlocks(prev);
+          const user = stripJournalTimestampBlocks(prev);
+          let nextUser: string;
           if (s != null && e != null) {
-            const next = `${prev.slice(0, s)}${markdown}${prev.slice(e)}`;
+            nextUser = `${user.slice(0, s)}${markdown}${user.slice(e)}`;
             const pos = s + markdown.length;
             requestAnimationFrame(() => {
               const el = textareaRef.current;
@@ -238,19 +323,19 @@ export function useArtifactJournalEditor({
               el.focus();
               el.setSelectionRange(pos, pos);
             });
-            return next;
+          } else {
+            const sep =
+              user.length === 0 ? "" : user.endsWith("\n\n") ? "" : user.endsWith("\n") ? "\n" : "\n\n";
+            nextUser = `${user}${sep}${markdown}`;
+            requestAnimationFrame(() => {
+              const el = textareaRef.current;
+              if (!el) return;
+              el.focus();
+              const pos = nextUser.length;
+              el.setSelectionRange(pos, pos);
+            });
           }
-          const sep =
-            prev.length === 0 ? "" : prev.endsWith("\n\n") ? "" : prev.endsWith("\n") ? "\n" : "\n\n";
-          const next = `${prev}${sep}${markdown}`;
-          requestAnimationFrame(() => {
-            const el = textareaRef.current;
-            if (!el) return;
-            el.focus();
-            const pos = next.length;
-            el.setSelectionRange(pos, pos);
-          });
-          return next;
+          return composeJournalNotesWithTimestampBlocks(nextUser, blocks);
         });
       },
     };
@@ -265,7 +350,7 @@ export function useArtifactJournalEditor({
     if (draftDebounceRef.current) window.clearTimeout(draftDebounceRef.current);
     draftDebounceRef.current = window.setTimeout(() => {
       try {
-        localStorage.setItem(draftKey, JSON.stringify({ title, body }));
+        localStorage.setItem(draftKey, JSON.stringify({ title, notes: body }));
       } catch {
         /* ignore */
       }
@@ -282,6 +367,28 @@ export function useArtifactJournalEditor({
 
   const autosizeMax = expanded ? TEXTAREA_AUTOSIZE_MAX_EXPANDED : TEXTAREA_AUTOSIZE_MAX_DOCKED;
 
+  const timestampMarkers = useMemo(() => parseJournalTimestampMarkers(body), [body]);
+
+  const editorNotes = useMemo(() => stripJournalTimestampBlocks(body), [body]);
+
+  const setEditorNotes = useCallback((next: string | ((prev: string) => string)) => {
+    setBody((prev) => {
+      const blocks = extractJournalTimestampBlocks(prev);
+      const user = typeof next === "function" ? next(stripJournalTimestampBlocks(prev)) : next;
+      return composeJournalNotesWithTimestampBlocks(user, blocks);
+    });
+  }, []);
+
+  const appendEditorNotes = useCallback((markdown: string) => {
+    setBody((prev) => {
+      const blocks = extractJournalTimestampBlocks(prev);
+      const user = stripJournalTimestampBlocks(prev);
+      const sep =
+        user.length === 0 ? "" : user.endsWith("\n\n") ? "" : user.endsWith("\n") ? "\n" : "\n\n";
+      return composeJournalNotesWithTimestampBlocks(`${user}${sep}${markdown}`, blocks);
+    });
+  }, []);
+
   useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -289,43 +396,52 @@ export function useArtifactJournalEditor({
     const min = expanded ? 200 : 120;
     const next = Math.min(Math.max(el.scrollHeight, min), autosizeMax);
     el.style.height = `${next}px`;
-  }, [body, expanded, autosizeMax]);
+  }, [editorNotes, expanded, autosizeMax]);
 
   const persistDraftNow = useCallback(() => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ title, body }));
+      localStorage.setItem(draftKey, JSON.stringify({ title, notes: body }));
     } catch {
       /* ignore */
     }
   }, [draftKey, title, body]);
 
   const insertTimestamp = useCallback(() => {
-    const ta = textareaRef.current;
     if (!getPlaybackSeconds) return;
     const sec = getPlaybackSeconds();
     if (sec == null || !Number.isFinite(sec)) {
       toast({ title: "Playback time unavailable", variant: "destructive" });
       return;
     }
-    const stamp = `[${formatJournalPlaybackTimestamp(sec)}]`;
-    if (!ta) {
-      setBody((b) => `${b}${b && !b.endsWith("\n") ? "\n" : ""}${stamp}`);
-      return;
-    }
-    const s = ta.selectionStart;
-    const e = ta.selectionEnd;
-    setBody((prev) => `${prev.slice(0, s)}${stamp}${prev.slice(e)}`);
+    const block = buildJournalTimestampInsert(sec, transcriptSegments);
+    setBody((b) => appendJournalTimestampToNotes(b, block));
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
-      const pos = s + stamp.length;
       el.focus();
+      const pos = el.value.length;
       el.setSelectionRange(pos, pos);
     });
-  }, [getPlaybackSeconds]);
+  }, [getPlaybackSeconds, transcriptSegments]);
+
+  const seekToTimestamp = useCallback(
+    (seconds: number) => {
+      onSeekPlayback?.(Math.max(0, Math.floor(seconds)));
+    },
+    [onSeekPlayback],
+  );
 
   const saveEntry = useCallback(async () => {
-    if (!body.trim() && !title.trim() && !hasPendingSketch && !entryId) {
+    const hasSource = hasArtifactJournalSourceContent(buildSourceInput());
+    if (
+      !editorNotes.trim() &&
+      !timestampMarkers.length &&
+      !title.trim() &&
+      !hasPendingSketch &&
+      !entryId &&
+      !hasSource &&
+      !savedSketchUrl
+    ) {
       toast({ title: "Write something first", variant: "destructive" });
       return;
     }
@@ -380,7 +496,7 @@ export function useArtifactJournalEditor({
 
       if (hasPendingSketch && savedId) {
         await attachSketchToEntry(userId, savedId, {
-          onBody: (nextBody) => setBody(nextBody),
+          onBody: (nextBody) => setBody(splitArtifactJournalBody(nextBody).notes),
           onTitle: (nextTitle) => setTitle(nextTitle),
         });
         const sketch = await fetchEntrySketchPhoto(userId, savedId);
@@ -389,7 +505,7 @@ export function useArtifactJournalEditor({
 
       toast({ title: wasUpdate ? "Journal entry updated" : "Journal entry saved" });
       try {
-        localStorage.setItem(draftKey, JSON.stringify({ title, body }));
+        localStorage.setItem(draftKey, JSON.stringify({ title, notes: body }));
       } catch {
         /* ignore */
       }
@@ -402,8 +518,12 @@ export function useArtifactJournalEditor({
     body,
     buildEntryPayload,
     draftKey,
+    buildSourceInput,
     entryId,
     hasPendingSketch,
+    savedSketchUrl,
+    editorNotes,
+    timestampMarkers,
     title,
     userId,
   ]);
@@ -414,16 +534,23 @@ export function useArtifactJournalEditor({
     title,
     setTitle,
     body,
-    setBody,
+    editorNotes,
+    setEditorNotes,
+    appendEditorNotes,
     saving,
     dateLine,
     textareaRef,
     dictateRef,
     insertTimestamp,
+    seekToTimestamp,
+    timestampMarkers,
     saveEntry,
     persistDraftNow,
     showTimestamp,
-    defaultTitlePlaceholder: artifactTitle,
+    defaultTitlePlaceholder: defaultEntryTitle || undefined,
+    journalDisplayTitle: title.trim() || defaultEntryTitle || "Journal",
+    showJournalPageHeader:
+      hasArtifactJournalSourceContent(buildSourceInput()) || Boolean(defaultEntryTitle),
     sketchOpen,
     setSketchOpen,
     previewUrl,

@@ -79,6 +79,10 @@ type Props = {
   rulerVisible: boolean;
   snapToRuler: boolean;
   tabletPortrait?: boolean;
+  /** Collapsed pen chip alignment (artifact journal: top-left). */
+  collapsedAnchor?: "center" | "start";
+  /** Pin toolbar over the paper (no reserved vertical space). */
+  floatOverPaper?: boolean;
   onToolChange: (tool: InkTool) => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
@@ -186,6 +190,8 @@ export default function SketchInkToolbar({
   rulerVisible,
   snapToRuler,
   tabletPortrait = false,
+  collapsedAnchor = "center",
+  floatOverPaper = false,
   onToolChange,
   onColorChange,
   onSizeChange,
@@ -227,25 +233,49 @@ export default function SketchInkToolbar({
 
   if (collapsed) {
     return (
-      <div className="pointer-events-none sticky top-1 z-50 flex justify-center px-3">
+      <div
+        className={cn(
+          "pointer-events-none z-50 flex",
+          floatOverPaper
+            ? cn(
+                "absolute top-2",
+                collapsedAnchor === "start"
+                  ? "left-[max(0.5rem,env(safe-area-inset-left,0px))]"
+                  : "left-1/2 -translate-x-1/2",
+              )
+            : cn(
+                "sticky top-1 px-3",
+                collapsedAnchor === "start"
+                  ? "justify-start pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-3"
+                  : "justify-center",
+              ),
+        )}
+      >
         <button
           type="button"
           onClick={() => onCollapsedChange(false)}
           aria-label={isReader ? "Show ink tools" : "Show markup tools"}
           aria-expanded={false}
           className={cn(
-            "pointer-events-auto relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg transition active:scale-95",
-            isNightMode
-              ? "border-white/25 bg-[rgba(18,18,22,0.78)] backdrop-blur-[32px] hover:bg-[rgba(28,28,32,0.88)]"
-              : "border-black/[0.08] bg-[rgba(255,255,255,0.72)] backdrop-blur-[32px] hover:bg-[rgba(255,255,255,0.82)]",
+            "pointer-events-auto relative flex items-center justify-center overflow-hidden rounded-full shadow-md transition active:scale-95",
+            floatOverPaper ? "h-12 w-12 border-2" : "h-14 w-14 border-[3px] shadow-lg",
+            floatOverPaper
+              ? isNightMode
+                ? "border-white/20 bg-white/10 backdrop-blur-[32px] hover:bg-white/15"
+                : "border-border/55 bg-muted/35 backdrop-blur-[32px] hover:bg-muted/45"
+              : isNightMode
+                ? "border-white/25 bg-[rgba(18,18,22,0.78)] backdrop-blur-[32px] hover:bg-[rgba(28,28,32,0.88)]"
+                : "border-black/[0.08] bg-[rgba(255,255,255,0.72)] backdrop-blur-[32px] hover:bg-[rgba(255,255,255,0.82)]",
           )}
-          style={{ borderColor: isDrawTool ? color : undefined }}
+          style={{ borderColor: isDrawTool && !floatOverPaper ? color : undefined }}
         >
-          <span
-            className="absolute inset-1 rounded-full opacity-20"
-            style={{ background: isDrawTool ? color : "#94a3b8" }}
-            aria-hidden
-          />
+          {!floatOverPaper ? (
+            <span
+              className="absolute inset-1 rounded-full opacity-20"
+              style={{ background: isDrawTool ? color : "#94a3b8" }}
+              aria-hidden
+            />
+          ) : null}
           <InkToolSilhouette
             tool={tool}
             active
@@ -258,7 +288,12 @@ export default function SketchInkToolbar({
   }
 
   return (
-    <div className="pointer-events-none sticky top-1 z-50 flex justify-center px-3">
+    <div
+      className={cn(
+        "pointer-events-none z-50 flex justify-center",
+        floatOverPaper ? "absolute inset-x-0 top-2 px-3" : "sticky top-1 px-3",
+      )}
+    >
       <div
         role="toolbar"
         aria-label={isReader ? "Bible page ink tools" : "Handwritten markup tools"}

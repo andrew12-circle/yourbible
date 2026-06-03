@@ -5,7 +5,7 @@ import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
-import { resolvePlaybackSeconds } from "@/lib/framework/playbackSeconds";
+import { resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
@@ -297,13 +297,29 @@ export function useArtifactVideoPlayback(options: {
   const getPlaybackSeconds = useCallback(() => {
     if (apiPlayerWanted && youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
     const staticTime = staticTelemetry.getCurrentTime();
-    return resolvePlaybackSeconds(staticTime, playbackFallbackRef.current);
+    const fallback = playbackFallbackRef.current;
+    const fresh = staticTelemetry.isTelemetryFresh(2500);
+    return resolveEmbedPlaybackSeconds(staticTime, fallback, fresh);
   }, [
     apiPlayerWanted,
     staticTelemetry,
     youtubePlayer.playerReady,
     youtubePlayer.getCurrentTime,
   ]);
+
+  const resyncPlaybackPosition = useCallback(() => {
+    if (apiPlayerWanted && youtubePlayer.playerReady) {
+      playbackFallbackRef.current = youtubePlayer.getCurrentTime();
+      return;
+    }
+    staticTelemetry.requestCurrentTime();
+    window.setTimeout(() => {
+      const t = staticTelemetry.getCurrentTime();
+      if (Number.isFinite(t) && t >= 0) {
+        playbackFallbackRef.current = Math.max(playbackFallbackRef.current, t);
+      }
+    }, 100);
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getCurrentTime, youtubePlayer.playerReady]);
 
   const isPlaying = apiPlayerWanted ? youtubePlayer.isPlaying : staticTelemetry.isPlaying;
 
@@ -337,6 +353,7 @@ export function useArtifactVideoPlayback(options: {
     getIsPlaying,
     pauseVideo,
     playVideo,
+    resyncPlaybackPosition,
     staticEmbedSrc,
     onStaticEmbedLoad,
     showApiPlayer: apiPlayerWanted,

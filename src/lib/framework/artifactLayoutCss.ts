@@ -25,23 +25,38 @@ export const artifactMobileVideoOnlyPadding = "pt-[var(--artifact-mobile-video-h
 export const artifactMobileDockPadding = "pb-[var(--artifact-mobile-dock-h,5.5rem)]";
 
 /** Default dock height (pill bar + safe area) — set on layout root when dock mounts. */
-export const ARTIFACT_MOBILE_DOCK_H = "5.5rem";
+export const ARTIFACT_MOBILE_DOCK_H = "6rem";
 
 /** Collapsed header = video + sticky toolbar (meta scrolled away). */
 export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
-
-/** Mobile journal tab: break out to viewport width (typed editor under pinned video). */
-export const artifactMobileJournalFullBleed = cn(
-  "relative w-full min-w-0 max-w-none self-stretch",
-  "w-[100vw] max-w-[100vw] [margin-inline:calc(50%-50vw)]",
-);
 
 /**
  * Handwritten journal under the pinned video — same horizontal edge alignment as
  * `ArtifactYoutubeVideoBlock` (`fixed inset-x-0`, full viewport width).
  */
+/** Slight grey surround so the white journal sheet reads clearly on mobile. */
+export const artifactJournalMobileChromeBg = "bg-muted/50 dark:bg-muted/35";
+
+/** White typing / title surface on top of mobile journal chrome. */
+export const artifactJournalMobileSheet = "bg-background dark:bg-card";
+
+/** Mobile typed journal tab — fixed under pinned video (no 100vw bleed; avoids iPad clip). */
+export const artifactMobileTypedJournalUnderVideo = cn(
+  "fixed inset-x-0 z-[38] flex min-h-0 w-full max-w-[100vw] flex-col overflow-hidden",
+  "top-[var(--artifact-mobile-video-h,56.25vw)]",
+  "bottom-[calc(var(--artifact-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]",
+  artifactJournalMobileChromeBg,
+);
+
+/** Full-width white page: title, marks, and typing (scrolls inside fixed shell). */
+export const artifactMobileTypedJournalPage = cn(
+  artifactJournalMobileSheet,
+  "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-y-auto overscroll-contain",
+  "pb-3",
+);
+
 export const artifactMobileHandwriteUnderVideo = cn(
-  "fixed inset-x-0 z-[38] flex min-h-0 w-full max-w-[100vw] flex-col overflow-hidden bg-white",
+  "fixed inset-x-0 z-[38] flex min-h-0 w-full max-w-[100vw] flex-col overflow-hidden bg-background",
   "top-[var(--artifact-mobile-video-h,56.25vw)]",
   "bottom-[calc(var(--artifact-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]",
 );

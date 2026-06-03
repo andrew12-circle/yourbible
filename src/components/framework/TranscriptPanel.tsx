@@ -314,6 +314,7 @@ export default function TranscriptPanel({
   useEffect(() => {
     if (!transcriptTabActive) return;
     prevActiveSegmentIdRef.current = null;
+    setPlaybackTick((n) => n + 1);
   }, [transcriptTabActive]);
 
   useEffect(() => {

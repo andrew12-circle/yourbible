@@ -2,17 +2,23 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 /**
  * iOS-style home indicator pill, fixed to the bottom of the screen.
- * Tapping it navigates back to /home. Hidden on the home, auth, and onboarding routes.
+ * Tapping it navigates back to /home. Hidden on home, auth, onboarding, and artifact detail (dock has Home).
  */
 export default function HomeIndicator() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  const isArtifactDetail =
+    /^\/framework\/artifacts\/[^/]+$/.test(pathname) &&
+    pathname !== "/framework/artifacts/new" &&
+    pathname !== "/framework/artifacts/live";
+
   const hidden =
     pathname === "/" ||
     pathname === "/home" ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/onboarding");
+    pathname.startsWith("/onboarding") ||
+    isArtifactDetail;
 
   if (hidden) return null;
 

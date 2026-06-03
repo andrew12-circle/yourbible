@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import { BookOpen, FileText, Menu, NotebookPen } from "lucide-react";
+import { BookOpen, FileText, Home, Menu, NotebookPen } from "lucide-react";
 import { ARTIFACT_MOBILE_DOCK_H } from "@/lib/framework/artifactLayoutCss";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ type Props = {
   journalActive?: boolean;
   onJournalClick?: () => void;
   onMenuClick?: () => void;
+  onHomeClick?: () => void;
 };
 
 function DockItem({ label, icon: Icon, active = false, onClick }: DockItemProps) {
@@ -50,6 +51,7 @@ export default function MobileAppDock({
   journalActive = false,
   onJournalClick,
   onMenuClick,
+  onHomeClick,
 }: Props) {
   const dockRef = useRef<HTMLDivElement>(null);
 
@@ -83,8 +85,8 @@ export default function MobileAppDock({
     >
       <div
         className={cn(
-          "pointer-events-auto flex w-full max-w-md items-center justify-between gap-0.5",
-          "rounded-full border border-border/50 bg-background/95 px-2 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
+          "pointer-events-auto flex w-full max-w-lg items-center justify-between gap-0.5",
+          "rounded-full border border-border/50 bg-background/95 px-1.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
           "backdrop-blur-md supports-[backdrop-filter]:bg-background/85",
         )}
       >
@@ -97,6 +99,7 @@ export default function MobileAppDock({
           onClick={onJournalClick}
         />
         <DockItem label="More" icon={Menu} onClick={onMenuClick} />
+        <DockItem label="Home" icon={Home} onClick={onHomeClick} />
       </div>
     </nav>
   );

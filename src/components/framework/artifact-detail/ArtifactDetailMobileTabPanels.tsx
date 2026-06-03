@@ -37,6 +37,7 @@ type Props = {
   onTranscriptClick: () => void;
   onJournalClick: () => void;
   onMenuClick: () => void;
+  onHomeClick: () => void;
 };
 
 export default function ArtifactDetailMobileTabPanels({
@@ -134,6 +135,7 @@ export function ArtifactDetailMobileAppDock({
   onTranscriptClick,
   onJournalClick,
   onMenuClick,
+  onHomeClick,
 }: Pick<
   Props,
   | "mobilePinnedPane"
@@ -143,6 +145,7 @@ export function ArtifactDetailMobileAppDock({
   | "onTranscriptClick"
   | "onJournalClick"
   | "onMenuClick"
+  | "onHomeClick"
 >) {
   if (!mobilePinnedPane || mobileInsightExploreOpen) return null;
 
@@ -153,6 +156,7 @@ export function ArtifactDetailMobileAppDock({
       onTranscriptClick={onTranscriptClick}
       onJournalClick={onJournalClick}
       onMenuClick={onMenuClick}
+      onHomeClick={onHomeClick}
     />
   );
 }

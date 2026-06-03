@@ -102,6 +102,8 @@ interface ArtifactMetadata {
   source?: string;
   channel_title?: string | null;
   channel_url?: string | null;
+  author_name?: string | null;
+  author?: string | null;
   thumbnail_url?: string | null;
   provider_name?: string | null;
   duration_seconds?: number | null;
@@ -361,7 +363,14 @@ export default function ArtifactDetailPage() {
     seekVideoToSeconds,
     getPlaybackSeconds,
     togglePlayback,
+    resyncPlaybackPosition,
   } = videoPlayback;
+
+  useEffect(() => {
+    if (!isDesktop && mobileTab === "transcript" && youTubeVideoId) {
+      resyncPlaybackPosition();
+    }
+  }, [isDesktop, mobileTab, resyncPlaybackPosition, youTubeVideoId]);
 
   useEffect(() => {
     if (!a?.id) {
@@ -1207,7 +1216,15 @@ export default function ArtifactDetailPage() {
           artifactId: a.id,
           artifactTitle: displayTitle,
           artifactKind: a.kind,
+          channel: mergedVideoMeta.channel_title,
+          channelUrl: mergedVideoMeta.channel_url,
+          author: mergedVideoMeta.author_name ?? mergedVideoMeta.author ?? null,
+          thumbnailUrl: mergedVideoMeta.thumbnail_url,
+          youTubeVideoId: youTubeVideoId ?? null,
+          providerName: mergedVideoMeta.provider_name,
           getPlaybackSeconds: canCapturePlaybackForJournal ? getPlaybackSeconds : undefined,
+          transcriptSegments,
+          onSeekPlayback: (seconds: number) => seekVideoToSeconds(seconds, { play: true }),
           artifactJournalExpanded,
           onExpand: expandArtifactJournal,
           onDock: dockArtifactJournal,
@@ -1661,7 +1678,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       ) : null}
 
-      {!desktopPremiumYoutube && a.kind === "youtube" && a.url ? (
+      {!desktopPremiumYoutube && a.kind === "youtube" && a.url && youtubeChaptersList.length > 0 ? (
         <ArtifactCollapsibleSection
           title="Chapters"
           pinnedVideoPane={mobilePinnedPane}
@@ -1686,7 +1703,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       ) : null}
 
-      {a.kind === "youtube" && a.url && desktopPremiumYoutube ? (
+      {a.kind === "youtube" && a.url && desktopPremiumYoutube && youtubeChaptersList.length > 0 ? (
         <ArtifactCollapsibleSection
           title="Chapters"
           pinnedVideoPane={mobilePinnedPane}
@@ -1717,7 +1734,7 @@ export default function ArtifactDetailPage() {
           pinnedVideoPane={mobilePinnedPane}
           title="Study spine: Teachings"
           description="Extracted invitations from the speaker when no chapter outline exists."
-          defaultOpenMobile={false}
+          defaultOpenMobile
           defaultOpenDesktop
           storageKey={a.id ? `artifact-study-spine:${a.id}` : undefined}
         >
@@ -1735,7 +1752,7 @@ export default function ArtifactDetailPage() {
               )}
             >
               This video has no chapter outline yet, so we lean on extracted{" "}
-              <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Generate chapters above for section jumps, or use{" "}
+              <span className="font-medium text-foreground">teachings</span> (what the speaker invites you toward) alongside claims. Use{" "}
               <button
                 type="button"
                 className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -1857,7 +1874,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       ) : null}
 
-      {a.status === "ready" && !desktopPremiumYoutube ? (
+      {a.status === "ready" && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="entities"
           title="People & themes"
@@ -1920,6 +1937,7 @@ export default function ArtifactDetailPage() {
         onTranscriptClick={switchToTranscriptTab}
         onJournalClick={openMobileJournalTab}
         onMenuClick={() => setMobileMenuOpen(true)}
+        onHomeClick={() => navigate("/home")}
       />
 
       <ArtifactDetailPageDialogs

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
@@ -31,12 +32,14 @@ export default function ArtifactMobileOverview({
   artifactStatus,
   claimsCount,
   entitiesCount,
-  onNavigate,
+  onNavigate: _onNavigate,
   onSelectClaim,
   activeClaimId,
   onSeeScripture,
   className,
 }: Props) {
+  const [entitiesExpanded, setEntitiesExpanded] = useState(false);
+
   return (
     <section
       id="overview"
@@ -64,13 +67,13 @@ export default function ArtifactMobileOverview({
           title="People & themes"
           count={entitiesCount}
           countLabel={entitiesCount != null ? `${entitiesCount} mentioned` : undefined}
-          actionLabel="Explore all"
-          onAction={() => onNavigate("#entities")}
+          actionLabel={entitiesExpanded ? undefined : "Explore all"}
+          onAction={entitiesExpanded ? undefined : () => setEntitiesExpanded(true)}
         />
         <ArtifactEntitiesPanel
           artifactId={artifactId}
           artifactStatus={artifactStatus}
-          variant="mobileRail"
+          variant={entitiesExpanded ? "default" : "mobileRail"}
         />
       </div>
     </section>
