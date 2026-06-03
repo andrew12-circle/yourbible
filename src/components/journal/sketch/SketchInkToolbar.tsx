@@ -22,9 +22,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { InkDrawTool, InkTool } from "@/lib/ink/types";
-import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
+import {
+  eraserRadiusFromSize,
+  INK_ERASER_SIZES,
+  nextInkEraserSize,
+} from "@/lib/ink/eraser";
+import { INK_PEN_SIZES, INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
 import { cn } from "@/lib/utils";
 import { InkToolSilhouette, InkToolSilhouetteSlot } from "./InkToolSilhouette";
+import { ScrollableInkToolStrip } from "./ScrollableInkToolStrip";
 
 export type SketchPaper = "blank" | "ruled" | "legal" | "graph" | "dot";
 
@@ -43,8 +49,11 @@ export const SKETCH_TOOL_ITEMS: { id: InkTool; label: string }[] = [
 ];
 
 const READER_TOOL_ITEMS = SKETCH_TOOL_ITEMS.filter(
-  (t) => t.id !== "ruler" && t.id !== "lasso",
+  (t) => t.id !== "ruler" && t.id !== "eraser",
 );
+
+/** Reader: eraser lives beside undo so it is never clipped in the scroll strip. */
+const READER_ERASER_ITEM = SKETCH_TOOL_ITEMS.find((t) => t.id === "eraser")!;
 
 const APPLE_PALETTE = [
   { name: "White", value: "#ffffff" },
@@ -79,8 +88,8 @@ type Props = {
   rulerVisible: boolean;
   snapToRuler: boolean;
   tabletPortrait?: boolean;
-  /** Collapsed pen chip alignment (artifact journal: top-left). */
-  collapsedAnchor?: "center" | "start";
+  /** Collapsed pen chip alignment (artifact journal: top-left; Bible reader: top-right). */
+  collapsedAnchor?: "center" | "start" | "end";
   /** Pin toolbar over the paper (no reserved vertical space). */
   floatOverPaper?: boolean;
   onToolChange: (tool: InkTool) => void;
@@ -93,6 +102,8 @@ type Props = {
   onDrawWithFingerChange: (v: boolean) => void;
   onSnapToRulerChange: (v: boolean) => void;
   customColorInputRef?: React.RefObject<HTMLInputElement | null>;
+  /** Bible reader: remove ink on every page in this chapter. */
+  onClearChapterInk?: () => void;
 };
 
 const COLOR_SWATCH_SHADOW =
@@ -202,18 +213,23 @@ export default function SketchInkToolbar({
   onDrawWithFingerChange,
   onSnapToRulerChange,
   customColorInputRef,
+  onClearChapterInk,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const isReader = variant === "reader";
   const toolItems = isReader ? READER_TOOL_ITEMS : SKETCH_TOOL_ITEMS;
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
-  const canPickColor = tool !== "eraser";
+  const isEraser = tool === "eraser";
+  const canPickColor = !isEraser;
+  const canAdjustSize = isDrawTool || isEraser;
   const customColorActive =
     isDrawTool && !APPLE_PALETTE.some((c) => colorMatchesPalette(color, c.value));
 
   const selectTool = (next: InkTool) => {
     onToolChange(next);
-    if (next !== "eraser" && next !== "ruler" && next !== "lasso") {
+    if (next === "eraser") {
+      onSizeChange(INK_TOOL_PRESETS.eraser.defaultSize);
+    } else if (next !== "ruler" && next !== "lasso") {
       const preset = INK_TOOL_PRESETS[next as InkDrawTool];
       onSizeChange(preset.defaultSize);
       if (preset.defaultColor) onColorChange(preset.defaultColor);
@@ -221,12 +237,13 @@ export default function SketchInkToolbar({
   };
 
   const pillChrome = cn(
-    "sticky top-1 z-50 mx-auto flex h-[78px] w-fit max-w-[calc(100%-1rem)] shrink-0 items-center gap-0 rounded-full px-2",
+    "sticky top-1 z-50 mx-auto flex h-[78px] w-max min-w-0 max-w-[min(calc(100vw-1.5rem),640px)] shrink items-center gap-0 rounded-full px-2",
     "border backdrop-blur-[36px] backdrop-saturate-[180%]",
     isNightMode
       ? "border-white/[0.14] bg-[rgba(18,18,22,0.82)] shadow-[0_22px_56px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.4)]"
       : "border-[rgba(255,255,255,0.9)] bg-[rgba(255,255,255,0.82)] shadow-[0_20px_48px_rgba(0,0,0,0.16),0_4px_10px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.98),inset_0_-1px_0_rgba(0,0,0,0.04)]",
     tabletPortrait && "px-2.5",
+    isReader && "max-w-[min(calc(100vw-1rem),36rem)]",
   );
 
   const ringOffset = isNightMode ? "ring-offset-[rgba(18,18,22,0.76)]" : "ring-offset-[rgba(255,255,255,0.78)]";
@@ -241,13 +258,17 @@ export default function SketchInkToolbar({
                 "absolute top-2",
                 collapsedAnchor === "start"
                   ? "left-[max(0.5rem,env(safe-area-inset-left,0px))]"
-                  : "left-1/2 -translate-x-1/2",
+                  : collapsedAnchor === "end"
+                    ? "right-[max(0.5rem,env(safe-area-inset-right,0px))]"
+                    : "left-1/2 -translate-x-1/2",
               )
             : cn(
                 "sticky top-1 px-3",
                 collapsedAnchor === "start"
                   ? "justify-start pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-3"
-                  : "justify-center",
+                  : collapsedAnchor === "end"
+                    ? "justify-end pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-3"
+                    : "justify-center",
               ),
         )}
       >
@@ -297,11 +318,12 @@ export default function SketchInkToolbar({
       <div
         role="toolbar"
         aria-label={isReader ? "Bible page ink tools" : "Handwritten markup tools"}
-        className={cn(pillChrome, "pointer-events-auto overflow-visible")}
+        className={cn(pillChrome, "pointer-events-auto overflow-hidden")}
         data-reader-ink-toolbar={isReader ? "" : undefined}
         style={{ touchAction: "manipulation" }}
       >
-        <ToolbarTray isNightMode={isNightMode} aria-label="Undo and redo" className="gap-0.5 px-1">
+        <div className="flex min-w-0 max-w-full items-center gap-0 overflow-x-auto overscroll-x-contain scrollbar-hide">
+        <ToolbarTray isNightMode={isNightMode} aria-label="Undo, redo, and eraser" className="gap-0.5 px-1">
           <PillCircleButton isNightMode={isNightMode} label="Undo" disabled={!hasStrokes} onClick={onUndo}>
             <Undo2 className="h-4 w-4" strokeWidth={2} />
           </PillCircleButton>
@@ -313,17 +335,24 @@ export default function SketchInkToolbar({
           >
             <Redo2 className="h-4 w-4" strokeWidth={2} />
           </PillCircleButton>
+          {isReader ? (
+            <InkToolSilhouetteSlot
+              tool={READER_ERASER_ITEM.id}
+              active={tool === "eraser"}
+              isNightMode={isNightMode}
+              label={READER_ERASER_ITEM.label}
+              onClick={() => selectTool("eraser")}
+            />
+          ) : null}
         </ToolbarTray>
 
         <ToolbarDivider isNightMode={isNightMode} />
 
-        <div
-          role="group"
+        <ScrollableInkToolStrip
+          isNightMode={isNightMode}
           aria-label="Drawing tools"
-          className={cn(
-            "tool-group mr-3 flex min-w-0 max-w-[min(52vw,320px)] shrink-0 items-center gap-1.5 overflow-x-auto rounded-[18px] p-1.5 scrollbar-hide sm:max-w-none",
-            isNightMode ? "bg-white/[0.08]" : "bg-[rgba(255,255,255,0.32)]",
-          )}
+          className={cn(isReader ? "mr-1 min-w-0 max-w-[min(42vw,240px)]" : "mr-3 min-w-0 max-w-[min(52vw,320px)] sm:max-w-none")}
+          trayClassName={isNightMode ? "bg-white/[0.08]" : "bg-[rgba(255,255,255,0.32)]"}
         >
           {toolItems.map(({ id, label }) => {
             const active = tool === id || (id === "ruler" && rulerVisible);
@@ -341,7 +370,7 @@ export default function SketchInkToolbar({
               />
             );
           })}
-        </div>
+        </ScrollableInkToolStrip>
 
         <ToolbarDivider isNightMode={isNightMode} />
 
@@ -392,20 +421,37 @@ export default function SketchInkToolbar({
         <ToolbarTray isNightMode={isNightMode} aria-label="Markup actions" className="gap-0.5 px-1">
           <PillCircleButton
             isNightMode={isNightMode}
-            label={`Stroke size ${size}`}
-            disabled={!isDrawTool}
+            label={isEraser ? `Eraser size ${size}` : `Stroke size ${size}`}
+            disabled={!canAdjustSize}
             onClick={() => {
-              const sizes = [2, 4, 6, 10, 16, 20];
-              const idx = sizes.indexOf(size);
-              onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
+              if (isEraser) onSizeChange(nextInkEraserSize(size));
+              else {
+                const sizes = [...INK_PEN_SIZES];
+                const idx = sizes.indexOf(size as (typeof sizes)[number]);
+                onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
+              }
             }}
           >
             <span
-              className="block rounded-full"
+              className="block rounded-full border border-neutral-400/50"
               style={{
-                width: Math.min(size + 4, 14),
-                height: Math.min(size + 4, 14),
-                background: isDrawTool ? color : isNightMode ? "#94a3b8" : "#64748b",
+                width: Math.min(
+                  isEraser ? eraserRadiusFromSize(size) * 0.35 + 6 : size + 4,
+                  18,
+                ),
+                height: Math.min(
+                  isEraser ? eraserRadiusFromSize(size) * 0.35 + 6 : size + 4,
+                  18,
+                ),
+                background: isEraser
+                  ? isNightMode
+                    ? "#94a3b8"
+                    : "#64748b"
+                  : isDrawTool
+                    ? color
+                    : isNightMode
+                      ? "#94a3b8"
+                      : "#64748b",
               }}
             />
           </PillCircleButton>
@@ -450,9 +496,39 @@ export default function SketchInkToolbar({
                   <DropdownMenuSeparator />
                 </>
               ) : null}
+              {isReader ? (
+                <>
+                  <DropdownMenuItem onClick={() => selectTool("lasso")}>Lasso</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => selectTool("eraser")}>Eraser</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Eraser size</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={String(size)}
+                    onValueChange={(v) => {
+                      selectTool("eraser");
+                      onSizeChange(Number(v));
+                    }}
+                  >
+                    {INK_ERASER_SIZES.map((s) => (
+                      <DropdownMenuRadioItem key={s} value={String(s)}>
+                        {s === 16 ? "Small" : s === 36 ? "Medium" : s === 72 ? "Large" : s === 96 ? "Extra large" : `${s}px`}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
               <DropdownMenuItem onClick={onClear} disabled={!hasStrokes} className="text-destructive">
-                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear page
+                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear this page
               </DropdownMenuItem>
+              {isReader && onClearChapterInk ? (
+                <DropdownMenuItem
+                  onClick={onClearChapterInk}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear chapter ink
+                </DropdownMenuItem>
+              ) : null}
               {!isReader && penColors.length > 6 ? (
                 <>
                   <DropdownMenuSeparator />
@@ -502,6 +578,7 @@ export default function SketchInkToolbar({
             <ChevronUp className="h-5 w-5" strokeWidth={2} />
           </PillCircleButton>
         </ToolbarTray>
+        </div>
       </div>
     </div>
   );

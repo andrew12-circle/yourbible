@@ -244,7 +244,9 @@ export default function SettingsPage() {
             <p>
               <span className="verse-num">16</span>
               <span className="marker-hl" style={{ ["--hl-color" as string]: `var(${previewPalette.colors[0].cssVar})` }}>
-                For God so loved the world that he gave his one and only Son,
+                <span className="marker-hl-text">
+                  For God so loved the world that he gave his one and only Son,
+                </span>
               </span>{" "}
               that whoever believes in him shall not perish but have eternal life.
             </p>

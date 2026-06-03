@@ -20,6 +20,7 @@ type Props = {
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onClearChapterInk?: () => void;
 };
 
 const NOOP_PAPER: SketchPaper = "blank";
@@ -39,6 +40,7 @@ export function ReaderInkToolbar({
   onUndo,
   onRedo,
   onClear,
+  onClearChapterInk,
 }: Props) {
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const penColors = getSketchPenColors(false);
@@ -55,7 +57,8 @@ export function ReaderInkToolbar({
   return (
     <div
       className={cn(
-        "pointer-events-none fixed inset-x-0 z-[36] flex justify-center px-3",
+        "pointer-events-none fixed inset-x-0 z-[36] flex px-3",
+        collapsed ? "justify-end" : "justify-center",
         tabletPortrait
           ? "top-[calc(var(--safe-area-inset-top)+3rem)]"
           : "top-[calc(var(--safe-area-inset-top)+3.25rem)]",
@@ -73,12 +76,18 @@ export function ReaderInkToolbar({
         aria-hidden
         tabIndex={-1}
       />
-      <div className="pointer-events-auto w-full max-w-[100vw] flex justify-center">
+      <div
+        className={cn(
+          "pointer-events-auto flex min-w-0",
+          collapsed ? "justify-end" : "w-full max-w-[100vw] justify-center",
+        )}
+      >
         <SketchInkToolbar
           variant="reader"
           isNightMode={false}
           collapsed={collapsed}
           onCollapsedChange={onCollapsedChange}
+          collapsedAnchor="end"
           tabletPortrait={tabletPortrait}
           tool={tool}
           color={color}
@@ -100,6 +109,7 @@ export function ReaderInkToolbar({
           onUndo={onUndo}
           onRedo={onRedo}
           onClear={onClear}
+          onClearChapterInk={onClearChapterInk}
           onDrawWithFingerChange={() => {}}
           onSnapToRulerChange={() => {}}
           customColorInputRef={customColorRef}

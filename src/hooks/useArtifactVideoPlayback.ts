@@ -342,6 +342,7 @@ export function useArtifactVideoPlayback(options: {
     pipEnabled,
     youtubePip,
     youtubePlayer,
+    persistSeconds,
     playbackFallbackRef,
     seekVideoToSeconds,
     scrollTranscriptToSeconds,

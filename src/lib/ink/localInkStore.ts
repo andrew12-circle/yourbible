@@ -50,6 +50,43 @@ export function saveLocalReaderInk(
   }
 }
 
+/** Load ink for the current layout fingerprint, or migrate the newest local blob from another fingerprint. */
+export function loadBestLocalReaderInk(
+  fingerprint: string,
+  book: string,
+  chapter: number,
+  pageIndex: number,
+  side: string,
+): StoredInkStroke[] | null {
+  const current = loadLocalReaderInk(fingerprint, book, chapter, pageIndex, side);
+  if (current && current.length > 0) return current;
+
+  const others = listLocalInkFingerprintsForPage(book, chapter, pageIndex, side).filter(
+    (fp) => fp !== fingerprint,
+  );
+  let best: { strokes: StoredInkStroke[]; updatedAt: string } | null = null;
+
+  for (const fp of others) {
+    try {
+      const raw = localStorage.getItem(readerInkStorageKey(fp, book, chapter, pageIndex, side));
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as LocalInkPayload;
+      if (!Array.isArray(parsed.strokes) || parsed.strokes.length === 0) continue;
+      const updatedAt = parsed.updatedAt ?? "";
+      if (!best || updatedAt > best.updatedAt) {
+        best = { strokes: parsed.strokes, updatedAt };
+      }
+    } catch {
+      /* skip corrupt entry */
+    }
+  }
+
+  if (!best) return current;
+
+  saveLocalReaderInk(fingerprint, book, chapter, pageIndex, side, best.strokes);
+  return best.strokes;
+}
+
 export function listLocalInkFingerprintsForPage(
   book: string,
   chapter: number,
@@ -70,4 +107,21 @@ export function listLocalInkFingerprintsForPage(
     /* noop */
   }
   return found;
+}
+
+/** Remove all cached reader ink blobs for a chapter (every page / side / layout). */
+export function clearAllLocalReaderInkForChapter(book: string, chapter: number): void {
+  const needle = `.${book}.${chapter}.`;
+  const keysToRemove: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("yb.reader.ink.") && key.includes(needle)) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) localStorage.removeItem(key);
+  } catch {
+    /* noop */
+  }
 }

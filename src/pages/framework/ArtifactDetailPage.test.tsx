@@ -63,6 +63,10 @@ vi.mock("@/hooks/useArtifactEntityCount", () => ({
   useArtifactEntityCount: () => 0,
 }));
 
+vi.mock("@/hooks/useArtifactGlobalVideoHandoff", () => ({
+  useArtifactGlobalVideoHandoff: () => {},
+}));
+
 vi.mock("@/hooks/useArtifactVideoPlayback", () => ({
   useArtifactVideoPlayback: () => ({
     pipEnabled: false,

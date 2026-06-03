@@ -74,19 +74,19 @@
     --section-epistles: 38 48% 38%;
     --section-revelation: 12 60% 38%;
 
-    /* Highlight palettes — soft, paper-friendly highlighter tones */
-    --hl-amber:  42  90% 70%;
-    --hl-rose:    8  80% 78%;
-    --hl-sage:  130  35% 70%;
-    --hl-sky:   200  60% 76%;
-    --hl-violet:268  50% 78%;
-    --hl-peach:  22  80% 78%;
-    --hl-yellow: 54 100% 70%;
-    --hl-mint:  158  55% 72%;
-    --hl-coral:  10  85% 74%;
-    --hl-lavender: 250 60% 80%;
-    --hl-teal:  185  55% 64%;
-    --hl-clay:  18  40% 60%;
+    /* Highlight palettes — light washes; text must stay readable underneath */
+    --hl-amber:  42  72% 82%;
+    --hl-rose:    8  62% 84%;
+    --hl-sage:  130  28% 80%;
+    --hl-sky:   200  48% 84%;
+    --hl-violet:268  40% 86%;
+    --hl-peach:  22  65% 84%;
+    --hl-yellow: 54  78% 86%;
+    --hl-mint:  158  42% 82%;
+    --hl-coral:  10  68% 84%;
+    --hl-lavender: 250 48% 88%;
+    --hl-teal:  185  42% 78%;
+    --hl-clay:  18  32% 72%;
 
     /* Shadows & gradients */
     --shadow-page: 0 8px 28px -12px hsl(0 30% 12% / 0.25), 0 2px 6px -2px hsl(0 30% 12% / 0.12);
@@ -374,169 +374,95 @@
   }
 
   /* ============================================================
-     Hand-drawn marker highlight — 10 variants
-     Each verse gets a deterministic .v1 … .v10 modifier so
-     adjacent verses look like different strokes from a real
-     highlighter (uneven pressure, tilt, fade, pooling, double-pass).
-     Color comes from --hl-color (set inline per verse).
+     Verse highlighter — multiply wash under text (real marker physics:
+     paper tints, black ink stays black). Text sits above the wash.
      ============================================================ */
   .marker-hl {
     --hl: var(--hl-color, var(--hl-amber));
-    /* default base — overridden by .v1 … .v10 */
-    background-image:
-      /* porous marker pigment — drawn as a darker-noise layer that
-         multiplies onto the color stroke beneath. Lives in the
-         BACKGROUND only so it never clips the text. */
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='40'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9 1.4' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
-      linear-gradient(105deg,
-        transparent 0.4%,
-        hsl(var(--hl) / 0.78) 1.5%,
-        hsl(var(--hl) / 0.62) 50%,
-        hsl(var(--hl) / 0.78) 98%,
-        transparent 99.6%);
-    background-repeat: repeat, no-repeat;
-    background-size: 220px 40px, 100% 62%;
-    background-position: 0 0, 0 62%;
-    background-blend-mode: screen, normal;
-    padding: 0 2px;
-    border-radius: 2px;
-    filter: url(#marker-roughen);
+    --hl-stroke-h: 0.44em;
+    --hl-stroke-y: 0.72em;
+    --hl-stroke-opacity: 0.62;
+    position: relative;
+    display: inline;
+    padding: 0 0.05em;
+    color: inherit;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
-    display: inline;
   }
 
-  /* v1 — clean medium pass, slight downward tilt */
+  .marker-hl::before {
+    content: "";
+    position: absolute;
+    left: -0.04em;
+    right: -0.04em;
+    top: var(--hl-stroke-y);
+    height: var(--hl-stroke-h);
+    border-radius: 0.1em;
+    background-color: hsl(var(--hl));
+    opacity: var(--hl-stroke-opacity);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .marker-hl-text {
+    position: relative;
+    z-index: 1;
+    color: inherit;
+  }
+
+  .marker-hl .red-letter {
+    position: relative;
+    z-index: 1;
+  }
+
   .marker-hl.v1 {
-    background-image:
-      linear-gradient(106deg,
-        transparent 0.5%,
-        hsl(var(--hl) / 0.82) 2%,
-        hsl(var(--hl) / 0.6) 50%,
-        hsl(var(--hl) / 0.78) 97%,
-        transparent 99.5%);
-    background-size: 100% 60%;
-    background-position: 0 64%;
+    --hl-stroke-y: 0.74em;
+    --hl-stroke-h: 0.4em;
   }
-  /* v2 — heavy left, fades right (drying out) */
   .marker-hl.v2 {
-    background-image:
-      linear-gradient(92deg,
-        hsl(var(--hl) / 0.9) 0.5%,
-        hsl(var(--hl) / 0.78) 30%,
-        hsl(var(--hl) / 0.45) 80%,
-        hsl(var(--hl) / 0.15) 99%);
-    background-size: 100% 66%;
-    background-position: 0 60%;
+    --hl-stroke-y: 0.7em;
+    --hl-stroke-h: 0.46em;
+    --hl-stroke-opacity: 0.55;
   }
-  /* v3 — pooled at right end (extra ink) */
   .marker-hl.v3 {
-    background-image:
-      linear-gradient(98deg,
-        transparent 0.4%,
-        hsl(var(--hl) / 0.55) 5%,
-        hsl(var(--hl) / 0.7) 60%,
-        hsl(var(--hl) / 0.92) 95%,
-        hsl(var(--hl) / 0.6) 100%);
-    background-size: 100% 64%;
-    background-position: 0 62%;
+    --hl-stroke-y: 0.73em;
+    --hl-stroke-h: 0.42em;
+    --hl-stroke-opacity: 0.68;
   }
-  /* v4 — narrow, high stroke (tilted up) */
   .marker-hl.v4 {
-    background-image:
-      linear-gradient(102deg,
-        transparent 0.5%,
-        hsl(var(--hl) / 0.8) 2%,
-        hsl(var(--hl) / 0.65) 50%,
-        hsl(var(--hl) / 0.8) 98%,
-        transparent 99.5%);
-    background-size: 100% 52%;
-    background-position: 0 56%;
+    --hl-stroke-y: 0.78em;
+    --hl-stroke-h: 0.36em;
   }
-  /* v5 — wide, low stroke (heavy hand) */
   .marker-hl.v5 {
-    background-image:
-      linear-gradient(100deg,
-        transparent 0.3%,
-        hsl(var(--hl) / 0.85) 1.2%,
-        hsl(var(--hl) / 0.75) 50%,
-        hsl(var(--hl) / 0.82) 99%,
-        transparent 99.7%),
-      linear-gradient(180deg,
-        transparent 0%,
-        hsl(var(--hl) / 0.18) 50%,
-        transparent 100%);
-    background-size: 100% 72%, 100% 100%;
-    background-position: 0 64%, 0 0;
+    --hl-stroke-y: 0.68em;
+    --hl-stroke-h: 0.48em;
+    --hl-stroke-opacity: 0.58;
   }
-  /* v6 — double pass overlap (slightly offset second stroke) */
   .marker-hl.v6 {
-    background-image:
-      linear-gradient(104deg,
-        transparent 0.5%,
-        hsl(var(--hl) / 0.72) 2%,
-        hsl(var(--hl) / 0.6) 50%,
-        hsl(var(--hl) / 0.72) 98%,
-        transparent 99.5%),
-      linear-gradient(108deg,
-        transparent 1%,
-        hsl(var(--hl) / 0.55) 4%,
-        hsl(var(--hl) / 0.45) 50%,
-        hsl(var(--hl) / 0.55) 96%,
-        transparent 99%);
-    background-size: 100% 56%, 100% 60%;
-    background-position: 0 58%, 0 68%;
+    --hl-stroke-y: 0.75em;
+    --hl-stroke-h: 0.4em;
+    --hl-stroke-opacity: 0.52;
   }
-  /* v7 — fades in from left (started moving) */
   .marker-hl.v7 {
-    background-image:
-      linear-gradient(95deg,
-        transparent 0%,
-        hsl(var(--hl) / 0.25) 4%,
-        hsl(var(--hl) / 0.7) 25%,
-        hsl(var(--hl) / 0.78) 75%,
-        hsl(var(--hl) / 0.6) 100%);
-    background-size: 100% 64%;
-    background-position: 0 62%;
+    --hl-stroke-y: 0.71em;
+    --hl-stroke-opacity: 0.48;
   }
-  /* v8 — uneven middle (lifted briefly) */
   .marker-hl.v8 {
-    background-image:
-      linear-gradient(101deg,
-        transparent 0.5%,
-        hsl(var(--hl) / 0.82) 2%,
-        hsl(var(--hl) / 0.78) 30%,
-        hsl(var(--hl) / 0.4) 50%,
-        hsl(var(--hl) / 0.78) 70%,
-        hsl(var(--hl) / 0.82) 98%,
-        transparent 99.5%);
-    background-size: 100% 60%;
-    background-position: 0 62%;
+    --hl-stroke-y: 0.72em;
+    --hl-stroke-opacity: 0.6;
   }
-  /* v9 — pale wash */
   .marker-hl.v9 {
-    background-image:
-      linear-gradient(103deg,
-        transparent 0.5%,
-        hsl(var(--hl) / 0.55) 2%,
-        hsl(var(--hl) / 0.42) 50%,
-        hsl(var(--hl) / 0.55) 98%,
-        transparent 99.5%);
-    background-size: 100% 64%;
-    background-position: 0 62%;
+    --hl-stroke-y: 0.73em;
+    --hl-stroke-h: 0.4em;
+    --hl-stroke-opacity: 0.45;
   }
-  /* v10 — bold saturated pass with bottom drip */
   .marker-hl.v10 {
-    background-image:
-      linear-gradient(99deg,
-        transparent 0.4%,
-        hsl(var(--hl) / 0.92) 1.5%,
-        hsl(var(--hl) / 0.82) 50%,
-        hsl(var(--hl) / 0.9) 98%,
-        transparent 99.6%),
-      radial-gradient(ellipse at 70% 100%, hsl(var(--hl) / 0.35) 0%, transparent 40%);
-    background-size: 100% 66%, 100% 100%;
-    background-position: 0 60%, 0 0;
+    --hl-stroke-y: 0.7em;
+    --hl-stroke-h: 0.46em;
+    --hl-stroke-opacity: 0.65;
   }
 
   .verse-num {
@@ -645,6 +571,21 @@
   .text-balance { text-wrap: balance; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { scrollbar-width: none; }
+
+  .ink-toolbar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(0 0% 0% / 0.22) transparent;
+  }
+  .ink-toolbar-scroll::-webkit-scrollbar {
+    height: 5px;
+  }
+  .ink-toolbar-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: hsl(0 0% 0% / 0.2);
+  }
+  .ink-toolbar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
   /* Thumb hidden until hover; fixed track width + stable gutter — no layout shift. */
   .scrollbar-hover-thin {

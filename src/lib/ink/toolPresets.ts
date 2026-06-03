@@ -57,11 +57,11 @@ export const INK_TOOL_PRESETS: Record<InkDrawTool, InkToolPreset> = {
   highlighter: {
     id: "highlighter",
     label: "Highlighter",
-    defaultSize: 18,
-    defaultColor: "#facc15",
+    defaultSize: 14,
+    defaultColor: "#fef08a",
     pressureRange: { min: 1, max: 1 },
-    opacity: 0.38,
-    widthMultiplier: 1.4,
+    opacity: 0.42,
+    widthMultiplier: 1.05,
   },
   eraser: {
     id: "eraser",

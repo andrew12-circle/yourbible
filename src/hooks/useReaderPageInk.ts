@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { loadLocalReaderInk, saveLocalReaderInk, listLocalInkFingerprintsForPage } from "@/lib/ink/localInkStore";
+import {
+  loadBestLocalReaderInk,
+  saveLocalReaderInk,
+  listLocalInkFingerprintsForPage,
+} from "@/lib/ink/localInkStore";
 import { LS_READER_INK_MODE } from "@/lib/ink/layoutFingerprint";
 import { denormalizeStrokes, normalizeStrokes } from "@/lib/ink/strokeCoords";
 import type { InkStroke, ReaderPageInkKey, StoredInkStroke } from "@/lib/ink/types";
@@ -43,10 +47,24 @@ export function useReaderPageInk({
   storedRef.current = storedStrokes;
   const canvasSizeRef = useRef(canvasSize);
   canvasSizeRef.current = canvasSize;
+  const lastCanvasSizeRef = useRef({ w: 0, h: 0 });
+  const inkDirtyRef = useRef(false);
+
+  useEffect(() => {
+    inkDirtyRef.current = false;
+  }, [pageKey.book, pageKey.chapter, pageKey.pageIndex, pageKey.side]);
 
   const strokes = useMemo(() => {
-    const { w, h } = readCanvasSize(canvasSize, liveCanvasSizeRef);
-    if (w <= 0 || h <= 0) return [];
+    const live = readCanvasSize(canvasSize, liveCanvasSizeRef);
+    if (live.w > 0 && live.h > 0) lastCanvasSizeRef.current = live;
+    const { w, h } =
+      live.w > 0 && live.h > 0 ? live : lastCanvasSizeRef.current;
+    if (w <= 0 || h <= 0) {
+      if (storedStrokes.length === 0) return [];
+      const { w: lw, h: lh } = lastCanvasSizeRef.current;
+      if (lw <= 0 || lh <= 0) return [];
+      return denormalizeStrokes(storedStrokes, lw, lh);
+    }
     return denormalizeStrokes(storedStrokes, w, h);
   }, [storedStrokes, canvasSize.w, canvasSize.h, liveCanvasSizeRef]);
 
@@ -101,6 +119,8 @@ export function useReaderPageInk({
     (updater: StoredInkStroke[] | ((prev: StoredInkStroke[]) => StoredInkStroke[])) => {
       setStoredStrokes((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
+        storedRef.current = next;
+        inkDirtyRef.current = true;
         scheduleSave(next);
         return next;
       });
@@ -108,7 +128,7 @@ export function useReaderPageInk({
     [scheduleSave],
   );
 
-  // Load when the page or layout fingerprint changes — not on every canvas resize.
+  // Load ink when the page changes — not when layout fingerprint or canvas size changes.
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
@@ -116,7 +136,7 @@ export function useReaderPageInk({
     setStaleFingerprint(null);
 
     (async () => {
-      let local = loadLocalReaderInk(
+      let local = loadBestLocalReaderInk(
         layoutFingerprint,
         pageKey.book,
         pageKey.chapter,
@@ -136,7 +156,7 @@ export function useReaderPageInk({
           .eq("layout_fingerprint", layoutFingerprint)
           .maybeSingle();
 
-        if (data?.strokes && Array.isArray(data.strokes)) {
+        if (data?.strokes && Array.isArray(data.strokes) && data.strokes.length > 0) {
           local = data.strokes as StoredInkStroke[];
         } else if (!local) {
           const { data: legacy } = await supabase
@@ -171,7 +191,7 @@ export function useReaderPageInk({
 
       if (cancelled) return;
 
-      const loadedFromDisk = loadLocalReaderInk(
+      const loadedFromDisk = loadBestLocalReaderInk(
         layoutFingerprint,
         pageKey.book,
         pageKey.chapter,
@@ -181,8 +201,12 @@ export function useReaderPageInk({
       const loaded = loadedFromDisk ?? local ?? [];
 
       setStoredStrokes((prev) => {
-        // User may have drawn while the fetch was in flight — never clobber live ink.
+        const inMemory = storedRef.current;
+        if (inkDirtyRef.current) {
+          return inMemory.length > 0 ? inMemory : prev.length > 0 ? prev : loaded;
+        }
         if (prev.length > 0) return prev;
+        if (inMemory.length > 0) return inMemory;
         return loaded;
       });
       setRedoStack([]);
@@ -199,7 +223,40 @@ export function useReaderPageInk({
     pageKey.chapter,
     pageKey.pageIndex,
     pageKey.side,
+  ]);
+
+  // When typography/page size settles, migrate any blobs saved under older fingerprints.
+  useEffect(() => {
+    if (!enabled) return;
+
+    const migrated = loadBestLocalReaderInk(
+      layoutFingerprint,
+      pageKey.book,
+      pageKey.chapter,
+      pageKey.pageIndex,
+      pageKey.side,
+    );
+
+    if (storedRef.current.length > 0) {
+      scheduleSave(storedRef.current);
+      return;
+    }
+
+    if (!migrated?.length) return;
+
+    setStoredStrokes((prev) => {
+      if (inkDirtyRef.current && prev.length > 0) return prev;
+      if (prev.length > 0) return prev;
+      return migrated;
+    });
+  }, [
+    enabled,
     layoutFingerprint,
+    pageKey.book,
+    pageKey.chapter,
+    pageKey.pageIndex,
+    pageKey.side,
+    scheduleSave,
   ]);
 
   useEffect(() => {
@@ -229,6 +286,8 @@ export function useReaderPageInk({
       const popped = prev[prev.length - 1]!;
       setRedoStack((r) => [...r, popped]);
       const next = prev.slice(0, -1);
+      storedRef.current = next;
+      inkDirtyRef.current = true;
       scheduleSave(next);
       return next;
     });

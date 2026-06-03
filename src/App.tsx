@@ -48,6 +48,7 @@ import JournalVentPage from "./pages/journal/JournalVentPage";
 import JournalChatPage from "./pages/journal/JournalChatPage";
 import HomeIndicator from "./components/HomeIndicator";
 import GlobalJournalLauncher from "./components/journal/GlobalJournalLauncher";
+import GlobalArtifactVideoPip from "./components/framework/GlobalArtifactVideoPip";
 import MyAiPage from "./pages/myai/MyAiPage";
 import PartnerWalkPage from "./pages/partner/PartnerWalkPage";
 import PartnerAcceptPage from "./pages/partner/PartnerAcceptPage";
@@ -146,6 +147,7 @@ const App = () => (
           </Routes>
           <HomeIndicator />
           <GlobalJournalLauncher />
+          <GlobalArtifactVideoPip />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

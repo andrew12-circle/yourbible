@@ -44,6 +44,7 @@ import ReaderInkLayer, {
 import { ReaderInkToolbar } from "@/components/bible/ReaderInkToolbar";
 import { useReaderInkMode } from "@/hooks/useReaderPageInk";
 import { computeReaderLayoutFingerprint } from "@/lib/ink/layoutFingerprint";
+import { clearReaderInkChapter } from "@/lib/ink/readerInkChapterClear";
 import { INK_PEN_COLORS, INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import type { InkTool } from "@/lib/ink/types";
 
@@ -156,14 +157,29 @@ export default function ReaderPage() {
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false);
   const [staleLayoutInk, setStaleLayoutInk] = useState(false);
   const inkAnchorRefs = useRef(new Map<string, HTMLDivElement>());
+  const inkAnchorRefCallbacks = useRef(new Map<string, (el: HTMLDivElement | null) => void>());
+  const inkGetAnchorFns = useRef(new Map<string, () => HTMLDivElement | null>());
 
-  const bindInkAnchor = useCallback(
-    (id: string) => (el: HTMLDivElement | null) => {
-      if (el) inkAnchorRefs.current.set(id, el);
-      else inkAnchorRefs.current.delete(id);
-    },
-    [],
-  );
+  const getInkAnchorRef = useCallback((id: string) => {
+    let cb = inkAnchorRefCallbacks.current.get(id);
+    if (!cb) {
+      cb = (el: HTMLDivElement | null) => {
+        if (el) inkAnchorRefs.current.set(id, el);
+        else inkAnchorRefs.current.delete(id);
+      };
+      inkAnchorRefCallbacks.current.set(id, cb);
+    }
+    return cb;
+  }, []);
+
+  const getInkAnchorEl = useCallback((id: string) => {
+    let fn = inkGetAnchorFns.current.get(id);
+    if (!fn) {
+      fn = () => inkAnchorRefs.current.get(id) ?? null;
+      inkGetAnchorFns.current.set(id, fn);
+    }
+    return fn;
+  }, []);
 
   // Persist last-read position so the home screen can offer "continue".
   useEffect(() => {
@@ -588,20 +604,37 @@ export default function ReaderPage() {
   }, []);
 
   const handleInkStrokeStart = useCallback(() => {
-    setInkToolbarCollapsed(true);
+    setInkToolbarCollapsed((prev) => (prev ? prev : true));
   }, []);
 
   const runInkAction = useCallback(
-    (action: "undo" | "redo" | "clear") => {
+    (action: "undo" | "redo" | "clear", options?: { skipConfirm?: boolean }) => {
       const api = inkApisRef.current.get(focusedInkLayerIdRef.current);
       if (!api) return;
       if (action === "undo") api.undo();
       else if (action === "redo") api.redo();
-      else api.clear();
+      else api.clear(options);
       setInkToolbarState(api.getState());
     },
     [],
   );
+
+  const clearChapterInk = useCallback(async () => {
+    const label = `${book.name} ${chapter}`;
+    if (
+      !window.confirm(
+        `Remove all handwritten ink from ${label}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    for (const api of inkApisRef.current.values()) {
+      api.clear({ skipConfirm: true });
+    }
+    await clearReaderInkChapter(user?.id, book.abbr, chapter);
+    const focused = inkApisRef.current.get(focusedInkLayerIdRef.current);
+    if (focused) setInkToolbarState(focused.getState());
+  }, [book.abbr, book.name, chapter, user?.id]);
 
   useEffect(() => {
     if (!inkMode) return;
@@ -803,7 +836,7 @@ export default function ReaderPage() {
               className={`marker-hl v${mv}`}
               style={{ ["--hl-color" as string]: `var(${part.color})` }}
             >
-              {chunk}
+              <span className="marker-hl-text">{chunk}</span>
             </span>
           );
         }
@@ -863,14 +896,8 @@ export default function ReaderPage() {
 
   const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
 
-  // A single page surface (no scrolling — fixed area)
-  const PageSurface = ({
-    pageIdx,
-    side,
-  }: {
-    pageIdx: number;
-    side: "left" | "right";
-  }) => {
+  // JSX factory — not an inline component type (which would remount ink on every parent render).
+  const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const isFirst = pageIdx === 0;
     const start = splits[pageIdx] ?? 0;
     const end = splits[pageIdx + 1] ?? verses.length;
@@ -907,7 +934,7 @@ export default function ReaderPage() {
           </div>
         ) : (
           <div
-            ref={bindInkAnchor(inkLayerId)}
+            ref={getInkAnchorRef(inkLayerId)}
             data-ink-anchor={inkLayerId}
             className="relative flex flex-1 min-h-0 min-w-0"
           >
@@ -929,7 +956,7 @@ export default function ReaderPage() {
           <ReaderInkLayer
             layerId={inkLayerId}
             active
-            getAnchorEl={() => inkAnchorRefs.current.get(inkLayerId) ?? null}
+            getAnchorEl={getInkAnchorEl(inkLayerId)}
             userId={user?.id}
             pageKey={{ book: book.abbr, chapter, pageIndex: pageIdx, side }}
             layoutFingerprint={layoutFingerprint}
@@ -1054,6 +1081,7 @@ export default function ReaderPage() {
           onUndo={() => runInkAction("undo")}
           onRedo={() => runInkAction("redo")}
           onClear={() => runInkAction("clear")}
+          onClearChapterInk={clearChapterInk}
         />
       ) : null}
 
@@ -1080,14 +1108,14 @@ export default function ReaderPage() {
               direction={flipDirection}
               side="left"
             >
-              <PageSurface pageIdx={leftIdx} side="left" />
+              {renderPageSurface(leftIdx, "left")}
             </PageFlip>
           </SwipePage>
         }
         rightPage={
           <SwipePage side={singlePage ? "left" : "right"} onTurn={goPage} inkMode={inkMode}>
             <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={singlePage ? "left" : "right"}>
-              <PageSurface pageIdx={rightIdx} side={singlePage ? "left" : "right"} />
+              {renderPageSurface(rightIdx, singlePage ? "left" : "right")}
             </PageFlip>
           </SwipePage>
         }

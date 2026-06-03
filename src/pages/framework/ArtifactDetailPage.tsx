@@ -51,6 +51,7 @@ import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs";
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
+import { useArtifactGlobalVideoHandoff } from "@/hooks/useArtifactGlobalVideoHandoff";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
@@ -363,9 +364,21 @@ export default function ArtifactDetailPage() {
     playbackFallbackRef,
     seekVideoToSeconds,
     getPlaybackSeconds,
+    getIsPlaying,
+    persistSeconds,
     togglePlayback,
     resyncPlaybackPosition,
   } = videoPlayback;
+
+  useArtifactGlobalVideoHandoff({
+    artifactId: id,
+    youTubeVideoId,
+    title: a?.title ?? null,
+    getPlaybackSeconds,
+    getIsPlaying,
+    persistSeconds,
+    pipLayout: youtubePip.pipOverlayLayout,
+  });
 
   useEffect(() => {
     if (!isDesktop && mobileTab === "transcript" && youTubeVideoId) {

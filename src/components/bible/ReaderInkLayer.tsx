@@ -7,11 +7,15 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  eraserRadiusFromSize,
+  filterStrokesByEraser,
+} from "@/lib/ink/eraser";
+import {
   drawStroke,
   getInkPointFromCanvasEvent,
 } from "@/lib/ink/strokeRender";
 import { normalizeInkDrawTool } from "@/lib/ink/toolPresets";
-import type { InkStroke, InkTool, ReaderPageInkKey } from "@/lib/ink/types";
+import type { InkPoint, InkStroke, InkTool, ReaderPageInkKey } from "@/lib/ink/types";
 import { useReaderPageInk } from "@/hooks/useReaderPageInk";
 import { cn } from "@/lib/utils";
 
@@ -21,10 +25,12 @@ export type ReaderInkLayerState = {
   redoCount: number;
 };
 
+export type ReaderInkClearOptions = { skipConfirm?: boolean };
+
 export type ReaderInkLayerApi = {
   undo: () => void;
   redo: () => void;
-  clear: () => void;
+  clear: (options?: ReaderInkClearOptions) => void;
   getState: () => ReaderInkLayerState;
 };
 
@@ -85,6 +91,7 @@ export default function ReaderInkLayer({
   const sizeRef = useRef({ w: 0, h: 0 });
   const redrawFrameRef = useRef<number | null>(null);
   const activeStrokeRef = useRef<InkStroke | null>(null);
+  const lassoPointsRef = useRef<InkPoint[]>([]);
   const activePointerIdRef = useRef<number | null>(null);
   const activePointerTypeRef = useRef<string | null>(null);
   /** Committed strokes for immediate canvas redraw (React state can lag one frame). */
@@ -101,12 +108,12 @@ export default function ReaderInkLayer({
   const {
     strokes,
     redoStack,
-    loading,
     staleFingerprint,
     pushStroke,
     undo,
     redo,
     clearAll,
+    setStrokes,
   } = useReaderPageInk({
     userId,
     pageKey,
@@ -119,6 +126,8 @@ export default function ReaderInkLayer({
 
   const pushStrokeRef = useRef(pushStroke);
   pushStrokeRef.current = pushStroke;
+  const setStrokesRef = useRef(setStrokes);
+  setStrokesRef.current = setStrokes;
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
   const onStrokeStartRef = useRef(onStrokeStart);
@@ -134,18 +143,42 @@ export default function ReaderInkLayer({
   const lastNotifiedStateRef = useRef<ReaderInkLayerState | null>(null);
   const flushRedrawRef = useRef<() => void>(() => {});
   const pointerCleanupRef = useRef<(() => void) | null>(null);
+  const pendingCommitCountRef = useRef(0);
   const layerIdRef = useRef(layerId);
   layerIdRef.current = layerId;
 
   useEffect(() => {
-    if (loading) return;
-    displayStrokesRef.current = strokes;
-    flushRedrawRef.current();
-  }, [strokes, loading]);
+    if (strokes.length === 0) {
+      if (displayStrokesRef.current.length === 0 || pendingCommitCountRef.current > 0) return;
+      displayStrokesRef.current = strokes;
+      flushRedrawRef.current();
+      return;
+    }
+    if (strokes.length < displayStrokesRef.current.length) {
+      if (pendingCommitCountRef.current > 0) return;
+      displayStrokesRef.current = strokes;
+      flushRedrawRef.current();
+      return;
+    }
+    if (strokes.length > displayStrokesRef.current.length) {
+      pendingCommitCountRef.current = 0;
+      displayStrokesRef.current = strokes;
+      flushRedrawRef.current();
+      return;
+    }
+    if (
+      strokes.length === displayStrokesRef.current.length &&
+      pendingCommitCountRef.current > 0
+    ) {
+      pendingCommitCountRef.current = 0;
+    }
+  }, [strokes]);
 
   useEffect(() => {
     if (!active) {
       displayStrokesRef.current = [];
+      pendingCommitCountRef.current = 0;
+      lassoPointsRef.current = [];
     }
   }, [active, layerId]);
 
@@ -181,9 +214,15 @@ export default function ReaderInkLayer({
     const api: ReaderInkLayerApi = {
       undo,
       redo,
-      clear: () => {
-        if (strokes.length === 0) return;
-        if (window.confirm("Clear ink on this page?")) clearAll();
+      clear: (options) => {
+        if (strokes.length === 0 && displayStrokesRef.current.length === 0) return;
+        if (!options?.skipConfirm && !window.confirm("Clear ink on this page?")) return;
+        displayStrokesRef.current = [];
+        pendingCommitCountRef.current = 0;
+        lassoPointsRef.current = [];
+        activeStrokeRef.current = null;
+        clearAll();
+        flushRedrawRef.current();
       },
       getState: () => ({
         canUndo: strokes.length > 0,
@@ -219,8 +258,35 @@ export default function ReaderInkLayer({
     for (const stroke of displayStrokesRef.current) {
       drawStroke(lctx, stroke);
     }
-    if (activeStrokeRef.current) {
-      drawStroke(lctx, activeStrokeRef.current);
+    const activeStroke = activeStrokeRef.current;
+    if (activeStroke && activeStroke.tool !== "eraser") {
+      drawStroke(lctx, activeStroke);
+    }
+    if (activeStroke?.tool === "eraser" && activeStroke.points.length > 0) {
+      const r = eraserRadiusFromSize(toolRef.current.size);
+      const last = activeStroke.points[activeStroke.points.length - 1]!;
+      lctx.beginPath();
+      lctx.arc(last.x, last.y, r, 0, Math.PI * 2);
+      lctx.fillStyle = "rgba(15, 23, 42, 0.1)";
+      lctx.fill();
+      lctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+      lctx.lineWidth = 1.5;
+      lctx.stroke();
+    }
+    const lassoPts = lassoPointsRef.current;
+    if (lassoPts.length > 1) {
+      lctx.strokeStyle = "rgba(15, 23, 42, 0.45)";
+      lctx.lineWidth = 1.5;
+      lctx.setLineDash([5, 4]);
+      lctx.lineJoin = "round";
+      lctx.lineCap = "round";
+      lctx.beginPath();
+      lctx.moveTo(lassoPts[0]!.x, lassoPts[0]!.y);
+      for (let i = 1; i < lassoPts.length; i++) {
+        lctx.lineTo(lassoPts[i]!.x, lassoPts[i]!.y);
+      }
+      lctx.stroke();
+      lctx.setLineDash([]);
     }
     lctx.restore();
 
@@ -252,8 +318,42 @@ export default function ReaderInkLayer({
 
     const resolveDrawToolLocal = () => {
       const t = toolRef.current.tool;
-      if (t === "ruler" || t === "lasso") return "fountain";
+      if (t === "ruler") return "fountain";
       return normalizeInkDrawTool(t);
+    };
+
+    const applyEraserToStrokes = (eraserPoints: InkPoint[]) => {
+      if (eraserPoints.length === 0) return;
+      const size = toolRef.current.size;
+      setStrokesRef.current((prev) => {
+        const next = filterStrokesByEraser(prev, eraserPoints, size);
+        if (next.length === prev.length) return prev;
+        displayStrokesRef.current = next;
+        pendingCommitCountRef.current = 0;
+        return next;
+      });
+    };
+
+    const deleteStrokesInLassoBounds = () => {
+      const pts = lassoPointsRef.current;
+      if (pts.length < 3) return;
+      const xs = pts.map((p) => p.x);
+      const ys = pts.map((p) => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      setStrokesRef.current((prev) => {
+        const next = prev.filter(
+          (s) =>
+            !s.points.some(
+              (p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
+            ),
+        );
+        displayStrokesRef.current = next;
+        pendingCommitCountRef.current = 0;
+        return next;
+      });
     };
 
     const commitStroke = (stroke: InkStroke) => {
@@ -262,6 +362,7 @@ export default function ReaderInkLayer({
         tool: normalizeInkDrawTool(stroke.tool),
         points: stroke.points.map((p) => ({ ...p })),
       };
+      pendingCommitCountRef.current += 1;
       displayStrokesRef.current = [...displayStrokesRef.current, committed];
       pushStrokeRef.current(committed);
       onStrokeStartRef.current?.();
@@ -277,8 +378,23 @@ export default function ReaderInkLayer({
       }
       activePointerIdRef.current = null;
       activePointerTypeRef.current = null;
+
+      if (toolRef.current.tool === "lasso") {
+        deleteStrokesInLassoBounds();
+        lassoPointsRef.current = [];
+        flushRedrawRef.current();
+        e.preventDefault();
+        return;
+      }
+
       const stroke = activeStrokeRef.current;
       activeStrokeRef.current = null;
+      if (stroke?.tool === "eraser" && stroke.points.length > 0) {
+        applyEraserToStrokes(stroke.points);
+        flushRedrawRef.current();
+        e.preventDefault();
+        return;
+      }
       if (stroke && stroke.points.length > 0) {
         commitStroke(stroke);
       } else {
@@ -308,9 +424,27 @@ export default function ReaderInkLayer({
       wrap.setPointerCapture(e.pointerId);
       activePointerIdRef.current = e.pointerId;
       activePointerTypeRef.current = e.pointerType;
-      const { color: c, size: s } = toolRef.current;
-      const drawTool = resolveDrawToolLocal();
       const pt = getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType);
+
+      if (toolRef.current.tool === "lasso") {
+        lassoPointsRef.current = [pt];
+        activeStrokeRef.current = null;
+        flushRedrawRef.current();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const { color: c, size: s } = toolRef.current;
+      if (toolRef.current.tool === "eraser") {
+        activeStrokeRef.current = { tool: "eraser", color: c, size: s, points: [pt] };
+        flushRedrawRef.current();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const drawTool = resolveDrawToolLocal();
       activeStrokeRef.current = { tool: drawTool, color: c, size: s, points: [pt] };
       flushRedrawRef.current();
       e.preventDefault();
@@ -320,8 +454,63 @@ export default function ReaderInkLayer({
     const onPointerMove = (e: PointerEvent) => {
       if (activePointerIdRef.current !== e.pointerId) return;
       const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      if (toolRef.current.tool === "lasso" && lassoPointsRef.current.length > 0) {
+        const coalesced =
+          typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+        if (coalesced.length > 0) {
+          for (const ev of coalesced) {
+            lassoPointsRef.current.push(
+              getInkPointFromCanvasEvent(canvas, ev.clientX, ev.clientY, ev.pressure, e.pointerType),
+            );
+          }
+        } else {
+          lassoPointsRef.current.push(
+            getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType),
+          );
+        }
+        if (redrawFrameRef.current == null) {
+          redrawFrameRef.current = window.requestAnimationFrame(() => {
+            redrawFrameRef.current = null;
+            flushRedrawRef.current();
+          });
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if (toolRef.current.tool === "eraser") {
+        const stroke = activeStrokeRef.current;
+        if (!stroke || stroke.tool !== "eraser") return;
+        const coalesced =
+          typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+        if (coalesced.length > 0) {
+          for (const ev of coalesced) {
+            stroke.points.push(
+              getInkPointFromCanvasEvent(canvas, ev.clientX, ev.clientY, ev.pressure, e.pointerType),
+            );
+          }
+        } else {
+          stroke.points.push(
+            getInkPointFromCanvasEvent(canvas, e.clientX, e.clientY, e.pressure, e.pointerType),
+          );
+        }
+        if (stroke.points.length >= 2) {
+          applyEraserToStrokes(stroke.points);
+        }
+        if (redrawFrameRef.current == null) {
+          redrawFrameRef.current = window.requestAnimationFrame(() => {
+            redrawFrameRef.current = null;
+            flushRedrawRef.current();
+          });
+        }
+        e.preventDefault();
+        return;
+      }
+
       const stroke = activeStrokeRef.current;
-      if (!canvas || !stroke) return;
+      if (!stroke) return;
       const coalesced =
         typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
       if (coalesced.length > 0) {
@@ -378,6 +567,7 @@ export default function ReaderInkLayer({
       window.removeEventListener("pointercancel", finishStroke);
       activePointerIdRef.current = null;
       activeStrokeRef.current = null;
+      lassoPointsRef.current = [];
     };
   }, [active]);
 
@@ -412,11 +602,7 @@ export default function ReaderInkLayer({
 
   const syncOverlayLayout = useCallback(() => {
     const anchor = getAnchorElRef.current();
-    if (!anchor) {
-      setOverlayLayout(EMPTY_LAYOUT);
-      sizeRef.current = { w: 0, h: 0 };
-      return;
-    }
+    if (!anchor) return;
     const r = anchor.getBoundingClientRect();
     const left = Math.round(r.left);
     const top = Math.round(r.top);
