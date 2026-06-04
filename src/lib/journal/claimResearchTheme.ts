@@ -16,16 +16,13 @@ export const geminiUserTurn =
   "max-w-[min(100%,85%)] whitespace-pre-wrap rounded-[24px] bg-muted/50 px-4 py-2.5 text-[15px] leading-relaxed text-foreground " +
   "dark:bg-muted/30";
 
-/** Bottom “Ask Gemini” pill. */
+/** Gemini multi-line composer: textarea grows on top, toolbar row below. */
 export const geminiInputShell =
-  "flex min-h-[52px] items-end gap-1 rounded-[28px] border border-border/60 bg-card px-2 py-1.5 " +
+  "flex flex-col rounded-[28px] border border-[#dde3ea] bg-[#f0f4f9] px-1.5 pt-1.5 pb-1 " +
   "shadow-[0_1px_3px_rgba(60,64,67,0.08),0_4px_16px_rgba(60,64,67,0.06)] " +
-  "dark:border-border/50 dark:shadow-[0_1px_3px_rgba(0,0,0,0.3)]";
+  "dark:border-border/50 dark:bg-muted/30 dark:shadow-[0_1px_3px_rgba(0,0,0,0.3)]";
 
 export const geminiChip =
   "shrink-0 rounded-full border-0 bg-muted/40 px-3.5 py-2 text-[13px] font-normal text-muted-foreground " +
   "transition-colors hover:bg-muted/70 hover:text-foreground disabled:opacity-50";
 
-export const geminiSendButton =
-  "h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground " +
-  "data-[active=true]:bg-[#4285F4] data-[active=true]:text-white data-[active=true]:hover:bg-[#1a73e8] disabled:opacity-35";

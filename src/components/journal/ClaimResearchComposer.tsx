@@ -1,14 +1,5 @@
 import { useRef } from "react";
-import {
-  BookOpen,
-  ChevronDown,
-  NotebookPen,
-  Plus,
-  RefreshCw,
-  Send,
-  Settings2,
-  Square,
-} from "lucide-react";
+import { ArrowUp, BookOpen, ChevronDown, NotebookPen, Plus, Settings2, Square } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,8 +17,8 @@ import {
   claimResearchColumn,
   geminiChip,
   geminiInputShell,
-  geminiSendButton,
 } from "@/lib/journal/claimResearchTheme";
+import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
 
 type Props = {
   input: string;
@@ -47,6 +38,9 @@ type Props = {
   onOpenReport: () => void;
   className?: string;
 };
+
+const MIN_HEIGHT_PX = textareaHeightForLines(1);
+const MAX_HEIGHT_PX = textareaHeightForLines(7);
 
 export default function ClaimResearchComposer({
   input,
@@ -69,6 +63,15 @@ export default function ClaimResearchComposer({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const canSend = Boolean(input.trim()) && !disabled && !sending;
 
+  useAutoGrowTextarea(taRef, input, { maxLines: 7, minLines: 1 });
+
+  const applyChip = (text: string) => {
+    onInputChange(text);
+    requestAnimationFrame(() => {
+      taRef.current?.focus();
+    });
+  };
+
   return (
     <div
       className={cn(
@@ -83,10 +86,7 @@ export default function ClaimResearchComposer({
               key={chip.label}
               type="button"
               disabled={disabled || sending}
-              onClick={() => {
-                onInputChange(chip.text);
-                setTimeout(() => taRef.current?.focus(), 30);
-              }}
+              onClick={() => applyChip(chip.text)}
               className={geminiChip}
             >
               {chip.label}
@@ -95,49 +95,6 @@ export default function ClaimResearchComposer({
         </div>
 
         <div className={geminiInputShell}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="mb-0.5 h-10 w-10 shrink-0 rounded-full text-muted-foreground"
-                aria-label="Tools and options"
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem onClick={onReflect} disabled={disabled}>
-                <NotebookPen className="mr-2 h-4 w-4" />
-                Save note
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onOpenReport}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Full research report
-              </DropdownMenuItem>
-              {chatId ? (
-                <DropdownMenuItem asChild>
-                  <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
-                </DropdownMenuItem>
-              ) : null}
-              <div className="mt-1 space-y-3 border-t border-border/60 px-2 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="cr-web-menu" className="text-xs font-normal">
-                    Web search
-                  </Label>
-                  <Switch id="cr-web-menu" checked={packUseWeb} onCheckedChange={onPackUseWebChange} />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="cr-gen-menu" className="text-xs font-normal">
-                    General knowledge
-                  </Label>
-                  <Switch id="cr-gen-menu" checked={includeGeneral} onCheckedChange={onIncludeGeneralChange} />
-                </div>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <Textarea
             ref={taRef}
             value={input}
@@ -152,54 +109,112 @@ export default function ClaimResearchComposer({
             spellCheck
             disabled={disabled || sending}
             placeholder={sending ? "Thinking…" : "Ask about this claim"}
-            className="min-h-[44px] max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-3 text-[15px] leading-snug shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
+            style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
+            className={cn(
+              "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-3",
+              "text-[15px] leading-[1.65] shadow-none placeholder:text-muted-foreground/70",
+              "focus-visible:ring-0 focus-visible:ring-offset-0",
+              "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
+            )}
           />
 
-          <div className="mb-0.5 flex shrink-0 items-center gap-0.5 self-end">
+          <div className="flex items-center justify-between gap-2 px-1 pb-0.5 pt-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
-                  className="h-9 gap-0.5 rounded-full px-2.5 text-xs font-medium text-muted-foreground"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/10"
+                  aria-label="Tools and options"
                 >
-                  {packUseWeb ? "Web" : "Chat"}
-                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  <Plus className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => onPackUseWebChange(!packUseWeb)}>
-                  <Settings2 className="mr-2 h-4 w-4" />
-                  Toggle web search
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={onReflect} disabled={disabled}>
+                  <NotebookPen className="mr-2 h-4 w-4" />
+                  Save note
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={onOpenReport}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Full research report
+                </DropdownMenuItem>
+                {chatId ? (
+                  <DropdownMenuItem asChild>
+                    <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
+                  </DropdownMenuItem>
+                ) : null}
+                <div className="mt-1 space-y-3 border-t border-border/60 px-2 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="cr-web-menu" className="text-xs font-normal">
+                      Web search
+                    </Label>
+                    <Switch id="cr-web-menu" checked={packUseWeb} onCheckedChange={onPackUseWebChange} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="cr-gen-menu" className="text-xs font-normal">
+                      General knowledge
+                    </Label>
+                    <Switch
+                      id="cr-gen-menu"
+                      checked={includeGeneral}
+                      onCheckedChange={onIncludeGeneralChange}
+                    />
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
-            {sending ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full"
-                onClick={onStop}
-                aria-label="Stop"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cn(geminiSendButton)}
-                data-active={canSend ? "true" : "false"}
-                disabled={!canSend}
-                onClick={onSend}
-                aria-label="Send"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
+
+            <div className="flex shrink-0 items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 gap-0.5 rounded-full px-2.5 text-xs font-medium text-muted-foreground"
+                  >
+                    {packUseWeb ? "Web" : "Chat"}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => onPackUseWebChange(!packUseWeb)}>
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Toggle web search
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {sending ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={onStop}
+                  aria-label="Stop"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="icon"
+                  className={cn(
+                    "h-10 w-10 shrink-0 rounded-full transition-colors",
+                    canSend
+                      ? "bg-[#4285F4] text-white hover:bg-[#1a73e8]"
+                      : "bg-transparent text-muted-foreground/50 hover:bg-black/[0.04] dark:hover:bg-white/10",
+                  )}
+                  disabled={!canSend}
+                  onClick={onSend}
+                  aria-label="Send"
+                >
+                  <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
