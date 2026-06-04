@@ -69,6 +69,7 @@ export type RenderClaimCardContext = {
   transcriptSegments?: TranscriptSegment[];
   videoDurationSeconds?: number | null;
   matchedBeliefs: Record<string, RenderClaimCardBelief>;
+  lastResearchedAtByClaim?: Record<string, string>;
   playClaimAtSource: (claim: RenderClaimCardClaim, source: TranscriptSegment | null | undefined) => void;
   startClaimResearchChat: (claim: RenderClaimCardClaim, source: TranscriptSegment | null | undefined) => void;
   openJournalFromClaim: (claim: RenderClaimCardClaim, startSeconds?: number) => void;
@@ -320,6 +321,10 @@ export function renderArtifactDetailClaimCard(
       : null;
   const epistemology = parseClaimEpistemology(c.epistemology);
   const claimNumber = claimIndex + 1;
+  const lastResearchedAt = ctx.lastResearchedAtByClaim?.[c.id];
+  const lastResearchedLabel = lastResearchedAt
+    ? new Date(lastResearchedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : null;
   const desktopRail = ctx.layout === "desktopRail";
   const mobileRail = ctx.layout === "mobileRail";
   const railLayout = desktopRail || mobileRail;
@@ -656,6 +661,11 @@ export function renderArtifactDetailClaimCard(
           </span>
           <p className="font-display text-base leading-relaxed text-foreground">{c.claim}</p>
         </div>
+        {lastResearchedLabel ? (
+          <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            Researched {lastResearchedLabel}
+          </span>
+        ) : null}
         {c.verdict ? (
           <span
             className={cn(

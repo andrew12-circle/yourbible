@@ -26,6 +26,8 @@ type RequestBody = {
   journal_bootstrap_artifact_claim_id?: string | null;
   /** Optional transcript excerpt from the client (e.g. "Source in transcript"); capped server-side. */
   journal_bootstrap_transcript_excerpt?: string | null;
+  /** When set, latest saved validation pack for this claim is injected into chat context. */
+  artifact_claim_id?: string | null;
   finalize_journal_entry_id?: string | null;
   /** Standalone My AI thread → new journal entry with transcript + summary. */
   export_chat_to_journal_id?: string | null;
@@ -41,6 +43,56 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function sanitizeSectionBody(body: string): string {
+  let text = body.trim();
+  text = text.replace(/^Epistemic:\s*[\w.]+\s*(\n+|$)/i, "");
+  return text.trim();
+}
+
+async function loadClaimResearchPackBlock(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  claimId: string,
+  maxChars = 8000,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("artifact_claim_research_runs")
+    .select("pack_json,brief_summary,created_at")
+    .eq("user_id", userId)
+    .eq("artifact_claim_id", claimId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return "";
+
+  const brief = typeof data.brief_summary === "string" ? data.brief_summary.trim() : "";
+  const pack = data.pack_json;
+  if (!isRecord(pack) || !isRecord(pack.sections)) {
+    return brief ? `## Claim research brief (saved)\n\n${brief}` : "";
+  }
+
+  const sections = pack.sections as Record<string, { body?: string; epistemic?: string }>;
+  const lines: string[] = [
+    "## Claim research brief (saved — use for grounded answers; do not dump raw markdown to the user)",
+    "",
+  ];
+  if (brief) {
+    lines.push(brief, "");
+  }
+  const lensOrder = isRecord(pack.meta) && Array.isArray(pack.meta.lenses)
+    ? (pack.meta.lenses as string[]).filter((x) => typeof x === "string")
+    : ["bible_alignment", "historical_context", "independent_voices"];
+  for (const id of lensOrder) {
+    const s = sections[id];
+    const body = typeof s?.body === "string" ? sanitizeSectionBody(s.body) : "";
+    if (!body) continue;
+    lines.push(`### ${id}`, body, "");
+  }
+  let block = lines.join("\n").trim();
+  if (block.length > maxChars) block = `${block.slice(0, maxChars)}\n\n_(Pack truncated.)_`;
+  return block;
 }
 
 function stripJsonFence(text: string): string {
@@ -713,8 +765,16 @@ Deno.serve(async (req) => {
       );
       const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
       const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix);
+      const packClaimId = claimBootstrap ||
+        (typeof body.artifact_claim_id === "string" && /^[0-9a-f-]{36}$/i.test(body.artifact_claim_id.trim())
+          ? body.artifact_claim_id.trim()
+          : "");
+      const researchPackBlock = packClaimId
+        ? await loadClaimResearchPackBlock(supabase, userId, packClaimId)
+        : "";
+
       const userPayload =
-        `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
+        `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
 
       const chatRes = await callChatJson(systemText, userPayload);
       if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
@@ -920,8 +980,14 @@ Deno.serve(async (req) => {
       ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix)
       : buildMyAiSystemPrompt(includeGeneral, partnerAppendix);
 
+    const claimPackIdRaw = typeof body.artifact_claim_id === "string" ? body.artifact_claim_id.trim() : "";
+    const claimPackId = /^[0-9a-f-]{36}$/i.test(claimPackIdRaw) ? claimPackIdRaw : "";
+    const researchPackBlock = claimPackId
+      ? await loadClaimResearchPackBlock(supabase, userId, claimPackId)
+      : "";
+
     const userPayload =
-      `${contextPack.contextBlock}\n\n---\nUser message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
+      `${contextPack.contextBlock}\n\n${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}User message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
 
     const ranked = await generateRankedReply(systemText, userPayload, message);
     if ("error" in ranked) return jsonResponse({ error: ranked.error }, 502);

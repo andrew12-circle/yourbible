@@ -47,6 +47,87 @@ export type Database = {
         }
         Relationships: []
       }
+      artifact_claim_research_runs: {
+        Row: {
+          artifact_claim_id: string
+          artifact_id: string
+          brief_summary: string | null
+          created_at: string
+          first_chat_at: string | null
+          id: string
+          opened_at: string | null
+          pack_json: Json
+          pack_type: string
+          use_web: boolean
+          user_id: string
+          user_question: string | null
+          verdict: string | null
+          verdict_at: string | null
+        }
+        Insert: {
+          artifact_claim_id: string
+          artifact_id: string
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          id?: string
+          opened_at?: string | null
+          pack_json: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Update: {
+          artifact_claim_id?: string
+          artifact_id?: string
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          id?: string
+          opened_at?: string | null
+          pack_json?: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id?: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Relationships: []
+      }
+      claim_research_events: {
+        Row: {
+          artifact_claim_id: string
+          artifact_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          artifact_claim_id: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          artifact_claim_id?: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       artifact_claims: {
         Row: {
           artifact_id: string

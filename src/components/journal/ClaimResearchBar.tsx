@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Loader2,
   Pencil,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 import { CLAIM_VERDICT_LABELS, type ClaimVerdict } from "@/lib/framework/claimVerdict";
 
-/** Floating panel (~440px) needs compact verdicts; full-width pages can show inline buttons. */
 const COMPACT_VERDICT_MAX_W = 480;
 
 const VERDICT_ACTIONS: {
@@ -66,10 +66,17 @@ export type ClaimResearchBarProps = {
   artifactId: string;
   matchedBeliefId?: string | null;
   artifactLinkLabel?: string;
-  packLoading?: boolean;
+  /** Auto-brief / refresh in progress */
+  briefLoading?: boolean;
+  /** Full report sheet fetch in progress */
+  reportLoading?: boolean;
   verdictBusy?: boolean;
+  lastResearchedLabel?: string | null;
   showResearchPack?: boolean;
+  /** When false, verdicts render in ClaimResearchVerdictDock instead. */
+  showInlineVerdicts?: boolean;
   onResearchPack?: () => void;
+  onRefreshBrief?: () => void;
   onVerdict: (verdict: ClaimVerdict) => void;
   className?: string;
 };
@@ -79,10 +86,14 @@ export default function ClaimResearchBar({
   artifactId,
   matchedBeliefId,
   artifactLinkLabel = "Artifact",
-  packLoading = false,
+  briefLoading = false,
+  reportLoading = false,
   verdictBusy = false,
+  lastResearchedLabel,
   showResearchPack = true,
+  showInlineVerdicts = true,
   onResearchPack,
+  onRefreshBrief,
   onVerdict,
   className,
 }: ClaimResearchBarProps) {
@@ -111,7 +122,12 @@ export default function ClaimResearchBar({
         className,
       )}
     >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">Claim</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">Claim</div>
+        {lastResearchedLabel ? (
+          <span className="text-[9px] text-muted-foreground">Researched {lastResearchedLabel}</span>
+        ) : null}
+      </div>
       <ClaimTextPreview text={claimText} />
 
       <div className="mt-2 space-y-1.5 min-w-0">
@@ -135,62 +151,76 @@ export default function ClaimResearchBar({
               size="sm"
               variant="default"
               className={cn(linkBtnClass, "max-w-full")}
-              disabled={packLoading}
+              disabled={reportLoading}
               onClick={onResearchPack}
             >
-              {packLoading ? (
+              {reportLoading ? (
                 <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
               ) : (
                 <BookOpen className="h-3 w-3 shrink-0" aria-hidden />
               )}
-              <span className="truncate">Validate claim</span>
+              <span className="truncate">Full report</span>
+            </Button>
+          ) : null}
+          {onRefreshBrief ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className={linkBtnClass}
+              disabled={briefLoading}
+              onClick={onRefreshBrief}
+            >
+              <RefreshCw className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="truncate">Refresh brief</span>
             </Button>
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-1 border-t border-border/40 pt-1.5">
-          {compactVerdicts ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className={cn(verdictBtnClass, "w-full justify-between sm:w-auto")}
-                  disabled={verdictBusy}
-                >
-                  Verdict
-                  <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[10rem]">
-                {VERDICT_ACTIONS.map(({ verdict, label, icon: Icon }) => (
-                  <DropdownMenuItem
-                    key={verdict}
+        {showInlineVerdicts ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-1 border-t border-border/40 pt-1.5">
+            {compactVerdicts ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn(verdictBtnClass, "w-full justify-between sm:w-auto")}
                     disabled={verdictBusy}
-                    onClick={() => onVerdict(verdict)}
                   >
-                    <Icon className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    {label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            VERDICT_ACTIONS.map(({ verdict, label, icon: Icon }) => (
-              <Button
-                key={verdict}
-                size="sm"
-                variant={verdict === "updated" ? "secondary" : "outline"}
-                className={verdictBtnClass}
-                disabled={verdictBusy}
-                onClick={() => onVerdict(verdict)}
-              >
-                <Icon className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
-                {label}
-              </Button>
-            ))
-          )}
-        </div>
+                    Verdict
+                    <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[10rem]">
+                  {VERDICT_ACTIONS.map(({ verdict, label, icon: Icon }) => (
+                    <DropdownMenuItem
+                      key={verdict}
+                      disabled={verdictBusy}
+                      onClick={() => onVerdict(verdict)}
+                    >
+                      <Icon className="mr-2 h-3.5 w-3.5 opacity-70" />
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              VERDICT_ACTIONS.map(({ verdict, label, icon: Icon }) => (
+                <Button
+                  key={verdict}
+                  size="sm"
+                  variant={verdict === "updated" ? "secondary" : "outline"}
+                  className={verdictBtnClass}
+                  disabled={verdictBusy}
+                  onClick={() => onVerdict(verdict)}
+                >
+                  <Icon className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+                  {label}
+                </Button>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
     </section>
   );

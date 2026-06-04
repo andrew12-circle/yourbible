@@ -48,6 +48,13 @@ function writeLauncherTucked(tucked: boolean) {
 /** Inline journal on artifact detail: docked under video, or expanded (desktop → PiP video). */
 export type ArtifactJournalMode = "closed" | "docked" | "expanded";
 
+export type ClaimVerdictPatch = {
+  artifactId: string;
+  claimId: string;
+  verdict: string | null;
+  deferred_at: string | null;
+};
+
 interface FloatingJournalState {
   panelOpen: boolean;
   /** Artifact detail: full-width journal in the study column (not the floating mini panel). */
@@ -58,6 +65,9 @@ interface FloatingJournalState {
   /** YouTube artifact page: JS API ready for timestamp inserts. */
   playbackCaptureAvailable: boolean;
   launcherTucked: boolean;
+  /** Bumps when a claim verdict is saved from research UI (artifact detail listens). */
+  claimVerdictRevision: number;
+  lastClaimVerdictPatch: ClaimVerdictPatch | null;
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
   setArtifactJournalMode: (mode: ArtifactJournalMode) => void;
@@ -66,6 +76,7 @@ interface FloatingJournalState {
   setPlaybackCaptureAvailable: (v: boolean) => void;
   setLauncherTucked: (tucked: boolean) => void;
   tuckLauncherFromPanel: () => void;
+  publishClaimVerdictPatch: (patch: ClaimVerdictPatch) => void;
 }
 
 export const useFloatingJournalStore = create<FloatingJournalState>((set) => ({
@@ -76,6 +87,8 @@ export const useFloatingJournalStore = create<FloatingJournalState>((set) => ({
   playbackCaptureAvailable: false,
   launcherTucked:
     typeof window !== "undefined" ? Boolean(readLauncherPersist().tucked) : false,
+  claimVerdictRevision: 0,
+  lastClaimVerdictPatch: null,
 
   setPanelOpen: (open) => set({ panelOpen: open }),
 
@@ -98,4 +111,10 @@ export const useFloatingJournalStore = create<FloatingJournalState>((set) => ({
     writeLauncherTucked(true);
     set({ launcherTucked: true });
   },
+
+  publishClaimVerdictPatch: (patch) =>
+    set((s) => ({
+      lastClaimVerdictPatch: patch,
+      claimVerdictRevision: s.claimVerdictRevision + 1,
+    })),
 }));

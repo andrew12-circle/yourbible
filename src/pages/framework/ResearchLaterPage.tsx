@@ -111,7 +111,12 @@ export default function ResearchLaterPage() {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" asChild>
-                  <Link to={`/framework/artifacts/${row.artifact_id}#${row.id}`}>Open claim</Link>
+                  <Link to={`/framework/artifacts/${row.artifact_id}/research/${row.id}`}>
+                    Research claim
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={`/framework/artifacts/${row.artifact_id}#${row.id}`}>View on video</Link>
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => void clearDefer(row.id)}>
                   Remove from queue

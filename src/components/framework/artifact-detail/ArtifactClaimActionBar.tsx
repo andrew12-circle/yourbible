@@ -44,7 +44,7 @@ export default function ArtifactClaimActionBar({
           aria-label="Claim actions"
           className={cn(
             "flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide",
-            "[-webkit-overflow-scrolling:touch] touch-pan-x overscroll-x-contain",
+            "[-webkit-overflow-scrolling:touch]",
           )}
         >
           {renderArtifactDetailClaimEngageActions(claim, context, {

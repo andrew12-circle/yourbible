@@ -11,9 +11,11 @@ function isJournalRoute(pathname: string) {
   return pathname === "/journal" || pathname.startsWith("/journal/");
 }
 
-function journalLauncherHidden(pathname: string) {
+/** Routes where the right-edge journal tab is hidden (artifact pages use embedded journal). */
+export function journalLauncherChromeHidden(pathname: string) {
   return (
     isJournalRoute(pathname) ||
+    /\/framework\/artifacts\/[^/]+\/research\//.test(pathname) ||
     pathname.startsWith("/framework/artifacts") ||
     pathname === "/" ||
     pathname === "/home" ||
@@ -26,6 +28,7 @@ export default function GlobalJournalLauncher() {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const panelOpen = useFloatingJournalStore((s) => s.panelOpen);
+  const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
   const togglePanel = useFloatingJournalStore((s) => s.togglePanel);
   const setPanelOpen = useFloatingJournalStore((s) => s.setPanelOpen);
   const launcherTucked = useFloatingJournalStore((s) => s.launcherTucked);
@@ -33,15 +36,17 @@ export default function GlobalJournalLauncher() {
   const routeArtifact = useFloatingJournalStore((s) => s.routeArtifact);
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
-  const hidden = !user || journalLauncherHidden(pathname);
+  const chromeHidden = !user || journalLauncherChromeHidden(pathname);
+  const showPanel = Boolean(user && panelOpen);
+  const showChrome = !chromeHidden;
 
   useEffect(() => {
-    if (journalLauncherHidden(pathname) && panelOpen) {
+    if (journalLauncherChromeHidden(pathname) && panelOpen && !floatingClaimResearch) {
       setPanelOpen(false);
     }
-  }, [pathname, panelOpen, setPanelOpen]);
+  }, [pathname, panelOpen, setPanelOpen, floatingClaimResearch]);
 
-  if (hidden) return null;
+  if (!showPanel && !showChrome) return null;
 
   const readerJournal = pathname.startsWith("/read/");
 
@@ -54,62 +59,64 @@ export default function GlobalJournalLauncher() {
 
   return (
     <>
-      <div
-        className={cn(
-          "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
-          "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
-          readerJournal
-            ? "border-gold/25 bg-navy text-gold-bright"
-            : "border-primary/20 bg-primary text-primary-foreground",
-          launcherTucked ? "w-1 overflow-hidden" : readerJournal ? "w-8" : "w-11",
-        )}
-        style={{ WebkitTapHighlightColor: "transparent" }}
-      >
-        {launcherTucked ? (
-          <button
-            type="button"
-            aria-label="Show journal tab"
-            title="Show journal tab"
-            onClick={() => setLauncherTucked(false)}
-            className={cn(
-              "flex min-h-[88px] w-full items-center justify-center py-2",
-              readerJournal
-                ? "text-gold/90 hover:text-gold-bright"
-                : "text-primary-foreground/90 hover:text-primary-foreground",
-            )}
-          >
-            <ChevronLeft className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
-          </button>
-        ) : (
-          <button
-            type="button"
-            aria-label={
-              readerJournal
-                ? panelOpen
-                  ? "Close journal"
-                  : "Open journal"
-                : panelOpen
-                  ? "Close mini journal"
-                  : "Open mini journal"
-            }
-            title="Journal"
-            onClick={() => togglePanel()}
-            className={cn(
-              "flex min-h-[88px] w-full items-center justify-center py-2",
-              readerJournal
-                ? "hover:bg-gold/10 active:bg-gold/15"
-                : "flex-col gap-0.5 text-primary-foreground hover:bg-white/10 active:bg-white/15",
-            )}
-          >
-            {!readerJournal && <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />}
-          </button>
-        )}
-      </div>
+      {showChrome ? (
+        <div
+          className={cn(
+            "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
+            "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
+            readerJournal
+              ? "border-gold/25 bg-navy text-gold-bright"
+              : "border-primary/20 bg-primary text-primary-foreground",
+            launcherTucked ? "w-1 overflow-hidden" : readerJournal ? "w-8" : "w-11",
+          )}
+          style={{ WebkitTapHighlightColor: "transparent" }}
+        >
+          {launcherTucked ? (
+            <button
+              type="button"
+              aria-label="Show journal tab"
+              title="Show journal tab"
+              onClick={() => setLauncherTucked(false)}
+              className={cn(
+                "flex min-h-[88px] w-full items-center justify-center py-2",
+                readerJournal
+                  ? "text-gold/90 hover:text-gold-bright"
+                  : "text-primary-foreground/90 hover:text-primary-foreground",
+              )}
+            >
+              <ChevronLeft className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={
+                readerJournal
+                  ? panelOpen
+                    ? "Close journal"
+                    : "Open journal"
+                  : panelOpen
+                    ? "Close mini journal"
+                    : "Open mini journal"
+              }
+              title="Journal"
+              onClick={() => togglePanel()}
+              className={cn(
+                "flex min-h-[88px] w-full items-center justify-center py-2",
+                readerJournal
+                  ? "hover:bg-gold/10 active:bg-gold/15"
+                  : "flex-col gap-0.5 text-primary-foreground hover:bg-white/10 active:bg-white/15",
+              )}
+            >
+              {!readerJournal && <NotebookPen className="h-5 w-5 shrink-0" aria-hidden />}
+            </button>
+          )}
+        </div>
+      ) : null}
 
-      {panelOpen && (
+      {showPanel ? (
         <FloatingJournalPanel
           key={panelKey}
-          userId={user.id}
+          userId={user!.id}
           artifactId={routeArtifact?.id}
           artifactTitle={routeArtifact?.title}
           artifactKind={routeArtifact?.kind}
@@ -117,7 +124,7 @@ export default function GlobalJournalLauncher() {
           readerTheme={readerJournal}
           onClose={() => setPanelOpen(false)}
         />
-      )}
+      ) : null}
     </>
   );
 }

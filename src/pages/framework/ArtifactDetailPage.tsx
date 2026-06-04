@@ -103,6 +103,7 @@ import {
   titleLooksBad,
   withYouTubeTimestamp,
 } from "@/lib/framework/artifactDetailPageHelpers";
+import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
 
 interface ArtifactMetadata {
   source?: string;
@@ -211,6 +212,7 @@ export default function ArtifactDetailPage() {
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
+  const [lastResearchedAtByClaim, setLastResearchedAtByClaim] = useState<Record<string, string>>({});
   const [desktopInsightExploreClaimId, setDesktopInsightExploreClaimId] = useState<string | null>(null);
   const [mobileNoteSectionOpen, setMobileNoteSectionOpen] = useState(false);
   const resetMobileStudyScroll = useCallback(() => {
@@ -775,6 +777,43 @@ export default function ArtifactDetailPage() {
     [switchToStudyTab, switchToTranscriptTab, switchToNotesTab],
   );
 
+  useEffect(() => {
+    if (!user?.id || !claims.length) {
+      setLastResearchedAtByClaim({});
+      return;
+    }
+    let cancelled = false;
+    void fetchLastResearchedAtByClaimIds(
+      supabase,
+      user.id,
+      claims.map((c) => c.id),
+    ).then((map) => {
+      if (!cancelled) setLastResearchedAtByClaim(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, claims]);
+
+  const claimVerdictRevision = useFloatingJournalStore((s) => s.claimVerdictRevision);
+  const lastClaimVerdictPatch = useFloatingJournalStore((s) => s.lastClaimVerdictPatch);
+
+  useEffect(() => {
+    if (!a?.id || !lastClaimVerdictPatch) return;
+    if (lastClaimVerdictPatch.artifactId !== a.id) return;
+    setClaims((cs) =>
+      cs.map((c) =>
+        c.id === lastClaimVerdictPatch.claimId
+          ? {
+              ...c,
+              verdict: lastClaimVerdictPatch.verdict,
+              deferred_at: lastClaimVerdictPatch.deferred_at,
+            }
+          : c,
+      ),
+    );
+  }, [a?.id, claimVerdictRevision, lastClaimVerdictPatch]);
+
   if (loading) {
     return (
       <FrameworkLayout
@@ -825,6 +864,14 @@ export default function ArtifactDetailPage() {
     setClaims((cs) =>
       cs.map((c) => (c.id === cid ? { ...c, verdict, deferred_at } : c)),
     );
+    if (a?.id) {
+      useFloatingJournalStore.getState().publishClaimVerdictPatch({
+        artifactId: a.id,
+        claimId: cid,
+        verdict,
+        deferred_at,
+      });
+    }
   };
 
   const applyClaimVerdict = async (cid: string, verdict: ClaimVerdict | null) => {
@@ -1094,17 +1141,23 @@ export default function ArtifactDetailPage() {
   const startClaimResearchChat = (claim: Claim, source: TranscriptSegment | null | undefined) => {
     const belief = claim.matched_belief_id ? matchedBeliefs[claim.matched_belief_id] : undefined;
     const markdown = buildClaimResearchMarkdown(a.title, claim, source, belief);
-    useFloatingJournalStore.getState().setFloatingClaimResearch({
+    const handoff = {
       claimId: claim.id,
       artifactId: a.id,
       claimMarkdown: markdown,
       journalTitle: buildClaimResearchJournalTitle(a.title, claim),
       transcriptExcerpt: source?.text ? source.text.slice(0, 4000) : undefined,
-      initialTab: "chat",
+      initialTab: "chat" as const,
       claimPreview: claim.claim.trim().slice(0, 220) || "Claim",
       matchedBeliefId: claim.matched_belief_id,
       artifactTitle: a.title,
-    });
+    };
+    if (!isDesktop) {
+      useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
+      navigate(`/framework/artifacts/${a.id}/research/${claim.id}`);
+      return;
+    }
+    useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
     useFloatingJournalStore.getState().setArtifactJournalMode("closed");
     useFloatingJournalStore.getState().setPanelOpen(true);
   };
@@ -1237,6 +1290,7 @@ export default function ArtifactDetailPage() {
     transcriptSegments,
     videoDurationSeconds,
     matchedBeliefs,
+    lastResearchedAtByClaim,
     playClaimAtSource,
     startClaimResearchChat,
     openJournalFromClaim,

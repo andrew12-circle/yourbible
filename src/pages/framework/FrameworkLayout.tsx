@@ -50,6 +50,11 @@ export function isArtifactDetailPath(pathname: string): boolean {
   return /^\/framework\/artifacts\/(?!new$)[^/]+$/.test(pathname);
 }
 
+/** `/framework/artifacts/:id/research/:claimId` — focused claim research (no framework nav). */
+export function isClaimResearchPath(pathname: string): boolean {
+  return /^\/framework\/artifacts\/[^/]+\/research\/[^/]+$/.test(pathname);
+}
+
 /** Wide library surfaces (artifact grid, new artifact). */
 export function isArtifactsLibraryPath(pathname: string): boolean {
   return (
@@ -86,7 +91,8 @@ export default function FrameworkLayout({
   headerTrailing,
 }: Props) {
   const { pathname } = useLocation();
-  const immersive = immersiveProp ?? isArtifactDetailPath(pathname);
+  const claimResearch = isClaimResearchPath(pathname);
+  const immersive = immersiveProp ?? (isArtifactDetailPath(pathname) || claimResearch);
   const studioLibrary = isArtifactsLibraryPath(pathname);
   const compactMobileHeader = Boolean(immersive && (immersiveCompactTitle || immersiveMobileMinimal));
   const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);

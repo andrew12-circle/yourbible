@@ -63,6 +63,159 @@ const VALIDATION_LENS_LABELS: Record<string, string> = {
   independent_voices: "Three independent voices",
 };
 
+const EPISTEMIC_LABELS: Record<string, string> = {
+  scripture_text: "From fetched Bible text",
+  training_only: "Model training data (not verified)",
+  web_snippet: "Web snippets (not vetted)",
+  mixed: "Mixed sources",
+  unknown: "Limited passage data",
+};
+
+/** Turn bible-passage / API.Bible error blobs into a short human-readable line. */
+export function formatPassageFetchError(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "Could not load this passage.";
+
+  if (/could not find that passage/i.test(trimmed)) {
+    return "Not available in your selected Bible translation.";
+  }
+
+  const nestedMessage = trimmed.match(/"message":"((?:\\.|[^"\\])*)"/);
+  if (nestedMessage?.[1]) {
+    return nestedMessage[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
+  }
+
+  const escapedMessage = trimmed.match(/\\"message\\":\\"((?:\\.|[^"\\])*)\\"/);
+  if (escapedMessage?.[1]) {
+    return escapedMessage[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
+  }
+
+  if (/could not parse/i.test(trimmed)) {
+    return trimmed.replace(/^[^:]+:\s*/i, "").trim() || "Could not parse this reference.";
+  }
+
+  if (/bible-passage\s+404/i.test(trimmed) || /API\.Bible:\s*404/i.test(trimmed)) {
+    return "Not available in your selected Bible translation.";
+  }
+
+  if (/bible-passage\s+(\d{3})/i.test(trimmed)) {
+    const status = trimmed.match(/bible-passage\s+(\d{3})/i)?.[1];
+    if (status === "401" || status === "403") return "Bible API access denied — check your API key.";
+    if (status === "502" || status === "503") return "Bible service temporarily unavailable.";
+  }
+
+  const withoutJson = trimmed.replace(/\{[\s\S]*\}/g, "").replace(/\s+/g, " ").trim();
+  if (withoutJson.length > 0 && withoutJson.length <= 160) {
+    return withoutJson.replace(/:\s*$/, "").replace(/^bible-passage\s+\d{3}\s*:?\s*/i, "").trim();
+  }
+
+  return "Could not load this passage.";
+}
+
+export function epistemicLabel(epistemic: string): string {
+  return EPISTEMIC_LABELS[epistemic] ?? epistemic.replace(/_/g, " ");
+}
+
+/** Strip model-injected epistemic header lines (shown as UI badge instead). */
+export function sanitizeResearchSectionBody(body: string): string {
+  let text = body.trim();
+  text = text.replace(/^Epistemic:\s*[\w.]+\s*(\n+|$)/i, "");
+  text = text.replace(/^Epistemic:\s*[\w.]+\s*\.?\s*/i, "");
+  return text.trim();
+}
+
+/** Match assistant chat bubbles in claim research UI. */
+export const researchPackAssistantProse = [
+  "prose prose-xs max-w-none break-words dark:prose-invert text-foreground",
+  "prose-p:my-2 prose-p:text-xs prose-p:leading-relaxed",
+  "prose-li:my-1 prose-li:text-xs prose-li:leading-relaxed",
+  "prose-headings:mt-3 prose-headings:mb-1 prose-headings:text-xs prose-headings:font-semibold",
+  "prose-strong:font-semibold prose-strong:text-foreground",
+  "prose-blockquote:my-2 prose-blockquote:border-l-2 prose-blockquote:border-primary/30",
+  "prose-blockquote:pl-3 prose-blockquote:text-xs prose-blockquote:leading-relaxed prose-blockquote:not-italic",
+  "prose-blockquote:text-muted-foreground",
+].join(" ");
+
+export function formatVoicesAsMarkdown(voices: IndependentVoice[]): string {
+  const lines: string[] = [];
+  voices.slice(0, 3).forEach((v, i) => {
+    const agree =
+      v.agreement === "agrees"
+        ? "Agrees"
+        : v.agreement === "disagrees"
+          ? "Disagrees"
+          : v.agreement === "qualifies"
+            ? "Qualifies"
+            : "Unclear";
+    lines.push(
+      `**${i + 1}. ${v.name}** · ${v.tradition_or_role}`,
+      `_${v.angle} · ${agree}_`,
+      "",
+      v.summary,
+      v.source_url ? `\n[Source](${v.source_url})` : "",
+      "",
+    );
+  });
+  return lines.join("\n").trimEnd();
+}
+
+export function formatPassagesAsMarkdown(
+  loaded: { ref: string; reference?: string; text: string }[],
+): string {
+  const blocks: string[] = [];
+  for (const row of loaded) {
+    blocks.push(`**${row.ref}**${row.reference ? ` · ${row.reference}` : ""}`, "", `> ${row.text.replace(/\n/g, "\n> ")}`, "");
+  }
+  return blocks.join("\n").trimEnd();
+}
+
+export function getResearchPackLensOrder(data: ResearchPackResp): string[] {
+  const packType = data.pack_type ?? data.meta?.pack_type ?? "standard";
+  const isValidation = packType === "validation";
+  return (data.meta?.lenses?.length
+    ? data.meta.lenses
+    : isValidation
+      ? [...VALIDATION_LENS_ORDER]
+      : [...STANDARD_LENS_ORDER]) as string[];
+}
+
+export function getResearchPackLensLabel(lensId: string, data: ResearchPackResp): string {
+  const isValidation = (data.pack_type ?? data.meta?.pack_type) === "validation";
+  const labels = isValidation ? VALIDATION_LENS_LABELS : STANDARD_LENS_LABELS;
+  return labels[lensId] ?? lensId;
+}
+
+export function partitionScriptureEntries(
+  scripture: ResearchPackResp["scripture"],
+): {
+  loaded: { ref: string; reference?: string; text: string }[];
+  failed: { ref: string; message: string }[];
+} {
+  const loaded: { ref: string; reference?: string; text: string }[] = [];
+  const failed: { ref: string; message: string }[] = [];
+  for (const row of scripture ?? []) {
+    if (row.error) {
+      failed.push({ ref: row.ref, message: formatPassageFetchError(row.error) });
+      continue;
+    }
+    const text = row.text?.trim();
+    if (text) loaded.push({ ref: row.ref, reference: row.reference, text });
+  }
+  return { loaded, failed };
+}
+
+export function extraReferenceParseErrors(
+  meta: ResearchPackResp["meta"],
+  failedRefs: Set<string>,
+): { ref: string; message: string }[] {
+  const out: { ref: string; message: string }[] = [];
+  for (const e of meta?.ref_parse_errors ?? []) {
+    if (failedRefs.has(e.ref)) continue;
+    out.push({ ref: e.ref, message: formatPassageFetchError(e.error) });
+  }
+  return out;
+}
+
 export const CLAIM_RESEARCH_PROMPT_CHIPS = [
   {
     label: "Find 3 teachers who agree/disagree",
@@ -115,40 +268,43 @@ export function formatResearchPackMarkdown(data: ResearchPackResp): string {
       : "no live web search — training-data / fetched scripture only";
     lines.push(`_${webNote} · Bible id: ${meta.bible_id ?? "—"}_`, "");
   }
-  const scr = data.scripture;
-  if (scr?.length) {
-    lines.push("## Passages fetched", "");
-    for (const row of scr) {
-      if (row.error) lines.push(`- **${row.ref}**: _${row.error}_`);
-      else {
-        lines.push(
-          `- **${row.ref}**${row.reference ? ` (${row.reference})` : ""}`,
-          "",
-          "```text",
-          row.text ?? "",
-          "```",
-          "",
-        );
-      }
+  const { loaded, failed } = partitionScriptureEntries(data.scripture);
+  const failedRefs = new Set(failed.map((f) => f.ref));
+  const extraFailed = extraReferenceParseErrors(meta, failedRefs);
+
+  if (loaded.length) {
+    lines.push("## Bible passages", "");
+    for (const row of loaded) {
+      lines.push(
+        `- **${row.ref}**${row.reference ? ` (${row.reference})` : ""}`,
+        "",
+        "```text",
+        row.text,
+        "```",
+        "",
+      );
     }
   }
-  const errs = meta?.ref_parse_errors;
-  if (errs?.length) {
-    lines.push("## Reference notes", "");
-    for (const e of errs) lines.push(`- **${e.ref}**: ${e.error}`);
+  const allFailed = [...failed, ...extraFailed];
+  if (allFailed.length) {
+    lines.push("## Passages we could not load", "");
+    for (const row of allFailed) {
+      lines.push(`- **${row.ref}** — ${row.message}`);
+    }
     lines.push("");
   }
-  const order = (meta?.lenses?.length
-    ? meta.lenses
-    : isValidation
-      ? [...VALIDATION_LENS_ORDER]
-      : [...STANDARD_LENS_ORDER]) as string[];
-  const labels = isValidation ? VALIDATION_LENS_LABELS : STANDARD_LENS_LABELS;
+  const order = getResearchPackLensOrder(data);
   for (const id of order) {
     const s = data.sections[id];
     if (!s) continue;
-    const title = labels[id] ?? id;
-    lines.push(`## ${title}`, "", `*Epistemic: ${s.epistemic}*`, "", s.body.trim());
+    const title = getResearchPackLensLabel(id, data);
+    lines.push(
+      `## ${title}`,
+      "",
+      `*Source: ${epistemicLabel(s.epistemic)}*`,
+      "",
+      sanitizeResearchSectionBody(s.body),
+    );
     const voices = s.voices ?? (id === "independent_voices" ? data.independent_voices : null);
     if (voices?.length) {
       lines.push("", formatVoicesMarkdown(voices));

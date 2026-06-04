@@ -25,6 +25,7 @@ import BeliefDetailPage from "./pages/framework/BeliefDetailPage";
 import ArtifactsListPage from "./pages/framework/ArtifactsListPage";
 import NewArtifactPage from "./pages/framework/NewArtifactPage";
 import ArtifactDetailPage from "./pages/framework/ArtifactDetailPage";
+import ClaimResearchWorkspacePage from "./pages/framework/ClaimResearchWorkspacePage";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
 import LiveStreamPage from "./pages/framework/LiveStreamPage";
 import ResearchLaterPage from "./pages/framework/ResearchLaterPage";
@@ -135,6 +136,14 @@ const App = () => (
               element={
                 <ArtifactDetailErrorBoundary>
                   <ArtifactDetailPage />
+                </ArtifactDetailErrorBoundary>
+              }
+            />
+            <Route
+              path="/framework/artifacts/:id/research/:claimId"
+              element={
+                <ArtifactDetailErrorBoundary>
+                  <ClaimResearchWorkspacePage />
                 </ArtifactDetailErrorBoundary>
               }
             />
