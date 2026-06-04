@@ -14,6 +14,7 @@ function isJournalRoute(pathname: string) {
 function journalLauncherHidden(pathname: string) {
   return (
     isJournalRoute(pathname) ||
+    pathname.startsWith("/framework/artifacts") ||
     pathname === "/" ||
     pathname === "/home" ||
     pathname.startsWith("/auth") ||
@@ -21,38 +22,26 @@ function journalLauncherHidden(pathname: string) {
   );
 }
 
-function isArtifactDetailRoute(pathname: string) {
-  return /^\/framework\/artifacts\/(?!new(?:\/|$))[^/]+$/.test(pathname);
-}
-
 export default function GlobalJournalLauncher() {
-  const { pathname, hash } = useLocation();
+  const { pathname } = useLocation();
   const { user } = useAuth();
   const panelOpen = useFloatingJournalStore((s) => s.panelOpen);
-  const artifactJournalMode = useFloatingJournalStore((s) => s.artifactJournalMode);
   const togglePanel = useFloatingJournalStore((s) => s.togglePanel);
   const setPanelOpen = useFloatingJournalStore((s) => s.setPanelOpen);
-  const setArtifactJournalMode = useFloatingJournalStore((s) => s.setArtifactJournalMode);
   const launcherTucked = useFloatingJournalStore((s) => s.launcherTucked);
   const setLauncherTucked = useFloatingJournalStore((s) => s.setLauncherTucked);
   const routeArtifact = useFloatingJournalStore((s) => s.routeArtifact);
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
   const hidden = !user || journalLauncherHidden(pathname);
-  const onArtifactDetail = isArtifactDetailRoute(pathname);
-  const artifactJournalActive =
-    onArtifactDetail && (artifactJournalMode !== "closed" || hash === "#journal");
-  const hideSideLauncherTab = artifactJournalActive;
-  const inlineArtifactJournal = artifactJournalActive;
 
   useEffect(() => {
-    if (isJournalRoute(pathname) && panelOpen) {
+    if (journalLauncherHidden(pathname) && panelOpen) {
       setPanelOpen(false);
     }
   }, [pathname, panelOpen, setPanelOpen]);
 
   if (hidden) return null;
-  if (hideSideLauncherTab) return null;
 
   const readerJournal = pathname.startsWith("/read/");
 
@@ -104,21 +93,7 @@ export default function GlobalJournalLauncher() {
                   : "Open mini journal"
             }
             title="Journal"
-            onClick={() => {
-              if (onArtifactDetail) {
-                if (window.location.hash === "#journal") {
-                  setArtifactJournalMode("closed");
-                  window.history.replaceState(null, "", window.location.pathname + window.location.search);
-                  window.dispatchEvent(new HashChangeEvent("hashchange"));
-                } else {
-                  setPanelOpen(false);
-                  setArtifactJournalMode("docked");
-                  window.location.hash = "journal";
-                }
-                return;
-              }
-              togglePanel();
-            }}
+            onClick={() => togglePanel()}
             className={cn(
               "flex min-h-[88px] w-full items-center justify-center py-2",
               readerJournal
@@ -131,7 +106,7 @@ export default function GlobalJournalLauncher() {
         )}
       </div>
 
-      {panelOpen && !inlineArtifactJournal && (
+      {panelOpen && (
         <FloatingJournalPanel
           key={panelKey}
           userId={user.id}

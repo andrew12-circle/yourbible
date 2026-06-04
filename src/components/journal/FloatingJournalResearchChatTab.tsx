@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { ClipboardCopy, Loader2, RefreshCw, Send, Square } from "lucide-react";
+import { ChevronDown, ClipboardCopy, Loader2, RefreshCw, Send, Settings2, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import { getCurrentContext } from "@/lib/journal/context";
 import type { FloatingClaimResearchHandoff } from "@/lib/journal/floatingJournalStore";
@@ -142,7 +143,6 @@ function TypingDots() {
 }
 
 const claimChatSessionPromises = new Map<string, Promise<{ entryId: string; chatId: string }>>();
-const bootstrappedClaimChatKeys = new Set<string>();
 
 function sessionKey(userId: string, claimId: string) {
   return `${userId}:${claimId}`;
@@ -227,8 +227,8 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   const [messages, setMessages] = useState<MsgRow[]>([]);
   const [loadingShell, setLoadingShell] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [bootstrapping, setBootstrapping] = useState(false);
   const [sending, setSending] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
   const [multiSourceValidation, setMultiSourceValidation] = useState(readMultiSourceDefault);
@@ -241,13 +241,6 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   const taRef = useRef<HTMLTextAreaElement>(null);
   const sendingRef = useRef(false);
   const ignoreResult = useRef(false);
-  const includeGeneralRef = useRef(includeGeneral);
-  const multiSourceRef = useRef(multiSourceValidation);
-  const packUseWebRef = useRef(packUseWeb);
-
-  includeGeneralRef.current = includeGeneral;
-  multiSourceRef.current = multiSourceValidation;
-  packUseWebRef.current = packUseWeb;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -296,70 +289,6 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         setEntryId(eId);
         setChatId(cId);
 
-        const bootKey = sessionKey(userId, research.claimId);
-        const { data: firstMsg } = await supabase.from("my_ai_messages").select("id").eq("chat_id", cId).limit(1);
-        if (cancelled) return;
-
-        if (!(firstMsg?.length ?? 0) && !bootstrappedClaimChatKeys.has(bootKey)) {
-          setBootstrapping(true);
-          try {
-            if (multiSourceRef.current) {
-              const { data, error } = await supabase.functions.invoke<ResearchPackResp>("claim-research-pack", {
-                body: {
-                  artifact_claim_id: research.claimId,
-                  pack_type: "validation",
-                  user_question: "Open this claim for multi-source validation: Bible alignment, historical context, and three independent voices.",
-                  claim_research: { use_web: packUseWebRef.current },
-                },
-              });
-              if (cancelled) return;
-              if (error) throw new Error(error.message);
-              const pack = data as ResearchPackResp | { error?: string } | null;
-              if (pack && typeof pack === "object" && "error" in pack && typeof pack.error === "string") {
-                throw new Error(pack.error);
-              }
-              if (!pack || typeof pack !== "object" || !("sections" in pack) || !pack.sections) {
-                throw new Error("Unexpected validation bootstrap response");
-              }
-              const intro =
-                "Here is an initial **multi-source validation** for this claim. Ask a follow-up or use the prompt chips to go deeper.\n\n";
-              const reply = intro + formatResearchPackMarkdown(pack as ResearchPackResp);
-              const webNote = webSearchStatusLabel((pack as ResearchPackResp).meta);
-              await supabase.from("my_ai_messages").insert({
-                user_id: userId,
-                chat_id: cId,
-                role: "assistant",
-                content: `${reply}\n\n---\n\n_${webNote}_`,
-                citations: [],
-              });
-            } else {
-              const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
-                body: {
-                  chat_id: cId,
-                  journal_entry_id: eId,
-                  mode: "journal",
-                  journal_bootstrap_opener: true,
-                  include_general_knowledge: includeGeneralRef.current,
-                  journal_bootstrap_artifact_claim_id: research.claimId,
-                  journal_bootstrap_transcript_excerpt: research.transcriptExcerpt ?? null,
-                },
-              });
-              if (cancelled) return;
-              if (error) throw new Error(error.message);
-              const payload = data as MyAiInvokeOk | { error?: string } | null;
-              if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-                throw new Error(payload.error);
-              }
-            }
-            bootstrappedClaimChatKeys.add(bootKey);
-          } catch (e) {
-            if (!cancelled) {
-              toast({ title: "Could not start conversation", description: String(e), variant: "destructive" });
-            }
-          } finally {
-            if (!cancelled) setBootstrapping(false);
-          }
-        }
         await loadMessages(cId);
       } catch (e) {
         if (!cancelled) {
@@ -372,11 +301,11 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
     return () => {
       cancelled = true;
     };
-  }, [userId, research.artifactId, research.claimId, research.artifactTitle, research.transcriptExcerpt, loadMessages]);
+  }, [userId, research.artifactId, research.claimId, research.artifactTitle, loadMessages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending, bootstrapping]);
+  }, [messages, sending]);
 
   const stop = () => {
     ignoreResult.current = true;
@@ -622,70 +551,14 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
   };
 
   const showLoading = loadingShell || !chatId || !entryId;
+  const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const settingsSummary = [
+    multiSourceValidation ? "Multi-source on" : "Companion chat",
+    packUseWeb ? "Web on" : "Web off",
+  ].join(" · ");
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-      <div className="min-w-0 shrink-0 space-y-2 overflow-x-hidden border-b border-border pb-2">
-        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
-          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
-            <Label htmlFor="fj-multi-source" className="text-xs font-medium leading-snug text-foreground">
-              Multi-source validation (Bible + history + 3 voices)
-            </Label>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              When on, each message runs the validation research pack: Scripture alignment, historical context, and three named teachers or scholars. Enable live web search below (plus Edge secrets) for retrieved snippets; otherwise answers use training data and state limits clearly.
-            </p>
-          </div>
-          <Switch
-            id="fj-multi-source"
-            className="mt-0.5 shrink-0"
-            checked={multiSourceValidation}
-            onCheckedChange={(v) => setMultiSourceValidation(Boolean(v))}
-          />
-        </div>
-        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
-          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
-            <Label htmlFor="fj-outside" className="text-xs font-medium leading-snug text-foreground">
-              Journal companion mode (framework-grounded chat)
-            </Label>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Only when multi-source validation is off. Uses your beliefs and journals—not the validation pack or live web search.
-            </p>
-          </div>
-          <Switch
-            id="fj-outside"
-            className="mt-0.5 shrink-0"
-            checked={includeGeneral}
-            disabled={multiSourceValidation}
-            onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
-          />
-        </div>
-        <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden border-t border-border/50 pt-2">
-          <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
-            <Label htmlFor="fj-pack-web-inline" className="text-xs font-medium leading-snug text-foreground">
-              Live web search (Brave / SerpAPI)
-            </Label>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Applies to validation messages and Research pack. Set WEB_SEARCH_PROVIDER and API keys in Supabase Edge secrets, then redeploy claim-research-pack.
-            </p>
-          </div>
-          <Switch
-            id="fj-pack-web-inline"
-            className="mt-0.5 shrink-0"
-            checked={packUseWeb}
-            onCheckedChange={(v) => setPackUseWeb(Boolean(v))}
-          />
-        </div>
-        {chatId ? (
-          <Button variant="link" className="h-auto p-0 text-xs" asChild>
-            <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
-          </Button>
-        ) : entryId ? (
-          <Button variant="link" className="h-auto p-0 text-xs" asChild>
-            <Link to={`/journal/chat/${entryId}`}>Open chat session</Link>
-          </Button>
-        ) : null}
-      </div>
-
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <ClaimResearchBar
         claimText={research.claimPreview}
         artifactId={research.artifactId}
@@ -694,7 +567,212 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
         verdictBusy={claimVerdictBusy}
         onResearchPack={() => void runResearchPack()}
         onVerdict={(v) => void applyClaimVerdict(v)}
+        className="px-0"
       />
+
+      <div
+        ref={scrollRef}
+        className="min-h-[140px] min-w-0 flex-1 overflow-x-hidden overflow-y-auto border-b border-border/60 py-2"
+      >
+        {showLoading && (
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-70" />
+            <p className="text-[11px] text-muted-foreground">Opening research chat…</p>
+          </div>
+        )}
+        {!showLoading && loadingMessages && (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-70" />
+          </div>
+        )}
+        {!showLoading && !loadingMessages && visibleMessages.length === 0 && !sending && (
+          <div className="px-1 py-6 text-center">
+            <p className="text-xs font-medium text-foreground">Research this claim</p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              Type a question below, tap a prompt chip, or use <span className="font-medium text-foreground">Validate claim</span>{" "}
+              for a full multi-source pack.
+            </p>
+          </div>
+        )}
+        {!showLoading && !loadingMessages && (
+          <div className="min-w-0 space-y-3 overflow-x-hidden pr-0.5">
+            {visibleMessages.map((m) => (
+              <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
+                {m.role === "user" ? (
+                  <div className="max-w-[92%] break-words rounded-xl rounded-tr-sm bg-primary px-2.5 py-2 text-xs text-primary-foreground whitespace-pre-wrap">
+                    {m.content}
+                  </div>
+                ) : (
+                  <div className="max-w-[94%] min-w-0 overflow-x-hidden rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
+                    <div className="prose prose-xs max-w-none break-words overflow-x-hidden dark:prose-invert text-foreground">
+                      {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
+                    </div>
+                    <CitationChips citations={parseCitationsJson(m.citations)} />
+                  </div>
+                )}
+              </div>
+            ))}
+            {sending && (
+              <div className="max-w-[94%] rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
+                <div className="prose prose-xs max-w-none text-muted-foreground">
+                  <TypingDots />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 shrink-0 space-y-2 overflow-x-hidden pt-2">
+        <div className="-mx-0.5 flex min-w-0 gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+          {CLAIM_RESEARCH_PROMPT_CHIPS.map((chip) => (
+            <Button
+              key={chip.label}
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-auto shrink-0 whitespace-nowrap px-2 py-1 text-[10px] font-normal leading-snug"
+              disabled={sending || showLoading}
+              onClick={() => {
+                setInput(chip.text);
+                setTimeout(() => taRef.current?.focus(), 30);
+              }}
+            >
+              {chip.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex min-w-0 items-end gap-1.5 overflow-x-hidden rounded-[26px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
+          <Textarea
+            ref={taRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (!sending) void send();
+              }
+            }}
+            rows={1}
+            spellCheck
+            disabled={sending || showLoading}
+            placeholder={sending ? "Thinking…" : "Ask about this claim…"}
+            className="min-h-[40px] max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <div className="mb-0.5 flex shrink-0 items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              disabled={sending || !messages.some((m) => m.role === "assistant")}
+              onClick={() => void retryLast()}
+              aria-label="Retry last response"
+              title="Retry"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              disabled={!sending}
+              onClick={stop}
+              aria-label="Stop"
+              title="Stop"
+            >
+              <Square className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              className="h-9 w-9 rounded-full"
+              disabled={sending || showLoading || !input.trim()}
+              onClick={() => void send()}
+              aria-label="Send message"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full min-w-0 items-center gap-2 rounded-md border border-border/60 bg-muted/25 px-2 py-1.5 text-left text-[10px] text-muted-foreground transition-colors hover:bg-muted/45"
+            >
+              <Settings2 className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{settingsSummary}</span>
+              <ChevronDown
+                className={cn("h-3 w-3 shrink-0 opacity-70 transition-transform", settingsOpen && "rotate-180")}
+                aria-hidden
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-2 overflow-x-hidden rounded-md border border-border/60 bg-muted/15 px-2 py-2">
+            <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
+              <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+                <Label htmlFor="fj-multi-source" className="text-xs font-medium leading-snug text-foreground">
+                  Multi-source validation (Bible + history + 3 voices)
+                </Label>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Each message runs the validation research pack: Scripture alignment, historical context, and three named teachers or scholars.
+                </p>
+              </div>
+              <Switch
+                id="fj-multi-source"
+                className="mt-0.5 shrink-0"
+                checked={multiSourceValidation}
+                onCheckedChange={(v) => setMultiSourceValidation(Boolean(v))}
+              />
+            </div>
+            <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden">
+              <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+                <Label htmlFor="fj-outside" className="text-xs font-medium leading-snug text-foreground">
+                  Journal companion mode (framework-grounded chat)
+                </Label>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Only when multi-source validation is off. Uses your beliefs and journals—not the validation pack.
+                </p>
+              </div>
+              <Switch
+                id="fj-outside"
+                className="mt-0.5 shrink-0"
+                checked={includeGeneral}
+                disabled={multiSourceValidation}
+                onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+              />
+            </div>
+            <div className="flex min-w-0 items-start justify-between gap-2 overflow-x-hidden border-t border-border/50 pt-2">
+              <div className="min-w-0 flex-1 space-y-1 overflow-x-hidden">
+                <Label htmlFor="fj-pack-web-inline" className="text-xs font-medium leading-snug text-foreground">
+                  Live web search (Brave / SerpAPI)
+                </Label>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Applies to validation messages and Validate claim. Configure WEB_SEARCH_PROVIDER in Supabase Edge secrets.
+                </p>
+              </div>
+              <Switch
+                id="fj-pack-web-inline"
+                className="mt-0.5 shrink-0"
+                checked={packUseWeb}
+                onCheckedChange={(v) => setPackUseWeb(Boolean(v))}
+              />
+            </div>
+            {chatId ? (
+              <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
+              </Button>
+            ) : entryId ? (
+              <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                <Link to={`/journal/chat/${entryId}`}>Open chat session</Link>
+              </Button>
+            ) : null}
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       <Sheet open={packOpen} onOpenChange={setPackOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
@@ -704,7 +782,7 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
               Bible alignment (fetched passages when refs exist), historical context, and three independent voices. Epistemic labels show whether each part used scripture text, web snippets, or training data only—not verified citations.
             </p>
             <p className="text-[10px] text-muted-foreground">
-              Web search uses the toggle above the chat. {packData?.meta ? webSearchStatusLabel(packData.meta) : "Run the pack to see web status."}
+              Web search uses the settings toggle below the composer. {packData?.meta ? webSearchStatusLabel(packData.meta) : "Run the pack to see web status."}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]" disabled={!packMarkdown} onClick={() => void copyPack()}>
@@ -732,103 +810,6 @@ export default function FloatingJournalResearchChatTab({ userId, research }: Pro
           </ScrollArea>
         </SheetContent>
       </Sheet>
-
-      <div ref={scrollRef} className="min-h-[100px] min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-2">
-        {showLoading && (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-70" />
-          </div>
-        )}
-        {!showLoading && loadingMessages && (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground opacity-70" />
-          </div>
-        )}
-        {!showLoading && !loadingMessages && (
-          <div className="min-w-0 space-y-3 overflow-x-hidden pr-0.5">
-            {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
-              <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
-                {m.role === "user" ? (
-                  <div className="max-w-[92%] break-words rounded-xl rounded-tr-sm bg-primary px-2.5 py-2 text-xs text-primary-foreground whitespace-pre-wrap">
-                    {m.content}
-                  </div>
-                ) : (
-                  <div className="max-w-[94%] min-w-0 overflow-x-hidden rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
-                    <div className="prose prose-xs max-w-none break-words overflow-x-hidden dark:prose-invert text-foreground">
-                      {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
-                    </div>
-                    <CitationChips citations={parseCitationsJson(m.citations)} />
-                  </div>
-                )}
-              </div>
-            ))}
-            {(sending || bootstrapping) && (
-              <div className="max-w-[94%] rounded-xl rounded-tl-sm border border-border/70 bg-card px-2.5 py-2 text-xs shadow-sm">
-                <div className="prose prose-xs max-w-none text-muted-foreground">
-                  <TypingDots />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 shrink-0 space-y-2 overflow-x-hidden border-t border-border pt-2">
-        <div className="flex min-w-0 flex-wrap gap-1.5">
-          {CLAIM_RESEARCH_PROMPT_CHIPS.map((chip) => (
-            <Button
-              key={chip.label}
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-auto min-w-0 max-w-full whitespace-normal px-2 py-1 text-left text-[10px] font-normal leading-snug"
-              disabled={sending || bootstrapping || showLoading}
-              onClick={() => {
-                setInput(chip.text);
-                setTimeout(() => taRef.current?.focus(), 30);
-              }}
-            >
-              {chip.label}
-            </Button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-wrap gap-1.5">
-          <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-[11px]" disabled={sending || !messages.some((m) => m.role === "assistant")} onClick={() => void retryLast()}>
-            <RefreshCw className="mr-1 h-3 w-3" /> Retry
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" disabled={!sending} onClick={stop}>
-            <Square className="mr-1 h-3 w-3" /> Stop
-          </Button>
-        </div>
-        <div className="flex min-w-0 items-end gap-1.5 overflow-x-hidden rounded-[26px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
-          <Textarea
-            ref={taRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (!sending && !bootstrapping) void send();
-              }
-            }}
-            rows={1}
-            spellCheck
-            disabled={sending || bootstrapping || showLoading}
-            placeholder={sending || bootstrapping ? "Thinking…" : "Ask about this claim…"}
-            className="min-h-[40px] max-h-40 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-          <Button
-            type="button"
-            size="icon"
-            className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
-            disabled={sending || bootstrapping || showLoading || !input.trim()}
-            onClick={() => void send()}
-            aria-label="Send message"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -52,6 +52,10 @@ import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
 import { useArtifactGlobalVideoHandoff } from "@/hooks/useArtifactGlobalVideoHandoff";
+import {
+  artifactJournalReturnPath,
+  handoffArtifactVideoForJournal,
+} from "@/lib/framework/artifactJournalNavigation";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
@@ -395,12 +399,13 @@ export default function ArtifactDetailPage() {
       id: a.id,
       title: a.title || "Untitled artifact",
       kind: a.kind,
+      youTubeVideoId: youTubeVideoId ?? null,
     });
     return () => {
       useFloatingJournalStore.getState().setRouteArtifact(null);
       useFloatingJournalStore.getState().setArtifactJournalMode("closed");
     };
-  }, [a?.id, a?.title, a?.kind]);
+  }, [a?.id, a?.title, a?.kind, youTubeVideoId]);
 
   const canCapturePlaybackForJournal = Boolean(youTubeVideoId && a?.kind === "youtube");
 
@@ -702,6 +707,12 @@ export default function ArtifactDetailPage() {
 
   const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
   const mobilePinnedPane = !isDesktop && stickyVideoMode;
+
+  useEffect(() => {
+    if (window.location.hash !== "#journal") return;
+    if (isDesktop) openArtifactJournal("docked");
+    else if (mobilePinnedPane) openMobileJournalTab();
+  }, [id, isDesktop, mobilePinnedPane, openArtifactJournal, openMobileJournalTab]);
 
   const switchToStudyTab = useCallback(() => {
     if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
@@ -1035,7 +1046,20 @@ export default function ArtifactDetailPage() {
   };
 
   const openJournalFromArtifact = (startSeconds?: number) => {
+    const returnTo = artifactJournalReturnPath(a.id);
+    if (youTubeVideoId) {
+      handoffArtifactVideoForJournal({
+        artifactId: a.id,
+        youTubeVideoId,
+        title: a.title ?? null,
+        getPlaybackSeconds,
+        getIsPlaying,
+        persistSeconds,
+        pipLayout: youtubePip.pipOverlayLayout,
+      });
+    }
     const qs = new URLSearchParams();
+    qs.set("returnTo", encodeURIComponent(returnTo));
     if (a.title) qs.set("artifactTitle", encodeURIComponent(a.title));
     if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
     if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));
@@ -1045,7 +1069,20 @@ export default function ArtifactDetailPage() {
   };
 
   const openJournalFromClaim = (claim: Claim, startSeconds?: number) => {
+    const returnTo = artifactJournalReturnPath(a.id);
+    if (youTubeVideoId) {
+      handoffArtifactVideoForJournal({
+        artifactId: a.id,
+        youTubeVideoId,
+        title: a.title ?? null,
+        getPlaybackSeconds,
+        getIsPlaying,
+        persistSeconds,
+        pipLayout: youtubePip.pipOverlayLayout,
+      });
+    }
     const qs = new URLSearchParams();
+    qs.set("returnTo", encodeURIComponent(returnTo));
     if (a.title) qs.set("artifactTitle", encodeURIComponent(`${a.title} — one claim`));
     if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
     if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));

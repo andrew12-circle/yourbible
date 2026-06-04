@@ -70,4 +70,6 @@ export type JournalExpandHandoffPayload = {
   title: string | null;
   body: string;
   tags?: string[];
+  /** When set, back from the full editor returns here (e.g. artifact journal tab). */
+  returnTo?: string;
 };

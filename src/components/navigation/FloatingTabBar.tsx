@@ -35,6 +35,7 @@ export function FloatingTabItemButton({
   tone?: "wallpaper" | "surface";
 }) {
   const onWallpaper = tone === "wallpaper";
+  const wallpaperInactive = onWallpaper && !active;
 
   return (
     <button
@@ -43,18 +44,32 @@ export function FloatingTabItemButton({
         "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none transition-colors",
         active
           ? onWallpaper
-            ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+            ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.12)]"
             : "bg-muted text-foreground shadow-sm"
           : onWallpaper
-            ? "text-zinc-600/90 hover:text-zinc-900"
+            ? "text-white hover:bg-white/15"
             : "text-muted-foreground hover:text-foreground",
       )}
       onClick={onClick}
       aria-label={label}
       aria-current={active ? "page" : undefined}
     >
-      <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={1.85} aria-hidden />
-      <span className="truncate max-w-[4.5rem]">{label}</span>
+      <Icon
+        className={cn(
+          "h-[22px] w-[22px] shrink-0",
+          wallpaperInactive && "drop-shadow-[0_1px_3px_rgba(0,0,0,0.75)]",
+        )}
+        strokeWidth={wallpaperInactive ? 2.1 : 1.85}
+        aria-hidden
+      />
+      <span
+        className={cn(
+          "truncate max-w-[4.5rem]",
+          wallpaperInactive && "drop-shadow-[0_1px_3px_rgba(0,0,0,0.75)]",
+        )}
+      >
+        {label}
+      </span>
     </button>
   );
 }
@@ -62,9 +77,11 @@ export function FloatingTabItemButton({
 export function FloatingTabBarShell({
   children,
   tone = "surface",
+  className,
 }: {
   children: ReactNode;
   tone?: "wallpaper" | "surface";
+  className?: string;
 }) {
   const onWallpaper = tone === "wallpaper";
 
@@ -74,8 +91,9 @@ export function FloatingTabBarShell({
         "pointer-events-auto flex w-full max-w-[min(100%,26rem)] items-center justify-between gap-0.5",
         "rounded-full px-1.5 py-1.5",
         onWallpaper
-          ? "border border-white/55 bg-white/72 shadow-[0_8px_40px_rgba(0,0,0,0.16)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/62"
+          ? "border border-white/50 bg-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/22"
           : "border border-border/50 bg-background/95 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-md supports-[backdrop-filter]:bg-background/85",
+        className,
       )}
     >
       {children}
@@ -117,7 +135,14 @@ export default function FloatingTabBar({
   }, [layoutRootSelector, layoutHeightVar, layoutHeightFallbackPx]);
 
   return (
-    <nav
+    <>
+      {tone === "wallpaper" ? (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[44] h-32 bg-gradient-to-t from-black/35 via-black/14 to-transparent"
+          aria-hidden
+        />
+      ) : null}
+      <nav
       ref={barRef}
       aria-label="App"
       className={cn(
@@ -139,5 +164,6 @@ export default function FloatingTabBar({
         ))}
       </FloatingTabBarShell>
     </nav>
+    </>
   );
 }

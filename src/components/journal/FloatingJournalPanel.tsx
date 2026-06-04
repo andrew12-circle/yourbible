@@ -12,6 +12,10 @@ import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import FloatingJournalResearchChatTab from "@/components/journal/FloatingJournalResearchChatTab";
+import {
+  artifactJournalReturnPath,
+  handoffArtifactVideoForJournal,
+} from "@/lib/framework/artifactJournalNavigation";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
@@ -24,10 +28,10 @@ const GLOBAL_FLOATING_DRAFT_KEY = "__global__";
 const DEFAULT_W = 360;
 const DEFAULT_H = 420;
 /** Taller layout when researching a claim (Chat tab + claim card + composer visible). */
-const CLAIM_RESEARCH_W = 440;
-const CLAIM_RESEARCH_H_MIN = 520;
-const CLAIM_RESEARCH_H_VH = 0.78;
-const CLAIM_RESEARCH_H_MAX = 860;
+const CLAIM_RESEARCH_W = 460;
+const CLAIM_RESEARCH_H_MIN = 580;
+const CLAIM_RESEARCH_H_VH = 0.82;
+const CLAIM_RESEARCH_H_MAX = 920;
 const MIN_W = 280;
 const MIN_H = 220;
 const PANEL_MARGIN = 8;
@@ -56,7 +60,7 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n));
 }
 
-function claimResearchPanelGeom(prev: PanelPersist): PanelPersist {
+function claimResearchPanelGeom(_prev: PanelPersist): PanelPersist {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const w = clamp(CLAIM_RESEARCH_W, MIN_W, vw - PANEL_MARGIN * 2);
@@ -65,8 +69,8 @@ function claimResearchPanelGeom(prev: PanelPersist): PanelPersist {
     Math.min(CLAIM_RESEARCH_H_MIN, vh - PANEL_MARGIN * 2),
     vh - PANEL_MARGIN * 2,
   );
-  const x = clamp(prev.x, PANEL_MARGIN, vw - w - PANEL_MARGIN);
-  const y = clamp(prev.y, PANEL_MARGIN, vh - h - PANEL_MARGIN);
+  const x = clamp(vw - w - PANEL_MARGIN, PANEL_MARGIN, vw - w - PANEL_MARGIN);
+  const y = clamp(Math.round((vh - h) / 2), PANEL_MARGIN, vh - h - PANEL_MARGIN);
   return { x, y, w, h };
 }
 
@@ -101,6 +105,7 @@ export default function FloatingJournalPanel({
 }: FloatingJournalPanelProps) {
   const navigate = useNavigate();
   const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
+  const routeArtifact = useFloatingJournalStore((s) => s.routeArtifact);
   const [panelTab, setPanelTab] = useState<"write" | "chat">("write");
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -418,6 +423,11 @@ export default function FloatingJournalPanel({
       setGeom((prev) => {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
+        if (claimResearchRef.current) {
+          const next = claimResearchPanelGeom(prev);
+          persistPanel(next);
+          return next;
+        }
         const w = clamp(prev.w, MIN_W, vw - PANEL_MARGIN * 2);
         const h = clamp(prev.h, MIN_H, vh - PANEL_MARGIN * 2);
         const x = clamp(prev.x, PANEL_MARGIN, vw - w - PANEL_MARGIN);
@@ -481,10 +491,23 @@ export default function FloatingJournalPanel({
     !artifactId ? [] : artifactKind === "youtube" ? ["artifact", "youtube"] : ["artifact"];
 
   const expandToFullEditor = () => {
+    const returnTo = artifactId ? artifactJournalReturnPath(artifactId) : undefined;
+    const videoId = routeArtifact?.youTubeVideoId;
+    if (artifactId && videoId && getPlaybackSeconds) {
+      handoffArtifactVideoForJournal({
+        artifactId,
+        youTubeVideoId: videoId,
+        title: artifactTitle ?? routeArtifact?.title ?? null,
+        getPlaybackSeconds: () => getPlaybackSeconds() ?? 0,
+        getIsPlaying: () => false,
+        persistSeconds: () => {},
+      });
+    }
     const payload: JournalExpandHandoffPayload = {
       title: title.trim() || artifactTitle || null,
       body,
       tags: saveTags,
+      returnTo,
     };
     try {
       localStorage.setItem(JOURNAL_EXPAND_HANDOFF_KEY, JSON.stringify(payload));

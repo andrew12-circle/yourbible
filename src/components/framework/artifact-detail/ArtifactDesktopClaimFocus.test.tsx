@@ -52,5 +52,8 @@ describe("ArtifactDesktopClaimFocus", () => {
 
     expect(screen.getByRole("button", { name: "Back to overview" })).toHaveTextContent("Back to overview");
     expect(screen.getByText(claim.claim)).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Claim actions" })).toBeInTheDocument();
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("Keep")).toBeInTheDocument();
   });
 });

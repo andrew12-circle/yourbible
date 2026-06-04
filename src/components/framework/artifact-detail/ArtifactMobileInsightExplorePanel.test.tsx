@@ -43,9 +43,9 @@ const claimCardContext: RenderClaimCardContext = {
 afterEach(() => cleanup());
 
 describe("ArtifactMobileInsightExplorePanel", () => {
-  it("uses one top header row for back navigation and claim actions", () => {
+  it("keeps navigation in the header and claim actions in a bottom dock", () => {
     const onBack = vi.fn();
-    render(
+    const { container } = render(
       <MemoryRouter>
         <TooltipProvider>
           <ArtifactMobileInsightExplorePanel
@@ -65,12 +65,34 @@ describe("ArtifactMobileInsightExplorePanel", () => {
     expect(screen.queryByText("Back to insights")).not.toBeInTheDocument();
     expect(backButton).toHaveTextContent("Back");
 
-    const actionToolbars = screen.getAllByRole("toolbar", { name: "Claim actions" });
-    expect(actionToolbars).toHaveLength(1);
-    expect(backButton.parentElement).toContainElement(actionToolbars[0]);
-    expect(within(actionToolbars[0]).getByText("Research")).toBeInTheDocument();
-    expect(within(actionToolbars[0]).getByText("Reflect")).toBeInTheDocument();
-    expect(within(actionToolbars[0]).getByText("Keep")).toBeInTheDocument();
-    expect(within(actionToolbars[0]).getByText("Reject")).toBeInTheDocument();
+    const actionToolbar = screen.getByRole("toolbar", { name: "Claim actions" });
+    expect(backButton.parentElement).not.toContainElement(actionToolbar);
+    expect(screen.getByText("Defer")).toBeInTheDocument();
+    expect(within(actionToolbar).getByText("Research")).toBeInTheDocument();
+    expect(within(actionToolbar).getByText("Reflect")).toBeInTheDocument();
+    expect(within(actionToolbar).getByText("Keep")).toBeInTheDocument();
+    expect(within(actionToolbar).getByText("Reject")).toBeInTheDocument();
+    expect(container.querySelector(".backdrop-blur-md")).toBeTruthy();
+  });
+
+  it("shows claim actions below the header on desktop", () => {
+    render(
+      <MemoryRouter>
+        <TooltipProvider>
+          <ArtifactMobileInsightExplorePanel
+            claim={claim}
+            claimIndex={1}
+            claimCardContext={{ ...claimCardContext, isDesktop: true }}
+            onBack={vi.fn()}
+          />
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    const backButton = screen.getByRole("button", { name: "Back to study" });
+    const actionToolbar = screen.getByRole("toolbar", { name: "Claim actions" });
+    expect(backButton.parentElement?.nextElementSibling?.contains(actionToolbar)).toBe(true);
+    expect(screen.queryByText("Keep")).toBeInTheDocument();
+    expect(screen.queryByText("Research")).toBeInTheDocument();
   });
 });

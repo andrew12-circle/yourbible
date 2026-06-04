@@ -87,6 +87,7 @@ export default function GlobalArtifactVideoPip() {
       id: session.artifactId,
       title: session.title ?? "Untitled artifact",
       kind: "youtube",
+      youTubeVideoId: session.youTubeVideoId,
     });
 
     return () => {

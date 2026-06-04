@@ -33,6 +33,8 @@ export function useArtifactGlobalVideoHandoff(options: {
   useEffect(() => {
     return () => {
       if (!artifactId || !youTubeVideoId) return;
+      const existing = useArtifactGlobalVideoPipStore.getState().session;
+      if (existing?.artifactId === artifactId) return;
       if (!getIsPlayingRef.current()) return;
 
       const seconds = getPlaybackSecondsRef.current();

@@ -6,6 +6,7 @@ export type FloatingJournalRouteArtifact = {
   id: string;
   title: string;
   kind: string;
+  youTubeVideoId?: string | null;
 };
 
 /** Opened from artifact claim "Research with AI" — pre-fills write tab and enables chat tab. */

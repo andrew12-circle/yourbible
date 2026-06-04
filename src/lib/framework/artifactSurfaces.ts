@@ -90,6 +90,16 @@ export const artifactPremiumCard = cn(
   "dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]",
 );
 
+/** Claim / doctrine tag chips and claim action bar pills (shared chrome). */
+export const artifactClaimActionChip = cn(
+  "inline-flex shrink-0 items-center gap-2 rounded-full border border-border/45 bg-white/90 px-3.5 py-2",
+  "text-sm font-medium text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]",
+  "transition-[transform,background-color,border-color] duration-150 active:scale-[0.98]",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+  "disabled:opacity-40 disabled:active:scale-100",
+  "dark:border-border/50 dark:bg-card/90",
+);
+
 /** @deprecated Use artifactInsightPreviewCard + artifactPastelTint from artifactStudyTheme. */
 export { artifactInsightPreviewCard as artifactInsightCard } from "@/lib/framework/artifactStudyTheme";
 

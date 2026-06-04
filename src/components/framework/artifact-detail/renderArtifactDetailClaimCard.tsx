@@ -18,8 +18,10 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ClaimChipActionButton from "@/components/framework/ClaimChipActionButton";
 import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
+import ArtifactClaimActionBar from "@/components/framework/artifact-detail/ArtifactClaimActionBar";
 import ClaimScriptureRef from "@/components/framework/ClaimScriptureRef";
 import type { ClaimEpistemology } from "@/lib/framework/epistemology";
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
@@ -37,6 +39,7 @@ import {
   artifactMobileClaimCard,
   artifactScrollMt,
 } from "@/lib/framework/artifactSurfaces";
+import type { ClaimActionTone } from "@/lib/ui/iosClaimActionStyles";
 import { cn } from "@/lib/utils";
 
 export type RenderClaimCardClaim = {
@@ -89,12 +92,164 @@ function playClaimFromSource(
   ctx.playClaimAtSource(claim, source);
 }
 
+type RenderClaimActionButtonOptions = {
+  variant?: "icon" | "labeled";
+  /** `chip` — white tag-style pills (mobile action bar). */
+  appearance?: "ios" | "chip";
+};
+
+function renderClaimActionButton(
+  props: {
+    label: string;
+    shortLabel: string;
+    icon: LucideIcon;
+    tone: ClaimActionTone;
+    active?: boolean;
+    onClick: () => void;
+    className?: string;
+  },
+  options: RenderClaimActionButtonOptions,
+) {
+  if (options.appearance === "chip") {
+    return (
+      <ClaimChipActionButton
+        label={props.label}
+        shortLabel={props.shortLabel}
+        icon={props.icon}
+        tone={props.tone}
+        active={props.active}
+        onClick={props.onClick}
+        className={props.className}
+      />
+    );
+  }
+  return (
+    <ClaimIconActionButton
+      variant={options.variant ?? "labeled"}
+      label={props.label}
+      shortLabel={props.shortLabel}
+      icon={props.icon}
+      tone={props.tone}
+      active={props.active}
+      onClick={props.onClick}
+      className={props.className}
+    />
+  );
+}
+
 type RenderClaimActionsOptions = {
   bordered?: boolean;
   wrap?: boolean;
   showSeparator?: boolean;
   className?: string;
+  layout?: "inline" | "mobileDock";
 };
+
+export function renderArtifactDetailClaimEngageActions(
+  c: RenderClaimCardClaim,
+  ctx: RenderClaimCardContext,
+  options: RenderClaimActionButtonOptions = {},
+) {
+  const source = ctx.claimSources[c.id];
+  const variant = options.variant ?? "labeled";
+
+  return (
+    <>
+      {renderClaimActionButton(
+        {
+          label: "Research this claim with AI",
+          shortLabel: "Research",
+          icon: MessageCircle,
+          tone: "research",
+          onClick: () => ctx.startClaimResearchChat(c, source),
+        },
+        options,
+      )}
+      {renderClaimActionButton(
+        {
+          label: "Journal your reflection on this claim",
+          shortLabel: "Reflect",
+          icon: NotebookPen,
+          tone: "reflect",
+          onClick: () => ctx.openJournalFromClaim(c, source?.startSeconds ?? undefined),
+        },
+        options,
+      )}
+      {renderClaimActionButton(
+        {
+          label: isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later",
+          shortLabel: isDeferredVerdict(c.verdict) ? "Queued" : "Later",
+          icon: Clock,
+          tone: "researchLater",
+          active: isDeferredVerdict(c.verdict),
+          onClick: () => void ctx.toggleResearchLater(c.id, c.verdict),
+        },
+        options,
+      )}
+    </>
+  );
+}
+
+export function renderArtifactDetailClaimVerdictActions(
+  c: RenderClaimCardClaim,
+  ctx: RenderClaimCardContext,
+  options: RenderClaimActionButtonOptions = {},
+) {
+  const variant = options.variant ?? "labeled";
+
+  return (
+    <>
+      {renderClaimActionButton(
+        {
+          label: "Keep this claim",
+          shortLabel: "Keep",
+          icon: Check,
+          tone: "keep",
+          active: c.verdict === "keep",
+          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          onClick: () => void ctx.applyClaimVerdict(c.id, "keep"),
+        },
+        options,
+      )}
+      {renderClaimActionButton(
+        {
+          label: "Reject this claim",
+          shortLabel: "Reject",
+          icon: X,
+          tone: "reject",
+          active: c.verdict === "reject",
+          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          onClick: () => void ctx.applyClaimVerdict(c.id, "reject"),
+        },
+        options,
+      )}
+      {renderClaimActionButton(
+        {
+          label: "Update my belief",
+          shortLabel: "Update",
+          icon: Pencil,
+          tone: "update",
+          active: c.verdict === "updated",
+          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          onClick: () => void ctx.applyClaimVerdict(c.id, "updated"),
+        },
+        options,
+      )}
+      {renderClaimActionButton(
+        {
+          label: "Defer decision",
+          shortLabel: "Defer",
+          icon: CirclePause,
+          tone: "defer",
+          active: c.verdict === "defer",
+          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          onClick: () => void ctx.applyClaimVerdict(c.id, "defer"),
+        },
+        options,
+      )}
+    </>
+  );
+}
 
 function formatClaimChipLabel(value: string) {
   return value
@@ -118,11 +273,15 @@ export function renderArtifactDetailClaimActions(
   ctx: RenderClaimCardContext,
   options: RenderClaimActionsOptions = {},
 ) {
-  const source = ctx.claimSources[c.id];
   const railLayout = ctx.layout === "desktopRail" || ctx.layout === "mobileRail";
   const bordered = options.bordered ?? !railLayout;
   const wrap = options.wrap ?? true;
   const showSeparator = options.showSeparator ?? true;
+  const layout = options.layout ?? "inline";
+
+  if (layout === "mobileDock") {
+    return <ArtifactClaimActionBar claim={c} context={ctx} bordered={bordered} className={options.className} />;
+  }
 
   return (
     <div
@@ -135,69 +294,9 @@ export function renderArtifactDetailClaimActions(
       role="toolbar"
       aria-label="Claim actions"
     >
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Research this claim with AI"
-        shortLabel="Research"
-        icon={MessageCircle}
-        tone="research"
-        active
-        onClick={() => ctx.startClaimResearchChat(c, source)}
-      />
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Journal your reflection on this claim"
-        shortLabel="Reflect"
-        icon={NotebookPen}
-        tone="reflect"
-        onClick={() => ctx.openJournalFromClaim(c, source?.startSeconds ?? undefined)}
-      />
-      <ClaimIconActionButton
-        variant="labeled"
-        label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
-        shortLabel={isDeferredVerdict(c.verdict) ? "Queued" : "Later"}
-        icon={Clock}
-        tone="researchLater"
-        active={isDeferredVerdict(c.verdict)}
-        onClick={() => void ctx.toggleResearchLater(c.id, c.verdict)}
-      />
+      {renderArtifactDetailClaimEngageActions(c, ctx, { variant: "labeled" })}
       {showSeparator ? <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden /> : null}
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Keep this claim"
-        shortLabel="Keep"
-        icon={Check}
-        tone="keep"
-        active={c.verdict === "keep"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "keep")}
-      />
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Reject this claim"
-        shortLabel="Reject"
-        icon={X}
-        tone="reject"
-        active={c.verdict === "reject"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "reject")}
-      />
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Update my belief"
-        shortLabel="Update"
-        icon={Pencil}
-        tone="update"
-        active={c.verdict === "updated"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "updated")}
-      />
-      <ClaimIconActionButton
-        variant="labeled"
-        label="Defer decision"
-        shortLabel="Defer"
-        icon={CirclePause}
-        tone="defer"
-        active={c.verdict === "defer"}
-        onClick={() => void ctx.applyClaimVerdict(c.id, "defer")}
-      />
+      {renderArtifactDetailClaimVerdictActions(c, ctx, { variant: "labeled" })}
     </div>
   );
 }
@@ -515,12 +614,16 @@ export function renderArtifactDetailClaimCard(
         </div>
         <footer
           className={cn(
-            "shrink-0 border-t border-border/50 bg-white py-3.5",
-            railPadX,
+            "shrink-0 border-t border-border/50 bg-white",
             mobileRail && "touch-pan-x",
+            !mobileRail && railPadX,
+            mobileRail && "py-0",
+            !mobileRail && "py-3.5",
           )}
         >
-          {claimToolbar}
+          {mobileRail
+            ? renderArtifactDetailClaimActions(c, ctx, { bordered: false, layout: "mobileDock" })
+            : claimToolbar}
         </footer>
       </article>
     );

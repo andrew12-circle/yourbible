@@ -105,6 +105,7 @@ export function useNewJournalEntryPage() {
   });
   const lastSyncedListeningKey = useRef<string | null>(null);
   const handoffAppliedForKey = useRef<string | null>(null);
+  const [artifactReturnTo, setArtifactReturnTo] = useState<string | null>(null);
 
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
@@ -136,6 +137,8 @@ export function useNewJournalEntryPage() {
     const artifactTime = params.get("artifactTime");
     const artifactTranscript = params.get("artifactTranscript");
     const artifactClaims = params.get("artifactClaims");
+    const returnTo = params.get("returnTo");
+    if (returnTo) setArtifactReturnTo(decodeURIComponent(returnTo));
     if (jid) setJournalId(jid);
     if (pid) setPromptId(pid);
     if (r) setVerseRef(r);
@@ -233,6 +236,7 @@ export function useNewJournalEntryPage() {
     setBody(handoff.body);
     if (handoff.title?.trim()) setTitle(handoff.title);
     if (handoff.tags?.length) setTags(handoff.tags);
+    if (handoff.returnTo) setArtifactReturnTo(handoff.returnTo);
     try {
       localStorage.removeItem(JOURNAL_EXPAND_HANDOFF_KEY);
     } catch {
@@ -368,13 +372,15 @@ export function useNewJournalEntryPage() {
   }, [entryAt]);
 
   const lifeSegment = entryKind ? kindToLifeSegment(entryKind) : null;
-  const layoutBack = editId
-    ? `/journal/${editId}`
-    : entryKind === "vent"
-      ? "/journal/vent"
-      : lifeSegment
-        ? `/journal/life/${lifeSegment}`
-        : "/journal";
+  const layoutBack =
+    artifactReturnTo ??
+    (editId
+      ? `/journal/${editId}`
+      : entryKind === "vent"
+        ? "/journal/vent"
+        : lifeSegment
+          ? `/journal/life/${lifeSegment}`
+          : "/journal");
   const layoutTitle = editId ? "Edit entry" : entryKind ? `New ${ENTRY_KIND_META[entryKind].label}` : "New entry";
   const bodyPlaceholder = entryKind
     ? ENTRY_KIND_META[entryKind].placeholder
