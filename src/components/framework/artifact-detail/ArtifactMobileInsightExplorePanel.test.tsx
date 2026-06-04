@@ -68,7 +68,9 @@ describe("ArtifactMobileInsightExplorePanel", () => {
     const actionToolbars = screen.getAllByRole("toolbar", { name: "Claim actions" });
     expect(actionToolbars).toHaveLength(1);
     expect(backButton.parentElement).toContainElement(actionToolbars[0]);
-    expect(within(actionToolbars[0]).getByRole("button", { name: "Research" })).toBeInTheDocument();
-    expect(within(actionToolbars[0]).getByRole("button", { name: "Keep" })).toBeInTheDocument();
+    expect(within(actionToolbars[0]).getByText("Research")).toBeInTheDocument();
+    expect(within(actionToolbars[0]).getByText("Reflect")).toBeInTheDocument();
+    expect(within(actionToolbars[0]).getByText("Keep")).toBeInTheDocument();
+    expect(within(actionToolbars[0]).getByText("Reject")).toBeInTheDocument();
   });
 });

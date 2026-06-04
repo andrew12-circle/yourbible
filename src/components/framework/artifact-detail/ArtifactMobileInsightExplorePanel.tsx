@@ -37,10 +37,9 @@ export default function ArtifactMobileInsightExplorePanel({
   };
   const actions = renderArtifactDetailClaimActions(claim, detailContext, {
     bordered: false,
-    wrap: false,
-    showSeparator: false,
-    className:
-      "min-w-0 flex-1 justify-end overflow-x-auto overscroll-x-contain pb-0.5 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+    wrap: true,
+    showSeparator: true,
+    className: "min-w-0 flex-1 justify-end gap-1.5",
   });
   const card = renderArtifactDetailClaimCard(claim, claimIndex, detailContext);
 

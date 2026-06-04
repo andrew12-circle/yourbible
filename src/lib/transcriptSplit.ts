@@ -30,6 +30,14 @@ function timestampToSeconds(value: string) {
   return parts[0] ?? null;
 }
 
+/** `Part 18` style labels from untimed `splitTranscript` chunks. */
+export function parseTranscriptPartNumber(label: string | undefined): number | null {
+  const match = label?.trim().match(/^Part\s+(\d+)$/i);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
+
 /** Display clock for claim source / play controls — never wordy YouTube UI durations. */
 export function formatClaimSourceClock(
   startSeconds: number | null | undefined,

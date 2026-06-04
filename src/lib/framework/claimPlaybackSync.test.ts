@@ -1,5 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { findActiveClaimId, getClaimSeekSeconds } from "./claimPlaybackSync";
+import type { TranscriptSegment } from "@/lib/transcriptSplit";
+import {
+  estimateUntimedPartSeekSeconds,
+  findActiveClaimId,
+  getClaimSeekSeconds,
+} from "./claimPlaybackSync";
+
+const untimedParts: TranscriptSegment[] = Array.from({ length: 4 }, (_, i) => ({
+  id: `transcript-${i}`,
+  label: `Part ${i + 1}`,
+  text: `Chunk ${i + 1}`,
+  startSeconds: null,
+}));
+
+describe("estimateUntimedPartSeekSeconds", () => {
+  it("maps part index across video duration", () => {
+    expect(
+      estimateUntimedPartSeekSeconds(
+        { label: "Part 2", startSeconds: null },
+        untimedParts,
+        600,
+      ),
+    ).toBe(200);
+    expect(
+      estimateUntimedPartSeekSeconds(
+        { label: "Part 4", startSeconds: null },
+        untimedParts,
+        600,
+      ),
+    ).toBe(599);
+  });
+});
 
 describe("getClaimSeekSeconds", () => {
   it("prefers transcript segment time over chapter", () => {
@@ -10,6 +41,16 @@ describe("getClaimSeekSeconds", () => {
 
   it("falls back to chapter_start_seconds", () => {
     expect(getClaimSeekSeconds({ id: "a", chapter_start_seconds: 90 }, null)).toBe(90);
+  });
+
+  it("estimates seek time for untimed Part labels when duration is known", () => {
+    expect(
+      getClaimSeekSeconds(
+        { id: "a", chapter_start_seconds: null },
+        { label: "Part 3", startSeconds: null },
+        { transcriptSegments: untimedParts, videoDurationSeconds: 900 },
+      ),
+    ).toBe(600);
   });
 });
 

@@ -63,6 +63,8 @@ export type RenderClaimCardContext = {
   isDesktop: boolean;
   youTubeVideoId: string | null;
   claimSources: Record<string, TranscriptSegment | null>;
+  transcriptSegments?: TranscriptSegment[];
+  videoDurationSeconds?: number | null;
   matchedBeliefs: Record<string, RenderClaimCardBelief>;
   playClaimAtSource: (claim: RenderClaimCardClaim, source: TranscriptSegment | null | undefined) => void;
   startClaimResearchChat: (claim: RenderClaimCardClaim, source: TranscriptSegment | null | undefined) => void;
@@ -125,7 +127,7 @@ export function renderArtifactDetailClaimActions(
   return (
     <div
       className={cn(
-        "flex items-center gap-1",
+        "flex items-center gap-2",
         wrap ? "flex-wrap" : "flex-nowrap",
         bordered && "border-t border-border/50 pt-3",
         options.className,
@@ -134,20 +136,26 @@ export function renderArtifactDetailClaimActions(
       aria-label="Claim actions"
     >
       <ClaimIconActionButton
-        label="Research"
+        variant="labeled"
+        label="Research this claim with AI"
+        shortLabel="Research"
         icon={MessageCircle}
         tone="research"
         active
         onClick={() => ctx.startClaimResearchChat(c, source)}
       />
       <ClaimIconActionButton
-        label="Reflect"
+        variant="labeled"
+        label="Journal your reflection on this claim"
+        shortLabel="Reflect"
         icon={NotebookPen}
         tone="reflect"
         onClick={() => ctx.openJournalFromClaim(c, source?.startSeconds ?? undefined)}
       />
       <ClaimIconActionButton
+        variant="labeled"
         label={isDeferredVerdict(c.verdict) ? "In queue (research later)" : "Research later"}
+        shortLabel={isDeferredVerdict(c.verdict) ? "Queued" : "Later"}
         icon={Clock}
         tone="researchLater"
         active={isDeferredVerdict(c.verdict)}
@@ -155,28 +163,36 @@ export function renderArtifactDetailClaimActions(
       />
       {showSeparator ? <span className="mx-0.5 hidden h-5 w-px bg-border/60 sm:inline" aria-hidden /> : null}
       <ClaimIconActionButton
-        label="Keep"
+        variant="labeled"
+        label="Keep this claim"
+        shortLabel="Keep"
         icon={Check}
         tone="keep"
         active={c.verdict === "keep"}
         onClick={() => void ctx.applyClaimVerdict(c.id, "keep")}
       />
       <ClaimIconActionButton
-        label="Reject"
+        variant="labeled"
+        label="Reject this claim"
+        shortLabel="Reject"
         icon={X}
         tone="reject"
         active={c.verdict === "reject"}
         onClick={() => void ctx.applyClaimVerdict(c.id, "reject")}
       />
       <ClaimIconActionButton
+        variant="labeled"
         label="Update my belief"
+        shortLabel="Update"
         icon={Pencil}
         tone="update"
         active={c.verdict === "updated"}
         onClick={() => void ctx.applyClaimVerdict(c.id, "updated")}
       />
       <ClaimIconActionButton
-        label="Defer"
+        variant="labeled"
+        label="Defer decision"
+        shortLabel="Defer"
         icon={CirclePause}
         tone="defer"
         active={c.verdict === "defer"}
@@ -194,7 +210,10 @@ export function renderArtifactDetailClaimCard(
   const source = ctx.claimSources[c.id];
   const sourceClock = source ? formatClaimSourceClock(source.startSeconds, source.label) : null;
   const sourceQuote = source ? cleanTranscriptQuoteForDisplay(source.text) : "";
-  const claimSeekSeconds = getClaimSeekSeconds(c, source ?? null);
+  const claimSeekSeconds = getClaimSeekSeconds(c, source ?? null, {
+    transcriptSegments: ctx.transcriptSegments,
+    videoDurationSeconds: ctx.videoDurationSeconds,
+  });
   const canPlayClaim = Boolean(ctx.youTubeVideoId && claimSeekSeconds != null);
   const chapterClock =
     claimSeekSeconds != null && source?.startSeconds == null

@@ -53,7 +53,6 @@ const READER_TOOL_ITEMS = SKETCH_TOOL_ITEMS.filter(
   (t) => t.id !== "ruler" && t.id !== "eraser",
 );
 
-/** Reader: eraser lives beside undo so it is never clipped in the scroll strip. */
 const READER_ERASER_ITEM = SKETCH_TOOL_ITEMS.find((t) => t.id === "eraser")!;
 
 const APPLE_PALETTE = [

@@ -490,9 +490,17 @@ export default function ArtifactDetailPage() {
 
   const getCurrentPlaybackSeconds = getPlaybackSeconds;
 
+  const videoDurationSeconds =
+    mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds ?? null;
+
+  const claimSeekContext = useMemo(
+    () => ({ transcriptSegments, videoDurationSeconds }),
+    [transcriptSegments, videoDurationSeconds],
+  );
+
   const resolveClaimSeekSeconds = useCallback(
-    (claim: Claim) => getClaimSeekSeconds(claim, claimSources[claim.id]),
-    [claimSources],
+    (claim: Claim) => getClaimSeekSeconds(claim, claimSources[claim.id], claimSeekContext),
+    [claimSources, claimSeekContext],
   );
 
   const navSections = useMemo((): ArtifactNavSection[] => {
@@ -575,29 +583,47 @@ export default function ArtifactDetailPage() {
     });
   }, [claims, isDesktop]);
 
-  const jumpToTranscriptSource = useCallback(
-    (segment: TranscriptSegment | null) => {
+  const focusTranscriptSegment = useCallback(
+    (segment: TranscriptSegment | null | undefined, opts?: { deferMs?: number }) => {
       if (!segment || segment.isParagraphBreak) return;
-      transcriptRefs.current[segment.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (segment.startSeconds != null) seekVideoToSeconds(segment.startSeconds, { play: true });
+      const scroll = () => {
+        transcriptRefs.current[segment.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+      if (opts?.deferMs != null && opts.deferMs > 0) {
+        window.setTimeout(scroll, opts.deferMs);
+        return;
+      }
+      scroll();
     },
-    [seekVideoToSeconds],
+    [],
   );
 
   const playClaimAtSource = useCallback(
     (claim: Claim, source: TranscriptSegment | null | undefined) => {
-      scrollToClaimById(claim.id);
-      const seconds = getClaimSeekSeconds(claim, source ?? null);
-      if (seconds == null) {
-        jumpToTranscriptSource(source ?? null);
+      const seconds = getClaimSeekSeconds(claim, source ?? null, claimSeekContext);
+      const needsTranscriptTab = !isDesktop && Boolean(source);
+
+      if (needsTranscriptTab) openTranscriptTab();
+      focusTranscriptSegment(source ?? null, needsTranscriptTab ? { deferMs: 100 } : undefined);
+
+      if (seconds != null) {
+        seekVideoToSeconds(seconds, { play: true });
         return;
       }
-      if (source && !source.isParagraphBreak) {
-        transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      scrollToClaimById(claim.id);
+      if (source?.startSeconds != null) {
+        seekVideoToSeconds(source.startSeconds, { play: true });
       }
-      seekVideoToSeconds(seconds, { play: true });
     },
-    [jumpToTranscriptSource, scrollToClaimById, seekVideoToSeconds],
+    [
+      claimSeekContext,
+      focusTranscriptSegment,
+      isDesktop,
+      openTranscriptTab,
+      scrollToClaimById,
+      seekVideoToSeconds,
+    ],
   );
 
   const openDesktopInsightExplore = useCallback((claimId: string) => {
@@ -1171,6 +1197,8 @@ export default function ArtifactDetailPage() {
     isDesktop,
     youTubeVideoId,
     claimSources,
+    transcriptSegments,
+    videoDurationSeconds,
     matchedBeliefs,
     playClaimAtSource,
     startClaimResearchChat,

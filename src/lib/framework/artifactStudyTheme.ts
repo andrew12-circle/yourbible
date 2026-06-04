@@ -72,8 +72,8 @@ export const artifactMobileInsightHeroCard = cn(
   "shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition active:scale-[0.99]",
 );
 
-/** Claim index on dark insight cards — always green. */
-export const artifactInsightClaimNumberColor = "text-emerald-400";
+/** Claim index on dark insight cards — iOS Messages bubble green (#34C759). */
+export const artifactInsightClaimNumberColor = "text-[#34C759]";
 
 export const artifactMobileInsightHeroAccents = [
   {

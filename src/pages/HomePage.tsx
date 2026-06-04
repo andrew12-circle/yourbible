@@ -16,6 +16,9 @@ import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { BibleHomeWidgets } from "@/components/home/BibleHomeWidgets";
+import { IosAppIcon } from "@/components/home/IosAppIcon";
+import { HomeFloatingTabBar } from "@/components/home/HomeFloatingTabBar";
+import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
 const LAST_READ_KEY = "yb_last_read";
 const WALLPAPER_KEY = "yb_home_wallpaper"; // data URL
 
@@ -99,8 +102,8 @@ export default function HomePage() {
   const [pageHeightPx, setPageHeightPx] = useState<number | null>(null);
   const [activePage, setActivePage] = useState(0);
 
-  /** Clearance above fixed dock + page dots (px from viewport bottom). */
-  const HOME_BOTTOM_CHROME_PX = 118;
+  /** Clearance above floating tab bar + page dots (px from viewport bottom). */
+  const HOME_BOTTOM_CHROME_PX = 92;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -194,42 +197,40 @@ export default function HomePage() {
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
   const apps: AppIcon[] = [
-    { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: "linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)", badge: lastRead?.replace("/", " ") },
-    { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: "linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" },
-    { label: "Framework", to: "/framework",            icon: Brain,                 color: "#FF2D55", iconColor: "white" },
-    { label: "Journey",   to: "/framework/journey",    icon: Sprout,                color: "linear-gradient(160deg, #15803D 0%, #22C55E 58%, #86EFAC 100%)", iconColor: "white" },
-    { label: "Playbook",  to: "/framework/playbook",   icon: ClipboardList,         color: "linear-gradient(160deg, #334155 0%, #475569 58%, #94A3B8 100%)", iconColor: "white" },
-    { label: "Artifacts", to: "/framework/artifacts",  icon: FileStack,             color: "linear-gradient(160deg, #5E2CCF 0%, #7A43F3 58%, #9A6AFF 100%)", iconColor: "white", badge: counts.artifacts || undefined },
-    { label: "Research later", to: "/framework/research-later", icon: Clock,          color: "linear-gradient(160deg, #B45309 0%, #F59E0B 58%, #FCD34D 100%)", iconColor: "white", ariaLabel: "Research later" },
-    { label: "Graph",     to: "/framework/graph",      icon: Share2,                color: "linear-gradient(160deg, #3730A3 0%, #4F46E5 58%, #818CF8 100%)", iconColor: "white" },
-    { label: "Beliefs",   to: "/framework/beliefs",    icon: Network,               color: "linear-gradient(160deg, #1D4ED8 0%, #3B82F6 58%, #93C5FD 100%)", iconColor: "white", badge: counts.beliefs || undefined },
-    { label: "Influences", to: "/framework/influences", icon: Users,                color: "linear-gradient(160deg, #9D174D 0%, #DB2777 58%, #F9A8D4 100%)", iconColor: "white" },
-    { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: "linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)", badge: promptBadge },
+    { label: "Bible",     to: bibleTo,                 icon: BookOpen,              color: IOS_APP_BG.bible, badge: lastRead?.replace("/", " ") },
+    { label: "Daily",     to: "/framework/daily",      icon: Sun,                   color: IOS_APP_BG.daily },
+    { label: "Framework", to: "/framework",            icon: Brain,                 color: IOS_APP_BG.framework },
+    { label: "Journey",   to: "/framework/journey",    icon: Sprout,                color: IOS_APP_BG.journey },
+    { label: "Playbook",  to: "/framework/playbook",   icon: ClipboardList,         color: IOS_APP_BG.playbook },
+    { label: "Artifacts", to: "/framework/artifacts",  icon: FileStack,             color: IOS_APP_BG.artifacts, badge: counts.artifacts || undefined },
+    { label: "Research later", to: "/framework/research-later", icon: Clock,          color: IOS_APP_BG.research, ariaLabel: "Research later" },
+    { label: "Graph",     to: "/framework/graph",      icon: Share2,                color: IOS_APP_BG.graph },
+    { label: "Beliefs",   to: "/framework/beliefs",    icon: Network,               color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
+    { label: "Influences", to: "/framework/influences", icon: Users,                color: IOS_APP_BG.influences },
+    { label: "Journal",   to: "/journal",              icon: NotebookPen,           color: IOS_APP_BG.journal, badge: promptBadge },
     {
       label: "Walking together",
       to: "/partner",
       icon: HeartHandshake,
-      color: "linear-gradient(160deg, #FB7185 0%, #F43F5E 52%, #BE123C 100%)",
-      iconColor: "white",
+      color: IOS_APP_BG.partner,
       ariaLabel: "Walking together with a partner",
     },
-    { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: "linear-gradient(160deg, #0D9D96 0%, #18C6BE 58%, #61EAE4 100%)", badge: counts.tensions || undefined },
-    { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: "linear-gradient(160deg, #4C46D1 0%, #6A63FF 58%, #8E8BFF 100%)" },
-    { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: "linear-gradient(160deg, #0073EF 0%, #1A97FF 58%, #57B8FF 100%)" },
-    { label: "Tasks",     to: "/life/todos",           icon: ListTodo,              color: "linear-gradient(160deg, #2563EB 0%, #3B82F6 58%, #93C5FD 100%)" },
-    { label: "Habits",    to: "/life/habits",          icon: CheckSquare,           color: "linear-gradient(160deg, #059669 0%, #10B981 58%, #6EE7B7 100%)", iconColor: "white" },
-    { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: "linear-gradient(160deg, #091134 0%, #122056 58%, #20357D 100%)" },
-    { label: "YouTube",   onOpen: openYouTubeAppOrWeb, icon: Youtube,               color: "#FF2D2D", iconColor: "white", ariaLabel: "Open YouTube" },
+    { label: "Tensions",  to: "/framework/tensions",   icon: Sparkles,              color: IOS_APP_BG.tensions, badge: counts.tensions || undefined },
+    { label: "Study",     to: "/framework/study",      icon: GraduationCap,         color: IOS_APP_BG.study },
+    { label: "Digest",    to: "/framework/digest",     icon: Mail,                  color: IOS_APP_BG.digest },
+    { label: "Tasks",     to: "/life/todos",           icon: ListTodo,              color: IOS_APP_BG.tasks },
+    { label: "Habits",    to: "/life/habits",          icon: CheckSquare,           color: IOS_APP_BG.habits },
+    { label: "Sleep",     to: "/sleep",                icon: Moon,                  color: IOS_APP_BG.sleep },
+    { label: "YouTube",   onOpen: openYouTubeAppOrWeb, icon: Youtube,               color: IOS_APP_BG.youtube, ariaLabel: "Open YouTube" },
     {
       label: "My AI",
       to: "/my-ai",
       icon: MessageCircleHeart,
-      color: "linear-gradient(160deg, #0FA958 0%, #28CC73 58%, #5AF0A6 100%)",
-      iconColor: "white",
+      color: IOS_APP_BG.myAi,
       ariaLabel: "Open My AI — framework-grounded chat",
       badge: counts.chats || undefined,
     },
-    { label: "Settings",  to: "/settings",             icon: Settings,              color: "linear-gradient(160deg, #6E6E75 0%, #8D8D96 58%, #B4B4BE 100%)" },
+    { label: "Settings",  to: "/settings",             icon: Settings,              color: IOS_APP_BG.settings },
   ];
 
   const appCount = apps.length;
@@ -468,7 +469,7 @@ export default function HomePage() {
         </div>
 
         {/* Page dots */}
-        <div className="fixed bottom-[calc(104px+env(safe-area-inset-bottom))] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
+        <div className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-0 right-0 flex items-center justify-center gap-1.5 z-10">
           {Array.from({ length: pageCount }).map((_, i) => (
             <button
               key={i}
@@ -485,16 +486,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Dock */}
-        <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] max-w-xl z-10">
-          <div className="flex items-center justify-around gap-1 rounded-[24px] sm:rounded-[28px] bg-white/35 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.45)] px-2 sm:px-3 py-2 sm:py-2.5">
-            <DockIcon icon={BookOpen}    color="linear-gradient(160deg, #CB3F2A 0%, #FF6E4E 60%, #FF9A63 100%)" onClick={() => navigate(bibleTo)}             label="Bible" />
-            <DockIcon icon={Sun}         color="linear-gradient(155deg, #0A84FF 0%, #32AEFF 58%, #7AD9FF 100%)" onClick={() => navigate("/framework/daily")} label="Daily" />
-            <DockIcon icon={NotebookPen} color="linear-gradient(160deg, #F26A22 0%, #FF8B3D 58%, #FFB067 100%)" onClick={() => navigate("/journal")} label="Journal" />
-            <DockIcon icon={Brain} color="#FF2D55" onClick={() => navigate("/framework")} label="Framework" iconColor="white" />
-          </div>
-          <div className="mx-auto mt-2 w-[96px] sm:w-[120px] h-[5px] rounded-full bg-white/70" />
-        </div>
+        <HomeFloatingTabBar bibleTo={bibleTo} onHome={() => goToPage(0)} />
       </div>
     </div>
   );
@@ -502,49 +494,18 @@ export default function HomePage() {
 
 function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
   const Icon = app.icon;
-  const iconColor = app.iconColor ?? "white";
-  const isBible = app.label === "Bible";
-  const isJournal = app.label === "Journal";
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-1.5 sm:gap-[7px] focus:outline-none" aria-label={app.ariaLabel ?? app.label}>
       <div className="relative">
-        <div
-          className="ios-icon w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] flex items-center justify-center transition-transform duration-150 group-active:scale-[0.92]"
-          style={{ background: app.color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 18px -10px rgba(0,0,0,0.55)" }}
-        >
-          {app.imageSrc ? (
-            <img src={app.imageSrc} alt="" className="w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] object-cover rounded-[15px] sm:rounded-[17px]" />
-          ) : (
-            <>
-              {isBible && (
-                <>
-                  <div className="absolute inset-x-[8px] top-[9px] text-[8px] leading-[0.95] font-semibold tracking-[0.06em] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-                    HOLY
-                    <br />
-                    BIBLE
-                  </div>
-                  <div className="absolute left-[7px] right-[7px] bottom-[8px] h-[11px] rounded-b-[9px] rounded-t-[3px] bg-amber-50/90 border border-amber-100/70" />
-                  <div className="absolute left-[11px] bottom-[10px] w-[10px] h-[9px] bg-rose-500 rounded-[2px]" style={{ clipPath: "polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)" }} />
-                </>
-              )}
-
-              {isJournal && (
-                <>
-                  <div className="absolute top-[7px] left-1/2 -translate-x-1/2 w-[26px] h-[27px] bg-white/90 rounded-t-[4px] rounded-b-[1px]" />
-                  <div className="absolute top-[33px] left-1/2 -translate-x-1/2 w-[26px] h-[8px] bg-white/90" style={{ clipPath: "polygon(0 0,100% 0,50% 100%)" }} />
-                </>
-              )}
-
-              {Icon && (
-                <Icon
-                  className={`w-[21px] h-[21px] sm:w-[30px] sm:h-[30px] ${isBible || isJournal ? "opacity-0" : ""}`}
-                  style={{ color: iconColor }}
-                  strokeWidth={2.1}
-                />
-              )}
-            </>
-          )}
-        </div>
+        {Icon && (
+          <IosAppIcon
+            icon={Icon}
+            background={app.color}
+            iconColor={app.iconColor ?? "#FFFFFF"}
+            imageSrc={app.imageSrc}
+            className="transition-transform duration-150 group-active:scale-[0.92]"
+          />
+        )}
         {app.badge !== undefined && app.badge !== "" && (
           <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-[5px] rounded-full bg-[#FF3B30] text-white text-[11px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.4)] border-[1.5px] border-white flex items-center justify-center tabular-nums leading-none">
             {typeof app.badge === "number" && app.badge > 99 ? "99+" : app.badge}
@@ -556,23 +517,6 @@ function AppButton({ app, onClick }: { app: AppIcon; onClick: () => void }) {
       >
         {app.label}
       </span>
-    </button>
-  );
-}
-
-function DockIcon({ icon: Icon, imageSrc, color, onClick, label, iconColor = "white" }: { icon?: LucideIcon; imageSrc?: string; color: string; onClick: () => void; label: string; iconColor?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className="ios-icon ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] flex items-center justify-center transition-transform active:scale-[0.92]"
-      style={{ background: color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 18px -12px rgba(0,0,0,0.55)" }}
-    >
-      {imageSrc ? (
-        <img src={imageSrc} alt="" className="w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] object-cover rounded-[14px]" />
-      ) : Icon ? (
-        <Icon className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px]" style={{ color: iconColor }} strokeWidth={2} />
-      ) : null}
     </button>
   );
 }
