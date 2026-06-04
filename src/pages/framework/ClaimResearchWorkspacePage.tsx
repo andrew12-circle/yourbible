@@ -186,10 +186,7 @@ export default function ClaimResearchWorkspacePage() {
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-9 gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground",
-              "hover:bg-muted/60 hover:text-foreground",
-            )}
+            className="h-9 gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             onClick={() => navigate(`/framework/artifacts/${artifactId}`)}
           >
             <ArrowLeft className="h-4 w-4" />

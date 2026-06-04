@@ -2,32 +2,62 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { researchPackAssistantProse } from "@/lib/framework/claimResearchPack";
 import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import ResearchGeminiAvatar from "@/components/journal/ResearchGeminiAvatar";
+import ResearchMessageActions from "@/components/journal/ResearchMessageActions";
 
 type Props = {
   children: string;
   variant?: "brief" | "chat";
+  onCopy?: () => void;
+  onRetry?: () => void;
+  retryDisabled?: boolean;
   className?: string;
 };
 
-export default function ResearchAssistantBubble({ children, variant = "chat", className }: Props) {
+export default function ResearchAssistantBubble({
+  children,
+  variant = "chat",
+  onCopy,
+  onRetry,
+  retryDisabled,
+  className,
+}: Props) {
   const text = sanitizeResearchChatContent(children);
   if (!text) return null;
 
   const isBrief = variant === "brief";
-
-  return (
+  const prose = (
     <div
       className={cn(
-        "min-w-0 max-w-full overflow-x-hidden",
-        isBrief
-          ? "rounded-xl bg-muted/30 px-3.5 py-3 ring-1 ring-border/40"
-          : "max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border border-border/50 bg-card px-3.5 py-3 shadow-sm",
-        className,
+        researchPackAssistantProse,
+        "prose-p:text-[15px] prose-p:leading-[1.65] prose-li:text-[15px]",
+        "prose-headings:text-base prose-headings:font-medium prose-headings:tracking-tight",
       )}
     >
-      <div className={cn(researchPackAssistantProse, isBrief && "text-[13px]")}>
-        <ReactMarkdown>{text}</ReactMarkdown>
-      </div>
+      <ReactMarkdown>{text}</ReactMarkdown>
     </div>
+  );
+
+  if (isBrief) {
+    return (
+      <article className={cn("w-full", className)}>
+        <div className="mb-3 flex items-center gap-2">
+          <ResearchGeminiAvatar size="sm" />
+          <span className="text-sm font-medium text-foreground/80">Research brief</span>
+        </div>
+        {prose}
+      </article>
+    );
+  }
+
+  return (
+    <article className={cn("w-full min-w-0", className)}>
+      {prose}
+      <ResearchMessageActions
+        onCopy={onCopy}
+        onRetry={onRetry}
+        retryDisabled={retryDisabled}
+      />
+    </article>
   );
 }

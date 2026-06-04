@@ -1,4 +1,4 @@
-import { ClipboardCopy, Loader2, MessageCircle } from "lucide-react";
+import { ClipboardCopy, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -12,6 +12,12 @@ import ClaimResearchVerdictDock from "@/components/journal/ClaimResearchVerdictD
 import ResearchPackView from "@/components/journal/ResearchPackView";
 import ResearchAssistantBubble from "@/components/journal/ResearchAssistantBubble";
 import BeliefUpdateFromClaimDialog from "@/components/framework/BeliefUpdateFromClaimDialog";
+import {
+  claimResearchAmbient,
+  claimResearchColumn,
+  geminiUserTurn,
+} from "@/lib/journal/claimResearchTheme";
+import ResearchGeminiAvatar from "@/components/journal/ResearchGeminiAvatar";
 
 type Props = {
   userId: string;
@@ -21,28 +27,28 @@ type Props = {
 
 function BriefSkeleton() {
   return (
-    <div className="space-y-2.5 animate-pulse" aria-hidden>
-      <div className="h-3 w-4/5 rounded-md bg-muted/60" />
-      <div className="h-3 w-full rounded-md bg-muted/50" />
-      <div className="h-3 w-11/12 rounded-md bg-muted/40" />
-      <div className="h-3 w-2/3 rounded-md bg-muted/30" />
+    <div className="space-y-3 animate-pulse py-2" aria-hidden>
+      <div className="h-4 w-32 rounded-full bg-muted/50" />
+      <div className="h-3 w-full max-w-lg rounded-md bg-muted/40" />
+      <div className="h-3 w-11/12 max-w-md rounded-md bg-muted/35" />
+      <div className="h-3 w-4/5 max-w-sm rounded-md bg-muted/30" />
     </div>
   );
 }
 
 function TypingIndicator() {
   return (
-    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-border/50 bg-card px-3.5 py-3 shadow-sm">
+    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
       <span className="inline-flex gap-1" aria-hidden>
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse"
-            style={{ animationDelay: `${i * 180}ms` }}
+            className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-pulse"
+            style={{ animationDelay: `${i * 200}ms` }}
           />
         ))}
       </span>
-      <span className="text-xs text-muted-foreground">Thinking…</span>
+      Thinking…
     </div>
   );
 }
@@ -55,6 +61,15 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
     try {
       await navigator.clipboard.writeText(ws.packMarkdown);
       toast({ title: "Copied to clipboard" });
+    } catch (e) {
+      toast({ title: "Copy failed", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const copyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({ title: "Copied" });
     } catch (e) {
       toast({ title: "Copy failed", description: String(e), variant: "destructive" });
     }
@@ -75,92 +90,99 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-muted/20 via-background to-background",
+        "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background",
+        claimResearchAmbient,
         className,
       )}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pt-3 sm:px-4">
-        <ClaimResearchHeader
-          claimText={research.claimPreview}
-          artifactId={research.artifactId}
-          matchedBeliefId={research.matchedBeliefId}
-          lastResearchedLabel={lastResearchedLabel}
-          briefLoading={ws.briefLoading}
-          reportLoading={ws.reportLoading}
-          onOpenReport={() => void ws.openFullReport()}
-          onRefreshBrief={() => void ws.refreshBrief()}
-        />
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-6">
+        <div className={claimResearchColumn}>
+          <ClaimResearchHeader
+            claimText={research.claimPreview}
+            artifactId={research.artifactId}
+            matchedBeliefId={research.matchedBeliefId}
+            lastResearchedLabel={lastResearchedLabel}
+            briefLoading={ws.briefLoading}
+            reportLoading={ws.reportLoading}
+            onOpenReport={() => void ws.openFullReport()}
+            onRefreshBrief={() => void ws.refreshBrief()}
+          />
 
-        <section className="mt-4" aria-labelledby="research-brief-heading">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 id="research-brief-heading" className="text-xs font-semibold text-foreground">
-              Research brief
-            </h2>
+          <section className="mt-8" aria-label="Research brief">
             {ws.briefLoading && ws.briefSummary ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Refreshing" />
+              <Loader2
+                className="mb-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
+                aria-label="Refreshing brief"
+              />
             ) : null}
-          </div>
-          {showBriefSkeleton ? <BriefSkeleton /> : null}
-          {showBriefContent ? (
-            <ResearchAssistantBubble variant="brief">{ws.briefSummary!}</ResearchAssistantBubble>
-          ) : null}
-          {!showBriefSkeleton && !showBriefContent ? (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              A multi-source summary will appear here — Scripture, history, and three voices.
-            </p>
-          ) : null}
-          {ws.webStatusLabel && showBriefContent ? (
-            <p className="mt-2 text-[10px] leading-snug text-muted-foreground/90">{ws.webStatusLabel}</p>
-          ) : null}
-        </section>
+            {showBriefSkeleton ? <BriefSkeleton /> : null}
+            {showBriefContent ? (
+              <ResearchAssistantBubble variant="brief">{ws.briefSummary!}</ResearchAssistantBubble>
+            ) : null}
+            {!showBriefSkeleton && !showBriefContent ? (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                A multi-source summary will appear here — Scripture, history, and three voices.
+              </p>
+            ) : null}
+            {ws.webStatusLabel && showBriefContent ? (
+              <p className="mt-3 text-xs text-muted-foreground/80">{ws.webStatusLabel}</p>
+            ) : null}
+          </section>
 
-        <section className="mt-6 pb-4" aria-labelledby="research-chat-heading">
-          <div className="mb-3 flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-muted-foreground" aria-hidden />
-            <h2 id="research-chat-heading" className="text-xs font-semibold text-foreground">
-              Conversation
-            </h2>
-          </div>
-
-          {ws.showLoading ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <Loader2 className="h-6 w-6 animate-spin text-primary/60" />
-              <p className="text-sm text-muted-foreground">Starting your research chat…</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {ws.chatBootstrapping && ws.messages.length === 0 ? <TypingIndicator /> : null}
-              {ws.loadingMessages ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : null}
-              {!ws.loadingMessages &&
-                ws.messages.length === 0 &&
-                !ws.chatBootstrapping &&
-                !ws.sending && (
-                  <p className="rounded-xl border border-dashed border-border/70 bg-card/50 px-4 py-6 text-center text-sm leading-relaxed text-muted-foreground">
-                    Ask anything about this claim — how it fits Scripture, your beliefs, or church history.
-                  </p>
-                )}
-              {ws.messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}
-                >
-                  {m.role === "user" ? (
-                    <div className="max-w-[min(100%,20rem)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-md">
-                      {m.content}
-                    </div>
-                  ) : (
-                    <ResearchAssistantBubble>{m.content}</ResearchAssistantBubble>
+          <section className="mt-10 space-y-8" aria-label="Conversation">
+            {ws.showLoading ? (
+              <div className="flex flex-col items-center gap-4 py-16 text-center">
+                <ResearchGeminiAvatar size="md" />
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Starting your research chat…</p>
+              </div>
+            ) : (
+              <>
+                {ws.chatBootstrapping && ws.messages.length === 0 ? <TypingIndicator /> : null}
+                {ws.loadingMessages ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : null}
+                {!ws.loadingMessages &&
+                  ws.messages.length === 0 &&
+                  !ws.chatBootstrapping &&
+                  !ws.sending && (
+                    <p className="py-8 text-center text-sm leading-relaxed text-muted-foreground">
+                      Ask anything about this claim — Scripture, your beliefs, or church history.
+                    </p>
                   )}
-                </div>
-              ))}
-              {ws.sending ? <TypingIndicator /> : null}
-            </div>
-          )}
-        </section>
+                {ws.messages.map((m, idx) => {
+                  const isLastAssistant =
+                    m.role === "assistant" &&
+                    idx === ws.messages.length - 1 &&
+                    !ws.sending;
+                  return (
+                    <div
+                      key={m.id}
+                      className={cn(
+                        m.role === "user" ? "flex justify-end" : "w-full",
+                      )}
+                    >
+                      {m.role === "user" ? (
+                        <div className={geminiUserTurn}>{m.content}</div>
+                      ) : (
+                        <ResearchAssistantBubble
+                          onCopy={() => void copyMessage(m.content)}
+                          onRetry={isLastAssistant ? () => void ws.retryLast() : undefined}
+                          retryDisabled={ws.sending || !isLastAssistant}
+                        >
+                          {m.content}
+                        </ResearchAssistantBubble>
+                      )}
+                    </div>
+                  );
+                })}
+                {ws.sending ? <TypingIndicator /> : null}
+              </>
+            )}
+          </section>
+        </div>
       </div>
 
       <ClaimResearchComposer
@@ -202,7 +224,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
       <Sheet open={ws.packOpen} onOpenChange={ws.setPackOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
           <SheetHeader className="shrink-0 space-y-1 border-b border-border/60 px-4 py-4 text-left">
-            <SheetTitle className="font-display text-lg font-normal">Research report</SheetTitle>
+            <SheetTitle className="text-lg font-normal">Research report</SheetTitle>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Bible alignment, historical context, and independent voices.
             </p>
