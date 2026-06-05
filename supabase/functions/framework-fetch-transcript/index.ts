@@ -33,6 +33,7 @@ import {
   fetchTimedTextTranscript,
   normalizeYouTubeWatchUrl,
 } from "../_shared/youtubeTranscript.ts";
+import { resolveYouTubeChannelThumbnail } from "../_shared/youtubeChannelAvatar.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -217,6 +218,7 @@ type YouTubeMetadata = {
   title?: string;
   channelTitle?: string;
   channelUrl?: string;
+  channelThumbnailUrl?: string;
   thumbnailUrl?: string;
   providerName?: string;
   durationSeconds?: number;
@@ -254,7 +256,17 @@ async function getYouTubeMetadata(url: string): Promise<YouTubeMetadata> {
       "Accept-Language": "en-US,en;q=0.9",
     },
   });
-  if (!res.ok) return oembed;
+  if (!res.ok) {
+    const videoId = extractYouTubeVideoId(url);
+    const channelThumbnailUrl = await resolveYouTubeChannelThumbnail({
+      videoId,
+      channelUrl: oembed.channelUrl,
+    }).catch(() => null);
+    return {
+      ...oembed,
+      channelThumbnailUrl: channelThumbnailUrl ?? undefined,
+    };
+  }
   const html = await res.text();
   const duration =
     Number(html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/)?.[1] ?? 0)
@@ -263,9 +275,17 @@ async function getYouTubeMetadata(url: string): Promise<YouTubeMetadata> {
   const durationSeconds = duration && Number.isFinite(duration) ? Math.floor(duration) : undefined;
   const channelTitle = html.match(/"ownerChannelName"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/)?.[1]
     ?? html.match(/<link\s+itemprop="name"\s+content="([^"]+)"/)?.[1];
+  const channelUrl = oembed.channelUrl;
+  const videoId = extractYouTubeVideoId(url);
+  const channelThumbnailUrl = await resolveYouTubeChannelThumbnail({
+    videoId,
+    channelUrl,
+    watchHtml: html,
+  }).catch(() => null);
   return {
     ...oembed,
     channelTitle: oembed.channelTitle ?? (channelTitle ? decodeHtml(channelTitle) : undefined),
+    channelThumbnailUrl: channelThumbnailUrl ?? undefined,
     durationSeconds,
   };
 }
@@ -846,6 +866,7 @@ Deno.serve(async (req) => {
           /** Same as oEmbed `author_name` / HTML owner when available; list UI falls back if older rows lack both. */
           author_name: uploaderName,
           channel_url: result.metadata.channelUrl ?? null,
+          channel_thumbnail_url: result.metadata.channelThumbnailUrl ?? null,
           thumbnail_url: result.metadata.thumbnailUrl ?? null,
           provider_name: result.metadata.providerName ?? "YouTube",
           duration_seconds: result.metadata.durationSeconds ?? null,

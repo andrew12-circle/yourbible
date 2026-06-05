@@ -500,23 +500,6 @@ export function useYouTubeEmbedPlayer(options: {
     return () => window.clearInterval(tick);
   }, [artifactId, persistPlayback, ready]);
 
-  useEffect(() => {
-    const onVisibility = () => {
-      if (!playerRef.current) return;
-      if (document.hidden) {
-        resumeOnVisibleRef.current = playingRef.current;
-        persistPlayback();
-      } else {
-        persistPlayback();
-        const shouldResume = resumeOnVisibleRef.current;
-        resumeOnVisibleRef.current = false;
-        if (shouldResume && !playingRef.current) resumeIfWasPlaying(true);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [persistPlayback, resumeIfWasPlaying]);
-
   const getCurrentTime = useCallback(() => {
     try {
       const t = playerRef.current?.getCurrentTime();
@@ -579,6 +562,24 @@ export function useYouTubeEmbedPlayer(options: {
     if (playingRef.current) pauseVideo();
     else playVideo();
   }, [pauseVideo, playVideo]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!playerRef.current) return;
+      if (document.hidden) {
+        resumeOnVisibleRef.current = playingRef.current;
+        persistPlayback();
+        if (playingRef.current) pauseVideo();
+      } else {
+        persistPlayback();
+        const shouldResume = resumeOnVisibleRef.current;
+        resumeOnVisibleRef.current = false;
+        if (shouldResume && !playingRef.current) resumeIfWasPlaying(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [pauseVideo, persistPlayback, resumeIfWasPlaying]);
 
   const setPlaybackRate = useCallback((rate: number) => {
     try {

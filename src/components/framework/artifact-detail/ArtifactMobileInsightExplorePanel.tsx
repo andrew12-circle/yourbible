@@ -6,6 +6,7 @@ import {
   type RenderClaimCardClaim,
   type RenderClaimCardContext,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
+import { artifactMobileDockPadding } from "@/lib/framework/artifactSurfaces";
 import {
   artifactInsightExploreHeader,
   artifactInsightExploreScroll,
@@ -45,12 +46,13 @@ export default function ArtifactMobileInsightExplorePanel({
       claim={claim}
       context={detailContext}
       placement={isDesktop ? "top" : "bottom"}
+      floating={!isDesktop}
     />
   );
 
   return (
     <section
-      className={cn(artifactInsightExploreShell, className)}
+      className={cn(artifactInsightExploreShell, "relative", className)}
       aria-label={`Insight ${claimIndex + 1}`}
     >
       <div className={artifactInsightExploreHeader}>
@@ -67,7 +69,9 @@ export default function ArtifactMobileInsightExplorePanel({
         </Button>
       </div>
       {isDesktop ? actionBar : null}
-      <div className={artifactInsightExploreScroll}>{card}</div>
+      <div className={cn(artifactInsightExploreScroll, !isDesktop && artifactMobileDockPadding)}>
+        {card}
+      </div>
       {!isDesktop ? actionBar : null}
     </section>
   );

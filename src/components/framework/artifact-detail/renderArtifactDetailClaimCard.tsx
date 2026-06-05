@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ClaimChipActionButton from "@/components/framework/ClaimChipActionButton";
+import ClaimDockActionButton from "@/components/framework/ClaimDockActionButton";
 import ClaimEpistemologyPanel from "@/components/framework/ClaimEpistemologyPanel";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
 import ArtifactClaimActionBar from "@/components/framework/artifact-detail/ArtifactClaimActionBar";
@@ -35,6 +36,7 @@ import { cleanTranscriptQuoteForDisplay } from "@/lib/normalizePastedTranscript"
 import { formatClaimSourceClock, formatTranscriptClock, type TranscriptSegment } from "@/lib/transcriptSplit";
 import {
   artifactCard,
+  artifactClaimActionChip,
   artifactDesktopClaimCard,
   artifactMobileClaimCard,
   artifactScrollMt,
@@ -105,8 +107,8 @@ function playClaimFromSource(
 
 type RenderClaimActionButtonOptions = {
   variant?: "icon" | "labeled";
-  /** `chip` — white tag-style pills (mobile action bar). */
-  appearance?: "ios" | "chip";
+  /** `chip` — white tag-style pills; `dock` — app dock tab layout (scrollable). */
+  appearance?: "ios" | "chip" | "dock";
 };
 
 function renderClaimActionButton(
@@ -124,6 +126,19 @@ function renderClaimActionButton(
   if (options.appearance === "chip") {
     return (
       <ClaimChipActionButton
+        label={props.label}
+        shortLabel={props.shortLabel}
+        icon={props.icon}
+        tone={props.tone}
+        active={props.active}
+        onClick={props.onClick}
+        className={props.className}
+      />
+    );
+  }
+  if (options.appearance === "dock") {
+    return (
+      <ClaimDockActionButton
         label={props.label}
         shortLabel={props.shortLabel}
         icon={props.icon}
@@ -217,7 +232,10 @@ export function renderArtifactDetailClaimVerdictActions(
           icon: Check,
           tone: "keep",
           active: c.verdict === "keep",
-          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          className:
+            variant === "icon" && options.appearance !== "chip" && options.appearance !== "dock"
+              ? "mx-auto"
+              : undefined,
           onClick: () => void ctx.applyClaimVerdict(c.id, "keep"),
         },
         options,
@@ -229,7 +247,10 @@ export function renderArtifactDetailClaimVerdictActions(
           icon: X,
           tone: "reject",
           active: c.verdict === "reject",
-          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          className:
+            variant === "icon" && options.appearance !== "chip" && options.appearance !== "dock"
+              ? "mx-auto"
+              : undefined,
           onClick: () => void ctx.applyClaimVerdict(c.id, "reject"),
         },
         options,
@@ -241,7 +262,10 @@ export function renderArtifactDetailClaimVerdictActions(
           icon: Pencil,
           tone: "update",
           active: c.verdict === "updated",
-          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          className:
+            variant === "icon" && options.appearance !== "chip" && options.appearance !== "dock"
+              ? "mx-auto"
+              : undefined,
           onClick: () => void ctx.applyClaimVerdict(c.id, "updated"),
         },
         options,
@@ -253,7 +277,10 @@ export function renderArtifactDetailClaimVerdictActions(
           icon: CirclePause,
           tone: "defer",
           active: c.verdict === "defer",
-          className: variant === "icon" && options.appearance !== "chip" ? "mx-auto" : undefined,
+          className:
+            variant === "icon" && options.appearance !== "chip" && options.appearance !== "dock"
+              ? "mx-auto"
+              : undefined,
           onClick: () => void ctx.applyClaimVerdict(c.id, "defer"),
         },
         options,
@@ -358,7 +385,7 @@ export function renderArtifactDetailClaimCard(
     <div
       className={cn(
         insightExplore
-          ? cn(artifactMobileInsightHeroCard, "min-h-0 justify-start gap-4")
+          ? "mt-3 space-y-3 border-t border-white/10 pt-3"
           : cn(
               "rounded-[1.65rem] border border-white/70 bg-white/85 p-4 text-xs shadow-[0_18px_50px_rgba(15,23,42,0.10)] ring-1 ring-black/[0.03] sm:p-5",
               "dark:border-border/50 dark:bg-card/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
@@ -385,11 +412,11 @@ export function renderArtifactDetailClaimCard(
         )}
       </div>
       {source ? (
-        <div className="space-y-4">
-          <div className="w-full space-y-3.5 rounded-2xl text-left">
+        <div className={cn("space-y-3", !insightExplore && "space-y-4")}>
+          <div className={cn("w-full text-left", insightExplore ? "space-y-2" : "space-y-3.5 rounded-2xl")}>
             {sourceClock ? (
               insightExplore ? (
-                <span className={artifactStudyTranscriptActiveTime}>[{sourceClock}]</span>
+                <span className={artifactStudyTranscriptActiveTime}>{sourceClock}</span>
               ) : (
                 <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
                   [{sourceClock}]
@@ -499,7 +526,7 @@ export function renderArtifactDetailClaimCard(
   const tagsSection = (
     <div className="flex flex-wrap gap-2.5 text-sm font-medium">
       {c.tone ? (
-        <span className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/90 px-3.5 py-2 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]">
+        <span className={artifactClaimActionChip}>
           <Zap className="h-4 w-4 text-rose-500" aria-hidden />
           Tone: {formatClaimChipLabel(c.tone)}
         </span>
@@ -508,10 +535,7 @@ export function renderArtifactDetailClaimCard(
         const DoctrineIcon = getDoctrineChipIcon(t);
         const doctrineTone = DoctrineIcon === Leaf ? "text-emerald-600" : "text-primary";
         return (
-          <span
-            key={t}
-            className="inline-flex items-center gap-2 rounded-full border border-border/45 bg-white/90 px-3.5 py-2 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.02]"
-          >
+          <span key={t} className={artifactClaimActionChip}>
             <DoctrineIcon className={cn("h-4 w-4", doctrineTone)} aria-hidden />
             {formatClaimChipLabel(t)}
           </span>
@@ -633,13 +657,20 @@ export function renderArtifactDetailClaimCard(
   if (insightExplore) {
     return (
       <article key={c.id} id={c.id} data-claim-number={claimNumber} className="space-y-4">
-        <div className={cn(artifactMobileInsightHeroCard, "min-h-[200px]")}>
+        <div className={cn(artifactMobileInsightHeroCard, "min-h-0 justify-start gap-2 sm:gap-2.5")}>
           <span className={cn(artifactMobileInsightHeroNumber, artifactInsightClaimNumberColor)}>
             {claimNumber}
           </span>
           <p className={cn(artifactMobileInsightHeroQuote, "line-clamp-none")}>{c.claim}</p>
+          {sourceSection}
         </div>
-        {claimBody}
+        {tagsSection}
+        {beliefSection}
+        <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
+        {(c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
+          ? scriptureSection
+          : null}
+        {claimToolbar}
       </article>
     );
   }

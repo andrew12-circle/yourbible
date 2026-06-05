@@ -23,6 +23,7 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 import { youtubeHqThumbnail } from "@/lib/youtube";
+import ArtifactChannelAvatar from "@/components/framework/artifact-detail/ArtifactChannelAvatar";
 
 export type ArtifactDesktopHeroProps = {
   displayTitle: string;
@@ -30,6 +31,7 @@ export type ArtifactDesktopHeroProps = {
   inFlight: boolean;
   channel?: string | null;
   channelUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   thumbnailUrl?: string | null;
   youTubeVideoId?: string | null;
   durationSeconds?: number | null;
@@ -78,12 +80,14 @@ function HeroStatusBadge({ inFlight, statusLabel }: { inFlight: boolean; statusL
 function HeroMetaRow({
   channel,
   channelUrl,
+  channelThumbnailUrl,
   durationLabel,
   dateLabel,
   inverted = false,
 }: {
   channel?: string | null;
   channelUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   durationLabel: string | null;
   dateLabel: string | null;
   inverted?: boolean;
@@ -97,16 +101,14 @@ function HeroMetaRow({
     >
       {channel ? (
         <span className="inline-flex min-w-0 items-center gap-2">
-          <span
+          <ArtifactChannelAvatar
+            channel={channel}
+            channelThumbnailUrl={channelThumbnailUrl}
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold uppercase ring-1",
-              inverted
-                ? "bg-white/15 text-white ring-white/20"
-                : "bg-muted text-foreground ring-border/60",
+              "h-8 w-8 text-[10px] uppercase",
+              inverted && "ring-white/20",
             )}
-          >
-            {channel.slice(0, 1)}
-          </span>
+          />
           <span className="min-w-0">
             <span
               className={cn(
@@ -246,6 +248,7 @@ export default function ArtifactDesktopHero({
   inFlight,
   channel,
   channelUrl,
+  channelThumbnailUrl,
   thumbnailUrl,
   youTubeVideoId,
   durationSeconds,
@@ -357,6 +360,7 @@ export default function ArtifactDesktopHero({
         <HeroMetaRow
           channel={channel}
           channelUrl={channelUrl}
+          channelThumbnailUrl={channelThumbnailUrl}
           durationLabel={durationLabel}
           dateLabel={dateLabel}
           inverted

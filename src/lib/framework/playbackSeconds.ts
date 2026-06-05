@@ -39,9 +39,13 @@ export function embedNeedsResumeSeek(
 
   if (live >= saved - 1) return false;
 
+  // Large drift or iframe reset after iOS app suspend — seek even if we were playing.
+  if (saved - live > EMBED_RESUME_SEEK_DRIFT_SEC) return true;
+
+  if (live < 2 && saved >= 10) return true;
+
+  // Small drift + stale telemetry: video may have advanced without iframe updates.
   if (wasPlayingWhileHidden && !telemetryFresh) return false;
 
-  if (live < 2 && saved >= 10 && !wasPlayingWhileHidden) return true;
-
-  return saved - live > EMBED_RESUME_SEEK_DRIFT_SEC;
+  return false;
 }

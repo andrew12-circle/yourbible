@@ -4,6 +4,7 @@ import {
   postYouTubeEmbedCommand,
   type YouTubeEmbedCommand,
 } from "@/lib/youtube/embed";
+import { embedNeedsResumeSeek } from "@/lib/framework/playbackSeconds";
 import {
   currentTimeFromEmbedInfo,
   embedStateIsPlaying,
@@ -26,11 +27,27 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   videoSlotRef: RefObject<HTMLDivElement | null>;
   enabled: boolean;
   initialSeconds?: number;
+  /** Pause on app background and resume on return (iOS PWA / mobile Safari). */
+  syncBackgroundPlayback?: boolean;
+  getSavedPlaybackSeconds?: () => number;
+  onPersistPlaybackSeconds?: (seconds: number) => void;
 }) {
-  const { videoSlotRef, enabled, initialSeconds = 0 } = options;
+  const {
+    videoSlotRef,
+    enabled,
+    initialSeconds = 0,
+    syncBackgroundPlayback = false,
+    getSavedPlaybackSeconds,
+    onPersistPlaybackSeconds,
+  } = options;
   const currentTimeRef = useRef(Math.max(0, initialSeconds));
   const lastTelemetryAtRef = useRef(0);
   const isPlayingRef = useRef(false);
+  const resumeOnVisibleRef = useRef(false);
+  const getSavedPlaybackSecondsRef = useRef(getSavedPlaybackSeconds);
+  const onPersistPlaybackSecondsRef = useRef(onPersistPlaybackSeconds);
+  getSavedPlaybackSecondsRef.current = getSavedPlaybackSeconds;
+  onPersistPlaybackSecondsRef.current = onPersistPlaybackSeconds;
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
@@ -148,6 +165,68 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     },
     [runCommand],
   );
+
+  /** iOS suspends YouTube iframes without a PAUSED event — sync state and resume cleanly. */
+  useEffect(() => {
+    if (!enabled || !syncBackgroundPlayback) return;
+
+    const resumeAfterVisible = (shouldResume: boolean) => {
+      requestCurrentTime();
+      window.setTimeout(() => {
+        const live = currentTimeRef.current;
+        const savedFromParent = getSavedPlaybackSecondsRef.current?.() ?? 0;
+        const resolved = Math.max(
+          savedFromParent,
+          Number.isFinite(live) ? live : 0,
+        );
+        currentTimeRef.current = resolved;
+        onPersistPlaybackSecondsRef.current?.(resolved);
+
+        const fresh = isTelemetryFresh(800);
+        if (embedNeedsResumeSeek(live, resolved, fresh, shouldResume) && resolved > 0) {
+          seekTo(resolved, true);
+        }
+        if (shouldResume && !isPlayingRef.current) {
+          playVideo();
+        }
+      }, 120);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        resumeOnVisibleRef.current = isPlayingRef.current;
+        if (isPlayingRef.current) pauseVideo();
+        requestCurrentTime();
+        onPersistPlaybackSecondsRef.current?.(currentTimeRef.current);
+        return;
+      }
+      const shouldResume = resumeOnVisibleRef.current;
+      resumeOnVisibleRef.current = false;
+      resumeAfterVisible(shouldResume);
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      const shouldResume = resumeOnVisibleRef.current;
+      resumeOnVisibleRef.current = false;
+      resumeAfterVisible(shouldResume);
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [
+    enabled,
+    syncBackgroundPlayback,
+    isTelemetryFresh,
+    pauseVideo,
+    playVideo,
+    requestCurrentTime,
+    seekTo,
+  ]);
 
   return {
     getCurrentTime: () => currentTimeRef.current,

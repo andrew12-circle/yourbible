@@ -7,6 +7,7 @@ export interface ArtifactYoutubeLiveMeta {
   source?: string;
   channel_title?: string | null;
   channel_url?: string | null;
+  channel_thumbnail_url?: string | null;
   author_name?: string | null;
   author?: string | null;
   thumbnail_url?: string | null;
@@ -42,6 +43,19 @@ async function fetchYouTubeOembedMeta(videoUrl: string): Promise<ArtifactYoutube
   }
 }
 
+async function fetchYouTubeChannelAvatar(artifactId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke("framework-youtube-channel-avatar", {
+      body: { artifact_id: artifactId },
+    });
+    if (error) return null;
+    const url = (data as { channel_thumbnail_url?: string | null } | null)?.channel_thumbnail_url;
+    return typeof url === "string" && url.trim() ? url.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useArtifactYoutubeMetaRepair(
   a: ArtifactRow | null,
   setA: Dispatch<SetStateAction<ArtifactRow | null>>,
@@ -58,20 +72,33 @@ export function useArtifactYoutubeMetaRepair(
     (async () => {
       const meta = await fetchYouTubeMeta(a.url!);
       if (cancelled || !meta) return;
-      setLiveMeta(meta);
+
+      const prev = (a.metadata ?? {}) as Record<string, unknown>;
+      const existingChannelThumb =
+        typeof prev.channel_thumbnail_url === "string" ? prev.channel_thumbnail_url.trim() : "";
+      let channel_thumbnail_url = existingChannelThumb || null;
+      if (!channel_thumbnail_url) {
+        channel_thumbnail_url = await fetchYouTubeChannelAvatar(a.id);
+      }
+
+      const enrichedMeta = {
+        ...meta,
+        ...(channel_thumbnail_url ? { channel_thumbnail_url } : {}),
+      };
+      setLiveMeta(enrichedMeta);
 
       const shouldFixTitle = !!meta.title && titleLooksBad(a.title) && a.title?.trim() !== meta.title.trim();
       const updatePatch: Record<string, unknown> = {};
       if (shouldFixTitle && meta.title) updatePatch.title = meta.title;
 
-      const prev = (a.metadata ?? {}) as Record<string, unknown>;
       const dbMeta = {
         ...prev,
         source: "youtube",
-        channel_title: meta.channel_title ?? null,
-        channel_url: meta.channel_url ?? null,
-        thumbnail_url: meta.thumbnail_url ?? null,
-        provider_name: meta.provider_name ?? "YouTube",
+        channel_title: enrichedMeta.channel_title ?? null,
+        channel_url: enrichedMeta.channel_url ?? null,
+        channel_thumbnail_url: enrichedMeta.channel_thumbnail_url ?? null,
+        thumbnail_url: enrichedMeta.thumbnail_url ?? null,
+        provider_name: enrichedMeta.provider_name ?? "YouTube",
       };
 
       const tryWithMetadata = await supabase

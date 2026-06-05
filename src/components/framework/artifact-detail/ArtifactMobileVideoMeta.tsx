@@ -1,13 +1,12 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { youtubeHqThumbnail } from "@/lib/youtube";
+import ArtifactChannelAvatar from "@/components/framework/artifact-detail/ArtifactChannelAvatar";
 
 export type ArtifactMobileVideoMetaProps = {
   displayTitle: string;
   channel?: string | null;
   channelUrl?: string | null;
-  thumbnailUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   youTubeVideoId?: string | null;
   /** Shown when `channel` is missing (e.g. "YouTube"). */
   providerName?: string | null;
@@ -15,24 +14,16 @@ export type ArtifactMobileVideoMetaProps = {
   backTo?: string;
 };
 
-function channelInitial(channel: string): string {
-  const trimmed = channel.trim();
-  if (!trimmed) return "?";
-  const first = trimmed.replace(/^@/, "").charAt(0);
-  return first ? first.toUpperCase() : "?";
-}
-
 export default function ArtifactMobileVideoMeta({
   displayTitle,
   channel,
   channelUrl,
-  thumbnailUrl,
-  youTubeVideoId,
+  channelThumbnailUrl,
+  youTubeVideoId: _youTubeVideoId,
   providerName,
   backTo = "/framework/artifacts",
 }: ArtifactMobileVideoMetaProps) {
   const channelLabel = channel?.trim() || providerName?.trim() || "YouTube";
-  const avatarSrc = thumbnailUrl || (youTubeVideoId ? youtubeHqThumbnail(youTubeVideoId) : null);
 
   return (
     <div className="bg-card px-3 py-3 lg:hidden">
@@ -48,23 +39,11 @@ export default function ArtifactMobileVideoMeta({
         {displayTitle}
       </h1>
       <div className="mt-2.5 flex min-w-0 items-center gap-2.5">
-        {avatarSrc ? (
-          <img
-            src={avatarSrc}
-            alt=""
-            className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-border/60 bg-muted"
-          />
-        ) : (
-          <span
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-              "bg-muted text-sm font-semibold text-muted-foreground ring-1 ring-border/60",
-            )}
-            aria-hidden
-          >
-            {channelInitial(channelLabel)}
-          </span>
-        )}
+        <ArtifactChannelAvatar
+          channel={channelLabel}
+          channelThumbnailUrl={channelThumbnailUrl}
+          className="h-9 w-9"
+        />
         {channelUrl ? (
           <a
             href={channelUrl}

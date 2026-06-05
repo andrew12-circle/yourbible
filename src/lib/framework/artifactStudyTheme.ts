@@ -150,6 +150,7 @@ export const artifactInsightExploreScroll = "min-h-0 flex-1 overflow-y-auto over
 
 /** Primary play CTA on dark explore cards. */
 export const artifactInsightExplorePlayButton = cn(
-  "inline-flex h-10 items-center gap-2 rounded-full border border-primary/35 bg-primary/10",
-  "px-4 text-sm font-semibold text-primary transition hover:bg-primary/20",
+  "inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4",
+  "text-sm font-semibold text-primary-foreground shadow-[0_4px_14px_-4px_rgba(0,122,255,0.55)]",
+  "transition hover:bg-primary/90 disabled:opacity-45",
 );

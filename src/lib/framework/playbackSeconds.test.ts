@@ -40,9 +40,12 @@ describe("embedNeedsResumeSeek", () => {
     expect(embedNeedsResumeSeek(100, 100, false, true)).toBe(false);
   });
 
-  it("does not seek on stale telemetry while video was playing in background", () => {
-    expect(embedNeedsResumeSeek(0, 120, false, true)).toBe(false);
-    expect(embedNeedsResumeSeek(100, 120, false, true)).toBe(false);
+  it("seeks after iframe reset even when was playing before background", () => {
+    expect(embedNeedsResumeSeek(0, 120, false, true)).toBe(true);
+  });
+
+  it("does not seek on small drift with stale telemetry while backgrounded", () => {
+    expect(embedNeedsResumeSeek(118, 120, false, true)).toBe(false);
   });
 
   it("seeks when iframe reloaded near start while paused deep in the video", () => {
@@ -52,5 +55,6 @@ describe("embedNeedsResumeSeek", () => {
   it("seeks when live is meaningfully behind saved", () => {
     expect(embedNeedsResumeSeek(50, 100, true, false)).toBe(true);
     expect(embedNeedsResumeSeek(97, 100, true, false)).toBe(false);
+    expect(embedNeedsResumeSeek(100, 120, false, true)).toBe(true);
   });
 });

@@ -36,7 +36,6 @@ export function useArtifactVideoPlayback(options: {
     artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
   );
   const appliedRemoteResumeRef = useRef(false);
-  const resumeStaticOnVisibleRef = useRef(false);
 
   const youtubePip = useArtifactYoutubePip({
     artifactId,
@@ -64,6 +63,12 @@ export function useArtifactVideoPlayback(options: {
     videoSlotRef: youtubePip.videoSlotRef,
     enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
     initialSeconds: staticEmbedStart,
+    syncBackgroundPlayback: true,
+    getSavedPlaybackSeconds: () => playbackFallbackRef.current,
+    onPersistPlaybackSeconds: (seconds) => {
+      playbackFallbackRef.current = seconds;
+      persistSeconds(seconds);
+    },
   });
 
   const youtubePlayer = useYouTubeEmbedPlayer({
@@ -130,7 +135,7 @@ export function useArtifactVideoPlayback(options: {
 
   /** Static embed stays mounted; resume if YouTube pauses during inline ↔ PiP reposition. */
   useEffect(() => {
-    if (apiPlayerWanted || !pipEnabled) return;
+    if (apiPlayerWanted || !pipEnabled || document.hidden) return;
     if (!staticTelemetry.isPlayingRef.current) return;
     let raf2 = 0;
     const raf1 = window.requestAnimationFrame(() => {
@@ -158,57 +163,6 @@ export function useArtifactVideoPlayback(options: {
     },
     [apiPlayerWanted, staticTelemetry],
   );
-
-  /** Tab/app background: persist position; on return, resume only — seek if iframe lost place. */
-  useEffect(() => {
-    if (apiPlayerWanted) return;
-
-    const resumeAfterVisible = (shouldResume: boolean) => {
-      staticTelemetry.requestCurrentTime();
-      window.setTimeout(() => {
-        const live = staticTelemetry.getCurrentTime();
-        const saved = playbackFallbackRef.current;
-        const resolved = Math.max(saved, Number.isFinite(live) ? live : 0);
-        playbackFallbackRef.current = resolved;
-        persistSeconds(resolved);
-
-        const fresh = staticTelemetry.isTelemetryFresh(800);
-        if (embedNeedsResumeSeek(live, saved, fresh, shouldResume) && resolved > 0) {
-          staticTelemetry.seekTo(resolved, true);
-        }
-        if (shouldResume && !staticTelemetry.getIsPlaying()) {
-          staticTelemetry.playVideo();
-        }
-      }, 80);
-    };
-
-    const onVisibility = () => {
-      if (document.hidden) {
-        resumeStaticOnVisibleRef.current = staticTelemetry.getIsPlaying();
-        const t = staticTelemetry.getCurrentTime();
-        playbackFallbackRef.current = t;
-        persistSeconds(t);
-        return;
-      }
-      const shouldResume = resumeStaticOnVisibleRef.current;
-      resumeStaticOnVisibleRef.current = false;
-      resumeAfterVisible(shouldResume);
-    };
-
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return;
-      const shouldResume = resumeStaticOnVisibleRef.current;
-      resumeStaticOnVisibleRef.current = false;
-      resumeAfterVisible(shouldResume);
-    };
-
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pageshow", onPageShow);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, [apiPlayerWanted, persistSeconds, staticTelemetry]);
 
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;

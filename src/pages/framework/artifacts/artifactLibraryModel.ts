@@ -10,6 +10,7 @@ export interface ArtifactMetadata {
   channel?: string | null;
   channel_title?: string | null;
   channelTitle?: string | null;
+  channel_thumbnail_url?: string | null;
   author_name?: string | null;
   author?: string | null;
   publisher?: string | null;

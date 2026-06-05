@@ -21,6 +21,7 @@ export default function GlobalArtifactVideoPip() {
 
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
   const resumeOnLoadRef = useRef(false);
+  const playbackFallbackRef = useRef(0);
 
   const { resolvedSeconds: savedStart, persistSeconds } = useArtifactPlaybackPersistence(
     session?.artifactId,
@@ -32,6 +33,10 @@ export default function GlobalArtifactVideoPip() {
     if (handoff > 0) return handoff;
     return savedStart;
   }, [savedStart, session]);
+
+  useEffect(() => {
+    playbackFallbackRef.current = startSeconds;
+  }, [session?.artifactId, session?.youTubeVideoId, startSeconds]);
 
   const {
     pipOverlayLayout,
@@ -47,6 +52,12 @@ export default function GlobalArtifactVideoPip() {
     videoSlotRef,
     enabled: Boolean(session),
     initialSeconds: startSeconds,
+    syncBackgroundPlayback: true,
+    getSavedPlaybackSeconds: () => playbackFallbackRef.current,
+    onPersistPlaybackSeconds: (seconds) => {
+      playbackFallbackRef.current = seconds;
+      persistSeconds(seconds);
+    },
   });
 
   const staticEmbedSrc = useMemo(() => {
@@ -69,7 +80,9 @@ export default function GlobalArtifactVideoPip() {
   useEffect(() => {
     if (!session) return;
     const tick = window.setInterval(() => {
-      persistSeconds(staticTelemetry.getCurrentTime());
+      const t = staticTelemetry.getCurrentTime();
+      playbackFallbackRef.current = t;
+      persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
   }, [persistSeconds, session, staticTelemetry]);

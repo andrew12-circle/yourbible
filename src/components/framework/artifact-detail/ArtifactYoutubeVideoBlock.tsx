@@ -39,6 +39,7 @@ type Props = {
   displayTitle?: string;
   channel?: string | null;
   channelUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   providerName?: string | null;
   thumbnailUrl?: string | null;
   youtubePip: Pip;
@@ -95,6 +96,7 @@ function ArtifactYoutubeVideoBlock({
   displayTitle,
   channel,
   channelUrl,
+  channelThumbnailUrl,
   providerName,
   thumbnailUrl,
   youtubePip,
@@ -231,8 +233,8 @@ function ArtifactYoutubeVideoBlock({
         displayTitle={displayTitle?.trim() || "Untitled video"}
         channel={channel}
         channelUrl={channelUrl}
+        channelThumbnailUrl={channelThumbnailUrl}
         providerName={providerName}
-        thumbnailUrl={thumbnailUrl}
         youTubeVideoId={youTubeVideoId}
         backTo={backTo}
         insightExplorePanel={insightExplorePanel}

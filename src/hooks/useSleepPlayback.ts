@@ -8,6 +8,14 @@ import {
   stopBrowserTts,
 } from "@/lib/bible/browserTts";
 import { buildScriptureChunks } from "@/lib/bible/scriptureTts";
+import {
+  bindSleepMediaSession,
+  clearSleepMediaSession,
+  detachSleepAudioElement,
+  getOrCreateSleepAudioElement,
+  updateSleepMediaSession,
+  updateSleepMediaSessionPosition,
+} from "@/lib/bible/sleepMediaSession";
 import { getBrowserProfile } from "@/lib/bible/sleepVoices";
 
 const LS_BIBLE_KEY = "yb.bibleId";
@@ -43,6 +51,7 @@ interface SleepTrack {
 }
 
 export function useSleepPlayback() {
+  const audioElementHolder = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -53,6 +62,9 @@ export function useSleepPlayback() {
   const engineRef = useRef<TtsEngine>(null);
   const elevenLabsOkRef = useRef(true);
   const usingBrowserRef = useRef(false);
+  const statusRef = useRef<PlaybackStatus>("idle");
+  const nowPlayingRef = useRef<NowPlayingInfo | null>(null);
+  const resumeOnVisibleRef = useRef(false);
 
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [nowPlaying, setNowPlaying] = useState<NowPlayingInfo | null>(null);
@@ -69,11 +81,73 @@ export function useSleepPlayback() {
   const cleanupAudio = useCallback(() => {
     audioRef.current?.pause();
     audioRef.current = null;
+    detachSleepAudioElement(audioElementHolder);
     stopBrowserTts();
     revokeUrls();
     prefetchRef.current.clear();
     usingBrowserRef.current = false;
+    resumeOnVisibleRef.current = false;
+    clearSleepMediaSession();
   }, [revokeUrls]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    nowPlayingRef.current = nowPlaying;
+  }, [nowPlaying]);
+
+  useEffect(() => {
+    const resumeAudioIfNeeded = () => {
+      const audio = audioRef.current;
+      if (!audio || usingBrowserRef.current) return;
+      if (statusRef.current !== "playing" && statusRef.current !== "paused") return;
+      if (!resumeOnVisibleRef.current && !audio.paused) return;
+      resumeOnVisibleRef.current = false;
+      if (audio.paused) {
+        void audio.play().catch(() => {});
+      }
+      setStatus("playing");
+      const track = nowPlayingRef.current;
+      if (track) updateSleepMediaSession(track, "playing");
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (
+          statusRef.current === "playing" &&
+          !usingBrowserRef.current &&
+          audioRef.current
+        ) {
+          resumeOnVisibleRef.current = true;
+        }
+        return;
+      }
+      resumeAudioIfNeeded();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", resumeAudioIfNeeded);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", resumeAudioIfNeeded);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (usingBrowserRef.current || ttsEngine === "browser") {
+      clearSleepMediaSession();
+      return;
+    }
+    if (status === "idle" || !nowPlaying) {
+      clearSleepMediaSession();
+      return;
+    }
+    const playbackState =
+      status === "playing" ? "playing" : status === "paused" ? "paused" : "none";
+    updateSleepMediaSession(nowPlaying, playbackState);
+  }, [nowPlaying, status, ttsEngine]);
 
   useEffect(() => () => {
     abortRef.current?.abort();
@@ -110,9 +184,8 @@ export function useSleepPlayback() {
       }
       const url = URL.createObjectURL(blob);
       urlsRef.current.push(url);
-      const audio = new Audio(url);
+      const audio = getOrCreateSleepAudioElement(audioElementHolder);
       audio.volume = volumeRef.current;
-      audio.preload = "auto";
       audioRef.current = audio;
       usingBrowserRef.current = false;
 
@@ -131,6 +204,10 @@ export function useSleepPlayback() {
         const base = indexRef.current / qLen;
         const slice = (1 / qLen) * (audio.currentTime / audio.duration);
         setProgress(Math.min(1, base + slice));
+        updateSleepMediaSessionPosition({
+          duration: audio.duration,
+          position: audio.currentTime,
+        });
       };
 
       audio.onended = () => {
@@ -144,6 +221,7 @@ export function useSleepPlayback() {
         reject(new Error("Audio playback failed"));
       };
 
+      audio.src = url;
       void audio.play().catch(reject);
     });
   }, []);
@@ -342,11 +420,30 @@ export function useSleepPlayback() {
     if (status === "playing") {
       audio.pause();
       setStatus("paused");
+      if (nowPlayingRef.current) updateSleepMediaSession(nowPlayingRef.current, "paused");
     } else if (status === "paused") {
       void audio.play().catch(() => {});
       setStatus("playing");
+      if (nowPlayingRef.current) updateSleepMediaSession(nowPlayingRef.current, "playing");
     }
   }, [status]);
+
+  const stopRef = useRef(stop);
+  const togglePauseRef = useRef(togglePause);
+  stopRef.current = stop;
+  togglePauseRef.current = togglePause;
+
+  useEffect(() => {
+    return bindSleepMediaSession({
+      onPlay: () => {
+        if (statusRef.current === "paused") togglePauseRef.current();
+      },
+      onPause: () => {
+        if (statusRef.current === "playing") togglePauseRef.current();
+      },
+      onStop: () => stopRef.current(),
+    });
+  }, []);
 
   const isActive = status === "playing" || status === "paused" || status === "loading";
 

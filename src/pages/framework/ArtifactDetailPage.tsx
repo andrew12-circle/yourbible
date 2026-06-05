@@ -115,6 +115,7 @@ interface ArtifactMetadata {
   source?: string;
   channel_title?: string | null;
   channel_url?: string | null;
+  channel_thumbnail_url?: string | null;
   author_name?: string | null;
   author?: string | null;
   thumbnail_url?: string | null;
@@ -1306,6 +1307,7 @@ export default function ArtifactDetailPage() {
           inFlight,
           channel: mergedVideoMeta.channel_title,
           channelUrl: mergedVideoMeta.channel_url,
+          channelThumbnailUrl: mergedVideoMeta.channel_thumbnail_url,
           thumbnailUrl: mergedVideoMeta.thumbnail_url,
           youTubeVideoId,
           durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
@@ -1423,6 +1425,7 @@ export default function ArtifactDetailPage() {
             displayTitle={stickyVideoMode ? displayTitle : undefined}
             channel={stickyVideoMode ? mergedVideoMeta.channel_title : undefined}
             channelUrl={stickyVideoMode ? mergedVideoMeta.channel_url : undefined}
+            channelThumbnailUrl={stickyVideoMode ? mergedVideoMeta.channel_thumbnail_url : undefined}
             providerName={stickyVideoMode ? mergedVideoMeta.provider_name : undefined}
             thumbnailUrl={mergedVideoMeta.thumbnail_url}
             youtubePip={youtubePip}

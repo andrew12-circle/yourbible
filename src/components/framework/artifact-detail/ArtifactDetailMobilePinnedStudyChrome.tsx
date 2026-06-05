@@ -12,6 +12,7 @@ type Props = {
   displayTitle: string;
   channel?: string | null;
   channelUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   providerName?: string | null;
   thumbnailUrl?: string | null;
   youTubeVideoId: string;

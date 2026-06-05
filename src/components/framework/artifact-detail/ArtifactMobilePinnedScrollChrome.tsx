@@ -6,8 +6,8 @@ type Props = {
   displayTitle: string;
   channel?: string | null;
   channelUrl?: string | null;
+  channelThumbnailUrl?: string | null;
   providerName?: string | null;
-  thumbnailUrl?: string | null;
   youTubeVideoId: string;
   backTo?: string;
   /** Full claim review opened from Key insights (sits below tabs, above scroll). */
@@ -22,8 +22,8 @@ export default function ArtifactMobilePinnedScrollChrome({
   displayTitle,
   channel,
   channelUrl,
+  channelThumbnailUrl,
   providerName,
-  thumbnailUrl,
   youTubeVideoId,
   backTo = "/framework/artifacts",
   insightExplorePanel,
@@ -61,8 +61,8 @@ export default function ArtifactMobilePinnedScrollChrome({
           displayTitle={displayTitle}
           channel={channel}
           channelUrl={channelUrl}
+          channelThumbnailUrl={channelThumbnailUrl}
           providerName={providerName}
-          thumbnailUrl={thumbnailUrl}
           youTubeVideoId={youTubeVideoId}
           backTo={backTo}
         />
