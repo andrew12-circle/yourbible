@@ -19,6 +19,11 @@ import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { artifactCard, artifactDesktopTranscriptPanel, artifactInset } from "@/lib/framework/artifactSurfaces";
 import {
+  artifactStudyTranscriptActiveRow,
+  artifactStudyTranscriptActiveText,
+  artifactStudyTranscriptActiveTime,
+} from "@/lib/framework/artifactStudyTheme";
+import {
   isTranscriptRowInFollowViewport,
   readMobileTranscriptFollowInsets,
   scrollTranscriptRowIntoFollowViewport,
@@ -63,10 +68,6 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   if (last < text.length) parts.push(text.slice(last));
   return <>{parts}</>;
 }
-
-/** Active line — mobile transcript tab and desktop study rail (shared). */
-const activeTranscriptRowClass =
-  "z-10 mx-2 my-1 scale-[1.015] rounded-2xl border border-blue-200/80 bg-gradient-to-br from-sky-50 via-blue-50 to-white font-semibold shadow-[0_14px_34px_-18px_rgba(37,99,235,0.65)] ring-1 ring-blue-300/30";
 
 export interface TranscriptPanelProps {
   artifactId?: string;
@@ -535,10 +536,10 @@ export default function TranscriptPanel({
                   "group relative flex gap-2 px-3 py-3 transition-all duration-200 ease-out sm:gap-3",
                   canSeek &&
                     (studyTranscript
-                      ? "cursor-pointer hover:bg-blue-50/45"
+                      ? "cursor-pointer hover:bg-muted/25"
                       : "cursor-pointer hover:bg-muted/30"),
                   isActive &&
-                    (studyTranscript ? activeTranscriptRowClass : "bg-primary/[0.07]"),
+                    (studyTranscript ? artifactStudyTranscriptActiveRow : "bg-primary/[0.07]"),
                   studyTranscript && !isActive && "border-b border-border/40",
                   segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
@@ -573,7 +574,7 @@ export default function TranscriptPanel({
                               "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
                             studyTranscript &&
                               isActive &&
-                              "rounded-full border border-blue-200/80 bg-white/85 px-2 py-1 text-center font-semibold text-blue-700 shadow-[0_4px_12px_-8px_rgba(37,99,235,0.8)]",
+                              artifactStudyTranscriptActiveTime,
                             segment.timestampEstimated && "italic",
                           )}
                         >
@@ -594,7 +595,7 @@ export default function TranscriptPanel({
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
                     isActive
                       ? studyTranscript
-                        ? "font-semibold text-blue-950"
+                        ? artifactStudyTranscriptActiveText
                         : "font-medium text-foreground"
                       : "text-foreground/90",
                     !showTimestamps && "pl-1",
@@ -614,9 +615,9 @@ export default function TranscriptPanel({
                     className={cn(
                       "absolute top-2 h-8 w-8 shrink-0 text-muted-foreground",
                       studyTranscript
-                        ? "right-2 rounded-full p-0 hover:bg-blue-100/70 hover:text-blue-700"
+                        ? "right-2 rounded-full p-0 hover:bg-white/10 hover:text-white/90"
                         : "right-1.5 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
-                      studyTranscript && isActive && "bg-white/75 text-blue-700 shadow-sm hover:bg-white",
+                      studyTranscript && isActive && "bg-white/10 text-white/80 shadow-sm hover:bg-white/15 hover:text-white",
                       studyTranscript && "opacity-100",
                     )}
                     disabled={bookmarking}

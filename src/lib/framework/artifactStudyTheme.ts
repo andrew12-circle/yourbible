@@ -46,9 +46,29 @@ export const artifactStudyCount = "text-muted-foreground";
 export const artifactStudyTabActive = "border-b-2 border-violet-600 text-foreground";
 export const artifactStudyChapterLink = "text-violet-600 hover:text-violet-700";
 export const artifactStudyDotActive = "bg-violet-600";
+
+/** Claim index on dark insight cards — iOS Messages bubble green (#34C759). */
+export const artifactInsightClaimNumberColor = "text-[#34C759]";
+
 export const artifactStudyTranscriptActive =
   "rounded-lg bg-violet-100/90 ring-1 ring-violet-300/50";
 export const artifactStudyTranscriptPlay = "fill-violet-600 text-violet-600";
+
+/** Active transcript line — matches dark Key claims cards (black bg, green time badge). */
+export const artifactStudyTranscriptActiveRow = cn(
+  "z-10 mx-2 my-1 scale-[1.015] rounded-2xl border border-white/10",
+  "bg-gradient-to-br from-stone-900 via-stone-950 to-black",
+  "font-semibold shadow-[0_14px_34px_-18px_rgba(0,0,0,0.55)] ring-1 ring-white/10",
+);
+
+export const artifactStudyTranscriptActiveTime = cn(
+  "inline-flex min-h-[1.75rem] min-w-[3.25rem] max-w-full items-center justify-center",
+  "rounded-full border border-[#34C759]/40 bg-[#34C759] px-2.5 py-1",
+  "text-center font-display text-[13px] font-semibold tabular-nums leading-none text-white",
+  "shadow-[0_4px_12px_-6px_rgba(52,199,89,0.55)] ring-1 ring-[#34C759]/30",
+);
+
+export const artifactStudyTranscriptActiveText = "font-semibold text-white";
 
 export const artifactStudyIconWell = {
   chapters: "bg-violet-100 text-violet-600 group-hover:bg-violet-100",
@@ -71,9 +91,6 @@ export const artifactMobileInsightHeroCard = cn(
   "border border-white/10 bg-gradient-to-br from-stone-900 via-stone-950 to-black",
   "shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition active:scale-[0.99]",
 );
-
-/** Claim index on dark insight cards — iOS Messages bubble green (#34C759). */
-export const artifactInsightClaimNumberColor = "text-[#34C759]";
 
 export const artifactMobileInsightHeroAccents = [
   {
