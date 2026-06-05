@@ -17,13 +17,16 @@ import { cn } from "@/lib/utils";
 
 interface ClaimEpistemologyPanelProps {
   epistemology: ClaimEpistemology | null | undefined;
+  variant?: "default" | "dark";
   className?: string;
 }
 
 export default function ClaimEpistemologyPanel({
   epistemology,
+  variant = "default",
   className,
 }: ClaimEpistemologyPanelProps) {
+  const dark = variant === "dark";
   const [hermOpen, setHermOpen] = useState(false);
 
   if (!hasEpistemologyContent(epistemology)) return null;
@@ -34,12 +37,20 @@ export default function ClaimEpistemologyPanel({
   return (
     <section
       className={cn(
-        "space-y-3.5 rounded-lg border border-indigo-200/70 bg-indigo-50/50 p-3.5 text-xs backdrop-blur-[2px] sm:p-4 dark:border-indigo-800/45 dark:bg-indigo-950/25",
+        "space-y-3.5 rounded-lg border p-3.5 text-xs sm:p-4",
+        dark
+          ? "border-white/10 bg-white/5 text-white/85"
+          : "border-indigo-200/70 bg-indigo-50/50 backdrop-blur-[2px] dark:border-indigo-800/45 dark:bg-indigo-950/25",
         className,
       )}
       aria-label="Epistemology"
     >
-      <div className="flex items-center gap-2 uppercase tracking-wider text-indigo-900/80 dark:text-indigo-200/90">
+      <div
+        className={cn(
+          "flex items-center gap-2 uppercase tracking-wider",
+          dark ? "text-white/55" : "text-indigo-900/80 dark:text-indigo-200/90",
+        )}
+      >
         <Compass className="h-3 w-3 shrink-0" />
         How to read this claim
       </div>
@@ -51,7 +62,12 @@ export default function ClaimEpistemologyPanel({
               {ep.claim_types.map((t) => (
                 <span
                   key={t}
-                  className="rounded-full border border-indigo-300/60 bg-background/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-950 dark:border-indigo-700/50 dark:text-indigo-100"
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                    dark
+                      ? "border-white/15 bg-white/10 text-white/80"
+                      : "border-indigo-300/60 bg-background/80 text-indigo-950 dark:border-indigo-700/50 dark:text-indigo-100",
+                  )}
                 >
                   {CLAIM_TYPE_LABELS[t]}
                 </span>
@@ -61,14 +77,22 @@ export default function ClaimEpistemologyPanel({
 
           {ep.confidence_level && meter != null ? (
             <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div
+                className={cn(
+                  "flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider",
+                  dark ? "text-white/50" : "text-muted-foreground",
+                )}
+              >
                 <span>Scriptural / scholarly support</span>
-                <span className="font-medium text-foreground/90 normal-case">
+                <span className={cn("font-medium normal-case", dark ? "text-white/80" : "text-foreground/90")}>
                   {CONFIDENCE_LABELS[ep.confidence_level]}
                 </span>
               </div>
               <div
-                className="flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-background/60"
+                className={cn(
+                  "flex h-1.5 gap-0.5 overflow-hidden rounded-full",
+                  dark ? "bg-white/10" : "bg-background/60",
+                )}
                 role="meter"
                 aria-valuenow={meter}
                 aria-valuemin={0}
@@ -81,8 +105,12 @@ export default function ClaimEpistemologyPanel({
                     className={cn(
                       "flex-1 rounded-sm transition-colors",
                       i <= meter
-                        ? "bg-indigo-500/85 dark:bg-indigo-400/80"
-                        : "bg-muted/80",
+                        ? dark
+                          ? "bg-primary/80"
+                          : "bg-indigo-500/85 dark:bg-indigo-400/80"
+                        : dark
+                          ? "bg-white/15"
+                          : "bg-muted/80",
                     )}
                   />
                 ))}
@@ -97,19 +125,38 @@ export default function ClaimEpistemologyPanel({
         ep.hermeneutics.assumptions?.length ||
         ep.hermeneutics.potential_weaknesses?.length) ? (
         <Collapsible open={hermOpen} onOpenChange={setHermOpen}>
-          <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded border border-border/50 bg-background/50 px-2.5 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-foreground/90 hover:bg-background/80">
+          <CollapsibleTrigger
+            className={cn(
+              "flex w-full items-center justify-between gap-2 rounded border px-2.5 py-2 text-left text-[11px] font-medium uppercase tracking-wider",
+              dark
+                ? "border-white/12 bg-white/5 text-white/75 hover:bg-white/10"
+                : "border-border/50 bg-background/50 text-foreground/90 hover:bg-background/80",
+            )}
+          >
             How they got here
             <ChevronDown
               className={cn("h-3.5 w-3.5 shrink-0 transition-transform", hermOpen && "rotate-180")}
             />
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-2.5 rounded border border-border/40 bg-background/40 p-2.5 font-sans text-sm leading-relaxed text-foreground/95">
+          <CollapsibleContent
+            className={cn(
+              "mt-2 space-y-2.5 rounded border p-2.5 font-sans text-sm leading-relaxed",
+              dark
+                ? "border-white/10 bg-white/5 text-white/80"
+                : "border-border/40 bg-background/40 text-foreground/95",
+            )}
+          >
             {ep.hermeneutics.reasoning_bridge ? (
               <p>{ep.hermeneutics.reasoning_bridge}</p>
             ) : null}
             {ep.hermeneutics.assumptions?.length ? (
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p
+                  className={cn(
+                    "mb-1 text-[10px] uppercase tracking-wider",
+                    dark ? "text-white/50" : "text-muted-foreground",
+                  )}
+                >
                   Assumptions
                 </p>
                 <ul className="list-inside list-disc space-y-0.5 text-xs">
@@ -121,10 +168,20 @@ export default function ClaimEpistemologyPanel({
             ) : null}
             {ep.hermeneutics.potential_weaknesses?.length ? (
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p
+                  className={cn(
+                    "mb-1 text-[10px] uppercase tracking-wider",
+                    dark ? "text-white/50" : "text-muted-foreground",
+                  )}
+                >
                   Potential weaknesses
                 </p>
-                <ul className="list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
+                <ul
+                  className={cn(
+                    "list-inside list-disc space-y-0.5 text-xs",
+                    dark ? "text-white/60" : "text-muted-foreground",
+                  )}
+                >
                   {ep.hermeneutics.potential_weaknesses.map((w) => (
                     <li key={w}>{w}</li>
                   ))}
@@ -137,7 +194,12 @@ export default function ClaimEpistemologyPanel({
 
       {ep.fruits?.length ? (
         <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div
+            className={cn(
+              "mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider",
+              dark ? "text-white/50" : "text-muted-foreground",
+            )}
+          >
             <Leaf className="h-3 w-3" />
             What this belief tends to produce
           </div>
@@ -145,7 +207,12 @@ export default function ClaimEpistemologyPanel({
             {ep.fruits.map((f) => (
               <span
                 key={f}
-                className="rounded border border-emerald-300/50 bg-emerald-50/90 px-2 py-0.5 text-[10px] capitalize text-emerald-950 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-100"
+                className={cn(
+                  "rounded border px-2 py-0.5 text-[10px] capitalize",
+                  dark
+                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                    : "border-emerald-300/50 bg-emerald-50/90 text-emerald-950 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-100",
+                )}
               >
                 {f}
               </span>
@@ -156,7 +223,12 @@ export default function ClaimEpistemologyPanel({
 
       {ep.suggested_actions?.length ? (
         <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div
+            className={cn(
+              "mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider",
+              dark ? "text-white/50" : "text-muted-foreground",
+            )}
+          >
             <Sparkles className="h-3 w-3" />
             Ways to engage
           </div>
@@ -164,7 +236,12 @@ export default function ClaimEpistemologyPanel({
             {ep.suggested_actions.map((a) => (
               <span
                 key={a}
-                className="rounded-md border border-border/70 bg-background/70 px-2 py-1 text-[11px] font-medium text-foreground/90"
+                className={cn(
+                  "rounded-md border px-2 py-1 text-[11px] font-medium",
+                  dark
+                    ? "border-white/12 bg-white/5 text-white/80"
+                    : "border-border/70 bg-background/70 text-foreground/90",
+                )}
                 title="Suggested next step — does not change your verdict"
               >
                 {ACTION_LABELS[a]}

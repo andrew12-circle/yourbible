@@ -138,3 +138,18 @@ export const artifactMobileInsightHeroLink = cn(
   "text-xs font-medium text-[#FFE08A] underline-offset-2",
   "hover:text-[#FFF0B8] hover:underline",
 );
+
+/** Full-screen claim explore — white page with dark hero cards. */
+export const artifactInsightExploreShell = cn(
+  "flex h-full min-h-0 flex-col bg-background text-foreground",
+);
+
+export const artifactInsightExploreHeader = "shrink-0 border-b border-border/40 px-3 py-2.5";
+
+export const artifactInsightExploreScroll = "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 scrollbar-thin";
+
+/** Primary play CTA on dark explore cards. */
+export const artifactInsightExplorePlayButton = cn(
+  "inline-flex h-10 items-center gap-2 rounded-full border border-primary/35 bg-primary/10",
+  "px-4 text-sm font-semibold text-primary transition hover:bg-primary/20",
+);

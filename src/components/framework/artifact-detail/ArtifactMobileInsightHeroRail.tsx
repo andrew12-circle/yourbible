@@ -283,7 +283,7 @@ export default function ArtifactMobileInsightHeroRail<T extends ClaimLike>({
                   className={cn(
                     artifactMobileInsightHeroCard,
                     accent.card,
-                    activeClaimId === claim.id && "ring-2 ring-violet-500/50 ring-offset-2 ring-offset-background",
+                    activeClaimId === claim.id && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background",
                   )}
                   onPointerDown={handleCardPointerDown}
                   onPointerMove={handleCardPointerMove}

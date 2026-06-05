@@ -6,7 +6,11 @@ import {
   type RenderClaimCardClaim,
   type RenderClaimCardContext,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
-import { artifactMobileInsightHeroAccent } from "@/lib/framework/artifactStudyTheme";
+import {
+  artifactInsightExploreHeader,
+  artifactInsightExploreScroll,
+  artifactInsightExploreShell,
+} from "@/lib/framework/artifactStudyTheme";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -28,11 +32,10 @@ export default function ArtifactMobileInsightExplorePanel({
   backAriaLabel = "Back to study",
   className,
 }: Props) {
-  const accent = artifactMobileInsightHeroAccent(claimIndex);
   const isDesktop = claimCardContext.isDesktop;
   const detailContext: RenderClaimCardContext = {
     ...claimCardContext,
-    layout: "stack",
+    layout: "insightExplore",
     activeClaimId: claim.id,
     actionsPlacement: "external",
   };
@@ -47,10 +50,10 @@ export default function ArtifactMobileInsightExplorePanel({
 
   return (
     <section
-      className={cn("flex h-full min-h-0 flex-col bg-background", className)}
+      className={cn(artifactInsightExploreShell, className)}
       aria-label={`Insight ${claimIndex + 1}`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/40 px-3 py-2.5">
+      <div className={artifactInsightExploreHeader}>
         <Button
           type="button"
           variant="ghost"
@@ -62,14 +65,9 @@ export default function ArtifactMobileInsightExplorePanel({
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
           {backLabel}
         </Button>
-        <span className={cn("shrink-0 font-display text-xl font-semibold tabular-nums", accent.number)}>
-          {claimIndex + 1}
-        </span>
       </div>
       {isDesktop ? actionBar : null}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 scrollbar-thin">
-        {card}
-      </div>
+      <div className={artifactInsightExploreScroll}>{card}</div>
       {!isDesktop ? actionBar : null}
     </section>
   );

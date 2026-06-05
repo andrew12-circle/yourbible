@@ -3,7 +3,7 @@ import type {
   RenderClaimCardClaim,
   RenderClaimCardContext,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
-import { artifactPremiumCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -32,12 +32,7 @@ export default function ArtifactDesktopClaimFocus({
       className={cn(artifactScrollMt, "scroll-mt-28", className)}
       aria-label={`Claim ${claimIndex + 1} review`}
     >
-      <div
-        className={cn(
-          artifactPremiumCard,
-          "overflow-hidden border-border/50 bg-card/95 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.04]",
-        )}
-      >
+      <div className="overflow-hidden rounded-3xl border border-border/50 bg-background shadow-[0_8px_32px_rgba(0,0,0,0.06)]">
         <ArtifactMobileInsightExplorePanel
           claim={claim}
           claimIndex={claimIndex}

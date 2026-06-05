@@ -39,6 +39,16 @@ import {
   artifactMobileClaimCard,
   artifactScrollMt,
 } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactInsightClaimNumberColor,
+  artifactInsightExplorePlayButton,
+  artifactMobileInsightHeroCard,
+  artifactMobileInsightHeroFooter,
+  artifactMobileInsightHeroNumber,
+  artifactMobileInsightHeroQuote,
+  artifactMobileInsightHeroSourceQuote,
+  artifactStudyTranscriptActiveTime,
+} from "@/lib/framework/artifactStudyTheme";
 import type { ClaimActionTone } from "@/lib/ui/iosClaimActionStyles";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +86,7 @@ export type RenderClaimCardContext = {
   toggleResearchLater: (cid: string, currentVerdict: string | null) => void | Promise<void>;
   applyClaimVerdict: (cid: string, verdict: ClaimVerdict | null) => void | Promise<void>;
   /** Fixed-width card in a horizontal rail (desktop or mobile). */
-  layout?: "stack" | "desktopRail" | "mobileRail";
+  layout?: "stack" | "desktopRail" | "mobileRail" | "insightExplore";
   activeClaimId?: string | null;
   followPlaybackActive?: boolean;
   /** Enables claim follow-scroll when the user starts playback from a claim card. */
@@ -325,6 +335,7 @@ export function renderArtifactDetailClaimCard(
   const lastResearchedLabel = lastResearchedAt
     ? new Date(lastResearchedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : null;
+  const insightExplore = ctx.layout === "insightExplore";
   const desktopRail = ctx.layout === "desktopRail";
   const mobileRail = ctx.layout === "mobileRail";
   const railLayout = desktopRail || mobileRail;
@@ -346,72 +357,138 @@ export function renderArtifactDetailClaimCard(
   const sourceSection = (
     <div
       className={cn(
-        "rounded-[1.65rem] border border-white/70 bg-white/85 p-4 text-xs shadow-[0_18px_50px_rgba(15,23,42,0.10)] ring-1 ring-black/[0.03] sm:p-5",
-        "dark:border-border/50 dark:bg-card/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
-        railLayout && "bg-white p-4 shadow-[0_12px_36px_rgba(15,23,42,0.08)]",
+        insightExplore
+          ? cn(artifactMobileInsightHeroCard, "min-h-0 justify-start gap-4")
+          : cn(
+              "rounded-[1.65rem] border border-white/70 bg-white/85 p-4 text-xs shadow-[0_18px_50px_rgba(15,23,42,0.10)] ring-1 ring-black/[0.03] sm:p-5",
+              "dark:border-border/50 dark:bg-card/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
+              railLayout && "bg-white p-4 shadow-[0_12px_36px_rgba(15,23,42,0.08)]",
+            ),
       )}
     >
-      <div className="mb-4 flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 shadow-inner dark:bg-slate-800 dark:text-slate-300">
-          <Quote className="h-4 w-4" aria-hidden />
-        </span>
-        Source in transcript
+      <div
+        className={cn(
+          insightExplore
+            ? artifactMobileInsightHeroFooter
+            : "mb-4 flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground",
+        )}
+      >
+        {insightExplore ? (
+          "Source in transcript"
+        ) : (
+          <>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 shadow-inner dark:bg-slate-800 dark:text-slate-300">
+              <Quote className="h-4 w-4" aria-hidden />
+            </span>
+            Source in transcript
+          </>
+        )}
       </div>
       {source ? (
         <div className="space-y-4">
           <div className="w-full space-y-3.5 rounded-2xl text-left">
             {sourceClock ? (
-              <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
-                [{sourceClock}]
-              </p>
+              insightExplore ? (
+                <span className={artifactStudyTranscriptActiveTime}>[{sourceClock}]</span>
+              ) : (
+                <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
+                  [{sourceClock}]
+                </p>
+              )
             ) : null}
             {sourceQuote ? (
               <p
                 className={cn(
-                  "font-sans text-[15px] leading-8 text-foreground sm:text-base",
-                  railLayout ? "line-clamp-6" : "line-clamp-5",
+                  insightExplore
+                    ? cn(artifactMobileInsightHeroSourceQuote, "line-clamp-6")
+                    : cn(
+                        "font-sans text-[15px] leading-8 text-foreground sm:text-base",
+                        railLayout ? "line-clamp-6" : "line-clamp-5",
+                      ),
                 )}
               >
                 {sourceQuote}
               </p>
             ) : (
-              <p className="font-sans text-sm leading-relaxed italic text-muted-foreground">
+              <p
+                className={cn(
+                  "font-sans text-sm leading-relaxed italic",
+                  insightExplore ? "text-white/55" : "text-muted-foreground",
+                )}
+              >
                 Transcript excerpt unavailable.
               </p>
             )}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800 dark:border-border/60 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-950/30"
-            disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
-            onClick={() => playClaimFromSource(ctx, c, source)}
-          >
-            <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
-            {canPlayClaim && (sourceClock || chapterClock)
-              ? `Play from ${sourceClock ?? chapterClock}`
-              : source.label
-                ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
-                : "Jump to transcript"}
-          </Button>
+          {insightExplore ? (
+            <button
+              type="button"
+              className={artifactInsightExplorePlayButton}
+              disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
+              onClick={() => playClaimFromSource(ctx, c, source)}
+            >
+              <Play className="h-4 w-4 fill-current" aria-hidden />
+              {canPlayClaim && (sourceClock || chapterClock)
+                ? `Play from ${sourceClock ?? chapterClock}`
+                : source.label
+                  ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
+                  : "Jump to transcript"}
+            </button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800 dark:border-border/60 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-950/30"
+              disabled={!ctx.youTubeVideoId && claimSeekSeconds == null && source.startSeconds == null}
+              onClick={() => playClaimFromSource(ctx, c, source)}
+            >
+              <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
+              {canPlayClaim && (sourceClock || chapterClock)
+                ? `Play from ${sourceClock ?? chapterClock}`
+                : source.label
+                  ? `Jump to ${formatClaimSourceClock(null, source.label) ?? source.label}`
+                  : "Jump to transcript"}
+            </Button>
+          )}
         </div>
       ) : canPlayClaim ? (
         <div className="space-y-3">
-          <p className="font-sans text-sm leading-relaxed text-muted-foreground">
+          <p
+            className={cn(
+              "font-sans text-sm leading-relaxed",
+              insightExplore ? "text-white/55" : "text-muted-foreground",
+            )}
+          >
             No linked transcript line — playback uses the chapter time for this claim.
           </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800"
-            onClick={() => playClaimFromSource(ctx, c, source)}
-          >
-            <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
-            {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
-          </Button>
+          {insightExplore ? (
+            <button
+              type="button"
+              className={artifactInsightExplorePlayButton}
+              onClick={() => playClaimFromSource(ctx, c, source)}
+            >
+              <Play className="h-4 w-4 fill-current" aria-hidden />
+              {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
+            </button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-0.5 h-11 rounded-full border-white/80 bg-white px-5 text-sm font-semibold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.12)] hover:bg-blue-50 hover:text-blue-800"
+              onClick={() => playClaimFromSource(ctx, c, source)}
+            >
+              <Play className="mr-2 h-4 w-4 fill-current" aria-hidden />
+              {chapterClock ? `Play from ${chapterClock}` : "Play from chapter"}
+            </Button>
+          )}
         </div>
       ) : (
-        <p className="font-sans text-sm leading-relaxed text-muted-foreground">
+        <p
+          className={cn(
+            "font-sans text-sm leading-relaxed",
+            insightExplore ? "text-white/55" : "text-muted-foreground",
+          )}
+        >
           No exact transcript section was detected for this older analysis. Re-analyze after the timestamped
           transcript update for stronger source links.
         </p>
@@ -429,7 +506,7 @@ export function renderArtifactDetailClaimCard(
       ) : null}
       {(c.doctrine_tags ?? []).map((t) => {
         const DoctrineIcon = getDoctrineChipIcon(t);
-        const doctrineTone = DoctrineIcon === Leaf ? "text-emerald-600" : "text-blue-600";
+        const doctrineTone = DoctrineIcon === Leaf ? "text-emerald-600" : "text-primary";
         return (
           <span
             key={t}
@@ -471,19 +548,21 @@ export function renderArtifactDetailClaimCard(
 
   const beliefSection =
     c.matched_belief_id && ctx.matchedBeliefs[c.matched_belief_id] ? (
-      <div className="rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs space-y-2.5 backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
+      <div className="space-y-2.5 rounded-lg border border-border/70 bg-background/55 p-3.5 text-xs backdrop-blur-[2px] sm:p-4 dark:bg-background/20">
         <div className="uppercase tracking-wider text-muted-foreground">Your current belief context</div>
         <div>
           <p className="font-medium text-foreground">{ctx.matchedBeliefs[c.matched_belief_id].statement}</p>
           {ctx.matchedBeliefs[c.matched_belief_id].answer ? (
-            <p className="text-muted-foreground mt-1 line-clamp-3">{ctx.matchedBeliefs[c.matched_belief_id].answer}</p>
+            <p className="mt-1 line-clamp-3 text-muted-foreground">
+              {ctx.matchedBeliefs[c.matched_belief_id].answer}
+            </p>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="px-2 py-0.5 rounded bg-background border border-border">
+          <span className="rounded border border-border bg-background px-2 py-0.5">
             confidence {ctx.matchedBeliefs[c.matched_belief_id].confidence}%
           </span>
-          <span className="text-muted-foreground inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
             <ArrowRight className="w-3 h-3" />
             {c.match_relation === "agree"
               ? "reinforces what you already believe"
@@ -498,9 +577,7 @@ export function renderArtifactDetailClaimCard(
   const scriptureSection = (
     <div className={cn("grid grid-cols-2 gap-4 text-xs", railLayout && "gap-3")}>
       <div className="min-w-0 space-y-3">
-        <div className="font-display text-lg font-semibold tracking-tight text-foreground">
-          Supports
-        </div>
+        <div className="font-display text-lg font-semibold tracking-tight text-foreground">Supports</div>
         <ul className="space-y-2">
           {c.scripture_supports?.length ? (
             c.scripture_supports.map((s, i) => (
@@ -519,9 +596,7 @@ export function renderArtifactDetailClaimCard(
         </ul>
       </div>
       <div className="min-w-0 space-y-3">
-        <div className="font-display text-lg font-semibold tracking-tight text-foreground">
-          Challenges
-        </div>
+        <div className="font-display text-lg font-semibold tracking-tight text-foreground">Challenges</div>
         <ul className="space-y-2">
           {c.scripture_challenges?.length ? (
             c.scripture_challenges.map((s, i) => (
@@ -548,12 +623,26 @@ export function renderArtifactDetailClaimCard(
       {tagsSection}
       {beliefSection}
       <ClaimEpistemologyPanel epistemology={epistemology} className="mb-0" />
-      {railLayout || (c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
+      {railLayout || insightExplore || (c.scripture_supports?.length ?? 0) + (c.scripture_challenges?.length ?? 0) > 0
         ? scriptureSection
         : null}
       {claimToolbar}
     </>
   );
+
+  if (insightExplore) {
+    return (
+      <article key={c.id} id={c.id} data-claim-number={claimNumber} className="space-y-4">
+        <div className={cn(artifactMobileInsightHeroCard, "min-h-[200px]")}>
+          <span className={cn(artifactMobileInsightHeroNumber, artifactInsightClaimNumberColor)}>
+            {claimNumber}
+          </span>
+          <p className={cn(artifactMobileInsightHeroQuote, "line-clamp-none")}>{c.claim}</p>
+        </div>
+        {claimBody}
+      </article>
+    );
+  }
 
   if (railLayout) {
     const railPadX = mobileRail ? "px-4" : "px-5";
