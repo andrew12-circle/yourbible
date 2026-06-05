@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { researchPackAssistantProse } from "@/lib/framework/claimResearchPack";
-import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import { prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
 import ResearchGeminiAvatar from "@/components/journal/ResearchGeminiAvatar";
 import ResearchMessageActions from "@/components/journal/ResearchMessageActions";
 
@@ -22,7 +22,7 @@ export default function ResearchAssistantBubble({
   retryDisabled,
   className,
 }: Props) {
-  const text = sanitizeResearchChatContent(children);
+  const text = prepareChatMarkdownForDisplay(children);
   if (!text) return null;
 
   const isBrief = variant === "brief";

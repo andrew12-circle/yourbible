@@ -1429,6 +1429,64 @@ export default function ArtifactDetailPage() {
       })
     : null;
 
+  const desktopPremiumVideoShell =
+    desktopPremiumYoutube && youTubeVideoId ? (
+      <ArtifactDetailDesktopShell
+        videoSlotRef={youtubePip.videoSlotRef}
+        hero={{
+          displayTitle,
+          statusLabel: formatArtifactStatus(a.status),
+          inFlight,
+          channel: mergedVideoMeta.channel_title,
+          channelUrl: mergedVideoMeta.channel_url,
+          thumbnailUrl: mergedVideoMeta.thumbnail_url,
+          youTubeVideoId,
+          durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
+          createdAt: a.created_at,
+          isPlaying: videoPlayback.isPlaying,
+          onTogglePlay: () => {
+            if (videoPlayback.playerReady) togglePlayback();
+            else videoPlayback.activateAndPlay();
+          },
+          onAddNote: () => navigateToArtifactHash("#capture"),
+          showPaste: a.kind === "youtube",
+          showWrapUp: a.kind === "youtube" && a.status === "ready",
+          showReanalyze: !inFlight && a.status !== "error",
+          onPasteTranscript: () => setPasteOpen(true),
+          onWrapUp: () => setWrapUpOpen(true),
+          onReanalyze: reanalyze,
+          videoInPip: youtubePip.pipMode || artifactJournalExpanded,
+        }}
+        videoBlock={
+          <ArtifactYoutubeVideoBlock
+            youTubeVideoId={youTubeVideoId}
+            youtubePip={youtubePip}
+            pipEnabled={pipEnabled}
+            stickyMode={stickyVideoMode}
+            heroEmbed={desktopPremiumYoutube}
+            youtubePlayer={youtubePlayer}
+            playback={videoPlayback}
+            artifactId={a.id}
+            moments={moments}
+            bookmarkLabel={bookmarkLabel}
+            onBookmarkLabelChange={setBookmarkLabel}
+            noteBody={noteBody}
+            onNoteBodyChange={setNoteBody}
+            canCaptureMoments={canCaptureMoments}
+            savingMoment={savingMoment}
+            hasTranscript={Boolean(a.raw_text?.trim())}
+            onBookmark={bookmarkCurrentMoment}
+            onSaveNote={addNoteAtCurrentMoment}
+            onBelieve={believeCurrentMoment}
+            onStudyJournal={openStudyJournal}
+            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
+            onOpenJournalFull={() => openJournalFromArtifact()}
+            onScrollVideoIntoView={handleRestoreFromPip}
+          />
+        }
+      />
+    ) : null;
+
   return (
     <FrameworkLayout
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
@@ -1474,6 +1532,7 @@ export default function ArtifactDetailPage() {
             mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
           )}
         >
+        {desktopPremiumVideoShell ? <div className="shrink-0 pb-3">{desktopPremiumVideoShell}</div> : null}
         <div
           ref={mainScrollRef}
           className={cn(
@@ -1488,63 +1547,7 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
-        {youTubeVideoId ? (
-          desktopPremiumYoutube ? (
-            <ArtifactDetailDesktopShell
-              videoSlotRef={youtubePip.videoSlotRef}
-              hero={{
-                displayTitle,
-                statusLabel: formatArtifactStatus(a.status),
-                inFlight,
-                channel: mergedVideoMeta.channel_title,
-                channelUrl: mergedVideoMeta.channel_url,
-                thumbnailUrl: mergedVideoMeta.thumbnail_url,
-                youTubeVideoId,
-                durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
-                createdAt: a.created_at,
-                isPlaying: videoPlayback.isPlaying,
-                onTogglePlay: () => {
-                  if (videoPlayback.playerReady) togglePlayback();
-                  else videoPlayback.activateAndPlay();
-                },
-                onAddNote: () => navigateToArtifactHash("#capture"),
-                showPaste: a.kind === "youtube",
-                showWrapUp: a.kind === "youtube" && a.status === "ready",
-                showReanalyze: !inFlight && a.status !== "error",
-                onPasteTranscript: () => setPasteOpen(true),
-                onWrapUp: () => setWrapUpOpen(true),
-                onReanalyze: reanalyze,
-                videoInPip: youtubePip.pipMode || artifactJournalExpanded,
-              }}
-              videoBlock={
-                <ArtifactYoutubeVideoBlock
-                  youTubeVideoId={youTubeVideoId}
-                  youtubePip={youtubePip}
-                  pipEnabled={pipEnabled}
-                  stickyMode={stickyVideoMode}
-                  heroEmbed={desktopPremiumYoutube}
-                  youtubePlayer={youtubePlayer}
-                  playback={videoPlayback}
-                  artifactId={a.id}
-                  moments={moments}
-                  bookmarkLabel={bookmarkLabel}
-                  onBookmarkLabelChange={setBookmarkLabel}
-                  noteBody={noteBody}
-                  onNoteBodyChange={setNoteBody}
-                  canCaptureMoments={canCaptureMoments}
-                  savingMoment={savingMoment}
-                  hasTranscript={Boolean(a.raw_text?.trim())}
-                  onBookmark={bookmarkCurrentMoment}
-                  onSaveNote={addNoteAtCurrentMoment}
-                  onBelieve={believeCurrentMoment}
-                  onStudyJournal={openStudyJournal}
-                  onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-                  onOpenJournalFull={() => openJournalFromArtifact()}
-                  onScrollVideoIntoView={handleRestoreFromPip}
-                />
-              }
-            />
-          ) : (
+        {youTubeVideoId && !desktopPremiumYoutube ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
             displayTitle={stickyVideoMode ? displayTitle : undefined}
@@ -1592,7 +1595,6 @@ export default function ArtifactDetailPage() {
             mobileChromeHost={mobileChromeHost}
             onScrollVideoIntoView={handleRestoreFromPip}
           />
-          )
         ) : null}
         {embeddedJournalPanel && !mobilePinnedPane ? embeddedJournalPanel : null}
         <div

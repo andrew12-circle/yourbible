@@ -56,6 +56,7 @@ const OUTPUT_CONTRACT = `# Layer 6 — Output contract (critical)
 Respond with a single JSON object ONLY (no markdown fences), shaped exactly:
 {"reply":"string (markdown allowed)","citations":[{"source_type":"belief|journal|artifact|entity|identity|general|influence","id":"optional uuid string","label":"short human label"}]}
 - "reply" is what the user reads — no raw [journal:uuid] tokens in reply text.
+- In "reply" markdown: put a blank line between paragraphs; use markdown bullet lists for multiple examples or steps.
 - "citations" lists the framework rows you relied on most; include id whenever you referenced a row from the context.
 - Use source_type "general" only when you actually used general knowledge under the allowed mode.`;
 

@@ -39,7 +39,7 @@ import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
-import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -886,9 +886,9 @@ export default function JournalChatPage() {
                       </div>
                     ) : (
                       <div className="max-w-full px-1 py-1 text-[13px]">
-                        <div className="prose prose-sm max-w-none dark:prose-invert text-foreground prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed">
+                        <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
                           {m.content ? (
-                            <ReactMarkdown>{sanitizeResearchChatContent(m.content)}</ReactMarkdown>
+                            <ReactMarkdown>{prepareChatMarkdownForDisplay(m.content)}</ReactMarkdown>
                           ) : (
                             <TypingDots />
                           )}

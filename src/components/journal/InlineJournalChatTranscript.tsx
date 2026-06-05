@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
-import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -45,8 +45,8 @@ export default function InlineJournalChatTranscript({
             </div>
           ) : (
             <div className="max-w-[92%] rounded-2xl border border-border/70 bg-card px-3 py-2 text-[13px] shadow-sm">
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed">
-                <ReactMarkdown>{sanitizeResearchChatContent(t.content)}</ReactMarkdown>
+              <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
+                <ReactMarkdown>{prepareChatMarkdownForDisplay(t.content)}</ReactMarkdown>
               </div>
             </div>
           )}

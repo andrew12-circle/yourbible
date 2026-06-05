@@ -30,7 +30,10 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
-import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import {
+  CHAT_ASSISTANT_PROSE_CLASS,
+  prepareChatMarkdownForDisplay,
+} from "@/lib/journal/prepareChatMarkdownForDisplay";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -794,9 +797,9 @@ export default function MyAiPage() {
                       </div>
                     ) : (
                       <div className="max-w-none px-1 sm:px-2">
-                        <div className="prose prose-neutral max-w-none dark:prose-invert prose-p:my-3 prose-p:text-[15px] prose-p:leading-7 prose-li:my-1 prose-li:text-[15px] prose-li:leading-7 prose-strong:font-semibold prose-headings:mb-2 prose-headings:mt-5 prose-headings:font-semibold prose-ul:my-3 prose-ol:my-3 text-foreground">
+                        <div className={CHAT_ASSISTANT_PROSE_CLASS}>
                           {m.content ? (
-                            <ReactMarkdown>{sanitizeResearchChatContent(m.content)}</ReactMarkdown>
+                            <ReactMarkdown>{prepareChatMarkdownForDisplay(m.content)}</ReactMarkdown>
                           ) : (
                             <TypingDots />
                           )}

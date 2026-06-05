@@ -149,7 +149,7 @@ export default function ArtifactVideoStage({
       className={cn(
         "relative w-full shrink-0 overflow-hidden bg-black",
         heroEmbed
-          ? "h-full min-h-[inherit]"
+          ? "absolute inset-0 h-full w-full"
           : cn(
               "aspect-video",
               pinnedMobile

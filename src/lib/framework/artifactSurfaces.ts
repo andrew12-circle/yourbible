@@ -168,6 +168,12 @@ export const artifactDesktopHero = cn(
   "min-h-[280px] sm:min-h-[320px]",
 );
 
+/** Desktop split-pane inline player — 16:9, capped so study tabs and content stay in view. */
+export const artifactDesktopInlineVideoShell = cn(
+  "relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-black",
+  "max-h-[min(34vh,360px)] max-w-[min(100%,calc(min(34vh,360px)*16/9))]",
+);
+
 /** Desktop study body — section nav + study content below the video card. */
 export const artifactDesktopBodySheet = cn(
   "relative z-10 mt-0",

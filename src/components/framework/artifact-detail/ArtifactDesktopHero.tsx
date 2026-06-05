@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   artifactDesktopHero,
+  artifactDesktopInlineVideoShell,
   formatArtifactDate,
   formatArtifactDuration,
 } from "@/lib/framework/artifactSurfaces";
@@ -273,14 +274,11 @@ export default function ArtifactDesktopHero({
     return (
       <section
         ref={videoSlotRef}
-        className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
+        className="shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
         aria-label="Video"
       >
         <h1 className="sr-only">{displayTitle}</h1>
-        <div
-          id="video"
-          className={cn("relative aspect-video w-full overflow-hidden rounded-2xl bg-black")}
-        >
+        <div id="video" className={artifactDesktopInlineVideoShell}>
           {videoSlot}
         </div>
         {videoInPip ? (
