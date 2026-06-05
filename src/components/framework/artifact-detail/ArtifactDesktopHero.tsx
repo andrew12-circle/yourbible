@@ -279,10 +279,10 @@ export default function ArtifactDesktopHero({
       <section
         ref={videoSlotRef}
         className={cn(
-          "sticky top-0 z-20 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] transition-[background,box-shadow,padding] duration-300 ease-out dark:ring-white/[0.03]",
+          "shrink-0 overflow-hidden rounded-2xl transition-[background,box-shadow,padding,border-color] duration-300 ease-out",
           videoCompact
-            ? "bg-background/95 pb-2 shadow-md backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
-            : "mb-3",
+            ? "sticky top-0 z-20 border border-black/40 bg-black pb-2 shadow-md ring-1 ring-white/10"
+            : "relative mb-3 border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]",
         )}
         aria-label="Video"
       >

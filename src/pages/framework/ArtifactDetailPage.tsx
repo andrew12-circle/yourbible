@@ -64,8 +64,9 @@ import {
   artifactMobileDockPadding,
   artifactMobilePinnedHeaderPadding,
   artifactMobileStudyContentInset,
-  artifactPremiumCard,
   artifactScrollMt,
+  artifactTeachingsIntroCallout,
+  artifactTeachingsShellMobile,
 } from "@/lib/framework/artifactSurfaces";
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
 import { resolveDesktopPremiumStudyPane } from "@/lib/framework/artifactDesktopStudyPane";
@@ -194,7 +195,6 @@ export default function ArtifactDetailPage() {
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
-  const desktopVideoStickySentinelRef = useRef<HTMLDivElement | null>(null);
   const mobileBodyScrollRef = useRef<HTMLDivElement | null>(null);
   const [mobileChromeHost, setMobileChromeHost] = useState<HTMLDivElement | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -476,7 +476,7 @@ export default function ArtifactDetailPage() {
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
   const desktopVideoCompact = useArtifactDesktopStickyVideoCompact(
     mainScrollRef,
-    desktopVideoStickySentinelRef,
+    youtubePip.videoSlotRef,
     desktopPremiumYoutube,
   );
   const desktopPremiumStudyPane = useMemo(
@@ -1554,12 +1554,7 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
-        {desktopPremiumVideoShell ? (
-          <>
-            <div ref={desktopVideoStickySentinelRef} className="h-px w-full shrink-0" aria-hidden />
-            {desktopPremiumVideoShell}
-          </>
-        ) : null}
+        {desktopPremiumVideoShell ? desktopPremiumVideoShell : null}
         {youTubeVideoId && !desktopPremiumYoutube ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
@@ -1891,13 +1886,13 @@ export default function ArtifactDetailPage() {
             className={cn(
               isDesktop
                 ? "rounded-lg border border-primary/20 bg-primary/[0.04] p-4"
-                : cn(artifactPremiumCard, "border-primary/15 p-3"),
+                : artifactTeachingsShellMobile,
             )}
           >
             <p
               className={cn(
-                "text-sm leading-relaxed text-muted-foreground",
-                isDesktop ? "mb-4" : "mb-3 text-xs",
+                "leading-relaxed text-muted-foreground",
+                isDesktop ? "mb-4 text-sm" : cn(artifactTeachingsIntroCallout, "mb-4 text-sm"),
               )}
             >
               This video has no chapter outline yet, so we lean on extracted{" "}
@@ -1919,7 +1914,11 @@ export default function ArtifactDetailPage() {
               </button>{" "}
               tab while you watch.
             </p>
-            <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
+            <TeachingsPanel
+              artifactId={a.id}
+              artifactStatus={a.status}
+              hideSectionIntro={!isDesktop}
+            />
           </div>
         </ArtifactCollapsibleSection>
       )}
@@ -1932,8 +1931,12 @@ export default function ArtifactDetailPage() {
           defaultOpenDesktop
           storageKey={a.id ? `artifact-teachings:${a.id}` : undefined}
         >
-          <div className={cn(!isDesktop && artifactPremiumCard, !isDesktop && "p-3")}>
-            <TeachingsPanel artifactId={a.id} artifactStatus={a.status} />
+          <div className={cn(!isDesktop && artifactTeachingsShellMobile)}>
+            <TeachingsPanel
+              artifactId={a.id}
+              artifactStatus={a.status}
+              hideSectionIntro={!isDesktop}
+            />
           </div>
         </ArtifactCollapsibleSection>
       )}

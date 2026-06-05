@@ -15,6 +15,9 @@ verify_jwt = true
 [functions.framework-enrich-influence]
 verify_jwt = true
 
+[functions.framework-enrich-entity]
+verify_jwt = true
+
 [functions.framework-generate-identity]
 verify_jwt = true
 

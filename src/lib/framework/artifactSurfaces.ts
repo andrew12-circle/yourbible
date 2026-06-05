@@ -188,10 +188,36 @@ export const artifactDesktopBodySheet = cn(
   "px-4 pb-10 sm:px-6",
 );
 
-/** Desktop transcript column — light floating study panel. */
+/** Desktop transcript column — light grey floating study panel. */
 export const artifactDesktopTranscriptPanel = cn(
-  "rounded-2xl border border-border/55 bg-card",
-  "shadow-[0_10px_40px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.03]",
+  "rounded-2xl border border-border/60 bg-zinc-100/90",
+  "shadow-[0_10px_40px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04]",
+  "dark:bg-muted/35 dark:ring-white/[0.04]",
+);
+
+/** Mobile/tablet teachings shell — light grey panel (matches transcript column). */
+export const artifactTeachingsShellMobile = cn(
+  "rounded-2xl border border-border/45 bg-zinc-50/90 p-4 sm:p-5",
+  "shadow-[0_8px_30px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.03]",
+  "dark:bg-muted/25 dark:ring-white/[0.04]",
+);
+
+/** Mobile/tablet teaching card — white card on grey shell. */
+export const artifactTeachingCardMobile = cn(
+  "rounded-2xl border border-border/50 bg-card p-4 sm:p-5",
+  "shadow-[0_4px_20px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.02]",
+);
+
+/** Mobile/tablet category heading inside teachings. */
+export const artifactTeachingCategoryTitle = cn(
+  "font-display text-base font-semibold tracking-tight text-foreground sm:text-[15px]",
+);
+
+/** Intro callout inside mobile teachings shell. */
+export const artifactTeachingsIntroCallout = cn(
+  "rounded-xl border border-border/40 bg-white/80 p-3.5 sm:p-4",
+  "text-sm leading-relaxed text-muted-foreground shadow-sm ring-1 ring-black/[0.02]",
+  "dark:bg-card/70",
 );
 
 /** Format seconds as compact duration (e.g. 1h 32m). */

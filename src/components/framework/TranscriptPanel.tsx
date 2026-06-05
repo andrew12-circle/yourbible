@@ -47,7 +47,15 @@ function findActiveSegmentId(segments: TranscriptSegment[], seconds: number): st
   return best?.id ?? null;
 }
 
-function HighlightedText({ text, query }: { text: string; query: string }) {
+function HighlightedText({
+  text,
+  query,
+  inverted = false,
+}: {
+  text: string;
+  query: string;
+  inverted?: boolean;
+}) {
   const trimmed = query.trim();
   if (!trimmed) return <>{text}</>;
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -59,7 +67,15 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     parts.push(
-      <mark key={key++} className="rounded-sm bg-amber-200/90 px-0.5 text-foreground dark:bg-amber-500/35">
+      <mark
+        key={key++}
+        className={cn(
+          "rounded-sm px-0.5",
+          inverted
+            ? "bg-amber-400/90 text-black"
+            : "bg-amber-200/90 text-foreground dark:bg-amber-500/35",
+        )}
+      >
         {m[0]}
       </mark>,
     );
@@ -510,7 +526,7 @@ export default function TranscriptPanel({
               : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
             : cn(
                 "lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto",
-                desktopStudy ? "bg-background px-1" : artifactInset,
+                desktopStudy ? "bg-transparent px-1" : artifactInset,
               ),
         )}
       >
@@ -526,6 +542,7 @@ export default function TranscriptPanel({
               segment.startSeconds != null
                 ? `${segment.timestampEstimated ? "~" : ""}${formatTranscriptClock(segment.startSeconds)}`
                 : null;
+            const activeStudyLine = studyTranscript && isActive;
 
             return (
               <div
@@ -533,15 +550,17 @@ export default function TranscriptPanel({
                 ref={(el) => bindRef(segment.id, el)}
                 data-transcript-row={segment.id}
                 className={cn(
-                  "group relative flex gap-2 px-3 py-3 transition-all duration-200 ease-out sm:gap-3",
+                  "group relative transition-all duration-200 ease-out",
+                  activeStudyLine
+                    ? cn(artifactStudyTranscriptActiveRow, "flex flex-col gap-2.5 px-3.5 py-3.5 sm:px-4")
+                    : "flex gap-2 px-3 py-3 sm:gap-3",
                   canSeek &&
                     (studyTranscript
                       ? "cursor-pointer hover:bg-muted/25"
                       : "cursor-pointer hover:bg-muted/30"),
-                  isActive &&
-                    (studyTranscript ? artifactStudyTranscriptActiveRow : "bg-primary/[0.07]"),
+                  isActive && !studyTranscript && "bg-primary/[0.07]",
                   studyTranscript && !isActive && "border-b border-border/40",
-                  segment.isContinuation && "border-l-2 border-muted-foreground/15 pl-3",
+                  segment.isContinuation && !activeStudyLine && "border-l-2 border-muted-foreground/15 pl-3",
                 )}
                 role={canSeek ? "button" : undefined}
                 tabIndex={canSeek ? 0 : undefined}
@@ -562,6 +581,56 @@ export default function TranscriptPanel({
                     aria-hidden
                   />
                 ) : null}
+                {activeStudyLine ? (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      {showTimestamps && timed && stamp ? (
+                        <span
+                          className={cn(
+                            artifactStudyTranscriptActiveTime,
+                            segment.timestampEstimated && "italic",
+                          )}
+                        >
+                          {stamp}
+                        </span>
+                      ) : (
+                        <span aria-hidden />
+                      )}
+                      {canBookmark && segment.startSeconds != null && segmentBookmarkActions ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 shrink-0 rounded-full p-0 bg-white/10 text-white/80 shadow-sm hover:bg-white/15 hover:text-white"
+                          disabled={bookmarking}
+                          aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
+                          title="Bookmark this line"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const snippet = segment.text.trim().slice(0, 120);
+                            openBookmarkMenu(
+                              segment.startSeconds!,
+                              snippet,
+                              stamp,
+                              segment.timestampEstimated,
+                            );
+                          }}
+                        >
+                          <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p
+                      className={cn(
+                        "min-w-0 font-sans text-sm leading-relaxed",
+                        artifactStudyTranscriptActiveText,
+                      )}
+                    >
+                      <HighlightedText text={segment.text} query={search} inverted />
+                    </p>
+                  </>
+                ) : (
+                  <>
                 {showTimestamps && (
                   <div className="flex w-[4.5rem] shrink-0 items-start gap-1 sm:w-[5.5rem]">
                     <span className="w-3 shrink-0" aria-hidden />
@@ -657,6 +726,8 @@ export default function TranscriptPanel({
                     <Bookmark className="h-3.5 w-3.5" aria-hidden />
                   </Button>
                 ) : null}
+                  </>
+                )}
               </div>
             );
           })}

@@ -56,9 +56,10 @@ export const artifactStudyTranscriptPlay = "fill-violet-600 text-violet-600";
 
 /** Active transcript line — matches dark Key claims cards (black bg, green time badge). */
 export const artifactStudyTranscriptActiveRow = cn(
-  "z-10 mx-2 my-1 scale-[1.015] rounded-2xl border border-white/10",
+  "z-10 mx-3 my-1 rounded-2xl border border-white/10 sm:mx-2",
   "bg-gradient-to-br from-stone-900 via-stone-950 to-black",
   "font-semibold shadow-[0_14px_34px_-18px_rgba(0,0,0,0.55)] ring-1 ring-white/10",
+  "lg:scale-[1.015]",
 );
 
 export const artifactStudyTranscriptActiveTime = cn(

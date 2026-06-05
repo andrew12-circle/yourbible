@@ -6,9 +6,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FloatingTabBarShell } from "@/components/navigation/FloatingTabBar";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
+import { useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
+import {
+  artifactClaimActionChip,
+  artifactTeachingCardMobile,
+  artifactTeachingCategoryTitle,
+} from "@/lib/framework/artifactSurfaces";
 
 export type TeachingCategory =
   | "practice"
@@ -109,11 +116,13 @@ function TeachingNotesCollapsible({
   notesValue,
   onNotesChange,
   onSaveNotes,
+  compactStudy,
 }: {
   row: TeachingRow;
   notesValue: string;
   onNotesChange: (value: string) => void;
   onSaveNotes: (value: string) => void;
+  compactStudy: boolean;
 }) {
   const hasNotes = notesValue.trim().length > 0;
   const [open, setOpen] = useState(hasNotes);
@@ -125,7 +134,10 @@ function TeachingNotesCollapsible({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 gap-1.5 px-1.5 text-xs text-muted-foreground"
+          className={cn(
+            "gap-1.5 px-1.5 text-muted-foreground",
+            compactStudy ? "h-10 min-h-10 text-sm" : "h-7 text-xs",
+          )}
         >
           {hasNotes ? "Notes" : "Add notes (optional)"}
           {hasNotes ? (
@@ -155,13 +167,70 @@ function TeachingNotesCollapsible({
   );
 }
 
+const TEACHING_VERDICT_CHIP: Record<
+  TeachingStatus,
+  { idle: string; active: string }
+> = {
+  proposed: { idle: "", active: "" },
+  accepted: {
+    idle: "border-border/45 hover:border-emerald-200/80",
+    active:
+      "border-emerald-200/90 bg-emerald-50/90 ring-emerald-100/80 dark:bg-emerald-950/40 dark:border-emerald-500/40",
+  },
+  deferred: {
+    idle: "border-border/45 hover:border-border/70",
+    active: "border-border/80 bg-muted/60 ring-border/60",
+  },
+  rejected: {
+    idle: "border-border/45 hover:border-rose-200/80",
+    active: "border-rose-200/90 bg-rose-50/90 ring-rose-100/80 dark:bg-rose-950/40 dark:border-rose-500/40",
+  },
+};
+
+function TeachingVerdictChip({
+  label,
+  status,
+  current,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  status: TeachingStatus;
+  current: TeachingStatus;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const active = current === status;
+  const styles = TEACHING_VERDICT_CHIP[status];
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        artifactClaimActionChip,
+        "min-h-10 flex-1 justify-center px-4 sm:flex-none sm:px-3.5",
+        active ? styles.active : styles.idle,
+      )}
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+    >
+      <span className="whitespace-nowrap leading-none">{label}</span>
+    </button>
+  );
+}
+
 interface Props {
   artifactId: string;
   artifactStatus: string;
+  /** Hide duplicate intro when nested in ArtifactCollapsibleSection (mobile/tablet). */
+  hideSectionIntro?: boolean;
 }
 
-export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
+export default function TeachingsPanel({ artifactId, artifactStatus, hideSectionIntro = false }: Props) {
   const { user } = useAuth();
+  const layoutMode = useArtifactLayoutMode();
+  const compactStudy = layoutMode !== "desktop";
   const [rows, setRows] = useState<TeachingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -287,7 +356,12 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
 
   if (loading) {
     return (
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+      <div
+        className={cn(
+          "mb-4 flex items-center gap-2 border border-border px-3 py-2 text-sm text-muted-foreground",
+          compactStudy ? "rounded-2xl bg-card/80 py-3" : "rounded-lg bg-muted/20",
+        )}
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading teachings…
       </div>
@@ -296,42 +370,67 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="mb-4 rounded-lg border border-border bg-muted/15 px-3 py-3 text-sm text-muted-foreground">
+      <div
+        className={cn(
+          "mb-4 border border-border px-3 py-3 text-sm text-muted-foreground",
+          compactStudy ? "rounded-2xl bg-card/80 p-4" : "rounded-lg bg-muted/15",
+        )}
+      >
         No teachings extracted yet. Run <span className="font-medium text-foreground">Re-analyze</span> after
         deploying the latest analyzer — teachings appear alongside claims and entities.
       </div>
     );
   }
 
+  const showSectionIntro = !hideSectionIntro;
+
   return (
     <TooltipProvider delayDuration={200}>
-      <section className="mb-6 space-y-5" aria-label="Teachings from this source">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Teachings</div>
-          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-            Practices, principles, and invitations from this source — separate from raw claims. Accept what fits your
-            framework, then generate a living playbook plan.
-          </p>
-        </div>
+      <section
+        className={cn(compactStudy ? "space-y-6" : "mb-6 space-y-5")}
+        aria-label="Teachings from this source"
+      >
+        {showSectionIntro ? (
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Teachings</div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Practices, principles, and invitations from this source — separate from raw claims. Accept what fits your
+              framework, then generate a living playbook plan.
+            </p>
+          </div>
+        ) : null}
 
         {CATEGORY_ORDER.map((cat) => {
           const list = byCategory.get(cat) ?? [];
           if (list.length === 0) return null;
           return (
             <div key={cat}>
-              <h3 className="mb-2 text-sm font-semibold tracking-tight text-foreground">{CATEGORY_LABEL[cat]}</h3>
-              <div className="space-y-3">
+              <h3
+                className={cn(
+                  compactStudy
+                    ? cn(artifactTeachingCategoryTitle, "mb-3")
+                    : "mb-2 text-sm font-semibold tracking-tight text-foreground",
+                )}
+              >
+                {CATEGORY_LABEL[cat]}
+              </h3>
+              <div className={cn(compactStudy ? "space-y-4" : "space-y-3")}>
                 {list.map((row) => (
                   <article
                     key={row.id}
-                    className="rounded-xl border border-border/80 bg-card/80 p-4 shadow-sm ring-1 ring-black/[0.02]"
+                    className={cn(
+                      compactStudy
+                        ? artifactTeachingCardMobile
+                        : "rounded-xl border border-border/80 bg-card/80 p-4 shadow-sm ring-1 ring-black/[0.02]",
+                    )}
                   >
                     <div className="flex items-start gap-3">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
                             className={cn(
-                              "mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full ring-2 ring-background",
+                              "inline-block shrink-0 rounded-full ring-2 ring-background",
+                              compactStudy ? "mt-2 h-2.5 w-2.5" : "mt-1.5 h-2 w-2",
                               confidenceDotClass(row.confidence),
                             )}
                             aria-label={`Confidence ${row.confidence != null ? Math.round(row.confidence * 100) : "unknown"}%`}
@@ -350,81 +449,163 @@ export default function TeachingsPanel({ artifactId, artifactStatus }: Props) {
                         </TooltipContent>
                       </Tooltip>
                       <div className="min-w-0 flex-1 space-y-2">
-                        <div className="font-medium leading-snug text-foreground">{row.title}</div>
+                        <div
+                          className={cn(
+                            "leading-snug text-foreground",
+                            compactStudy
+                              ? "font-display text-base font-semibold tracking-tight sm:text-[15px]"
+                              : "font-medium",
+                          )}
+                        >
+                          {row.title}
+                        </div>
                         {row.summary && (
-                          <p className="text-sm leading-relaxed text-muted-foreground">{row.summary}</p>
+                          <p
+                            className={cn(
+                              "leading-relaxed text-muted-foreground",
+                              compactStudy ? "text-[15px] sm:text-sm" : "text-sm",
+                            )}
+                          >
+                            {row.summary}
+                          </p>
                         )}
                         {row.scriptures.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5">
                             {row.scriptures.map((s) => (
                               <span
                                 key={s}
-                                className="rounded-full bg-muted/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                className={cn(
+                                  "rounded-full bg-muted/80 font-medium text-muted-foreground",
+                                  compactStudy ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[10px]",
+                                )}
                               >
                                 {s}
                               </span>
                             ))}
                           </div>
                         )}
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            variant={row.status === "accepted" ? "default" : "outline"}
-                            className="h-8"
-                            disabled={busyId === row.id}
-                            onClick={() => void setStatus(row, "accepted")}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={row.status === "deferred" ? "default" : "outline"}
-                            className="h-8"
-                            disabled={busyId === row.id}
-                            onClick={() => void setStatus(row, "deferred")}
-                          >
-                            Defer
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={row.status === "rejected" ? "default" : "outline"}
-                            className="h-8"
-                            disabled={busyId === row.id}
-                            onClick={() => void setStatus(row, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                          {row.status === "accepted" &&
-                            (playbookByTeaching[row.id] ? (
-                              <Link
-                                to={`/framework/playbook/${playbookByTeaching[row.id]}`}
-                                className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-sm font-medium text-primary hover:underline"
+                        {compactStudy ? (
+                          <div className="space-y-2 pt-1">
+                            <FloatingTabBarShell
+                              tone="surface"
+                              className="h-auto w-full max-w-none rounded-2xl px-2 py-2"
+                            >
+                              <div
+                                role="toolbar"
+                                aria-label="Teaching actions"
+                                className="flex w-full min-w-0 flex-wrap items-center gap-2"
                               >
-                                View in playbook
-                                <ArrowRight className="h-3.5 w-3.5" />
-                              </Link>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="h-8"
-                                disabled={busyId === row.id}
-                                onClick={() => void generatePlaybook(row)}
-                              >
-                                {busyId === row.id ? (
-                                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Sparkles className="mr-1 h-3.5 w-3.5" />
-                                )}
-                                Generate playbook
-                              </Button>
-                            ))}
-                        </div>
+                                <TeachingVerdictChip
+                                  label="Accept"
+                                  status="accepted"
+                                  current={row.status}
+                                  disabled={busyId === row.id}
+                                  onClick={() => void setStatus(row, "accepted")}
+                                />
+                                <TeachingVerdictChip
+                                  label="Defer"
+                                  status="deferred"
+                                  current={row.status}
+                                  disabled={busyId === row.id}
+                                  onClick={() => void setStatus(row, "deferred")}
+                                />
+                                <TeachingVerdictChip
+                                  label="Reject"
+                                  status="rejected"
+                                  current={row.status}
+                                  disabled={busyId === row.id}
+                                  onClick={() => void setStatus(row, "rejected")}
+                                />
+                              </div>
+                            </FloatingTabBarShell>
+                            {row.status === "accepted" &&
+                              (playbookByTeaching[row.id] ? (
+                                <Link
+                                  to={`/framework/playbook/${playbookByTeaching[row.id]}`}
+                                  className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-sm font-medium text-primary hover:underline"
+                                >
+                                  View in playbook
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-10 rounded-full px-4"
+                                  disabled={busyId === row.id}
+                                  onClick={() => void generatePlaybook(row)}
+                                >
+                                  {busyId === row.id ? (
+                                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="mr-1.5 h-4 w-4" />
+                                  )}
+                                  Generate playbook
+                                </Button>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant={row.status === "accepted" ? "default" : "outline"}
+                              className="h-8"
+                              disabled={busyId === row.id}
+                              onClick={() => void setStatus(row, "accepted")}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={row.status === "deferred" ? "default" : "outline"}
+                              className="h-8"
+                              disabled={busyId === row.id}
+                              onClick={() => void setStatus(row, "deferred")}
+                            >
+                              Defer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={row.status === "rejected" ? "default" : "outline"}
+                              className="h-8"
+                              disabled={busyId === row.id}
+                              onClick={() => void setStatus(row, "rejected")}
+                            >
+                              Reject
+                            </Button>
+                            {row.status === "accepted" &&
+                              (playbookByTeaching[row.id] ? (
+                                <Link
+                                  to={`/framework/playbook/${playbookByTeaching[row.id]}`}
+                                  className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-sm font-medium text-primary hover:underline"
+                                >
+                                  View in playbook
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-8"
+                                  disabled={busyId === row.id}
+                                  onClick={() => void generatePlaybook(row)}
+                                >
+                                  {busyId === row.id ? (
+                                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="mr-1 h-3.5 w-3.5" />
+                                  )}
+                                  Generate playbook
+                                </Button>
+                              ))}
+                          </div>
+                        )}
                         <TeachingNotesCollapsible
                           row={row}
                           notesValue={notesDrafts[row.id] ?? row.notes ?? ""}
                           onNotesChange={(v) => setNotesDrafts((d) => ({ ...d, [row.id]: v }))}
                           onSaveNotes={(v) => void saveNotes(row, v)}
+                          compactStudy={compactStudy}
                         />
                       </div>
                     </div>
