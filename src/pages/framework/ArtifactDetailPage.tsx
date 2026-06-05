@@ -56,6 +56,7 @@ import {
   artifactJournalReturnPath,
   handoffArtifactVideoForJournal,
 } from "@/lib/framework/artifactJournalNavigation";
+import { useArtifactDesktopStickyVideoCompact } from "@/hooks/useArtifactDesktopStickyVideoCompact";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
@@ -193,6 +194,7 @@ export default function ArtifactDetailPage() {
   const [quickBeliefSource, setQuickBeliefSource] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
+  const desktopVideoStickySentinelRef = useRef<HTMLDivElement | null>(null);
   const mobileBodyScrollRef = useRef<HTMLDivElement | null>(null);
   const [mobileChromeHost, setMobileChromeHost] = useState<HTMLDivElement | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -472,6 +474,11 @@ export default function ArtifactDetailPage() {
   );
 
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
+  const desktopVideoCompact = useArtifactDesktopStickyVideoCompact(
+    mainScrollRef,
+    desktopVideoStickySentinelRef,
+    desktopPremiumYoutube,
+  );
   const desktopPremiumStudyPane = useMemo(
     () => (desktopPremiumYoutube ? resolveDesktopPremiumStudyPane(pageSectionHash) : null),
     [desktopPremiumYoutube, pageSectionHash],
@@ -1456,6 +1463,7 @@ export default function ArtifactDetailPage() {
           onWrapUp: () => setWrapUpOpen(true),
           onReanalyze: reanalyze,
           videoInPip: youtubePip.pipMode || artifactJournalExpanded,
+          videoCompact: desktopVideoCompact,
         }}
         videoBlock={
           <ArtifactYoutubeVideoBlock
@@ -1532,7 +1540,6 @@ export default function ArtifactDetailPage() {
             mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
           )}
         >
-        {desktopPremiumVideoShell ? <div className="shrink-0 pb-3">{desktopPremiumVideoShell}</div> : null}
         <div
           ref={mainScrollRef}
           className={cn(
@@ -1547,6 +1554,12 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
+        {desktopPremiumVideoShell ? (
+          <>
+            <div ref={desktopVideoStickySentinelRef} className="h-px w-full shrink-0" aria-hidden />
+            {desktopPremiumVideoShell}
+          </>
+        ) : null}
         {youTubeVideoId && !desktopPremiumYoutube ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}

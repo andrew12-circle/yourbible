@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   artifactDesktopHero,
-  artifactDesktopInlineVideoShell,
+  artifactDesktopInlineVideoShellCompact,
+  artifactDesktopInlineVideoShellExpanded,
   formatArtifactDate,
   formatArtifactDuration,
 } from "@/lib/framework/artifactSurfaces";
@@ -50,6 +51,8 @@ export type ArtifactDesktopHeroProps = {
   videoSlotRef?: RefObject<HTMLDivElement | null>;
   /** Player is in floating PiP — hero slot is an empty anchor only. */
   videoInPip?: boolean;
+  /** Sticky mini-player after scrolling the study column (desktop premium). */
+  videoCompact?: boolean;
 };
 
 function HeroStatusBadge({ inFlight, statusLabel }: { inFlight: boolean; statusLabel: string }) {
@@ -263,6 +266,7 @@ export default function ArtifactDesktopHero({
   videoSlot,
   videoSlotRef,
   videoInPip = false,
+  videoCompact = false,
 }: ArtifactDesktopHeroProps) {
   const thumb = thumbnailUrl || (youTubeVideoId ? youtubeHqThumbnail(youTubeVideoId) : null);
   const durationLabel = formatArtifactDuration(durationSeconds);
@@ -274,11 +278,24 @@ export default function ArtifactDesktopHero({
     return (
       <section
         ref={videoSlotRef}
-        className="shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
+        className={cn(
+          "sticky top-0 z-20 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] transition-[background,box-shadow,padding] duration-300 ease-out dark:ring-white/[0.03]",
+          videoCompact
+            ? "bg-background/95 pb-2 shadow-md backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+            : "mb-3",
+        )}
         aria-label="Video"
       >
         <h1 className="sr-only">{displayTitle}</h1>
-        <div id="video" className={artifactDesktopInlineVideoShell}>
+        <div
+          id="video"
+          className={cn(
+            "transition-[max-height,width,margin] duration-300 ease-out",
+            videoCompact
+              ? artifactDesktopInlineVideoShellCompact
+              : artifactDesktopInlineVideoShellExpanded,
+          )}
+        >
           {videoSlot}
         </div>
         {videoInPip ? (
