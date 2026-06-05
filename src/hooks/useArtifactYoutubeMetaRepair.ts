@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { titleLooksBad } from "@/lib/framework/artifactDetailPageHelpers";
@@ -44,7 +44,7 @@ async function fetchYouTubeOembedMeta(videoUrl: string): Promise<ArtifactYoutube
 
 export function useArtifactYoutubeMetaRepair(
   a: ArtifactRow | null,
-  setA: React.Dispatch<React.SetStateAction<ArtifactRow | null>>,
+  setA: Dispatch<SetStateAction<ArtifactRow | null>>,
 ) {
   const [liveMeta, setLiveMeta] = useState<ArtifactYoutubeLiveMeta | null>(null);
   const repairedRef = useRef(false);

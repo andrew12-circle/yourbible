@@ -76,7 +76,6 @@ import { resolveDesktopPremiumStudyPane } from "@/lib/framework/artifactDesktopS
 import { scrollMobileInsightPickerIntoView } from "@/lib/framework/scrollMobileInsightPickerIntoView";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
-import { createTranscriptProcessingToken, startYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
 import {
   formatClaimVerdict,
   isDeferredVerdict,
@@ -105,11 +104,11 @@ import {
   findClaimSource,
   formatArtifactKind,
   formatArtifactStatus,
-  titleLooksBad,
   withYouTubeTimestamp,
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
 import { useArtifactFrameworkOverview } from "@/hooks/useArtifactFrameworkOverview";
+import { useArtifactYoutubeMetaRepair } from "@/hooks/useArtifactYoutubeMetaRepair";
 
 interface ArtifactMetadata {
   source?: string;
@@ -189,7 +188,7 @@ export default function ArtifactDetailPage() {
   const [pasteText, setPasteText] = useState("");
   const [savingPaste, setSavingPaste] = useState(false);
   const [formattingTranscript, setFormattingTranscript] = useState(false);
-  const [liveMeta, setLiveMeta] = useState<ArtifactMetadata | null>(null);
+  const { liveMeta, setLiveMeta, fetchYouTubeMeta, repairedRef } = useArtifactYoutubeMetaRepair(a, setA);
   const [refreshingMeta, setRefreshingMeta] = useState(false);
   const [bookmarkLabel, setBookmarkLabel] = useState("");
   const [noteBody, setNoteBody] = useState("");
@@ -202,7 +201,6 @@ export default function ArtifactDetailPage() {
   const mobileBodyScrollRef = useRef<HTMLDivElement | null>(null);
   const [mobileChromeHost, setMobileChromeHost] = useState<HTMLDivElement | null>(null);
   const transcriptRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const repairedRef = useRef(false);
   const lastBookmarkJournalInsertAtRef = useRef(0);
   const [syncingYoutubeChapters, setSyncingYoutubeChapters] = useState(false);
   const [generatingChapters, setGeneratingChapters] = useState(false);
@@ -233,77 +231,12 @@ export default function ArtifactDetailPage() {
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
 
-  const fetchYouTubeMeta = useCallback(async (videoUrl: string): Promise<ArtifactMetadata | null> => {
-    try {
-      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`);
-      if (!res.ok) return null;
-      const json = (await res.json()) as {
-        title?: string;
-        author_name?: string;
-        author_url?: string;
-        thumbnail_url?: string;
-        provider_name?: string;
-      };
-      return {
-        source: "youtube",
-        channel_title: json.author_name ?? null,
-        channel_url: json.author_url ?? null,
-        thumbnail_url: json.thumbnail_url ?? null,
-        provider_name: json.provider_name ?? "YouTube",
-        title: json.title ?? undefined,
-      };
-    } catch {
-      return null;
-    }
-  }, []);
-
   useEffect(() => {
     const sync = () => setPageSectionHash(window.location.hash);
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
-
-  useEffect(() => {
-    if (!a || a.kind !== "youtube" || !a.url) return;
-    if (liveMeta || repairedRef.current) return;
-    let cancelled = false;
-    (async () => {
-      const meta = await fetchYouTubeMeta(a.url!);
-      if (cancelled || !meta) return;
-      setLiveMeta(meta);
-
-      const shouldFixTitle = !!meta.title && titleLooksBad(a.title) && a.title?.trim() !== meta.title.trim();
-      const updatePatch: Record<string, unknown> = {};
-      if (shouldFixTitle && meta.title) updatePatch.title = meta.title;
-
-      const prev = (a.metadata ?? {}) as Record<string, unknown>;
-      const dbMeta = {
-        ...prev,
-        source: "youtube",
-        channel_title: meta.channel_title ?? null,
-        channel_url: meta.channel_url ?? null,
-        thumbnail_url: meta.thumbnail_url ?? null,
-        provider_name: meta.provider_name ?? "YouTube",
-      };
-
-      const tryWithMetadata = await supabase
-        .from("artifacts")
-        .update({ ...updatePatch, metadata: dbMeta })
-        .eq("id", a.id);
-      if (tryWithMetadata.error && Object.keys(updatePatch).length > 0) {
-        await supabase.from("artifacts").update(updatePatch as never).eq("id", a.id);
-      }
-
-      repairedRef.current = true;
-      if (shouldFixTitle && meta.title) {
-        setA((prev) => (prev ? { ...prev, title: meta.title ?? prev.title } : prev));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [a?.id, a?.kind, a?.url, a?.title, fetchYouTubeMeta, liveMeta]);
 
   const displayTranscriptText = useMemo(
     () => (a?.raw_text ? normalizePastedTranscript(a.raw_text) : ""),
@@ -827,6 +760,27 @@ export default function ArtifactDetailPage() {
     );
   }, [a?.id, claimVerdictRevision, lastClaimVerdictPatch]);
 
+  const {
+    reanalyze,
+    formatTranscript,
+    syncYouTubeChapters,
+    generateChaptersFromTranscript,
+    retryFetch,
+    submitPasted,
+  } = useArtifactDetailProcessingActions({
+    a,
+    setA,
+    setClaims,
+    transcriptNeedsFormatting,
+    patchArtifactMetadata,
+    pasteText,
+    setPasteOpen,
+    setSavingPaste,
+    setFormattingTranscript,
+    setSyncingYoutubeChapters,
+    setGeneratingChapters,
+  });
+
   if (loading) {
     return (
       <FrameworkLayout
@@ -915,132 +869,6 @@ export default function ArtifactDetailPage() {
     }
     const el = document.querySelector(`[data-claim-number="${claimNumber}"]`);
     scrollArtifactClaimIntoView(el, { horizontalRail: claimsHorizontalRail });
-  };
-
-  const reanalyze = async () => {
-    const normalized = normalizePastedTranscript(a.raw_text);
-    const persistNormalized = normalized !== a.raw_text.trim();
-    const processingToken = createTranscriptProcessingToken();
-    await supabase
-      .from("artifacts")
-      .update({
-        ...(persistNormalized ? { raw_text: normalized } : {}),
-        status: "analyzing",
-        error: null,
-        processing_token: processingToken,
-      })
-      .eq("id", a.id);
-    await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
-    await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
-    await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
-    setClaims([]);
-    setA({ ...a, ...(persistNormalized ? { raw_text: normalized } : {}), status: "analyzing", error: null });
-    if (persistNormalized) {
-      toast({
-        title: "Transcript timestamps normalized",
-        description: "Re-analysis uses the fixed [M:SS] lines.",
-      });
-    }
-    supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } }).catch((e) => {
-      console.error(e);
-      toast({ title: "Could not start analysis", variant: "destructive" });
-    });
-  };
-
-  const formatTranscript = async () => {
-    if (!a.raw_text.trim() || !transcriptNeedsFormatting) return;
-    const normalized = normalizePastedTranscript(a.raw_text);
-    setFormattingTranscript(true);
-    const { error } = await supabase.from("artifacts").update({ raw_text: normalized }).eq("id", a.id);
-    setFormattingTranscript(false);
-    if (error) {
-      toast({ title: "Could not format transcript", description: error.message, variant: "destructive" });
-      return;
-    }
-    setA({ ...a, raw_text: normalized });
-    toast({
-      title: "Transcript formatted",
-      description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.`,
-    });
-  };
-
-  const syncYouTubeChapters = async () => {
-    if (!a || a.kind !== "youtube") return;
-    setSyncingYoutubeChapters(true);
-    try {
-      const { error } = await supabase.functions.invoke("framework-sync-youtube-chapters", {
-        body: { artifact_id: a.id },
-      });
-      if (error) throw error;
-      await patchArtifactMetadata(a.id);
-      toast({ title: "Synced chapters from YouTube" });
-    } catch {
-      toast({ title: "Could not sync chapters from YouTube", variant: "destructive" });
-    } finally {
-      setSyncingYoutubeChapters(false);
-    }
-  };
-
-  const generateChaptersFromTranscript = async (force = false) => {
-    if (!a || a.kind !== "youtube") return;
-    setGeneratingChapters(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("framework-generate-chapters", {
-        body: { artifact_id: a.id, force },
-      });
-      if (error) throw error;
-      const payload = data as { error?: string; skipped?: boolean; count?: number } | null;
-      if (payload?.error) throw new Error(payload.error);
-      await patchArtifactMetadata(a.id);
-      if (payload?.skipped) {
-        toast({ title: "Chapters already present" });
-      } else {
-        toast({
-          title: "Chapters generated",
-          description:
-            payload?.count != null
-              ? `${payload.count} sections — Re-analyze to extract claims per chapter.`
-              : "Re-analyze to extract claims per chapter.",
-        });
-      }
-    } catch {
-      toast({ title: "Could not generate chapters", variant: "destructive" });
-    } finally {
-      setGeneratingChapters(false);
-    }
-  };
-
-  const retryFetch = async () => {
-    if (!a.url) return;
-    const processingToken = createTranscriptProcessingToken();
-    await supabase.from("artifacts").update({ status: "fetching", error: null, processing_token: processingToken }).eq("id", a.id);
-    setA({ ...a, status: "fetching", error: null });
-    void startYoutubeTranscriptFetch({ artifactId: a.id, url: a.url, processingToken });
-  };
-
-  const submitPasted = async () => {
-    if (!pasteText.trim()) return;
-    const normalized = normalizePastedTranscript(pasteText);
-    setSavingPaste(true);
-    const processingToken = createTranscriptProcessingToken();
-    await supabase
-      .from("artifacts")
-      .update({ raw_text: normalized, status: "analyzing", error: null, processing_token: processingToken })
-      .eq("id", a.id);
-    await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
-    await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
-    await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
-    setClaims([]);
-    setA({ ...a, raw_text: normalized, status: "analyzing", error: null });
-    setPasteOpen(false);
-    setSavingPaste(false);
-    toast({ title: "Transcript saved", description: "Analysis started." });
-    supabase.functions
-      .invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } })
-      .catch((e) => {
-        console.error(e);
-        toast({ title: "Could not start analysis", variant: "destructive" });
-      });
   };
 
   const quickBeliefInfluence: BeliefInfluenceAttachment | null =
@@ -1668,82 +1496,19 @@ export default function ArtifactDetailPage() {
           />
         )
       ) : null}
-      {a.kind === "youtube" && !youTubeVideoId && (() => {
-        const meta: ArtifactMetadata = {
-          ...(liveMeta ?? {}),
-          ...Object.fromEntries(Object.entries(artifactMetadata).filter(([, v]) => v != null && v !== "")),
-        };
-        const thumb = meta.thumbnail_url || liveMeta?.thumbnail_url;
-        const channel = meta.channel_title || liveMeta?.channel_title;
-        const channelUrl = meta.channel_url || liveMeta?.channel_url;
-        const provider = meta.provider_name || liveMeta?.provider_name || "YouTube";
-        if (!thumb && !channel && !a.title) return null;
-        return (
-          <section className="mb-6 rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]">
-            <div className="flex items-center gap-3">
-              {thumb && (
-                <img src={thumb} alt="" className="h-16 w-28 rounded object-cover bg-muted flex-none" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-muted-foreground">{provider}</div>
-                <div className="font-medium truncate">{a.title || "Untitled video"}</div>
-                {channel && (
-                  <div className="text-sm text-muted-foreground truncate">
-                    by {channelUrl ? (
-                      <a href={channelUrl} target="_blank" rel="noreferrer" className="hover:underline inline-flex items-center gap-1">
-                        {channel}<ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : channel}
-                  </div>
-                )}
-              </div>
-              {a.url && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="self-start"
-                  disabled={refreshingMeta}
-                  onClick={async () => {
-                    if (!a.url) return;
-                    setRefreshingMeta(true);
-                    repairedRef.current = false;
-                    setLiveMeta(null);
-                    const meta = await fetchYouTubeMeta(a.url);
-                    if (meta) {
-                      setLiveMeta(meta);
-                      const patch: Record<string, unknown> = {};
-                      if (meta.title) patch.title = meta.title;
-                      const prev = (a.metadata ?? {}) as Record<string, unknown>;
-                      const dbMeta = {
-                        ...prev,
-                        source: "youtube",
-                        channel_title: meta.channel_title ?? null,
-                        channel_url: meta.channel_url ?? null,
-                        thumbnail_url: meta.thumbnail_url ?? null,
-                        provider_name: meta.provider_name ?? "YouTube",
-                      };
-                      const tryWithMetadata = await supabase
-                        .from("artifacts")
-                        .update({ ...patch, metadata: dbMeta })
-                        .eq("id", a.id);
-                      if (tryWithMetadata.error && Object.keys(patch).length > 0) {
-                        await supabase.from("artifacts").update(patch as never).eq("id", a.id);
-                      }
-                      if (meta.title) setA((prev) => (prev ? { ...prev, title: meta.title ?? prev.title } : prev));
-                      toast({ title: "Video info refreshed" });
-                    } else {
-                      toast({ title: "Could not fetch video info", variant: "destructive" });
-                    }
-                    setRefreshingMeta(false);
-                  }}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 mr-1 ${refreshingMeta ? "animate-spin" : ""}`} /> Refresh
-                </Button>
-              )}
-            </div>
-          </section>
-        );
-      })()}
+      {a.kind === "youtube" && !youTubeVideoId ? (
+        <ArtifactYoutubeMissingVideoCard
+          artifact={a}
+          artifactMetadata={artifactMetadata}
+          liveMeta={liveMeta}
+          refreshingMeta={refreshingMeta}
+          setRefreshingMeta={setRefreshingMeta}
+          setLiveMeta={setLiveMeta}
+          setA={setA}
+          fetchYouTubeMeta={fetchYouTubeMeta}
+          repairedRef={repairedRef}
+        />
+      ) : null}
 
       {inFlight && (
         <ArtifactPipelineBanner

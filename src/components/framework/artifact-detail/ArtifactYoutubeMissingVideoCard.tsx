@@ -1,4 +1,5 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -14,9 +15,9 @@ type Props = {
   refreshingMeta: boolean;
   setRefreshingMeta: (refreshing: boolean) => void;
   setLiveMeta: (meta: ArtifactYoutubeLiveMeta | null) => void;
-  setA: React.Dispatch<React.SetStateAction<ArtifactRow | null>>;
+  setA: Dispatch<SetStateAction<ArtifactRow | null>>;
   fetchYouTubeMeta: (videoUrl: string) => Promise<ArtifactYoutubeLiveMeta | null>;
-  repairedRef: React.MutableRefObject<boolean>;
+  repairedRef: MutableRefObject<boolean>;
 };
 
 export default function ArtifactYoutubeMissingVideoCard({

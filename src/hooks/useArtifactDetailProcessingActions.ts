@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { ArtifactRow } from "@/lib/framework/artifactDetailCompare";
@@ -11,8 +11,8 @@ import type { ArtifactDetailClaim } from "@/hooks/useArtifactDetailData";
 
 type Params = {
   a: ArtifactRow | null;
-  setA: React.Dispatch<React.SetStateAction<ArtifactRow | null>>;
-  setClaims: React.Dispatch<React.SetStateAction<ArtifactDetailClaim[]>>;
+  setA: Dispatch<SetStateAction<ArtifactRow | null>>;
+  setClaims: Dispatch<SetStateAction<ArtifactDetailClaim[]>>;
   transcriptNeedsFormatting: boolean;
   patchArtifactMetadata: (artifactId: string) => Promise<void>;
   pasteText: string;
