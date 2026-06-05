@@ -123,9 +123,18 @@ export const artifactMobileInsightHeroSlide = cn(
   "md:w-[min(340px,calc(100vw-5rem))]",
 );
 
-export const artifactMobileInsightHeroNumber = "font-display text-4xl font-semibold tabular-nums leading-none";
-export const artifactMobileInsightHeroQuote =
-  "font-display text-lg font-semibold leading-snug text-white line-clamp-6 sm:text-xl";
+export const artifactMobileInsightHeroNumber =
+  "font-sans text-4xl font-bold tabular-nums leading-none tracking-tight";
+export const artifactMobileInsightHeroQuote = cn(
+  "font-sans text-lg font-semibold leading-snug text-white line-clamp-6 sm:text-[1.05rem]",
+);
+/** Transcript excerpt on dark insight cards — sans, readable on charcoal. */
+export const artifactMobileInsightHeroSourceQuote = cn(
+  "font-sans text-sm leading-relaxed text-white/75 line-clamp-2",
+);
 export const artifactMobileInsightHeroFooter = "text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55";
-export const artifactMobileInsightHeroLink =
-  "text-xs font-medium text-amber-200/90 underline-offset-2 hover:text-amber-100 hover:underline";
+/** Links + scripture refs on dark insight cards — vivid yellow on charcoal. */
+export const artifactMobileInsightHeroLink = cn(
+  "text-xs font-semibold text-[#FFD60A] underline-offset-2",
+  "hover:text-[#FFEB3B] hover:underline",
+);

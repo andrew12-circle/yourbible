@@ -10,6 +10,10 @@ vi.mock("@/components/framework/artifact-detail/ArtifactInsightRail", () => ({
   default: () => <div>Insight rail</div>,
 }));
 
+vi.mock("@/components/framework/artifact-detail/ArtifactOverviewSummary", () => ({
+  default: () => <div>Framework summary</div>,
+}));
+
 const claims = [
   {
     id: "claim-1",
@@ -42,5 +46,26 @@ describe("ArtifactDesktopOverview", () => {
     expect(screen.getByText("Key claims")).toBeInTheDocument();
     expect(screen.getByText("Insight rail")).toBeInTheDocument();
     expect(screen.getByText("People and themes panel")).toBeInTheDocument();
+  });
+
+  it("shows framework summary when provided", () => {
+    render(
+      <ArtifactDesktopOverview
+        claims={claims}
+        artifactId="artifact-1"
+        artifactStatus="ready"
+        claimsCount={claims.length}
+        frameworkOverview={{
+          summary: "Overview text",
+          key_points: ["Point one"],
+          framework_alignment: { aligns: [], conflicts: [], new_ground: [] },
+          generated_at: "2026-06-05T12:00:00.000Z",
+        }}
+        onNavigate={vi.fn()}
+        onSelectClaim={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Framework summary")).toBeInTheDocument();
   });
 });

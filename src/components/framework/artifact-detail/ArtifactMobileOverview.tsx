@@ -1,9 +1,11 @@
 import { useState } from "react";
 import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
+import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { artifactMobileStudyContentInset } from "@/lib/framework/artifactSurfaces";
+import type { ArtifactFrameworkOverview } from "@/lib/framework/artifactOverviewSummary";
 import { cn } from "@/lib/utils";
 
 type ClaimLike = {
@@ -19,6 +21,7 @@ type Props = {
   artifactStatus: string;
   claimsCount: number;
   entitiesCount?: number;
+  frameworkOverview?: ArtifactFrameworkOverview | null;
   onNavigate: (hash: string) => void;
   onSelectClaim: (claimId: string) => void;
   activeClaimId?: string | null;
@@ -33,6 +36,7 @@ export default function ArtifactMobileOverview({
   artifactStatus,
   claimsCount,
   entitiesCount,
+  frameworkOverview,
   onNavigate: _onNavigate,
   onSelectClaim,
   activeClaimId,
@@ -47,6 +51,10 @@ export default function ArtifactMobileOverview({
       className={cn("space-y-10 md:space-y-12", className)}
       aria-label="Study overview"
     >
+      {frameworkOverview ? (
+        <ArtifactOverviewSummary overview={frameworkOverview} headerClassName={artifactMobileStudyContentInset} />
+      ) : null}
+
       {claimsCount > 0 ? (
         <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
           <ArtifactStudySectionHeader

@@ -470,7 +470,7 @@ export default function TranscriptPanel({
       <div
         className={cn(
           youtubeMobile && "shrink-0 border-b border-border/50 bg-background px-3 pb-3 pt-2 sm:px-4",
-          desktopStudy && "shrink-0 px-4 pb-3 pt-4",
+          desktopStudy && "shrink-0 px-4 pb-1 pt-5",
         )}
       >
         <TranscriptToolbar

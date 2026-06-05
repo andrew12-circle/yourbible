@@ -9,6 +9,7 @@ import {
   artifactMobileInsightHeroLink,
   artifactMobileInsightHeroNumber,
   artifactMobileInsightHeroQuote,
+  artifactMobileInsightHeroSourceQuote,
 } from "@/lib/framework/artifactStudyTheme";
 import { cleanTranscriptQuoteForDisplay } from "@/lib/normalizePastedTranscript";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -122,7 +123,7 @@ export default function ArtifactInsightRail<T extends ClaimLike>({
                   </span>
                   <p className={cn(artifactMobileInsightHeroQuote, "line-clamp-4")}>{claim.claim}</p>
                   {sourceQuote ? (
-                    <p className="font-scripture text-sm leading-relaxed text-white/60 line-clamp-2">
+                    <p className={cn(artifactMobileInsightHeroSourceQuote, "line-clamp-2")}>
                       &ldquo;{sourceQuote}&rdquo;
                     </p>
                   ) : null}

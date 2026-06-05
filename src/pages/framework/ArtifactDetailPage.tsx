@@ -20,6 +20,7 @@ import ArtifactDesktopClaimFocus from "@/components/framework/artifact-detail/Ar
 import ArtifactDesktopOverview from "@/components/framework/artifact-detail/ArtifactDesktopOverview";
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
+import ArtifactDetailLegacyOverviewSummary from "@/components/framework/artifact-detail/ArtifactDetailLegacyOverviewSummary";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
 import {
@@ -106,6 +107,7 @@ import {
   withYouTubeTimestamp,
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
+import { useArtifactFrameworkOverview } from "@/hooks/useArtifactFrameworkOverview";
 
 interface ArtifactMetadata {
   source?: string;
@@ -330,6 +332,8 @@ export default function ArtifactDetailPage() {
       youtubeChaptersSource: merged.youtube_chapters_source ?? null,
     };
   }, [a?.metadata, liveMeta]);
+
+  const frameworkOverview = useArtifactFrameworkOverview(a?.metadata);
 
   const youtubeChaptersSourceLabel = useMemo(() => {
     switch (youtubeChaptersSource) {
@@ -1650,6 +1654,7 @@ export default function ArtifactDetailPage() {
             artifactId={a.id}
             artifactStatus={a.status}
             claimsCount={claims.length}
+            frameworkOverview={frameworkOverview}
             claimSources={claimSources}
             onNavigate={navigateToArtifactHash}
             onSelectClaim={openDesktopInsightExplore}
@@ -1776,6 +1781,7 @@ export default function ArtifactDetailPage() {
           artifactStatus={a.status}
           claimsCount={claims.length}
           entitiesCount={entitiesCount}
+          frameworkOverview={frameworkOverview}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}
@@ -1959,6 +1965,12 @@ export default function ArtifactDetailPage() {
           </pre>
         </details>
       )}
+
+      <ArtifactDetailLegacyOverviewSummary
+        status={a.status}
+        overview={frameworkOverview}
+        skip={desktopPremiumYoutube || showMobileOverview}
+      />
 
       {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection

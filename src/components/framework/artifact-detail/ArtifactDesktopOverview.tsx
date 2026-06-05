@@ -1,7 +1,9 @@
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import ArtifactInsightRail from "@/components/framework/artifact-detail/ArtifactInsightRail";
+import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import type { ArtifactFrameworkOverview } from "@/lib/framework/artifactOverviewSummary";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +20,7 @@ type Props = {
   artifactStatus: string;
   claimsCount: number;
   entitiesCount?: number;
+  frameworkOverview?: ArtifactFrameworkOverview | null;
   onNavigate: (hash: string) => void;
   onSelectClaim: (claimId: string) => void;
   claimSources?: Record<string, TranscriptSegment | null>;
@@ -32,6 +35,7 @@ export default function ArtifactDesktopOverview({
   artifactStatus,
   claimsCount,
   entitiesCount,
+  frameworkOverview,
   onNavigate,
   onSelectClaim,
   claimSources,
@@ -45,6 +49,8 @@ export default function ArtifactDesktopOverview({
       className={cn(artifactScrollMt, "space-y-10", className)}
       aria-label="Overview"
     >
+      {frameworkOverview ? <ArtifactOverviewSummary overview={frameworkOverview} /> : null}
+
       {claimsCount > 0 ? (
         <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
           <ArtifactStudySectionHeader

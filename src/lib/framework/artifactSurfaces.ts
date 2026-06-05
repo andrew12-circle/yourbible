@@ -173,10 +173,10 @@ export const artifactDesktopInlineVideoShellExpanded = cn(
   "relative aspect-video w-full overflow-hidden rounded-2xl bg-black",
 );
 
-/** Compact sticky mini-player after scrolling the study column. */
+/** Desktop sticky mini-player after scrolling the study column. */
 export const artifactDesktopInlineVideoShellCompact = cn(
-  "relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-black",
-  "max-h-[min(34vh,360px)] max-w-[min(100%,calc(min(34vh,360px)*16/9))]",
+  "relative mx-auto aspect-video overflow-hidden rounded-xl bg-black",
+  "max-h-[min(20vh,220px)] w-[min(100%,calc(min(20vh,220px)*16/9))]",
 );
 
 /** @deprecated Use expanded/compact shells. */

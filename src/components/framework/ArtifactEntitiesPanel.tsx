@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useKnowledgeEntityAvatarEnrichment } from "@/hooks/useKnowledgeEntityAvatarEnrichment";
 import {
   artifactHorizontalRail,
   artifactHorizontalRailBase,
   artifactMobileStudyRailLeadingPad,
 } from "@/lib/framework/artifactSurfaces";
+import { initialsFromName, isPersonEntityKind, monogramGradient } from "@/lib/framework/entityMonogram";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type KnowledgeEntityRow = {
@@ -14,6 +17,7 @@ type KnowledgeEntityRow = {
   kind: string;
   title: string;
   subtitle: string | null;
+  avatar_url: string | null;
   metadata: Record<string, unknown> | null;
   confidence: number | null;
 };
@@ -23,6 +27,12 @@ type MentionRow = {
   snippet: string | null;
   confidence: number | null;
   knowledge_entities: KnowledgeEntityRow | null;
+};
+
+type RailEntry = {
+  entity: KnowledgeEntityRow;
+  count: number;
+  confidence: number | null;
 };
 
 const KIND_ORDER = [
@@ -76,13 +86,13 @@ function EntityChipPopover({
   entity: KnowledgeEntityRow;
   mentionConfidence: number | null;
   currentArtifactId: string;
-  /** Mentions of this entity in the current artifact (mobile rail). */
   mentionCountInArtifact?: number;
-  variant?: "default" | "rail";
+  variant?: "default" | "rail" | "personRail";
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [others, setOthers] = useState<OtherMention[]>([]);
+  const isPerson = isPersonEntityKind(entity.kind);
 
   const loadOthers = useCallback(async () => {
     setLoading(true);
@@ -115,6 +125,7 @@ function EntityChipPopover({
   const subtitle = entity.subtitle?.trim();
   const metaSummary =
     typeof entity.metadata?.summary === "string" ? (entity.metadata.summary as string).trim() : "";
+  const metaBio = typeof entity.metadata?.bio === "string" ? (entity.metadata.bio as string).trim() : "";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -123,38 +134,90 @@ function EntityChipPopover({
           type="button"
           className={cn(
             "text-left font-medium text-foreground shadow-sm transition hover:bg-muted/60 active:scale-[0.99]",
-            variant === "rail"
-              ? "inline-flex shrink-0 snap-start flex-col gap-1 rounded-2xl border border-border/50 bg-card px-4 py-3 min-w-[140px] max-w-[200px]"
-              : "inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-2.5 py-1 text-xs",
+            variant === "personRail"
+              ? "inline-flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-3 min-w-[108px] max-w-[132px]"
+              : variant === "rail"
+                ? "inline-flex shrink-0 snap-start flex-col gap-1 rounded-2xl border border-border/50 bg-card px-4 py-3 min-w-[140px] max-w-[200px]"
+                : "inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-2.5 py-1 text-xs",
           )}
         >
-          <span className="flex items-center gap-1.5 min-w-0">
-            <span
-              className={cn(
-                "shrink-0 rounded-full",
-                variant === "rail" ? "h-2 w-2" : "h-1.5 w-1.5",
-                confidenceDotClass(mentionConfidence ?? entity.confidence),
-              )}
-              title={mentionConfidence != null ? `Confidence ${Math.round(mentionConfidence * 100)}%` : undefined}
-            />
-            <span className={cn("truncate", variant === "rail" ? "text-sm font-display font-semibold" : "")}>
-              {entity.title}
-            </span>
-          </span>
-          {variant === "rail" && mentionCountInArtifact != null ? (
-            <span className="text-[10px] text-muted-foreground">
-              {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
-            </span>
-          ) : null}
+          {variant === "personRail" ? (
+            <>
+              <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-border/60">
+                {entity.avatar_url ? (
+                  <AvatarImage src={entity.avatar_url} alt="" className="object-cover" />
+                ) : null}
+                <AvatarFallback
+                  className="text-sm font-medium text-white tracking-tight border-0"
+                  style={{ background: monogramGradient(entity.title) }}
+                >
+                  {initialsFromName(entity.title)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="w-full truncate text-center text-sm font-display font-semibold leading-snug">
+                {entity.title}
+              </span>
+              {mentionCountInArtifact != null ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </>
+          ) : variant === "rail" ? (
+            <>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className={cn("h-2 w-2 shrink-0 rounded-full", confidenceDotClass(mentionConfidence ?? entity.confidence))}
+                  title={
+                    mentionConfidence != null ? `Confidence ${Math.round(mentionConfidence * 100)}%` : undefined
+                  }
+                />
+                <span className="truncate text-sm font-display font-semibold">{entity.title}</span>
+              </span>
+              {mentionCountInArtifact != null ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <span
+                className={cn("h-1.5 w-1.5 shrink-0 rounded-full", confidenceDotClass(mentionConfidence ?? entity.confidence))}
+                title={
+                  mentionConfidence != null ? `Confidence ${Math.round(mentionConfidence * 100)}%` : undefined
+                }
+              />
+              <span className="truncate">{entity.title}</span>
+            </>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 space-y-3">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">{KIND_LABEL[entity.kind] ?? entity.kind}</div>
-          <div className="text-sm font-semibold leading-snug">{entity.title}</div>
-          {subtitle ? <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div> : null}
-          {metaSummary ? <div className="mt-1 text-xs text-muted-foreground line-clamp-3">{metaSummary}</div> : null}
+        <div className="flex gap-3">
+          {isPerson ? (
+            <Avatar className="h-12 w-12 shrink-0 rounded-full ring-1 ring-border/60">
+              {entity.avatar_url ? (
+                <AvatarImage src={entity.avatar_url} alt="" className="object-cover" />
+              ) : null}
+              <AvatarFallback
+                className="text-sm font-medium text-white tracking-tight border-0"
+                style={{ background: monogramGradient(entity.title) }}
+              >
+                {initialsFromName(entity.title)}
+              </AvatarFallback>
+            </Avatar>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              {KIND_LABEL[entity.kind] ?? entity.kind}
+            </div>
+            <div className="text-sm font-semibold leading-snug">{entity.title}</div>
+            {subtitle ? <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div> : null}
+          </div>
         </div>
+        {metaBio ? <div className="text-xs text-muted-foreground line-clamp-4">{metaBio}</div> : null}
+        {metaSummary ? <div className="text-xs text-muted-foreground line-clamp-3">{metaSummary}</div> : null}
         <div className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground">
           {loading ? (
             "Loading mentions…"
@@ -177,7 +240,9 @@ function EntityChipPopover({
                     {isHere ? <span className="shrink-0 text-foreground/80">This page</span> : null}
                   </div>
                   {row.snippet ? (
-                    <p className="mt-1 line-clamp-2 font-serif text-[11px] leading-relaxed text-foreground/90">{row.snippet}</p>
+                    <p className="mt-1 line-clamp-2 font-serif text-[11px] leading-relaxed text-foreground/90">
+                      {row.snippet}
+                    </p>
                   ) : null}
                 </li>
               );
@@ -186,6 +251,50 @@ function EntityChipPopover({
         )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function EntityRail({
+  entries,
+  variant,
+  artifactId,
+  personLayout,
+}: {
+  entries: RailEntry[];
+  variant: "mobileRail" | "desktopRail";
+  artifactId: string;
+  personLayout?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        variant === "mobileRail"
+          ? cn(
+              artifactHorizontalRailBase,
+              "snap-x snap-mandatory w-full max-w-none",
+              artifactMobileStudyRailLeadingPad,
+            )
+          : artifactHorizontalRail,
+        variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
+      )}
+    >
+      {entries.map(({ entity, count, confidence }) => (
+        <EntityChipPopover
+          key={entity.id}
+          entity={entity}
+          mentionConfidence={confidence}
+          currentArtifactId={artifactId}
+          mentionCountInArtifact={count}
+          variant={personLayout ? "personRail" : "rail"}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EntitySectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</div>
   );
 }
 
@@ -207,7 +316,9 @@ export default function ArtifactEntitiesPanel({
     setLoading(true);
     const { data, error } = await supabase
       .from("entity_mentions")
-      .select("id, snippet, confidence, knowledge_entities(id, kind, title, subtitle, metadata, confidence)")
+      .select(
+        "id, snippet, confidence, knowledge_entities(id, kind, title, subtitle, avatar_url, metadata, confidence)",
+      )
       .eq("artifact_id", artifactId)
       .order("created_at", { ascending: true });
     setLoading(false);
@@ -243,10 +354,7 @@ export default function ArtifactEntitiesPanel({
 
   const railEntries = useMemo(() => {
     if (!useRailLayout) return [];
-    const byEntity = new Map<
-      string,
-      { entity: KnowledgeEntityRow; count: number; confidence: number | null }
-    >();
+    const byEntity = new Map<string, RailEntry>();
     for (const m of mentions) {
       const ent = m.knowledge_entities;
       if (!ent) continue;
@@ -268,6 +376,32 @@ export default function ArtifactEntitiesPanel({
     );
   }, [mentions, useRailLayout]);
 
+  const peopleRailEntries = useMemo(
+    () => railEntries.filter((e) => isPersonEntityKind(e.entity.kind)),
+    [railEntries],
+  );
+  const themeRailEntries = useMemo(
+    () => railEntries.filter((e) => !isPersonEntityKind(e.entity.kind)),
+    [railEntries],
+  );
+
+  const personIdsNeedingAvatar = useMemo(() => {
+    const byEntity = new Map<string, KnowledgeEntityRow>();
+    for (const m of mentions) {
+      const ent = m.knowledge_entities;
+      if (!ent || !isPersonEntityKind(ent.kind)) continue;
+      byEntity.set(ent.id, ent);
+    }
+    return [...byEntity.values()]
+      .filter((e) => !e.avatar_url?.trim())
+      .map((e) => e.id);
+  }, [mentions]);
+
+  useKnowledgeEntityAvatarEnrichment(personIdsNeedingAvatar, {
+    enabled: !loading && personIdsNeedingAvatar.length > 0,
+    onEnriched: load,
+  });
+
   if (loading) {
     return (
       <div className="mb-4 rounded-lg border border-border bg-muted/15 px-3 py-2.5 text-xs text-muted-foreground">
@@ -281,64 +415,83 @@ export default function ArtifactEntitiesPanel({
   }
 
   if (useRailLayout) {
+    const labelInset = variant === "mobileRail" ? artifactMobileStudyContentInset : undefined;
     return (
-      <div
-        className={cn(
-          variant === "mobileRail"
-            ? cn(
-                artifactHorizontalRailBase,
-                "snap-x snap-mandatory w-full max-w-none",
-                artifactMobileStudyRailLeadingPad,
-              )
-            : artifactHorizontalRail,
-          variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
-        )}
-      >
-        {railEntries.map(({ entity, count, confidence }) => (
-          <EntityChipPopover
-            key={entity.id}
-            entity={entity}
-            mentionConfidence={confidence}
-            currentArtifactId={artifactId}
-            mentionCountInArtifact={count}
-            variant="rail"
-          />
-        ))}
+      <div className="space-y-5">
+        {peopleRailEntries.length > 0 ? (
+          <div className={cn("space-y-3", labelInset)}>
+            <EntitySectionLabel>Cast &amp; mentions</EntitySectionLabel>
+            <EntityRail
+              entries={peopleRailEntries}
+              variant={variant === "mobileRail" ? "mobileRail" : "desktopRail"}
+              artifactId={artifactId}
+              personLayout
+            />
+          </div>
+        ) : null}
+        {themeRailEntries.length > 0 ? (
+          <div className={cn("space-y-3", labelInset)}>
+            <EntitySectionLabel>Themes</EntitySectionLabel>
+            <EntityRail
+              entries={themeRailEntries}
+              variant={variant === "mobileRail" ? "mobileRail" : "desktopRail"}
+              artifactId={artifactId}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
 
+  const peopleKinds = grouped.kinds.filter((k) => isPersonEntityKind(k));
+  const themeKinds = grouped.kinds.filter((k) => !isPersonEntityKind(k));
+
+  const renderKindGroup = (kind: string) => {
+    const rows = grouped.map.get(kind) ?? [];
+    if (!rows.length) return null;
+    const label = KIND_LABEL[kind] ?? kind;
+    return (
+      <div key={kind}>
+        <div className="mb-1.5 text-[11px] font-medium text-foreground/90">
+          {label}{" "}
+          <span className="font-normal text-muted-foreground">({rows.length})</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {rows.map((row) => {
+            const ent = row.knowledge_entities;
+            if (!ent) return null;
+            return (
+              <EntityChipPopover
+                key={row.id}
+                entity={ent}
+                mentionConfidence={row.confidence}
+                currentArtifactId={artifactId}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="mb-4 rounded-lg border border-border bg-card/40 px-3 py-3">
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Knowledge entities</div>
-      <div className="space-y-3">
-        {grouped.kinds.map((kind) => {
-          const rows = grouped.map.get(kind) ?? [];
-          if (!rows.length) return null;
-          const label = KIND_LABEL[kind] ?? kind;
-          return (
-            <div key={kind}>
-              <div className="mb-1.5 text-[11px] font-medium text-foreground/90">
-                {label}{" "}
-                <span className="font-normal text-muted-foreground">({rows.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {rows.map((row) => {
-                  const ent = row.knowledge_entities;
-                  if (!ent) return null;
-                  return (
-                    <EntityChipPopover
-                      key={row.id}
-                      entity={ent}
-                      mentionConfidence={row.confidence}
-                      currentArtifactId={artifactId}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Knowledge entities
+      </div>
+      <div className="space-y-4">
+        {peopleKinds.length > 0 ? (
+          <div className="space-y-3">
+            <EntitySectionLabel>Cast &amp; mentions</EntitySectionLabel>
+            {peopleKinds.map(renderKindGroup)}
+          </div>
+        ) : null}
+        {themeKinds.length > 0 ? (
+          <div className="space-y-3">
+            <EntitySectionLabel>Themes</EntitySectionLabel>
+            {themeKinds.map(renderKindGroup)}
+          </div>
+        ) : null}
       </div>
     </section>
   );

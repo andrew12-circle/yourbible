@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
-import { sectionLabel } from "@/lib/framework/artifactSurfaces";
+import { artifactStudySectionTitle, sectionLabel } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -78,23 +78,36 @@ export default function TranscriptToolbar({
   return (
     <div
       className={cn(
-        "w-full min-w-0 space-y-2.5",
+        "w-full min-w-0",
+        desktopStudy ? "space-y-3.5 pb-4" : compact ? "space-y-2 pb-0" : "space-y-2.5",
         !compact &&
-          (desktopStudy ? "pb-3" : inverted ? "border-b border-white/10 pb-3" : "border-b border-border/50 pb-3"),
-        compact && "space-y-2 pb-0",
+          !desktopStudy &&
+          (inverted ? "border-b border-white/10 pb-3" : "border-b border-border/50 pb-3"),
+        desktopStudy && "border-b border-border/45",
       )}
     >
       {!hideTitle ? (
-        <div className="w-full min-w-0 space-y-1">
+        <div className="w-full min-w-0 space-y-1.5">
           <h2
             className={cn(
-              "text-sm font-semibold tracking-tight",
+              desktopStudy
+                ? cn(artifactStudySectionTitle, "text-xl")
+                : "text-sm font-semibold tracking-tight",
               inverted ? "text-primary-foreground" : "text-foreground",
             )}
           >
             Working transcript
           </h2>
-          <p className={cn(sectionLabel, inverted && "text-primary-foreground/55")}>{subtitle}</p>
+          <p
+            className={cn(
+              desktopStudy
+                ? "text-xs leading-relaxed text-muted-foreground"
+                : sectionLabel,
+              inverted && "text-primary-foreground/55",
+            )}
+          >
+            {subtitle}
+          </p>
         </div>
       ) : subtitle ? (
         <p className={cn(sectionLabel, "sr-only")}>{subtitle}</p>
@@ -113,10 +126,11 @@ export default function TranscriptToolbar({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search transcript..."
           className={cn(
-            "h-10 w-full min-w-0 pl-9 font-sans text-sm shadow-none focus-visible:ring-primary/40",
+            "h-10 w-full min-w-0 pl-9 font-sans text-sm focus-visible:ring-primary/40",
             desktopStudy
-              ? "rounded-full border border-border/50 bg-muted/25"
+              ? "rounded-full border border-border/55 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.03] dark:bg-card/90"
               : cn(
+                  "shadow-none",
                   "border-0",
                   inverted
                     ? "bg-white/10 text-primary-foreground placeholder:text-primary-foreground/40 ring-1 ring-white/15"

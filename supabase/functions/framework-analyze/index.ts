@@ -20,6 +20,10 @@ import {
   sanitizeEpistemology,
 } from "../_shared/epistemology.ts";
 import { callChatWithTools, getChatConfig } from "../_shared/aiProvider.ts";
+import {
+  generateArtifactFrameworkOverview,
+  persistArtifactFrameworkOverview,
+} from "../_shared/artifactOverviewSummary.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
@@ -1327,6 +1331,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    let framework_overview_written = false;
+    try {
+      const { data: gateOverview } = await supabase
+        .from("artifacts")
+        .select("id,metadata")
+        .eq("id", artifact_id)
+        .eq("processing_token", processing_token)
+        .maybeSingle();
+      if (gateOverview) {
+        const overview = await generateArtifactFrameworkOverview({
+          rawText,
+          beliefs: beliefsList,
+          title: (artifact as { title?: string | null }).title ?? null,
+        });
+        if (overview) {
+          await persistArtifactFrameworkOverview(
+            supabase,
+            artifact_id,
+            (gateOverview as { metadata?: unknown }).metadata ?? metadata,
+            overview,
+          );
+          framework_overview_written = true;
+          console.log("framework-analyze: framework_overview persisted");
+        }
+      }
+    } catch (e) {
+      console.error("framework overview summary failed:", e);
+    }
+
     await supabase
       .from("artifacts")
       .update({ status: "ready", error: rows.length === 0 ? "No claims could be extracted." : null })
@@ -1341,6 +1374,7 @@ Deno.serve(async (req) => {
         entity_mentions_written,
         teaching_counts,
         teaching_rows_written,
+        framework_overview_written,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
