@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  readResponseDepthSetting,
+  type ResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 
 export type InlineChatTurn = {
   id: string;
@@ -89,6 +94,7 @@ export async function sendInlineJournalChatMessage(params: {
   chatId: string;
   entryId: string;
   message: string;
+  responseDepth?: ResponseDepthSetting;
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke("my-ai-chat", {
     body: {
@@ -97,6 +103,7 @@ export async function sendInlineJournalChatMessage(params: {
       mode: "journal",
       journal_entry_id: params.entryId,
       include_general_knowledge: true,
+      response_depth: params.responseDepth ?? readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
     },
   });
   if (error) {

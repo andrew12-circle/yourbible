@@ -23,6 +23,10 @@ import {
   type ResearchPackResp,
 } from "@/lib/framework/claimResearchPack";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  readResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 
 type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
@@ -273,6 +277,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           journal_bootstrap_artifact_claim_id: research.claimId,
           journal_bootstrap_transcript_excerpt: research.transcriptExcerpt ?? null,
           include_general_knowledge: includeGeneral,
+          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
           artifact_claim_id: research.claimId,
         },
       });
@@ -424,6 +429,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           mode: "journal",
           journal_entry_id: entryId,
           include_general_knowledge: includeGeneral,
+          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
           artifact_claim_id: research.claimId,
         },
       });
@@ -466,6 +472,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           mode: "journal",
           journal_entry_id: entryId,
           include_general_knowledge: includeGeneral,
+          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
           artifact_claim_id: research.claimId,
         },
       });

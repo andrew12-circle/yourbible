@@ -13,6 +13,10 @@ import {
   upsertSketchAndTranscribe,
 } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  readResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
@@ -548,6 +552,7 @@ export function useNewJournalEntryPage() {
           mode: "journal",
           journal_entry_id: ensured.entryId,
           include_general_knowledge: true,
+          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
         },
       });
       if (error) {

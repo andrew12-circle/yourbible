@@ -38,6 +38,14 @@ import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
+import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  persistResponseDepthSetting,
+  readResponseDepthSetting,
+  type ResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -198,6 +206,9 @@ export default function JournalChatPage() {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
+  const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
+    readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -215,6 +226,7 @@ export default function JournalChatPage() {
   const lastDictationFinalAtRef = useRef(0);
   const voiceHadFinalSinceMicOnRef = useRef(false);
   const includeGeneralRef = useRef(includeGeneral);
+  const responseDepthRef = useRef(responseDepth);
   const voiceRepliesRef = useRef(voiceReplies);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsObjectUrlRef = useRef<string | null>(null);
@@ -228,6 +240,7 @@ export default function JournalChatPage() {
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
   includeGeneralRef.current = includeGeneral;
+  responseDepthRef.current = responseDepth;
   voiceRepliesRef.current = voiceReplies;
 
   useEffect(() => {
@@ -335,6 +348,10 @@ export default function JournalChatPage() {
   }, [includeGeneral]);
 
   useEffect(() => {
+    persistResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
+  }, [responseDepth]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     localStorage.setItem(LS_VOICE_REPLIES, voiceReplies ? "1" : "0");
   }, [voiceReplies]);
@@ -413,6 +430,7 @@ export default function JournalChatPage() {
                   mode: "journal" as const,
                   message: seedBody,
                   include_general_knowledge: includeGeneralRef.current,
+                  response_depth: responseDepthRef.current,
                 }
               : {
                   chat_id: cId,
@@ -420,6 +438,7 @@ export default function JournalChatPage() {
                   mode: "journal" as const,
                   journal_bootstrap_opener: true,
                   include_general_knowledge: includeGeneralRef.current,
+                  response_depth: responseDepthRef.current,
                 };
             if (!seedBody && handoff) {
               return {
@@ -596,6 +615,7 @@ export default function JournalChatPage() {
           mode: "journal",
           journal_entry_id: routeEntryId,
           include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
         },
       });
 
@@ -647,6 +667,7 @@ export default function JournalChatPage() {
           mode: "journal",
           journal_entry_id: routeEntryId,
           include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
         },
       });
       if (error) throw new Error(error.message);
@@ -766,6 +787,11 @@ export default function JournalChatPage() {
             </PopoverTrigger>
             <PopoverContent className="w-72" align="end">
               <div className="space-y-3">
+                <ResponseDepthControl
+                  idPrefix="jc-depth"
+                  value={responseDepth}
+                  onChange={setResponseDepth}
+                />
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="jc-outside" className="text-sm">Outside knowledge</Label>
                   <Switch
@@ -861,7 +887,11 @@ export default function JournalChatPage() {
                     ) : (
                       <div className="max-w-full px-1 py-1 text-[13px]">
                         <div className="prose prose-sm max-w-none dark:prose-invert text-foreground prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed">
-                          {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
+                          {m.content ? (
+                            <ReactMarkdown>{sanitizeResearchChatContent(m.content)}</ReactMarkdown>
+                          ) : (
+                            <TypingDots />
+                          )}
                         </div>
                         <CitationChips citations={parseCitationsJson(m.citations)} />
                       </div>

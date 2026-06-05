@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   Plus,
   Send,
+  Settings2,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -21,11 +22,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
+import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
+import { sanitizeResearchChatContent } from "@/lib/journal/sanitizeResearchChatContent";
+import {
+  MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
+  persistResponseDepthSetting,
+  readResponseDepthSetting,
+  type ResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 
 /** Canonical framework-grounded AI chat. Journal inline/legacy chat journals use the same `my-ai-chat` backend. */
 const LS_INCLUDE_GENERAL = "my_ai.include_general";
@@ -74,6 +85,12 @@ function readSidebarOpen(): boolean {
   return true;
 }
 
+function displayChatTitle(title: string | null | undefined): string {
+  const t = title?.trim() || "My AI";
+  if (t.length <= 44) return t;
+  return `${t.slice(0, 41).trim()}…`;
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -112,29 +129,32 @@ function citationHref(c: Citation): string | null {
 function CitationChips({ citations }: { citations: Citation[] }) {
   if (!citations.length) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {citations.map((c, i) => {
-        const href = citationHref(c);
-        const chip = (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-tight",
-              href
-                ? "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-                : "border-border/80 bg-muted/40 text-muted-foreground",
-            )}
-          >
-            {c.label}
-          </span>
-        );
-        return href ? (
-          <Link key={`${c.source_type}-${c.id ?? "x"}-${i}`} to={href} className="no-underline">
-            {chip}
-          </Link>
-        ) : (
-          <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
-        );
-      })}
+    <div className="mt-4 border-t border-border/30 pt-3">
+      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">Sources</p>
+      <div className="flex flex-wrap gap-1.5">
+        {citations.map((c, i) => {
+          const href = citationHref(c);
+          const chip = (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-normal",
+                href
+                  ? "border-border/60 bg-background text-foreground/80 hover:bg-muted/50"
+                  : "border-border/50 bg-muted/30 text-muted-foreground",
+              )}
+            >
+              {c.label}
+            </span>
+          );
+          return href ? (
+            <Link key={`${c.source_type}-${c.id ?? "x"}-${i}`} to={href} className="no-underline">
+              {chip}
+            </Link>
+          ) : (
+            <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -337,6 +357,9 @@ export default function MyAiPage() {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
+  const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
+    readResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY),
+  );
   const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
@@ -415,6 +438,10 @@ export default function MyAiPage() {
   }, [includeGeneral]);
 
   useEffect(() => {
+    persistResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
+  }, [responseDepth]);
+
+  useEffect(() => {
     resizeComposer();
   }, [input, resizeComposer]);
 
@@ -428,7 +455,8 @@ export default function MyAiPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   const activeChat = chats.find((c) => c.id === routeChatId);
-  const headerTitle = activeChat?.title?.trim() || "My AI";
+  const headerTitle = displayChatTitle(activeChat?.title);
+  const headerTitleFull = activeChat?.title?.trim() || "My AI";
   const showWelcome = !loadingMessages && messages.length === 0 && !sending;
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
 
@@ -496,6 +524,7 @@ export default function MyAiPage() {
           chat_id: routeChatId ?? null,
           message: text,
           include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
         },
       });
 
@@ -527,7 +556,7 @@ export default function MyAiPage() {
   };
 
   const sidebarContent = (
-    <div className="flex h-full min-h-0 flex-col bg-muted/20">
+    <div className="flex h-full min-h-0 flex-col bg-[#f9f9f9] dark:bg-muted/20">
       <div className="flex items-center gap-1 border-b border-border/80 px-2 py-2">
         <Button
           type="button"
@@ -603,8 +632,8 @@ export default function MyAiPage() {
           <aside className="hidden w-[260px] shrink-0 border-r border-border/80 md:flex">{sidebarContent}</aside>
         )}
 
-        <section className="relative flex min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center gap-2 border-b border-border/80 px-2 pb-2 pt-[calc(var(--safe-area-inset-top)+0.5rem)] sm:px-3">
+        <section className="relative flex min-w-0 flex-1 flex-col bg-[#f7f7f8] dark:bg-background">
+          <header className="flex shrink-0 items-center gap-2 border-b border-border/50 bg-background/80 px-2 pb-2 pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-sm sm:px-3">
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -656,7 +685,9 @@ export default function MyAiPage() {
               <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
             </div>
 
-            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-[15px]">{headerTitle}</h1>
+            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-[15px]" title={headerTitleFull}>
+              {headerTitle}
+            </h1>
 
             {routeChatId && visibleMessages.length > 0 && (
               <>
@@ -683,6 +714,31 @@ export default function MyAiPage() {
               </>
             )}
 
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Chat settings">
+                  <Settings2 className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72" align="end">
+                <div className="space-y-3">
+                  <ResponseDepthControl
+                    idPrefix="my-ai-depth"
+                    value={responseDepth}
+                    onChange={setResponseDepth}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="my-ai-outside-pop" className="text-sm">Outside knowledge</Label>
+                    <Switch
+                      id="my-ai-outside-pop"
+                      checked={includeGeneral}
+                      onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <Button
               variant="ghost"
               size="icon"
@@ -694,7 +750,7 @@ export default function MyAiPage() {
             </Button>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-safe-36 sm:px-5">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-6 pb-40 sm:px-4">
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
@@ -727,19 +783,23 @@ export default function MyAiPage() {
             )}
 
             {!loadingMessages && visibleMessages.length > 0 && (
-              <div className="mx-auto max-w-2xl space-y-4 pb-4">
+              <div className="mx-auto w-full max-w-3xl space-y-8 pb-6">
                 {visibleMessages.map((m) => (
-                  <div key={m.id}>
+                  <div key={m.id} className="w-full">
                     {m.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
-                          {m.content}
+                        <div className="max-w-[min(100%,42rem)] rounded-[1.25rem] bg-[#daeeff] px-4 py-3 text-[15px] leading-relaxed text-[#0d0d0d] shadow-sm dark:bg-primary/15 dark:text-foreground">
+                          <p className="whitespace-pre-wrap">{m.content}</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="max-w-full px-0.5 py-0.5">
-                        <div className="prose prose-sm max-w-none dark:prose-invert text-foreground prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed prose-headings:font-semibold">
-                          {m.content ? <ReactMarkdown>{m.content}</ReactMarkdown> : <TypingDots />}
+                      <div className="max-w-none px-1 sm:px-2">
+                        <div className="prose prose-neutral max-w-none dark:prose-invert prose-p:my-3 prose-p:text-[15px] prose-p:leading-7 prose-li:my-1 prose-li:text-[15px] prose-li:leading-7 prose-strong:font-semibold prose-headings:mb-2 prose-headings:mt-5 prose-headings:font-semibold prose-ul:my-3 prose-ol:my-3 text-foreground">
+                          {m.content ? (
+                            <ReactMarkdown>{sanitizeResearchChatContent(m.content)}</ReactMarkdown>
+                          ) : (
+                            <TypingDots />
+                          )}
                         </div>
                         <CitationChips citations={parseCitationsJson(m.citations)} />
                       </div>
@@ -751,11 +811,11 @@ export default function MyAiPage() {
           </div>
 
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-5"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#f7f7f8] via-[#f7f7f8]/95 to-transparent px-3 pb-3 pt-10 dark:from-background dark:via-background/95 sm:px-4"
             style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
           >
-            <div className="pointer-events-auto mx-auto max-w-2xl">
-              <div className="flex items-end gap-1.5 rounded-[26px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
+            <div className="pointer-events-auto mx-auto w-full max-w-3xl">
+              <div className="flex items-end gap-2 rounded-[1.75rem] border border-border/60 bg-background px-3 py-2 shadow-[0_2px_12px_rgba(0,0,0,0.08)] dark:border-border/80">
                 <Textarea
                   ref={taRef}
                   value={input}
@@ -769,32 +829,23 @@ export default function MyAiPage() {
                   rows={1}
                   disabled={sending}
                   spellCheck
-                  placeholder={sending ? "Thinking…" : "Message My AI"}
-                  className="min-h-[40px] max-h-40 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  placeholder={sending ? "Thinking…" : "Ask anything"}
+                  className="min-h-[44px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <Button
                   type="button"
                   size="icon"
                   disabled={sending || !input.trim()}
                   onClick={() => void send()}
-                  className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
+                  className="mb-0.5 h-9 w-9 shrink-0 rounded-full bg-foreground text-background hover:bg-foreground/90 disabled:opacity-40"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/80">
-                <span>Enter to send · Shift+Enter for newline</span>
-                <label htmlFor="my-ai-outside" className="inline-flex cursor-pointer items-center gap-1.5">
-                  <span>Outside knowledge</span>
-                  <Switch
-                    id="my-ai-outside"
-                    checked={includeGeneral}
-                    onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
-                    className="scale-75"
-                  />
-                </label>
-              </div>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
+                My AI can make mistakes. Grounded in your framework when sources match.
+              </p>
             </div>
           </div>
         </section>

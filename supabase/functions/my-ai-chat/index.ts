@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
+import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { buildJournalChatSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
 
 const corsHeaders = {
@@ -32,7 +33,15 @@ type RequestBody = {
   /** Standalone My AI thread → new journal entry with transcript + summary. */
   export_chat_to_journal_id?: string | null;
   retry_last?: boolean;
+  /** auto | reflect | deep — controls substantive vs reflective replies. */
+  response_depth?: "auto" | "reflect" | "deep";
 };
+
+const BRACKET_CITATION_RE = /\[(?:artifact|journal|belief|entity|influence|tension):[0-9a-f-]{36}\]/i;
+
+function hasRawBracketCitations(reply: string): boolean {
+  return BRACKET_CITATION_RE.test(reply);
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -179,8 +188,12 @@ function looksLikeGeneralKnowledgeFallback(reply: string): Citation[] {
   return [];
 }
 
-function escapeMd(s: string): string {
-  return s.replace(/\r\n/g, "\n").replace(/\*\*/g, "\\*\\*");
+function titleFromFirstMessage(message: string): string {
+  const flat = message.replace(/\s+/g, " ").trim();
+  if (!flat) return "New chat";
+  const sentence = flat.split(/[.!?](?:\s|$)/)[0]?.trim() || flat;
+  const base = sentence.length > 56 ? `${sentence.slice(0, 53).trim()}…` : sentence;
+  return base || "New chat";
 }
 
 const CHAT_EXPORT_MARKER = "<!-- chat-export:v1 -->";
@@ -251,11 +264,13 @@ type JudgeScore = {
   non_genericness: number;
   voice_match: number;
   emotional_resonance: number;
+  substantive_help: number;
+  citation_hygiene: number;
   total: number;
   rationale?: string;
 };
 
-const RUBRIC_KEYS = [
+const RUBRIC_KEYS_REFLECT = [
   "specificity",
   "continuity",
   "non_genericness",
@@ -263,10 +278,26 @@ const RUBRIC_KEYS = [
   "emotional_resonance",
 ] as const;
 
+function computeJudgeTotal(sc: JudgeScore, resolvedDepth: ResolvedResponseDepth): number {
+  if (resolvedDepth === "deep") {
+    return (
+      sc.substantive_help * 2.5 +
+      sc.specificity +
+      sc.continuity +
+      sc.non_genericness +
+      sc.voice_match +
+      sc.emotional_resonance +
+      sc.citation_hygiene * 1.5
+    );
+  }
+  return RUBRIC_KEYS_REFLECT.reduce((s, k) => s + sc[k], 0) + sc.citation_hygiene * 0.5;
+}
+
 async function generateRankedReply(
   systemText: string,
   userPayload: string,
   userMessage: string,
+  resolvedDepth: ResolvedResponseDepth,
 ): Promise<
   {
     winner: Candidate;
@@ -295,15 +326,23 @@ async function generateRankedReply(
     };
   }
 
+  const deepExtra = resolvedDepth === "deep"
+    ? `
+- substantive_help: offers usable reframing, insight, or biblical narrative examples — not only empathy plus a question (weight this heavily)
+- citation_hygiene: 10 if reply has NO raw [journal:uuid] tokens in prose; 0 if bracket UUIDs appear in reply text`
+    : `
+- substantive_help: optional; score if present
+- citation_hygiene: 10 if reply has NO raw [journal:uuid] tokens in prose; 0 if bracket UUIDs appear in reply text`;
+
   const judgeSys =
     `You are a strict rubric judge for a persistent cognitive companion. Score each candidate 1-10 on:
-- specificity: names actual bracket-tagged rows ([belief:uuid] etc.) and concrete particulars from context, not generalities
+- specificity: names concrete particulars from context (beliefs, journal themes, their words) — not genericities
 - continuity: references the user's evolution, recurring themes, or named transitions instead of treating this as a fresh turn
 - non_genericness: avoids therapist filler ("it sounds like", "you've been on a journey", "thank you for sharing")
 - voice_match: matches the user's voice_signature in vocabulary and cadence
-- emotional_resonance: lands the actual emotional register of the user's message
+- emotional_resonance: lands the actual emotional register of the user's message${deepExtra}
 Return ONLY JSON with shape:
-{"scores":[{"index":0,"specificity":N,"continuity":N,"non_genericness":N,"voice_match":N,"emotional_resonance":N,"rationale":"one short sentence"}, ...],"winner_index":N}`;
+{"scores":[{"index":0,"specificity":N,"continuity":N,"non_genericness":N,"voice_match":N,"emotional_resonance":N,"substantive_help":N,"citation_hygiene":N,"rationale":"one short sentence"}, ...],"winner_index":N}`;
 
   const judgeUser = `User message:\n${userMessage}\n\nCandidates:\n${
     candidates
@@ -330,16 +369,19 @@ Return ONLY JSON with shape:
               const v = row[k];
               return typeof v === "number" ? Math.max(0, Math.min(10, v)) : 0;
             };
+            const candReply = candidates.find((c) => c.index === idx)?.reply ?? "";
             const sc: JudgeScore = {
               specificity: get("specificity"),
               continuity: get("continuity"),
               non_genericness: get("non_genericness"),
               voice_match: get("voice_match"),
               emotional_resonance: get("emotional_resonance"),
+              substantive_help: get("substantive_help"),
+              citation_hygiene: hasRawBracketCitations(candReply) ? 0 : Math.max(get("citation_hygiene"), 8),
               total: 0,
               rationale: typeof row.rationale === "string" ? row.rationale.slice(0, 400) : undefined,
             };
-            sc.total = RUBRIC_KEYS.reduce((s, k) => s + sc[k], 0);
+            sc.total = computeJudgeTotal(sc, resolvedDepth);
             scoresByIndex.set(idx, sc);
           }
         }
@@ -764,7 +806,8 @@ Deno.serve(async (req) => {
         journalEntryId,
       );
       const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
-      const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix);
+      const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
+      const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
       const packClaimId = claimBootstrap ||
         (typeof body.artifact_claim_id === "string" && /^[0-9a-f-]{36}$/i.test(body.artifact_claim_id.trim())
           ? body.artifact_claim_id.trim()
@@ -976,9 +1019,10 @@ Deno.serve(async (req) => {
       excludeJournal,
     );
     const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
+    const resolvedDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), message);
     const systemText = journalMode
-      ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix)
-      : buildMyAiSystemPrompt(includeGeneral, partnerAppendix);
+      ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
+      : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
 
     const claimPackIdRaw = typeof body.artifact_claim_id === "string" ? body.artifact_claim_id.trim() : "";
     const claimPackId = /^[0-9a-f-]{36}$/i.test(claimPackIdRaw) ? claimPackIdRaw : "";
@@ -989,7 +1033,7 @@ Deno.serve(async (req) => {
     const userPayload =
       `${contextPack.contextBlock}\n\n${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}User message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
 
-    const ranked = await generateRankedReply(systemText, userPayload, message);
+    const ranked = await generateRankedReply(systemText, userPayload, message, resolvedDepth);
     if ("error" in ranked) return jsonResponse({ error: ranked.error }, 502);
     const { reply, citations } = { reply: ranked.winner.reply, citations: ranked.winner.citations };
 
@@ -1050,9 +1094,9 @@ Deno.serve(async (req) => {
     };
     const isJournalLinked = !!chatRow?.journal_entry_id;
     if (!isJournalLinked && isFirstUserMessage && !skipUserInsert) {
-      patch.title = message.replace(/\s+/g, " ").trim().slice(0, 80);
+      patch.title = titleFromFirstMessage(message);
     } else if (!chatRow?.title?.trim() && !isJournalLinked) {
-      patch.title = message.replace(/\s+/g, " ").trim().slice(0, 80);
+      patch.title = titleFromFirstMessage(message);
     }
 
     await supabase.from("my_ai_chats").update(patch).eq("id", chatId).eq("user_id", userId);

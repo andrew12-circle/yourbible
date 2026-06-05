@@ -8,6 +8,10 @@ import {
   sendInlineJournalChatMessage,
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  readResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
 
 type UseInlineJournalChatOpts = {
   userId: string | undefined;
@@ -103,6 +107,7 @@ export function useInlineJournalChat({
           chatId: ensured.chatId,
           entryId: ensured.entryId,
           message: trimmed,
+          responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
         });
         const loaded = await loadInlineChatTurns(ensured.chatId);
         setChatTurns(loaded);
