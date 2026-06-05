@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw, FileText, ExternalLink, Clock } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
@@ -21,6 +21,7 @@ import ArtifactDesktopOverview from "@/components/framework/artifact-detail/Arti
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
 import ArtifactDetailLegacyOverviewSummary from "@/components/framework/artifact-detail/ArtifactDetailLegacyOverviewSummary";
+import ArtifactYoutubeMissingVideoCard from "@/components/framework/artifact-detail/ArtifactYoutubeMissingVideoCard";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
 import {
@@ -49,6 +50,7 @@ import {
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
+import { useArtifactDetailProcessingActions } from "@/hooks/useArtifactDetailProcessingActions";
 import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs";
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
