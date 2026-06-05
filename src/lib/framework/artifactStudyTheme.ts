@@ -36,23 +36,23 @@ export function formatInsightClaimNumber(index: number): string {
   return String(index + 1).padStart(2, "0");
 }
 
-/** Violet primary accent for artifact study chrome (tabs, CTAs, links). */
+/** Primary accent for artifact study chrome (tabs, CTAs, links) — matches app-theme system blue. */
 export const artifactStudyPrimaryButton = cn(
-  "bg-violet-600 text-white shadow-lg hover:bg-violet-700",
+  "bg-primary text-primary-foreground shadow-lg hover:bg-primary/90",
 );
 
-export const artifactStudyLink = "font-medium text-violet-600 hover:text-violet-700";
+export const artifactStudyLink = "font-medium text-primary hover:text-primary/80";
 export const artifactStudyCount = "text-muted-foreground";
-export const artifactStudyTabActive = "border-b-2 border-violet-600 text-foreground";
-export const artifactStudyChapterLink = "text-violet-600 hover:text-violet-700";
-export const artifactStudyDotActive = "bg-violet-600";
+export const artifactStudyTabActive = "border-b-2 border-primary text-foreground";
+export const artifactStudyChapterLink = "text-primary hover:text-primary/80";
+export const artifactStudyDotActive = "bg-primary";
 
 /** Claim index on dark insight cards — iOS Messages bubble green (#34C759). */
 export const artifactInsightClaimNumberColor = "text-[#34C759]";
 
 export const artifactStudyTranscriptActive =
-  "rounded-lg bg-violet-100/90 ring-1 ring-violet-300/50";
-export const artifactStudyTranscriptPlay = "fill-violet-600 text-violet-600";
+  "rounded-lg bg-primary/10 ring-1 ring-primary/30";
+export const artifactStudyTranscriptPlay = "fill-primary text-primary";
 
 /** Active transcript line — matches dark Key claims cards (black bg, green time badge). */
 export const artifactStudyTranscriptActiveRow = cn(
@@ -72,13 +72,13 @@ export const artifactStudyTranscriptActiveTime = cn(
 export const artifactStudyTranscriptActiveText = "font-semibold text-white";
 
 export const artifactStudyIconWell = {
-  chapters: "bg-violet-100 text-violet-600 group-hover:bg-violet-100",
+  chapters: "bg-primary/10 text-primary group-hover:bg-primary/10",
   people: "bg-orange-100 text-orange-600 group-hover:bg-orange-100",
   insights: "bg-sky-100 text-sky-600 group-hover:bg-sky-100",
 } as const;
 
 export const artifactContinueCardHover =
-  "hover:border-violet-200/80 hover:shadow-[0_12px_36px_rgba(124,58,237,0.08)]";
+  "hover:border-primary/25 hover:shadow-[0_12px_36px_rgba(0,122,255,0.08)]";
 
 export const artifactInsightPreviewCard = cn(
   "flex min-h-[280px] shrink-0 snap-start flex-col justify-between rounded-2xl border p-5 text-left",
@@ -133,8 +133,8 @@ export const artifactMobileInsightHeroSourceQuote = cn(
   "font-sans text-sm leading-relaxed text-white/75 line-clamp-2",
 );
 export const artifactMobileInsightHeroFooter = "text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55";
-/** Links + scripture refs on dark insight cards — vivid yellow on charcoal. */
+/** Links + scripture refs on dark insight cards — soft butter yellow on charcoal. */
 export const artifactMobileInsightHeroLink = cn(
-  "text-xs font-semibold text-[#FFD60A] underline-offset-2",
-  "hover:text-[#FFEB3B] hover:underline",
+  "text-xs font-medium text-[#FFE08A] underline-offset-2",
+  "hover:text-[#FFF0B8] hover:underline",
 );

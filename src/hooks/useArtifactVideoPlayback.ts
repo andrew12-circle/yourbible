@@ -5,7 +5,7 @@ import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
 import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
-import { resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
+import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
@@ -145,18 +145,42 @@ export function useArtifactVideoPlayback(options: {
   }, [apiPlayerWanted, pipEnabled, staticTelemetry, youtubePip.pipMode]);
 
   const restoreStaticEmbedProgress = useCallback(
-    (opts?: { resume?: boolean }) => {
+    (opts?: { resume?: boolean; forceSeek?: boolean }) => {
       if (apiPlayerWanted) return;
       const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
-      if (seconds > 0) staticTelemetry.seekTo(seconds, true);
-      if (opts?.resume) staticTelemetry.playVideo();
+      const live = staticTelemetry.getCurrentTime();
+      const fresh = staticTelemetry.isTelemetryFresh(800);
+      const shouldSeek =
+        opts?.forceSeek ||
+        embedNeedsResumeSeek(live, seconds, fresh, Boolean(opts?.resume));
+      if (shouldSeek && seconds > 0) staticTelemetry.seekTo(seconds, true);
+      if (opts?.resume && !staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
     },
     [apiPlayerWanted, staticTelemetry],
   );
 
-  /** Tab/app background: persist position; on return, seek + resume (iOS often reloads the iframe). */
+  /** Tab/app background: persist position; on return, resume only — seek if iframe lost place. */
   useEffect(() => {
     if (apiPlayerWanted) return;
+
+    const resumeAfterVisible = (shouldResume: boolean) => {
+      staticTelemetry.requestCurrentTime();
+      window.setTimeout(() => {
+        const live = staticTelemetry.getCurrentTime();
+        const saved = playbackFallbackRef.current;
+        const resolved = Math.max(saved, Number.isFinite(live) ? live : 0);
+        playbackFallbackRef.current = resolved;
+        persistSeconds(resolved);
+
+        const fresh = staticTelemetry.isTelemetryFresh(800);
+        if (embedNeedsResumeSeek(live, saved, fresh, shouldResume) && resolved > 0) {
+          staticTelemetry.seekTo(resolved, true);
+        }
+        if (shouldResume && !staticTelemetry.getIsPlaying()) {
+          staticTelemetry.playVideo();
+        }
+      }, 80);
+    };
 
     const onVisibility = () => {
       if (document.hidden) {
@@ -168,15 +192,14 @@ export function useArtifactVideoPlayback(options: {
       }
       const shouldResume = resumeStaticOnVisibleRef.current;
       resumeStaticOnVisibleRef.current = false;
-      const t = staticTelemetry.getCurrentTime();
-      playbackFallbackRef.current = Math.max(playbackFallbackRef.current, t);
-      persistSeconds(playbackFallbackRef.current);
-      restoreStaticEmbedProgress({ resume: shouldResume });
+      resumeAfterVisible(shouldResume);
     };
 
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
-      onVisibility();
+      const shouldResume = resumeStaticOnVisibleRef.current;
+      resumeStaticOnVisibleRef.current = false;
+      resumeAfterVisible(shouldResume);
     };
 
     document.addEventListener("visibilitychange", onVisibility);
@@ -185,12 +208,12 @@ export function useArtifactVideoPlayback(options: {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [apiPlayerWanted, persistSeconds, restoreStaticEmbedProgress, staticTelemetry]);
+  }, [apiPlayerWanted, persistSeconds, staticTelemetry]);
 
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
-    restoreStaticEmbedProgress();
+    restoreStaticEmbedProgress({ forceSeek: true });
   }, [restoreStaticEmbedProgress]);
 
   const staticEmbedSrc = useMemo(() => {

@@ -510,7 +510,7 @@ export function useYouTubeEmbedPlayer(options: {
         persistPlayback();
         const shouldResume = resumeOnVisibleRef.current;
         resumeOnVisibleRef.current = false;
-        resumeIfWasPlaying(shouldResume);
+        if (shouldResume && !playingRef.current) resumeIfWasPlaying(true);
       }
     };
     document.addEventListener("visibilitychange", onVisibility);

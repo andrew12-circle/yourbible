@@ -27,6 +27,9 @@ export const artifactMobileDockPadding = "pb-[var(--artifact-mobile-dock-h,5.5re
 /** Default dock height (pill bar + safe area) — set on layout root when dock mounts. */
 export const ARTIFACT_MOBILE_DOCK_H = "6rem";
 
+/** Desktop / mobile study column that hosts the floating app dock. */
+export const ARTIFACT_STUDY_PANE_SELECTOR = "[data-artifact-study-pane]";
+
 /** Collapsed header = video + sticky toolbar (meta scrolled away). */
 export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
 

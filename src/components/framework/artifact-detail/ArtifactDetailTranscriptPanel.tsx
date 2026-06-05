@@ -1,6 +1,7 @@
 import { type MutableRefObject, type ReactNode } from "react";
 import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
+import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";
 
 type SegmentBookmarkActions = {
   onSaveBookmark: (seconds: number, snippet: string) => void;
@@ -47,6 +48,7 @@ export type ArtifactDetailTranscriptPanelProps = {
   mobilePinnedPane: boolean;
   mobileBodyScrollRef: MutableRefObject<HTMLDivElement | null> | undefined;
   mobileTab: "study" | "transcript" | "notes" | "journal";
+  moments: ArtifactMoment[];
 };
 
 export function buildArtifactDetailTranscriptPanel({
@@ -88,7 +90,12 @@ export function buildArtifactDetailTranscriptPanel({
   mobilePinnedPane,
   mobileBodyScrollRef,
   mobileTab,
+  moments,
 }: ArtifactDetailTranscriptPanelProps): ReactNode {
+  const bookmarkedStartSeconds = moments
+    .filter((moment) => moment.kind === "bookmark")
+    .map((moment) => moment.start_seconds);
+
   return (
     <TranscriptPanel
       artifactId={artifactId}
@@ -141,6 +148,7 @@ export function buildArtifactDetailTranscriptPanel({
       onSaveSegmentNote={saveSegmentNote}
       outerScrollContainerRef={mobilePinnedPane ? mobileBodyScrollRef : undefined}
       transcriptTabActive={!isDesktop ? mobileTab === "transcript" : true}
+      bookmarkedStartSeconds={bookmarkedStartSeconds}
     />
   );
 }

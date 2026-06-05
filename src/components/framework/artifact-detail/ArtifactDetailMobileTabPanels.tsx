@@ -127,31 +127,43 @@ export default function ArtifactDetailMobileTabPanels({
   );
 }
 
-export function ArtifactDetailMobileAppDock({
-  mobilePinnedPane,
-  mobileInsightExploreOpen,
-  mobileTab,
-  onStudyClick,
-  onTranscriptClick,
-  onJournalClick,
-  onMenuClick,
-  onHomeClick,
-}: Pick<
+type AppDockProps = Pick<
   Props,
-  | "mobilePinnedPane"
-  | "mobileInsightExploreOpen"
   | "mobileTab"
   | "onStudyClick"
   | "onTranscriptClick"
   | "onJournalClick"
   | "onMenuClick"
   | "onHomeClick"
->) {
-  if (!mobilePinnedPane || mobileInsightExploreOpen) return null;
+> & {
+  visible: boolean;
+  insightExploreOpen: boolean;
+  journalActive?: boolean;
+  anchor?: "viewport" | "pane";
+  layoutRootSelector?: string;
+};
+
+export function ArtifactDetailMobileAppDock({
+  visible,
+  insightExploreOpen,
+  mobileTab,
+  journalActive,
+  anchor = "viewport",
+  layoutRootSelector,
+  onStudyClick,
+  onTranscriptClick,
+  onJournalClick,
+  onMenuClick,
+  onHomeClick,
+}: AppDockProps) {
+  if (!visible || insightExploreOpen) return null;
 
   return (
     <MobileAppDock
+      anchor={anchor}
+      layoutRootSelector={layoutRootSelector}
       activeTab={mobileTab}
+      journalActive={journalActive}
       onStudyClick={onStudyClick}
       onTranscriptClick={onTranscriptClick}
       onJournalClick={onJournalClick}

@@ -71,7 +71,7 @@ export default function ArtifactMobilePinnedScrollChrome({
         <div
           ref={stickyChromeRef}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-[38] bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
+            "fixed inset-x-0 bottom-0 z-[38] flex flex-col overflow-hidden bg-background shadow-sm supports-[backdrop-filter]:bg-background/95",
             "top-[var(--artifact-mobile-video-h,56.25vw)]",
           )}
         >

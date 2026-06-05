@@ -123,13 +123,11 @@ export function writePipLayoutToSession(artifactId: string, layout: ArtifactPipL
 
 export function defaultArtifactPipLayout(): ArtifactPipLayout {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const w = Math.min(380, PIP_MAX_W, vw - PIP_VIEWPORT_PAD * 2);
   const width = Math.max(PIP_MIN_W, w);
-  const totalH = pipTotalHeightPx(width);
   return {
     left: Math.max(PIP_VIEWPORT_PAD, vw - width - PIP_VIEWPORT_PAD),
-    top: Math.max(PIP_VIEWPORT_PAD, vh - totalH - PIP_VIEWPORT_PAD),
+    top: PIP_VIEWPORT_PAD,
     width,
   };
 }

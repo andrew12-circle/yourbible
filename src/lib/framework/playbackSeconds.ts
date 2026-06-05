@@ -18,3 +18,30 @@ export function resolveEmbedPlaybackSeconds(
   if (!telemetryFresh && Number.isFinite(fallback) && fallback >= 0) return fallback;
   return staticTime;
 }
+
+/** Seconds live may lag saved before we treat the embed as desynced. */
+export const EMBED_RESUME_SEEK_DRIFT_SEC = 4;
+
+/**
+ * After tab/app background, only seek when the iframe likely lost position.
+ * Never seek when live is at/ ahead of saved — avoids jumping backward after
+ * background playback (telemetry often stalls at the pre-hide time on iOS).
+ */
+export function embedNeedsResumeSeek(
+  liveSeconds: number,
+  savedSeconds: number,
+  telemetryFresh: boolean,
+  wasPlayingWhileHidden: boolean,
+): boolean {
+  if (savedSeconds <= 0) return false;
+  const live = Number.isFinite(liveSeconds) ? Math.max(0, liveSeconds) : 0;
+  const saved = Math.max(0, savedSeconds);
+
+  if (live >= saved - 1) return false;
+
+  if (wasPlayingWhileHidden && !telemetryFresh) return false;
+
+  if (live < 2 && saved >= 10 && !wasPlayingWhileHidden) return true;
+
+  return saved - live > EMBED_RESUME_SEEK_DRIFT_SEC;
+}

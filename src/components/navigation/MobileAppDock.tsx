@@ -4,6 +4,7 @@ import FloatingTabBar, { type FloatingTabItem } from "@/components/navigation/Fl
 
 type Props = {
   className?: string;
+  anchor?: "viewport" | "pane";
   layoutRootSelector?: string;
   activeTab?: "study" | "transcript" | "notes" | "journal";
   onStudyClick?: () => void;
@@ -16,6 +17,7 @@ type Props = {
 
 export default function MobileAppDock({
   className,
+  anchor = "viewport",
   layoutRootSelector = "[data-artifact-youtube-mobile]",
   activeTab = "study",
   onStudyClick,
@@ -43,6 +45,7 @@ export default function MobileAppDock({
     <FloatingTabBar
       items={items}
       tone="surface"
+      anchor={anchor}
       className={className}
       layoutRootSelector={layoutRootSelector}
       layoutHeightVar="--artifact-mobile-dock-h"

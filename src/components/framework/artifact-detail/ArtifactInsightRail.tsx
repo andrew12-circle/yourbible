@@ -173,7 +173,7 @@ export default function ArtifactInsightRail<T extends ClaimLike>({
                     ) : null}
                   </div>
                   {primaryRef ? (
-                    <p className={cn("text-xs font-semibold tracking-tight", artifactMobileInsightHeroLink)}>
+                    <p className={cn("text-xs font-medium tracking-tight", artifactMobileInsightHeroLink)}>
                       {primaryRef}
                     </p>
                   ) : null}

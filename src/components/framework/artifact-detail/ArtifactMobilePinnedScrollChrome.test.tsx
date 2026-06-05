@@ -53,6 +53,9 @@ describe("ArtifactMobilePinnedScrollChrome", () => {
     renderChrome(true);
 
     expect(screen.getByText("Insight review")).toBeInTheDocument();
+    const panel = screen.getByText("Insight review").parentElement;
+    expect(panel?.className).toMatch(/overflow-hidden/);
+    expect(panel?.className).toMatch(/flex/);
   });
 
   it("resets pinned spacing after closing the insight panel", () => {

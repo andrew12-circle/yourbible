@@ -150,7 +150,7 @@ export default function ArtifactChaptersSection({
                 className={cn(artifactRailCard, "flex min-h-[120px] flex-col justify-between")}
               >
                 <div>
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-violet-600">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-primary">
                     {formatTranscriptClock(chapter.start_seconds)}
                   </span>
                   <p className="mt-2 font-display text-[15px] font-semibold leading-snug text-foreground line-clamp-3">

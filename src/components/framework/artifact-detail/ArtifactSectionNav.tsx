@@ -129,7 +129,7 @@ export default function ArtifactSectionNav({
                 <Icon
                   className={cn(
                     "h-3.5 w-3.5 shrink-0",
-                    active && isDesktopVariant ? "text-violet-600 opacity-100" : "opacity-75",
+                    active && isDesktopVariant ? "text-primary opacity-100" : "opacity-75",
                   )}
                   aria-hidden
                 />

@@ -14,6 +14,8 @@ type FloatingTabBarProps = {
   items: FloatingTabItem[];
   /** `wallpaper` — frosted glass over the home-screen gradient; `surface` — app chrome. */
   tone?: "wallpaper" | "surface";
+  /** `viewport` — fixed to screen bottom; `pane` — bottom center of nearest positioned ancestor. */
+  anchor?: "viewport" | "pane";
   className?: string;
   /** When set, syncs dock height on the nearest matching ancestor. */
   layoutRootSelector?: string;
@@ -104,6 +106,7 @@ export function FloatingTabBarShell({
 export default function FloatingTabBar({
   items,
   tone = "surface",
+  anchor = "viewport",
   className,
   layoutRootSelector,
   layoutHeightVar = "--floating-tab-bar-h",
@@ -146,7 +149,8 @@ export default function FloatingTabBar({
       ref={barRef}
       aria-label="App"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[45] flex justify-center px-4",
+        anchor === "pane" ? "absolute inset-x-0 bottom-0 z-[45]" : "fixed inset-x-0 bottom-0 z-[45]",
+        "flex justify-center px-4",
         "pointer-events-none pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2",
         className,
       )}

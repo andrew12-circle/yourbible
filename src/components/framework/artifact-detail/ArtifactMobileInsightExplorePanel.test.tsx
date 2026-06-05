@@ -73,6 +73,7 @@ describe("ArtifactMobileInsightExplorePanel", () => {
     expect(within(actionToolbar).getByText("Keep")).toBeInTheDocument();
     expect(within(actionToolbar).getByText("Reject")).toBeInTheDocument();
     expect(container.querySelector(".backdrop-blur-md")).toBeTruthy();
+    expect(container.querySelector("section")?.className).toMatch(/h-full/);
   });
 
   it("shows claim actions below the header on desktop", () => {

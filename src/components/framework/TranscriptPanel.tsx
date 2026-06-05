@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Bookmark, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,9 @@ import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import TranscriptSegmentBookmarkSheet, {
   type TranscriptSegmentBookmarkActions,
 } from "@/components/framework/artifact-detail/TranscriptSegmentBookmarkSheet";
+import TranscriptSegmentBookmarkButton, {
+  bookmarkRibbonKey,
+} from "@/components/framework/artifact-detail/TranscriptSegmentBookmarkButton";
 import TranscriptPanelFooter from "@/components/framework/artifact-detail/TranscriptPanelFooter";
 import TranscriptToolbar from "@/components/framework/artifact-detail/TranscriptToolbar";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -131,6 +134,8 @@ export interface TranscriptPanelProps {
   outerScrollContainerRef?: RefObject<HTMLElement | null>;
   /** Mobile: false while Study tab scrolls the shared pane (do not turn off transcript follow). */
   transcriptTabActive?: boolean;
+  /** Saved bookmark moments (seconds) — ribbon stays red on matching lines. */
+  bookmarkedStartSeconds?: number[];
 }
 
 export default function TranscriptPanel({
@@ -169,6 +174,7 @@ export default function TranscriptPanel({
   outerScrollContainerRef,
   transcriptTabActive = true,
   setPlaybackRate,
+  bookmarkedStartSeconds,
 }: TranscriptPanelProps) {
   const youtubeMobile = variant === "youtubeMobile";
   const desktopStudy = variant === "desktopStudy";
@@ -207,6 +213,33 @@ export default function TranscriptPanel({
   } | null>(null);
   const [segmentNoteOpen, setSegmentNoteOpen] = useState(false);
   const [segmentNoteSeconds, setSegmentNoteSeconds] = useState<number | null>(null);
+  const [markedBookmarkSeconds, setMarkedBookmarkSeconds] = useState<Set<number>>(() => new Set());
+
+  const savedBookmarkKeys = useMemo(() => {
+    const keys = new Set<number>();
+    for (const seconds of bookmarkedStartSeconds ?? []) {
+      keys.add(bookmarkRibbonKey(seconds));
+    }
+    return keys;
+  }, [bookmarkedStartSeconds]);
+
+  const isRibbonMarked = useCallback(
+    (seconds: number) => {
+      const key = bookmarkRibbonKey(seconds);
+      return savedBookmarkKeys.has(key) || markedBookmarkSeconds.has(key);
+    },
+    [markedBookmarkSeconds, savedBookmarkKeys],
+  );
+
+  const markRibbon = useCallback((seconds: number) => {
+    const key = bookmarkRibbonKey(seconds);
+    setMarkedBookmarkSeconds((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
 
   const resumePlaybackIfNeeded = useCallback(() => {
     if (wasPlayingBeforeMenuRef.current) {
@@ -222,10 +255,11 @@ export default function TranscriptPanel({
 
   const openBookmarkMenu = useCallback(
     (seconds: number, snippet: string, stamp: string | null, estimated?: boolean) => {
+      markRibbon(seconds);
       pauseForOverlay();
       setBookmarkMenuSegment({ seconds, snippet, stamp, estimated });
     },
-    [pauseForOverlay],
+    [markRibbon, pauseForOverlay],
   );
 
   const closeBookmarkMenu = useCallback(
@@ -470,7 +504,7 @@ export default function TranscriptPanel({
       <div
         className={cn(
           youtubeMobile && "shrink-0 border-b border-border/50 bg-background px-3 pb-3 pt-2 sm:px-4",
-          desktopStudy && "shrink-0 px-4 pb-1 pt-5",
+          desktopStudy && "shrink-0 px-3 pb-1 pt-4",
         )}
       >
         <TranscriptToolbar
@@ -526,7 +560,7 @@ export default function TranscriptPanel({
               : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background"
             : cn(
                 "lg:scrollbar-hover-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto",
-                desktopStudy ? "bg-transparent px-1" : artifactInset,
+                desktopStudy ? "bg-transparent px-0" : artifactInset,
               ),
         )}
       >
@@ -552,15 +586,24 @@ export default function TranscriptPanel({
                 className={cn(
                   "group relative transition-all duration-200 ease-out",
                   activeStudyLine
-                    ? cn(artifactStudyTranscriptActiveRow, "flex flex-col gap-2.5 px-3.5 py-3.5 sm:px-4")
-                    : "flex gap-2 px-3 py-3 sm:gap-3",
+                    ? cn(
+                        artifactStudyTranscriptActiveRow,
+                        "mx-1 flex flex-col gap-2 px-2.5 py-3 sm:mx-1.5 sm:px-3",
+                      )
+                    : studyTranscript
+                      ? "flex gap-2 px-2 py-2.5 sm:px-3"
+                      : "flex gap-2 px-3 py-3 sm:gap-3",
                   canSeek &&
                     (studyTranscript
                       ? "cursor-pointer hover:bg-muted/25"
                       : "cursor-pointer hover:bg-muted/30"),
                   isActive && !studyTranscript && "bg-primary/[0.07]",
                   studyTranscript && !isActive && "border-b border-border/40",
-                  segment.isContinuation && !activeStudyLine && "border-l-2 border-muted-foreground/15 pl-3",
+                  segment.isContinuation &&
+                    !activeStudyLine &&
+                    (studyTranscript
+                      ? "border-l-2 border-muted-foreground/15 pl-2 ml-[2.65rem]"
+                      : "border-l-2 border-muted-foreground/15 pl-3"),
                 )}
                 role={canSeek ? "button" : undefined}
                 tabIndex={canSeek ? 0 : undefined}
@@ -597,14 +640,14 @@ export default function TranscriptPanel({
                         <span aria-hidden />
                       )}
                       {canBookmark && segment.startSeconds != null && segmentBookmarkActions ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 shrink-0 rounded-full p-0 bg-white/10 text-white/80 shadow-sm hover:bg-white/15 hover:text-white"
+                        <TranscriptSegmentBookmarkButton
+                          studyTranscript={studyTranscript}
+                          isActive
+                          isMarked={isRibbonMarked(segment.startSeconds)}
                           disabled={bookmarking}
-                          aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
-                          title="Bookmark this line"
+                          stamp={stamp}
+                          startSeconds={segment.startSeconds}
+                          layout="inline"
                           onClick={(e) => {
                             e.stopPropagation();
                             const snippet = segment.text.trim().slice(0, 120);
@@ -615,9 +658,7 @@ export default function TranscriptPanel({
                               segment.timestampEstimated,
                             );
                           }}
-                        >
-                          <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        </Button>
+                        />
                       ) : null}
                     </div>
                     <p
@@ -631,7 +672,27 @@ export default function TranscriptPanel({
                   </>
                 ) : (
                   <>
-                {showTimestamps && (
+                {showTimestamps && studyTranscript ? (
+                  timed && stamp ? (
+                    <span
+                      className={cn(
+                        "shrink-0 pt-0.5 text-[11px] font-medium tabular-nums leading-none text-muted-foreground",
+                        "w-[2.65rem]",
+                        segment.timestampEstimated && "italic",
+                      )}
+                    >
+                      {stamp}
+                    </span>
+                  ) : timed ? (
+                    <span className="w-[2.65rem] shrink-0 text-[10px] tabular-nums text-muted-foreground/50">
+                      —
+                    </span>
+                  ) : (
+                    <span className="w-[2.65rem] shrink-0 truncate text-[10px] font-medium tabular-nums text-muted-foreground/70">
+                      {segment.label}
+                    </span>
+                  )
+                ) : showTimestamps ? (
                   <div className="flex w-[4.5rem] shrink-0 items-start gap-1 sm:w-[5.5rem]">
                     <span className="w-3 shrink-0" aria-hidden />
                     <div className="flex min-w-0 flex-1 justify-end">
@@ -639,11 +700,7 @@ export default function TranscriptPanel({
                         <span
                           className={cn(
                             "inline-flex min-h-[1.375rem] min-w-[3.25rem] max-w-full items-center justify-center text-[11px] font-medium tabular-nums leading-none text-muted-foreground",
-                            !studyTranscript &&
-                              "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
-                            studyTranscript &&
-                              isActive &&
-                              artifactStudyTranscriptActiveTime,
+                            "rounded-full border border-border/60 bg-background/80 px-2 py-1 text-center text-foreground/90",
                             segment.timestampEstimated && "italic",
                           )}
                         >
@@ -658,7 +715,7 @@ export default function TranscriptPanel({
                       )}
                     </div>
                   </div>
-                )}
+                ) : null}
                 <p
                   className={cn(
                     "min-w-0 flex-1 font-sans text-sm leading-relaxed",
@@ -677,21 +734,14 @@ export default function TranscriptPanel({
                   <HighlightedText text={segment.text} query={search} />
                 </p>
                 {canBookmark && segment.startSeconds != null && segmentBookmarkActions ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size={studyTranscript ? "sm" : "icon"}
-                    className={cn(
-                      "absolute top-2 h-8 w-8 shrink-0 text-muted-foreground",
-                      studyTranscript
-                        ? "right-2 rounded-full p-0 hover:bg-white/10 hover:text-white/90"
-                        : "right-1.5 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
-                      studyTranscript && isActive && "bg-white/10 text-white/80 shadow-sm hover:bg-white/15 hover:text-white",
-                      studyTranscript && "opacity-100",
-                    )}
+                  <TranscriptSegmentBookmarkButton
+                    studyTranscript={studyTranscript}
+                    isActive={Boolean(isActive)}
+                    isMarked={isRibbonMarked(segment.startSeconds)}
                     disabled={bookmarking}
-                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
-                    title="Bookmark this line"
+                    stamp={stamp}
+                    startSeconds={segment.startSeconds}
+                    layout="absolute"
                     onClick={(e) => {
                       e.stopPropagation();
                       const snippet = segment.text.trim().slice(0, 120);
@@ -702,29 +752,23 @@ export default function TranscriptPanel({
                         segment.timestampEstimated,
                       );
                     }}
-                  >
-                    <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  </Button>
+                  />
                 ) : canBookmark && onBookmarkSegment && segment.startSeconds != null ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "absolute right-1.5 top-2 h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground",
-                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
-                    )}
+                  <TranscriptSegmentBookmarkButton
+                    studyTranscript={studyTranscript}
+                    isActive={Boolean(isActive)}
+                    isMarked={isRibbonMarked(segment.startSeconds)}
                     disabled={bookmarking}
-                    aria-label={`Bookmark at ${stamp ?? formatTranscriptClock(segment.startSeconds)}`}
-                    title="Bookmark this line"
+                    stamp={stamp}
+                    startSeconds={segment.startSeconds}
+                    layout="absolute"
                     onClick={(e) => {
                       e.stopPropagation();
+                      markRibbon(segment.startSeconds!);
                       const snippet = segment.text.trim().slice(0, 120);
                       onBookmarkSegment(segment.startSeconds!, snippet);
                     }}
-                  >
-                    <Bookmark className="h-3.5 w-3.5" aria-hidden />
-                  </Button>
+                  />
                 ) : null}
                   </>
                 )}
@@ -746,6 +790,7 @@ export default function TranscriptPanel({
           showPlaybackRate={embedAvailable && playerReady}
           expanded={transcriptExpanded}
           onToggleExpanded={() => setTranscriptExpanded((v) => !v)}
+          className="px-3"
         />
       ) : null}
 

@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   artifactDesktopHero,
-  artifactDesktopInlineVideoShellCompact,
   artifactDesktopInlineVideoShellExpanded,
   formatArtifactDate,
   formatArtifactDuration,
@@ -51,8 +50,6 @@ export type ArtifactDesktopHeroProps = {
   videoSlotRef?: RefObject<HTMLDivElement | null>;
   /** Player is in floating PiP — hero slot is an empty anchor only. */
   videoInPip?: boolean;
-  /** Sticky mini-player after scrolling the study column (desktop premium). */
-  videoCompact?: boolean;
 };
 
 function HeroStatusBadge({ inFlight, statusLabel }: { inFlight: boolean; statusLabel: string }) {
@@ -188,7 +185,7 @@ function HeroActions({
           className={cn(
             btnH,
             "gap-2 rounded-full px-6 text-sm font-semibold",
-            inverted && "bg-violet-600 text-white shadow-lg hover:bg-violet-700",
+            inverted && "bg-primary text-primary-foreground shadow-lg hover:bg-primary/90",
           )}
           onClick={onTogglePlay}
         >
@@ -266,7 +263,6 @@ export default function ArtifactDesktopHero({
   videoSlot,
   videoSlotRef,
   videoInPip = false,
-  videoCompact = false,
 }: ArtifactDesktopHeroProps) {
   const thumb = thumbnailUrl || (youTubeVideoId ? youtubeHqThumbnail(youTubeVideoId) : null);
   const durationLabel = formatArtifactDuration(durationSeconds);
@@ -279,23 +275,12 @@ export default function ArtifactDesktopHero({
       <section
         ref={videoSlotRef}
         className={cn(
-          "shrink-0 overflow-hidden rounded-2xl transition-[background,box-shadow,padding,border-color] duration-300 ease-out",
-          videoCompact
-            ? "sticky top-0 z-20 border border-black/40 bg-black pb-1 shadow-md ring-1 ring-white/10"
-            : "relative mb-3 border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]",
+          "relative mb-3 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]",
         )}
         aria-label="Video"
       >
         <h1 className="sr-only">{displayTitle}</h1>
-        <div
-          id="video"
-          className={cn(
-            "transition-[max-height,width,margin] duration-300 ease-out",
-            videoCompact
-              ? artifactDesktopInlineVideoShellCompact
-              : artifactDesktopInlineVideoShellExpanded,
-          )}
-        >
+        <div id="video" className={artifactDesktopInlineVideoShellExpanded}>
           {videoSlot}
         </div>
         {videoInPip ? (

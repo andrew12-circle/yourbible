@@ -6,6 +6,7 @@ import {
   PIP_ENTER_VISIBLE_RATIO,
   PIP_EXIT_VISIBLE_RATIO,
   PIP_MIN_W,
+  PIP_VIEWPORT_PAD,
   pipVisibilitySignal,
   shouldAllowPipEnter,
   shouldUseScrollRootForPipIo,
@@ -57,8 +58,9 @@ describe("shouldAllowPipEnter", () => {
 });
 
 describe("artifact pip layout", () => {
-  it("defaults and clamps width to at least PIP_MIN_W", () => {
+  it("defaults to top-right and clamps width to at least PIP_MIN_W", () => {
     const d = defaultArtifactPipLayout();
+    expect(d.top).toBe(PIP_VIEWPORT_PAD);
     expect(d.width).toBeGreaterThanOrEqual(PIP_MIN_W);
     const clamped = clampArtifactPipLayout({ left: 8, top: 8, width: 120 });
     expect(clamped.width).toBeGreaterThanOrEqual(PIP_MIN_W);
