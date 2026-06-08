@@ -21,6 +21,7 @@ import ArtifactDesktopOverview from "@/components/framework/artifact-detail/Arti
 import ArtifactMobileInsightExploreSlot from "@/components/framework/artifact-detail/ArtifactMobileInsightExploreSlot";
 import ArtifactMobileOverview from "@/components/framework/artifact-detail/ArtifactMobileOverview";
 import ArtifactDetailLegacyOverviewSummary from "@/components/framework/artifact-detail/ArtifactDetailLegacyOverviewSummary";
+import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactYoutubeMissingVideoCard from "@/components/framework/artifact-detail/ArtifactYoutubeMissingVideoCard";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
 import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
@@ -109,6 +110,7 @@ import {
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
 import { useArtifactFrameworkOverview } from "@/hooks/useArtifactFrameworkOverview";
+import { useArtifactCorpusStanding } from "@/hooks/useArtifactCorpusStanding";
 import { useArtifactYoutubeMetaRepair } from "@/hooks/useArtifactYoutubeMetaRepair";
 
 interface ArtifactMetadata {
@@ -273,6 +275,42 @@ export default function ArtifactDetailPage() {
 
   const frameworkOverview = useArtifactFrameworkOverview(a?.metadata);
 
+  const claimBeliefCounts = useMemo(() => {
+    let agree = 0;
+    let disagree = 0;
+    let newCount = 0;
+    for (const c of claims) {
+      if (c.match_relation === "agree") agree += 1;
+      else if (c.match_relation === "disagree") disagree += 1;
+      else newCount += 1;
+    }
+    return { agree, disagree, new: newCount };
+  }, [claims]);
+
+  const corpusStandingQuery = useArtifactCorpusStanding(
+    a?.id,
+    a?.status,
+    claims.length,
+    user?.id,
+    a?.status === "ready",
+  );
+
+  const corpusStanding = useMemo(
+    () => ({
+      agreeCount: claimBeliefCounts.agree,
+      disagreeCount: claimBeliefCounts.disagree,
+      newCount: claimBeliefCounts.new,
+      peerLibraryCount: corpusStandingQuery.peerLibraryCount,
+      peers: corpusStandingQuery.peers,
+      echoClaimCount: corpusStandingQuery.echoClaimCount,
+      loading: corpusStandingQuery.loading,
+      error: corpusStandingQuery.error,
+      embeddingPending: corpusStandingQuery.embeddingPending,
+      onReload: corpusStandingQuery.reload,
+    }),
+    [claimBeliefCounts, corpusStandingQuery],
+  );
+
   const youtubeChaptersSourceLabel = useMemo(() => {
     switch (youtubeChaptersSource) {
       case "youtube_data_api_v3":
@@ -303,6 +341,7 @@ export default function ArtifactDetailPage() {
   const videoPlayback = useArtifactVideoPlayback({
     artifactId: id,
     youTubeVideoId,
+    videoTitle: a?.title ?? null,
     mainScrollRef,
     transcriptSegments,
     transcriptRefs,
@@ -1517,6 +1556,7 @@ export default function ArtifactDetailPage() {
             claimsCount={claims.length}
             frameworkOverview={frameworkOverview}
             claimSources={claimSources}
+            corpusStanding={corpusStanding}
             onNavigate={navigateToArtifactHash}
             onSelectClaim={openDesktopInsightExplore}
             onSeeScripture={openDesktopInsightExplore}
@@ -1580,6 +1620,7 @@ export default function ArtifactDetailPage() {
           claimsCount={claims.length}
           entitiesCount={entitiesCount}
           frameworkOverview={frameworkOverview}
+          corpusStanding={corpusStanding}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}
@@ -1769,6 +1810,23 @@ export default function ArtifactDetailPage() {
         overview={frameworkOverview}
         skip={desktopPremiumYoutube || showMobileOverview}
       />
+
+      {a.status === "ready" && !desktopPremiumYoutube && !showMobileOverview ? (
+        <ArtifactLibraryStanding
+          artifactId={a.id}
+          claimsCount={claims.length}
+          agreeCount={corpusStanding.agreeCount}
+          disagreeCount={corpusStanding.disagreeCount}
+          newCount={corpusStanding.newCount}
+          peerLibraryCount={corpusStanding.peerLibraryCount}
+          peers={corpusStanding.peers}
+          echoClaimCount={corpusStanding.echoClaimCount}
+          loading={corpusStanding.loading}
+          error={corpusStanding.error}
+          embeddingPending={corpusStanding.embeddingPending}
+          onReload={corpusStanding.onReload}
+        />
+      ) : null}
 
       {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection

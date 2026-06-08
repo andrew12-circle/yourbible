@@ -138,6 +138,9 @@ export interface TranscriptPanelProps {
   bookmarkedStartSeconds?: number[];
 }
 
+/** Brief pause after manual scroll; auto-scroll always resumes afterward. */
+const MANUAL_SCROLL_FOLLOW_PAUSE_MS = 4000;
+
 export default function TranscriptPanel({
   artifactId,
   segments,
@@ -195,8 +198,8 @@ export default function TranscriptPanel({
   const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [showTimestamps, setShowTimestamps] = useState(true);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [playbackTick, setPlaybackTick] = useState(0);
-  const [followPlayback, setFollowPlayback] = useState(true);
   const innerScrollRef = useRef<HTMLDivElement | null>(null);
   const prevActiveSegmentIdRef = useRef<string | null>(null);
   const lastObservedTimeRef = useRef(-1);
@@ -316,10 +319,9 @@ export default function TranscriptPanel({
 
   useEffect(() => {
     if (!playerReady) return;
-    const ms = followPlayback ? 250 : 500;
-    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), ms);
+    const id = window.setInterval(() => setPlaybackTick((n) => n + 1), 250);
     return () => window.clearInterval(id);
-  }, [playerReady, followPlayback]);
+  }, [playerReady]);
 
   useEffect(() => {
     const t = getPlaybackSeconds();
@@ -328,13 +330,6 @@ export default function TranscriptPanel({
     }
     lastObservedTimeRef.current = t;
   }, [playbackTick, getPlaybackSeconds]);
-
-  const defaultedFollowOnReadyRef = useRef(false);
-  useEffect(() => {
-    if (!playerReady || defaultedFollowOnReadyRef.current) return;
-    defaultedFollowOnReadyRef.current = true;
-    setFollowPlayback(true);
-  }, [playerReady]);
 
   const activeSegmentId = findActiveSegmentId(segments, getPlaybackSeconds());
 
@@ -370,7 +365,8 @@ export default function TranscriptPanel({
 
   useEffect(() => {
     if (!transcriptTabActive) return;
-    if (!playerReady || searchActive || !activeSegmentId || !highlightActive || !followPlayback) return;
+    if (!autoScrollEnabled) return;
+    if (!playerReady || searchActive || !activeSegmentId || !highlightActive) return;
     if (Date.now() < userPausedFollowUntilRef.current) return;
     if (!playbackMoving) return;
 
@@ -393,13 +389,13 @@ export default function TranscriptPanel({
     searchActive,
     activeSegmentId,
     highlightActive,
-    followPlayback,
     playbackMoving,
     playbackTick,
     markProgrammaticScroll,
     useOuterScroll,
     outerScrollContainerRef,
     transcriptTabActive,
+    autoScrollEnabled,
   ]);
 
   useEffect(() => {
@@ -414,16 +410,23 @@ export default function TranscriptPanel({
     const onScroll = () => {
       if (programmaticScrollRef.current) return;
       if (useOuterScroll && !transcriptTabActive) return;
-      setFollowPlayback(false);
+      userPausedFollowUntilRef.current = Date.now() + MANUAL_SCROLL_FOLLOW_PAUSE_MS;
     };
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
   }, [useOuterScroll, outerScrollContainerRef, transcriptTabActive]);
 
+  const handleAutoScrollChange = useCallback((enabled: boolean) => {
+    setAutoScrollEnabled(enabled);
+    if (enabled) {
+      userPausedFollowUntilRef.current = 0;
+      prevActiveSegmentIdRef.current = null;
+    }
+  }, []);
+
   const seekFromSegment = useCallback(
     (seconds: number) => {
       userPausedFollowUntilRef.current = 0;
-      setFollowPlayback(true);
       prevActiveSegmentIdRef.current = null;
       markProgrammaticScroll();
       onSeek(seconds);
@@ -515,18 +518,15 @@ export default function TranscriptPanel({
           fullPageJournalLabel={fullPageJournalLabel}
           showTimestamps={showTimestamps}
           onToggleTimestamps={() => setShowTimestamps((v) => !v)}
-          followPlayback={followPlayback}
-          onToggleFollowPlayback={() => {
-            setFollowPlayback((v) => {
-              const next = !v;
-              if (next) prevActiveSegmentIdRef.current = null;
-              return next;
-            });
-          }}
+          followPlayback
+          onToggleFollowPlayback={() => {}}
           isPlaying={isPlaying}
           onTogglePlayback={onTogglePlayback}
           showPlaybackControl={!youtubeMobile && timed && playerReady && embedAvailable}
-          showFollowControl={timed && playerReady}
+          showFollowControl={false}
+          autoScrollEnabled={autoScrollEnabled}
+          onAutoScrollChange={handleAutoScrollChange}
+          showAutoScrollSwitch={youtubeMobile}
           showFormatButton={showFormatButton && !youtubeMobile}
           formattingTranscript={formattingTranscript}
           onFormatTranscript={onFormatTranscript}
@@ -780,11 +780,8 @@ export default function TranscriptPanel({
 
       {desktopStudy ? (
         <TranscriptPanelFooter
-          followPlayback={followPlayback}
-          onFollowPlaybackChange={(next) => {
-            setFollowPlayback(next);
-            if (next) prevActiveSegmentIdRef.current = null;
-          }}
+          autoScrollEnabled={autoScrollEnabled}
+          onAutoScrollChange={handleAutoScrollChange}
           playbackRate={playbackRate}
           onPlaybackRateChange={handlePlaybackRateChange}
           showPlaybackRate={embedAvailable && playerReady}

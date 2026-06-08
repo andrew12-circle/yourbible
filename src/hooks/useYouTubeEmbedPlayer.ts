@@ -163,7 +163,12 @@ export function useYouTubeEmbedPlayer(options: {
   const playerRef = useRef<YTPlayer | null>(null);
   const mountedVideoIdRef = useRef<string | null>(null);
   const playingRef = useRef(false);
+  const intendedPlayingRef = useRef(false);
   const resumeOnVisibleRef = useRef(false);
+  const lastAppPauseAtRef = useRef(0);
+  const resumeAfterPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoResumeCountRef = useRef(0);
+  const autoResumeWindowStartRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
   const startRef = useRef(startSeconds);
   startRef.current = startSeconds;
@@ -191,6 +196,42 @@ export function useYouTubeEmbedPlayer(options: {
       }
     });
   }, []);
+
+  const clearResumeAfterPauseTimer = useCallback(() => {
+    if (resumeAfterPauseTimerRef.current != null) {
+      window.clearTimeout(resumeAfterPauseTimerRef.current);
+      resumeAfterPauseTimerRef.current = null;
+    }
+  }, []);
+
+  const sendResumePlayCommand = useCallback(() => {
+    const now = Date.now();
+    if (now - autoResumeWindowStartRef.current > 60_000) {
+      autoResumeWindowStartRef.current = now;
+      autoResumeCountRef.current = 0;
+    }
+    if (autoResumeCountRef.current >= 3) {
+      intendedPlayingRef.current = false;
+      return;
+    }
+    autoResumeCountRef.current += 1;
+    try {
+      playerRef.current?.playVideo();
+    } catch {
+      /* player not ready */
+    }
+  }, []);
+
+  const scheduleResumeIfIntended = useCallback(() => {
+    if (!intendedPlayingRef.current || document.hidden) return;
+    if (Date.now() - lastAppPauseAtRef.current < 500) return;
+    clearResumeAfterPauseTimer();
+    resumeAfterPauseTimerRef.current = window.setTimeout(() => {
+      resumeAfterPauseTimerRef.current = null;
+      if (!intendedPlayingRef.current || document.hidden || playingRef.current) return;
+      sendResumePlayCommand();
+    }, 450);
+  }, [clearResumeAfterPauseTimer, sendResumePlayCommand]);
 
   const applyPendingSeek = useCallback(() => {
     const pending = pendingSeekRef.current;
@@ -223,6 +264,7 @@ export function useYouTubeEmbedPlayer(options: {
   }, [artifactId]);
 
   const destroyPlayer = useCallback(() => {
+    clearResumeAfterPauseTimer();
     try {
       playerRef.current?.destroy();
     } catch {
@@ -232,9 +274,10 @@ export function useYouTubeEmbedPlayer(options: {
     pendingSeekRef.current = null;
     mountedVideoIdRef.current = null;
     playingRef.current = false;
+    intendedPlayingRef.current = false;
     setPlaying(false);
     setReady(false);
-  }, []);
+  }, [clearResumeAfterPauseTimer]);
 
   useLayoutEffect(() => {
     if (!enabled || !videoId) {
@@ -381,16 +424,20 @@ export function useYouTubeEmbedPlayer(options: {
               const PS = window.YT?.PlayerState;
               if (!PS) return;
               if (e.data === PS.PLAYING) {
+                intendedPlayingRef.current = true;
                 playingRef.current = true;
                 setPlaying(true);
               } else if (e.data === PS.BUFFERING) {
                 if (playingRef.current) setPlaying(true);
-              } else if (
-                e.data === PS.PAUSED ||
-                e.data === PS.ENDED ||
-                e.data === PS.UNSTARTED ||
-                e.data === PS.CUED
-              ) {
+              } else if (e.data === PS.PAUSED) {
+                playingRef.current = false;
+                setPlaying(false);
+                scheduleResumeIfIntended();
+              } else if (e.data === PS.ENDED) {
+                intendedPlayingRef.current = false;
+                playingRef.current = false;
+                setPlaying(false);
+              } else if (e.data === PS.UNSTARTED || e.data === PS.CUED) {
                 playingRef.current = false;
                 setPlaying(false);
               }
@@ -447,6 +494,7 @@ export function useYouTubeEmbedPlayer(options: {
     persistPlayback,
     applyPendingSeek,
     resumeIfWasPlaying,
+    scheduleResumeIfIntended,
     syncPlayerSize,
     videoId,
     reinitNonce,
@@ -495,6 +543,16 @@ export function useYouTubeEmbedPlayer(options: {
   }, [layoutKey, ready, resumeIfWasPlaying, syncPlayerSize]);
 
   useEffect(() => {
+    if (!ready) return;
+    const keepalive = window.setInterval(() => {
+      if (!intendedPlayingRef.current || document.hidden || playingRef.current) return;
+      if (Date.now() - lastAppPauseAtRef.current < 500) return;
+      sendResumePlayCommand();
+    }, 2500);
+    return () => window.clearInterval(keepalive);
+  }, [ready, sendResumePlayCommand]);
+
+  useEffect(() => {
     if (!ready || !artifactId) return;
     const tick = window.setInterval(persistPlayback, 2000);
     return () => window.clearInterval(tick);
@@ -539,6 +597,7 @@ export function useYouTubeEmbedPlayer(options: {
   const getIsPlaying = useCallback(() => playingRef.current, []);
 
   const playVideo = useCallback(() => {
+    intendedPlayingRef.current = true;
     playingRef.current = true;
     setPlaying(true);
     try {
@@ -549,6 +608,9 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const pauseVideo = useCallback(() => {
+    lastAppPauseAtRef.current = Date.now();
+    intendedPlayingRef.current = false;
+    clearResumeAfterPauseTimer();
     playingRef.current = false;
     setPlaying(false);
     try {
@@ -556,7 +618,7 @@ export function useYouTubeEmbedPlayer(options: {
     } catch {
       /* player not ready */
     }
-  }, []);
+  }, [clearResumeAfterPauseTimer]);
 
   const togglePlayback = useCallback(() => {
     if (playingRef.current) pauseVideo();
@@ -569,7 +631,6 @@ export function useYouTubeEmbedPlayer(options: {
       if (document.hidden) {
         resumeOnVisibleRef.current = playingRef.current;
         persistPlayback();
-        if (playingRef.current) pauseVideo();
       } else {
         persistPlayback();
         const shouldResume = resumeOnVisibleRef.current;
@@ -579,7 +640,7 @@ export function useYouTubeEmbedPlayer(options: {
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [pauseVideo, persistPlayback, resumeIfWasPlaying]);
+  }, [persistPlayback, resumeIfWasPlaying]);
 
   const setPlaybackRate = useCallback((rate: number) => {
     try {

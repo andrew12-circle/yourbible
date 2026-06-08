@@ -159,6 +159,9 @@ export default function ArtifactVideoStage({
       )}
       aria-hidden={pipMode ? true : undefined}
     >
+      {!showStaticIframe && !showApiPlayer ? (
+        <img src={thumb} alt="" className="absolute inset-0 z-[1] h-full w-full object-cover" />
+      ) : null}
       {staticEmbedShell}
       {apiPlayerShell}
     </div>

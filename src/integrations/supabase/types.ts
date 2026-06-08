@@ -1969,6 +1969,36 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
+      get_library_corpus_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          artifact_id: string
+          title: string | null
+          kind: string
+          created_at: string
+          claim_count: number
+          agree_count: number
+          disagree_count: number
+          new_count: number
+          peer_library_count: number
+        }[]
+      }
+      match_corpus_peers_for_artifact: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_artifact_id: string
+        }
+        Returns: {
+          avg_similarity: number
+          compared_claim_count: number
+          peer_artifact_id: string
+          strong_match_count: number
+          top_peer_claim: string
+          top_similarity: number
+          top_source_claim: string
+        }[]
+      }
       match_artifact_claims: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {

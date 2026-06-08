@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { Plus, Upload } from "lucide-react";
+import { Layers, Plus, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -270,6 +270,16 @@ export default function ArtifactsListPage() {
       ) : (
         <>
           {toolbar}
+          <Link
+            to="/framework/library-standing"
+            className="mt-6 flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-sm transition-colors hover:border-border hover:bg-card/70"
+          >
+            <Layers className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <span>
+              <span className="font-medium text-foreground">Library standing</span>
+              <span className="text-muted-foreground"> — see how every source compares to your beliefs and each other.</span>
+            </span>
+          </Link>
           {viewMode === "list" ? (
             <div className="mt-8 space-y-3">
               {sortedRows.length === 0 ? (

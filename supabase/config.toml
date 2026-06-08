@@ -60,7 +60,16 @@ verify_jwt = true
 [functions.framework-sync-youtube-chapters]
 verify_jwt = true
 
+[functions.framework-corpus-peers]
+verify_jwt = true
+
+[functions.embed-row]
+verify_jwt = true
+
 [functions.framework-youtube-channel-avatar]
+verify_jwt = true
+
+[functions.framework-youtube-audio-url]
 verify_jwt = true
 
 [functions.framework-generate-chapters]

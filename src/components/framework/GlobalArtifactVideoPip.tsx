@@ -58,6 +58,9 @@ export default function GlobalArtifactVideoPip() {
       playbackFallbackRef.current = seconds;
       persistSeconds(seconds);
     },
+    iosAudioHandoff: session
+      ? { videoId: session.youTubeVideoId, title: session.title }
+      : undefined,
   });
 
   const staticEmbedSrc = useMemo(() => {

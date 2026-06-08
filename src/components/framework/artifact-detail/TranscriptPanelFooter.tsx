@@ -1,4 +1,5 @@
 import { Maximize2, Minimize2 } from "lucide-react";
+import TranscriptAutoScrollToggle from "@/components/framework/artifact-detail/TranscriptAutoScrollToggle";
 import {
   Select,
   SelectContent,
@@ -6,14 +7,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
 type Props = {
-  followPlayback: boolean;
-  onFollowPlaybackChange: (value: boolean) => void;
+  autoScrollEnabled: boolean;
+  onAutoScrollChange: (enabled: boolean) => void;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
   showPlaybackRate?: boolean;
@@ -23,8 +23,8 @@ type Props = {
 };
 
 export default function TranscriptPanelFooter({
-  followPlayback,
-  onFollowPlaybackChange,
+  autoScrollEnabled,
+  onAutoScrollChange,
   playbackRate,
   onPlaybackRateChange,
   showPlaybackRate = true,
@@ -41,14 +41,12 @@ export default function TranscriptPanelFooter({
         className,
       )}
     >
-      <label className="flex cursor-pointer items-center gap-2.5 text-sm text-foreground">
-        <Switch
-          checked={followPlayback}
-          onCheckedChange={onFollowPlaybackChange}
-          aria-label="Auto-scroll transcript with playback"
-        />
-        <span className="font-medium">Auto-scroll</span>
-      </label>
+      <TranscriptAutoScrollToggle
+        id="transcript-auto-scroll-footer"
+        enabled={autoScrollEnabled}
+        onChange={onAutoScrollChange}
+        className="justify-start gap-2.5"
+      />
 
       <div className="flex items-center gap-2">
         {showPlaybackRate ? (

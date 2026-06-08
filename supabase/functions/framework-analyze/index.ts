@@ -24,6 +24,7 @@ import {
   generateArtifactFrameworkOverview,
   persistArtifactFrameworkOverview,
 } from "../_shared/artifactOverviewSummary.ts";
+import { drainPendingEmbeddingJobs } from "../_shared/embeddingJobDrain.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
@@ -1233,6 +1234,20 @@ Deno.serve(async (req) => {
     if (rows.length > 0) {
       const { error: insErr } = await supabase.from("artifact_claims").insert(rows);
       if (insErr) console.error("insert claims err", insErr);
+      else if (SERVICE_ROLE) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+        const userId = artifact.user_id as string;
+        const embedJob = drainPendingEmbeddingJobs(admin, {
+          userId,
+          tableName: "artifact_claims",
+          limit: 40,
+          maxRounds: 12,
+        });
+        const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
+          .EdgeRuntime;
+        if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(embedJob);
+        else await embedJob.catch((e) => console.error("claim embedding drain err", e));
+      }
     }
 
     let entity_counts = emptyEntityCounts();

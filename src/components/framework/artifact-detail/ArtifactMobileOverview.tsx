@@ -1,8 +1,10 @@
 import { useState } from "react";
 import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
+import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
+import type { CorpusPeerMatch } from "@/lib/framework/artifactCorpusStanding";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { artifactMobileStudyContentInset } from "@/lib/framework/artifactSurfaces";
 import type { ArtifactFrameworkOverview } from "@/lib/framework/artifactOverviewSummary";
@@ -27,6 +29,18 @@ type Props = {
   activeClaimId?: string | null;
   claimSources?: Record<string, TranscriptSegment | null>;
   onSeeScripture?: (claimId: string) => void;
+  corpusStanding?: {
+    agreeCount: number;
+    disagreeCount: number;
+    newCount: number;
+    peerLibraryCount: number;
+    peers: CorpusPeerMatch[];
+    echoClaimCount: number;
+    loading: boolean;
+    error: string | null;
+    embeddingPending?: boolean;
+    onReload?: () => void;
+  };
   className?: string;
 };
 
@@ -41,6 +55,7 @@ export default function ArtifactMobileOverview({
   onSelectClaim,
   activeClaimId,
   onSeeScripture,
+  corpusStanding,
   className,
 }: Props) {
   const [entitiesExpanded, setEntitiesExpanded] = useState(false);
@@ -53,6 +68,24 @@ export default function ArtifactMobileOverview({
     >
       {frameworkOverview ? (
         <ArtifactOverviewSummary overview={frameworkOverview} headerClassName={artifactMobileStudyContentInset} />
+      ) : null}
+
+      {corpusStanding ? (
+        <ArtifactLibraryStanding
+          artifactId={artifactId}
+          claimsCount={claimsCount}
+          agreeCount={corpusStanding.agreeCount}
+          disagreeCount={corpusStanding.disagreeCount}
+          newCount={corpusStanding.newCount}
+          peerLibraryCount={corpusStanding.peerLibraryCount}
+          peers={corpusStanding.peers}
+          echoClaimCount={corpusStanding.echoClaimCount}
+          loading={corpusStanding.loading}
+          error={corpusStanding.error}
+          embeddingPending={corpusStanding.embeddingPending}
+          onReload={corpusStanding.onReload}
+          headerClassName={artifactMobileStudyContentInset}
+        />
       ) : null}
 
       {claimsCount > 0 ? (

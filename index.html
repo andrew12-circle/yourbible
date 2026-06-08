@@ -25,7 +25,26 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap"></noscript>
+    <style>
+      #boot-loading {
+        display: flex;
+        min-height: 100dvh;
+        align-items: center;
+        justify-content: center;
+        background: #faf9f7;
+      }
+      #boot-loading span {
+        width: 2rem;
+        height: 2rem;
+        border: 2px solid rgba(0, 0, 0, 0.12);
+        border-top-color: #ef852c;
+        border-radius: 9999px;
+        animation: boot-spin 0.7s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+    </style>
     <meta property="og:title" content="Sacred &amp; Modern — Where sacred meets modern">
   <meta name="twitter:title" content="Sacred &amp; Modern — Where sacred meets modern">
   <meta property="og:description" content="A premium personal Bible reader with AI verse breakdowns, marker highlights, ribbon bookmarks, and a calm sleep mode.">
@@ -33,7 +52,7 @@
 </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="boot-loading" aria-live="polite" aria-busy="true"><span aria-hidden="true"></span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

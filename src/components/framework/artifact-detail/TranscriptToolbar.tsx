@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import ClaimIconActionButton from "@/components/framework/ClaimIconActionButton";
+import TranscriptAutoScrollToggle from "@/components/framework/artifact-detail/TranscriptAutoScrollToggle";
 import { artifactStudySectionTitle, sectionLabel } from "@/lib/framework/artifactSurfaces";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,9 @@ type Props = {
   followPlayback: boolean;
   onToggleFollowPlayback: () => void;
   showFollowControl: boolean;
+  autoScrollEnabled?: boolean;
+  onAutoScrollChange?: (enabled: boolean) => void;
+  showAutoScrollSwitch?: boolean;
   extraActions?: ReactNode;
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
@@ -62,6 +66,9 @@ export default function TranscriptToolbar({
   followPlayback,
   onToggleFollowPlayback,
   showFollowControl,
+  autoScrollEnabled = true,
+  onAutoScrollChange,
+  showAutoScrollSwitch = false,
   extraActions,
   formattingTranscript,
   onFormatTranscript,
@@ -141,6 +148,15 @@ export default function TranscriptToolbar({
         />
       </div>
 
+      {showAutoScrollSwitch && onAutoScrollChange ? (
+        <TranscriptAutoScrollToggle
+          id={compact ? "transcript-auto-scroll-mobile" : "transcript-auto-scroll-toolbar"}
+          enabled={autoScrollEnabled}
+          onChange={onAutoScrollChange}
+        />
+      ) : null}
+
+      {!compact ? (
       <div
         className={cn(
           "flex w-full min-w-0 items-center gap-1",
@@ -188,13 +204,15 @@ export default function TranscriptToolbar({
           ) : null}
         </div>
         <div className="flex items-center gap-1">
-          <ClaimIconActionButton
-            label={showTimestamps ? "Hide timestamps" : "Show timestamps"}
-            icon={showTimestamps ? EyeOff : Eye}
-            tone="keep"
-            active={!showTimestamps}
-            onClick={onToggleTimestamps}
-          />
+          {!showAutoScrollSwitch ? (
+            <ClaimIconActionButton
+              label={showTimestamps ? "Hide timestamps" : "Show timestamps"}
+              icon={showTimestamps ? EyeOff : Eye}
+              tone="keep"
+              active={!showTimestamps}
+              onClick={onToggleTimestamps}
+            />
+          ) : null}
           {desktopStudy && showFormatButton && onFormatTranscript ? (
             <ClaimIconActionButton
               label={formattingTranscript ? "Formatting…" : "Format transcript"}
@@ -212,6 +230,7 @@ export default function TranscriptToolbar({
           ) : null}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

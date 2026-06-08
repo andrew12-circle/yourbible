@@ -15,12 +15,13 @@ async function bootstrap() {
       return;
     }
 
+    const appPromise = import("./App.tsx");
+
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
-      const { registerSW } = await import("virtual:pwa-register");
-      registerSW({ immediate: true });
+      void import("virtual:pwa-register").then(({ registerSW }) => registerSW({ immediate: true }));
     }
 
-    const { default: App } = await import("./App.tsx");
+    const { default: App } = await appPromise;
     createRoot(root).render(<App />);
   } catch (e) {
     console.error("[bootstrap]", e);

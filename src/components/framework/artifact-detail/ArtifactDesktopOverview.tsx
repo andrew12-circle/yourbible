@@ -1,9 +1,11 @@
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import ArtifactInsightRail from "@/components/framework/artifact-detail/ArtifactInsightRail";
+import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import type { ArtifactFrameworkOverview } from "@/lib/framework/artifactOverviewSummary";
+import type { CorpusPeerMatch } from "@/lib/framework/artifactCorpusStanding";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,18 @@ type Props = {
   claimSources?: Record<string, TranscriptSegment | null>;
   onSeeScripture?: (claimId: string) => void;
   onSeeInTranscript?: (claimId: string) => void;
+  corpusStanding?: {
+    agreeCount: number;
+    disagreeCount: number;
+    newCount: number;
+    peerLibraryCount: number;
+    peers: CorpusPeerMatch[];
+    echoClaimCount: number;
+    loading: boolean;
+    error: string | null;
+    embeddingPending?: boolean;
+    onReload?: () => void;
+  };
   className?: string;
 };
 
@@ -41,6 +55,7 @@ export default function ArtifactDesktopOverview({
   claimSources,
   onSeeScripture,
   onSeeInTranscript,
+  corpusStanding,
   className,
 }: Props) {
   return (
@@ -50,6 +65,23 @@ export default function ArtifactDesktopOverview({
       aria-label="Overview"
     >
       {frameworkOverview ? <ArtifactOverviewSummary overview={frameworkOverview} /> : null}
+
+      {corpusStanding ? (
+        <ArtifactLibraryStanding
+          artifactId={artifactId}
+          claimsCount={claimsCount}
+          agreeCount={corpusStanding.agreeCount}
+          disagreeCount={corpusStanding.disagreeCount}
+          newCount={corpusStanding.newCount}
+          peerLibraryCount={corpusStanding.peerLibraryCount}
+          peers={corpusStanding.peers}
+          echoClaimCount={corpusStanding.echoClaimCount}
+          loading={corpusStanding.loading}
+          error={corpusStanding.error}
+          embeddingPending={corpusStanding.embeddingPending}
+          onReload={corpusStanding.onReload}
+        />
+      ) : null}
 
       {claimsCount > 0 ? (
         <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>

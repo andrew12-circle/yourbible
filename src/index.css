@@ -800,3 +800,92 @@
 
 .app-theme .shadow-leather,
 .app-theme .shadow-gold { box-shadow: 0 12px 30px -12px hsl(220 40% 20% / 0.18) !important; }
+
+/* Artifact pipeline processing scenes */
+@keyframes pipeline-orbit {
+  from { transform: rotate(0deg) translateX(5.75rem) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(5.75rem) rotate(-360deg); }
+}
+
+@keyframes pipeline-wave-bar {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.45; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes pipeline-brain-glow {
+  0%, 100% { transform: scale(0.92); opacity: 0.45; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+}
+
+@keyframes pipeline-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pipeline-ring-spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes pipeline-spark {
+  0%, 100% { transform: scale(0.85) rotate(-8deg); opacity: 0.35; }
+  50% { transform: scale(1.15) rotate(8deg); opacity: 1; }
+}
+
+@keyframes pipeline-synapse {
+  0%, 100% { stroke-dashoffset: 120; opacity: 0.25; }
+  50% { stroke-dashoffset: 0; opacity: 0.9; }
+}
+
+@keyframes pipeline-transcript-row {
+  0% { transform: translateX(-8%); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateX(8%); opacity: 0.35; }
+}
+
+@keyframes pipeline-caption-pulse {
+  0%, 100% { transform: scale(0.96); opacity: 0.75; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+@keyframes pipeline-micro-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pipeline-orbit-1 { animation: pipeline-orbit 9s linear infinite; }
+.pipeline-orbit-2 { animation: pipeline-orbit 9s linear infinite; animation-delay: -2.25s; }
+.pipeline-orbit-3 { animation: pipeline-orbit 9s linear infinite; animation-delay: -4.5s; }
+.pipeline-orbit-4 { animation: pipeline-orbit 9s linear infinite; animation-delay: -6.75s; }
+
+.pipeline-wave-bar {
+  transform-origin: bottom center;
+  animation: pipeline-wave-bar 1.15s ease-in-out infinite;
+}
+
+.pipeline-brain-glow { animation: pipeline-brain-glow 2.4s ease-in-out infinite; }
+.pipeline-brain-ring-a { animation: pipeline-ring-spin 14s linear infinite; }
+.pipeline-brain-ring-b { animation: pipeline-ring-spin-reverse 18s linear infinite; }
+.pipeline-spark { animation: pipeline-spark 2s ease-in-out infinite; }
+
+.pipeline-synapse-a,
+.pipeline-synapse-b {
+  stroke-dasharray: 120;
+  animation: pipeline-synapse 3.6s ease-in-out infinite;
+}
+
+.pipeline-synapse-b { animation-delay: -1.2s; }
+
+.pipeline-transcript-row { animation: pipeline-transcript-row 2.8s ease-in-out infinite; }
+.pipeline-caption-pulse,
+.pipeline-mic-pulse { animation: pipeline-caption-pulse 2.2s ease-in-out infinite; }
+
+.pipeline-micro-fade { animation: pipeline-micro-fade 0.45s ease-out; }
+
+.pipeline-grid-fade {
+  background-image:
+    linear-gradient(to right, hsl(var(--foreground) / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--foreground) / 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 78%);
+}

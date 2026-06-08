@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { toast } from "@/hooks/use-toast";
+import { embedNeedsResumeSeek } from "@/lib/framework/playbackSeconds";
+import {
+  isIosYouTubeBackgroundAudioActive,
+  startIosYouTubeBackgroundAudio,
+  stopIosYouTubeBackgroundAudio,
+} from "@/lib/youtube/iosBackgroundAudio";
+import { isIphoneWebKit } from "@/lib/youtube/platform";
 import {
   getStaticYouTubeEmbedIframe,
   postYouTubeEmbedCommand,
   type YouTubeEmbedCommand,
 } from "@/lib/youtube/embed";
-import { embedNeedsResumeSeek } from "@/lib/framework/playbackSeconds";
 import {
   currentTimeFromEmbedInfo,
   embedStateIsPlaying,
   isYouTubeEmbedMessageOrigin,
   parseYouTubeEmbedMessage,
+  YT_EMBED_STATE,
 } from "@/lib/youtube/embedTelemetry";
 
 function applyEmbedCurrentTime(
@@ -31,6 +39,11 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   syncBackgroundPlayback?: boolean;
   getSavedPlaybackSeconds?: () => number;
   onPersistPlaybackSeconds?: (seconds: number) => void;
+  /** iPhone: continue audio via direct stream when iframe cannot background. */
+  iosAudioHandoff?: {
+    videoId: string | null;
+    title?: string | null;
+  };
 }) {
   const {
     videoSlotRef,
@@ -39,11 +52,18 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     syncBackgroundPlayback = false,
     getSavedPlaybackSeconds,
     onPersistPlaybackSeconds,
+    iosAudioHandoff,
   } = options;
   const currentTimeRef = useRef(Math.max(0, initialSeconds));
   const lastTelemetryAtRef = useRef(0);
   const isPlayingRef = useRef(false);
+  /** User (or app resume logic) wants playback — survives YouTube-initiated PAUSE events. */
+  const intendedPlayingRef = useRef(false);
   const resumeOnVisibleRef = useRef(false);
+  const resumeAfterPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAppPauseAtRef = useRef(0);
+  const autoResumeCountRef = useRef(0);
+  const autoResumeWindowStartRef = useRef(0);
   const getSavedPlaybackSecondsRef = useRef(getSavedPlaybackSeconds);
   const onPersistPlaybackSecondsRef = useRef(onPersistPlaybackSeconds);
   getSavedPlaybackSecondsRef.current = getSavedPlaybackSeconds;
@@ -73,6 +93,81 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     return Date.now() - lastTelemetryAtRef.current <= maxAgeMs;
   }, []);
 
+  const runCommand = useCallback(
+    (func: YouTubeEmbedCommand, args: number[] = []) => {
+      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
+      postYouTubeEmbedCommand(iframe, func, args);
+    },
+    [videoSlotRef],
+  );
+
+  const clearResumeAfterPauseTimer = useCallback(() => {
+    if (resumeAfterPauseTimerRef.current != null) {
+      window.clearTimeout(resumeAfterPauseTimerRef.current);
+      resumeAfterPauseTimerRef.current = null;
+    }
+  }, []);
+
+  const sendResumePlayCommand = useCallback(() => {
+    const now = Date.now();
+    if (now - autoResumeWindowStartRef.current > 60_000) {
+      autoResumeWindowStartRef.current = now;
+      autoResumeCountRef.current = 0;
+    }
+    if (autoResumeCountRef.current >= 3) {
+      intendedPlayingRef.current = false;
+      return;
+    }
+    autoResumeCountRef.current += 1;
+    runCommand("playVideo");
+  }, [runCommand]);
+
+  /** YouTube embeds often pause on PiP reposition, scroll, or buffer stalls — resume if user did not pause. */
+  const scheduleResumeIfIntended = useCallback(() => {
+    if (!intendedPlayingRef.current || document.hidden) return;
+    if (Date.now() - lastAppPauseAtRef.current < 500) return;
+    clearResumeAfterPauseTimer();
+    resumeAfterPauseTimerRef.current = window.setTimeout(() => {
+      resumeAfterPauseTimerRef.current = null;
+      if (!intendedPlayingRef.current || document.hidden || isPlayingRef.current) return;
+      sendResumePlayCommand();
+    }, 450);
+  }, [clearResumeAfterPauseTimer, sendResumePlayCommand]);
+
+  const playVideo = useCallback(() => {
+    intendedPlayingRef.current = true;
+    isPlayingRef.current = true;
+    setIsPlaying(true);
+    runCommand("playVideo");
+  }, [runCommand]);
+
+  const pauseVideo = useCallback(
+    (opts?: { clearIntent?: boolean }) => {
+      lastAppPauseAtRef.current = Date.now();
+      if (opts?.clearIntent !== false) intendedPlayingRef.current = false;
+      clearResumeAfterPauseTimer();
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+      runCommand("pauseVideo");
+    },
+    [clearResumeAfterPauseTimer, runCommand],
+  );
+
+  const togglePlayback = useCallback(() => {
+    if (isPlayingRef.current) pauseVideo();
+    else playVideo();
+  }, [pauseVideo, playVideo]);
+
+  const seekTo = useCallback(
+    (seconds: number, allowSeekAhead = true) => {
+      const s = Math.max(0, seconds);
+      currentTimeRef.current = s;
+      lastTelemetryAtRef.current = Date.now();
+      runCommand("seekTo", [Math.round(s), allowSeekAhead ? 1 : 0]);
+    },
+    [runCommand],
+  );
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -85,9 +180,13 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       if (!msg?.event) return;
 
       if (msg.event === "onStateChange" && typeof msg.info === "number") {
-        const playing = embedStateIsPlaying(msg.info);
+        const state = msg.info;
+        if (state === YT_EMBED_STATE.ENDED) intendedPlayingRef.current = false;
+        if (state === YT_EMBED_STATE.PLAYING) intendedPlayingRef.current = true;
+        const playing = embedStateIsPlaying(state);
         isPlayingRef.current = playing;
         setIsPlaying(playing);
+        if (state === YT_EMBED_STATE.PAUSED) scheduleResumeIfIntended();
         return;
       }
 
@@ -95,11 +194,14 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         applyEmbedCurrentTime(currentTimeRef, lastTelemetryAtRef, currentTimeFromEmbedInfo(msg.info));
         const state = msg.info.playerState;
         if (typeof state === "number") {
+          if (state === YT_EMBED_STATE.ENDED) intendedPlayingRef.current = false;
+          if (state === YT_EMBED_STATE.PLAYING) intendedPlayingRef.current = true;
           const playing = embedStateIsPlaying(state);
           if (playing !== isPlayingRef.current) {
             isPlayingRef.current = playing;
             setIsPlaying(playing);
           }
+          if (state === YT_EMBED_STATE.PAUSED) scheduleResumeIfIntended();
         }
       }
     };
@@ -129,54 +231,30 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       window.clearInterval(listenInterval);
       window.clearInterval(pollInterval);
     };
-  }, [enabled, requestCurrentTime, videoSlotRef]);
+  }, [enabled, requestCurrentTime, scheduleResumeIfIntended, videoSlotRef]);
 
-  const runCommand = useCallback(
-    (func: YouTubeEmbedCommand, args: number[] = []) => {
-      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
-      postYouTubeEmbedCommand(iframe, func, args);
-    },
-    [videoSlotRef],
-  );
-
-  const playVideo = useCallback(() => {
-    isPlayingRef.current = true;
-    setIsPlaying(true);
-    runCommand("playVideo");
-  }, [runCommand]);
-
-  const pauseVideo = useCallback(() => {
-    isPlayingRef.current = false;
-    setIsPlaying(false);
-    runCommand("pauseVideo");
-  }, [runCommand]);
-
-  const togglePlayback = useCallback(() => {
-    if (isPlayingRef.current) pauseVideo();
-    else playVideo();
-  }, [pauseVideo, playVideo]);
-
-  const seekTo = useCallback(
-    (seconds: number, allowSeekAhead = true) => {
-      const s = Math.max(0, seconds);
-      currentTimeRef.current = s;
-      lastTelemetryAtRef.current = Date.now();
-      runCommand("seekTo", [Math.round(s), allowSeekAhead ? 1 : 0]);
-    },
-    [runCommand],
-  );
+  /** Catch embed pauses that never emit onStateChange (jsapi channel hiccups). */
+  useEffect(() => {
+    if (!enabled) return;
+    const keepalive = window.setInterval(() => {
+      if (!intendedPlayingRef.current || document.hidden || isPlayingRef.current) return;
+      if (Date.now() - lastAppPauseAtRef.current < 500) return;
+      sendResumePlayCommand();
+    }, 2500);
+    return () => window.clearInterval(keepalive);
+  }, [enabled, sendResumePlayCommand]);
 
   /** iOS suspends YouTube iframes without a PAUSED event — sync state and resume cleanly. */
   useEffect(() => {
     if (!enabled || !syncBackgroundPlayback) return;
 
-    const resumeAfterVisible = (shouldResume: boolean) => {
+    const resumeAfterVisible = (shouldResume: boolean, overrideSeconds?: number) => {
       requestCurrentTime();
       window.setTimeout(() => {
         const live = currentTimeRef.current;
         const savedFromParent = getSavedPlaybackSecondsRef.current?.() ?? 0;
         const resolved = Math.max(
-          savedFromParent,
+          overrideSeconds ?? savedFromParent,
           Number.isFinite(live) ? live : 0,
         );
         currentTimeRef.current = resolved;
@@ -195,11 +273,42 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     const onVisibility = () => {
       if (document.hidden) {
         resumeOnVisibleRef.current = isPlayingRef.current;
-        if (isPlayingRef.current) pauseVideo();
         requestCurrentTime();
-        onPersistPlaybackSecondsRef.current?.(currentTimeRef.current);
+        const seconds = currentTimeRef.current;
+        onPersistPlaybackSecondsRef.current?.(seconds);
+
+        const videoId = iosAudioHandoff?.videoId;
+        if (
+          isIphoneWebKit() &&
+          videoId &&
+          isPlayingRef.current
+        ) {
+          pauseVideo({ clearIntent: false });
+          void startIosYouTubeBackgroundAudio({
+            videoId,
+            title: iosAudioHandoff?.title,
+            startSeconds: seconds,
+          }).then((ok) => {
+            if (ok) {
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+            } else {
+              toast({
+                title: "Background audio unavailable",
+                description: "This video paused when you left the app. Tap play to continue.",
+              });
+            }
+          });
+        }
         return;
       }
+
+      if (isIosYouTubeBackgroundAudioActive()) {
+        const { seconds, wasPlaying } = stopIosYouTubeBackgroundAudio();
+        resumeAfterVisible(wasPlaying, seconds);
+        return;
+      }
+
       const shouldResume = resumeOnVisibleRef.current;
       resumeOnVisibleRef.current = false;
       resumeAfterVisible(shouldResume);
@@ -215,10 +324,12 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pageshow", onPageShow);
     return () => {
+      clearResumeAfterPauseTimer();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
     };
   }, [
+    clearResumeAfterPauseTimer,
     enabled,
     syncBackgroundPlayback,
     isTelemetryFresh,
@@ -240,5 +351,6 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     isTelemetryFresh,
     currentTimeRef,
     isPlayingRef,
+    intendedPlayingRef,
   };
 }
