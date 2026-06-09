@@ -18,6 +18,7 @@ import {
   Sprout,
   ClipboardList,
   Clock,
+  CircleHelp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
@@ -60,7 +61,15 @@ export function isClaimResearchPath(pathname: string): boolean {
 export function isArtifactsLibraryPath(pathname: string): boolean {
   return (
     pathname === "/framework/artifacts" ||
-    pathname.startsWith("/framework/artifacts/new") ||
+    pathname.startsWith("/framework/artifacts/new")
+  );
+}
+
+/** Full-area tool surfaces (graph, chat, live capture) — fill hub inset, minimal chrome padding. */
+export function isFrameworkWorkspacePath(pathname: string): boolean {
+  return (
+    pathname === "/framework/graph" ||
+    pathname === "/framework/chat" ||
     pathname === "/framework/artifacts/live"
   );
 }
@@ -72,6 +81,7 @@ const NAV = [
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
   { to: "/framework/library-standing", label: "Library standing", icon: Layers },
   { to: "/framework/research-later", label: "Research later", icon: Clock },
+  { to: "/framework/hard-questions", label: "Hard questions", icon: CircleHelp },
   { to: "/framework/graph", label: "Graph", icon: Share2 },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },
   { to: "/framework/influences", label: "Influences", icon: Users },
@@ -96,12 +106,15 @@ export default function FrameworkLayout({
   const claimResearch = isClaimResearchPath(pathname);
   const immersive = immersiveProp ?? (isArtifactDetailPath(pathname) || claimResearch);
   const studioLibrary = isArtifactsLibraryPath(pathname);
+  const workspace = isFrameworkWorkspacePath(pathname);
   const compactMobileHeader = Boolean(immersive && (immersiveCompactTitle || immersiveMobileMinimal));
   const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);
   const hideDesktopFrameworkHeader = Boolean(immersiveDesktopMinimal);
   const headerMax =
     headerContentClassName ??
-    (studioLibrary ? "max-w-[min(92rem,calc(100vw-1.25rem))]" : "max-w-4xl");
+    (workspace || studioLibrary
+      ? "max-w-none"
+      : "max-w-4xl");
   const layoutRootRef = useRef<HTMLDivElement>(null);
   const frameworkHeaderRef = useRef<HTMLElement>(null);
 
@@ -147,7 +160,10 @@ export default function FrameworkLayout({
       ref={layoutRootRef}
       data-artifact-youtube-mobile={immersiveMobileMinimal ? "" : undefined}
       className={cn(
-        "min-h-screen bg-background font-sans text-foreground",
+        "bg-background font-sans text-foreground",
+        workspace
+          ? "flex h-full min-h-0 flex-1 flex-col"
+          : "min-h-screen",
         immersiveMobileMinimal &&
           "max-lg:flex max-lg:h-[100dvh] max-lg:max-h-[100dvh] max-lg:flex-col max-lg:overflow-hidden max-lg:[--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]",
       )}
@@ -164,7 +180,7 @@ export default function FrameworkLayout({
         ref={frameworkHeaderRef}
         data-artifact-framework-header
         className={cn(
-          "sticky top-0 z-30 border-b backdrop-blur-md max-md:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]",
+          "sticky top-0 z-30 shrink-0 border-b backdrop-blur-md max-md:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]",
           hideMobileFrameworkHeader && "max-lg:hidden",
           hideDesktopFrameworkHeader && "lg:hidden",
           immersive
@@ -242,7 +258,7 @@ export default function FrameworkLayout({
                 <h1
                   className={cn(
                     "truncate tracking-tight text-foreground",
-                    immersive || studioLibrary
+                    immersive || studioLibrary || workspace
                       ? "font-display text-xl font-normal sm:text-2xl"
                       : "text-lg font-semibold sm:text-xl",
                   )}
@@ -337,10 +353,12 @@ export default function FrameworkLayout({
               : hideDesktopFrameworkHeader
                 ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
                 : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"
-            : studioLibrary
-              ? "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
-              : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
-          contentClassName ?? "max-w-4xl",
+            : workspace
+              ? "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4"
+              : studioLibrary
+                ? "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
+                : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
+          contentClassName ?? (workspace ? "max-w-none" : "max-w-4xl"),
         )}
       >
         {children}

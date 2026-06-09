@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   BookOpen, Sun, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, Calendar, MessageCircleHeart,
-  HeartHandshake, Settings, LayoutGrid, Clock,
+  HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
@@ -34,6 +34,7 @@ const iconColorMap: Record<string, string> = {
   Partner: "text-red-400",
   Settings: "text-gray-500",
   "Research later": "text-slate-400",
+  "Hard questions": "text-amber-500",
 };
 
 interface SidebarItem {
@@ -65,6 +66,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
       { title: "Study", icon: GraduationCap, to: "/framework/study" },
       { title: "Digest", icon: Mail, to: "/framework/digest" },
       { title: "Research later", icon: Clock, to: "/framework/research-later" },
+      { title: "Hard questions", icon: CircleHelp, to: "/framework/hard-questions" },
     ],
   },
   {

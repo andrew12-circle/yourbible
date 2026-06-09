@@ -369,7 +369,7 @@ export default function ChatPage() {
       contentClassName="max-w-none px-0 pb-0 pt-2 sm:pt-3"
       headerContentClassName="max-w-none"
     >
-      <div className="flex h-[calc(100dvh-11.5rem)] min-h-[420px] overflow-hidden rounded-xl border border-border/70 bg-card/30 shadow-sm sm:mx-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/30 shadow-sm sm:mx-1">
         {sidebarOpen && (
           <aside className="hidden w-[260px] shrink-0 md:flex">{sidebarContent}</aside>
         )}

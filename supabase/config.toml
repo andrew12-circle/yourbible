@@ -63,6 +63,12 @@ verify_jwt = true
 [functions.youtube-oauth-disconnect]
 verify_jwt = true
 
+[functions.youtube-channel-subscribe]
+verify_jwt = true
+
+[functions.youtube-subscription-sync]
+verify_jwt = true
+
 [functions.framework-embed-transcript]
 verify_jwt = false
 

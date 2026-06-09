@@ -29,6 +29,10 @@ type RequestBody = {
   journal_bootstrap_transcript_excerpt?: string | null;
   /** When set, latest saved validation pack for this claim is injected into chat context. */
   artifact_claim_id?: string | null;
+  /** When bootstrapping, scope the opener to this hard question row (must belong to the user). */
+  journal_bootstrap_hard_question_id?: string | null;
+  /** When set, latest saved research pack for this hard question is injected into chat context. */
+  hard_question_id?: string | null;
   finalize_journal_entry_id?: string | null;
   /** Standalone My AI thread → new journal entry with transcript + summary. */
   export_chat_to_journal_id?: string | null;
@@ -93,6 +97,48 @@ async function loadClaimResearchPackBlock(
   const lensOrder = isRecord(pack.meta) && Array.isArray(pack.meta.lenses)
     ? (pack.meta.lenses as string[]).filter((x) => typeof x === "string")
     : ["bible_alignment", "historical_context", "independent_voices"];
+  for (const id of lensOrder) {
+    const s = sections[id];
+    const body = typeof s?.body === "string" ? sanitizeSectionBody(s.body) : "";
+    if (!body) continue;
+    lines.push(`### ${id}`, body, "");
+  }
+  let block = lines.join("\n").trim();
+  if (block.length > maxChars) block = `${block.slice(0, maxChars)}\n\n_(Pack truncated.)_`;
+  return block;
+}
+
+async function loadHardQuestionResearchPackBlock(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  questionId: string,
+  maxChars = 8000,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("hard_question_research_runs")
+    .select("pack_json,brief_summary,created_at")
+    .eq("user_id", userId)
+    .eq("hard_question_id", questionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return "";
+
+  const brief = typeof data.brief_summary === "string" ? data.brief_summary.trim() : "";
+  const pack = data.pack_json;
+  if (!isRecord(pack) || !isRecord(pack.sections)) {
+    return brief ? `## Hard question research brief (saved)\n\n${brief}` : "";
+  }
+
+  const sections = pack.sections as Record<string, { body?: string; epistemic?: string }>;
+  const lines: string[] = [
+    "## Hard question research brief (saved — use for grounded answers; do not dump raw markdown to the user)",
+    "",
+  ];
+  if (brief) lines.push(brief, "");
+  const lensOrder = isRecord(pack.meta) && Array.isArray(pack.meta.lenses)
+    ? (pack.meta.lenses as string[]).filter((x) => typeof x === "string")
+    : ["scripture_context", "opposing_views", "synthesis"];
   for (const id of lensOrder) {
     const s = sections[id];
     const body = typeof s?.body === "string" ? sanitizeSectionBody(s.body) : "";
@@ -702,6 +748,11 @@ Deno.serve(async (req) => {
         : "";
       const claimBootstrap = /^[0-9a-f-]{36}$/i.test(claimIdRaw) ? claimIdRaw : null;
 
+      const hqIdRaw = typeof body.journal_bootstrap_hard_question_id === "string"
+        ? body.journal_bootstrap_hard_question_id.trim()
+        : "";
+      const hardQuestionBootstrap = /^[0-9a-f-]{36}$/i.test(hqIdRaw) ? hqIdRaw : null;
+
       const excerptRaw = typeof body.journal_bootstrap_transcript_excerpt === "string"
         ? body.journal_bootstrap_transcript_excerpt.trim()
         : "";
@@ -796,6 +847,35 @@ Deno.serve(async (req) => {
 
         openerSeed =
           "(The user opened this chat from ONE specific claim extracted from a video/article artifact — see \"Session focus\" above. No user message yet. Write a concise warm opener: name the claim in your own words (short), acknowledge why digging deeper here matters, invite them to share how they lean (agree / uneasy / disagree) and what they want to explore (scripture, history, practical life, emotional resonance). Offer to help them stress-test or research without preaching. End with ONE clear question. Do not invent that they watched the whole video.)";
+      } else if (hardQuestionBootstrap) {
+        const { data: hqRow, error: hqErr } = await supabase
+          .from("framework_hard_questions")
+          .select("id, title, framing, why_it_matters, current_thinking, tags, layer, user_id")
+          .eq("id", hardQuestionBootstrap)
+          .maybeSingle();
+        if (hqErr) return jsonResponse({ error: hqErr.message }, 502);
+        if (!hqRow || hqRow.user_id !== userId) {
+          return jsonResponse({ error: "Hard question not found" }, 404);
+        }
+        const title = typeof hqRow.title === "string" ? hqRow.title : "";
+        const framing = typeof hqRow.framing === "string" ? hqRow.framing : "";
+        const why = typeof hqRow.why_it_matters === "string" ? hqRow.why_it_matters : "";
+        const thinking = typeof hqRow.current_thinking === "string" ? hqRow.current_thinking : "";
+        const layer = typeof hqRow.layer === "string" ? hqRow.layer : "";
+        const tags = Array.isArray(hqRow.tags) ? (hqRow.tags as string[]).join(", ") : "";
+
+        claimFocusBlock = [
+          "## Session focus: hard theological question",
+          `Question: ${title}`,
+          framing ? `Framing: ${framing}` : "",
+          why ? `Why it matters to them: ${why}` : "",
+          thinking ? `Current thinking: ${thinking}` : "",
+          layer ? `Framework layer: ${layer}` : "",
+          tags ? `Tags: ${tags}` : "",
+        ].filter(Boolean).join("\n");
+
+        openerSeed =
+          "(The user opened research on a hard theological question they chose — see \"Session focus\" above. No user message yet. Write a concise warm opener: restate the question briefly, honor that it is genuinely difficult, invite them to name what feels most threatening or unresolved, and offer to explore scripture, opposing views, and honest synthesis. End with ONE clear question. Do not preach or give a final answer yet.)";
       }
 
       const contextPack = await buildFrameworkRetrievalContext(
@@ -812,8 +892,14 @@ Deno.serve(async (req) => {
         (typeof body.artifact_claim_id === "string" && /^[0-9a-f-]{36}$/i.test(body.artifact_claim_id.trim())
           ? body.artifact_claim_id.trim()
           : "");
+      const packHqId = hardQuestionBootstrap ||
+        (typeof body.hard_question_id === "string" && /^[0-9a-f-]{36}$/i.test(body.hard_question_id.trim())
+          ? body.hard_question_id.trim()
+          : "");
       const researchPackBlock = packClaimId
         ? await loadClaimResearchPackBlock(supabase, userId, packClaimId)
+        : packHqId
+        ? await loadHardQuestionResearchPackBlock(supabase, userId, packHqId)
         : "";
 
       const userPayload =
@@ -1026,8 +1112,12 @@ Deno.serve(async (req) => {
 
     const claimPackIdRaw = typeof body.artifact_claim_id === "string" ? body.artifact_claim_id.trim() : "";
     const claimPackId = /^[0-9a-f-]{36}$/i.test(claimPackIdRaw) ? claimPackIdRaw : "";
+    const hqPackIdRaw = typeof body.hard_question_id === "string" ? body.hard_question_id.trim() : "";
+    const hqPackId = /^[0-9a-f-]{36}$/i.test(hqPackIdRaw) ? hqPackIdRaw : "";
     const researchPackBlock = claimPackId
       ? await loadClaimResearchPackBlock(supabase, userId, claimPackId)
+      : hqPackId
+      ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
       : "";
 
     const userPayload =

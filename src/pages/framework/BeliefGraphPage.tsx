@@ -394,9 +394,9 @@ export default function BeliefGraphPage() {
   useEffect(() => {
     const el = canvasHostRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setCanvasSize({ w: el.clientWidth, h: el.clientHeight });
-    });
+    const sync = () => setCanvasSize({ w: el.clientWidth, h: el.clientHeight });
+    sync();
+    const ro = new ResizeObserver(sync);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -825,7 +825,8 @@ export default function BeliefGraphPage() {
 
   return (
     <FrameworkLayout title="Belief Graph" back="/framework">
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-2 text-[11px]">
           {ALL_LAYERS.map((layer) => {
             const hidden = hiddenLayers.has(layer);
@@ -857,7 +858,7 @@ export default function BeliefGraphPage() {
       </div>
 
       <div
-        className="relative w-full min-h-[70vh] rounded-lg border border-border bg-card overflow-hidden flex flex-col transition-shadow duration-200"
+        className="relative flex min-h-0 flex-1 w-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow duration-200"
       >
         <div className="flex flex-col gap-2 border-b border-border bg-muted/30 p-2 sm:p-3 shrink-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -1085,7 +1086,7 @@ export default function BeliefGraphPage() {
 
         <div
           ref={canvasHostRef}
-          className="relative flex-1 min-h-[50vh] min-w-0"
+          className="relative min-h-0 min-w-0 flex-1"
           onMouseMove={(e) => {
             const rect = canvasHostRef.current?.getBoundingClientRect();
             if (!rect) return;
@@ -1352,10 +1353,11 @@ export default function BeliefGraphPage() {
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">
+      <p className="shrink-0 text-xs text-muted-foreground">
         Node size = confidence. Edge color: green = supports/agree, red = contradicts/disagree, gold = new claim,
         gray = related.
       </p>
+      </div>
     </FrameworkLayout>
   );
 }

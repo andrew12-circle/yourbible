@@ -11,6 +11,7 @@ interface ArtifactShelfProps {
   deletingId: string | null;
   onDelete: (id: string, title: string | null) => void;
   onRename: (id: string) => void;
+  seenIds?: ReadonlySet<string>;
 }
 
 export function ArtifactShelf({
@@ -22,6 +23,7 @@ export function ArtifactShelf({
   deletingId,
   onDelete,
   onRename,
+  seenIds,
 }: ArtifactShelfProps) {
   const showSeeAll = Boolean(seeAllCategory && onSeeAll);
   const headingId = `artifact-shelf-${shelfKey}`;
@@ -70,7 +72,14 @@ export function ArtifactShelf({
         <div className="flex min-w-min gap-3 px-1">
           {rows.map((r) => (
             <div key={r.id} className="shrink-0" role="listitem">
-              <ArtifactTile r={r} layout="shelf" deletingId={deletingId} onDelete={onDelete} onRename={onRename} />
+              <ArtifactTile
+                r={r}
+                layout="shelf"
+                deletingId={deletingId}
+                onDelete={onDelete}
+                onRename={onRename}
+                seenIds={seenIds}
+              />
             </div>
           ))}
         </div>

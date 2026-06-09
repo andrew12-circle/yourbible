@@ -6,7 +6,12 @@ import {
   countTimedTranscriptLines,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
-import { createTranscriptProcessingToken, startYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
+import { getYouTubeVideoId } from "@/lib/youtube";
+import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
+import {
+  createTranscriptProcessingToken,
+  startYoutubeTranscriptFetchWithPrefetch,
+} from "@/lib/framework/youtubeTranscriptFetch";
 import type { ArtifactDetailClaim } from "@/hooks/useArtifactDetailData";
 
 type Params = {
@@ -136,9 +141,23 @@ export function useArtifactDetailProcessingActions({
   const retryFetch = useCallback(async () => {
     if (!a?.url) return;
     const processingToken = createTranscriptProcessingToken();
-    await supabase.from("artifacts").update({ status: "fetching", error: null, processing_token: processingToken }).eq("id", a.id);
+    await supabase
+      .from("artifacts")
+      .update({ status: "fetching", error: null, processing_token: processingToken })
+      .eq("id", a.id);
     setA({ ...a, status: "fetching", error: null });
-    void startYoutubeTranscriptFetch({ artifactId: a.id, url: a.url, processingToken });
+
+    const videoId = getYouTubeVideoId(a.url);
+    const prefetchedRawText = videoId
+      ? (await fetchYoutubeCaptionsInBrowser(videoId).catch(() => ({ text: null }))).text
+      : null;
+
+    void startYoutubeTranscriptFetchWithPrefetch({
+      artifactId: a.id,
+      url: a.url,
+      processingToken,
+      prefetchedRawText,
+    });
   }, [a, setA]);
 
   const submitPasted = useCallback(async () => {

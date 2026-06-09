@@ -6,6 +6,10 @@ import { getYouTubeVideoId, youtubeHqThumbnail, youtubeMqThumbnail } from "@/lib
 const VIEW_COUNT_TITLE_RE = /^\d+(?:\.\d+)?[KMB]?$/i;
 
 export interface ArtifactMetadata {
+  import_via?: string | null;
+  subscription_id?: string | null;
+  video_id?: string | null;
+  published_at?: string | null;
   source?: string | null;
   channel?: string | null;
   channel_title?: string | null;
@@ -41,6 +45,7 @@ export type LibrarySortKey = "recent" | "az" | "source";
 
 export type LibraryCategoryId =
   | "all"
+  | "unwatched"
   | "videos"
   | "podcasts"
   | "documents"
@@ -50,6 +55,7 @@ export type LibraryCategoryId =
 
 export const LIBRARY_CATEGORY_CHIPS: { id: LibraryCategoryId; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "unwatched", label: "Unwatched" },
   { id: "videos", label: "Videos" },
   { id: "podcasts", label: "Podcasts" },
   { id: "documents", label: "Documents" },
@@ -214,8 +220,21 @@ export function linkFullTitle(r: Row): string {
   return candidates.sort((a, b) => b.length - a.length)[0] || "Untitled";
 }
 
-export function rowMatchesLibraryCategory(r: Row, cat: LibraryCategoryId): boolean {
+export function isSubscriptionImport(m: ArtifactMetadata | null | undefined): boolean {
+  return m?.import_via === "youtube_subscription";
+}
+
+export function isUnwatchedSubscriptionRow(r: Row, seenIds: ReadonlySet<string>): boolean {
+  return isSubscriptionImport(r.metadata) && !seenIds.has(r.id);
+}
+
+export function rowMatchesLibraryCategory(
+  r: Row,
+  cat: LibraryCategoryId,
+  seenIds: ReadonlySet<string> = new Set(),
+): boolean {
   if (cat === "all") return true;
+  if (cat === "unwatched") return isUnwatchedSubscriptionRow(r, seenIds);
   if (cat === "videos") return r.kind === "youtube";
   if (cat === "podcasts") return r.kind === "podcast";
   if (cat === "documents") return r.kind === "pdf" || r.kind === "text_file";

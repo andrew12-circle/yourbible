@@ -71,28 +71,7 @@ export default function NewArtifactPage() {
     const template = params.get("template");
 
     if (template === "question") {
-      setMode("text");
-      setTitle("Question under examination");
-      setText(
-        [
-          "Question:",
-          "",
-          "Why this matters to me:",
-          "",
-          "What I currently think:",
-          "",
-          "Evidence or sources to examine:",
-          "",
-          "Tensions / uncertainties:",
-          "",
-          "Consultation (prayer, counsel, scripture):",
-          "",
-          "Working conclusion:",
-          "",
-          "Belief statement I'm ready to commit:",
-          "",
-        ].join("\n"),
-      );
+      navigate("/framework/hard-questions/new", { replace: true });
       return;
     }
 
@@ -101,7 +80,7 @@ export default function NewArtifactPage() {
       setTitle(seedRef ? `Reflection on ${seedRef}` : "Verse reflection");
       setText(`Scripture under examination: ${seedRef ?? ""}\n"${seedVerse}"\n\nMy thoughts:\n`);
     }
-  }, [params]);
+  }, [params, navigate]);
 
   const normalizedYoutubePastePreview = useMemo(
     () => (youtubePaste.trim() ? normalizePastedTranscript(youtubePaste) : ""),

@@ -19,6 +19,9 @@ const ArtifactDetailPage = lazy(() => import("@/pages/framework/ArtifactDetailPa
 const ClaimResearchWorkspacePage = lazy(() => import("@/pages/framework/ClaimResearchWorkspacePage"));
 const LiveStreamPage = lazy(() => import("@/pages/framework/LiveStreamPage"));
 const ResearchLaterPage = lazy(() => import("@/pages/framework/ResearchLaterPage"));
+const HardQuestionsListPage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionsListPage"));
+const HardQuestionNewPage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionNewPage"));
+const HardQuestionWorkspacePage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionWorkspacePage"));
 const BeliefGraphPage = lazy(() => import("@/pages/framework/BeliefGraphPage"));
 const PlaybookPage = lazy(() => import("@/pages/framework/PlaybookPage"));
 const PlaybookDetailPage = lazy(() => import("@/pages/framework/PlaybookDetailPage"));
@@ -124,6 +127,9 @@ export function MiniPhoneRoutes() {
           }
         />
         <Route path="/framework/research-later" element={<ResearchLaterPage />} />
+        <Route path="/framework/hard-questions" element={<HardQuestionsListPage />} />
+        <Route path="/framework/hard-questions/new" element={<HardQuestionNewPage />} />
+        <Route path="/framework/hard-questions/:id" element={<HardQuestionWorkspacePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

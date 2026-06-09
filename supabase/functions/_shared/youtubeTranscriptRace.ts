@@ -13,7 +13,11 @@ import {
 } from "./youtubeTranscript.ts";
 
 export const CAPTION_RACE_TIMEOUT_MS = Number(
-  Deno.env.get("TRANSCRIPT_CAPTION_RACE_MS") ?? "4500",
+  Deno.env.get("TRANSCRIPT_CAPTION_RACE_MS") ?? "12000",
+);
+
+const TRANSCRIPT_PLUS_SEQUENTIAL_MS = Number(
+  Deno.env.get("TRANSCRIPT_PLUS_SEQUENTIAL_MS") ?? "30000",
 );
 
 type CaptionLane = {
@@ -105,6 +109,22 @@ export type BuildCaptionLanesOpts = {
   admin?: SupabaseClient | null;
   fetchWatchCaptions: () => Promise<string | null>;
 };
+
+/** Long videos can exceed the parallel race window; try transcript-plus alone with more time. */
+export async function fetchTranscriptPlusSequential(
+  videoId: string,
+): Promise<{ text: string | null; note: string }> {
+  try {
+    const text = await Promise.race([
+      fetchTranscriptPlusCaptions(videoId),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), TRANSCRIPT_PLUS_SEQUENTIAL_MS)),
+    ]);
+    if (text?.trim()) return { text: text.trim(), note: "ok" };
+    return { text: null, note: `empty or timed out after ${TRANSCRIPT_PLUS_SEQUENTIAL_MS}ms` };
+  } catch (e) {
+    return { text: null, note: String((e as Error).message ?? e) };
+  }
+}
 
 export function buildCaptionLanes(opts: BuildCaptionLanesOpts): CaptionLane[] {
   const { videoId, userId, admin, fetchWatchCaptions } = opts;

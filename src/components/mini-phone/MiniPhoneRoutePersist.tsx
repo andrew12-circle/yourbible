@@ -1,15 +1,14 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { useMiniPhone } from "@/contexts/MiniPhoneContext";
+import { persistMiniPhoneActiveRoute } from "@/lib/mini-phone/miniPhoneStorage";
 
-/** Mirrors in-phone navigation into session storage so reopening restores the last screen. */
+/** Persists in-phone navigation to session storage without triggering parent re-renders. */
 export function MiniPhoneRoutePersist() {
   const { pathname, search } = useLocation();
-  const { syncRoute } = useMiniPhone();
 
   useEffect(() => {
-    syncRoute(`${pathname}${search}`);
-  }, [pathname, search, syncRoute]);
+    persistMiniPhoneActiveRoute(`${pathname}${search}`);
+  }, [pathname, search]);
 
   return null;
 }

@@ -27,6 +27,7 @@ import {
   CAPTION_RACE_TIMEOUT_MS,
   fetchAssemblyFallback,
   fetchDeepgramFallback,
+  fetchTranscriptPlusSequential,
   outcomeFromTimedText,
   raceCaptionLanes,
 } from "../_shared/youtubeTranscriptRace.ts";
@@ -49,7 +50,7 @@ const YT_WATCH_HEADERS = {
 };
 
 const TRANSCRIPT_JOB_DEADLINE_MS = Number(
-  Deno.env.get("TRANSCRIPT_JOB_DEADLINE_MS") ?? String(120 * 1000),
+  Deno.env.get("TRANSCRIPT_JOB_DEADLINE_MS") ?? String(180 * 1000),
 );
 
 function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -642,6 +643,24 @@ async function transcribeYouTubeVideo(
       };
     }
     tierAttempts.push(`Captions (parallel race): none within ${CAPTION_RACE_TIMEOUT_MS}ms`);
+
+    const plusSeq = await fetchTranscriptPlusSequential(videoId);
+    if (plusSeq.text) {
+      tierAttempts.push("Captions (transcript-plus sequential): ok");
+      const bundle = await ensureChaptersBundle();
+      const fetch = outcomeFromTimedText(plusSeq.text, "caption", "youtube_transcript_plus");
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: plusSeq.text,
+        provider: "youtube_transcript_plus",
+        source: "caption",
+      });
+      return {
+        fetch,
+        metadata: { ...metadata, title: metadata.title ?? bundle?.title },
+        chaptersBundle: bundle,
+      };
+    }
+    tierAttempts.push(`Captions (transcript-plus sequential): ${plusSeq.note}`);
   } else {
     tierAttempts.push("Captions: no video id");
   }

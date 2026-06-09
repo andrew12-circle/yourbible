@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
+import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
 import {
   markYoutubeTranscriptFetchError,
   resumeYoutubeTranscriptFetch,
@@ -14,7 +15,7 @@ const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
 const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
 const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
-const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 150;
+const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
 
 function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false;
@@ -168,6 +169,11 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     ensureFetchRef.current = null;
     clientTimeoutRef.current = null;
   }, [artifactId]);
+
+  useEffect(() => {
+    if (!userId || !artifactId || !artifactLoaded || !a) return;
+    void markArtifactLibrarySeen(userId, artifactId);
+  }, [userId, artifactId, artifactLoaded, a]);
 
   useEffect(() => {
     if (!userId || !artifactId) return;

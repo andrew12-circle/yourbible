@@ -43,9 +43,10 @@ interface ArtifactListRowProps {
   r: Row;
   deletingId: string | null;
   onDelete: (id: string, title: string | null) => void;
+  isUnwatched?: boolean;
 }
 
-export function ArtifactListRow({ r, deletingId, onDelete }: ArtifactListRowProps) {
+export function ArtifactListRow({ r, deletingId, onDelete, isUnwatched = false }: ArtifactListRowProps) {
   const displayTitle = artifactDisplayTitle(r);
   const tip = linkFullTitle(r);
   return (
@@ -67,6 +68,9 @@ export function ArtifactListRow({ r, deletingId, onDelete }: ArtifactListRowProp
           <MetaBlock r={r} />
         </Link>
         <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5 sm:flex-row sm:items-start">
+          {isUnwatched ? (
+            <Badge className="text-[10px] font-semibold uppercase tracking-wider">New</Badge>
+          ) : null}
           <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wider">
             {r.status}
           </Badge>

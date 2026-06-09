@@ -6,9 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { fetchSeenArtifactIds } from "@/lib/framework/artifactLibrarySeen";
+import { syncYouTubeSubscriptions } from "@/lib/youtube/youtubeSubscriptions";
 import {
   artifactDisplayTitle,
   filterRowsBySearch,
+  isUnwatchedSubscriptionRow,
   readLibrarySortKey,
   readLibraryViewMode,
   RECENT_SHELF_LIMIT,
@@ -39,42 +42,64 @@ export default function ArtifactsListPage() {
   const [sortKey, setSortKey] = useState<LibrarySortKey>(() => readLibrarySortKey());
   const [category, setCategory] = useState<LibraryCategoryId>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search), 150);
     return () => window.clearTimeout(t);
   }, [search]);
 
+  const reloadLibrary = useCallback(async () => {
+    if (!user) return;
+    setListReady(false);
+    const withMetadata = await supabase
+      .from("artifacts")
+      .select("id,title,kind,status,created_at,metadata,url")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (!withMetadata.error) {
+      setRows((withMetadata.data as Row[]) ?? []);
+      setListReady(true);
+      return;
+    }
+    const fallback = await supabase
+      .from("artifacts")
+      .select("id,title,kind,status,created_at,url")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    setRows((fallback.data as Row[]) ?? []);
+    setListReady(true);
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    (async () => {
-      setListReady(false);
-      const withMetadata = await supabase
-        .from("artifacts")
-        .select("id,title,kind,status,created_at,metadata,url")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (cancelled) return;
-      if (!withMetadata.error) {
-        setRows((withMetadata.data as Row[]) ?? []);
-        setListReady(true);
-        return;
-      }
-      const fallback = await supabase
-        .from("artifacts")
-        .select("id,title,kind,status,created_at,url")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (!cancelled) {
-        setRows((fallback.data as Row[]) ?? []);
-        setListReady(true);
-      }
-    })();
+    void reloadLibrary();
+    void fetchSeenArtifactIds(user.id).then((ids) => {
+      if (!cancelled) setSeenIds(ids);
+    });
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, reloadLibrary]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void syncYouTubeSubscriptions()
+      .then((imported) => {
+        if (cancelled || imported <= 0) return;
+        void reloadLibrary();
+        toast({
+          title: `${imported} new video${imported === 1 ? "" : "s"} from subscriptions`,
+          description: "Find them in the Unwatched shelf.",
+        });
+      })
+      .catch((e) => console.warn("[ArtifactsListPage] subscription sync", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [user, reloadLibrary]);
 
   const setViewModePersist = useCallback((m: LibraryViewMode) => {
     setViewMode(m);
@@ -90,8 +115,8 @@ export default function ArtifactsListPage() {
 
   const scopedRows = useMemo(() => {
     if (category === "all") return searchFiltered;
-    return searchFiltered.filter((r) => rowMatchesLibraryCategory(r, category));
-  }, [searchFiltered, category]);
+    return searchFiltered.filter((r) => rowMatchesLibraryCategory(r, category, seenIds));
+  }, [searchFiltered, category, seenIds]);
 
   const sortedRows = useMemo(() => sortRows(scopedRows, sortKey), [scopedRows, sortKey]);
 
@@ -101,6 +126,7 @@ export default function ArtifactsListPage() {
     const pick = (pred: (r: Row) => boolean) => sortRows(base.filter(pred), sortKey);
     return {
       recent,
+      unwatched: pick((r) => isUnwatchedSubscriptionRow(r, seenIds)),
       videos: pick((r) => r.kind === "youtube"),
       podcasts: pick((r) => r.kind === "podcast"),
       documents: pick((r) => r.kind === "pdf" || r.kind === "text_file"),
@@ -108,12 +134,13 @@ export default function ArtifactsListPage() {
       notes: pick((r) => r.kind === "text"),
       voice: pick((r) => r.kind === "voice" || r.kind === "audio"),
     };
-  }, [searchFiltered, sortKey]);
+  }, [searchFiltered, sortKey, seenIds]);
 
   const shelfRowIdsKey = useMemo(
     () =>
       [
         shelfData.recent.map((r) => r.id).join(","),
+        shelfData.unwatched.map((r) => r.id).join(","),
         shelfData.videos.map((r) => r.id).join(","),
         shelfData.podcasts.map((r) => r.id).join(","),
         shelfData.documents.map((r) => r.id).join(","),
@@ -287,7 +314,13 @@ export default function ArtifactsListPage() {
               ) : (
                 <ul key={sortedRowIdsKey} className="flex flex-col gap-3">
                   {sortedRows.map((r) => (
-                    <ArtifactListRow key={r.id} r={r} deletingId={deletingId} onDelete={deleteArtifact} />
+                    <ArtifactListRow
+                      key={r.id}
+                      r={r}
+                      deletingId={deletingId}
+                      onDelete={deleteArtifact}
+                      isUnwatched={isUnwatchedSubscriptionRow(r, seenIds)}
+                    />
                   ))}
                 </ul>
               )}
@@ -303,11 +336,25 @@ export default function ArtifactsListPage() {
                   deletingId={deletingId}
                   onDelete={tileHandlers.onDelete}
                   onRename={tileHandlers.onRename}
+                  seenIds={seenIds}
                 />
               )}
             </div>
           ) : (
             <div key={shelfRowIdsKey} className="mt-10 space-y-12">
+              {shelfData.unwatched.length > 0 ? (
+                <ArtifactShelf
+                  shelfKey="unwatched"
+                  title="Unwatched"
+                  rows={shelfData.unwatched}
+                  seeAllCategory="unwatched"
+                  onSeeAll={handleSeeAll}
+                  deletingId={deletingId}
+                  onDelete={tileHandlers.onDelete}
+                  onRename={tileHandlers.onRename}
+                  seenIds={seenIds}
+                />
+              ) : null}
               <ArtifactShelf
                 shelfKey="recent"
                 title="Recently added"
@@ -315,6 +362,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="videos"
@@ -325,6 +373,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="podcasts"
@@ -335,6 +384,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="documents"
@@ -345,6 +395,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="chats"
@@ -355,6 +406,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="notes"
@@ -365,6 +417,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
               <ArtifactShelf
                 shelfKey="voice"
@@ -375,6 +428,7 @@ export default function ArtifactsListPage() {
                 deletingId={deletingId}
                 onDelete={tileHandlers.onDelete}
                 onRename={tileHandlers.onRename}
+                seenIds={seenIds}
               />
             </div>
           )}

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   artifactDisplayTitle,
   channelAndAuthorLine,
+  isUnwatchedSubscriptionRow,
   tileUsesWideAspect,
   trimStr,
   youtubeThumbnailCandidates,
@@ -62,9 +63,17 @@ export interface ArtifactTileProps {
   deletingId: string | null;
   onDelete: (id: string, title: string | null) => void;
   onRename: (id: string) => void;
+  seenIds?: ReadonlySet<string>;
 }
 
-export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, onDelete, onRename }: ArtifactTileProps) {
+export const ArtifactTile = memo(function ArtifactTile({
+  r,
+  layout,
+  deletingId,
+  onDelete,
+  onRename,
+  seenIds,
+}: ArtifactTileProps) {
   const navigate = useNavigate();
   const merged = useMergedYoutubeRowMetadata(r);
   const title = artifactDisplayTitle(r);
@@ -75,6 +84,7 @@ export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, 
   const aspect = wide ? "aspect-video" : "aspect-[2/3]";
   const who = channelAndAuthorLine(merged);
   const ready = r.status === "ready";
+  const unwatched = isUnwatchedSubscriptionRow(r, seenIds ?? new Set());
 
   const cover = (() => {
     if (r.kind === "youtube") {
@@ -128,7 +138,11 @@ export const ArtifactTile = memo(function ArtifactTile({ r, layout, deletingId, 
         onDragStart={(e) => e.preventDefault()}
         aria-label={`Open ${title}`}
       />
-      {ready ? (
+      {unwatched ? (
+        <span className="pointer-events-none absolute left-2 top-2 z-[15] rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary-foreground shadow-sm">
+          New
+        </span>
+      ) : ready ? (
         <span className="pointer-events-none absolute left-2 top-2 z-[15] rounded-md bg-background/75 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-border/40 backdrop-blur-sm">
           Ready
         </span>

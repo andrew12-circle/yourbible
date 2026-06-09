@@ -397,9 +397,14 @@ export default function FrameworkDashboard() {
           label="Live stream"
         />
         <SecondaryAction
-          to="/framework/artifacts/new?mode=text&template=question"
+          to="/framework/hard-questions"
           icon={CircleHelp}
-          label="Question inbox"
+          label="Hard questions"
+        />
+        <SecondaryAction
+          to="/framework/hard-questions/new"
+          icon={Plus}
+          label="New hard question"
         />
         <SecondaryAction
           to="/framework/beliefs"

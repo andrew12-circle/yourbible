@@ -8,6 +8,7 @@ import {
   MiniPhoneSizeContext,
 } from "@/hooks/useMiniPhoneSize";
 import { MiniPhoneAppView } from "@/components/mini-phone/MiniPhoneAppView";
+import { MiniPhoneErrorBoundary } from "@/components/mini-phone/MiniPhoneErrorBoundary";
 import { MiniPhoneHomeBar } from "@/components/mini-phone/MiniPhoneHomeBar";
 import { MiniPhoneHomeGrid } from "@/components/mini-phone/MiniPhoneHomeGrid";
 
@@ -202,16 +203,18 @@ export function MiniPhoneDrawer() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-hidden">
-              {activeRoute ? (
-                <MiniPhoneAppView entryRoute={activeRoute} />
-              ) : (
-                <MiniPhoneHomeGrid
-                  apps={apps}
-                  wallpaper={wallpaper}
-                  wallpaperTint={wallpaperTint}
-                  wallpaperBlur={wallpaperBlur}
-                />
-              )}
+              <MiniPhoneErrorBoundary key={activeRoute ?? "home"}>
+                {activeRoute ? (
+                  <MiniPhoneAppView entryRoute={activeRoute} />
+                ) : (
+                  <MiniPhoneHomeGrid
+                    apps={apps}
+                    wallpaper={wallpaper}
+                    wallpaperTint={wallpaperTint}
+                    wallpaperBlur={wallpaperBlur}
+                  />
+                )}
+              </MiniPhoneErrorBoundary>
             </div>
 
             <MiniPhoneHomeBar

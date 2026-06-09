@@ -8,12 +8,7 @@ export default function LiveStreamPage() {
   const capture = useLiveStreamCapture(user?.id);
 
   return (
-    <FrameworkLayout
-      title="Live stream"
-      back="/framework/artifacts"
-      contentClassName="max-w-[min(96rem,calc(100vw-1.25rem))]"
-      headerContentClassName="max-w-[min(96rem,calc(100vw-1.25rem))]"
-    >
+    <FrameworkLayout title="Live stream" back="/framework/artifacts">
       <LiveStreamCaptureWorkspace capture={capture} signedIn={Boolean(user)} />
     </FrameworkLayout>
   );

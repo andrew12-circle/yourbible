@@ -1,7 +1,7 @@
 import {
   BookOpen, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
-  Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users,
+  Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
   type LucideIcon,
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
@@ -47,6 +47,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Playbook", to: "/framework/playbook", icon: ClipboardList, color: IOS_APP_BG.playbook },
     { label: "Artifacts", to: "/framework/artifacts", icon: FileStack, color: IOS_APP_BG.artifacts, badge: counts.artifacts || undefined },
     { label: "Research later", to: "/framework/research-later", icon: Clock, color: IOS_APP_BG.research, ariaLabel: "Research later" },
+    { label: "Hard questions", to: "/framework/hard-questions", icon: CircleHelp, color: IOS_APP_BG.study, ariaLabel: "Hard questions research" },
     { label: "Graph", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph },
     { label: "Beliefs", to: "/framework/beliefs", icon: Network, color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
     { label: "Influences", to: "/framework/influences", icon: Users, color: IOS_APP_BG.influences },

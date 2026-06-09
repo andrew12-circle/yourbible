@@ -197,6 +197,32 @@ export type Database = {
           },
         ]
       }
+      artifact_library_seen: {
+        Row: {
+          artifact_id: string
+          first_opened_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          first_opened_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          first_opened_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_library_seen_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifact_moments: {
         Row: {
           artifact_id: string
@@ -808,6 +834,150 @@ export type Database = {
           stats?: Json
           summary?: string
           title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      framework_hard_questions: {
+        Row: {
+          conclusion: string | null
+          confidence: number | null
+          created_at: string
+          current_thinking: string | null
+          framing: string | null
+          id: string
+          layer: string | null
+          linked_belief_ids: string[]
+          notes: string
+          scripture_refs: Json
+          seed_key: string | null
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+          why_it_matters: string | null
+        }
+        Insert: {
+          conclusion?: string | null
+          confidence?: number | null
+          created_at?: string
+          current_thinking?: string | null
+          framing?: string | null
+          id?: string
+          layer?: string | null
+          linked_belief_ids?: string[]
+          notes?: string
+          scripture_refs?: Json
+          seed_key?: string | null
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+          why_it_matters?: string | null
+        }
+        Update: {
+          conclusion?: string | null
+          confidence?: number | null
+          created_at?: string
+          current_thinking?: string | null
+          framing?: string | null
+          id?: string
+          layer?: string | null
+          linked_belief_ids?: string[]
+          notes?: string
+          scripture_refs?: Json
+          seed_key?: string | null
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          why_it_matters?: string | null
+        }
+        Relationships: []
+      }
+      hard_question_research_runs: {
+        Row: {
+          brief_summary: string | null
+          created_at: string
+          first_chat_at: string | null
+          hard_question_id: string
+          id: string
+          opened_at: string | null
+          pack_json: Json
+          pack_type: string
+          use_web: boolean
+          user_id: string
+          user_question: string | null
+          verdict: string | null
+          verdict_at: string | null
+        }
+        Insert: {
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          hard_question_id: string
+          id?: string
+          opened_at?: string | null
+          pack_json: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Update: {
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          hard_question_id?: string
+          id?: string
+          opened_at?: string | null
+          pack_json?: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id?: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Relationships: []
+      }
+      hard_question_sources: {
+        Row: {
+          artifact_id: string | null
+          created_at: string
+          hard_question_id: string
+          id: string
+          kind: string
+          label: string
+          snippet: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          created_at?: string
+          hard_question_id: string
+          id?: string
+          kind?: string
+          label: string
+          snippet?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string | null
+          created_at?: string
+          hard_question_id?: string
+          id?: string
+          kind?: string
+          label?: string
+          snippet?: string | null
+          url?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1884,6 +2054,48 @@ export type Database = {
           created_at?: string
           id?: string
           traditions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_channel_subscriptions: {
+        Row: {
+          auto_import: boolean
+          channel_handle: string | null
+          channel_id: string
+          channel_thumbnail_url: string | null
+          channel_title: string | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          last_video_published_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id?: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
           updated_at?: string
           user_id?: string
         }
