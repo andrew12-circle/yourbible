@@ -13,9 +13,11 @@ import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import {
   parseHomeLayoutMedia,
+  parseHomeMode,
   resolveHomeMediaUrl,
   uploadHomeProfilePhoto,
   uploadHomeWallpaper,
+  type HomeMode,
 } from "@/lib/profile/homeMedia";
 import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
 import { AiUsageSection } from "@/components/settings/AiUsageSection";
@@ -28,6 +30,7 @@ type HomeLayoutSettings = {
   homeWallpaperTint?: number;
   homeWallpaperBlur?: number;
   homeProfilePhoto?: string;
+  homeMode?: HomeMode;
 };
 
 export default function SettingsPage() {
@@ -409,6 +412,32 @@ export default function SettingsPage() {
 
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Background settings</h2>
+          <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4 mb-4">
+            <div>
+              <div className="font-display text-leather mb-1">Home style</div>
+              <div className="text-xs text-muted-foreground mb-3">
+                App screen uses the iOS launcher. Command center adds a desktop sidebar and mini phone (mobile always uses App screen).
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { id: "ios" as const, label: "App screen", hint: "iOS home" },
+                  { id: "hub" as const, label: "Command center", hint: "Desktop hub" },
+                ]).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => void saveHomeLayout({ homeMode: opt.id })}
+                    className={`p-4 rounded-md border-2 text-left transition-all ${
+                      parseHomeMode(profile.layout) === opt.id ? "border-gold bg-paper-warm/80" : "border-paper-edge"
+                    }`}
+                  >
+                    <div className="font-display text-leather">{opt.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{opt.hint}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">

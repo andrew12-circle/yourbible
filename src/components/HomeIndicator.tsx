@@ -1,12 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 
 /**
  * iOS-style home indicator pill, fixed to the bottom of the screen.
- * Tapping it navigates back to /home. Hidden on home, auth, onboarding, and artifact detail (dock has Home).
+ * Tapping it navigates back to /home. Hidden on home, auth, onboarding, hub shell, and artifact detail.
  */
 export default function HomeIndicator() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { showHubShell } = useAppShellMode();
 
   const isArtifactDetail =
     /^\/framework\/artifacts\/[^/]+$/.test(pathname) &&
@@ -14,6 +16,7 @@ export default function HomeIndicator() {
     pathname !== "/framework/artifacts/live";
 
   const hidden =
+    showHubShell ||
     pathname === "/" ||
     pathname === "/home" ||
     pathname.startsWith("/auth") ||

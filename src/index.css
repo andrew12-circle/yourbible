@@ -64,6 +64,18 @@
 
     --radius: 0.375rem;
 
+    /* Sidebar tokens (hub shell + shadcn sidebar) */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 20%;
+    --sidebar-primary: 215 25% 15%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 15% 95%;
+    --sidebar-accent-foreground: 215 25% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 215 25% 15%;
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+
     /* Section colors for book tabs */
     --section-law: 28 60% 42%;
     --section-history: 24 50% 32%;
@@ -662,6 +674,18 @@
 
   --radius: 0.875rem;
 
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 25% 20%;
+  --sidebar-primary: 215 25% 15%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 215 15% 95%;
+  --sidebar-accent-foreground: 215 25% 15%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 215 25% 15%;
+
+  --success: 142 71% 35%;
+  --success-foreground: 0 0% 100%;
+
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
@@ -699,6 +723,15 @@
    the Bible reader when the user picks "San Francisco" as their font). */
 .font-system {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+}
+
+/* Hub shell fabric backdrop (ported from quick-close-hub) */
+.bg-fabric {
+  background-image: url("/images/fabric-light-herringbone.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  background-position: top left;
+  background-attachment: fixed;
 }
 
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */

@@ -13,6 +13,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
+import { ShellGate } from "@/components/shell/ShellGate";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
@@ -79,80 +80,82 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/my-ai" element={<MyAiPage />} />
-                <Route path="/my-ai/:chatId" element={<MyAiPage />} />
-                <Route path="/partner" element={<PartnerWalkPage />} />
-                <Route path="/partner/accept" element={<PartnerAcceptPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/read/:book/:chapter" element={<ReaderPage />} />
-                <Route path="/reading-plans" element={<ReadingPlansPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/sleep" element={<SleepPage />} />
-                <Route path="/life-weeks" element={<LifeWeeksPage />} />
-                <Route path="/life/priorities" element={<LifePrioritiesPage />} />
-                <Route path="/life/habits" element={<HabitsPage />} />
-                <Route path="/life/todos" element={<TodosPage />} />
-                <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
-                <Route path="/framework" element={<FrameworkDashboard />} />
-                <Route path="/framework/journey" element={<FaithJourneyPage />} />
-                <Route path="/framework/playbook" element={<PlaybookPage />} />
-                <Route path="/framework/playbook/:id" element={<PlaybookDetailPage />} />
-                <Route path="/framework/interview/:layer" element={<InterviewPage />} />
-                <Route path="/framework/beliefs" element={<BeliefsListPage />} />
-                <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
-                <Route path="/framework/graph" element={<BeliefGraphPage />} />
-                <Route path="/framework/tensions" element={<TensionsPage />} />
-                <Route path="/framework/influences" element={<InfluencesPage />} />
-                <Route path="/framework/digest" element={<DigestPage />} />
-                <Route path="/framework/chat" element={<Navigate to="/my-ai" replace />} />
-                <Route path="/framework/chat/legacy" element={<ChatPage />} />
-                <Route path="/framework/study" element={<StudyPage />} />
-                <Route path="/framework/daily" element={<DailyPage />} />
-                <Route path="/framework/live" element={<Navigate to="/framework/artifacts/live" replace />} />
-                <Route path="/journal" element={<JournalPage />} />
-                <Route path="/journal/j/:journalId" element={<JournalPage />} />
-                <Route path="/journal/j/:journalId/e/:entryId" element={<JournalPage />} />
-                <Route path="/journal/e/:entryId" element={<JournalPage />} />
-                <Route path="/journal/calendar" element={<JournalCalendarPage />} />
-                <Route path="/journal/j/:journalId/calendar" element={<JournalCalendarPage />} />
-                <Route path="/journal/media" element={<JournalMediaPage />} />
-                <Route path="/journal/j/:journalId/media" element={<JournalMediaPage />} />
-                <Route path="/journal/map" element={<JournalMapPage />} />
-                <Route path="/journal/j/:journalId/map" element={<JournalMapPage />} />
-                <Route path="/journal/mirror" element={<JournalMirrorPage />} />
-                <Route path="/journal/prompts" element={<JournalPromptsPage />} />
-                <Route path="/journal/today" element={<JournalTodayPage />} />
-                <Route path="/journal/life" element={<JournalLifePage />} />
-                <Route path="/journal/life/:kind" element={<JournalLifePage />} />
-                <Route path="/journal/vent" element={<JournalVentPage />} />
-                <Route path="/journal/chat" element={<JournalChatPage />} />
-                <Route path="/journal/chat/:entryId" element={<JournalChatPage />} />
-                <Route path="/journal/new" element={<NewJournalEntryPage />} />
-                <Route path="/journal/:id" element={<JournalEntryPage />} />
-                <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
-                <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
-                <Route path="/framework/library-standing" element={<LibraryStandingPage />} />
-                <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
-                <Route path="/framework/artifacts/live" element={<LiveStreamPage />} />
-                <Route
-                  path="/framework/artifacts/:id"
-                  element={
-                    <ArtifactDetailErrorBoundary>
-                      <ArtifactDetailPage />
-                    </ArtifactDetailErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/framework/artifacts/:id/research/:claimId"
-                  element={
-                    <ArtifactDetailErrorBoundary>
-                      <ClaimResearchWorkspacePage />
-                    </ArtifactDetailErrorBoundary>
-                  }
-                />
-                <Route path="/framework/research-later" element={<ResearchLaterPage />} />
-                <Route path="*" element={<NotFound />} />
+                <Route path="/partner/accept" element={<PartnerAcceptPage />} />
+                <Route element={<ShellGate />}>
+                  <Route path="/home" element={<HomePage />} />
+                  <Route path="/my-ai" element={<MyAiPage />} />
+                  <Route path="/my-ai/:chatId" element={<MyAiPage />} />
+                  <Route path="/partner" element={<PartnerWalkPage />} />
+                  <Route path="/reading-plans" element={<ReadingPlansPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/sleep" element={<SleepPage />} />
+                  <Route path="/life-weeks" element={<LifeWeeksPage />} />
+                  <Route path="/life/priorities" element={<LifePrioritiesPage />} />
+                  <Route path="/life/habits" element={<HabitsPage />} />
+                  <Route path="/life/todos" element={<TodosPage />} />
+                  <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
+                  <Route path="/framework" element={<FrameworkDashboard />} />
+                  <Route path="/framework/journey" element={<FaithJourneyPage />} />
+                  <Route path="/framework/playbook" element={<PlaybookPage />} />
+                  <Route path="/framework/playbook/:id" element={<PlaybookDetailPage />} />
+                  <Route path="/framework/interview/:layer" element={<InterviewPage />} />
+                  <Route path="/framework/beliefs" element={<BeliefsListPage />} />
+                  <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
+                  <Route path="/framework/graph" element={<BeliefGraphPage />} />
+                  <Route path="/framework/tensions" element={<TensionsPage />} />
+                  <Route path="/framework/influences" element={<InfluencesPage />} />
+                  <Route path="/framework/digest" element={<DigestPage />} />
+                  <Route path="/framework/chat" element={<Navigate to="/my-ai" replace />} />
+                  <Route path="/framework/chat/legacy" element={<ChatPage />} />
+                  <Route path="/framework/study" element={<StudyPage />} />
+                  <Route path="/framework/daily" element={<DailyPage />} />
+                  <Route path="/framework/live" element={<Navigate to="/framework/artifacts/live" replace />} />
+                  <Route path="/journal" element={<JournalPage />} />
+                  <Route path="/journal/j/:journalId" element={<JournalPage />} />
+                  <Route path="/journal/j/:journalId/e/:entryId" element={<JournalPage />} />
+                  <Route path="/journal/e/:entryId" element={<JournalPage />} />
+                  <Route path="/journal/calendar" element={<JournalCalendarPage />} />
+                  <Route path="/journal/j/:journalId/calendar" element={<JournalCalendarPage />} />
+                  <Route path="/journal/media" element={<JournalMediaPage />} />
+                  <Route path="/journal/j/:journalId/media" element={<JournalMediaPage />} />
+                  <Route path="/journal/map" element={<JournalMapPage />} />
+                  <Route path="/journal/j/:journalId/map" element={<JournalMapPage />} />
+                  <Route path="/journal/mirror" element={<JournalMirrorPage />} />
+                  <Route path="/journal/prompts" element={<JournalPromptsPage />} />
+                  <Route path="/journal/today" element={<JournalTodayPage />} />
+                  <Route path="/journal/life" element={<JournalLifePage />} />
+                  <Route path="/journal/life/:kind" element={<JournalLifePage />} />
+                  <Route path="/journal/vent" element={<JournalVentPage />} />
+                  <Route path="/journal/chat" element={<JournalChatPage />} />
+                  <Route path="/journal/chat/:entryId" element={<JournalChatPage />} />
+                  <Route path="/journal/new" element={<NewJournalEntryPage />} />
+                  <Route path="/journal/:id" element={<JournalEntryPage />} />
+                  <Route path="/journal/:id/edit" element={<NewJournalEntryPage />} />
+                  <Route path="/framework/artifacts" element={<ArtifactsListPage />} />
+                  <Route path="/framework/library-standing" element={<LibraryStandingPage />} />
+                  <Route path="/framework/artifacts/new" element={<NewArtifactPage />} />
+                  <Route path="/framework/artifacts/live" element={<LiveStreamPage />} />
+                  <Route
+                    path="/framework/artifacts/:id"
+                    element={
+                      <ArtifactDetailErrorBoundary>
+                        <ArtifactDetailPage />
+                      </ArtifactDetailErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="/framework/artifacts/:id/research/:claimId"
+                    element={
+                      <ArtifactDetailErrorBoundary>
+                        <ClaimResearchWorkspacePage />
+                      </ArtifactDetailErrorBoundary>
+                    }
+                  />
+                  <Route path="/framework/research-later" element={<ResearchLaterPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
               </Routes>
             </Suspense>
             <Suspense fallback={null}>

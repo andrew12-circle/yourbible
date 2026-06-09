@@ -6,12 +6,21 @@ const BUCKET = "journal-photos";
 /** Values stored in profile.layout — storage path, legacy data URL, or remote URL. */
 export type HomeMediaRef = string;
 
+export type HomeMode = "ios" | "hub";
+
 export type HomeLayoutMedia = {
   homeWallpaper?: HomeMediaRef;
   homeWallpaperTint?: number;
   homeWallpaperBlur?: number;
   homeProfilePhoto?: HomeMediaRef;
+  /** Desktop home experience: iOS launcher vs command-center hub shell. */
+  homeMode?: HomeMode;
 };
+
+export function parseHomeMode(layout: string | null | undefined): HomeMode {
+  const mode = parseHomeLayoutMedia(layout).homeMode;
+  return mode === "hub" ? "hub" : "ios";
+}
 
 export function isInlineOrRemoteMediaRef(ref: string): boolean {
   const t = ref.trim();
