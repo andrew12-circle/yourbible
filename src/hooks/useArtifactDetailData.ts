@@ -4,6 +4,7 @@ import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifa
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import {
+  markYoutubeTranscriptFetchError,
   resumeYoutubeTranscriptFetch,
   restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
@@ -12,6 +13,15 @@ const YOUTUBE_FETCH_ENSURE_AFTER_MS = 6_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
 const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
+const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
+const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 150;
+
+function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false;
+  const createdMs = Date.parse(createdAt);
+  if (!Number.isFinite(createdMs)) return false;
+  return Date.now() - createdMs > YOUTUBE_FETCH_STALE_MS;
+}
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -62,6 +72,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const prevStatusRef = useRef<string | null>(null);
   const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
   const ensureFetchRef = useRef<string | null>(null);
+  const clientTimeoutRef = useRef<string | null>(null);
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
     setA((prev) => {
@@ -78,13 +89,13 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     }
     const artWithMeta = await supabase
       .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata")
+      .select("id,title,kind,status,error,raw_text,url,metadata,created_at")
       .eq("id", artifactId)
       .maybeSingle();
     const artResult = artWithMeta.error
       ? await supabase
           .from("artifacts")
-          .select("id,title,kind,status,error,raw_text,url")
+          .select("id,title,kind,status,error,raw_text,url,created_at")
           .eq("id", artifactId)
           .maybeSingle()
       : artWithMeta;
@@ -135,7 +146,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (!artifactId) return;
     const { data } = await supabase
       .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata")
+      .select("id,title,kind,status,error,raw_text,url,metadata,created_at")
       .eq("id", artifactId)
       .maybeSingle();
     if (!data) return;
@@ -155,6 +166,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
 
   useEffect(() => {
     ensureFetchRef.current = null;
+    clientTimeoutRef.current = null;
   }, [artifactId]);
 
   useEffect(() => {
@@ -200,13 +212,27 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
           .eq("id", artifactId)
           .maybeSingle();
         if (data?.status !== "fetching" || (data.raw_text ?? "").trim()) return;
-        const result = await resumeYoutubeTranscriptFetch(artifactId, artifactUrl);
+        const stale = isStaleYoutubeFetch(a?.created_at);
+        const result = stale
+          ? await restartYoutubeTranscriptFetch(artifactId, artifactUrl)
+          : await resumeYoutubeTranscriptFetch(artifactId, artifactUrl);
         if (!result.ok) await loadStatusOnly();
       })();
     }, YOUTUBE_FETCH_ENSURE_AFTER_MS);
 
     return () => window.clearTimeout(timer);
   }, [artifactLoaded, a, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
+    if (elapsed < YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS) return;
+    if (clientTimeoutRef.current === a.id) return;
+    clientTimeoutRef.current = a.id;
+    void markYoutubeTranscriptFetchError(
+      a.id,
+      "Transcript fetch is taking too long. Tap Retry, paste captions, or try again in a few minutes.",
+    ).then(() => loadStatusOnly());
+  }, [a, elapsed, loadStatusOnly]);
 
   useEffect(() => {
     if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;

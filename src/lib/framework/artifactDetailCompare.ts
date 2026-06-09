@@ -9,6 +9,7 @@ export type ArtifactRow = {
   raw_text: string;
   url?: string | null;
   metadata?: Json | null;
+  created_at?: string | null;
 };
 
 export function artifactRowStableEqual(prev: ArtifactRow | null, next: ArtifactRow | null): boolean {

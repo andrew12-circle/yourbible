@@ -48,6 +48,22 @@ const YT_WATCH_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
 };
 
+const TRANSCRIPT_JOB_DEADLINE_MS = Number(
+  Deno.env.get("TRANSCRIPT_JOB_DEADLINE_MS") ?? String(120 * 1000),
+);
+
+function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
+        ms,
+      );
+    }),
+  ]);
+}
+
 function isYouTubeUrl(url: string): boolean {
   try {
     const u = new URL(url);
@@ -790,7 +806,11 @@ Deno.serve(async (req) => {
             }
             return { fetch, metadata, chaptersBundle: null };
           })()
-          : await transcribeYouTubeVideo(url, { userId: u.user.id, admin });
+          : await withDeadline(
+            transcribeYouTubeVideo(url, { userId: u.user.id, admin }),
+            TRANSCRIPT_JOB_DEADLINE_MS,
+            "Transcript fetch",
+          );
         const uploaderName = result.metadata.channelTitle ?? null;
         const vid = extractYouTubeVideoId(url);
         let desc = result.chaptersBundle?.description ?? "";
@@ -891,7 +911,8 @@ Deno.serve(async (req) => {
         const raw = String((e as Error).message ?? e);
         const msg = raw.startsWith("Could not fetch transcript:") ? raw : `Could not fetch transcript: ${raw}`;
         console.error(msg);
-        await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+        const db = admin ?? supabase;
+        await db.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
       }
     };
 

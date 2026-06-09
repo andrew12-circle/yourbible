@@ -179,6 +179,7 @@ export const artifactPipelineMicroCopy: Record<string, string[]> = {
   fetching: [
     "Pulling captions from YouTube…",
     "Trying alternate transcript sources…",
+    "Paid transcript service may take 1–2 minutes for long videos…",
     "Aligning timestamps with the video…",
   ],
   transcribing: [
