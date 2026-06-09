@@ -4,7 +4,6 @@ import { MiniPhoneProvider } from "@/contexts/MiniPhoneContext";
 import { HomeDashboardProvider } from "@/contexts/HomeDashboardContext";
 import { HubSidebar } from "@/components/shell/HubSidebar";
 import { SidebarPeekTab } from "@/components/shell/SidebarPeekTab";
-import { HubTopBar } from "@/components/shell/HubTopBar";
 import { HubContentSkeleton } from "@/components/shell/HubContentSkeleton";
 import { FloatingPhoneBubble } from "@/components/mini-phone/FloatingPhoneBubble";
 import { MiniPhoneDrawer } from "@/components/mini-phone/MiniPhoneDrawer";
@@ -17,8 +16,7 @@ export function HubShell({ children }: { children: ReactNode }) {
           <HubSidebar />
           <SidebarPeekTab />
           <SidebarInset className="hub-content-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/30 bg-background shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-            <HubTopBar />
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <Suspense fallback={<HubContentSkeleton />}>
                 {children}
               </Suspense>

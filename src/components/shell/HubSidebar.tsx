@@ -2,10 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 import {
   BookOpen, Sun, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, Calendar, MessageCircleHeart,
-  HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users,
+  HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
+import { useAuth } from "@/contexts/AuthContext";
 import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -115,6 +116,35 @@ function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
   );
 }
 
+function HubSidebarProfile() {
+  const { user } = useAuth();
+  const { profilePhoto, displayName } = useHomeDashboard();
+  const profileInitial = (displayName || user?.email || "U").trim()[0]?.toUpperCase() ?? "U";
+  const profileLabel = displayName?.trim() || user?.email?.split("@")[0] || "Profile";
+
+  return (
+    <Link
+      to="/settings"
+      className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-muted/25 px-2.5 py-2 transition-colors hover:border-border/60 hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="Open settings and profile"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/50 bg-muted text-sm font-semibold text-foreground">
+        {profilePhoto ? (
+          <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+        ) : profileInitial ? (
+          profileInitial
+        ) : (
+          <User className="h-4 w-4" aria-hidden />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium leading-tight text-foreground">{profileLabel}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">Settings & profile</span>
+      </span>
+    </Link>
+  );
+}
+
 export function HubSidebar() {
   const { pathname } = useLocation();
   const { counts } = useHomeDashboard();
@@ -131,23 +161,29 @@ export function HubSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas" variant="floating">
-      <SidebarHeader className="px-3 py-4">
-        <div className="flex items-center gap-2 px-1">
-          <Link to="/home" className="shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <img
-              src="/app-icon-32.png"
-              srcSet="/app-icon-32.png 1x, /app-icon-180.png 2x"
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-lg object-cover shadow-sm"
-            />
-          </Link>
-          <div>
-            <div className="text-sm font-semibold">Your Bible</div>
-            <div className="text-[10px] text-muted-foreground">Command center</div>
-          </div>
-        </div>
+      <SidebarHeader className="px-3 py-5">
+        <Link
+          to="/home"
+          className="flex items-center gap-3.5 rounded-lg px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Belief architecture home"
+        >
+          <img
+            src="/app-icon-32.png"
+            srcSet="/app-icon-32.png 1x, /app-icon-180.png 2x"
+            alt=""
+            width={48}
+            height={48}
+            className="h-12 w-12 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-black/[0.06]"
+          />
+          <span className="min-w-0">
+            <span className="block font-display text-[2.125rem] font-normal leading-none tracking-[-0.03em] text-leather">
+              Belief
+            </span>
+            <span className="mt-1 block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/85">
+              architecture
+            </span>
+          </span>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         {sidebarGroups.map((group, gi) => (
@@ -175,10 +211,8 @@ export function HubSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="px-2 pb-3">
-        <p className="text-[10px] text-muted-foreground px-2 text-center">
-          Desktop command center
-        </p>
+      <SidebarFooter className="mt-auto shrink-0 border-t border-border/40 px-2 py-3">
+        <HubSidebarProfile />
       </SidebarFooter>
     </Sidebar>
   );

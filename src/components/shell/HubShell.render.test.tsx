@@ -46,6 +46,6 @@ describe("HubShell", () => {
     ).not.toThrow();
 
     expect(screen.getByText("Hub child content")).toBeInTheDocument();
-    expect(screen.getByText("Your Bible")).toBeInTheDocument();
+    expect(screen.getByText("Belief")).toBeInTheDocument();
   });
 });
