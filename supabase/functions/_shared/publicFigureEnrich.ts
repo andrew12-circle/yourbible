@@ -5,7 +5,7 @@
 
 export const PUBLIC_FIGURE_GEMINI_MODEL = "gemini-2.5-flash";
 
-export type EnrichSource = "wikipedia" | "duckduckgo" | "llm";
+export type EnrichSource = "wikipedia" | "duckduckgo" | "llm" | "ai_portrait";
 
 export type PublicFigureEnrichResult = {
   avatar_url?: string;

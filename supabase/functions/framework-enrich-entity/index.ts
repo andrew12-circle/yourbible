@@ -5,6 +5,11 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import {
+  biblicalFigureBio,
+  getOrCreateBiblicalPortraitUrl,
+  isBiblicalFigure,
+} from "../_shared/biblicalFigurePortrait.ts";
+import {
   enrichPublicFigure,
   hasUsefulEnrichContent,
   sleep,
@@ -45,7 +50,8 @@ function parseEntityMeta(raw: unknown): EntityMeta {
   const enrichment_source =
     raw.enrichment_source === "wikipedia" ||
     raw.enrichment_source === "duckduckgo" ||
-    raw.enrichment_source === "llm"
+    raw.enrichment_source === "llm" ||
+    raw.enrichment_source === "ai_portrait"
       ? raw.enrichment_source
       : undefined;
   return {
@@ -65,6 +71,8 @@ function normalizeIds(raw: unknown): string[] {
 
 async function enrichOneEntity(
   supabase: SupabaseClient,
+  admin: SupabaseClient | null,
+  supabaseUrl: string,
   userId: string,
   entityId: string,
   artifactHint?: string,
@@ -126,7 +134,30 @@ async function enrichOneEntity(
   const scope = entity.subtitle?.trim() || meta.role || "person";
   const hint = [artifactHint?.trim(), meta.summary?.trim()].filter(Boolean).join(" · ") || undefined;
 
-  const { result: payload, llmFault } = await enrichPublicFigure(entity.title, scope, hint);
+  let payload: PublicFigureEnrichResult = {};
+  let llmFault: string | undefined;
+
+  if (isBiblicalFigure(entity.title)) {
+    if (admin) {
+      const portraitUrl = await getOrCreateBiblicalPortraitUrl(admin, supabaseUrl, entity.title);
+      if (portraitUrl) {
+        payload = {
+          avatar_url: portraitUrl,
+          bio: biblicalFigureBio(entity.title),
+          source: "ai_portrait",
+        };
+      }
+    }
+    if (!hasUsefulEnrichContent(payload)) {
+      const fallback = await enrichPublicFigure(entity.title, scope, hint);
+      payload = fallback.result;
+      llmFault = fallback.llmFault;
+    }
+  } else {
+    const enriched = await enrichPublicFigure(entity.title, scope, hint);
+    payload = enriched.result;
+    llmFault = enriched.llmFault;
+  }
 
   if (!hasUsefulEnrichContent(payload)) {
     return {
@@ -194,6 +225,9 @@ Deno.serve(async (req) => {
     }
     const uid = userData.user.id;
 
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const admin = SERVICE_ROLE ? createClient(SUPABASE_URL, SERVICE_ROLE) : null;
+
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const artifactHint = typeof body.artifact_hint === "string" ? body.artifact_hint : undefined;
 
@@ -204,7 +238,7 @@ Deno.serve(async (req) => {
         const g = entitiesRaw[i];
         const entityId = isRecord(g) && typeof g.entity_id === "string" ? g.entity_id : "";
         if (i > 0) await sleep(BETWEEN_ENTITY_MS);
-        results.push(await enrichOneEntity(supabase, uid, entityId, artifactHint));
+        results.push(await enrichOneEntity(supabase, admin, SUPABASE_URL, uid, entityId, artifactHint));
       }
       return jsonResponse({ ok: true, results });
     }
@@ -219,7 +253,7 @@ Deno.serve(async (req) => {
       const results: Awaited<ReturnType<typeof enrichOneEntity>>[] = [];
       for (let i = 0; i < ids.length; i += 1) {
         if (i > 0) await sleep(BETWEEN_ENTITY_MS);
-        results.push(await enrichOneEntity(supabase, uid, ids[i], artifactHint));
+        results.push(await enrichOneEntity(supabase, admin, SUPABASE_URL, uid, ids[i], artifactHint));
       }
       if (results.length === 1) {
         const one = results[0];

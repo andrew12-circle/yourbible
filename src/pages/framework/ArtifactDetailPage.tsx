@@ -1553,6 +1553,7 @@ export default function ArtifactDetailPage() {
             claims={claims}
             artifactId={a.id}
             artifactStatus={a.status}
+            artifactMetadata={mergedVideoMeta}
             claimsCount={claims.length}
             frameworkOverview={frameworkOverview}
             claimSources={claimSources}
@@ -1617,6 +1618,7 @@ export default function ArtifactDetailPage() {
           claims={claims}
           artifactId={a.id}
           artifactStatus={a.status}
+          artifactMetadata={mergedVideoMeta}
           claimsCount={claims.length}
           entitiesCount={entitiesCount}
           frameworkOverview={frameworkOverview}
@@ -1663,7 +1665,12 @@ export default function ArtifactDetailPage() {
           defaultOpenDesktop={false}
           storageKey={a.id ? `artifact-entities-full:${a.id}` : undefined}
         >
-          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} variant="default" />
+          <ArtifactEntitiesPanel
+            artifactId={a.id}
+            artifactStatus={a.status}
+            artifactMetadata={mergedVideoMeta}
+            variant="default"
+          />
         </ArtifactCollapsibleSection>
       ) : null}
 
@@ -1904,7 +1911,12 @@ export default function ArtifactDetailPage() {
           defaultOpenDesktop
           storageKey={a.id ? `artifact-entities:${a.id}` : undefined}
         >
-          <ArtifactEntitiesPanel artifactId={a.id} artifactStatus={a.status} variant="default" />
+          <ArtifactEntitiesPanel
+            artifactId={a.id}
+            artifactStatus={a.status}
+            artifactMetadata={mergedVideoMeta}
+            variant="default"
+          />
         </ArtifactCollapsibleSection>
       ) : null}
       </ArtifactDetailStudyColumnWrapper>

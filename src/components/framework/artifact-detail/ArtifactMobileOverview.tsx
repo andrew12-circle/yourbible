@@ -21,6 +21,7 @@ type Props = {
   claims: ClaimLike[];
   artifactId: string;
   artifactStatus: string;
+  artifactMetadata?: import("@/pages/framework/artifacts/artifactLibraryModel").ArtifactMetadata | null;
   claimsCount: number;
   entitiesCount?: number;
   frameworkOverview?: ArtifactFrameworkOverview | null;
@@ -48,6 +49,7 @@ export default function ArtifactMobileOverview({
   claims,
   artifactId,
   artifactStatus,
+  artifactMetadata,
   claimsCount,
   entitiesCount,
   frameworkOverview,
@@ -118,6 +120,7 @@ export default function ArtifactMobileOverview({
           <ArtifactEntitiesPanel
             artifactId={artifactId}
             artifactStatus={artifactStatus}
+            artifactMetadata={artifactMetadata}
             variant={entitiesExpanded ? "default" : "mobileRail"}
           />
         </div>

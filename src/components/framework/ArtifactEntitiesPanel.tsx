@@ -5,9 +5,16 @@ import { useKnowledgeEntityAvatarEnrichment } from "@/hooks/useKnowledgeEntityAv
 import {
   artifactHorizontalRail,
   artifactHorizontalRailBase,
+  artifactMobileStudyContentInset,
   artifactMobileStudyRailLeadingPad,
 } from "@/lib/framework/artifactSurfaces";
+import {
+  buildArtifactCastMembers,
+  castKindLabel,
+  type CastMember,
+} from "@/lib/framework/artifactCast";
 import { initialsFromName, isPersonEntityKind, monogramGradient } from "@/lib/framework/entityMonogram";
+import type { ArtifactMetadata } from "@/pages/framework/artifacts/artifactLibraryModel";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -76,18 +83,71 @@ type OtherMention = {
   artifacts: { title: string | null } | null;
 };
 
+function CastMemberChip({
+  member,
+  entity,
+  mentionConfidence,
+  mentionCountInArtifact,
+  currentArtifactId,
+  variant = "personRail",
+}: {
+  member: CastMember;
+  entity?: KnowledgeEntityRow;
+  mentionConfidence?: number | null;
+  mentionCountInArtifact?: number;
+  currentArtifactId: string;
+  variant?: "personRail";
+}) {
+  if (entity) {
+    return (
+      <EntityChipPopover
+        entity={entity}
+        mentionConfidence={mentionConfidence ?? null}
+        currentArtifactId={currentArtifactId}
+        mentionCountInArtifact={mentionCountInArtifact}
+        variant={variant}
+        roleLabel={castKindLabel(member.kind)}
+      />
+    );
+  }
+
+  const avatarUrl = member.avatarUrl?.trim() || null;
+  return (
+    <div
+      className="inline-flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-3 min-w-[108px] max-w-[132px] text-left font-medium text-foreground shadow-sm"
+      title={member.title}
+    >
+      <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-border/60">
+        {avatarUrl ? <AvatarImage src={avatarUrl} alt="" className="object-cover" /> : null}
+        <AvatarFallback
+          className="text-sm font-medium text-white tracking-tight border-0"
+          style={{ background: monogramGradient(member.title) }}
+        >
+          {initialsFromName(member.title)}
+        </AvatarFallback>
+      </Avatar>
+      <span className="w-full truncate text-center text-sm font-display font-semibold leading-snug">
+        {member.title}
+      </span>
+      <span className="text-[10px] text-muted-foreground">{castKindLabel(member.kind)}</span>
+    </div>
+  );
+}
+
 function EntityChipPopover({
   entity,
   mentionConfidence,
   currentArtifactId,
   mentionCountInArtifact,
   variant = "default",
+  roleLabel,
 }: {
   entity: KnowledgeEntityRow;
   mentionConfidence: number | null;
   currentArtifactId: string;
   mentionCountInArtifact?: number;
   variant?: "default" | "rail" | "personRail";
+  roleLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -157,7 +217,9 @@ function EntityChipPopover({
               <span className="w-full truncate text-center text-sm font-display font-semibold leading-snug">
                 {entity.title}
               </span>
-              {mentionCountInArtifact != null ? (
+              {roleLabel ? (
+                <span className="text-[10px] text-muted-foreground">{roleLabel}</span>
+              ) : mentionCountInArtifact != null ? (
                 <span className="text-[10px] text-muted-foreground">
                   {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
                 </span>
@@ -254,6 +316,48 @@ function EntityChipPopover({
   );
 }
 
+function CastRail({
+  members,
+  entityById,
+  variant,
+  artifactId,
+}: {
+  members: CastMember[];
+  entityById: Map<string, KnowledgeEntityRow>;
+  variant: "mobileRail" | "desktopRail";
+  artifactId: string;
+}) {
+  return (
+    <div
+      className={cn(
+        variant === "mobileRail"
+          ? cn(
+              artifactHorizontalRailBase,
+              "snap-x snap-mandatory w-full max-w-none",
+              artifactMobileStudyRailLeadingPad,
+            )
+          : artifactHorizontalRail,
+        variant === "desktopRail" && "gap-4 pb-2 -mx-0.5 px-0.5",
+      )}
+    >
+      {members.map((member) => {
+        const entity = member.entityId ? entityById.get(member.entityId) : undefined;
+        return (
+          <CastMemberChip
+            key={member.key}
+            member={member}
+            entity={entity}
+            mentionConfidence={member.mentionConfidence ?? null}
+            mentionCountInArtifact={member.mentionCount}
+            currentArtifactId={artifactId}
+            variant="personRail"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function EntityRail({
   entries,
   variant,
@@ -301,10 +405,12 @@ function EntitySectionLabel({ children }: { children: ReactNode }) {
 export default function ArtifactEntitiesPanel({
   artifactId,
   artifactStatus,
+  artifactMetadata,
   variant = "default",
 }: {
   artifactId: string;
   artifactStatus: string;
+  artifactMetadata?: ArtifactMetadata | null;
   variant?: "default" | "mobileRail" | "desktopRail";
 }) {
   const { user } = useAuth();
@@ -385,6 +491,25 @@ export default function ArtifactEntitiesPanel({
     [railEntries],
   );
 
+  const entityById = useMemo(() => {
+    const map = new Map<string, KnowledgeEntityRow>();
+    for (const m of mentions) {
+      const ent = m.knowledge_entities;
+      if (ent) map.set(ent.id, ent);
+    }
+    return map;
+  }, [mentions]);
+
+  const castMembers = useMemo(
+    () => buildArtifactCastMembers(artifactMetadata, mentions),
+    [artifactMetadata, mentions],
+  );
+
+  const castPeopleMembers = useMemo(
+    () => castMembers.filter((m) => m.kind !== "mention" || m.entityId),
+    [castMembers],
+  );
+
   const personIdsNeedingAvatar = useMemo(() => {
     const byEntity = new Map<string, KnowledgeEntityRow>();
     for (const m of mentions) {
@@ -410,15 +535,27 @@ export default function ArtifactEntitiesPanel({
     );
   }
 
-  if (mentions.length === 0) {
+  const hasCastFromMeta = castPeopleMembers.length > 0;
+  if (mentions.length === 0 && !hasCastFromMeta) {
     return null;
   }
 
   if (useRailLayout) {
     const labelInset = variant === "mobileRail" ? artifactMobileStudyContentInset : undefined;
+    const showCast = castPeopleMembers.length > 0;
     return (
       <div className="space-y-5">
-        {peopleRailEntries.length > 0 ? (
+        {showCast ? (
+          <div className={cn("space-y-3", labelInset)}>
+            <EntitySectionLabel>Cast &amp; mentions</EntitySectionLabel>
+            <CastRail
+              members={castPeopleMembers}
+              entityById={entityById}
+              variant={variant === "mobileRail" ? "mobileRail" : "desktopRail"}
+              artifactId={artifactId}
+            />
+          </div>
+        ) : peopleRailEntries.length > 0 ? (
           <div className={cn("space-y-3", labelInset)}>
             <EntitySectionLabel>Cast &amp; mentions</EntitySectionLabel>
             <EntityRail
