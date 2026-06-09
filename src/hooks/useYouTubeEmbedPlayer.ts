@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { readPlaybackSecondsLocal, writePlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
+import {
+  canSendEmbedAutoResume,
+  shouldUseEmbedAutoResumeKeepalive,
+} from "@/lib/youtube/embedAutoResume";
 
 type YTPlayer = {
   destroy: () => void;
@@ -169,6 +173,7 @@ export function useYouTubeEmbedPlayer(options: {
   const resumeAfterPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoResumeCountRef = useRef(0);
   const autoResumeWindowStartRef = useRef(0);
+  const lastAutoResumeAtRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
   const startRef = useRef(startSeconds);
   startRef.current = startSeconds;
@@ -205,6 +210,7 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const sendResumePlayCommand = useCallback(() => {
+    if (!canSendEmbedAutoResume(lastAutoResumeAtRef.current)) return;
     const now = Date.now();
     if (now - autoResumeWindowStartRef.current > 60_000) {
       autoResumeWindowStartRef.current = now;
@@ -215,6 +221,7 @@ export function useYouTubeEmbedPlayer(options: {
       return;
     }
     autoResumeCountRef.current += 1;
+    lastAutoResumeAtRef.current = now;
     try {
       playerRef.current?.playVideo();
     } catch {
@@ -543,7 +550,7 @@ export function useYouTubeEmbedPlayer(options: {
   }, [layoutKey, ready, resumeIfWasPlaying, syncPlayerSize]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !shouldUseEmbedAutoResumeKeepalive()) return;
     const keepalive = window.setInterval(() => {
       if (!intendedPlayingRef.current || document.hidden || playingRef.current) return;
       if (Date.now() - lastAppPauseAtRef.current < 500) return;

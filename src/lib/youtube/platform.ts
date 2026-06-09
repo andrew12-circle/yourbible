@@ -15,3 +15,8 @@ export function isIpadWebKit(): boolean {
   if (/iPad/.test(navigator.userAgent)) return true;
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1 && !isIphoneWebKit();
 }
+
+/** iPhone, iPod, or iPad — YouTube iframe telemetry is flaky; avoid aggressive auto-resume loops. */
+export function isIosWebKit(): boolean {
+  return isIphoneWebKit() || isIpadWebKit();
+}

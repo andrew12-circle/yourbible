@@ -5,6 +5,7 @@ import {
   formatSimilarityPct,
   parseCorpusPeerRow,
   parseLibraryCorpusStatRow,
+  shouldScheduleCorpusStandingRetry,
   summarizeCorpusPeers,
 } from "./artifactCorpusStanding";
 
@@ -71,6 +72,41 @@ describe("parseLibraryCorpusStatRow", () => {
     });
     expect(r.claimCount).toBe(10);
     expect(r.peerLibraryCount).toBe(5);
+  });
+});
+
+describe("shouldScheduleCorpusStandingRetry", () => {
+  it("polls only while embeddings are pending", () => {
+    expect(
+      shouldScheduleCorpusStandingRetry(
+        { loading: false, error: null, embeddingPending: true },
+        5,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not poll for a stable empty-echoes result", () => {
+    expect(
+      shouldScheduleCorpusStandingRetry(
+        { loading: false, error: null, embeddingPending: false },
+        24,
+      ),
+    ).toBe(false);
+  });
+
+  it("does not poll while loading or errored", () => {
+    expect(
+      shouldScheduleCorpusStandingRetry(
+        { loading: true, error: null, embeddingPending: true },
+        5,
+      ),
+    ).toBe(false);
+    expect(
+      shouldScheduleCorpusStandingRetry(
+        { loading: false, error: "fail", embeddingPending: true },
+        5,
+      ),
+    ).toBe(false);
   });
 });
 

@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   BookOpen, Sun, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, Calendar, MessageCircleHeart,
-  HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp,
+  HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
@@ -35,6 +35,9 @@ const iconColorMap: Record<string, string> = {
   Settings: "text-gray-500",
   "Research later": "text-slate-400",
   "Hard questions": "text-amber-500",
+  Playbook: "text-violet-400",
+  "Library standing": "text-teal-500",
+  Influences: "text-orange-400",
 };
 
 interface SidebarItem {
@@ -60,8 +63,11 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
     items: [
       { title: "Framework", icon: Brain, to: "/framework" },
       { title: "Journey", icon: Sprout, to: "/framework/journey" },
+      { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
       { title: "Beliefs", icon: Network, to: "/framework/beliefs" },
+      { title: "Influences", icon: Users, to: "/framework/influences" },
       { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
+      { title: "Library standing", icon: Layers, to: "/framework/library-standing" },
       { title: "Graph", icon: Share2, to: "/framework/graph" },
       { title: "Tensions", icon: Sparkles, to: "/framework/tensions" },
       { title: "Study", icon: GraduationCap, to: "/framework/study" },

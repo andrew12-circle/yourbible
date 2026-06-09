@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { summarizeCorpusPeers, type CorpusPeerMatch } from "@/lib/framework/artifactCorpusStanding";
+import {
+  shouldScheduleCorpusStandingRetry,
+  summarizeCorpusPeers,
+  type CorpusPeerMatch,
+} from "@/lib/framework/artifactCorpusStanding";
 import {
   attachPeerArtifactTitles,
   loadCorpusPeersForArtifact,
@@ -28,6 +32,8 @@ const EMPTY: State = {
 
 const RETRY_DELAYS_MS = [5000, 12000, 25000, 45000];
 
+type LoadOptions = { background?: boolean };
+
 export function useArtifactCorpusStanding(
   artifactId: string | undefined,
   artifactStatus: string | undefined,
@@ -43,33 +49,38 @@ export function useArtifactCorpusStanding(
     retryTimersRef.current = [];
   }, []);
 
-  const load = useCallback(async () => {
-    if (!artifactId || artifactStatus !== "ready" || !enabled || !userId) {
-      clearRetryTimers();
-      setState(EMPTY);
-      return;
-    }
-    setState((s) => ({ ...s, loading: true, error: null }));
+  const load = useCallback(
+    async (opts?: LoadOptions) => {
+      if (!artifactId || artifactStatus !== "ready" || !enabled || !userId) {
+        clearRetryTimers();
+        setState(EMPTY);
+        return;
+      }
+      if (!opts?.background) {
+        setState((s) => ({ ...s, loading: true, error: null }));
+      }
 
-    const result = await loadCorpusPeersForArtifact(supabase, userId, artifactId);
-    if (result.error) {
-      clearRetryTimers();
-      setState({ ...EMPTY, loading: false, error: result.error });
-      return;
-    }
+      const result = await loadCorpusPeersForArtifact(supabase, userId, artifactId);
+      if (result.error) {
+        clearRetryTimers();
+        setState({ ...EMPTY, loading: false, error: result.error });
+        return;
+      }
 
-    const peers = await attachPeerArtifactTitles(supabase, result.peers);
-    const summary = summarizeCorpusPeers(peers, sourceClaimCount);
-    setState({
-      peers,
-      loading: false,
-      error: null,
-      embeddingPending: result.embeddingPending,
-      echoClaimCount: summary.echoClaimCount,
-      peerCount: summary.peerCount,
-      peerLibraryCount: result.peerLibraryCount,
-    });
-  }, [artifactId, artifactStatus, clearRetryTimers, enabled, sourceClaimCount, userId]);
+      const peers = await attachPeerArtifactTitles(supabase, result.peers);
+      const summary = summarizeCorpusPeers(peers, sourceClaimCount);
+      setState({
+        peers,
+        loading: false,
+        error: null,
+        embeddingPending: result.embeddingPending,
+        echoClaimCount: summary.echoClaimCount,
+        peerCount: summary.peerCount,
+        peerLibraryCount: result.peerLibraryCount,
+      });
+    },
+    [artifactId, artifactStatus, clearRetryTimers, enabled, sourceClaimCount, userId],
+  );
 
   useEffect(() => {
     void load();
@@ -78,14 +89,11 @@ export function useArtifactCorpusStanding(
   useEffect(() => {
     clearRetryTimers();
     if (!artifactId || artifactStatus !== "ready" || !enabled || !userId) return;
-    if (state.loading || state.error) return;
-    if (state.peers.length > 0 && !state.embeddingPending) return;
-    if (sourceClaimCount <= 0) return;
-    if (state.peerLibraryCount <= 0 && !state.embeddingPending) return;
+    if (!shouldScheduleCorpusStandingRetry(state, sourceClaimCount)) return;
 
     retryTimersRef.current = RETRY_DELAYS_MS.map((delay) =>
       window.setTimeout(() => {
-        void load();
+        void load({ background: true });
       }, delay),
     );
 
@@ -100,10 +108,8 @@ export function useArtifactCorpusStanding(
     state.embeddingPending,
     state.error,
     state.loading,
-    state.peerLibraryCount,
-    state.peers.length,
     userId,
   ]);
 
-  return { ...state, reload: load };
+  return { ...state, reload: () => load() };
 }

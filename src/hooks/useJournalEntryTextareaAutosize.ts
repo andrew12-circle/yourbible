@@ -8,9 +8,11 @@ export function useJournalEntryTextareaAutosize(
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.height = "0px";
+    el.style.height = "auto";
+    el.style.overflow = "hidden";
     const minPx = Number.parseFloat(getComputedStyle(el).minHeight) || 0;
-    el.style.height = `${Math.max(el.scrollHeight, minPx)}px`;
+    el.style.height = `${Math.max(el.scrollHeight + 8, minPx)}px`;
     el.style.overflowY = "hidden";
+    el.style.overflowX = "hidden";
   }, [ref, value]);
 }

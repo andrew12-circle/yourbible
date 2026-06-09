@@ -5,21 +5,7 @@ import {
 } from "@/lib/framework/artifactSurfaces";
 import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
-import {
-  ArrowLeft,
-  BookOpen,
-  Network,
-  Sparkles,
-  FileStack,
-  Layers,
-  Share2,
-  AlertTriangle,
-  Users,
-  Sprout,
-  ClipboardList,
-  Clock,
-  CircleHelp,
-} from "lucide-react";
+import { ArrowLeft, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 
@@ -27,9 +13,9 @@ interface Props {
   children: ReactNode;
   title?: string;
   back?: string;
-  /** Optional main width; defaults to `max-w-4xl`. */
+  /** Optional main width; defaults to full inset width (`max-w-none`). */
   contentClassName?: string;
-  /** Optional header row/nav max-width; defaults to `max-w-4xl`. Use with a wide `contentClassName` so the sticky header aligns with the page. */
+  /** Optional header row max-width; defaults to full inset width. Use with a wide `contentClassName` so the sticky header aligns with the page. */
   headerContentClassName?: string;
   /** Content-first layout: hide framework section tabs and simplify the header (auto on artifact detail routes). */
   immersive?: boolean;
@@ -74,20 +60,6 @@ export function isFrameworkWorkspacePath(pathname: string): boolean {
   );
 }
 
-const NAV = [
-  { to: "/framework", label: "Overview", icon: Sparkles },
-  { to: "/framework/journey", label: "Journey", icon: Sprout },
-  { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
-  { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
-  { to: "/framework/library-standing", label: "Library standing", icon: Layers },
-  { to: "/framework/research-later", label: "Research later", icon: Clock },
-  { to: "/framework/hard-questions", label: "Hard questions", icon: CircleHelp },
-  { to: "/framework/graph", label: "Graph", icon: Share2 },
-  { to: "/framework/beliefs", label: "Beliefs", icon: Network },
-  { to: "/framework/influences", label: "Influences", icon: Users },
-  { to: "/framework/tensions", label: "Tensions", icon: AlertTriangle },
-];
-
 export default function FrameworkLayout({
   children,
   title,
@@ -110,11 +82,7 @@ export default function FrameworkLayout({
   const compactMobileHeader = Boolean(immersive && (immersiveCompactTitle || immersiveMobileMinimal));
   const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);
   const hideDesktopFrameworkHeader = Boolean(immersiveDesktopMinimal);
-  const headerMax =
-    headerContentClassName ??
-    (workspace || studioLibrary
-      ? "max-w-none"
-      : "max-w-4xl");
+  const headerMax = headerContentClassName ?? "max-w-none";
   const layoutRootRef = useRef<HTMLDivElement>(null);
   const frameworkHeaderRef = useRef<HTMLElement>(null);
 
@@ -304,45 +272,6 @@ export default function FrameworkLayout({
             </div>
           )}
         </div>
-        {!immersive && (
-          <div
-            className={cn(
-              "mx-auto px-4 pb-2.5 sm:px-5 sm:pb-3",
-              studioLibrary ? "hidden md:block" : "block",
-              headerMax,
-            )}
-          >
-            <nav
-              className="flex w-full gap-0.5 overflow-x-auto rounded-full bg-muted/35 p-1 backdrop-blur-sm supports-[backdrop-filter]:bg-muted/25 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              aria-label="Framework sections"
-            >
-              {NAV.map((n) => {
-                const active =
-                  n.to === "/framework"
-                    ? pathname === "/framework"
-                    : pathname.startsWith(n.to);
-                const Icon = n.icon;
-                return (
-                  <Link
-                    key={n.to}
-                    to={n.to}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-3.5 sm:text-[13px]",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      active
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-background/55 hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0 opacity-75" aria-hidden />
-                    <span>{n.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        )}
       </header>
       <main
         className={cn(
@@ -358,7 +287,7 @@ export default function FrameworkLayout({
               : studioLibrary
                 ? "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
                 : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
-          contentClassName ?? (workspace ? "max-w-none" : "max-w-4xl"),
+          contentClassName ?? "max-w-none",
         )}
       >
         {children}

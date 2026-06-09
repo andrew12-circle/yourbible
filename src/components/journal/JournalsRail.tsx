@@ -25,10 +25,12 @@ interface Props {
   activeJournalId: string | null;
   /** When set, the rail is rendered in a sheet/drawer (mobile). */
   inSheet?: boolean;
+  /** Desktop 3-pane journal desk — align top chrome with list/editor cards. */
+  inDesk?: boolean;
   onImportDayOne?: () => void;
 }
 
-export default function JournalsRail({ journals, onChange, activeJournalId, inSheet, onImportDayOne }: Props) {
+export default function JournalsRail({ journals, onChange, activeJournalId, inSheet, inDesk, onImportDayOne }: Props) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -49,9 +51,15 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
 
   return (
     <aside
-      className={`${inSheet ? "" : "hidden md:flex"} flex-col w-full h-full overflow-y-auto`}
+      className={`${inSheet ? "" : "hidden md:flex"} flex-col w-full h-full ${inDesk ? "min-h-0 overflow-hidden" : "overflow-y-auto"}`}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+      <div
+        className={
+          inDesk
+            ? "flex h-12 shrink-0 items-center justify-between border-b border-border/60 px-3"
+            : "flex items-center justify-between px-3 pt-3 pb-2"
+        }
+      >
         <Link
           to="/settings"
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
@@ -64,7 +72,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
         </Link>
       </div>
 
-      <nav className="px-2 pb-4 space-y-0.5">
+      <nav className={`px-2 pb-4 space-y-0.5 ${inDesk ? "journal-pane-scroll min-h-0 flex-1 overflow-y-auto" : ""}`}>
         <RailItem
           to="/journal/today"
           icon={<CalIcon className="w-4 h-4" />}

@@ -99,9 +99,11 @@ export default function JournalPage() {
   if (isDesktop) {
     return (
       <>
+      <div className="flex min-h-0 flex-1 flex-col">
       <JournalDeskLayout
         sidebar={
           <JournalsRail
+            inDesk
             journals={journals}
             activeJournalId={journalId}
             onChange={() => setReloadKey((k) => k + 1)}
@@ -109,11 +111,11 @@ export default function JournalPage() {
           />
         }
         list={
-          <div className="relative flex flex-col h-full">
             <EntryListPane
               journalId={journalId}
               selectedId={entryId}
               reloadKey={reloadKey}
+              headingLabel={activeJournal?.name ?? "All entries"}
               onSelect={(id) =>
                 journalId
                   ? navigate(`/journal/j/${journalId}/e/${id}`)
@@ -125,7 +127,6 @@ export default function JournalPage() {
                 navigate(journalId ? `/journal/j/${journalId}` : "/journal");
               }}
             />
-          </div>
         }
         editor={
           !entryId && !journalId ? (
@@ -165,6 +166,7 @@ export default function JournalPage() {
           )
         }
       />
+      </div>
       <DayOneImportDialog
         open={dayOneImportOpen}
         onOpenChange={setDayOneImportOpen}

@@ -24,6 +24,8 @@ import {
   LAYER_META,
   type FrameworkLayer,
 } from "@/data/framework";
+import { FrameworkOverviewPageSkeleton } from "@/components/framework/skeleton/FrameworkPageSkeleton";
+import { FrameworkShimmerBlock } from "@/components/framework/skeleton/FrameworkShimmerBlock";
 import FrameworkLayout from "./FrameworkLayout";
 import { Button } from "@/components/ui/button";
 import QuickBeliefDialog from "@/components/framework/QuickBeliefDialog";
@@ -251,7 +253,7 @@ export default function FrameworkDashboard() {
     [recentArtifacts],
   );
 
-  if (loading) return null;
+  if (loading) return <FrameworkOverviewPageSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;
 
   const totalBeliefs = beliefs.length;
@@ -284,7 +286,17 @@ export default function FrameworkDashboard() {
           View all
         </Link>
       </div>
-      {busy ? null : recentShelfRows.length === 0 ? (
+      {busy ? (
+        <div className="flex gap-3 overflow-hidden pb-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="w-[min(34vw,158px)] shrink-0 space-y-2 sm:w-[168px]">
+              <FrameworkShimmerBlock className="aspect-[2/3] w-full shadow-sm" />
+              <FrameworkShimmerBlock className="h-3 w-[85%]" />
+              <FrameworkShimmerBlock className="h-2.5 w-[60%]" />
+            </div>
+          ))}
+        </div>
+      ) : recentShelfRows.length === 0 ? (
         <div className="mx-auto max-w-md rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center text-sm leading-relaxed text-muted-foreground">
           <FileStack className="mx-auto mb-3 h-5 w-5 text-muted-foreground/60" aria-hidden />
           Paste a sermon, podcast transcript, or your own journal entry and see how it lines up with what you

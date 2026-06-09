@@ -3,9 +3,13 @@ import { scrollEditorCaretIntoView } from "@/lib/journal/scrollEditorCaretIntoVi
 
 type Options = {
   scrollRef: RefObject<HTMLElement | null>;
-  bottomDockRef: RefObject<HTMLElement | null>;
-  kbInset: number;
+  bottomDockRef?: RefObject<HTMLElement | null>;
+  kbInset?: number;
   enabled: boolean;
+  /** When set, skips measuring a fixed bottom dock (e.g. desktop editor pane). */
+  fixedBottomInsetPx?: number;
+  /** Sticky header/toolbar inside the scroll pane (desktop desk editor). */
+  topInsetPx?: number;
 };
 
 function resolveActiveTextarea(scrollEl: HTMLElement | null): HTMLTextAreaElement | null {
@@ -18,14 +22,20 @@ function resolveActiveTextarea(scrollEl: HTMLElement | null): HTMLTextAreaElemen
 export function useJournalEditorCaretScroll({
   scrollRef,
   bottomDockRef,
-  kbInset,
+  kbInset = 0,
   enabled,
+  fixedBottomInsetPx,
+  topInsetPx = 0,
 }: Options) {
-  const [bottomChromePx, setBottomChromePx] = useState(152);
+  const [bottomChromePx, setBottomChromePx] = useState(fixedBottomInsetPx ?? 152);
   const rafRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
-    const dock = bottomDockRef.current;
+    if (fixedBottomInsetPx != null) {
+      setBottomChromePx(fixedBottomInsetPx);
+      return;
+    }
+    const dock = bottomDockRef?.current;
     const scrollEl = scrollRef.current;
     if (!dock) return;
 
@@ -41,7 +51,7 @@ export function useJournalEditorCaretScroll({
       ro.disconnect();
       scrollEl?.style.removeProperty("--journal-entry-dock-h");
     };
-  }, [bottomDockRef, scrollRef]);
+  }, [bottomDockRef, scrollRef, fixedBottomInsetPx]);
 
   const scrollCaretIntoView = useCallback(() => {
     const scrollEl = scrollRef.current;
@@ -52,8 +62,9 @@ export function useJournalEditorCaretScroll({
       scrollEl,
       textarea,
       bottomInsetPx: bottomChromePx + kbInset,
+      topInsetPx,
     });
-  }, [scrollRef, bottomChromePx, kbInset, enabled]);
+  }, [scrollRef, bottomChromePx, kbInset, topInsetPx, enabled]);
 
   const scheduleScroll = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);

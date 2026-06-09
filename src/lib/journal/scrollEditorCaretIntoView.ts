@@ -48,8 +48,10 @@ export function measureTextareaCaretTop(textarea: HTMLTextAreaElement): number {
 export type ScrollEditorCaretOptions = {
   scrollEl: HTMLElement;
   textarea: HTMLTextAreaElement;
-  /** Toolbar, keyboard, and safe-area occlusion from the bottom of the viewport. */
-  bottomInsetPx: number;
+  /** Occlusion from the bottom of the scroll pane (dock, keyboard, etc.). */
+  bottomInsetPx?: number;
+  /** Sticky chrome inside the scroll pane (header/toolbar). */
+  topInsetPx?: number;
   /**
    * Where to place the caret within the visible writing band (0 = top, 1 = bottom).
    * ~0.45 keeps the cursor in the upper half while typing.
@@ -60,11 +62,11 @@ export type ScrollEditorCaretOptions = {
 
 export type CaretScrollGeometry = {
   scrollTop: number;
-  scrollViewportTop: number;
+  /** Visible writing band — viewport client coordinates. */
+  visibleTop: number;
+  visibleBottom: number;
   caretTop: number;
   caretBottom: number;
-  viewportHeight: number;
-  bottomInsetPx: number;
   caretAnchorRatio?: number;
   minPaddingPx?: number;
 };
@@ -72,24 +74,22 @@ export type CaretScrollGeometry = {
 /** Pure scroll delta for keeping the caret in the visible writing band. */
 export function computeEditorCaretScrollDelta({
   scrollTop,
-  scrollViewportTop,
+  visibleTop,
+  visibleBottom,
   caretTop,
   caretBottom,
-  viewportHeight,
-  bottomInsetPx,
   caretAnchorRatio = 0.45,
   minPaddingPx = 20,
 }: CaretScrollGeometry): number {
-  const visibleTop = scrollViewportTop;
-  const visibleBottom = viewportHeight - bottomInsetPx;
-  const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-  if (visibleHeight <= 0) return scrollTop;
+  const bandHeight = Math.max(0, visibleBottom - visibleTop);
+  if (bandHeight <= 0) return scrollTop;
 
-  const targetCaretY = visibleTop + visibleHeight * caretAnchorRatio;
+  const targetCaretY = visibleTop + bandHeight * caretAnchorRatio;
   const maxCaretBottom = visibleBottom - minPaddingPx;
+  const lineHeight = Math.max(caretBottom - caretTop, 1);
 
   if (caretBottom > maxCaretBottom) {
-    const delta = caretBottom - Math.min(targetCaretY + (caretBottom - caretTop), maxCaretBottom);
+    const delta = caretBottom - Math.min(targetCaretY + lineHeight, maxCaretBottom);
     return scrollTop + delta;
   }
 
@@ -106,7 +106,8 @@ export function computeEditorCaretScrollDelta({
 export function scrollEditorCaretIntoView({
   scrollEl,
   textarea,
-  bottomInsetPx,
+  bottomInsetPx = 0,
+  topInsetPx = 0,
   caretAnchorRatio = 0.45,
   minPaddingPx = 20,
 }: ScrollEditorCaretOptions): void {
@@ -120,11 +121,10 @@ export function scrollEditorCaretIntoView({
 
   scrollEl.scrollTop = computeEditorCaretScrollDelta({
     scrollTop: scrollEl.scrollTop,
-    scrollViewportTop: scrollRect.top,
+    visibleTop: scrollRect.top + topInsetPx,
+    visibleBottom: scrollRect.bottom - bottomInsetPx,
     caretTop,
     caretBottom,
-    viewportHeight: window.innerHeight,
-    bottomInsetPx,
     caretAnchorRatio,
     minPaddingPx,
   });

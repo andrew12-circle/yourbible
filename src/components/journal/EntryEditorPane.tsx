@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
+import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
@@ -88,6 +90,7 @@ export default function EntryEditorPane({
   const [chatDraft, setChatDraft] = useState("");
   const [loadingEntry, setLoadingEntry] = useState(false);
   const [entryNotFound, setEntryNotFound] = useState(false);
+  const paneScrollRef = useRef<HTMLElement | null>(null);
 
   const reloadEntryFromServer = useCallback(async (id: string) => {
     const { data } = await supabase
@@ -239,6 +242,20 @@ export default function EntryEditorPane({
   const canReplyWithAi =
     !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
   const inlineChatMode = replyWithAi && canReplyWithAi;
+  const showSavedChatView =
+    !!entry &&
+    !inlineChatMode &&
+    isChatJournalExport(entry.body, entry.summary);
+
+  useJournalEntryTextareaAutosize(bodyRef, inlineChatMode || showSavedChatView ? "" : (entry?.body ?? ""));
+
+  useJournalEditorCaretScroll({
+    scrollRef: paneScrollRef,
+    kbInset: 0,
+    enabled: !!entry && !inlineChatMode && !showSavedChatView,
+    fixedBottomInsetPx: 24,
+    topInsetPx: 16,
+  });
 
   const handleDictateAppend = useCallback(
     (chunk: string) => {
@@ -346,10 +363,6 @@ export default function EntryEditorPane({
   };
 
   const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
-  const showSavedChatView =
-    !!entry &&
-    !inlineChatMode &&
-    isChatJournalExport(entry.body, entry.summary);
 
   const { sketches: sketchPhotos, attachments: attachmentPhotos } = partitionJournalPhotos(photos);
 
@@ -435,7 +448,7 @@ export default function EntryEditorPane({
 
   if (entryId && loadingEntry) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex h-full min-h-0 items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -443,7 +456,7 @@ export default function EntryEditorPane({
 
   if (entryId && entryNotFound) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center text-center px-8">
         <NotebookText className="w-12 h-12 text-muted-foreground/40 mb-3" />
         <p className="text-[15px] font-semibold">Entry not found</p>
         <p className="text-[13px] text-muted-foreground mt-1">This entry may have been deleted.</p>
@@ -454,7 +467,7 @@ export default function EntryEditorPane({
   if (!entry) {
     entryRef.current = null;
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center text-center px-8">
         <NotebookText className="w-12 h-12 text-muted-foreground/40 mb-3" />
         <p className="text-[15px] font-semibold">No entry selected</p>
         <p className="text-sm text-muted-foreground mt-1">Pick one from the list, or create a new one.</p>
@@ -476,9 +489,9 @@ export default function EntryEditorPane({
   });
 
   return (
-    <>
+    <div className="relative flex h-full min-h-0 flex-col">
       {/* Header */}
-      <header className="flex items-center gap-1 px-3 h-12 border-b border-border/60 flex-shrink-0">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/90 px-3 backdrop-blur-md">
         <button
           onClick={onClose}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
@@ -541,7 +554,7 @@ export default function EntryEditorPane({
       </header>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-3 h-10 border-b border-border/60 flex-shrink-0 overflow-x-auto">
+      <div className="flex h-10 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border/60 bg-background/90 px-3 backdrop-blur-md scrollbar-hide">
         <TBtn title="Heading" onClick={() => insert("\n# ", "", "Heading")}><Heading1 className="w-4 h-4" /></TBtn>
         <TBtn title="Bullet list" onClick={() => insert("\n- ", "", "item")}><ListIcon className="w-4 h-4" /></TBtn>
         <TBtn title="Numbered list" onClick={() => insert("\n1. ", "", "item")}><ListOrdered className="w-4 h-4" /></TBtn>
@@ -577,9 +590,13 @@ export default function EntryEditorPane({
         />
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-        <div className="max-w-2xl mx-auto px-8 py-6 w-full flex-1 flex flex-col min-h-0">
+      {/* Body scrolls inside the card; header/toolbar stay fixed like the list pane. */}
+      <div
+        ref={paneScrollRef}
+        data-journal-editor-scroll
+        className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-8 pb-4 pt-6">
           <Input
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
@@ -622,13 +639,12 @@ export default function EntryEditorPane({
               turns={chatTurns}
               aiBusy={aiBusy}
               dictInterim={dictInterim}
-              className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2"
+              className="-mx-2 px-2"
             />
           ) : showSavedChatView ? (
             <ChatJournalView
               body={entry.body}
               summary={entry.summary}
-              className="flex-1 min-h-0 overflow-y-auto"
             />
           ) : (
             <>
@@ -638,7 +654,7 @@ export default function EntryEditorPane({
                 value={entry.body}
                 onChange={(e) => queueSave({ body: e.target.value })}
                 placeholder="What happened today? What are you carrying?"
-                className="min-h-[40vh] flex-1 border-0 px-0 focus-visible:ring-0 shadow-none resize-none font-sans text-[16px] leading-relaxed"
+                className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
               />
               {dictInterim.trim() ? (
                 <p
@@ -690,7 +706,26 @@ export default function EntryEditorPane({
               </div>
             </div>
           )}
-        </div>
+
+          <footer className="mt-auto flex flex-wrap items-center gap-3 border-t border-border/40 pt-4 pb-1 text-[12px] text-muted-foreground">
+            {journal && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: `hsl(${journal.color})` }} />
+                {journal.name}
+              </span>
+            )}
+            {entry.weather_temp_c != null && (
+              <span className="inline-flex items-center gap-1">
+                {entry.weather_icon} {formatTemp(entry.weather_temp_c)} {entry.weather}
+              </span>
+            )}
+            {entry.location_name && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> {entry.location_name}
+              </span>
+            )}
+          </footer>
+      </div>
       </div>
 
       {inlineChatMode && (
@@ -779,26 +814,7 @@ export default function EntryEditorPane({
         filename={`sketch-${entry.id}`}
       />
 
-      {/* Footer strip */}
-      <footer className="flex items-center gap-3 px-4 h-9 border-t border-border/60 text-[12px] text-muted-foreground flex-shrink-0">
-        {journal && (
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: `hsl(${journal.color})` }} />
-            {journal.name}
-          </span>
-        )}
-        {entry.weather_temp_c != null && (
-          <span className="inline-flex items-center gap-1">
-            {entry.weather_icon} {formatTemp(entry.weather_temp_c)} {entry.weather}
-          </span>
-        )}
-        {entry.location_name && (
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="w-3 h-3" /> {entry.location_name}
-          </span>
-        )}
-      </footer>
-    </>
+    </div>
   );
 }
 

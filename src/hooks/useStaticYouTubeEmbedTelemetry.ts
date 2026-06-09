@@ -8,6 +8,10 @@ import {
 } from "@/lib/youtube/iosBackgroundAudio";
 import { isIphoneWebKit } from "@/lib/youtube/platform";
 import {
+  canSendEmbedAutoResume,
+  shouldUseEmbedAutoResumeKeepalive,
+} from "@/lib/youtube/embedAutoResume";
+import {
   getStaticYouTubeEmbedIframe,
   postYouTubeEmbedCommand,
   type YouTubeEmbedCommand,
@@ -64,6 +68,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   const lastAppPauseAtRef = useRef(0);
   const autoResumeCountRef = useRef(0);
   const autoResumeWindowStartRef = useRef(0);
+  const lastAutoResumeAtRef = useRef(0);
   const getSavedPlaybackSecondsRef = useRef(getSavedPlaybackSeconds);
   const onPersistPlaybackSecondsRef = useRef(onPersistPlaybackSeconds);
   getSavedPlaybackSecondsRef.current = getSavedPlaybackSeconds;
@@ -109,6 +114,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   }, []);
 
   const sendResumePlayCommand = useCallback(() => {
+    if (!canSendEmbedAutoResume(lastAutoResumeAtRef.current)) return;
     const now = Date.now();
     if (now - autoResumeWindowStartRef.current > 60_000) {
       autoResumeWindowStartRef.current = now;
@@ -119,6 +125,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       return;
     }
     autoResumeCountRef.current += 1;
+    lastAutoResumeAtRef.current = now;
     runCommand("playVideo");
   }, [runCommand]);
 
@@ -184,8 +191,10 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         if (state === YT_EMBED_STATE.ENDED) intendedPlayingRef.current = false;
         if (state === YT_EMBED_STATE.PLAYING) intendedPlayingRef.current = true;
         const playing = embedStateIsPlaying(state);
-        isPlayingRef.current = playing;
-        setIsPlaying(playing);
+        if (playing !== isPlayingRef.current) {
+          isPlayingRef.current = playing;
+          setIsPlaying(playing);
+        }
         if (state === YT_EMBED_STATE.PAUSED) scheduleResumeIfIntended();
         return;
       }
@@ -233,9 +242,9 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     };
   }, [enabled, requestCurrentTime, scheduleResumeIfIntended, videoSlotRef]);
 
-  /** Catch embed pauses that never emit onStateChange (jsapi channel hiccups). */
+  /** Catch embed pauses that never emit onStateChange (jsapi channel hiccups). Skip on iOS — flaky playerState. */
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !shouldUseEmbedAutoResumeKeepalive()) return;
     const keepalive = window.setInterval(() => {
       if (!intendedPlayingRef.current || document.hidden || isPlayingRef.current) return;
       if (Date.now() - lastAppPauseAtRef.current < 500) return;

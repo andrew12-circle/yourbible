@@ -45,6 +45,7 @@ export default function EntryListPane({
   onDeleted,
   reloadKey,
   entryKindFilter,
+  headingLabel = "All entries",
 }: {
   journalId: string | null;
   selectedId: string | null;
@@ -54,6 +55,8 @@ export default function EntryListPane({
   reloadKey?: number;
   /** When set, only entries of this faith-journal kind (still respects journalId when set). */
   entryKindFilter?: JournalEntryKind | null;
+  /** Top row label — aligned with the editor date header. */
+  headingLabel?: string;
 }) {
   const { user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -193,10 +196,16 @@ export default function EntryListPane({
   }, [filtered]);
 
   return (
-    <>
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 h-12 border-b border-border/60 flex-shrink-0">
-        <div className="flex items-center bg-muted rounded-md p-0.5">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <header className="flex h-12 shrink-0 items-center border-b border-border/60 bg-background/90 px-3 backdrop-blur-md">
+        <div className="flex-1 truncate text-center text-[13px] font-semibold tracking-tight">
+          {headingLabel}
+        </div>
+      </header>
+
+      {/* Toolbar — same height as editor formatting row */}
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-3 backdrop-blur-md">
+        <div className="flex items-center rounded-md bg-muted p-0.5">
           <ToolBtn active={view === "list"} onClick={() => setView("list")} title="List">
             <List className="w-4 h-4" />
           </ToolBtn>
@@ -237,7 +246,7 @@ export default function EntryListPane({
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto">
         {loading && entries.length === 0 && !loadError && (
           <div className="flex justify-center py-16">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -312,13 +321,12 @@ export default function EntryListPane({
       {/* Floating + */}
       <button
         onClick={onNew}
-        className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:scale-105 transition"
-        style={{ position: "absolute" }}
+        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition hover:scale-105"
         aria-label="New entry"
       >
         <Plus className="w-5 h-5" />
       </button>
-    </>
+    </div>
   );
 }
 

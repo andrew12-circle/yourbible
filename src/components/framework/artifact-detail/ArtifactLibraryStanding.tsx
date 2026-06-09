@@ -172,8 +172,7 @@ export default function ArtifactLibraryStanding({
             ) : (
               <div className="text-sm text-muted-foreground">
                 You have {peerLibraryCount} other source{peerLibraryCount === 1 ? "" : "s"} in your library, but no
-                strong thematic echoes yet. After a re-analyze, embeddings can take up to a minute — this will refresh
-                automatically.
+                strong thematic echoes yet. This source may be covering new ground for you.
               </div>
             )}
           </>

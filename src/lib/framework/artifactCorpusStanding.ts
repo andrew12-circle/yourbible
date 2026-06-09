@@ -123,3 +123,17 @@ export function summarizeCorpusPeers(
     topPeer: peers[0] ?? null,
   };
 }
+
+/** Only poll while claim embeddings are still indexing — not when zero echoes is a stable result. */
+export function shouldScheduleCorpusStandingRetry(
+  state: {
+    loading: boolean;
+    error: string | null;
+    embeddingPending: boolean;
+  },
+  sourceClaimCount: number,
+): boolean {
+  if (state.loading || state.error) return false;
+  if (sourceClaimCount <= 0) return false;
+  return state.embeddingPending;
+}

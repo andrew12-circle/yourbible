@@ -201,7 +201,7 @@ export default function JournalOverviewPane({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-background">
+    <div className="journal-pane-scroll flex h-full min-h-0 flex-col overflow-y-auto bg-background">
       {hasCoverBanner ? (
         coverUrl ? (
           <JournalCoverBanner
