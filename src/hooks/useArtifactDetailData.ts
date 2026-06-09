@@ -4,7 +4,7 @@ import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifa
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
-import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
+import { isManualYoutubeFetchActive, markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   markYoutubeTranscriptFetchError,
   resumeYoutubeTranscriptFetch,
@@ -75,6 +75,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
   const ensureFetchRef = useRef<string | null>(null);
   const clientTimeoutRef = useRef<string | null>(null);
+  const autoRecoveryRef = useRef<Set<string>>(new Set());
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
     setA((prev) => {
@@ -169,6 +170,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   useEffect(() => {
     ensureFetchRef.current = null;
     clientTimeoutRef.current = null;
+    autoRecoveryRef.current.delete(artifactId ?? "");
   }, [artifactId]);
 
   useEffect(() => {
@@ -202,6 +204,18 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       clearInterval(tick);
     };
   }, [inFlight, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "error" || !a.url?.trim()) return;
+    if (autoRecoveryRef.current.has(a.id)) return;
+    const recoverable = /could not fetch|blocks our servers|non-2xx|stale request|browser/i.test(a.error ?? "");
+    if (!recoverable) return;
+    autoRecoveryRef.current.add(a.id);
+    markManualYoutubeFetch(a.id);
+    void restartYoutubeTranscriptFetch(a.id, a.url.trim()).then((result) => {
+      if (!result.ok) void loadStatusOnly();
+    });
+  }, [artifactLoaded, a, loadStatusOnly]);
 
   useEffect(() => {
     if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "fetching" || !a.url?.trim()) return;

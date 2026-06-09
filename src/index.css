@@ -799,6 +799,31 @@
   border-radius: 23.5%;
 }
 
+/* iOS home screen chrome — frosted dock & search pill */
+.ios-dock {
+  background: rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(28px) saturate(165%);
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.ios-search-pill {
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+}
+
+.ios-wallpaper-blur-layer {
+  transform: scale(1.12);
+  transform-origin: center;
+  filter: blur(32px);
+}
+
 /* Compatibility shims — when app-theme is active, neutralize the
    leftover leather/paper/gold styling from older pages so we don't
    have to rewrite every screen. */

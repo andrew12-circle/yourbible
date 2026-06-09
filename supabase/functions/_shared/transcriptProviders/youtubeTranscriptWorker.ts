@@ -4,9 +4,32 @@ import { buildFetchResult } from "../transcriptNormalize.ts";
 type WorkerSegment = { start?: number; duration?: number; text?: string };
 type WorkerResponse = { video_id?: string; language?: string; segments?: WorkerSegment[] };
 
+const WORKER_SEQUENTIAL_MS = Number(Deno.env.get("TRANSCRIPT_WORKER_SEQUENTIAL_MS") ?? "25000");
+
 /** True when the self-hosted Python transcript worker is configured. */
 export function isWorkerConfigured(): boolean {
   return Boolean(Deno.env.get("TRANSCRIPT_WORKER_URL")?.trim());
+}
+
+/** Preferred auto path: dedicated worker with enough time (not capped by caption race). */
+export async function fetchWorkerSequential(
+  videoId: string,
+): Promise<{ result: ReturnType<typeof buildFetchResult> | null; note: string }> {
+  if (!isWorkerConfigured()) {
+    return { result: null, note: "skipped — TRANSCRIPT_WORKER_URL not set on edge function" };
+  }
+  try {
+    const result = await Promise.race([
+      fetchWorkerTranscript(videoId),
+      new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error(`timed out after ${WORKER_SEQUENTIAL_MS}ms`)), WORKER_SEQUENTIAL_MS);
+      }),
+    ]);
+    if (result?.rawText?.trim()) return { result, note: "ok" };
+    return { result: null, note: "empty transcript" };
+  } catch (e) {
+    return { result: null, note: String((e as Error).message ?? e) };
+  }
 }
 
 /**

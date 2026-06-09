@@ -1,9 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Search, Signal, Wifi, BatteryFull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IosAppIcon } from "@/components/home/IosAppIcon";
 import { useMiniPhone } from "@/contexts/MiniPhoneContext";
 import { useMiniPhoneSize } from "@/hooks/useMiniPhoneSize";
 import { splitMiniPhoneHomePages } from "@/lib/mini-phone/miniPhoneHomePages";
+import {
+  IOS_DOCK_ICON_PT,
+  IOS_GRID_ICON_PT,
+  MINI_PHONE_DOCK_LABELS,
+  iosScaledPx,
+  iosWallpaperBlurPx,
+} from "@/lib/mini-phone/miniPhoneIosLayout";
 import type { HomeAppIcon } from "@/lib/home/homeApps";
 
 interface MiniPhoneHomeGridProps {
@@ -24,14 +32,16 @@ function useNow() {
 
 function MiniPhoneAppTile({
   app,
-  compact,
+  iconSize,
   onLaunch,
 }: {
   app: HomeAppIcon;
-  compact: boolean;
+  iconSize: number;
   onLaunch: () => void;
 }) {
   const Icon = app.icon;
+  const labelSize = Math.max(9, Math.round(iconSize * 0.18));
+
   return (
     <button
       type="button"
@@ -46,28 +56,27 @@ function MiniPhoneAppTile({
             background={app.color}
             iconColor={app.iconColor ?? "#FFFFFF"}
             imageSrc={app.imageSrc}
-            className={cn(
-              "transition-transform group-active:scale-90",
-              compact ? "!w-11 !h-11" : "!w-[52px] !h-[52px]",
-            )}
+            pixelSize={iconSize}
+            className="transition-transform group-active:scale-90"
           />
         )}
         {app.badge !== undefined && app.badge !== "" && (
           <span
-            className={cn(
-              "absolute -top-1 -right-1 rounded-full bg-[#FF3B30] text-white font-semibold flex items-center justify-center ring-2 ring-white/90 shadow tabular-nums",
-              compact ? "min-w-[16px] h-[16px] px-1 text-[9px]" : "min-w-[20px] h-[20px] px-1.5 text-[11px]",
-            )}
+            className="absolute -top-1 -right-1 rounded-full bg-[#FF3B30] text-white font-semibold flex items-center justify-center ring-2 ring-white/90 shadow tabular-nums"
+            style={{
+              minWidth: Math.round(iconSize * 0.36),
+              height: Math.round(iconSize * 0.36),
+              fontSize: Math.max(8, Math.round(iconSize * 0.2)),
+              paddingInline: Math.round(iconSize * 0.08),
+            }}
           >
             {typeof app.badge === "number" && app.badge > 99 ? "99+" : app.badge}
           </span>
         )}
       </div>
       <span
-        className={cn(
-          "font-medium text-white tracking-tight leading-tight text-center drop-shadow-md",
-          compact ? "text-[9px]" : "text-[10px]",
-        )}
+        className="font-medium text-white tracking-tight leading-tight text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
+        style={{ fontSize: labelSize }}
       >
         {app.label}
       </span>
@@ -75,21 +84,107 @@ function MiniPhoneAppTile({
   );
 }
 
+function MiniPhoneStatusBar({ time }: { time: string }) {
+  return (
+    <div className="relative z-10 shrink-0 flex items-center justify-between px-4 pt-2 pb-1 text-white select-none">
+      <span className="text-[11px] font-semibold tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+        {time}
+      </span>
+      <div className="flex items-center gap-1 opacity-95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+        <Signal className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+        <Wifi className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+        <BatteryFull className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+      </div>
+    </div>
+  );
+}
+
+function MiniPhoneSearchPill() {
+  return (
+    <div className="relative z-10 shrink-0 flex justify-center px-6 pb-2">
+      <div
+        className="ios-search-pill flex w-full max-w-[9.5rem] items-center justify-center gap-1.5 rounded-full py-1.5 text-white/90"
+        role="search"
+        aria-label="Search"
+      >
+        <Search className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} aria-hidden />
+        <span className="text-[11px] font-medium tracking-tight">Search</span>
+      </div>
+    </div>
+  );
+}
+
+function MiniPhoneDock({
+  dockApps,
+  iconSize,
+  onLaunch,
+}: {
+  dockApps: HomeAppIcon[];
+  iconSize: number;
+  onLaunch: (app: HomeAppIcon) => void;
+}) {
+  if (dockApps.length === 0) return null;
+
+  return (
+    <div className="relative z-10 shrink-0 px-3 pb-2">
+      <div className="ios-dock flex items-center justify-around rounded-[1.35rem] px-2 py-2">
+        {dockApps.map((app) => {
+          const Icon = app.icon;
+          return (
+            <button
+              key={app.label}
+              type="button"
+              onClick={() => onLaunch(app)}
+              className="group focus:outline-none"
+              aria-label={app.ariaLabel ?? app.label}
+            >
+              {Icon && (
+                <IosAppIcon
+                  icon={Icon}
+                  background={app.color}
+                  iconColor={app.iconColor ?? "#FFFFFF"}
+                  imageSrc={app.imageSrc}
+                  pixelSize={iconSize}
+                  size="dock"
+                  className="transition-transform group-active:scale-90"
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlur }: MiniPhoneHomeGridProps) {
   const { openApp } = useMiniPhone();
   const now = useNow();
-  const { compact, height } = useMiniPhoneSize();
+  const { width } = useMiniPhoneSize();
   const gridAreaRef = useRef<HTMLDivElement>(null);
   const pagerRef = useRef<HTMLDivElement>(null);
   const [gridHeightPx, setGridHeightPx] = useState(200);
   const [activePage, setActivePage] = useState(0);
 
+  const iconSize = iosScaledPx(width, IOS_GRID_ICON_PT);
+  const dockIconSize = iosScaledPx(width, IOS_DOCK_ICON_PT);
+  const effectiveBlur = iosWallpaperBlurPx(width, wallpaperBlur);
+  const gridGapX = Math.max(8, Math.round((width * 19) / 393));
+  const gridGapY = Math.max(12, Math.round((width * 22) / 393));
+
   const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const date = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+
+  const dockApps = useMemo(
+    () =>
+      MINI_PHONE_DOCK_LABELS.map((label) => apps.find((a) => a.label === label)).filter(
+        (a): a is HomeAppIcon => a != null,
+      ),
+    [apps],
+  );
 
   const pages = useMemo(
-    () => splitMiniPhoneHomePages(apps.length, gridHeightPx, compact),
-    [apps.length, gridHeightPx, compact],
+    () => splitMiniPhoneHomePages(apps.length, gridHeightPx, width),
+    [apps.length, gridHeightPx, width],
   );
 
   useLayoutEffect(() => {
@@ -100,7 +195,7 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [height]);
+  }, [width]);
 
   useEffect(() => {
     if (activePage >= pages.length) {
@@ -108,14 +203,6 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
       if (pagerRef.current) pagerRef.current.scrollLeft = 0;
     }
   }, [pages.length, activePage]);
-
-  const bgStyle = wallpaper
-    ? {
-        backgroundImage: `url(${wallpaper})`,
-        backgroundSize: "cover" as const,
-        backgroundPosition: "center" as const,
-      }
-    : undefined;
 
   const launchApp = (app: HomeAppIcon) => {
     if (app.label === "YouTube") {
@@ -138,49 +225,41 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
     pager.scrollTo({ left: i * pager.clientWidth, behavior: "smooth" });
   };
 
-  return (
-    <div
-      className={cn(
-        "h-full w-full overflow-hidden flex flex-col relative",
-        wallpaper ? "" : "ios-wallpaper",
-        compact ? "px-2.5 pt-6 pb-2" : "px-4 pt-8 pb-2",
-      )}
-      style={bgStyle}
-    >
-      {wallpaper && (
-        <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ backdropFilter: `blur(${wallpaperBlur}px)` }}
-          />
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ background: `rgba(17, 24, 39, ${wallpaperTint / 100})` }}
-          />
-        </>
-      )}
+  const bgStyle = wallpaper
+    ? {
+        backgroundImage: `url(${wallpaper})`,
+        backgroundSize: "cover" as const,
+        backgroundPosition: "center" as const,
+      }
+    : undefined;
 
-      <div
-        className={cn(
-          "relative z-10 shrink-0 text-center text-white select-none drop-shadow-lg",
-          compact ? "mt-2" : "mt-4",
-        )}
-      >
-        <div className={compact ? "text-[10px] font-medium opacity-90" : "text-xs font-medium opacity-90"}>
-          {date}
-        </div>
+  return (
+    <div className="h-full w-full overflow-hidden flex flex-col relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
-          className={cn(
-            "font-light tracking-tight leading-none mt-1 tabular-nums",
-            compact ? "text-4xl" : "text-5xl",
-          )}
-        >
-          {time}
-        </div>
+          className={cn("absolute inset-0", wallpaper ? "" : "ios-wallpaper ios-wallpaper-blur-layer")}
+          style={bgStyle}
+        />
+        {wallpaper && (
+          <div
+            className="absolute inset-0 ios-wallpaper-blur-layer"
+            style={bgStyle}
+          />
+        )}
+        <div
+          className="absolute inset-0"
+          style={{ backdropFilter: `blur(${effectiveBlur}px) saturate(120%)` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/8 via-transparent to-black/25" />
+        <div
+          className="absolute inset-0"
+          style={{ background: `rgba(17, 24, 39, ${wallpaperTint / 100})` }}
+        />
       </div>
 
-      <div ref={gridAreaRef} className="relative z-10 flex-1 min-h-0 mt-4">
+      <MiniPhoneStatusBar time={time} />
+
+      <div ref={gridAreaRef} className="relative z-10 flex-1 min-h-0 px-3">
         <div
           ref={pagerRef}
           onScroll={onPagerScroll}
@@ -188,24 +267,16 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
           style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}
         >
           {pages.map((indexes, pageIdx) => (
-            <div
-              key={pageIdx}
-              className={cn(
-                "w-full h-full shrink-0 snap-start overflow-hidden",
-                compact ? "px-0.5" : "px-0",
-              )}
-            >
+            <div key={pageIdx} className="w-full h-full shrink-0 snap-start overflow-hidden">
               <div
-                className={cn(
-                  "grid grid-cols-4",
-                  compact ? "gap-x-2 gap-y-3" : "gap-x-3 gap-y-4",
-                )}
+                className="grid grid-cols-4"
+                style={{ columnGap: gridGapX, rowGap: gridGapY }}
               >
                 {indexes.map((i) => (
                   <MiniPhoneAppTile
                     key={apps[i].label}
                     app={apps[i]}
-                    compact={compact}
+                    iconSize={iconSize}
                     onLaunch={() => launchApp(apps[i])}
                   />
                 ))}
@@ -216,7 +287,7 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
       </div>
 
       {pages.length > 1 && (
-        <div className="relative z-10 shrink-0 flex items-center justify-center gap-1.5 py-2">
+        <div className="relative z-10 shrink-0 flex items-center justify-center gap-1.5 py-1">
           {pages.map((_, i) => (
             <button
               key={i}
@@ -234,6 +305,9 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
           ))}
         </div>
       )}
+
+      <MiniPhoneSearchPill />
+      <MiniPhoneDock dockApps={dockApps} iconSize={dockIconSize} onLaunch={launchApp} />
     </div>
   );
 }

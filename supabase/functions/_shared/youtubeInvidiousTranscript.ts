@@ -147,6 +147,24 @@ async function fetchFromInstance(base: string, videoId: string): Promise<string 
   return parseWebVttToTimedText(vtt);
 }
 
+const INVIDIOUS_SEQUENTIAL_MS = Number(Deno.env.get("INVIDIOUS_SEQUENTIAL_MS") ?? "45000");
+
+/** Longer Invidious pass after the parallel race times out. */
+export async function fetchInvidiousSequential(
+  videoId: string,
+): Promise<{ text: string | null; note: string }> {
+  try {
+    const text = await Promise.race([
+      fetchInvidiousTranscript(videoId),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), INVIDIOUS_SEQUENTIAL_MS)),
+    ]);
+    if (text?.trim()) return { text: text.trim(), note: "ok" };
+    return { text: null, note: `empty or timed out after ${INVIDIOUS_SEQUENTIAL_MS}ms` };
+  } catch (e) {
+    return { text: null, note: String((e as Error).message ?? e) };
+  }
+}
+
 /**
  * Try public Invidious mirrors until captions are returned or all instances fail.
  */

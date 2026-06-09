@@ -1,18 +1,15 @@
-export const MINI_PHONE_HOME_COLS = 4;
+import { miniPhoneRowStride } from "@/lib/mini-phone/miniPhoneIosLayout";
 
-/** Estimated row height (icon + label + gap) for the mini phone launcher grid. */
-export function miniPhoneRowStride(compact: boolean): number {
-  return compact ? 62 : 74;
-}
+export const MINI_PHONE_HOME_COLS = 4;
 
 /** Split app indexes into launcher pages — no vertical scroll, swipe horizontally instead. */
 export function splitMiniPhoneHomePages(
   appCount: number,
   gridHeightPx: number,
-  compact: boolean,
+  phoneWidth: number,
 ): number[][] {
   if (appCount <= 0) return [[]];
-  const rowStride = miniPhoneRowStride(compact);
+  const rowStride = miniPhoneRowStride(phoneWidth);
   const rows = Math.max(1, Math.floor(gridHeightPx / rowStride));
   const perPage = rows * MINI_PHONE_HOME_COLS;
   const pages: number[][] = [];

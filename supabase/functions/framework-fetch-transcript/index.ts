@@ -31,6 +31,8 @@ import {
   outcomeFromTimedText,
   raceCaptionLanes,
 } from "../_shared/youtubeTranscriptRace.ts";
+import { fetchInvidiousSequential } from "../_shared/youtubeInvidiousTranscript.ts";
+import { fetchWorkerSequential } from "../_shared/transcriptProviders/youtubeTranscriptWorker.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -622,6 +624,24 @@ async function transcribeYouTubeVideo(
   }
   tierAttempts.push("Cache: miss");
 
+  if (videoId) {
+    const worker = await fetchWorkerSequential(videoId);
+    if (worker.result?.rawText) {
+      tierAttempts.push("Transcript worker: ok");
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: worker.result.rawText,
+        provider: worker.result.provider,
+        source: "third_party",
+      });
+      return {
+        fetch: worker.result,
+        metadata,
+        chaptersBundle: null,
+      };
+    }
+    tierAttempts.push(`Transcript worker: ${worker.note}`);
+  }
+
   let chaptersBundle: WatchCaptionBundle | null = null;
   const ensureChaptersBundle = async () => {
     if (chaptersBundle) return chaptersBundle;
@@ -676,13 +696,34 @@ async function transcribeYouTubeVideo(
       };
     }
     tierAttempts.push(`Captions (transcript-plus sequential): ${plusSeq.note}`);
+
+    const invSeq = await fetchInvidiousSequential(videoId);
+    if (invSeq.text) {
+      tierAttempts.push("Captions (invidious sequential): ok");
+      const bundle = await ensureChaptersBundle();
+      const fetch = outcomeFromTimedText(invSeq.text, "caption", "youtube_invidious");
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: invSeq.text,
+        provider: "youtube_invidious",
+        source: "caption",
+      });
+      return {
+        fetch,
+        metadata: { ...metadata, title: metadata.title ?? bundle?.title },
+        chaptersBundle: bundle,
+      };
+    }
+    tierAttempts.push(`Captions (invidious sequential): ${invSeq.note}`);
   } else {
     tierAttempts.push("Captions: no video id");
   }
 
   const bundle = await ensureChaptersBundle();
 
-  const assembly = await fetchAssemblyFallback(watchUrl);
+  const assembly = await fetchAssemblyFallback(watchUrl, {
+    videoId,
+    resolveAudioUrl: (id) => resolveYouTubeAudioUrl(id),
+  });
   if (assembly.result?.rawText) {
     tierAttempts.push("AssemblyAI: ok");
     if (videoId) {

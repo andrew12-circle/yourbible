@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { fetchAssemblyAiTranscript } from "./transcriptProviders/assemblyai.ts";
 import { fetchDeepgramTranscript } from "./transcriptProviders/deepgram.ts";
-import { fetchWorkerTranscript, isWorkerConfigured } from "./transcriptProviders/youtubeTranscriptWorker.ts";
 import { buildFetchResult, segmentsFromTimedText } from "./transcriptNormalize.ts";
 import type { TranscriptFetchResult, TranscriptSegmentSource } from "./transcriptTypes.ts";
 import { fetchInvidiousTranscript } from "./youtubeInvidiousTranscript.ts";
@@ -138,17 +137,6 @@ export function buildCaptionLanes(opts: BuildCaptionLanesOpts): CaptionLane[] {
     });
   }
 
-  if (isWorkerConfigured()) {
-    lanes.push({
-      name: "Transcript worker",
-      provider: "youtube_transcript_worker",
-      run: async () => {
-        const worker = await fetchWorkerTranscript(videoId);
-        return worker.rawText || null;
-      },
-    });
-  }
-
   lanes.push(
     {
       name: "Captions (watch-page)",
@@ -182,13 +170,36 @@ export function buildCaptionLanes(opts: BuildCaptionLanesOpts): CaptionLane[] {
 
 export async function fetchAssemblyFallback(
   watchUrl: string,
+  opts?: {
+    videoId?: string | null;
+    resolveAudioUrl?: (id: string) => Promise<string | null>;
+  },
 ): Promise<{ result: TranscriptFetchResult | null; note: string }> {
+  const notes: string[] = [];
+  const videoId = opts?.videoId?.trim() ?? null;
+
+  if (videoId && opts?.resolveAudioUrl) {
+    const audioUrl = await opts.resolveAudioUrl(videoId).catch(() => null);
+    if (audioUrl) {
+      try {
+        const assembly = await fetchAssemblyAiTranscript(audioUrl);
+        if (assembly.rawText) return { result: assembly, note: "ok (direct audio url)" };
+        notes.push("audio url: empty response");
+      } catch (e) {
+        notes.push(`audio url: ${String((e as Error).message ?? e)}`);
+      }
+    } else {
+      notes.push("audio url: not resolved");
+    }
+  }
+
   try {
     const assembly = await fetchAssemblyAiTranscript(watchUrl);
-    if (assembly.rawText) return { result: assembly, note: "ok" };
-    return { result: null, note: "empty response" };
+    if (assembly.rawText) return { result: assembly, note: "ok (watch url)" };
+    return { result: null, note: notes.length ? `${notes.join("; ")}; watch url: empty` : "empty response" };
   } catch (e) {
-    return { result: null, note: String((e as Error).message ?? e) };
+    const watchErr = String((e as Error).message ?? e);
+    return { result: null, note: notes.length ? `${notes.join("; ")}; watch url: ${watchErr}` : watchErr };
   }
 }
 
