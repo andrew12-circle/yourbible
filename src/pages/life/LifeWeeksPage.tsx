@@ -1,12 +1,9 @@
 import { Link, Navigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
-import { HubPageLayout } from "@/components/shell/HubPageLayout";
 import { LifeWeeksPanel } from "@/components/life/LifeWeeksPanel";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-
 export default function LifeWeeksPage() {
   const { user, loading } = useAuth();
   const { showHubShell } = useAppShellMode();
