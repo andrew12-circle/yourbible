@@ -167,16 +167,20 @@ function parseObviousGuestLeadLine(text: string | null | undefined): string[] | 
   return null;
 }
 
-export function guestNamesForListRow(m: ArtifactMetadata | null | undefined): string[] {
-  if (!m) return [];
-  const fromIg = namesFromGuestField(m.interview_guests);
+export function guestNamesForListRow(
+  m: ArtifactMetadata | null | undefined,
+  artifactTitle?: string | null,
+): string[] {
+  if (!m && !artifactTitle?.trim()) return [];
+  const fromIg = namesFromGuestField(m?.interview_guests);
   if (fromIg.length) return fromIg;
-  const fromG = namesFromGuestField(m.guests);
+  const fromG = namesFromGuestField(m?.guests);
   if (fromG.length) return fromG;
-  const fromSub = parseObviousGuestLeadLine(typeof m.subtitle === "string" ? m.subtitle : null);
+  const fromSub = parseObviousGuestLeadLine(typeof m?.subtitle === "string" ? m.subtitle : null);
   if (fromSub?.length) return fromSub;
-  const fromDesc = parseObviousGuestLeadLine(typeof m.description === "string" ? m.description : null);
-  return fromDesc ?? [];
+  const fromDesc = parseObviousGuestLeadLine(typeof m?.description === "string" ? m.description : null);
+  if (fromDesc?.length) return fromDesc;
+  return parseObviousGuestLeadLine(artifactTitle) ?? [];
 }
 
 const MAX_GUEST_NAMES_SHOWN = 3;

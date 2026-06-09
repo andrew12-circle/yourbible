@@ -13,6 +13,15 @@ export type CastMember = {
   mentionConfidence?: number | null;
 };
 
+const CAST_KIND_ORDER: Record<CastMemberKind, number> = {
+  host: 0,
+  guest: 1,
+  mention: 2,
+};
+
+const GUEST_ROLE_RE =
+  /\b(guest|speaker|co-?host|panelist|interviewee|pastor|preacher|teacher|apologist|minister)\b/i;
+
 function normalizeCastName(name: string): string {
   return name
     .trim()
@@ -22,9 +31,34 @@ function normalizeCastName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
+function looksLikePanelGuestName(name: string): boolean {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.length >= 2 && parts.every((p) => p.length >= 2);
+}
+
+function roleSuggestsGuest(subtitle: string | null | undefined): boolean {
+  const role = subtitle?.trim();
+  if (!role) return false;
+  return GUEST_ROLE_RE.test(role);
+}
+
+function shouldPromotePersonToGuest(
+  title: string,
+  subtitle: string | null | undefined,
+  confidence: number | null,
+  mentionCount: number,
+): boolean {
+  if (roleSuggestsGuest(subtitle)) return true;
+  if (!looksLikePanelGuestName(title)) return false;
+  if (mentionCount >= 2) return true;
+  return (confidence ?? 0) >= 0.65;
+}
+
 type PersonEntityLike = {
   id: string;
+  kind: string;
   title: string;
+  subtitle?: string | null;
   avatar_url?: string | null;
 };
 
@@ -33,26 +67,36 @@ type MentionLike = {
   knowledge_entities: PersonEntityLike | null;
 };
 
+function sortCastMembers(members: CastMember[]): CastMember[] {
+  return [...members].sort((a, b) => {
+    const byKind = CAST_KIND_ORDER[a.kind] - CAST_KIND_ORDER[b.kind];
+    if (byKind !== 0) return byKind;
+    return (b.mentionCount ?? 0) - (a.mentionCount ?? 0) || a.title.localeCompare(b.title);
+  });
+}
+
 export function buildArtifactCastMembers(
   metadata: ArtifactMetadata | null | undefined,
   mentions: MentionLike[],
+  artifactTitle?: string | null,
 ): CastMember[] {
   const out: CastMember[] = [];
   const seen = new Set<string>();
 
   const hostName = channelAndAuthorLine(metadata)?.trim();
+  const hostKey = hostName ? normalizeCastName(hostName) : "";
+
   if (hostName) {
-    const key = normalizeCastName(hostName);
-    seen.add(key);
+    seen.add(hostKey);
     out.push({
-      key: `host:${key}`,
+      key: `host:${hostKey}`,
       title: hostName,
       kind: "host",
       avatarUrl: metadata?.channel_thumbnail_url?.trim() || null,
     });
   }
 
-  for (const guest of guestNamesForListRow(metadata)) {
+  for (const guest of guestNamesForListRow(metadata, artifactTitle)) {
     const key = normalizeCastName(guest);
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -63,38 +107,67 @@ export function buildArtifactCastMembers(
     });
   }
 
-  const entityCounts = new Map<string, { entity: PersonEntityLike; count: number; confidence: number | null }>();
+  const entityCounts = new Map<
+    string,
+    { entity: PersonEntityLike; count: number; confidence: number | null }
+  >();
   for (const m of mentions) {
     const ent = m.knowledge_entities;
-    if (!ent) continue;
+    if (!ent || ent.kind !== "person") continue;
     const existing = entityCounts.get(ent.id);
     if (existing) {
       existing.count += 1;
+      if (m.confidence != null && (existing.confidence == null || m.confidence > existing.confidence)) {
+        existing.confidence = m.confidence;
+      }
     } else {
       entityCounts.set(ent.id, { entity: ent, count: 1, confidence: m.confidence });
     }
   }
 
-  for (const { entity, count, confidence } of entityCounts.values()) {
+  const pendingPersonMentions: Array<{
+    entity: PersonEntityLike;
+    count: number;
+    confidence: number | null;
+  }> = [];
+
+  for (const row of entityCounts.values()) {
+    const { entity, count, confidence } = row;
     const key = normalizeCastName(entity.title);
+    if (hostKey && key === hostKey) continue;
+
     const existingIdx = out.findIndex((c) => normalizeCastName(c.title) === key);
     if (existingIdx >= 0) {
-      const row = out[existingIdx];
+      const member = out[existingIdx];
       out[existingIdx] = {
-        ...row,
+        ...member,
         entityId: entity.id,
-        avatarUrl: row.avatarUrl || entity.avatar_url || null,
+        avatarUrl: member.avatarUrl || entity.avatar_url || null,
         mentionCount: count,
         mentionConfidence: confidence,
       };
       continue;
     }
+
     if (seen.has(key)) continue;
+    pendingPersonMentions.push({ entity, count, confidence });
+  }
+
+  for (const { entity, count, confidence } of pendingPersonMentions) {
+    const key = normalizeCastName(entity.title);
+    const kind: CastMemberKind = shouldPromotePersonToGuest(
+      entity.title,
+      entity.subtitle,
+      confidence,
+      count,
+    )
+      ? "guest"
+      : "mention";
     seen.add(key);
     out.push({
-      key: `mention:${entity.id}`,
+      key: `${kind}:${entity.id}`,
       title: entity.title,
-      kind: "mention",
+      kind,
       entityId: entity.id,
       avatarUrl: entity.avatar_url || null,
       mentionCount: count,
@@ -102,7 +175,7 @@ export function buildArtifactCastMembers(
     });
   }
 
-  return out;
+  return sortCastMembers(out);
 }
 
 export function castKindLabel(kind: CastMemberKind): string {

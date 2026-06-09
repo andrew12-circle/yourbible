@@ -753,6 +753,46 @@ function parseKnowledgeEntitiesPayload(raw: unknown): KnowledgeEntitiesPayload {
   return raw as KnowledgeEntitiesPayload;
 }
 
+function normalizeGuestName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/^st\.?\s+/i, "")
+    .replace(/^saint\s+/i, "")
+    .replace(/\s+/g, " ");
+}
+
+function looksLikePanelGuestName(name: string): boolean {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.length >= 2 && parts.every((p) => p.length >= 2);
+}
+
+function inferInterviewGuestsFromPayload(
+  payload: KnowledgeEntitiesPayload,
+  channelTitle?: string | null,
+): string[] {
+  const hostNorm = channelTitle ? normalizeGuestName(channelTitle) : "";
+  const names = new Set<string>();
+  for (const p of payload.people ?? []) {
+    const name = (p.name ?? "").trim();
+    if (!name || name.length < 3) continue;
+    const key = normalizeGuestName(name);
+    if (hostNorm && (key === hostNorm || hostNorm.includes(key) || key.includes(hostNorm))) continue;
+    const role = (p.role ?? "").toLowerCase();
+    if (
+      role &&
+      /\b(guest|speaker|co-?host|panelist|interviewee|pastor|preacher|teacher|apologist|minister)\b/.test(
+        role,
+      )
+    ) {
+      names.add(name);
+    } else if (looksLikePanelGuestName(name) && (p.confidence ?? 0) >= 0.65) {
+      names.add(name);
+    }
+  }
+  return [...names];
+}
+
 function parseToolCall(json: unknown, toolName: string): string | null {
   const j = json as {
     choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
@@ -1293,6 +1333,26 @@ Deno.serve(async (req) => {
             });
             entity_counts = res.counts;
             entity_mentions_written = res.mentionCount;
+
+            const prevMeta = (metadata as Record<string, unknown> | null | undefined) ?? {};
+            const channelTitle =
+              typeof prevMeta.channel_title === "string"
+                ? prevMeta.channel_title
+                : typeof prevMeta.channel === "string"
+                  ? prevMeta.channel
+                  : null;
+            const interviewGuests = inferInterviewGuestsFromPayload(entitiesParsed, channelTitle);
+            if (interviewGuests.length > 0) {
+              await supabase
+                .from("artifacts")
+                .update({
+                  metadata: {
+                    ...prevMeta,
+                    interview_guests: interviewGuests,
+                  },
+                })
+                .eq("id", artifact_id);
+            }
           }
         } else {
           console.error("entity extraction gateway error:", er.status, await er.text());

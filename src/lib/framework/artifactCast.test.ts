@@ -14,6 +14,7 @@ describe("buildArtifactCastMembers", () => {
           confidence: 0.9,
           knowledge_entities: {
             id: "e1",
+            kind: "person",
             title: "Abraham",
             avatar_url: "https://example.com/abraham.jpg",
           },
@@ -31,6 +32,63 @@ describe("buildArtifactCastMembers", () => {
     expect(cast.some((c) => c.title === "Abraham" && c.entityId === "e1")).toBe(true);
   });
 
+  it("promotes multi-word contemporary speakers to guests and sorts host then guests then mentions", () => {
+    const cast = buildArtifactCastMembers(
+      {
+        channel_title: "ALTARED Church",
+        channel_thumbnail_url: "https://example.com/host.jpg",
+      },
+      [
+        {
+          confidence: 0.88,
+          knowledge_entities: {
+            id: "e-mw",
+            kind: "person",
+            title: "Mike Winger",
+            avatar_url: null,
+          },
+        },
+        {
+          confidence: 0.86,
+          knowledge_entities: {
+            id: "e-tw",
+            kind: "person",
+            title: "Taylor Welch",
+            avatar_url: null,
+          },
+        },
+        {
+          confidence: 0.9,
+          knowledge_entities: {
+            id: "e-book",
+            kind: "book",
+            title: "Animal Farm",
+            avatar_url: null,
+          },
+        },
+        {
+          confidence: 0.82,
+          knowledge_entities: {
+            id: "e-paul",
+            kind: "person",
+            title: "Paul",
+            avatar_url: null,
+          },
+        },
+      ],
+    );
+
+    expect(cast[0]?.kind).toBe("host");
+    expect(cast.find((c) => c.title === "Mike Winger")?.kind).toBe("guest");
+    expect(cast.find((c) => c.title === "Taylor Welch")?.kind).toBe("guest");
+    expect(cast.find((c) => c.title === "Paul")?.kind).toBe("mention");
+    expect(cast.some((c) => c.title === "Animal Farm")).toBe(false);
+    const guestIdx = cast.findIndex((c) => c.title === "Mike Winger");
+    const mentionIdx = cast.findIndex((c) => c.title === "Paul");
+    expect(guestIdx).toBeGreaterThan(0);
+    expect(mentionIdx).toBeGreaterThan(guestIdx);
+  });
+
   it("merges guest row with matching entity and keeps host avatar", () => {
     const cast = buildArtifactCastMembers(
       {
@@ -43,6 +101,7 @@ describe("buildArtifactCastMembers", () => {
           confidence: 0.85,
           knowledge_entities: {
             id: "e2",
+            kind: "person",
             title: "Paul",
             avatar_url: "https://example.com/paul.jpg",
           },

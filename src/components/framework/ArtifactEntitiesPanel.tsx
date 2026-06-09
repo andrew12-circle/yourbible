@@ -102,6 +102,7 @@ function CastMemberChip({
     return (
       <EntityChipPopover
         entity={entity}
+        avatarUrlOverride={member.avatarUrl}
         mentionConfidence={mentionConfidence ?? null}
         currentArtifactId={currentArtifactId}
         mentionCountInArtifact={mentionCountInArtifact}
@@ -136,6 +137,7 @@ function CastMemberChip({
 
 function EntityChipPopover({
   entity,
+  avatarUrlOverride,
   mentionConfidence,
   currentArtifactId,
   mentionCountInArtifact,
@@ -143,6 +145,7 @@ function EntityChipPopover({
   roleLabel,
 }: {
   entity: KnowledgeEntityRow;
+  avatarUrlOverride?: string | null;
   mentionConfidence: number | null;
   currentArtifactId: string;
   mentionCountInArtifact?: number;
@@ -153,6 +156,7 @@ function EntityChipPopover({
   const [loading, setLoading] = useState(false);
   const [others, setOthers] = useState<OtherMention[]>([]);
   const isPerson = isPersonEntityKind(entity.kind);
+  const avatarSrc = entity.avatar_url?.trim() || avatarUrlOverride?.trim() || null;
 
   const loadOthers = useCallback(async () => {
     setLoading(true);
@@ -204,8 +208,8 @@ function EntityChipPopover({
           {variant === "personRail" ? (
             <>
               <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-border/60">
-                {entity.avatar_url ? (
-                  <AvatarImage src={entity.avatar_url} alt="" className="object-cover" />
+                {avatarSrc ? (
+                  <AvatarImage src={avatarSrc} alt="" className="object-cover" />
                 ) : null}
                 <AvatarFallback
                   className="text-sm font-medium text-white tracking-tight border-0"
@@ -259,8 +263,8 @@ function EntityChipPopover({
         <div className="flex gap-3">
           {isPerson ? (
             <Avatar className="h-12 w-12 shrink-0 rounded-full ring-1 ring-border/60">
-              {entity.avatar_url ? (
-                <AvatarImage src={entity.avatar_url} alt="" className="object-cover" />
+              {avatarSrc ? (
+                <AvatarImage src={avatarSrc} alt="" className="object-cover" />
               ) : null}
               <AvatarFallback
                 className="text-sm font-medium text-white tracking-tight border-0"
@@ -416,6 +420,7 @@ export default function ArtifactEntitiesPanel({
   const { user } = useAuth();
   const [mentions, setMentions] = useState<MentionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hostAvatarUrl, setHostAvatarUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -500,15 +505,36 @@ export default function ArtifactEntitiesPanel({
     return map;
   }, [mentions]);
 
+  const artifactTitle = artifactMetadata?.title?.trim() || null;
+
   const castMembers = useMemo(
-    () => buildArtifactCastMembers(artifactMetadata, mentions),
-    [artifactMetadata, mentions],
+    () => buildArtifactCastMembers(artifactMetadata, mentions, artifactTitle),
+    [artifactMetadata, artifactTitle, mentions],
   );
 
-  const castPeopleMembers = useMemo(
-    () => castMembers.filter((m) => m.kind !== "mention" || m.entityId),
-    [castMembers],
-  );
+  useEffect(() => {
+    const host = castMembers.find((m) => m.kind === "host");
+    if (!host || host.avatarUrl?.trim() || hostAvatarUrl) return;
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.functions.invoke("framework-youtube-channel-avatar", {
+        body: { artifact_id: artifactId },
+      });
+      if (cancelled || error) return;
+      const url = (data as { channel_thumbnail_url?: string | null } | null)?.channel_thumbnail_url?.trim();
+      if (url) setHostAvatarUrl(url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [artifactId, castMembers, hostAvatarUrl]);
+
+  const castPeopleMembers = useMemo(() => {
+    if (!hostAvatarUrl) return castMembers;
+    return castMembers.map((m) =>
+      m.kind === "host" && !m.avatarUrl?.trim() ? { ...m, avatarUrl: hostAvatarUrl } : m,
+    );
+  }, [castMembers, hostAvatarUrl]);
 
   const personIdsNeedingAvatar = useMemo(() => {
     const byEntity = new Map<string, KnowledgeEntityRow>();
@@ -517,13 +543,21 @@ export default function ArtifactEntitiesPanel({
       if (!ent || !isPersonEntityKind(ent.kind)) continue;
       byEntity.set(ent.id, ent);
     }
-    return [...byEntity.values()]
-      .filter((e) => !e.avatar_url?.trim())
-      .map((e) => e.id);
-  }, [mentions]);
+    const castPriority = new Set(
+      castPeopleMembers.map((m) => m.entityId).filter((id): id is string => Boolean(id)),
+    );
+    const missing = [...byEntity.values()].filter((e) => !e.avatar_url?.trim());
+    missing.sort((a, b) => {
+      const aCast = castPriority.has(a.id) ? 0 : 1;
+      const bCast = castPriority.has(b.id) ? 0 : 1;
+      return aCast - bCast || a.title.localeCompare(b.title);
+    });
+    return missing.map((e) => e.id);
+  }, [castPeopleMembers, mentions]);
 
   useKnowledgeEntityAvatarEnrichment(personIdsNeedingAvatar, {
     enabled: !loading && personIdsNeedingAvatar.length > 0,
+    artifactHint: artifactTitle ?? undefined,
     onEnriched: load,
   });
 
