@@ -6,6 +6,7 @@ import {
   EyeOff,
   Languages,
   Minus,
+  Home,
   Moon,
   Network,
   PenLine,
@@ -381,6 +382,12 @@ export function ReaderMobileMenu({
                 >
                   {focusMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   {focusMode ? "Exit focus" : "Secret Place"}
+                </Button>
+                <Button asChild variant="outline" className={readerPickerMenuButton}>
+                  <Link to="/home" onClick={close}>
+                    <Home className="w-4 h-4" />
+                    Home
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" className={readerPickerMenuButton}>
                   <Link to="/sleep" onClick={close}>

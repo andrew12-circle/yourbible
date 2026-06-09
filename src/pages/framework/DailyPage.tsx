@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { readerPath } from "@/lib/bible/reference";
+import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 
 interface Reading {
   id: string;
@@ -16,13 +17,6 @@ interface Reading {
   reason: string;
   prompt: string;
   belief_id: string | null;
-}
-
-function invokeErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message: string }).message);
-  }
-  return "Failed to generate";
 }
 
 export default function DailyPage() {
@@ -81,7 +75,7 @@ export default function DailyPage() {
     } catch (e: unknown) {
       toast({
         title: "Couldn't generate reading",
-        description: invokeErrorMessage(e),
+        description: await edgeFunctionErrorMessage("framework-daily", e),
         variant: "destructive",
       });
     } finally {

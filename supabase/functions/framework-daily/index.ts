@@ -1,5 +1,6 @@
 // Picks a personalized daily passage from the user's framework and stores it.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { callChatJson } from "../_shared/aiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +39,12 @@ const BOOK_ID_MAP: Record<string, string> = {
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function stripJsonFence(text: string): string {
+  const t = text.trim();
+  const m = t.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
+  return (m?.[1] ?? t).trim();
 }
 
 async function defaultBibleId(apiKey: string): Promise<string> {
@@ -102,8 +109,12 @@ async function fetchPassageText(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const KEY = Deno.env.get("GEMINI_API_KEY")!;
-    const API_BIBLE_KEY = Deno.env.get("API_BIBLE_KEY")!;
+    const API_BIBLE_KEY = Deno.env.get("API_BIBLE_KEY");
+    if (!API_BIBLE_KEY) {
+      return new Response(JSON.stringify({ error: "API_BIBLE_KEY missing" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
@@ -151,57 +162,27 @@ Deno.serve(async (req) => {
       `${t.severity}: ${t.summary}`,
     ).join("\n").slice(0, 1500);
 
-    const prompt = `You are choosing ONE short Bible passage (1–5 verses) for this person's daily reading. Tie it to where their belief framework is active today — a belief they're strengthening, a gap, or an open tension. Be pastoral, non-denominational, and specific.
+    const systemText = `You choose ONE short Bible passage (1–5 verses) for daily reading. Return JSON only with keys:
+reference (string, e.g. "Romans 8:28-30"), book_abbr (3-letter app code: Gen, Exo, … Jhn, Rom, 1Co, etc.),
+chapter (number), verse_start (number), verse_end (number or null), reason (2-3 sentences), prompt (1-2 reflective questions),
+belief_id (related belief id string or null). Pick a real, citeable passage.`;
+
+    const userPayload = `Tie the passage to where this person's belief framework is active today — a belief they're strengthening, a gap, or an open tension. Be pastoral, non-denominational, and specific.
 
 USER BELIEFS:
 ${beliefSummary || "(empty — pick a welcoming gospel or wisdom passage)"}
 
 OPEN TENSIONS:
-${tensionSummary || "(none)"}
+${tensionSummary || "(none)"}`;
 
-Pick a real, citeable passage. Use standard English book names in reference (e.g. "Romans 8:28" or "John 3:16-17").`;
-
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemini-2.5-pro",
-        messages: [{ role: "user", content: prompt }],
-        tools: [{
-          type: "function",
-          function: {
-            name: "submit_daily",
-            parameters: {
-              type: "object",
-              properties: {
-                reference: { type: "string", description: 'e.g. "Romans 8:28-30"' },
-                book_abbr: {
-                  type: "string",
-                  description: "3-letter app code: Gen, Exo, … Jhn, Rom, 1Co, etc.",
-                },
-                chapter: { type: "number" },
-                verse_start: { type: "number" },
-                verse_end: { type: "number", description: "Same as start if single verse" },
-                reason: { type: "string", description: "2-3 sentences: why this passage today" },
-                prompt: { type: "string", description: "1-2 reflective questions for journaling" },
-                belief_id: { type: "string", description: "Related belief id or empty" },
-              },
-              required: ["reference", "book_abbr", "chapter", "verse_start", "reason", "prompt"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "submit_daily" } },
-      }),
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      return new Response(JSON.stringify({ error: "AI gateway", status: r.status, body: t }), {
+    const chatRes = await callChatJson(systemText, userPayload, 0.5, 2048);
+    if (!chatRes.ok) {
+      return new Response(JSON.stringify({ error: chatRes.err ?? "AI request failed" }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const j = await r.json();
-    const args = JSON.parse(j.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}");
+    const args = JSON.parse(stripJsonFence(chatRes.rawText)) as Record<string, unknown>;
     let bookAbbr = String(args.book_abbr ?? "").trim();
     if (!VALID_ABBRS.has(bookAbbr)) bookAbbr = "Jhn";
     const chapter = Math.max(1, Math.min(150, Number(args.chapter) || 1));
@@ -219,7 +200,8 @@ Pick a real, citeable passage. Use standard English book names in reference (e.g
     }
 
     const validIds = new Set((beliefs ?? []).map((b: { id: string }) => b.id));
-    const beliefId = validIds.has(args.belief_id) ? args.belief_id : null;
+    const beliefIdRaw = args.belief_id != null ? String(args.belief_id) : "";
+    const beliefId = validIds.has(beliefIdRaw) ? beliefIdRaw : null;
 
     const { data: ins, error: insErr } = await supabase.from("daily_readings").insert({
       user_id: u.user.id,

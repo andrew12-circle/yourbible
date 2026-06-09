@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
 import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
@@ -219,15 +219,22 @@ export function TopBar({
       >
         {singlePage && !focusMode ? (
         <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-2 rounded-2xl px-3 py-2 ${readerGlassBar}`}>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className={`flex items-center gap-1.5 min-w-0 transition-colors hover:opacity-80 ${readerChromeText}`}
-            aria-label="Open reader menu"
-          >
-            <span className="font-system text-[17px] font-semibold tracking-tight truncate">{reference}</span>
-            <ChevronDown className={`w-4 h-4 shrink-0 ${readerChromeTextMuted}`} strokeWidth={2.25} />
-          </button>
+          <div className="flex items-center gap-1 min-w-0">
+            <ReaderIconButton asChild title="Home">
+              <Link to="/home" aria-label="Back to home">
+                <Home className="w-[18px] h-[18px]" strokeWidth={2} />
+              </Link>
+            </ReaderIconButton>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className={`flex items-center gap-1.5 min-w-0 transition-colors hover:opacity-80 ${readerChromeText}`}
+              aria-label="Open reader menu"
+            >
+              <span className="font-system text-[17px] font-semibold tracking-tight truncate">{reference}</span>
+              <ChevronDown className={`w-4 h-4 shrink-0 ${readerChromeTextMuted}`} strokeWidth={2.25} />
+            </button>
+          </div>
           <div className="flex items-center gap-0.5 shrink-0">
             {onToggleInkMode ? (
               <ReaderIconButton
@@ -253,6 +260,11 @@ export function TopBar({
         ) : singlePage && focusMode ? null : (
         <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 ${readerGlassBar}`}>
         <div className="flex items-center gap-2 min-w-0 pl-2">
+          <ReaderIconButton asChild title="Home">
+            <Link to="/home" aria-label="Back to home">
+              <Home className="w-[18px] h-[18px]" strokeWidth={2} />
+            </Link>
+          </ReaderIconButton>
           {/* Reference picker — book / chapter / verse */}
           <Popover open={pickerOpen} onOpenChange={onOpenPicker}>
             <PopoverTrigger asChild>
