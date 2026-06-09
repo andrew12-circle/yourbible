@@ -1,8 +1,28 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
+import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
+import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
 import { ReaderMobileMenu, type ReaderMenuPanel } from "@/components/bible/ReaderMobileMenu";
-import { Button } from "@/components/ui/button";
+import { fontChoiceLabel } from "@/lib/bible/fontChoices";
+import {
+  readerChromeText,
+  readerChromeTextMuted,
+  readerFontScaleGroup,
+  readerGlassBar,
+  readerGlassHandle,
+  readerGlassPanel,
+  readerPickerGridButton,
+  readerPickerGridButtonSelected,
+  readerPickerHeader,
+  readerPickerIconButton,
+  readerPickerInput,
+  readerPickerPrimaryButton,
+  readerPickerSecondaryButton,
+  readerPickerSectionLabel,
+} from "@/lib/bible/readerChromeClasses";
+import type { FontChoiceId } from "@/lib/bible/fontChoices";
+import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
@@ -38,6 +58,8 @@ interface Props {
   fontScale: number;
   /** Bump the text-size scale by ±step (clamped). Pass 0 to reset. */
   onFontScaleChange: (next: number) => void;
+  fontChoice?: string;
+  onFontChoiceChange?: (choice: FontChoiceId) => void;
   /** Viewport under READER_SINGLE_PAGE_MAX — compact chrome + menu sheet */
   singlePage?: boolean;
   /** Increment to open reader settings (e.g. footer book name tap). */
@@ -59,6 +81,8 @@ export function TopBar({
   bibleId, bibles, onChangeBible, onBookmark,
   currentBook, currentChapter, currentVerseCount, onJumpTo,
   fontScale, onFontScaleChange,
+  fontChoice,
+  onFontChoiceChange,
   singlePage = false,
   settingsOpenRequest = 0,
   inkMode = false,
@@ -75,6 +99,7 @@ export function TopBar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuPanel, setMobileMenuPanel] = useState<ReaderMenuPanel>("nav");
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
   useEffect(() => {
     if (focusMode) setOpen(false);
@@ -141,9 +166,9 @@ export function TopBar({
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show header"
-          className="fixed left-1/2 top-[calc(var(--safe-area-inset-top)+0.25rem)] -translate-x-1/2 z-30 px-4 py-1 rounded-full bg-paper/60 backdrop-blur-sm text-leather/60 hover:text-leather hover:bg-paper/80 transition-all"
+          className={`fixed left-1/2 top-[calc(var(--safe-area-inset-top)+0.35rem)] -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
         >
-          <ChevronDown className="w-3.5 h-3.5" />
+          <ChevronDown className="w-3.5 h-3.5" strokeWidth={2.25} />
         </button>
       )}
 
@@ -152,9 +177,9 @@ export function TopBar({
           type="button"
           onClick={onToggleFocus}
           aria-label="Exit Secret Place"
-          className="fixed right-4 top-[calc(var(--safe-area-inset-top)+0.75rem)] z-40 inline-flex items-center gap-1.5 rounded-full bg-leather/90 px-3 py-1.5 text-xs text-paper shadow-md backdrop-blur-sm"
+          className={`fixed right-4 top-[calc(var(--safe-area-inset-top)+0.75rem)] z-40 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${readerGlassBar} ${readerChromeText}`}
         >
-          <EyeOff className="w-3.5 h-3.5" aria-hidden />
+          <EyeOff className="w-3.5 h-3.5" strokeWidth={2.25} aria-hidden />
           Exit Secret Place
         </button>
       )}
@@ -177,6 +202,8 @@ export function TopBar({
           onChangeBible={onChangeBible}
           fontScale={fontScale}
           onFontScaleChange={onFontScaleChange}
+          fontChoice={fontChoice}
+          onFontChoiceChange={onFontChoiceChange}
           onBookmark={onBookmark}
           focusMode={focusMode}
           onToggleFocus={onToggleFocus}
@@ -186,83 +213,85 @@ export function TopBar({
       )}
 
       <header
-        className={`fixed top-0 inset-x-0 z-30 transition-all duration-500 bg-paper/80 backdrop-blur-md border-b border-paper-edge pt-[var(--safe-area-inset-top)] ${
-          open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
-        } ${singlePage ? "py-2" : "py-3"}`}
+        className={`fixed top-0 inset-x-0 z-30 pt-[var(--safe-area-inset-top)] transition-[transform,opacity] duration-300 ease-out ${
+          open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-[calc(100%+0.75rem)] opacity-0 pointer-events-none"
+        }`}
       >
         {singlePage && !focusMode ? (
-        <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-2">
+        <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-2 rounded-2xl px-3 py-2 ${readerGlassBar}`}>
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex items-center gap-1.5 text-leather hover:text-leather-deep transition-colors min-w-0"
+            className={`flex items-center gap-1.5 min-w-0 transition-colors hover:opacity-80 ${readerChromeText}`}
             aria-label="Open reader menu"
           >
-            <span className="font-display text-lg truncate">{reference}</span>
-            <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
+            <span className="font-system text-[17px] font-semibold tracking-tight truncate">{reference}</span>
+            <ChevronDown className={`w-4 h-4 shrink-0 ${readerChromeTextMuted}`} strokeWidth={2.25} />
           </button>
           <div className="flex items-center gap-0.5 shrink-0">
             {onToggleInkMode ? (
-              <Button
-                variant="ghost"
-                size="icon"
+              <ReaderIconButton
                 onClick={onToggleInkMode}
                 title={inkMode ? "Exit ink mode" : "Write on page"}
-                className={inkMode ? "text-leather bg-gold/15" : "text-leather/80 hover:text-leather"}
-                aria-pressed={inkMode}
+                active={inkMode}
+                ariaPressed={inkMode}
               >
-                <PenLine className="w-4 h-4" />
-              </Button>
+                <PenLine className="w-[18px] h-[18px]" strokeWidth={2} />
+              </ReaderIconButton>
             ) : null}
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} title="Reader menu" className="text-leather/80 hover:text-leather">
-              <Menu className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"} className="text-leather/80 hover:text-leather">
-              {focusMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setOpen(false)} title="Hide header" className="text-leather/80 hover:text-leather">
-              <ChevronUp className="w-4 h-4" />
-            </Button>
+            <ReaderIconButton onClick={() => setMobileMenuOpen(true)} title="Reader menu">
+              <Menu className="w-[18px] h-[18px]" strokeWidth={2} />
+            </ReaderIconButton>
+            <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"}>
+              {focusMode ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={2} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={2} />}
+            </ReaderIconButton>
+            <ReaderIconButton onClick={() => setOpen(false)} title="Hide header">
+              <ChevronUp className="w-[18px] h-[18px]" strokeWidth={2.25} />
+            </ReaderIconButton>
           </div>
         </div>
         ) : singlePage && focusMode ? null : (
-        <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 ${readerGlassBar}`}>
+        <div className="flex items-center gap-2 min-w-0 pl-2">
           {/* Reference picker — book / chapter / verse */}
           <Popover open={pickerOpen} onOpenChange={onOpenPicker}>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 text-leather hover:text-leather-deep transition-colors">
-                <span className="font-display text-lg transition-all">{reference}</span>
-                <ChevronDown className="w-4 h-4 opacity-60" />
+              <button className={`flex items-center gap-1.5 transition-colors hover:opacity-80 ${readerChromeText}`}>
+                <span className="font-system text-[17px] font-semibold tracking-tight transition-all">{reference}</span>
+                <ChevronDown className={`w-4 h-4 ${readerChromeTextMuted}`} strokeWidth={2.25} />
               </button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               sideOffset={10}
-              className="w-[min(94vw,560px)] p-0 paper-texture border-gold/30 shadow-leather"
+              className={cn("w-[min(94vw,560px)] p-0 border-0", readerGlassPanel)}
             >
               {/* Header / breadcrumb */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-paper-edge bg-gradient-to-b from-paper-warm to-paper">
+              <div className={readerPickerHeader}>
                 <div className="flex items-center gap-1.5 min-w-0">
                   {step !== "book" && (
                     <button
                       onClick={() => setStep(step === "verse" && pickedBook.chapters > 1 ? "chapter" : "book")}
                       aria-label="Back"
-                      className="p-1 -ml-1 text-muted-foreground hover:text-leather transition-colors"
+                      className={cn(readerPickerIconButton, "-ml-1")}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4" strokeWidth={2} />
                     </button>
                   )}
-                  <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                  <div className={readerPickerSectionLabel}>
                     {step === "book" && "Choose book"}
                     {step === "chapter" && (
-                      <span><span className="text-leather/80 normal-case tracking-normal text-sm font-display">{pickedBook.name}</span> · choose chapter</span>
+                      <span>
+                        <span className="text-zinc-800 normal-case tracking-normal text-sm font-semibold">{pickedBook.name}</span>
+                        {" · choose chapter"}
+                      </span>
                     )}
                     {step === "verse" && (
                       <span>
-                        <span className="text-leather/80 normal-case tracking-normal text-sm font-display">
+                        <span className="text-zinc-800 normal-case tracking-normal text-sm font-semibold">
                           {pickedBook.name} {pickedChapter}
-                        </span> · choose verse
+                        </span>
+                        {" · choose verse"}
                       </span>
                     )}
                   </div>
@@ -270,9 +299,9 @@ export function TopBar({
                 <button
                   onClick={() => setPickerOpen(false)}
                   aria-label="Close"
-                  className="text-muted-foreground hover:text-leather transition-colors p-1"
+                  className={readerPickerIconButton}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4" strokeWidth={2} />
                 </button>
               </div>
 
@@ -293,11 +322,11 @@ export function TopBar({
                           <button
                             key={c}
                             onClick={() => pickChapter(c)}
-                            className={`h-9 rounded-md font-display text-sm border transition-all ${
-                              isCurrent
-                                ? "bg-leather text-paper border-leather-deep"
-                                : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                            }`}
+                            className={cn(
+                              "h-9 text-sm",
+                              readerPickerGridButton,
+                              isCurrent && readerPickerGridButtonSelected,
+                            )}
                           >
                             {c}
                           </button>
@@ -313,7 +342,7 @@ export function TopBar({
                   <div className="flex items-center gap-2 mb-3">
                     <button
                       onClick={() => jump()}
-                      className="px-3 py-1.5 rounded-md text-sm font-display bg-paper/60 border border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40 transition-all"
+                      className={readerPickerSecondaryButton}
                     >
                       Top of chapter
                     </button>
@@ -331,11 +360,11 @@ export function TopBar({
                         value={verseInput}
                         onChange={(e) => setVerseInput(e.target.value.replace(/[^0-9]/g, ""))}
                         placeholder="v."
-                        className="w-14 px-2 py-1.5 text-sm rounded-md border border-paper-edge bg-paper/60 text-leather placeholder:text-muted-foreground/70 focus:outline-none focus:border-gold/50"
+                        className={cn("w-14", readerPickerInput)}
                       />
                       <button
                         type="submit"
-                        className="px-2.5 py-1.5 rounded-md text-sm font-display bg-leather text-paper hover:bg-leather-deep transition-colors"
+                        className={readerPickerPrimaryButton}
                       >
                         Go
                       </button>
@@ -347,14 +376,14 @@ export function TopBar({
                         <button
                           key={v}
                           onClick={() => jump(v)}
-                          className="h-8 rounded-md font-display text-xs border bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40 transition-all"
+                          className={cn("h-8 text-xs", readerPickerGridButton)}
                         >
                           {v}
                         </button>
                       ))}
                     </div>
                     {!sameAsLoaded && (
-                      <div className="text-[11px] text-muted-foreground text-center mt-3 italic">
+                      <div className="text-[11px] text-zinc-500 font-system text-center mt-3 italic">
                         Verse count unknown until the chapter loads — pick a number above or use the box.
                       </div>
                     )}
@@ -370,23 +399,23 @@ export function TopBar({
           {!focusMode && (
             <>
               {/* Text size — A−  ⏤  A+  with current % readout (click to reset) */}
-              <div className="flex items-center gap-0.5 mr-1 px-1 py-0.5 rounded-md border border-paper-edge bg-paper/40">
+              <div className={`${readerFontScaleGroup} mr-1`}>
                 <button
                   type="button"
                   onClick={() => onFontScaleChange(Math.max(0.85, +(fontScale - 0.1).toFixed(2)))}
                   aria-label="Smaller text"
                   title="Smaller text"
-                  className="p-1 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  className={`p-1 rounded-full ${readerChromeTextMuted} hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40`}
                   disabled={fontScale <= 0.85 + 0.001}
                 >
-                  <Minus className="w-3 h-3" />
+                  <Minus className="w-3 h-3" strokeWidth={2.5} />
                 </button>
                 <button
                   type="button"
                   onClick={() => onFontScaleChange(1)}
                   aria-label={`Reset text size (current: ${Math.round(fontScale * 100)}%)`}
                   title="Reset text size"
-                  className="px-1 text-[10px] font-mono tabular-nums text-leather/70 hover:text-leather transition-colors min-w-[2.6rem] text-center"
+                  className={`px-1 text-[10px] font-mono tabular-nums ${readerChromeTextMuted} hover:text-zinc-800 transition-colors min-w-[2.6rem] text-center`}
                 >
                   {Math.round(fontScale * 100)}%
                 </button>
@@ -395,40 +424,53 @@ export function TopBar({
                   onClick={() => onFontScaleChange(Math.min(1.5, +(fontScale + 0.1).toFixed(2)))}
                   aria-label="Larger text"
                   title="Larger text"
-                  className="p-1 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  className={`p-1 rounded-full ${readerChromeTextMuted} hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40`}
                   disabled={fontScale >= 1.5 - 0.001}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-3 h-3" strokeWidth={2.5} />
                 </button>
               </div>
+              {onFontChoiceChange ? (
+                <Popover open={fontPickerOpen} onOpenChange={setFontPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <ReaderIconButton title="Scripture font">
+                      <Type className="w-[18px] h-[18px]" strokeWidth={2} />
+                    </ReaderIconButton>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-56 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Scripture font</p>
+                    <ReaderFontPicker
+                      value={fontChoice}
+                      onChange={(choice) => {
+                        onFontChoiceChange(choice);
+                        setFontPickerOpen(false);
+                      }}
+                    />
+                    <p className="mt-2 text-[11px] text-muted-foreground">{fontChoiceLabel(fontChoice)} selected</p>
+                  </PopoverContent>
+                </Popover>
+              ) : null}
               {onToggleInkMode ? (
-              <Button
-                variant="ghost"
-                size="icon"
+              <ReaderIconButton
                 onClick={onToggleInkMode}
                 title={inkMode ? "Exit ink mode" : "Write on page (ink mode)"}
-                className={inkMode ? "text-leather bg-gold/15" : "text-leather/80 hover:text-leather"}
-                aria-pressed={inkMode}
+                active={inkMode}
+                ariaPressed={inkMode}
               >
-                <PenLine className="w-4 h-4" />
-              </Button>
+                <PenLine className="w-[18px] h-[18px]" strokeWidth={2} />
+              </ReaderIconButton>
               ) : null}
               {onSearch ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <ReaderIconButton
                   onClick={onSearch}
                   title={online ? "Search Scripture" : "Search requires internet"}
                   disabled={!online}
-                  className="text-leather/80 hover:text-leather disabled:opacity-40"
                 >
-                  <Search className="w-4 h-4" />
-                </Button>
+                  <Search className="w-[18px] h-[18px]" strokeWidth={2} />
+                </ReaderIconButton>
               ) : null}
               {onToggleAudio ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <ReaderIconButton
                   onClick={onToggleAudio}
                   title={
                     audioDisabled
@@ -438,36 +480,36 @@ export function TopBar({
                         : "Listen to chapter"
                   }
                   disabled={audioDisabled || audioLoading}
-                  className="text-leather/80 hover:text-leather disabled:opacity-40"
-                  aria-pressed={audioPlaying}
+                  active={audioPlaying}
+                  ariaPressed={audioPlaying}
                 >
                   {audioLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                    <Loader2 className="w-[18px] h-[18px] animate-spin" aria-hidden />
                   ) : audioPlaying ? (
-                    <Pause className="w-4 h-4" />
+                    <Pause className="w-[18px] h-[18px]" strokeWidth={2} />
                   ) : (
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-[18px] h-[18px]" strokeWidth={2} />
                   )}
-                </Button>
+                </ReaderIconButton>
               ) : null}
-              <Button variant="ghost" size="icon" onClick={onBookmark} title="Bookmark this page" className="text-leather/80 hover:text-leather">
-                <BookmarkPlus className="w-4 h-4" />
-              </Button>
-              <Link to="/sleep">
-                <Button variant="ghost" size="icon" title="Sleep mode" className="text-leather/80 hover:text-leather">
-                  <Moon className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link to="/framework">
-                <Button variant="ghost" size="icon" title="My Framework" className="text-leather/80 hover:text-leather">
-                  <Network className="w-4 h-4" />
-                </Button>
-              </Link>
+              <ReaderIconButton onClick={onBookmark} title="Bookmark this page">
+                <BookmarkPlus className="w-[18px] h-[18px]" strokeWidth={2} />
+              </ReaderIconButton>
+              <ReaderIconButton asChild title="Sleep mode">
+                <Link to="/sleep">
+                  <Moon className="w-[18px] h-[18px]" strokeWidth={2} />
+                </Link>
+              </ReaderIconButton>
+              <ReaderIconButton asChild title="My Framework">
+                <Link to="/framework">
+                  <Network className="w-[18px] h-[18px]" strokeWidth={2} />
+                </Link>
+              </ReaderIconButton>
               <DropdownMenu open={settingsDropdownOpen} onOpenChange={setSettingsDropdownOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" title="Settings" className="text-leather/80 hover:text-leather">
-                    <Settings className="w-4 h-4" />
-                  </Button>
+                  <ReaderIconButton title="Settings">
+                    <Settings className="w-[18px] h-[18px]" strokeWidth={2} />
+                  </ReaderIconButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuSub>
@@ -498,12 +540,12 @@ export function TopBar({
               </DropdownMenu>
             </>
           )}
-          <Button variant="ghost" size="icon" onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Enter Secret Place (focus)"} className="text-leather/80 hover:text-leather">
-            {focusMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} title="Hide header" className="text-leather/80 hover:text-leather">
-            <ChevronUp className="w-4 h-4" />
-          </Button>
+          <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Enter Secret Place (focus)"}>
+            {focusMode ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={2} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={2} />}
+          </ReaderIconButton>
+          <ReaderIconButton onClick={() => setOpen(false)} title="Hide header">
+            <ChevronUp className="w-[18px] h-[18px]" strokeWidth={2.25} />
+          </ReaderIconButton>
         </div>
         </div>
         )}

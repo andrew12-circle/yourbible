@@ -22,9 +22,13 @@ import { TagInput } from "@/components/journal/TagInput";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
+import { cn } from "@/lib/utils";
 
 export default function NewJournalEntryPage() {
   const p = useNewJournalEntryPage();
+  const { showHubShell } = useAppShellMode();
 
   if (p.loading) return null;
   if (!p.user) return <Navigate to="/auth" replace />;
@@ -41,7 +45,7 @@ export default function NewJournalEntryPage() {
   );
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
+    <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
       <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
@@ -164,7 +168,7 @@ export default function NewJournalEntryPage() {
       <nav
         ref={p.bottomDockRef}
         aria-label="Journal tools"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 sm:px-5 pt-2"
+        className={hubShellBottomDock(showHubShell, "z-30 flex justify-center px-3 sm:px-5 pt-2")}
         style={{
           paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
           transform: p.kbInset ? `translateY(-${p.kbInset}px)` : undefined,

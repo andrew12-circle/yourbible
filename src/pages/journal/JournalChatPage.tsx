@@ -46,6 +46,8 @@ import {
   readResponseDepthSetting,
   type ResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
@@ -190,6 +192,7 @@ function TypingDots() {
 
 export default function JournalChatPage() {
   const { user, loading: authLoading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
   const kbInset = useKeyboardInset();
@@ -757,7 +760,7 @@ export default function JournalChatPage() {
   const showLoadingShell = !routeEntryId || !chatId;
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden flex-col bg-background">
+    <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
       <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background/90 px-3 pb-2 pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/journal")} aria-label="Back to journal">
           <ArrowLeft className="h-5 w-5" />
@@ -910,7 +913,10 @@ export default function JournalChatPage() {
 
           {/* Floating composer — fixed to viewport so it always stays in view */}
           <div
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pt-6 sm:px-5 md:left-[260px]"
+            className={hubShellBottomDock(
+              showHubShell,
+              cn("z-30 px-3 pt-6 sm:px-5", !showHubShell && "md:left-[260px]"),
+            )}
             style={{
               paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
               transform: kbInset ? `translateY(-${kbInset}px)` : undefined,

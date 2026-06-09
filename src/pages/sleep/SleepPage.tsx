@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useSleepPlayback } from "@/hooks/useSleepPlayback";
@@ -36,6 +37,7 @@ const SET_GRADIENTS: Record<string, string> = {
 
 export default function SleepPage() {
   const { user, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [voice, setVoice] = useState(DEFAULT_SLEEP_VOICE_ID);
   const [setId, setSetId] = useState(SETS[0].id);
   const [playAll, setPlayAll] = useState(false);
@@ -115,7 +117,10 @@ export default function SleepPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-[100dvh] bg-[#050508] text-white flex flex-col relative overflow-hidden"
+      className={cn(
+        "bg-[#050508] text-white flex flex-col relative overflow-hidden",
+        showHubShell ? "h-full min-h-0" : "min-h-[100dvh]",
+      )}
     >
       <motion.div
         className="absolute inset-0 pointer-events-none"

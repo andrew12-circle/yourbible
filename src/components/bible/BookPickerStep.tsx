@@ -2,6 +2,15 @@ import { Search } from "lucide-react";
 import type { BibleBook } from "@/data/books";
 import { BOOKS } from "@/data/books";
 import {
+  readerPickerBookCard,
+  readerPickerBookCardSelected,
+  readerPickerSearchInput,
+  readerPickerSectionLabel,
+  readerPickerToggleGroup,
+  readerPickerToggleItem,
+  readerPickerToggleItemSelected,
+} from "@/lib/bible/readerChromeClasses";
+import {
   getStoredBookSortMode,
   sortBooksForDisplay,
   storeBookSortMode,
@@ -44,17 +53,15 @@ function BookGrid({
           type="button"
           onClick={() => onPickBook(b)}
           className={cn(
-            "group text-left px-2.5 py-2 rounded-lg font-display text-sm border transition-all shadow-sm",
-            b.abbr === currentBook.abbr
-              ? "bg-leather text-paper border-leather-deep shadow-leather"
-              : "bg-paper/70 border-paper-edge text-leather hover:bg-gold/12 hover:border-gold/45 hover:shadow-md",
+            readerPickerBookCard,
+            b.abbr === currentBook.abbr && readerPickerBookCardSelected,
           )}
         >
           <span className="block leading-snug">{b.name}</span>
           <span
             className={cn(
               "block text-[10px] font-mono uppercase tracking-wider mt-0.5 transition-colors",
-              b.abbr === currentBook.abbr ? "text-paper/70" : "text-muted-foreground/80 group-hover:text-gold",
+              b.abbr === currentBook.abbr ? "text-zinc-500" : "text-zinc-400 group-hover:text-zinc-500",
             )}
           >
             {b.abbr}
@@ -82,8 +89,8 @@ function TestamentSection({
   return (
     <section>
       <div className="flex items-center gap-2 mb-2 px-0.5">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground shrink-0">{label}</span>
-        <span className="h-px flex-1 bg-gradient-to-r from-gold/50 to-transparent" aria-hidden />
+        <span className={cn(readerPickerSectionLabel, "shrink-0")}>{label}</span>
+        <span className="h-px flex-1 bg-gradient-to-r from-zinc-300/60 to-transparent" aria-hidden />
       </div>
       <BookGrid books={books} currentBook={currentBook} onPickBook={onPickBook} gridCols={gridCols} />
     </section>
@@ -117,21 +124,17 @@ export function BookPickerStep({ currentBook, onPickBook, gridCols = "responsive
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="relative">
-        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" strokeWidth={2} />
         <input
           autoFocus
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={SEARCH_PLACEHOLDER}
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-paper-edge bg-paper/80 text-leather shadow-inner placeholder:text-muted-foreground/70 focus:outline-none focus:border-gold/55 focus:ring-1 focus:ring-gold/25"
+          className={readerPickerSearchInput}
         />
       </div>
 
-      <div
-        role="group"
-        aria-label="Book list order"
-        className="flex rounded-lg border border-paper-edge bg-paper/50 p-0.5 shadow-sm"
-      >
+      <div role="group" aria-label="Book list order" className={readerPickerToggleGroup}>
         {(
           [
             { value: "canonical" as const, label: "Bible order" },
@@ -144,10 +147,8 @@ export function BookPickerStep({ currentBook, onPickBook, gridCols = "responsive
             aria-pressed={sortMode === value}
             onClick={() => onSortChange(value)}
             className={cn(
-              "flex-1 py-1.5 text-xs font-medium rounded-md transition-all",
-              sortMode === value
-                ? "bg-leather text-paper shadow-sm"
-                : "text-muted-foreground hover:text-leather hover:bg-gold/10",
+              readerPickerToggleItem,
+              sortMode === value && readerPickerToggleItemSelected,
             )}
           >
             {label}
@@ -171,7 +172,7 @@ export function BookPickerStep({ currentBook, onPickBook, gridCols = "responsive
           gridCols={gridCols}
         />
         {filteredBooks.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-10">
+          <p className="text-center text-sm text-zinc-500 font-system py-10">
             No books match &ldquo;{search}&rdquo;.
           </p>
         )}

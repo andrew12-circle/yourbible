@@ -1,4 +1,4 @@
-import type { Passage } from "@/lib/bible/api";
+import { normalizePassage, type Passage } from "@/lib/bible/api";
 
 const DB_NAME = "yb-passages";
 const STORE = "passages";
@@ -10,8 +10,11 @@ export type CachedPassageRecord = {
   cachedAt: number;
 };
 
+/** Bump when passage payload shape changes (e.g. paragraph metadata). */
+const PASSAGE_CACHE_VERSION = 2;
+
 export function passageCacheKey(bibleId: string, book: string, chapter: number): string {
-  return `${bibleId}|${book}|${chapter}`;
+  return `${bibleId}|${book}|${chapter}|v${PASSAGE_CACHE_VERSION}`;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -47,7 +50,10 @@ export async function getCachedPassage(
       const tx = db.transaction(STORE, "readonly");
       const store = tx.objectStore(STORE);
       const req = store.get(passageCacheKey(bibleId, book, chapter));
-      req.onsuccess = () => resolve((req.result as CachedPassageRecord | undefined) ?? null);
+      req.onsuccess = () => {
+        const row = req.result as CachedPassageRecord | undefined;
+        resolve(row ? { ...row, passage: normalizePassage(row.passage) } : null);
+      };
       req.onerror = () => reject(req.error);
     });
   } catch {

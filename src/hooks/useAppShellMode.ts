@@ -9,7 +9,7 @@ export function useAppShellMode() {
 
   return {
     homeMode,
-    /** Hub shell is desktop-only; never mount until viewport is known non-mobile. */
+    /** Hub shell on tablet/desktop-class viewports when homeMode is hub. */
     showHubShell: homeMode === "hub" && isMobile === false,
   };
 }

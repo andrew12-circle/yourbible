@@ -41,7 +41,7 @@ export default function ClaimResearchHeader({
   return (
     <header className={cn("border-b border-border/40 pb-5", className)}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[10px] text-muted-foreground">
           {lastResearchedLabel ? `Last researched ${lastResearchedLabel}` : "Researching this claim"}
         </p>
         <DropdownMenu>
@@ -86,7 +86,7 @@ export default function ClaimResearchHeader({
 
       <blockquote
         className={cn(
-          "mt-2 text-xl font-normal leading-snug tracking-tight text-foreground sm:text-2xl",
+          "mt-2 text-[11px] font-normal leading-snug text-foreground",
           !expanded && long && "line-clamp-3",
         )}
       >
@@ -95,7 +95,7 @@ export default function ClaimResearchHeader({
       {long ? (
         <button
           type="button"
-          className="mt-2 text-sm text-muted-foreground hover:text-foreground hover:underline"
+          className="mt-2 text-[10px] text-muted-foreground hover:text-foreground hover:underline"
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? "Show less" : "Show more"}
@@ -107,7 +107,7 @@ export default function ClaimResearchHeader({
           type="button"
           variant="ghost"
           size="sm"
-          className="mt-4 h-8 gap-1.5 rounded-full px-3 text-sm text-muted-foreground hover:text-foreground"
+          className="mt-4 h-6 gap-1 rounded-full px-2.5 text-[10px] text-muted-foreground hover:text-foreground"
           disabled={reportLoading}
           onClick={onOpenReport}
         >

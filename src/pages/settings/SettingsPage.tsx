@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { FONT_CHOICES, scriptureFontFamily } from "@/lib/bible/fontChoices";
 import { COVERS, PALETTES } from "@/lib/bible/palettes";
 import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
@@ -19,11 +21,13 @@ import {
   uploadHomeWallpaper,
   type HomeMode,
 } from "@/lib/profile/homeMedia";
+import { APP_NAME } from "@/lib/appBrand";
 import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
 import { AiUsageSection } from "@/components/settings/AiUsageSection";
 import { YouTubeConnectionSection } from "@/components/settings/YouTubeConnectionSection";
 import { YouTubeSubscriptionsSection } from "@/components/settings/YouTubeSubscriptionsSection";
 import { PartnerSettingsSection } from "@/components/partner/PartnerSettingsSection";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 
 const WALLPAPER_KEY = "yb_home_wallpaper";
 
@@ -37,6 +41,7 @@ type HomeLayoutSettings = {
 
 export default function SettingsPage() {
   const { user, profile, updateProfile, signOut, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [_saving, setSaving] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(profile?.display_name ?? "");
   const [dobDraft, setDobDraft] = useState(profile?.date_of_birth ?? "");
@@ -221,28 +226,36 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen app-mesh pb-safe-20">
+    <div className={hubShellPageRoot(showHubShell, "min-h-screen app-mesh pb-safe-20", "h-full min-h-0 app-mesh")}>
       <MarkerSvgFilter />
+      {!showHubShell ? (
       <header className="sticky top-0 z-20 bg-paper/80 backdrop-blur-md border-b border-paper-edge">
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">
           <Link to="/"><Button variant="ghost" size="icon" className="text-leather"><ChevronLeft className="w-5 h-5" /></Button></Link>
-          <h1 className="font-display text-xl text-leather">Sacred & Modern</h1>
+          <h1 className="font-display text-xl text-leather">{APP_NAME}</h1>
         </div>
       </header>
+      ) : (
+        <header className="flex h-14 shrink-0 items-center border-b border-paper-edge bg-paper/80 px-4">
+          <h1 className="font-display text-lg text-leather">{APP_NAME}</h1>
+        </header>
+      )}
 
-      <main className="max-w-2xl mx-auto px-5 py-8 space-y-10">
+      <main className={hubShellScrollMain(showHubShell, "max-w-2xl mx-auto px-5 py-8 space-y-10")}>
         {/* Live preview */}
         <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-paper-edge bg-paper/60 overflow-hidden shadow-soft">
           <div className="text-[10px] uppercase tracking-widest text-gold-deep px-5 pt-4">Preview</div>
           <div
-            className="p-6 font-scripture text-[18px] leading-[1.8]"
+            className={`scripture-font-preview p-6 text-[18px] leading-[1.8] ${
+              profile.font_choice === "serif"
+                ? "font-scripture"
+                : profile.font_choice === "sf"
+                  ? "font-system reader-sf-body"
+                  : ""
+            }`}
             style={{
-              fontFamily:
-                profile.font_choice === "sans"
-                  ? "Inter, sans-serif"
-                  : profile.font_choice === "sf"
-                  ? '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif'
-                  : undefined,
+              fontFamily: scriptureFontFamily(profile.font_choice),
+              ["--reader-scripture-font-family" as string]: scriptureFontFamily(profile.font_choice),
             }}
           >
             <div className="font-display text-2xl text-leather mb-3">John 3</div>
@@ -298,8 +311,8 @@ export default function SettingsPage() {
                   if (next !== prev) void save({ date_of_birth: next });
                 }}
               />
-              <Link to="/life-weeks" className="text-xs text-gold-deep hover:underline mt-1.5 inline-block">
-                Open life in weeks poster
+              <Link to="/home" className="text-xs text-gold-deep hover:underline mt-1.5 inline-block">
+                Open life in weeks on overview
               </Link>
             </div>
             <Button type="button" variant="outline" onClick={() => profilePhotoFileRef.current?.click()}>Change profile photo</Button>
@@ -380,15 +393,11 @@ export default function SettingsPage() {
         <section>
           <h2 className="font-display text-lg text-leather mb-3">Scripture font</h2>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: "serif", label: "Serif", sample: "Cormorant Garamond" },
-              { id: "sans", label: "Sans", sample: "Inter" },
-              { id: "sf", label: "San Francisco", sample: "SF Pro" },
-            ].map(f => (
+            {FONT_CHOICES.map(f => (
               <button key={f.id} onClick={() => save({ font_choice: f.id })}
                 className={`p-4 rounded-md border-2 text-center transition-all bg-paper/70 ${profile.font_choice === f.id ? "border-gold" : "border-paper-edge"}`}>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</div>
-                <div className={`text-xl mt-1 ${f.id === "serif" ? "font-scripture" : f.id === "sf" ? "font-system" : "font-sans"}`}>For God so loved</div>
+                <div className={`text-xl mt-1 ${f.previewClass}`}>For God so loved</div>
                 <div className="text-[10px] text-muted-foreground mt-1">{f.sample}</div>
               </button>
             ))}

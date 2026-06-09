@@ -8,6 +8,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 
 interface Props {
   children: ReactNode;
@@ -75,6 +76,7 @@ export default function FrameworkLayout({
   headerTrailing,
 }: Props) {
   const { pathname } = useLocation();
+  const { showHubShell } = useAppShellMode();
   const claimResearch = isClaimResearchPath(pathname);
   const immersive = immersiveProp ?? (isArtifactDetailPath(pathname) || claimResearch);
   const studioLibrary = isArtifactsLibraryPath(pathname);
@@ -129,11 +131,13 @@ export default function FrameworkLayout({
       data-artifact-youtube-mobile={immersiveMobileMinimal ? "" : undefined}
       className={cn(
         "bg-background font-sans text-foreground",
-        workspace
-          ? "flex h-full min-h-0 flex-1 flex-col"
+        workspace || showHubShell
+          ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden"
           : "min-h-screen",
         immersiveMobileMinimal &&
-          "max-lg:flex max-lg:h-[100svh] max-lg:max-h-[100svh] max-lg:flex-col max-lg:overflow-hidden max-lg:[--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]",
+          (showHubShell
+            ? "flex h-full min-h-0 flex-col overflow-hidden [--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]"
+            : "max-lg:flex max-lg:h-[100svh] max-lg:max-h-[100svh] max-lg:flex-col max-lg:overflow-hidden max-lg:[--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]"),
       )}
       style={
         immersiveMobileMinimal
@@ -276,17 +280,24 @@ export default function FrameworkLayout({
       <main
         className={cn(
           "mx-auto px-4 sm:px-5",
+          showHubShell && !workspace && !immersive && "min-h-0 flex-1 overflow-y-auto overflow-x-hidden",
           immersive
             ? hideMobileFrameworkHeader
-              ? "max-lg:mx-0 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:mx-0 lg:px-0 lg:py-0 lg:pb-0"
+              ? showHubShell
+                ? "mx-0 flex min-h-0 flex-1 flex-col overflow-hidden px-0 py-0 pb-0"
+                : "max-lg:mx-0 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:mx-0 lg:px-0 lg:py-0 lg:pb-0"
               : hideDesktopFrameworkHeader
                 ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
                 : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"
             : workspace
               ? "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4"
               : studioLibrary
-                ? "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
-                : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
+                ? showHubShell
+                  ? "min-h-0 flex-1 overflow-y-auto pt-4 pb-4 sm:py-5"
+                  : "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
+                : showHubShell
+                  ? "min-h-0 flex-1 overflow-y-auto py-4 sm:py-6"
+                  : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
           contentClassName ?? "max-w-none",
         )}
       >

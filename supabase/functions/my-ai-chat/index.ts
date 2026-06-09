@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
-import { callChatJson, getChatConfig } from "../_shared/aiProvider.ts";
+import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
+import { buildClaimChatWebBlock } from "../_shared/researchPackCore.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
-import { buildJournalChatSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
+import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,8 @@ type RequestBody = {
   journal_bootstrap_transcript_excerpt?: string | null;
   /** When set, latest saved validation pack for this claim is injected into chat context. */
   artifact_claim_id?: string | null;
+  /** When use_web is true with artifact_claim_id, live web snippets are fetched for this turn. */
+  claim_research?: { use_web?: boolean };
   /** When bootstrapping, scope the opener to this hard question row (must belong to the user). */
   journal_bootstrap_hard_question_id?: string | null;
   /** When set, latest saved research pack for this hard question is injected into chat context. */
@@ -62,6 +65,105 @@ function sanitizeSectionBody(body: string): string {
   let text = body.trim();
   text = text.replace(/^Epistemic:\s*[\w.]+\s*(\n+|$)/i, "");
   return text.trim();
+}
+
+const WEB_CHAT_TURN_INSTRUCTIONS = `# Web-augmented turn
+Live web search snippets are appended below (when enabled). For this reply:
+- Answer substantively like a careful research assistant — not only empathy and a question.
+- Name specific teachers, scholars, articles, or traditions from the snippets when relevant.
+- Use short markdown sections: blank lines between paragraphs; bullet lists for multiple voices or examples.
+- Blend web findings with the user's framework context and saved research brief; flag when something is from a web snippet vs training knowledge.
+- If snippets are thin or empty, say so plainly and lean on framework + brief.`;
+
+async function loadClaimTextForWeb(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  claimId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("artifact_claims")
+    .select("claim, user_id")
+    .eq("id", claimId)
+    .maybeSingle();
+  if (error || !data || data.user_id !== userId) return null;
+  const claim = typeof data.claim === "string" ? data.claim.trim() : "";
+  return claim || null;
+}
+
+async function loadClaimChatWebBlock(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  claimId: string,
+  userQuestion: string,
+): Promise<string> {
+  const claimText = await loadClaimTextForWeb(supabase, userId, claimId);
+  if (!claimText) return "";
+  const ws = await buildClaimChatWebBlock(claimText, userQuestion);
+  return ws.usedWeb ? `${WEB_CHAT_TURN_INSTRUCTIONS}\n\n${ws.block}` : ws.block;
+}
+
+function useOpenAiWebResearch(chatUseWeb: boolean, claimPackId: string, chatCfg: ReturnType<typeof getChatConfig>): boolean {
+  return chatUseWeb && !!claimPackId && !("error" in chatCfg) && chatCfg.provider === "openai";
+}
+
+function buildClaimChatUserPayload(
+  contextBlock: string,
+  researchPackBlock: string,
+  webBlock: string,
+  message: string,
+  jsonReply = true,
+): string {
+  const tail = jsonReply
+    ? "Return only JSON as specified in the system instructions."
+    : "Answer the user message using the context above.";
+  return `${contextBlock}\n\n${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${webBlock ? `${webBlock}\n\n---\n` : ""}User message:\n${message}\n\n${tail}`;
+}
+
+async function generateClaimChatReply(
+  journalMode: boolean,
+  includeGeneral: boolean,
+  partnerAppendix: string,
+  contextBlock: string,
+  researchPackBlock: string,
+  webBlock: string,
+  message: string,
+  resolvedDepth: ResolvedResponseDepth,
+  chatUseWeb: boolean,
+  claimPackId: string,
+): Promise<
+  | { error: string }
+  | {
+    reply: string;
+    citations: Citation[];
+    ranked: Awaited<ReturnType<typeof generateRankedReply>> | null;
+  }
+> {
+  const chatCfg = getChatConfig();
+  if ("error" in chatCfg) return { error: chatCfg.error };
+
+  if (useOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)) {
+    const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
+    const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, "", message, false);
+    const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
+    if (!webRes.ok || !webRes.rawText.trim()) {
+      return { error: webRes.err ?? "OpenAI web search failed" };
+    }
+    const parsed = parseAssistantPayload(webRes.rawText);
+    const reply = parsed.reply.trim() || webRes.rawText.trim();
+    const citations = dedupeCitations([
+      ...parsed.citations,
+      { source_type: "general", label: "Web search (OpenAI)" },
+    ]);
+    return { reply, citations, ranked: null };
+  }
+
+  const systemText = journalMode
+    ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
+    : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
+  const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, webBlock, message, true);
+  const ranked = await generateRankedReply(systemText, userPayload, message, resolvedDepth);
+  if ("error" in ranked) return { error: ranked.error };
+  return { reply: ranked.winner.reply, citations: ranked.winner.citations, ranked };
 }
 
 async function loadClaimResearchPackBlock(
@@ -886,8 +988,6 @@ Deno.serve(async (req) => {
         journalEntryId,
       );
       const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
-      const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
-      const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
       const packClaimId = claimBootstrap ||
         (typeof body.artifact_claim_id === "string" && /^[0-9a-f-]{36}$/i.test(body.artifact_claim_id.trim())
           ? body.artifact_claim_id.trim()
@@ -902,13 +1002,40 @@ Deno.serve(async (req) => {
         ? await loadHardQuestionResearchPackBlock(supabase, userId, packHqId)
         : "";
 
-      const userPayload =
-        `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
+      const bootstrapUseWeb = body.claim_research?.use_web === true;
+      const bootstrapChatCfg = getChatConfig();
+      const webBlock = bootstrapUseWeb && packClaimId && !useOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)
+        ? await loadClaimChatWebBlock(supabase, userId, packClaimId, "")
+        : "";
 
-      const chatRes = await callChatJson(systemText, userPayload);
-      if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
+      let reply = "";
+      let citations: Citation[] = [];
 
-      const { reply, citations } = parseAssistantPayload(chatRes.rawText);
+      if (useOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)) {
+        const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
+        const userPayload =
+          `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nWrite the opening message.`;
+        const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
+        if (!webRes.ok || !webRes.rawText.trim()) {
+          return jsonResponse({ error: webRes.err ?? "OpenAI web search failed" }, 502);
+        }
+        const parsed = parseAssistantPayload(webRes.rawText);
+        reply = parsed.reply.trim() || webRes.rawText.trim();
+        citations = dedupeCitations([
+          ...parsed.citations,
+          { source_type: "general", label: "Web search (OpenAI)" },
+        ]);
+      } else {
+        const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
+        const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
+        const userPayload =
+          `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${webBlock ? `${webBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
+        const chatRes = await callChatJson(systemText, userPayload);
+        if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
+        const parsed = parseAssistantPayload(chatRes.rawText);
+        reply = parsed.reply;
+        citations = parsed.citations;
+      }
 
       const { data: asstRow, error: asstErr } = await supabase
         .from("my_ai_messages")
@@ -1105,10 +1232,6 @@ Deno.serve(async (req) => {
       excludeJournal,
     );
     const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
-    const resolvedDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), message);
-    const systemText = journalMode
-      ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
-      : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
 
     const claimPackIdRaw = typeof body.artifact_claim_id === "string" ? body.artifact_claim_id.trim() : "";
     const claimPackId = /^[0-9a-f-]{36}$/i.test(claimPackIdRaw) ? claimPackIdRaw : "";
@@ -1120,12 +1243,31 @@ Deno.serve(async (req) => {
       ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
       : "";
 
-    const userPayload =
-      `${contextPack.contextBlock}\n\n${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}User message:\n${message}\n\nReturn only JSON as specified in the system instructions.`;
+    const chatUseWeb = body.claim_research?.use_web === true;
+    const chatCfg = getChatConfig();
+    const webBlock = chatUseWeb && claimPackId && !useOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
+      ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
+      : "";
 
-    const ranked = await generateRankedReply(systemText, userPayload, message, resolvedDepth);
-    if ("error" in ranked) return jsonResponse({ error: ranked.error }, 502);
-    const { reply, citations } = { reply: ranked.winner.reply, citations: ranked.winner.citations };
+    let resolvedDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), message);
+    if (chatUseWeb && claimPackId && resolvedDepth !== "deep") {
+      resolvedDepth = "deep";
+    }
+
+    const generated = await generateClaimChatReply(
+      journalMode,
+      includeGeneral,
+      partnerAppendix,
+      contextPack.contextBlock,
+      researchPackBlock,
+      webBlock,
+      message,
+      resolvedDepth,
+      chatUseWeb,
+      claimPackId,
+    );
+    if ("error" in generated) return jsonResponse({ error: generated.error }, 502);
+    const { reply, citations, ranked } = generated;
 
     const { data: asstRow, error: asstErr } = await supabase
       .from("my_ai_messages")
@@ -1145,7 +1287,8 @@ Deno.serve(async (req) => {
 
     // Persist candidates (winner + losers) for future rubric tuning. Fire-and-forget.
     try {
-      const candRows = ranked.candidates.map((c) => ({
+      if (ranked && !("error" in ranked)) {
+        const candRows = ranked.candidates.map((c) => ({
         user_id: userId,
         chat_id: chatId,
         winning_message_id: asstRow.id as string,
@@ -1166,8 +1309,9 @@ Deno.serve(async (req) => {
         was_winner: c.isWinner,
         judge_rationale: c.score?.rationale ?? null,
       }));
-      if (candRows.length > 0) {
-        await supabase.from("my_ai_message_candidates").insert(candRows);
+        if (candRows.length > 0) {
+          await supabase.from("my_ai_message_candidates").insert(candRows);
+        }
       }
     } catch (_e) {
       /* non-fatal */

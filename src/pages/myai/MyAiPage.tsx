@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -350,6 +351,7 @@ function TypingDots() {
 
 export default function MyAiPage() {
   const { user, loading: authLoading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
 
@@ -627,7 +629,7 @@ export default function MyAiPage() {
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <div className={cn("flex flex-col overflow-hidden bg-background", showHubShell ? "h-full min-h-0" : "h-[100dvh]")}>
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -636,10 +638,15 @@ export default function MyAiPage() {
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col bg-[#f7f7f8] dark:bg-background">
-          <header className="flex shrink-0 items-center gap-2 border-b border-border/50 bg-background/80 px-2 pb-2 pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-sm sm:px-3">
+          <header className={cn(
+            "flex shrink-0 items-center gap-2 border-b border-border/50 bg-background/80 px-2 pb-2 backdrop-blur-sm sm:px-3",
+            showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
+          )}>
+            {!showHubShell && (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
               <ArrowLeft className="h-5 w-5" />
             </Button>
+            )}
 
             <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
               <SheetTrigger asChild>

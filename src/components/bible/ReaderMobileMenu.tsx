@@ -14,7 +14,11 @@ import {
   X,
 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
+import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
+import type { FontChoiceId } from "@/lib/bible/fontChoices";
+import { readerChromeText, readerChromeTextMuted, readerFontScaleGroup, readerGlassBar, readerPickerGridButton, readerPickerGridButtonSelected, readerPickerHeader, readerPickerIconButton, readerPickerInput, readerPickerMenuButton, readerPickerPrimaryButton, readerPickerSecondaryButton, readerPickerSectionLabel } from "@/lib/bible/readerChromeClasses";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { BibleEntry } from "@/lib/bible/api";
 import { BOOKS, BibleBook } from "@/data/books";
@@ -38,6 +42,8 @@ interface Props {
   onChangeBible: (id: string) => void;
   fontScale: number;
   onFontScaleChange: (next: number) => void;
+  fontChoice?: string;
+  onFontChoiceChange?: (choice: FontChoiceId) => void;
   onBookmark: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
@@ -58,6 +64,8 @@ export function ReaderMobileMenu({
   onChangeBible,
   fontScale,
   onFontScaleChange,
+  fontChoice,
+  onFontChoiceChange,
   onBookmark,
   focusMode,
   onToggleFocus,
@@ -111,24 +119,24 @@ export function ReaderMobileMenu({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="top"
-        className="max-h-[min(88dvh,920px)] p-0 flex flex-col paper-texture border-b-2 border-gold/40 rounded-b-2xl [&>button]:hidden"
+        className={`max-h-[min(88dvh,920px)] p-0 flex flex-col rounded-b-2xl border-0 [&>button]:hidden ${readerGlassBar}`}
       >
-        <div className="px-5 pt-3 pb-2 border-b border-paper-edge shrink-0">
+        <div className="px-5 pt-3 pb-2 border-b border-white/40 shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               {panel === "settings" ? (
                 <button
                   type="button"
                   onClick={() => setPanel("nav")}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-leather mb-1"
+                  className="flex items-center gap-1 text-[10px] uppercase tracking-[0.25em] text-zinc-500 hover:text-zinc-800 mb-1"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   Back
                 </button>
               ) : (
-                <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Reader</p>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Reader</p>
               )}
-              <h2 className="font-display text-xl text-leather truncate">
+              <h2 className={`font-system text-xl font-semibold tracking-tight truncate ${readerChromeText}`}>
                 {panel === "settings" ? "Settings" : reference}
               </h2>
             </div>
@@ -136,9 +144,9 @@ export function ReaderMobileMenu({
               type="button"
               onClick={close}
               aria-label="Close menu"
-              className="p-2 -mr-1 rounded-full text-muted-foreground hover:text-leather hover:bg-paper-warm transition-colors shrink-0"
+              className={cn(readerPickerIconButton, "p-2 -mr-1 shrink-0")}
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -146,13 +154,13 @@ export function ReaderMobileMenu({
         {panel === "settings" ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-5">
             <section>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">Translation</p>
-              <label className="flex items-center gap-2 rounded-lg border border-paper-edge bg-paper/60 px-2 py-1.5">
-                <Languages className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden />
+              <p className={cn(readerPickerSectionLabel, "mb-2")}>Translation</p>
+              <label className="flex items-center gap-2 rounded-xl border border-white/50 bg-white/40 px-2 py-1.5">
+                <Languages className="w-4 h-4 shrink-0 text-zinc-500" aria-hidden />
                 <select
                   value={bibleId}
                   onChange={(e) => onChangeBible(e.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-leather focus:outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-system text-zinc-800 focus:outline-none"
                   aria-label="Bible translation"
                 >
                   {bibles.length === 0 && <option value="">Loading…</option>}
@@ -164,26 +172,33 @@ export function ReaderMobileMenu({
                 </select>
               </label>
               {currentBible ? (
-                <p className="mt-1.5 text-[11px] text-muted-foreground truncate">{currentBible.name}</p>
+                <p className="mt-1.5 text-[11px] text-zinc-500 truncate">{currentBible.name}</p>
               ) : null}
             </section>
 
+            {onFontChoiceChange ? (
+              <section>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Scripture font</p>
+                <ReaderFontPicker value={fontChoice} onChange={onFontChoiceChange} layout="grid" />
+              </section>
+            ) : null}
+
             <section>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">Text size</p>
-              <div className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-paper-edge bg-paper/40">
+              <p className={cn(readerPickerSectionLabel, "mb-2")}>Text size</p>
+              <div className={cn(readerFontScaleGroup, "justify-center px-2 py-1.5")}>
                 <button
                   type="button"
                   onClick={() => onFontScaleChange(Math.max(0.85, +(fontScale - 0.1).toFixed(2)))}
                   aria-label="Smaller text"
                   disabled={fontScale <= 0.85 + 0.001}
-                  className="p-2 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  className={cn("p-2 rounded-full", readerChromeTextMuted, "hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40")}
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-4 h-4" strokeWidth={2} />
                 </button>
                 <button
                   type="button"
                   onClick={() => onFontScaleChange(1)}
-                  className="px-3 text-sm font-mono tabular-nums text-leather min-w-[3.5rem]"
+                  className={cn("px-3 text-sm font-mono tabular-nums min-w-[3.5rem]", readerChromeTextMuted, "hover:text-zinc-800 transition-colors")}
                 >
                   {Math.round(fontScale * 100)}%
                 </button>
@@ -192,14 +207,14 @@ export function ReaderMobileMenu({
                   onClick={() => onFontScaleChange(Math.min(1.5, +(fontScale + 0.1).toFixed(2)))}
                   aria-label="Larger text"
                   disabled={fontScale >= 1.5 - 0.001}
-                  className="p-2 rounded text-leather/70 hover:text-leather hover:bg-paper transition-colors disabled:opacity-40"
+                  className={cn("p-2 rounded-full", readerChromeTextMuted, "hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40")}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" strokeWidth={2} />
                 </button>
               </div>
             </section>
 
-            <Button asChild variant="outline" className="w-full justify-start gap-2 border-paper-edge bg-paper/60 text-leather">
+            <Button asChild variant="outline" className={cn("w-full", readerPickerMenuButton)}>
               <Link to="/settings" onClick={close}>
                 <Settings className="w-4 h-4" />
                 All app settings
@@ -209,29 +224,29 @@ export function ReaderMobileMenu({
         ) : (
           <>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-paper-edge bg-gradient-to-b from-paper-warm/80 to-transparent shrink-0">
+              <div className={cn(readerPickerHeader, "shrink-0")}>
                 <div className="flex items-center gap-1.5 min-w-0">
                   {step !== "book" && (
                     <button
                       type="button"
                       onClick={() => setStep(step === "verse" && pickedBook.chapters > 1 ? "chapter" : "book")}
                       aria-label="Back"
-                      className="p-1 -ml-1 text-muted-foreground hover:text-leather transition-colors"
+                      className={cn(readerPickerIconButton, "-ml-1")}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4" strokeWidth={2} />
                     </button>
                   )}
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground truncate">
+                  <p className={cn(readerPickerSectionLabel, "truncate")}>
                     {step === "book" && "Go to · book"}
                     {step === "chapter" && (
                       <>
-                        <span className="text-leather/80 normal-case tracking-normal text-sm font-display">{pickedBook.name}</span>
+                        <span className="text-zinc-800 normal-case tracking-normal text-sm font-semibold">{pickedBook.name}</span>
                         {" · chapter"}
                       </>
                     )}
                     {step === "verse" && (
                       <>
-                        <span className="text-leather/80 normal-case tracking-normal text-sm font-display">
+                        <span className="text-zinc-800 normal-case tracking-normal text-sm font-semibold">
                           {pickedBook.name} {pickedChapter}
                         </span>
                         {" · verse"}
@@ -258,11 +273,11 @@ export function ReaderMobileMenu({
                             key={c}
                             type="button"
                             onClick={() => pickChapter(c)}
-                            className={`h-11 rounded-md font-display text-sm border transition-all ${
-                              isCurrent
-                                ? "bg-leather text-paper border-leather-deep"
-                                : "bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40"
-                            }`}
+                            className={cn(
+                              "h-11 text-sm",
+                              readerPickerGridButton,
+                              isCurrent && readerPickerGridButtonSelected,
+                            )}
                           >
                             {c}
                           </button>
@@ -278,7 +293,7 @@ export function ReaderMobileMenu({
                       <button
                         type="button"
                         onClick={() => jump()}
-                        className="px-3 py-2 rounded-md text-sm font-display bg-paper/60 border border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40 transition-all"
+                        className={readerPickerSecondaryButton}
                       >
                         Top of chapter
                       </button>
@@ -296,11 +311,11 @@ export function ReaderMobileMenu({
                           value={verseInput}
                           onChange={(e) => setVerseInput(e.target.value.replace(/[^0-9]/g, ""))}
                           placeholder="v."
-                          className="w-14 px-2 py-2 text-sm rounded-md border border-paper-edge bg-paper/60 text-leather placeholder:text-muted-foreground/70 focus:outline-none focus:border-gold/50"
+                          className={cn("w-14 py-2", readerPickerInput)}
                         />
                         <button
                           type="submit"
-                          className="px-3 py-2 rounded-md text-sm font-display bg-leather text-paper hover:bg-leather-deep transition-colors"
+                          className={readerPickerPrimaryButton}
                         >
                           Go
                         </button>
@@ -312,14 +327,14 @@ export function ReaderMobileMenu({
                           key={v}
                           type="button"
                           onClick={() => jump(v)}
-                          className="h-10 rounded-md font-display text-xs border bg-paper/60 border-paper-edge text-leather hover:bg-gold/15 hover:border-gold/40 transition-all"
+                          className={cn("h-10 text-xs", readerPickerGridButton)}
                         >
                           {v}
                         </button>
                       ))}
                     </div>
                     {!sameAsLoaded && (
-                      <p className="text-[11px] text-muted-foreground text-center mt-3 italic">
+                      <p className="text-[11px] text-zinc-500 font-system text-center mt-3 italic">
                         Verse count unknown until the chapter loads.
                       </p>
                     )}
@@ -328,12 +343,12 @@ export function ReaderMobileMenu({
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-paper-edge bg-gradient-to-t from-paper-warm to-paper px-4 py-3">
+            <div className="shrink-0 border-t border-white/40 px-4 py-3">
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10"
+                  className={readerPickerMenuButton}
                   onClick={() => {
                     onBookmark();
                     close();
@@ -345,7 +360,7 @@ export function ReaderMobileMenu({
                 <Button
                   type="button"
                   variant="outline"
-                  className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10"
+                  className={readerPickerMenuButton}
                   onClick={() => {
                     onToggleInkMode?.();
                     close();
@@ -358,7 +373,7 @@ export function ReaderMobileMenu({
                 <Button
                   type="button"
                   variant="outline"
-                  className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10"
+                  className={readerPickerMenuButton}
                   onClick={() => {
                     onToggleFocus();
                     close();
@@ -367,13 +382,13 @@ export function ReaderMobileMenu({
                   {focusMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   {focusMode ? "Exit focus" : "Secret Place"}
                 </Button>
-                <Button asChild variant="outline" className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10">
+                <Button asChild variant="outline" className={readerPickerMenuButton}>
                   <Link to="/sleep" onClick={close}>
                     <Moon className="w-4 h-4" />
                     Sleep mode
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10">
+                <Button asChild variant="outline" className={readerPickerMenuButton}>
                   <Link to="/framework" onClick={close}>
                     <Network className="w-4 h-4" />
                     Framework
@@ -382,7 +397,7 @@ export function ReaderMobileMenu({
                 <Button
                   type="button"
                   variant="outline"
-                  className="col-span-2 justify-start gap-2 border-paper-edge bg-paper/60 text-leather hover:bg-gold/10"
+                  className={cn("col-span-2", readerPickerMenuButton)}
                   onClick={() => setPanel("settings")}
                 >
                   <Settings className="w-4 h-4" />
@@ -396,7 +411,7 @@ export function ReaderMobileMenu({
           </>
         )}
 
-        <div className="w-10 h-1 rounded-full bg-gold/40 mx-auto mb-2 shrink-0" aria-hidden />
+        <div className="w-10 h-1 rounded-full bg-zinc-300/60 mx-auto mb-2 shrink-0" aria-hidden />
       </SheetContent>
     </Sheet>
   );

@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   BookOpen, Sun, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
-  GraduationCap, Mail, ListTodo, CheckSquare, Moon, Calendar, MessageCircleHeart,
+  GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
 } from "lucide-react";
+import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,6 @@ const iconColorMap: Record<string, string> = {
   Tasks: "text-teal-500",
   Habits: "text-green-500",
   Sleep: "text-indigo-400",
-  "Life weeks": "text-amber-500",
   "My AI": "text-pink-500",
   Partner: "text-red-400",
   Settings: "text-gray-500",
@@ -52,7 +52,6 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "",
     items: [
-      { title: "Life weeks", icon: Calendar, to: "/life-weeks" },
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Daily", icon: Sun, to: "/framework/daily" },
@@ -165,7 +164,7 @@ export function HubSidebar() {
         <Link
           to="/home"
           className="flex items-center gap-3.5 rounded-lg px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Belief architecture home"
+          aria-label={`${APP_WORDMARK} ${APP_WORDMARK_SUBTITLE} home`}
         >
           <img
             src="/app-icon-192.png"
@@ -179,10 +178,10 @@ export function HubSidebar() {
           />
           <span className="min-w-0">
             <span className="block font-display text-[2.125rem] font-normal leading-none tracking-[-0.03em] text-leather">
-              Belief
+              {APP_WORDMARK}
             </span>
             <span className="mt-1 block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/85">
-              architecture
+              {APP_WORDMARK_SUBTITLE}
             </span>
           </span>
         </Link>

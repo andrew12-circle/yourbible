@@ -144,7 +144,9 @@ export const artifactInsightExploreShell = cn(
   "flex h-full min-h-0 flex-col bg-background text-foreground",
 );
 
-export const artifactInsightExploreHeader = "shrink-0 border-b border-border/40 px-3 py-2.5";
+export const artifactInsightExploreHeader = cn(
+  "flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-2.5",
+);
 
 export const artifactInsightExploreScroll = "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 scrollbar-thin";
 

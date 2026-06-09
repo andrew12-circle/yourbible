@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PanelRightClose, Maximize2, GripHorizontal, Loader2, Clock, ChevronLeft, PenLine } from "lucide-react";
+import { Maximize2, GripHorizontal, Loader2, Clock, Minus, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ const MIN_H = 220;
 const PANEL_MARGIN = 8;
 const TEXTAREA_AUTOSIZE_MAX = 360;
 /** Floating journal chrome (non–Bible reader). */
-const JOURNAL_PANEL_HEADER_BG = "#38BDF8";
+const JOURNAL_PANEL_HEADER_BG = "#000000";
 
 function panelStorageKey(userId: string) {
   return `yb_journal_panel_v1_${userId}`;
@@ -518,17 +518,6 @@ export default function FloatingJournalPanel({
     navigate("/journal/new", { state: { journalHandoff: payload } });
   };
 
-  const handleClose = () => {
-    try {
-      localStorage.setItem(draftStorageKey(userId, artifactId), JSON.stringify({ title, body }));
-    } catch {
-      /* ignore */
-    }
-    persistPanel(geomRef.current);
-    useFloatingJournalStore.getState().setFloatingClaimResearch(null);
-    onClose();
-  };
-
   const saveEntry = async () => {
     if (!body.trim() && !title.trim() && !hasPendingSketch) {
       toast({ title: "Write something first", variant: "destructive" });
@@ -609,13 +598,6 @@ export default function FloatingJournalPanel({
   };
 
   const showTimestamp = typeof getPlaybackSeconds === "function";
-
-  const headerIconClass = cn(
-    "h-8 w-8 shrink-0",
-    readerTheme
-      ? "text-gold hover:bg-gold/15 hover:text-gold-bright"
-      : "text-white hover:bg-white/15 hover:text-white",
-  );
 
   const writeTabEditor = (
     <>
@@ -780,26 +762,10 @@ export default function FloatingJournalPanel({
             {artifactTitle?.trim() || (artifactId ? "Artifact" : "Quick note")}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
             type="button"
-            size="icon"
-            variant="ghost"
-            className={headerIconClass}
-            aria-label={readerTheme ? "Back to Bible" : "Close journal panel"}
-            title={readerTheme ? "Back to Bible" : "Close"}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className={headerIconClass}
+            className="flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_1px_2px_0_rgba(0,0,0,0.25)] transition-colors hover:bg-yellow-500"
             aria-label="Minimize to journal tab"
             title="Minimize to tab"
             onClick={(e) => {
@@ -807,13 +773,11 @@ export default function FloatingJournalPanel({
               minimizeToTab();
             }}
           >
-            <PanelRightClose className="h-4 w-4" />
-          </Button>
-          <Button
+            <Minus className="h-3 w-3 text-yellow-800" strokeWidth={3.5} />
+          </button>
+          <button
             type="button"
-            size="icon"
-            variant="ghost"
-            className={headerIconClass}
+            className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_1px_2px_0_rgba(0,0,0,0.25)] transition-colors hover:bg-green-600"
             aria-label="Open full journal editor"
             title="Expand"
             onClick={(e) => {
@@ -821,8 +785,8 @@ export default function FloatingJournalPanel({
               expandToFullEditor();
             }}
           >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
+            <Maximize2 className="h-2.5 w-2.5 text-green-950" strokeWidth={3.5} />
+          </button>
         </div>
       </header>
 

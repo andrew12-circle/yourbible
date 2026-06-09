@@ -15,7 +15,7 @@ const Index = () => {
   }
   if (!user) return <Navigate to="/auth" replace />;
   if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
-  return <Navigate to="/life-weeks" replace />;
+  return <Navigate to="/home" replace />;
 };
 
 export default Index;

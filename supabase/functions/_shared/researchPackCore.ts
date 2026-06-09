@@ -463,6 +463,37 @@ async function runValidationWebSearches(
   };
 }
 
+/** Live web snippets for claim-research chat turns (my-ai-chat). */
+export async function buildClaimChatWebBlock(
+  claimText: string,
+  userQuestion: string,
+): Promise<{ block: string; usedWeb: boolean; provider: string | null }> {
+  const webProviderEnv = Deno.env.get("WEB_SEARCH_PROVIDER")?.trim().toLowerCase();
+  if (!webProviderEnv || webProviderEnv === "none" || webProviderEnv === "off") {
+    return {
+      block:
+        "## Live web search\n\nNot configured on the server. Set WEB_SEARCH_PROVIDER=brave|serpapi and BRAVE_SEARCH_API_KEY or SERPAPI_API_KEY in Edge secrets.",
+      usedWeb: false,
+      provider: null,
+    };
+  }
+  const ws = await runValidationWebSearches(claimText, userQuestion, webProviderEnv);
+  if (!ws.usedWeb || !ws.text.trim()) {
+    return {
+      block:
+        "## Live web search\n\nSearch ran but returned no usable snippets. Answer from the user's framework and saved research brief; note that live web results were empty.",
+      usedWeb: false,
+      provider: ws.provider,
+    };
+  }
+  return {
+    block:
+      `## Live web search results (provider: ${ws.provider}; not vetted — cite names and links from snippets; tell the user to verify)\n\n${ws.text}`,
+    usedWeb: true,
+    provider: ws.provider,
+  };
+}
+
 function buildValidationSystemText(lensJson: string, usedWeb: boolean): string {
   return `You are a careful research assistant validating ONE claim from a Christian journaling app.
 

@@ -1,5 +1,17 @@
 import { useRef } from "react";
-import { ArrowUp, BookOpen, ChevronDown, NotebookPen, Plus, Settings2, Square } from "lucide-react";
+import {
+  ArrowUp,
+  BookOpen,
+  Check,
+  ChevronDown,
+  Clock,
+  NotebookPen,
+  Pencil,
+  Plus,
+  Settings2,
+  Square,
+  X,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,16 +21,26 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { CLAIM_RESEARCH_PROMPT_CHIPS } from "@/lib/framework/claimResearchPack";
-import {
-  claimResearchColumn,
-  geminiChip,
-  geminiInputShell,
-} from "@/lib/journal/claimResearchTheme";
+import { CLAIM_VERDICT_LABELS, type ClaimVerdict } from "@/lib/framework/claimVerdict";
+import { claimResearchColumn, geminiInputShell } from "@/lib/journal/claimResearchTheme";
 import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
+
+const VERDICT_ACTIONS: {
+  verdict: ClaimVerdict;
+  label: string;
+  icon: typeof Check;
+}[] = [
+  { verdict: "keep", label: CLAIM_VERDICT_LABELS.keep, icon: Check },
+  { verdict: "reject", label: CLAIM_VERDICT_LABELS.reject, icon: X },
+  { verdict: "updated", label: CLAIM_VERDICT_LABELS.updated, icon: Pencil },
+  { verdict: "defer", label: "Later", icon: Clock },
+];
 
 type Props = {
   input: string;
@@ -36,6 +58,9 @@ type Props = {
   chatId: string | null;
   onReflect: () => void;
   onOpenReport: () => void;
+  verdictBusy?: boolean;
+  onVerdict?: (verdict: ClaimVerdict) => void;
+  onUpdateBelief?: () => void;
   className?: string;
 };
 
@@ -58,6 +83,9 @@ export default function ClaimResearchComposer({
   chatId,
   onReflect,
   onOpenReport,
+  verdictBusy = false,
+  onVerdict,
+  onUpdateBelief,
   className,
 }: Props) {
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -80,20 +108,6 @@ export default function ClaimResearchComposer({
       )}
     >
       <div className={claimResearchColumn}>
-        <div className="mb-2.5 flex flex-wrap justify-center gap-2">
-          {CLAIM_RESEARCH_PROMPT_CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              type="button"
-              disabled={disabled || sending}
-              onClick={() => applyChip(chip.text)}
-              className={geminiChip}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-
         <div className={geminiInputShell}>
           <Textarea
             ref={taRef}
@@ -111,8 +125,8 @@ export default function ClaimResearchComposer({
             placeholder={sending ? "Thinking…" : "Ask about this claim"}
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
-              "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-3",
-              "text-[15px] leading-[1.65] shadow-none placeholder:text-muted-foreground/70",
+              "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-1.5",
+              "text-[11px] leading-snug shadow-none placeholder:text-muted-foreground/70",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
               "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
             )}
@@ -131,7 +145,7 @@ export default function ClaimResearchComposer({
                   <Plus className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-2rem)]">
                 <DropdownMenuItem onClick={onReflect} disabled={disabled}>
                   <NotebookPen className="mr-2 h-4 w-4" />
                   Save note
@@ -145,7 +159,46 @@ export default function ClaimResearchComposer({
                     <Link to={`/my-ai/${chatId}`}>Open in My AI</Link>
                   </DropdownMenuItem>
                 ) : null}
-                <div className="mt-1 space-y-3 border-t border-border/60 px-2 py-2">
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                  Suggested prompts
+                </DropdownMenuLabel>
+                {CLAIM_RESEARCH_PROMPT_CHIPS.map((chip) => (
+                  <DropdownMenuItem
+                    key={chip.label}
+                    disabled={disabled || sending}
+                    onClick={() => applyChip(chip.text)}
+                    className="whitespace-normal text-xs leading-snug"
+                  >
+                    {chip.label}
+                  </DropdownMenuItem>
+                ))}
+                {onVerdict ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                      Your decision on this claim
+                    </DropdownMenuLabel>
+                    {VERDICT_ACTIONS.map(({ verdict, label, icon: Icon }) => (
+                      <DropdownMenuItem
+                        key={verdict}
+                        disabled={verdictBusy}
+                        onClick={() => onVerdict(verdict)}
+                      >
+                        <Icon className="mr-2 h-4 w-4 opacity-70" />
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                    {onUpdateBelief ? (
+                      <DropdownMenuItem disabled={verdictBusy} onClick={onUpdateBelief}>
+                        <Pencil className="mr-2 h-4 w-4 opacity-70" />
+                        Update belief
+                      </DropdownMenuItem>
+                    ) : null}
+                  </>
+                ) : null}
+                <DropdownMenuSeparator />
+                <div className="space-y-3 px-2 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="cr-web-menu" className="text-xs font-normal">
                       Web search
@@ -218,7 +271,7 @@ export default function ClaimResearchComposer({
           </div>
         </div>
 
-        <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-muted-foreground/80">
+        <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] text-muted-foreground/80">
           <button
             type="button"
             className="hover:text-foreground hover:underline disabled:opacity-40"
@@ -228,7 +281,7 @@ export default function ClaimResearchComposer({
             Regenerate last
           </button>
           <span aria-hidden>·</span>
-          <span>{packUseWeb ? "Web search on" : "Companion chat"}</span>
+          <span>{packUseWeb ? "OpenAI web search on" : "Companion chat"}</span>
         </div>
       </div>
     </div>

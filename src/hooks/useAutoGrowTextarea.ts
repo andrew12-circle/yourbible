@@ -1,8 +1,8 @@
 import { useCallback, useEffect, type RefObject } from "react";
 
-/** Matches ClaimResearchComposer: text-[15px] leading-[1.65] py-3 */
-export const TEXTAREA_LINE_HEIGHT_PX = 24.75;
-const TEXTAREA_VERTICAL_PADDING_PX = 24;
+/** Matches ClaimResearchComposer: text-[11px] leading-snug py-1.5 */
+export const TEXTAREA_LINE_HEIGHT_PX = 14;
+const TEXTAREA_VERTICAL_PADDING_PX = 12;
 
 export function textareaHeightForLines(lines: number): number {
   return Math.ceil(TEXTAREA_LINE_HEIGHT_PX * lines + TEXTAREA_VERTICAL_PADDING_PX);

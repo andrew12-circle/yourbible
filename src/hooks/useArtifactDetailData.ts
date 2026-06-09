@@ -84,36 +84,37 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     });
   }, []);
 
-  const loadFull = useCallback(async () => {
-    if (!artifactId) {
-      setArtifactLoaded(true);
-      applyArtifact(null);
-      return;
-    }
+  const fetchArtifactRow = useCallback(async (targetId: string): Promise<ArtifactRow | null> => {
     const artWithMeta = await supabase
       .from("artifacts")
       .select("id,title,kind,status,error,raw_text,url,metadata,created_at")
-      .eq("id", artifactId)
+      .eq("id", targetId)
       .maybeSingle();
     const artResult = artWithMeta.error
       ? await supabase
           .from("artifacts")
           .select("id,title,kind,status,error,raw_text,url,created_at")
-          .eq("id", artifactId)
+          .eq("id", targetId)
           .maybeSingle()
       : artWithMeta;
-    const { data: cl } = await supabase
-      .from("artifact_claims")
-      .select("*")
-      .eq("artifact_id", artifactId)
-      .order("created_at");
-    const { data: momentRows, error: momentError } = await supabase
-      .from("artifact_moments")
-      .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
-      .eq("artifact_id", artifactId)
-      .order("start_seconds")
-      .order("created_at");
-    const art = artResult.data as ArtifactRow | null;
+    return (artResult.data as ArtifactRow | null) ?? null;
+  }, []);
+
+  const loadArtifactDetails = useCallback(async () => {
+    if (!artifactId) return;
+    const [{ data: cl }, { data: momentRows, error: momentError }] = await Promise.all([
+      supabase
+        .from("artifact_claims")
+        .select("*")
+        .eq("artifact_id", artifactId)
+        .order("created_at"),
+      supabase
+        .from("artifact_moments")
+        .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
+        .eq("artifact_id", artifactId)
+        .order("start_seconds")
+        .order("created_at"),
+    ]);
     const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => {
       const normalized = normalizeArtifactClaimArrays(row);
       return {
@@ -138,12 +139,36 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       }, {} as Record<string, MatchedBelief>);
     }
     setMatchedBeliefs(beliefMap);
-    applyArtifact(art);
     setClaims(parsedClaims);
     if (!momentError) setMoments(((momentRows as unknown) as ArtifactMoment[]) ?? []);
-    setArtifactLoaded(true);
+  }, [artifactId]);
+
+  /** Fetch artifact row first so YouTube embed can mount while claims load. */
+  const loadShell = useCallback(async () => {
+    if (!artifactId) {
+      setArtifactLoaded(true);
+      applyArtifact(null);
+      return;
+    }
+    const art = await fetchArtifactRow(artifactId);
+    applyArtifact(art);
     prevStatusRef.current = art?.status ?? null;
-  }, [applyArtifact, artifactId]);
+    setArtifactLoaded(true);
+    void loadArtifactDetails();
+  }, [applyArtifact, artifactId, fetchArtifactRow, loadArtifactDetails]);
+
+  const loadFull = useCallback(async () => {
+    if (!artifactId) {
+      setArtifactLoaded(true);
+      applyArtifact(null);
+      return;
+    }
+    const art = await fetchArtifactRow(artifactId);
+    applyArtifact(art);
+    prevStatusRef.current = art?.status ?? null;
+    setArtifactLoaded(true);
+    await loadArtifactDetails();
+  }, [applyArtifact, artifactId, fetchArtifactRow, loadArtifactDetails]);
 
   const loadStatusOnly = useCallback(async () => {
     if (!artifactId) return;
@@ -181,8 +206,11 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   useEffect(() => {
     if (!userId || !artifactId) return;
     setArtifactLoaded(false);
-    void loadFull();
-  }, [userId, artifactId, loadFull]);
+    setClaims([]);
+    setMoments([]);
+    setMatchedBeliefs({});
+    void loadShell();
+  }, [userId, artifactId, loadShell]);
 
   const inFlight = !!a && ["fetching", "transcribing", "analyzing"].includes(a.status);
 

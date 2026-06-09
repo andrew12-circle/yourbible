@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { READING_PLANS, getReadingPlan, type ReadingPlan } from "@/data/readingPlans";
 import { supabase } from "@/integrations/supabase/client";
 import { formatSupabaseError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 
 type ProgressRow = { plan_id: string; day_index: number };
 
 export default function ReadingPlansPage() {
   const { user, profile, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressRow[]>([]);
@@ -73,17 +76,30 @@ export default function ReadingPlansPage() {
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
   return (
-    <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
-      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b px-4 py-3 flex items-center gap-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div
+      className={hubShellPageRoot(
+        showHubShell,
+        "min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]",
+      )}
+    >
+      <header
+        className={
+          showHubShell
+            ? "flex h-14 shrink-0 items-center border-b bg-background px-4"
+            : "sticky top-0 z-10 bg-background/90 backdrop-blur border-b px-4 py-3 flex items-center gap-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+        }
+      >
+        {!showHubShell && (
         <Button variant="ghost" size="icon" asChild>
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="h-5 w-5" />
           </Link>
         </Button>
+        )}
         <h1 className="text-lg font-semibold">Reading plans</h1>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-4 py-4 space-y-4")}>
         {busy && (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading" />

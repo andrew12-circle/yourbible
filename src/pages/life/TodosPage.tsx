@@ -11,10 +11,12 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { hubShellPageRoot } from "@/lib/shell/hubShellClasses";
 import { localDateISO } from "@/lib/habits/dates";
 import TodoItemRowComponent from "@/components/todos/TodoItemRow";
 import TodoDetailSheet from "@/components/todos/TodoDetailSheet";
@@ -56,6 +58,7 @@ function viewLabel(view: ActiveView, lists: TodoListRow[]): string {
 
 export default function TodosPage() {
   const { user, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [busy, setBusy] = useState(true);
   const [lists, setLists] = useState<TodoListRow[]>([]);
   const [items, setItems] = useState<TodoItemRow[]>([]);
@@ -223,14 +226,22 @@ export default function TodosPage() {
   const projectLists = lists.filter((l) => l.slug !== "inbox");
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]">
+    <div
+      className={hubShellPageRoot(
+        showHubShell,
+        "min-h-screen bg-background flex flex-col md:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]",
+        "bg-background flex flex-col md:flex-row min-h-0 h-full overflow-hidden",
+      )}
+    >
       <aside className="md:w-56 shrink-0 border-b md:border-b-0 md:border-r bg-card/50">
         <div className="flex items-center gap-2 px-3 py-3 border-b md:border-0">
+          {!showHubShell && (
           <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link to="/home" aria-label="Back to home">
               <ChevronLeft className="w-5 h-5" />
             </Link>
           </Button>
+          )}
           <h1 className="text-lg font-semibold tracking-tight flex items-center gap-2">
             <ListTodo className="w-5 h-5 text-primary" />
             Tasks
@@ -289,7 +300,7 @@ export default function TodosPage() {
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 max-w-2xl md:max-w-none mx-auto md:mx-0 w-full">
+      <main className="flex min-h-0 flex-1 flex-col min-w-0 max-w-2xl md:max-w-none mx-auto md:mx-0 w-full">
         <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-4">
           <h2 className="text-2xl font-semibold tracking-tight">{viewLabel(view, lists)}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">

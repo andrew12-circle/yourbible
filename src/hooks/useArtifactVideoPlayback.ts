@@ -37,8 +37,8 @@ export function useArtifactVideoPlayback(options: {
   const [embedLoaded, setEmbedLoaded] = useState(false);
   /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
-  /** Lock embed start once account + session progress merge — avoids iframe src churn. */
-  const [embedStartReady, setEmbedStartReady] = useState(false);
+  /** Locked iframe start — set once per video; remote progress seeks instead of reloading src. */
+  const lockedEmbedStartRef = useRef(0);
   const [staticEmbedStart, setStaticEmbedStart] = useState(0);
   const [apiStartSeconds, setApiStartSeconds] = useState(0);
 
@@ -54,20 +54,12 @@ export function useArtifactVideoPlayback(options: {
     embedVisibleRef.current = false;
     setEmbedLoaded(false);
     setApiPlayerWanted(false);
-    setEmbedStartReady(false);
-    setStaticEmbedStart(0);
     const local = artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
+    lockedEmbedStartRef.current = local;
     playbackFallbackRef.current = local;
+    setStaticEmbedStart(local);
     setApiStartSeconds(local);
   }, [artifactId, youTubeVideoId]);
-
-  useEffect(() => {
-    if (!playbackLoaded || !artifactId || embedStartReady) return;
-    playbackFallbackRef.current = savedStart;
-    setApiStartSeconds(savedStart);
-    setStaticEmbedStart(savedStart);
-    setEmbedStartReady(true);
-  }, [artifactId, embedStartReady, playbackLoaded, savedStart]);
 
   const staticTelemetry = useStaticYouTubeEmbedTelemetry({
     videoSlotRef: youtubePip.videoSlotRef,
@@ -157,6 +149,16 @@ export function useArtifactVideoPlayback(options: {
     [apiPlayerWanted, staticTelemetry],
   );
 
+  /** Account-backed progress arrived — seek without changing iframe src. */
+  useEffect(() => {
+    if (!playbackLoaded || !artifactId || !youTubeVideoId) return;
+    const target = Math.max(0, Math.floor(savedStart));
+    if (target <= lockedEmbedStartRef.current) return;
+    playbackFallbackRef.current = target;
+    setApiStartSeconds(target);
+    restoreStaticEmbedProgress({ forceSeek: true });
+  }, [artifactId, playbackLoaded, restoreStaticEmbedProgress, savedStart, youTubeVideoId]);
+
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
@@ -164,9 +166,9 @@ export function useArtifactVideoPlayback(options: {
   }, [restoreStaticEmbedProgress]);
 
   const staticEmbedSrc = useMemo(() => {
-    if (!youTubeVideoId || !embedStartReady) return null;
+    if (!youTubeVideoId) return null;
     return buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart);
-  }, [embedStartReady, youTubeVideoId, staticEmbedStart]);
+  }, [youTubeVideoId, staticEmbedStart]);
 
   const enableApiPlayer = useCallback(() => {
     const seconds = staticTelemetry.getCurrentTime();

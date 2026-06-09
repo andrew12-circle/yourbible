@@ -1,6 +1,12 @@
 // Edge function: fetch a chapter (or list of available bibles) from API.Bible.
 // Public read endpoint — no auth required to read scripture.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import {
+  parseChapterText,
+  parsePassageHtml,
+  type PassageHeading,
+  type PassageVerse,
+} from "../_shared/parsePassageHtml.ts";
 
 const API_BASE = "https://rest.api.bible/v1";
 
@@ -26,32 +32,11 @@ const BOOK_ID_MAP: Record<string, string> = {
   Rev: "REV",
 };
 
-interface PassageVerse { number: number; text: string; }
-
-function stripTags(html: string): string {
-  return html
-    .replace(/<sup[^>]*class=["']?v["']?[^>]*>(\d+)<\/sup>/gi, "‖$1‖") // marker
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/** Parse plain text from API.Bible (when we requested content-type=text) into verses. */
-function parseChapterText(content: string): PassageVerse[] {
-  // API.Bible plain text uses [N] verse markers
-  const verses: PassageVerse[] = [];
-  const re = /\[(\d+)\]\s*([\s\S]*?)(?=\[\d+\]|$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content)) !== null) {
-    const num = parseInt(m[1], 10);
-    const text = m[2].replace(/\s+/g, " ").trim();
-    if (text) verses.push({ number: num, text });
-  }
-  return verses;
+interface PassageResponse {
+  reference: string;
+  verses: PassageVerse[];
+  paragraphStarts: number[];
+  headings: PassageHeading[];
 }
 
 Deno.serve(async (req) => {
@@ -99,8 +84,8 @@ Deno.serve(async (req) => {
 
     const passageId = `${usfmBook}.${chapter}`;
     const r = await fetch(
-      `${API_BASE}/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`,
-      { headers: { "api-key": API_BIBLE_KEY } }
+      `${API_BASE}/bibles/${bibleId}/passages/${passageId}?content-type=html&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`,
+      { headers: { "api-key": API_BIBLE_KEY } },
     );
 
     if (!r.ok) {
@@ -112,10 +97,27 @@ Deno.serve(async (req) => {
 
     const json = await r.json();
     const content: string = json?.data?.content ?? "";
-    const verses = parseChapterText(stripTags(content));
     const reference: string = json?.data?.reference ?? `${bookAbbr} ${chapter}`;
 
-    return new Response(JSON.stringify({ reference, verses }), {
+    let parsed = parsePassageHtml(content, reference);
+    if (parsed.verses.length === 0) {
+      const verses = parseChapterText(content);
+      parsed = {
+        reference,
+        verses,
+        paragraphStarts: verses.length > 0 ? [verses[0]!.number] : [],
+        headings: [],
+      };
+    }
+
+    const body: PassageResponse = {
+      reference: parsed.reference,
+      verses: parsed.verses,
+      paragraphStarts: parsed.paragraphStarts,
+      headings: parsed.headings,
+    };
+
+    return new Response(JSON.stringify(body), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

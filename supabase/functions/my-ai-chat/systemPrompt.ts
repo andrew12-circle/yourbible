@@ -144,3 +144,32 @@ export function buildJournalChatSystemPrompt(
   ].filter(Boolean);
   return layers.join("\n\n");
 }
+
+const LAYER_WEB_RESEARCH = `# Web research mode (OpenAI web search enabled)
+- You have live web search. Use it to find teachers, scholars, articles, and historical context relevant to the user's claim question.
+- Write like ChatGPT: clear paragraphs with blank lines between them; bullet or numbered lists when comparing voices; markdown links when citing web sources.
+- Blend web findings with the user's framework context and any saved research brief below — their beliefs and journals come first, web second.
+- Name specific people and traditions when search surfaces them. Say plainly when something is from the web vs their recorded framework.
+- Do not preach or give a final verdict — help them think. End with one focused question when natural.`;
+
+const WEB_OUTPUT_CONTRACT = `# Output format
+Return plain markdown only — NOT JSON, NOT code fences. The user reads your reply directly in a chat UI.`;
+
+/** Claim research chat with OpenAI web search — markdown replies, framework + web. */
+export function buildJournalChatWebResearchSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+): string {
+  const layers = [
+    LAYER_IDENTITY_JOURNAL,
+    LAYER_EVOLUTION,
+    LAYER_RETRIEVAL,
+    LAYER_ANTI_GENERIC_JOURNAL,
+    LAYER_DEEP_WISDOM_JOURNAL,
+    LAYER_WEB_RESEARCH,
+    partnerLayer(partnerDigestMarkdown, true),
+    outsideLayer(includeGeneralKnowledge, true, "deep"),
+    WEB_OUTPUT_CONTRACT,
+  ].filter(Boolean);
+  return layers.join("\n\n");
+}

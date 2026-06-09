@@ -1,23 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PassageVerse as Verse } from "@/lib/bible/api";
+import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 
 interface Props {
   verses: Verse[];
+  /** Verse numbers that begin a new paragraph — must match the live reader. */
+  paragraphStarts: number[];
+  /** Section headings keyed by the first verse they precede. */
+  headings?: { beforeVerse: number; text: string }[];
   /** Book abbreviation — used for red-letter detection */
   bookAbbr: string;
   /** Chapter number — used for red-letter detection */
   chapter: number;
   /** Width of one page's text area (px) */
   pageWidth: number;
-  /** Height of one page's text area (px) */
+  /** Height of one page's text area (px) — pages after the first. */
   pageHeight: number;
+  /** First page text area (px); smaller when a chapter header sits above the article. */
+  firstPageHeight?: number;
   /** Class names matching how the verses will render in real pages (typography) */
   className?: string;
   /** Optional additional class names that wrap the inner column container (e.g. "columns-2 gap-5") */
   columnsClassName?: string;
-  /** Optional header (rendered only on the first page) — measured */
-  header?: React.ReactNode;
   /** Footer reserved height per page (chapter nav etc.) */
   footerHeight?: number;
   /** Optional inline style applied to the measurement node so paginator
@@ -33,13 +38,15 @@ interface Props {
  */
 export function Paginator({
   verses,
+  paragraphStarts,
+  headings = [],
   bookAbbr,
   chapter,
   pageWidth,
   pageHeight,
+  firstPageHeight,
   className,
   columnsClassName,
-  header,
   footerHeight = 0,
   fontSizeStyle,
   onSplitsChange,
@@ -47,6 +54,12 @@ export function Paginator({
   const ref = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
   const lastSplitsRef = useRef<string>("");
+  const paragraphStartSet = useMemo(() => new Set(paragraphStarts), [paragraphStarts]);
+  const headingByVerse = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const h of headings) m.set(h.beforeVerse, h.text);
+    return m;
+  }, [headings]);
 
   // Pre-compute red-letter segmentation across the whole chapter so multi-
   // verse quotes are measured with the same red-text rendering the live
@@ -56,13 +69,37 @@ export function Paginator({
     [bookAbbr, chapter, verses],
   );
 
+  const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
+
+  // Serialize array props so parent inline `?? []` fallbacks do not retrigger every render.
+  const versesKey = useMemo(
+    () => verses.map((v) => `${v.number}:${v.text.length}`).join(","),
+    [verses],
+  );
+  const paragraphStartsKey = paragraphStarts.join(",");
+  const headingsKey = useMemo(
+    () => headings.map((h) => `${h.beforeVerse}\0${h.text}`).join("\x01"),
+    [headings],
+  );
+
   // Recompute when inputs that actually affect measurement change.
-  // NOTE: `header` is intentionally excluded — it's a JSX element rebuilt
-  // every parent render, and `renderInto` uses its own static header stub
-  // for measurement. Including it caused an infinite re-pagination loop.
   useEffect(() => {
-    setRevision(r => r + 1);
-  }, [verses, bookAbbr, chapter, pageWidth, pageHeight, footerHeight, className, columnsClassName, fontSizeStyle?.fontSize]);
+    setRevision((r) => r + 1);
+  }, [
+    versesKey,
+    paragraphStartsKey,
+    headingsKey,
+    bookAbbr,
+    chapter,
+    pageWidth,
+    pageHeight,
+    resolvedFirstPageHeight,
+    footerHeight,
+    className,
+    columnsClassName,
+    fontSizeStyle?.fontSize,
+    fontSizeStyle?.fontFamily,
+  ]);
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || verses.length === 0) {
@@ -79,7 +116,8 @@ export function Paginator({
     let i = 0;
     let isFirstPage = true;
     while (i < verses.length) {
-      const limit = pageHeight - (isFirstPage ? 0 : footerHeight);
+      const baseHeight = isFirstPage ? resolvedFirstPageHeight : pageHeight;
+      const limit = baseHeight - (isFirstPage ? 0 : footerHeight);
       // Add verses one at a time until we overflow
       let lastFit = i;
       let lo = i + 1;
@@ -87,7 +125,7 @@ export function Paginator({
       // exponential search to find a too-many size, then binary search down
       let n = 1;
       while (i + n <= verses.length) {
-        renderInto(node, verses.slice(i, i + n), redSegments, isFirstPage ? header : undefined, columnsClassName);
+        renderInto(node, verses.slice(i, i + n), redSegments, paragraphStartSet, headingByVerse, columnsClassName);
         if (node.scrollHeight <= limit) {
           lastFit = i + n;
           n *= 2;
@@ -100,7 +138,7 @@ export function Paginator({
       hi = Math.min(i + n, verses.length);
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
-        renderInto(node, verses.slice(i, mid), redSegments, isFirstPage ? header : undefined, columnsClassName);
+        renderInto(node, verses.slice(i, mid), redSegments, paragraphStartSet, headingByVerse, columnsClassName);
         if (node.scrollHeight <= limit) {
           lastFit = mid;
           lo = mid + 1;
@@ -134,7 +172,12 @@ export function Paginator({
         pointerEvents: "none",
       }}
     >
-      <div ref={ref} className={className} style={{ width: pageWidth, ...fontSizeStyle }} />
+      <div
+        ref={ref}
+        data-reading-area
+        className={className}
+        style={{ width: pageWidth, ...fontSizeStyle }}
+      />
     </div>
   );
 }
@@ -143,36 +186,40 @@ function renderInto(
   node: HTMLDivElement,
   verses: Verse[],
   redSegments: Map<number, Segment[]>,
-  header?: React.ReactNode,
+  paragraphStarts: Set<number>,
+  headingByVerse: Map<number, string>,
   columnsClassName?: string,
 ) {
-  // Build inline HTML to mimic our reader output without React reconciliation cost
-  const headerHtml = header ? renderHeaderHtml() : "";
-  const versesHtml = verses
-    .map(v => {
-      const segs = redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
-      const inner = segs
-        .map(s =>
-          s.isJesus
-            ? `<span class="red-letter">${escapeHtml(s.text)}</span>`
-            : escapeHtml(s.text),
-        )
+  const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
+  const bodyHtml = groups
+    .map((group) => {
+      const first = group.verses[0]?.number;
+      const heading = first != null ? headingByVerse.get(first) : undefined;
+      const headingHtml = heading
+        ? `<p class="scripture-heading">${escapeHtml(heading)}</p>`
+        : "";
+      const versesHtml = group.verses
+        .map(v => {
+          const segs = redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
+          const inner = segs
+            .map(s =>
+              s.isJesus
+                ? `<span class="red-letter">${escapeHtml(s.text)}</span>`
+                : escapeHtml(s.text),
+            )
+            .join("");
+          return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
+        })
         .join("");
-      return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
+      const paraClass = group.isContinuation
+        ? "scripture-paragraph scripture-paragraph-continue text-justify"
+        : "scripture-paragraph text-justify";
+      return `${headingHtml}<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
     })
     .join("");
-  const inner = `${headerHtml}<p style="text-align:justify;hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
   node.innerHTML = columnsClassName
-    ? `<div class="${columnsClassName}">${inner}</div>`
-    : inner;
-}
-
-function renderHeaderHtml() {
-  // Approx height of book title + chapter rule we use in the real page
-  return `<div style="text-align:center;margin-bottom:1.5rem">
-    <div style="font-family:'Playfair Display',serif;font-size:1.875rem;line-height:1;margin-bottom:.25rem">&nbsp;</div>
-    <div style="font-size:.6875rem;letter-spacing:.3em;text-transform:uppercase">CHAPTER X</div>
-  </div>`;
+    ? `<div class="${columnsClassName}">${bodyHtml}</div>`
+    : bodyHtml;
 }
 
 function escapeHtml(s: string) {

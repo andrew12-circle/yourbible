@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   Sacred & Modern — Premium leather aesthetic
+   Belief Architecture — Premium leather aesthetic
    Warm cream paper · cordovan leather · gold accents
    All colors HSL.
    ============================================================ */
@@ -271,6 +271,16 @@
       0.2px 0 0 hsl(20 22% 12% / 0.15);
   }
 
+  /* San Francisco reader — regular weight, no faux ink bleed. */
+  .reader-sf-body {
+    font-weight: 400;
+    letter-spacing: -0.008em;
+    color: hsl(20 18% 14%);
+    text-shadow: none;
+    -webkit-font-smoothing: antialiased;
+    font-synthesis: none;
+  }
+
   .leather-texture {
     background: var(--gradient-leather);
     background-image:
@@ -487,6 +497,30 @@
     letter-spacing: 0.02em;
   }
 
+  /* Traditional Bible paragraph flow — first line indented, following lines flush. */
+  .scripture-paragraph {
+    text-indent: 1.75em;
+    margin: 0;
+  }
+  .scripture-paragraph-continue {
+    text-indent: 0;
+  }
+  .scripture-heading {
+    text-align: center;
+    font-style: italic;
+    font-size: 1.05em;
+    line-height: 1.45;
+    text-indent: 0;
+    margin: 1.1em 0 0.35em;
+    color: hsl(var(--foreground) / 0.88);
+  }
+  .scripture-paragraph + .scripture-paragraph {
+    margin-top: 0;
+  }
+  .scripture-heading + .scripture-paragraph {
+    margin-top: 0;
+  }
+
   /* Red-letter words of Jesus — warm Bible-red, sits a touch heavier than
      surrounding body type so it reads as emphasis without the shimmery
      drop-shadow that makes long passages dizzy to look at. */
@@ -533,6 +567,21 @@
   }
   .selectable-text ::selection {
     background: hsl(40 70% 78% / 0.45);
+  }
+
+  /* Scripture font choice — verse body spans inherit from [data-reading-area]
+     so nested highlights/red-letter text pick up the user's font instead of
+     body defaults (or .app-theme * on settings preview routes). */
+  [data-reading-area] [data-verse-body],
+  [data-reading-area] [data-verse-body] * {
+    font-family: inherit;
+  }
+
+  .scripture-font-preview [data-verse-body],
+  .scripture-font-preview [data-verse-body] *,
+  .scripture-font-preview .marker-hl,
+  .scripture-font-preview .marker-hl-text {
+    font-family: inherit;
   }
 
   /* Ink mode: disable native selection on the page text (ink overlay captures draws). */
@@ -743,8 +792,29 @@
 .app-theme .font-scripture {
   font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
 }
+.app-theme .font-sans {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.app-theme .font-system {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+}
 .app-theme .font-serif {
   font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
+}
+
+/* Settings preview + reader under app-theme: nested spans must inherit the
+   chosen stack from the preview/root container, not .app-theme *. */
+.app-theme .scripture-font-preview,
+.app-theme [data-reading-area] {
+  font-family: var(--reader-scripture-font-family, inherit);
+}
+.app-theme .scripture-font-preview [data-verse-body],
+.app-theme .scripture-font-preview [data-verse-body] *,
+.app-theme .scripture-font-preview .marker-hl,
+.app-theme .scripture-font-preview .marker-hl-text,
+.app-theme [data-reading-area] [data-verse-body],
+.app-theme [data-reading-area] [data-verse-body] * {
+  font-family: inherit !important;
 }
 
 /* Reusable Apple system stack for elements that explicitly opt in (e.g.
@@ -767,7 +837,8 @@
   --hub-safe-top: max(0.5rem, var(--safe-area-inset-top));
   --hub-edge: 0.75rem;
   --hub-card-gap: 0.75rem;
-  --hub-card-height: calc(100svh - var(--hub-safe-top) - var(--hub-edge));
+  --hub-viewport-h: 100svh;
+  --hub-card-height: calc(var(--hub-viewport-h) - var(--hub-safe-top) - var(--hub-edge));
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -781,7 +852,7 @@
   top: 0;
   bottom: 0;
   left: 0;
-  height: 100svh;
+  height: var(--hub-viewport-h);
   padding: var(--hub-safe-top) 0 var(--hub-edge) var(--hub-edge);
   width: calc(var(--sidebar-width) + var(--hub-edge));
 }
@@ -797,7 +868,7 @@
 /* Reserve spacer width for nav card + left gutter */
 .hub-shell .peer[data-variant="floating"] > div:first-child {
   width: calc(var(--sidebar-width) + var(--hub-edge)) !important;
-  height: 100svh;
+  height: var(--hub-viewport-h);
 }
 
 .hub-shell .hub-content-card {

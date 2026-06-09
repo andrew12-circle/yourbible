@@ -41,7 +41,8 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
     }
 
     let cancelled = false;
-    setLoaded(false);
+    // Local session cache is enough to start the embed; account sync runs in background.
+    setLoaded(true);
 
     void (async () => {
       const remote = await fetchArtifactPlaybackProgress(user.id, artifactId);
@@ -49,7 +50,6 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
       setRemoteSeconds(remote);
       const merged = mergePlaybackSeconds(readPlaybackSecondsLocal(artifactId), remote);
       if (merged > 0) writePlaybackSecondsLocal(artifactId, merged);
-      setLoaded(true);
     })();
 
     return () => {

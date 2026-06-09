@@ -1,7 +1,9 @@
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { researchPackAssistantProse } from "@/lib/framework/claimResearchPack";
-import { prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import {
+  CLAIM_RESEARCH_ASSISTANT_PROSE,
+  prepareChatMarkdownForDisplay,
+} from "@/lib/journal/prepareChatMarkdownForDisplay";
 import ResearchGeminiAvatar from "@/components/journal/ResearchGeminiAvatar";
 import ResearchMessageActions from "@/components/journal/ResearchMessageActions";
 
@@ -27,13 +29,7 @@ export default function ResearchAssistantBubble({
 
   const isBrief = variant === "brief";
   const prose = (
-    <div
-      className={cn(
-        researchPackAssistantProse,
-        "prose-p:text-[15px] prose-p:leading-[1.65] prose-li:text-[15px]",
-        "prose-headings:text-base prose-headings:font-medium prose-headings:tracking-tight",
-      )}
-    >
+    <div className={CLAIM_RESEARCH_ASSISTANT_PROSE}>
       <ReactMarkdown>{text}</ReactMarkdown>
     </div>
   );
@@ -43,7 +39,7 @@ export default function ResearchAssistantBubble({
       <article className={cn("w-full", className)}>
         <div className="mb-3 flex items-center gap-2">
           <ResearchGeminiAvatar size="sm" />
-          <span className="text-sm font-medium text-foreground/80">Research brief</span>
+          <span className="text-[10px] font-medium text-foreground/80">Research brief</span>
         </div>
         {prose}
       </article>

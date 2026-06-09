@@ -1,8 +1,8 @@
 {
-  "id": "sacred-modern-2026",
-  "name": "Sacred & Modern",
-  "short_name": "Sacred",
-  "description": "Premium personal Bible reader and journal",
+  "id": "belief-architecture",
+  "name": "Belief Architecture",
+  "short_name": "Belief",
+  "description": "Map beliefs, journal, study scripture, and grow your personal faith framework.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#EF852C",

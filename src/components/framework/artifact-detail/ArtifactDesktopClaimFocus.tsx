@@ -11,6 +11,7 @@ type Props = {
   claims: RenderClaimCardClaim[];
   claimCardContext: RenderClaimCardContext;
   onBack: () => void;
+  onSelectClaim?: (claimId: string) => void;
   className?: string;
 };
 
@@ -20,10 +21,12 @@ export default function ArtifactDesktopClaimFocus({
   claims,
   claimCardContext,
   onBack,
+  onSelectClaim,
   className,
 }: Props) {
   const claimIndex = claims.findIndex((c) => c.id === claimId);
   const claim = claimIndex >= 0 ? claims[claimIndex] : null;
+  const nextClaim = claimIndex >= 0 && claimIndex < claims.length - 1 ? claims[claimIndex + 1] : null;
   if (!claim) return null;
 
   return (
@@ -40,6 +43,8 @@ export default function ArtifactDesktopClaimFocus({
           onBack={onBack}
           backLabel="Back to overview"
           backAriaLabel="Back to overview"
+          onNext={nextClaim && onSelectClaim ? () => onSelectClaim(nextClaim.id) : undefined}
+          nextClaimNumber={nextClaim ? claimIndex + 2 : undefined}
           className="max-h-[min(calc(100dvh-16rem),720px)]"
         />
       </div>

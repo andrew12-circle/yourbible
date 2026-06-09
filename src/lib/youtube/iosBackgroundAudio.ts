@@ -1,3 +1,4 @@
+import { APP_NAME } from "@/lib/appBrand";
 import { fetchYouTubeAudioStreamUrl } from "@/lib/youtube/fetchYouTubeAudioUrl";
 import {
   bindSleepMediaSession,
@@ -91,7 +92,7 @@ function playAudioFromUrl(
     audio.src = url;
     audio.load();
     updateSleepMediaSession(
-      { title: title?.trim() || "YouTube video", subtitle: "Sacred & Modern" },
+      { title: title?.trim() || "YouTube video", subtitle: APP_NAME },
       "playing",
     );
   });
@@ -119,14 +120,14 @@ export async function startIosYouTubeBackgroundAudio(opts: {
     onPlay: () => {
       void audioHolder.current?.play().catch(() => {});
       updateSleepMediaSession(
-        { title: opts.title?.trim() || "YouTube video", subtitle: "Sacred & Modern" },
+        { title: opts.title?.trim() || "YouTube video", subtitle: APP_NAME },
         "playing",
       );
     },
     onPause: () => {
       audioHolder.current?.pause();
       updateSleepMediaSession(
-        { title: opts.title?.trim() || "YouTube video", subtitle: "Sacred & Modern" },
+        { title: opts.title?.trim() || "YouTube video", subtitle: APP_NAME },
         "paused",
       );
     },

@@ -9,6 +9,7 @@ import { postAuthPath } from "@/lib/auth/onboardingGate";
 import { toast } from "@/hooks/use-toast";
 import { BookOpen, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/appBrand";
 
 function safeAppNext(raw: string | null): string | null {
   if (!raw) return null;
@@ -93,7 +94,7 @@ export default function AuthPage() {
       setMode("signin");
       return;
     }
-    toast({ title: "Welcome", description: "Let's set up Sacred & Modern." });
+    toast({ title: "Welcome", description: `Let's set up ${APP_NAME}.` });
     navigate("/onboarding");
   };
 
@@ -111,8 +112,8 @@ export default function AuthPage() {
             shadow-[0_18px_40px_-12px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(255,255,255,0.45)]">
             <BookOpen className="w-9 h-9 text-white drop-shadow" strokeWidth={2} />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">Sacred & Modern</h1>
-          <p className="text-muted-foreground text-[15px]">Where sacred meets modern.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">{APP_NAME}</h1>
+          <p className="text-muted-foreground text-[15px]">{APP_DESCRIPTION}</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4 bg-white/85 backdrop-blur-xl p-7 rounded-3xl border border-white/70 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.18)]">

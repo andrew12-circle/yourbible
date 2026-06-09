@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { ChevronLeft, Loader2, ListPlus, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { HabitBadgesSection } from "@/components/habits/HabitBadgesSection";
 import { HabitManageSheet } from "@/components/habits/HabitManageSheet";
@@ -10,6 +11,7 @@ import { HabitStreakSummary } from "@/components/habits/HabitStreakSummary";
 import { HabitsHeader } from "@/components/habits/HabitsHeader";
 import { HabitsMonthGrid, isoForToggle } from "@/components/habits/HabitsMonthGrid";
 import { toast } from "@/hooks/use-toast";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 import { formatSupabaseError as getErrorMessage } from "@/lib/supabase/errors";
 import {
   countTotalCompletions,
@@ -46,6 +48,7 @@ import { buildCompletionSet, completionKey, computeMonthStats } from "@/lib/habi
 
 export default function HabitsPage() {
   const { user, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [yearMonth, setYearMonth] = useState(() => yearMonthFromDate());
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [completionSet, setCompletionSet] = useState<Set<string>>(new Set());
@@ -246,13 +249,15 @@ export default function HabitsPage() {
           : null;
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-safe-24">
-      <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
+    <div className={hubShellPageRoot(showHubShell, "min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-safe-24")}>
+      <header className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
+        {!showHubShell && (
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="w-5 h-5" />
           </Link>
         </Button>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold tracking-tight">Habits</h1>
           <p className="text-xs text-muted-foreground">Rings · streaks · awards</p>
@@ -263,7 +268,7 @@ export default function HabitsPage() {
         </Button>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-4 space-y-4">
+      <div className={hubShellScrollMain(showHubShell, "max-w-4xl mx-auto px-4 py-4 space-y-4")}>
         {busy ? (
           <div className="flex justify-center py-16 text-muted-foreground gap-2 items-center">
             <Loader2 className="w-5 h-5 animate-spin" />

@@ -76,6 +76,28 @@ describe("ArtifactMobileInsightExplorePanel", () => {
     expect(container.querySelector("section")?.className).toMatch(/h-full/);
   });
 
+  it("shows Next when another claim follows", () => {
+    const onNext = vi.fn();
+    render(
+      <MemoryRouter>
+        <TooltipProvider>
+          <ArtifactMobileInsightExplorePanel
+            claim={claim}
+            claimIndex={1}
+            claimCardContext={{ ...claimCardContext, isDesktop: true }}
+            onBack={vi.fn()}
+            onNext={onNext}
+            nextClaimNumber={3}
+          />
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    const nextButton = screen.getByRole("button", { name: "Go to claim 3" });
+    fireEvent.click(nextButton);
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
   it("shows claim actions below the header on desktop", () => {
     render(
       <MemoryRouter>

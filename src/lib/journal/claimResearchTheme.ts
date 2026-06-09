@@ -13,7 +13,7 @@ export const geminiSparkleIcon =
 
 /** User turn — subtle pill, not a loud gradient bubble. */
 export const geminiUserTurn =
-  "max-w-[min(100%,85%)] whitespace-pre-wrap rounded-[24px] bg-muted/50 px-4 py-2.5 text-[15px] leading-relaxed text-foreground " +
+  "max-w-[min(100%,85%)] whitespace-pre-wrap rounded-[18px] bg-muted/50 px-2.5 py-1 text-[11px] leading-snug text-foreground " +
   "dark:bg-muted/30";
 
 /** Gemini multi-line composer: textarea grows on top, toolbar row below. */
@@ -21,8 +21,4 @@ export const geminiInputShell =
   "flex flex-col rounded-[28px] border border-[#dde3ea] bg-[#f0f4f9] px-1.5 pt-1.5 pb-1 " +
   "shadow-[0_1px_3px_rgba(60,64,67,0.08),0_4px_16px_rgba(60,64,67,0.06)] " +
   "dark:border-border/50 dark:bg-muted/30 dark:shadow-[0_1px_3px_rgba(0,0,0,0.3)]";
-
-export const geminiChip =
-  "shrink-0 rounded-full border-0 bg-muted/40 px-3.5 py-2 text-[13px] font-normal text-muted-foreground " +
-  "transition-colors hover:bg-muted/70 hover:text-foreground disabled:opacity-50";
 

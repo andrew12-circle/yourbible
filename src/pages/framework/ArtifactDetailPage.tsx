@@ -1290,6 +1290,7 @@ export default function ArtifactDetailPage() {
       claims={claims}
       claimCardContext={claimCardContext}
       onBack={closeMobileInsightExplore}
+      onSelectClaim={openMobileInsightExplore}
     />
   );
 
@@ -1558,6 +1559,7 @@ export default function ArtifactDetailPage() {
             claims={claims}
             claimCardContext={claimCardContext}
             onBack={closeDesktopInsightExplore}
+            onSelectClaim={openDesktopInsightExplore}
           />
         ) : (
           <ArtifactDesktopOverview

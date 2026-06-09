@@ -73,7 +73,7 @@ export type ClaimResearchBarProps = {
   verdictBusy?: boolean;
   lastResearchedLabel?: string | null;
   showResearchPack?: boolean;
-  /** When false, verdicts render in ClaimResearchVerdictDock instead. */
+  /** When false, verdicts are available from the composer + menu instead. */
   showInlineVerdicts?: boolean;
   onResearchPack?: () => void;
   onRefreshBrief?: () => void;

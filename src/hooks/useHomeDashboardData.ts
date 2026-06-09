@@ -72,7 +72,15 @@ export function useHomeDashboardData() {
     startOfDay.setHours(0, 0, 0, 0);
     (async () => {
       try {
-      const [{ data: prompts }, { data: past }, { data: beliefs }, { data: tensions }, { data: chats }, { data: arts }, { data: jToday }] = await Promise.all([
+      const [
+        { data: prompts },
+        { data: past },
+        { count: beliefsCount },
+        { count: tensionsCount },
+        { count: chatsCount },
+        { count: artsCount },
+        { count: jTodayCount },
+      ] = await Promise.all([
         supabase.from("journal_prompts").select("id,text").limit(500),
         supabase
           .from("journal_entries")
@@ -105,11 +113,11 @@ export function useHomeDashboardData() {
         return dt.getMonth() === m && dt.getDate() === d;
       }).length);
       setCounts({
-        beliefs: (beliefs as unknown as { count?: number })?.count ?? 0,
-        tensions: (tensions as unknown as { count?: number })?.count ?? 0,
-        chats: (chats as unknown as { count?: number })?.count ?? 0,
-        artifacts: (arts as unknown as { count?: number })?.count ?? 0,
-        journalToday: (jToday as unknown as { count?: number })?.count ?? 0,
+        beliefs: beliefsCount ?? 0,
+        tensions: tensionsCount ?? 0,
+        chats: chatsCount ?? 0,
+        artifacts: artsCount ?? 0,
+        journalToday: jTodayCount ?? 0,
       });
       } catch {
         // Keep last-known counts; dashboard widgets still render.

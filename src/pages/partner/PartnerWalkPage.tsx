@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, HeartHandshake, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 
 type Conn = {
   id: string;
@@ -37,6 +39,7 @@ function partnerId(c: Conn, me: string): string {
 
 export default function PartnerWalkPage() {
   const { user, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [ready, setReady] = useState(false);
   const [conns, setConns] = useState<Conn[]>([]);
   const [peers, setPeers] = useState<PeerRow[]>([]);
@@ -106,8 +109,8 @@ export default function PartnerWalkPage() {
 
   if (conns.length === 0) {
     return (
-      <div className="min-h-screen app-mesh pb-safe-16">
-        <div className="max-w-lg mx-auto px-5 pt-10 space-y-6">
+      <div className={hubShellPageRoot(showHubShell, "min-h-screen app-mesh pb-safe-16")}>
+        <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-10 space-y-6")}>
           <div className="text-center space-y-2">
             <HeartHandshake className="w-10 h-10 mx-auto text-rose-400" />
             <h1 className="font-display text-2xl text-leather">Walking together</h1>
@@ -125,8 +128,8 @@ export default function PartnerWalkPage() {
   }
 
   return (
-    <div className="min-h-screen app-mesh pb-safe-20">
-      <div className="max-w-lg mx-auto px-5 pt-8 space-y-6">
+    <div className={hubShellPageRoot(showHubShell, "min-h-screen app-mesh pb-safe-20")}>
+      <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-8 space-y-6")}>
         {conns.map((c) => {
           const peer = peerByConn.get(c.id);
           const sum = summaries[c.id];

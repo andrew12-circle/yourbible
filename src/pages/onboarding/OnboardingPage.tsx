@@ -7,6 +7,7 @@ import { LeatherCoverCard } from "@/components/bible/LeatherCoverCard";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Brain, Check, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { APP_NAME } from "@/lib/appBrand";
 
 const STEPS = 3;
 
@@ -67,7 +68,7 @@ export default function OnboardingPage() {
         });
         return;
       }
-      toast({ title: "You're all set", description: "Sacred & Modern is ready whenever you are." });
+      toast({ title: "You're all set", description: `${APP_NAME} is ready whenever you are.` });
       navigate("/home", { replace: true });
     } finally {
       setBusy(false);
@@ -97,7 +98,7 @@ export default function OnboardingPage() {
               transition={{ duration: 0.4 }}
             >
               <p className="text-center text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">Welcome</p>
-              <h2 className="font-display text-3xl text-leather text-center mb-2">Sacred & Modern</h2>
+              <h2 className="font-display text-3xl text-leather text-center mb-2">{APP_NAME}</h2>
               <p className="text-center text-muted-foreground text-sm mb-8 max-w-md mx-auto leading-relaxed">
                 Scripture, journaling, and a framework for your faith — one home for the sacred and the everyday.
               </p>
@@ -213,7 +214,7 @@ export default function OnboardingPage() {
               <div className="flex justify-between mt-8">
                 <Button variant="ghost" type="button" onClick={() => setStep(1)}>Back</Button>
                 <Button type="button" disabled={busy} onClick={finish} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
-                  {busy ? "Setting up…" : "Enter Sacred & Modern"}
+                  {busy ? "Setting up…" : `Enter ${APP_NAME}`}
                 </Button>
               </div>
             </motion.div>

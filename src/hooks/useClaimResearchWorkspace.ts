@@ -63,6 +63,15 @@ function readPackWebDefault(): boolean {
   return localStorage.getItem(LS_PACK_WEB) === "1";
 }
 
+function claimResearchChatBodyExtras(packUseWeb: boolean) {
+  return {
+    claim_research: { use_web: packUseWeb },
+    response_depth: packUseWeb
+      ? ("deep" as const)
+      : readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+  };
+}
+
 const claimChatSessionPromises = new Map<string, Promise<{ entryId: string; chatId: string }>>();
 
 function sessionKey(userId: string, claimId: string) {
@@ -277,7 +286,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           journal_bootstrap_artifact_claim_id: research.claimId,
           journal_bootstrap_transcript_excerpt: research.transcriptExcerpt ?? null,
           include_general_knowledge: includeGeneral,
-          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          ...claimResearchChatBodyExtras(packUseWeb),
           artifact_claim_id: research.claimId,
         },
       });
@@ -288,7 +297,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
       }
       await loadMessages(cId);
     },
-    [research.claimId, research.transcriptExcerpt, includeGeneral, loadMessages],
+    [research.claimId, research.transcriptExcerpt, includeGeneral, loadMessages, packUseWeb],
   );
 
   useEffect(() => {
@@ -429,7 +438,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           mode: "journal",
           journal_entry_id: entryId,
           include_general_knowledge: includeGeneral,
-          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          ...claimResearchChatBodyExtras(packUseWeb),
           artifact_claim_id: research.claimId,
         },
       });
@@ -472,7 +481,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           mode: "journal",
           journal_entry_id: entryId,
           include_general_knowledge: includeGeneral,
-          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          ...claimResearchChatBodyExtras(packUseWeb),
           artifact_claim_id: research.claimId,
         },
       });

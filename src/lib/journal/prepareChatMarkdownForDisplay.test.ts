@@ -26,4 +26,21 @@ describe("prepareChatMarkdownForDisplay", () => {
     expect(out).not.toContain("journal:");
     expect(out.split("\n\n").length).toBeGreaterThanOrEqual(1);
   });
+
+  it("splits long blocks even when double newlines exist elsewhere", () => {
+    const long =
+      "Sentence one about prayer. Sentence two about grace. Sentence three about ministry. Sentence four about tradition. Sentence five about history. Sentence six wraps up.";
+    const raw = `Short intro.\n\n${long}`;
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out.startsWith("Short intro.")).toBe(true);
+    expect(out.split("\n\n").length).toBeGreaterThan(2);
+  });
+
+  it("breaks before transition phrases", () => {
+    const raw =
+      "Many teachers hold this view. However, others disagree strongly. Similarly, historians note context.";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toContain("\n\nHowever");
+    expect(out).toContain("\n\nSimilarly");
+  });
 });

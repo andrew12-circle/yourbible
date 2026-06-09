@@ -1,10 +1,29 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+  type ReactNode,
+} from "react";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import type { PassageVerse } from "@/lib/bible/api";
+import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
+import {
+  fontChoiceLabel,
+  LS_FONT_CHOICE_KEY,
+  normalizeFontChoice,
+  pageTypoClass,
+  readerScriptureTypographyStyle,
+  scriptureFontFamily,
+  type FontChoiceId,
+} from "@/lib/bible/fontChoices";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
@@ -56,21 +75,18 @@ import { computeReaderLayoutFingerprint } from "@/lib/ink/layoutFingerprint";
 import { clearReaderInkChapter } from "@/lib/ink/readerInkChapterClear";
 import { INK_PEN_COLORS, INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import type { InkTool } from "@/lib/ink/types";
+import {
+  areSameSplits,
+  isPageSplitsReady,
+  pageCountFromSplits,
+  pageVerseSlice,
+} from "@/lib/bible/pageSplits";
 
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
-const PAGE_TYPO_BASE = "text-[14px] sm:text-[14.5px] leading-[1.5] ink-text";
-function pageTypoClass(fontChoice: string | undefined) {
-  if (fontChoice === "sans") return `font-sans ${PAGE_TYPO_BASE}`;
-  if (fontChoice === "sf") {
-    // Inline SF stack via font-system class added in index.css; fall back to
-    // a plain class so the user clearly gets Apple's typeface here.
-    return `font-system ${PAGE_TYPO_BASE}`;
-  }
-  return `font-scripture ${PAGE_TYPO_BASE}`;
-}
-// Single-column reading flow — feels like a natural book page on any screen.
 const COLUMN_CLASS = "";
+/** Approximate chapter title block above the first page article (px). */
+const CHAPTER_HEADER_RESERVE_PX = 96;
 
 const PAGE_MARGIN_OUTER = "clamp(1.125rem, 4vmin, 2.25rem)";
 /** Gutter toward spine / center — extra room on desktop spreads. */
@@ -101,7 +117,7 @@ function markerVariant(book: string, chapter: number, verse: number): number {
 }
 
 export default function ReaderPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -186,6 +202,41 @@ export default function ReaderPage() {
     setFontScale(clamped);
     localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
   };
+  const [fontChoice, setFontChoice] = useState<FontChoiceId>(() =>
+    normalizeFontChoice(
+      typeof window !== "undefined"
+        ? localStorage.getItem(LS_FONT_CHOICE_KEY) ?? profile?.font_choice
+        : profile?.font_choice,
+    ),
+  );
+
+  useEffect(() => {
+    if (!profile?.font_choice) return;
+    const stored = localStorage.getItem(LS_FONT_CHOICE_KEY);
+    if (stored) return;
+    const next = normalizeFontChoice(profile.font_choice);
+    setFontChoice(next);
+    localStorage.setItem(LS_FONT_CHOICE_KEY, next);
+  }, [profile?.font_choice]);
+
+  const updateFontChoice = useCallback(async (choice: FontChoiceId) => {
+    if (choice === fontChoice) return;
+    setFontChoice(choice);
+    localStorage.setItem(LS_FONT_CHOICE_KEY, choice);
+    const { error } = await updateProfile({ font_choice: choice });
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Couldn't save font",
+        description: error.message,
+      });
+      return;
+    }
+    toast({
+      title: "Scripture font updated",
+      description: fontChoiceLabel(choice),
+    });
+  }, [fontChoice, updateProfile]);
 
   const readerSpread = useReaderSpread();
   const compactChrome = useReaderCompactChrome();
@@ -286,6 +337,7 @@ export default function ReaderPage() {
   // exactly what the reader sees on any screen size. The page surface
   // registers itself via the ref callback below.
   const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [firstPageHeight, setFirstPageHeight] = useState(0);
   const layoutFingerprint = useMemo(
     () =>
       computeReaderLayoutFingerprint({
@@ -302,7 +354,13 @@ export default function ReaderPage() {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
   const articleRoRef = useRef<ResizeObserver | null>(null);
-  const articleElRef = useRef<HTMLElement | null>(null);
+  const measureRafRef = useRef<number | null>(null);
+  const articleElsRef = useRef<{ first: HTMLElement | null; rest: HTMLElement | null }>({
+    first: null,
+    rest: null,
+  });
+  const measureFirstRef = useRef<(el: HTMLElement | null) => void>(() => {});
+  const measureRestRef = useRef<(el: HTMLElement | null) => void>(() => {});
   const flipLockUntil = useRef(0);
   const PAGE_BOX_QUANT = 12;
   const quantizePageBox = useCallback((width: number, height: number) => {
@@ -310,37 +368,79 @@ export default function ReaderPage() {
     const h = Math.round(height / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
     return { w, h };
   }, []);
-  const measureArticle = useCallback((el: HTMLElement | null) => {
+  const syncPageMeasurements = useCallback(() => {
+    if (performance.now() < flipLockUntil.current) return;
+    const firstEl = articleElsRef.current.first;
+    const restEl = articleElsRef.current.rest;
+    const nextFirst = firstEl
+      ? quantizePageBox(firstEl.clientWidth, firstEl.clientHeight).h
+      : 0;
+    const restBox = restEl
+      ? quantizePageBox(restEl.clientWidth, restEl.clientHeight)
+      : null;
+    if (nextFirst > 0) {
+      setFirstPageHeight((prev) => (prev === nextFirst ? prev : nextFirst));
+    }
+    if (restBox && restBox.w > 0 && restBox.h > 0) {
+      setPageBox((prev) =>
+        prev.w === restBox.w && prev.h === restBox.h ? prev : restBox,
+      );
+    } else if (firstEl) {
+      // Portrait single-page: only the first (header) page is visible at chapter
+      // start, so rest never mounts — still capture width so Paginator can run.
+      const firstBox = quantizePageBox(firstEl.clientWidth, firstEl.clientHeight);
+      if (firstBox.w > 0) {
+        setPageBox((prev) =>
+          prev.w === firstBox.w ? prev : { w: firstBox.w, h: prev.h },
+        );
+      }
+    }
+  }, [quantizePageBox]);
+  const scheduleSyncPageMeasurements = useCallback(() => {
+    if (measureRafRef.current != null) return;
+    measureRafRef.current = requestAnimationFrame(() => {
+      measureRafRef.current = null;
+      syncPageMeasurements();
+    });
+  }, [syncPageMeasurements]);
+  const attachArticleObservers = useCallback(() => {
     if (articleRoRef.current) {
       articleRoRef.current.disconnect();
       articleRoRef.current = null;
     }
-    articleElRef.current = el;
-    if (!el) return;
-    const recompute = () => {
-      if (performance.now() < flipLockUntil.current) return;
-      const next = quantizePageBox(el.clientWidth, el.clientHeight);
-      setPageBox((prev) =>
-        prev.w === next.w && prev.h === next.h ? prev : next,
-      );
-    };
-    const ro = new ResizeObserver(recompute);
-    ro.observe(el);
-    if (el.parentElement) ro.observe(el.parentElement);
+    const { first, rest } = articleElsRef.current;
+    if (!first && !rest) return;
+    const ro = new ResizeObserver(() => scheduleSyncPageMeasurements());
+    if (first) {
+      ro.observe(first);
+      if (first.parentElement) ro.observe(first.parentElement);
+    }
+    if (rest) {
+      ro.observe(rest);
+      if (rest.parentElement) ro.observe(rest.parentElement);
+    }
     articleRoRef.current = ro;
-    recompute();
-  }, [quantizePageBox]);
+    scheduleSyncPageMeasurements();
+  }, [scheduleSyncPageMeasurements]);
+  const bindArticleMeasure = useCallback(
+    (role: "first" | "rest") => (el: HTMLElement | null) => {
+      if (articleElsRef.current[role] === el) return;
+      articleElsRef.current[role] = el;
+      attachArticleObservers();
+    },
+    [attachArticleObservers],
+  );
+  measureFirstRef.current = bindArticleMeasure("first");
+  measureRestRef.current = bindArticleMeasure("rest");
+  const onMeasureFirstRef = useCallback((el: HTMLElement | null) => {
+    measureFirstRef.current(el);
+  }, []);
+  const onMeasureRestRef = useCallback((el: HTMLElement | null) => {
+    measureRestRef.current(el);
+  }, []);
   // Recompute on viewport changes too (orientation/resize/zoom).
   useEffect(() => {
-    const onResize = () => {
-      if (performance.now() < flipLockUntil.current) return;
-      const el = articleElRef.current;
-      if (!el) return;
-      const next = quantizePageBox(el.clientWidth, el.clientHeight);
-      setPageBox((prev) =>
-        prev.w === next.w && prev.h === next.h ? prev : next,
-      );
-    };
+    const onResize = () => scheduleSyncPageMeasurements();
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
     const vv = window.visualViewport;
@@ -349,14 +449,53 @@ export default function ReaderPage() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
       vv?.removeEventListener("resize", onResize);
+      if (measureRafRef.current != null) {
+        cancelAnimationFrame(measureRafRef.current);
+        measureRafRef.current = null;
+      }
     };
-  }, [quantizePageBox]);
+  }, [scheduleSyncPageMeasurements]);
 
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
-  // Reset when chapter / size changes
-  useEffect(() => { setSplits([0]); }, [book.abbr, chapter, pageBox.w, pageBox.h, readerSpread, fontScale]);
+  const handleSplitsChange = useCallback((next: number[]) => {
+    setSplits((prev) => (areSameSplits(prev, next) ? prev : next));
+  }, []);
+  // Reset splits when chapter / typography changes; keep measured page box so
+  // Paginator stays mounted and the article shell does not unmount/remount.
+  useEffect(() => {
+    setSplits([0]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice]);
+  useLayoutEffect(() => {
+    articleElsRef.current = { first: null, rest: null };
+    articleRoRef.current?.disconnect();
+    articleRoRef.current = null;
+  }, [book.abbr, chapter]);
   const verses = passage?.verses ?? [];
+  const paginatorParagraphStarts = useMemo(
+    () => passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : []),
+    [passage?.paragraphStarts, verses],
+  );
+  const paginatorHeadings = useMemo(
+    () => passage?.headings ?? [],
+    [passage?.headings],
+  );
+  const paginatorFontStyle = useMemo(
+    () => ({
+      ...readerScriptureTypographyStyle(fontChoice, fontScale),
+      ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
+    }),
+    [fontChoice, fontScale],
+  );
+  const paragraphStarts = useMemo(
+    () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
+    [passage?.paragraphStarts, verses],
+  );
+  const headingByVerse = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const h of passage?.headings ?? []) m.set(h.beforeVerse, h.text);
+    return m;
+  }, [passage?.headings]);
   const verseLengths = useMemo(() => {
     const m = new Map<number, number>();
     for (const v of verses) m.set(v.number, v.text.length);
@@ -366,7 +505,8 @@ export default function ReaderPage() {
     activeHighlightColor ||
     getPalette(profile?.highlight_palette ?? "classic").colors[0]?.cssVar ||
     "--hl-amber";
-  const totalPagesInChapter = Math.max(1, splits.length - 1);
+  const totalPagesInChapter = pageCountFromSplits(splits, verses.length);
+  const splitsReady = isPageSplitsReady(splits, verses.length);
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
   // quotes (an opener in v.5, closer in v.8) carry red text across verses.
@@ -403,7 +543,7 @@ export default function ReaderPage() {
   }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
-    if (pendingVerse == null || splits.length <= 1) return;
+    if (pendingVerse == null || !splitsReady) return;
     // splits[i] is the index of the first verse on page i. Find the largest i
     // such that splits[i] < pendingVerse (verses are 1-indexed, splits 0-indexed).
     let target = 0;
@@ -415,13 +555,13 @@ export default function ReaderPage() {
     if (readerSpread && target % 2 === 1) target -= 1;
     setChapterPage(Math.max(0, target));
     setPendingVerse(null);
-  }, [pendingVerse, splits, readerSpread]);
+  }, [pendingVerse, splits, splitsReady, readerSpread]);
 
   // Spread shows two consecutive pages; portrait mobile shows one page per turn.
   const pagesPerTurn = readerSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
-    flipLockUntil.current = performance.now() + 280;
+    flipLockUntil.current = performance.now() + 420;
     const sel = window.getSelection();
     if (sel) sel.removeAllRanges();
     tbSelRef.current = null;
@@ -440,7 +580,7 @@ export default function ReaderPage() {
       if (chapter < book.chapters) navigate(`/read/${book.abbr}/${chapter + 1}`);
       else if (nextIdx < BOOKS.length) navigate(`/read/${BOOKS[nextIdx].abbr}/1`);
     } else {
-      setChapterPage(next);
+      startTransition(() => setChapterPage(next));
     }
   };
 
@@ -585,10 +725,7 @@ export default function ReaderPage() {
     }
   }, [tbSel]);
 
-  const mobileSide: "left" | "right" = chapterPage % 2 === 0 ? "left" : "right";
-  const defaultInkLayerId = readerSpread
-    ? `${book.abbr}-${chapter}-${chapterPage}-left`
-    : `${book.abbr}-${chapter}-${chapterPage}-${mobileSide}`;
+  const defaultInkLayerId = `${book.abbr}-${chapter}-${chapterPage}-left`;
   const focusedInkLayerId = activeInkLayerId ?? defaultInkLayerId;
   const focusedInkLayerIdRef = useRef(focusedInkLayerId);
   focusedInkLayerIdRef.current = focusedInkLayerId;
@@ -796,18 +933,19 @@ export default function ReaderPage() {
   };
 
   // Header for first page of chapter
+  const chapterHeaderFont = scriptureFontFamily(fontChoice);
   const ChapterHeader = (
-    <div className="text-center mb-6">
+    <div className="text-center mb-6" style={{ fontFamily: chapterHeaderFont }}>
       <motion.h1
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="font-display text-2xl sm:text-3xl ink-text mb-1"
+        className="text-2xl sm:text-3xl ink-text mb-1 font-semibold tracking-tight"
       >
         {book.name}
       </motion.h1>
       <div className="flex items-center justify-center gap-3 text-muted-foreground">
         <span className="h-px w-8 bg-gradient-to-r from-transparent to-gold/40" />
-        <span className="font-display text-[11px] uppercase tracking-[0.3em]">Chapter {chapter}</span>
+        <span className="text-[11px] uppercase tracking-[0.3em] font-medium">Chapter {chapter}</span>
         <span className="h-px w-8 bg-gradient-to-l from-transparent to-gold/40" />
       </div>
     </div>
@@ -913,9 +1051,15 @@ export default function ReaderPage() {
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const isFirst = pageIdx === 0;
-    const start = splits[pageIdx] ?? 0;
-    const end = splits[pageIdx + 1] ?? verses.length;
-    const slice = verses.slice(start, end);
+    const slice = pageVerseSlice(splits, pageIdx, verses);
+    const measuresFirstPage = pageIdx === 0 && side === "left" && chapterPage === 0;
+    const isCurrentLeftPage =
+      side === "left" && pageIdx === (readerSpread ? chapterPage : chapterPage);
+    const isOpeningRightPage =
+      readerSpread && chapterPage === 0 && pageIdx === 1 && side === "right";
+    const measuresRestPage =
+      isOpeningRightPage ||
+      (isCurrentLeftPage && !(chapterPage === 0 && pageIdx === 0));
     // Compute global page number across the canon (very approximate)
     const globalPage = chaptersBefore + chapter; // good enough for footer
     const inkLayerId = `${book.abbr}-${chapter}-${pageIdx}-${side}`;
@@ -953,20 +1097,56 @@ export default function ReaderPage() {
             className="relative flex flex-1 min-h-0 min-w-0"
           >
             <article
-              ref={pageIdx === leftIdx && side === (readerSpread ? "left" : mobileSide) ? measureArticle : undefined}
+              ref={
+                measuresFirstPage
+                  ? onMeasureFirstRef
+                  : measuresRestPage
+                    ? onMeasureRestRef
+                    : undefined
+              }
               data-reading-area
-              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(profile?.font_choice)} ${COLUMN_CLASS} ${
+              aria-busy={!slice}
+              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
                 inkMode ? "!select-none" : "selectable-text"
               }`}
-              style={{ fontSize: `${fontScale}em` }}
+              style={{
+                ...readerScriptureTypographyStyle(fontChoice, fontScale),
+                ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
+              }}
             >
-              <p className="text-justify hyphens-auto" style={{ orphans: 2, widows: 2 }}>
-                {slice.map(renderVerse)}
-              </p>
+              {!slice ? (
+                <div className="h-full w-full" aria-hidden />
+              ) : (
+                groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
+                const nodes: ReactNode[] = [];
+                const first = group.verses[0]?.number;
+                const heading = first != null ? headingByVerse.get(first) : undefined;
+                if (heading) {
+                  nodes.push(
+                    <p key={`h-${first}`} className="scripture-heading">
+                      {heading}
+                    </p>,
+                  );
+                }
+                nodes.push(
+                  <p
+                    key={`p-${first}`}
+                    className={cn(
+                      "scripture-paragraph text-justify hyphens-auto",
+                      group.isContinuation && "scripture-paragraph-continue",
+                    )}
+                    style={{ orphans: 2, widows: 2 }}
+                  >
+                    {group.verses.map(renderVerse)}
+                  </p>,
+                );
+                return nodes;
+              })
+              )}
             </article>
           </div>
         )}
-        {!loadingPassage ? (
+        {!loadingPassage && slice ? (
           <ReaderInkLayer
             layerId={inkLayerId}
             interactive={inkMode}
@@ -1028,6 +1208,14 @@ export default function ReaderPage() {
   // Determine left & right page indices
   const leftIdx = chapterPage;
   const rightIdx = readerSpread ? chapterPage + 1 : chapterPage;
+  const subsequentPageHeight =
+    pageBox.h > 0
+      ? pageBox.h
+      : firstPageHeight > 0
+        ? firstPageHeight + CHAPTER_HEADER_RESERVE_PX
+        : 0;
+  const paginatorFirstPageHeight =
+    firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
 
   return (
     <div
@@ -1072,6 +1260,8 @@ export default function ReaderPage() {
         }}
         fontScale={fontScale}
         onFontScaleChange={updateFontScale}
+        fontChoice={fontChoice}
+        onFontChoiceChange={(choice) => void updateFontChoice(choice)}
         singlePage={compactChrome}
         settingsOpenRequest={settingsOpenRequest}
         inkMode={inkMode}
@@ -1112,7 +1302,7 @@ export default function ReaderPage() {
         progress={progress}
         singlePage={!readerSpread}
         tabletPortrait={tabletPortrait}
-        pageSide={mobileSide}
+        pageSide="left"
         ribbons={
           focusMode ? null : (
             <Ribbons
@@ -1127,20 +1317,33 @@ export default function ReaderPage() {
         leftPage={
           <SwipePage side="left" onTurn={goPage} inkMode={inkMode}>
             <PageFlip
-              pageKey={`L-${book.abbr}-${chapter}-${leftIdx}`}
+              pageKey={
+                readerSpread
+                  ? `L-${book.abbr}-${chapter}-${leftIdx}`
+                  : `P-${book.abbr}-${chapter}-${chapterPage}`
+              }
               direction={flipDirection}
               side="left"
+              enableSlide={!readerSpread}
             >
-              {renderPageSurface(leftIdx, "left")}
+              {renderPageSurface(readerSpread ? leftIdx : chapterPage, "left")}
             </PageFlip>
           </SwipePage>
         }
         rightPage={
-          <SwipePage side={readerSpread ? "right" : "left"} onTurn={goPage} inkMode={inkMode}>
-            <PageFlip pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`} direction={flipDirection} side={readerSpread ? "right" : "left"}>
-              {renderPageSurface(rightIdx, readerSpread ? "right" : "left")}
-            </PageFlip>
-          </SwipePage>
+          readerSpread ? (
+            <SwipePage side="right" onTurn={goPage} inkMode={inkMode}>
+              <PageFlip
+                pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`}
+                direction={flipDirection}
+                side="right"
+              >
+                {renderPageSurface(rightIdx, "right")}
+              </PageFlip>
+            </SwipePage>
+          ) : (
+            <div className="h-full w-full" aria-hidden />
+          )
         }
       />
 
@@ -1157,21 +1360,22 @@ export default function ReaderPage() {
       />
 
       {/* Headless paginator — measures and reports splits */}
-      {pageBox.w > 0 && pageBox.h > 0 && verses.length > 0 && (
+      {pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && (
         <Paginator
           verses={verses}
+          paragraphStarts={paginatorParagraphStarts}
+          headings={paginatorHeadings}
           bookAbbr={book.abbr}
           chapter={chapter}
-          // pageBox is measured directly from the live page — width is the
-          // real text column, height is from the article's top to the footer.
+          // pageBox is measured from pages without the chapter header block.
           pageWidth={Math.max(180, pageBox.w)}
-          pageHeight={Math.max(180, pageBox.h)}
-          className={pageTypoClass(profile?.font_choice)}
+          pageHeight={Math.max(180, subsequentPageHeight)}
+          firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
+          className={pageTypoClass(fontChoice)}
+          fontSizeStyle={paginatorFontStyle}
           columnsClassName={COLUMN_CLASS}
-          header={ChapterHeader}
           footerHeight={0}
-          fontSizeStyle={{ fontSize: `${fontScale}em` }}
-          onSplitsChange={setSplits}
+          onSplitsChange={handleSplitsChange}
         />
       )}
 

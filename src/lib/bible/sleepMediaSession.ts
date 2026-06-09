@@ -1,3 +1,5 @@
+import { APP_NAME } from "@/lib/appBrand";
+
 export interface SleepMediaSessionTrack {
   title: string;
   subtitle: string;
@@ -63,7 +65,7 @@ export function updateSleepMediaSession(
   }
   ms.metadata = new MediaMetadata({
     title: track.title,
-    artist: track.artist ?? "Sacred & Modern · Sleep",
+    artist: track.artist ?? `${APP_NAME} · Sleep`,
     album: track.subtitle,
   });
 }

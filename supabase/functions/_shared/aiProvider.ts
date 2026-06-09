@@ -164,6 +164,68 @@ export function getOpenAiChatModel(): string {
   return m || DEFAULT_OPENAI_CHAT_MODEL;
 }
 
+export function getOpenAiWebChatModel(): string {
+  const m = Deno.env.get("OPENAI_WEB_CHAT_MODEL")?.trim();
+  return m || getOpenAiChatModel();
+}
+
+/** OpenAI Responses API with hosted web_search — ChatGPT-style browsing on your key. */
+export async function callOpenAiWebResearchChat(
+  instructions: string,
+  input: string,
+  maxOutputTokens = 8192,
+): Promise<ChatCallResult> {
+  const apiKey = openAiApiKey();
+  if (!apiKey) return { rawText: "", ok: false, err: "OPENAI_API_KEY is not configured." };
+
+  const model = getOpenAiWebChatModel();
+  const searchContextSize = Deno.env.get("OPENAI_WEB_SEARCH_CONTEXT")?.trim() || "medium";
+  const started = Date.now();
+  const inputChars = instructions.length + input.length;
+
+  const res = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      instructions,
+      input,
+      tools: [{ type: "web_search", search_context_size: searchContextSize }],
+      tool_choice: "required",
+      max_output_tokens: maxOutputTokens,
+    }),
+  });
+
+  const body: unknown = await res.json().catch(() => null);
+  const rawText = extractOpenAiResponsesText(body);
+  const usage = parseOpenAiUsage(body);
+  logAiUsage({
+    operation: "chat_web_search",
+    provider: "openai",
+    model,
+    status: res.ok && rawText ? "ok" : "error",
+    httpStatus: res.status,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    inputChars,
+    outputChars: rawText.length,
+    durationMs: Date.now() - started,
+  });
+
+  if (!res.ok) {
+    const errText = JSON.stringify(body).slice(0, 500);
+    return { rawText: "", ok: false, err: `OpenAI web search failed (${res.status}): ${errText}` };
+  }
+  if (!rawText) {
+    return { rawText: "", ok: false, err: "OpenAI web search returned empty text." };
+  }
+  return { rawText, ok: true };
+}
+
 export type ChatConfig =
   | { provider: AiProvider; apiKey: string; chatModel: string }
   | { error: string };
@@ -213,6 +275,27 @@ function extractOpenAiText(data: unknown): string {
   const message = first.message;
   if (!isRecord(message)) return "";
   return typeof message.content === "string" ? message.content.trim() : "";
+}
+
+function extractOpenAiResponsesText(data: unknown): string {
+  if (!isRecord(data)) return "";
+  const outputText = data.output_text;
+  if (typeof outputText === "string" && outputText.trim()) return outputText.trim();
+  const output = data.output;
+  if (!Array.isArray(output)) return "";
+  const parts: string[] = [];
+  for (const item of output) {
+    if (!isRecord(item) || item.type !== "message") continue;
+    const content = item.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (!isRecord(block)) continue;
+      if (block.type === "output_text" && typeof block.text === "string" && block.text.trim()) {
+        parts.push(block.text.trim());
+      }
+    }
+  }
+  return parts.join("\n\n").trim();
 }
 
 async function callGeminiJson(

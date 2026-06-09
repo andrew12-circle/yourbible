@@ -8,7 +8,6 @@ import type { FloatingClaimResearchHandoff } from "@/lib/journal/floatingJournal
 import { useClaimResearchWorkspace } from "@/hooks/useClaimResearchWorkspace";
 import ClaimResearchHeader from "@/components/journal/ClaimResearchHeader";
 import ClaimResearchComposer from "@/components/journal/ClaimResearchComposer";
-import ClaimResearchVerdictDock from "@/components/journal/ClaimResearchVerdictDock";
 import ResearchPackView from "@/components/journal/ResearchPackView";
 import ResearchAssistantBubble from "@/components/journal/ResearchAssistantBubble";
 import BeliefUpdateFromClaimDialog from "@/components/framework/BeliefUpdateFromClaimDialog";
@@ -38,7 +37,7 @@ function BriefSkeleton() {
 
 function TypingIndicator() {
   return (
-    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 py-1.5 text-[10px] text-muted-foreground">
       <span className="inline-flex gap-1" aria-hidden>
         {[0, 1, 2].map((i) => (
           <span
@@ -120,12 +119,12 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
               <ResearchAssistantBubble variant="brief">{ws.briefSummary!}</ResearchAssistantBubble>
             ) : null}
             {!showBriefSkeleton && !showBriefContent ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-[10px] leading-snug text-muted-foreground">
                 A multi-source summary will appear here — Scripture, history, and three voices.
               </p>
             ) : null}
             {ws.webStatusLabel && showBriefContent ? (
-              <p className="mt-3 text-xs text-muted-foreground/80">{ws.webStatusLabel}</p>
+              <p className="mt-2 text-[10px] text-muted-foreground/80">{ws.webStatusLabel}</p>
             ) : null}
           </section>
 
@@ -134,7 +133,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
               <div className="flex flex-col items-center gap-4 py-16 text-center">
                 <ResearchGeminiAvatar size="md" />
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Starting your research chat…</p>
+                <p className="text-[10px] text-muted-foreground">Starting your research chat…</p>
               </div>
             ) : (
               <>
@@ -148,7 +147,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
                   ws.messages.length === 0 &&
                   !ws.chatBootstrapping &&
                   !ws.sending && (
-                    <p className="py-8 text-center text-sm leading-relaxed text-muted-foreground">
+                    <p className="py-6 text-center text-[10px] leading-snug text-muted-foreground">
                       Ask anything about this claim — Scripture, your beliefs, or church history.
                     </p>
                   )}
@@ -201,10 +200,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
         chatId={ws.chatId}
         onReflect={ws.reflectToJournal}
         onOpenReport={() => void ws.openFullReport()}
-      />
-
-      <ClaimResearchVerdictDock
-        busy={ws.verdictBusy}
+        verdictBusy={ws.verdictBusy}
         onVerdict={(v) => void ws.applyVerdict(v)}
         onUpdateBelief={
           research.matchedBeliefId ? () => ws.setBeliefUpdateOpen(true) : undefined

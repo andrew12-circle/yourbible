@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/lib/lifePriorities";
 import { LifePrioritiesManageSheet } from "@/components/home/LifePrioritiesPanel";
 import { cn } from "@/lib/utils";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 
 function parseKey(row: LifePriorityRow): string {
   return row.key;
@@ -23,6 +25,7 @@ function parseKey(row: LifePriorityRow): string {
 
 export default function LifePrioritiesPage() {
   const { user, loading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [busy, setBusy] = useState(true);
   const [priorities, setPriorities] = useState<LifePriorityRow[]>([]);
   const [archived, setArchived] = useState<LifePriorityRow[]>([]);
@@ -97,13 +100,15 @@ export default function LifePrioritiesPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen bg-background pb-safe-24">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3">
+    <div className={hubShellPageRoot(showHubShell, "min-h-screen bg-background pb-safe-24")}>
+      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3">
+        {!showHubShell && (
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="w-5 h-5" />
           </Link>
         </Button>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold tracking-tight truncate">Life priorities</h1>
           <p className="text-xs text-muted-foreground truncate">Last 30 days · explicit check-ins only</p>
@@ -113,7 +118,7 @@ export default function LifePrioritiesPage() {
         </Button>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-8">
+      <div className={hubShellScrollMain(showHubShell, "max-w-3xl mx-auto px-4 py-6 space-y-8")}>
         {busy ? (
           <div className="flex justify-center py-16 text-muted-foreground gap-2 items-center">
             <Loader2 className="w-5 h-5 animate-spin" />

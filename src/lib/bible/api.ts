@@ -3,7 +3,29 @@ import { supabase } from "@/integrations/supabase/client";
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 export interface PassageVerse { number: number; text: string; }
-export interface Passage { reference: string; verses: PassageVerse[]; }
+export interface PassageHeading { beforeVerse: number; text: string; }
+export interface Passage {
+  reference: string;
+  verses: PassageVerse[];
+  paragraphStarts: number[];
+  headings: PassageHeading[];
+}
+
+/** Ensure older cached payloads still render with paragraph flow. */
+export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "reference" | "verses">): Passage {
+  const verses = raw.verses ?? [];
+  return {
+    reference: raw.reference,
+    verses,
+    paragraphStarts:
+      raw.paragraphStarts && raw.paragraphStarts.length > 0
+        ? raw.paragraphStarts
+        : verses.length > 0
+          ? [verses[0]!.number]
+          : [],
+    headings: raw.headings ?? [],
+  };
+}
 
 export interface BibleEntry {
   id: string;
@@ -42,7 +64,8 @@ export async function fetchPassage(
     const err = await r.text();
     throw new Error(`passage ${r.status}: ${err}`);
   }
-  return r.json();
+  const json = await r.json();
+  return normalizePassage(json as Passage);
 }
 
 export interface BibleSearchHit {
