@@ -53,6 +53,23 @@ export type LifeWeekIndexResult = {
   currentWeekMonday: number;
 };
 
+export type CurrentWeekDisplay = {
+  /** 1-based week of life (1 … LIFE_WEEKS_TOTAL). */
+  weekNumber: number;
+  /** Completed years since birth (row in the 52-week grid). */
+  ageYear: number;
+  /** 1-based week within the current age year (1 … 52). */
+  weekOfYear: number;
+};
+
+export function getCurrentWeekDisplay(currentWeekIndex: number): CurrentWeekDisplay {
+  return {
+    weekNumber: currentWeekIndex + 1,
+    ageYear: Math.floor(currentWeekIndex / 52),
+    weekOfYear: (currentWeekIndex % 52) + 1,
+  };
+}
+
 /**
  * Maps "today" and birth date to a linear week index in the 6,240-week grid.
  * Birth week is index 0.

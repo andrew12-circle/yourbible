@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -14,10 +14,12 @@ import {
   DEFAULT_LIFE_WEEKS_SETTINGS,
   LIFE_WEEKS_TOTAL,
   type LifePhaseStats,
+  type LifeWeekIndexResult,
   type LifeWeeksSettings,
   computeLifePhaseStats,
   computeLifeWeekIndex,
   formatBirthDateForInput,
+  getCurrentWeekDisplay,
   mergeLifeWeeksSettings,
   parseLifeWeeksSettingsFromLayout,
   parseUtcDateOnly,
@@ -47,6 +49,9 @@ function rowY(r: number): number {
   return r * (CELL + GAP) + Math.floor(r / 10) * DECADE_ROW_GAP;
 }
 
+const GRID_W = MARGIN_LEFT + colX(51) + CELL + 12;
+const GRID_H = MARGIN_TOP + rowY(119) + CELL + 28;
+
 const WEEK_TICKS = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 52] as const;
 const AGE_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120] as const;
 
@@ -74,20 +79,72 @@ function StatPill({ label, value, highlight }: { label: string; value: string; h
   );
 }
 
-function LifeWeeksRemainingHero({ stats }: { stats: LifePhaseStats }) {
+type ZoomMode = "fit" | "now" | 1 | 1.5 | 2 | 3;
+
+function focusedViewBoxForWeek(currentWeekIndex: number): string {
+  const currentRow = Math.floor(currentWeekIndex / 52);
+  const minRow = Math.max(0, currentRow - 2);
+  const maxRow = Math.min(119, currentRow + 5);
+  const y0 = MARGIN_TOP + rowY(minRow) - 14;
+  const y1 = MARGIN_TOP + rowY(maxRow) + CELL + 28;
+  return `0 ${y0} ${GRID_W} ${y1 - y0}`;
+}
+
+function CurrentWeekHero({
+  stats,
+  indexState,
+}: {
+  stats: LifePhaseStats;
+  indexState: LifeWeekIndexResult;
+}) {
   const fmt = (n: number) => n.toLocaleString();
+  const { weekNumber, ageYear, weekOfYear } = getCurrentWeekDisplay(indexState.currentWeekIndex);
+  const weekCol = indexState.currentWeekIndex % 52;
+
   return (
-    <div className="rounded-xl border border-border/60 bg-card px-4 py-4 md:px-5 md:py-5 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Time you have left
-      </p>
-      <p className="mt-1 text-4xl md:text-5xl font-bold tabular-nums tracking-tight text-foreground">
-        {fmt(stats.weeksRemaining)}
-        <span className="ml-2 text-lg md:text-2xl font-semibold text-muted-foreground">weeks</span>
-      </p>
-      <p className="mt-1.5 text-sm text-muted-foreground tabular-nums">
-        {fmt(stats.weeksLived)} lived · {stats.pctOfLifespan.toFixed(1)}% of a full life
-      </p>
+    <div className="rounded-xl border border-primary/30 bg-card px-4 py-4 md:px-5 md:py-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            This week
+          </p>
+          <p className="mt-1 text-4xl md:text-5xl font-bold tabular-nums tracking-tight text-foreground">
+            Week {fmt(weekNumber)}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+            Age {ageYear} · Week {weekOfYear} of 52 · {fmt(LIFE_WEEKS_TOTAL)} total
+          </p>
+        </div>
+        <div className="sm:text-right shrink-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Time left
+          </p>
+          <p className="mt-1 text-2xl md:text-3xl font-bold tabular-nums tracking-tight">
+            {fmt(stats.weeksRemaining)}
+            <span className="ml-1.5 text-sm md:text-base font-semibold text-muted-foreground">weeks</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+            {fmt(stats.weeksLived)} lived · {stats.pctOfLifespan.toFixed(1)}%
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex gap-0.5 w-full" aria-label={`Year ${ageYear}: week ${weekOfYear} of 52`}>
+        {Array.from({ length: 52 }, (_, c) => {
+          const isPast = c < weekCol;
+          const isCurrent = c === weekCol;
+          return (
+            <div
+              key={c}
+              className={cn(
+                "h-2 min-w-0 flex-1 rounded-[2px]",
+                isPast && "bg-foreground",
+                !isPast && !isCurrent && "border border-foreground/35 bg-transparent",
+                isCurrent && "bg-foreground ring-2 ring-primary ring-offset-1 ring-offset-card",
+              )}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -225,13 +282,14 @@ export default function LifeWeeksPage() {
    *  - "fit": preserve aspect ratio, bounded by viewport so the whole poster shows on one screen
    *  - number: explicit zoom multiplier of the SVG's native pixel size, container scrolls
    */
-  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>(showHubShell ? "fit" : 1);
+  const [zoom, setZoom] = useState<ZoomMode>(showHubShell ? "now" : 1);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
   const [showStageSettings, setShowStageSettings] = useState(false);
   const dobMax = todayIsoMax();
 
   const zoomIn = () => {
     setZoom((z) => {
-      if (z === "fit") return 1;
+      if (z === "fit" || z === "now") return 1;
       if (z === 1) return 1.5;
       if (z === 1.5) return 2;
       return 3;
@@ -242,6 +300,7 @@ export default function LifeWeeksPage() {
       if (z === 3) return 2;
       if (z === 2) return 1.5;
       if (z === 1.5) return 1;
+      if (z === 1) return "now";
       return "fit";
     });
   };
@@ -365,8 +424,33 @@ export default function LifeWeeksPage() {
     }
   };
 
-  const gridW = MARGIN_LEFT + colX(51) + CELL + 12;
-  const gridH = MARGIN_TOP + rowY(119) + CELL + 28;
+  const gridW = GRID_W;
+  const gridH = GRID_H;
+
+  const svgViewBox = useMemo(() => {
+    if (zoom === "now" && indexState) return focusedViewBoxForWeek(indexState.currentWeekIndex);
+    return `0 0 ${gridW} ${gridH}`;
+  }, [zoom, indexState, gridW, gridH]);
+
+  const viewBoxSize = useMemo(() => {
+    const parts = svgViewBox.split(/\s+/).map(Number);
+    return { w: parts[2] ?? gridW, h: parts[3] ?? gridH };
+  }, [svgViewBox, gridW, gridH]);
+
+  const boundedGridView = zoom === "fit" || zoom === "now";
+
+  useEffect(() => {
+    if (zoom === "fit" || zoom === "now" || !indexState) return;
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const row = Math.floor(indexState.currentWeekIndex / 52);
+    const col = indexState.currentWeekIndex % 52;
+    const cellCenterX = (MARGIN_LEFT + colX(col) + CELL / 2) * zoom;
+    const cellCenterY = (MARGIN_TOP + rowY(row) + CELL / 2) * zoom;
+    const targetLeft = Math.max(0, cellCenterX - el.clientWidth / 2);
+    const targetTop = Math.max(0, cellCenterY - el.clientHeight / 2);
+    el.scrollTo({ left: targetLeft, top: targetTop, behavior: "smooth" });
+  }, [zoom, indexState]);
 
   const onSaveDob = async () => {
     const parsed = parseUtcDateOnly(draftDob);
@@ -462,28 +546,8 @@ export default function LifeWeeksPage() {
           </section>
         )}
 
-        {dob && phaseStats && (
-          <>
-            <LifeWeeksRemainingHero stats={phaseStats} />
-            <section className={cn("p-3 sm:p-4", cardClass)}>
-            <LifeStatsBar stats={phaseStats} />
-            <button
-              type="button"
-              onClick={() => setShowStageSettings((v) => !v)}
-              className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-            >
-              {showStageSettings ? "Hide" : "Adjust"} college & retirement assumptions
-            </button>
-            {showStageSettings && (
-              <LifeStageSettingsForm
-                draft={stageDraft}
-                onChange={setStageDraft}
-                onSave={onSaveStageSettings}
-                saving={saving}
-              />
-            )}
-          </section>
-          </>
+        {dob && phaseStats && indexState && (
+          <CurrentWeekHero stats={phaseStats} indexState={indexState} />
         )}
 
         {dob && !indexState && (
@@ -497,6 +561,16 @@ export default function LifeWeeksPage() {
             <div className="flex items-center justify-end gap-1.5 px-1 shrink-0">
               <Button
                 type="button"
+                variant={zoom === "now" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setZoom("now")}
+                aria-pressed={zoom === "now"}
+                className="h-8 px-2.5"
+              >
+                This week
+              </Button>
+              <Button
+                type="button"
                 variant={zoom === "fit" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setZoom("fit")}
@@ -504,7 +578,7 @@ export default function LifeWeeksPage() {
                 className="h-8 gap-1.5 px-2.5"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
-                Fit
+                Full life
               </Button>
               <Button
                 type="button"
@@ -518,7 +592,7 @@ export default function LifeWeeksPage() {
                 <Minus className="w-4 h-4" />
               </Button>
               <span className="text-xs tabular-nums text-muted-foreground w-12 text-center">
-                {zoom === "fit" ? "fit" : `${zoom}×`}
+                {zoom === "fit" ? "full" : zoom === "now" ? "now" : `${zoom}×`}
               </span>
               <Button
                 type="button"
@@ -540,25 +614,26 @@ export default function LifeWeeksPage() {
               )}
             >
               {/*
-                Two sizing modes share one SVG:
-                  - "fit": wrapper div uses aspect-ratio + viewport bound; SVG is width/height "100%".
+                Grid sizing modes share one SVG:
+                  - "now" / "fit": wrapper uses aspect-ratio + viewport bound; SVG is width/height "100%".
                   - zoom number: SVG gets pixel width/height; outer div scrolls in both axes.
               */}
               <div
+                ref={gridScrollRef}
                 className={cn(
-                  zoom === "fit"
+                  boundedGridView
                     ? showHubShell
                       ? "flex flex-1 min-h-0 items-center justify-center"
                       : "mx-auto"
-                    : "inline-block overflow-auto",
+                    : "inline-block overflow-auto max-h-[min(58vh,calc(100dvh-18rem))]",
                 )}
               >
               <div
-                className={zoom === "fit" ? (showHubShell ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined}
+                className={boundedGridView ? (showHubShell ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined}
                 style={
-                  zoom === "fit"
+                  boundedGridView
                     ? {
-                        aspectRatio: `${gridW} / ${gridH}`,
+                        aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
                         maxWidth: "100%",
                         maxHeight: showHubShell ? "100%" : fitMaxHeight,
                       }
@@ -568,10 +643,10 @@ export default function LifeWeeksPage() {
                 <svg
                   role="img"
                   aria-label="My life in weeks: 120 rows by 52 columns"
-                  viewBox={`0 0 ${gridW} ${gridH}`}
+                  viewBox={svgViewBox}
                   preserveAspectRatio="xMidYMid meet"
-                  width={zoom === "fit" ? "100%" : gridW * zoom}
-                  height={zoom === "fit" ? "100%" : gridH * zoom}
+                  width={boundedGridView ? "100%" : gridW * zoom}
+                  height={boundedGridView ? "100%" : gridH * zoom}
                   className="block text-zinc-900 dark:text-zinc-100"
                 >
                 <title>MY LIFE IN WEEKS</title>
@@ -694,6 +769,27 @@ export default function LifeWeeksPage() {
             </div>
             </div>
           </div>
+        )}
+
+        {dob && phaseStats && (
+          <section className={cn("p-3 sm:p-4", cardClass)}>
+            <LifeStatsBar stats={phaseStats} />
+            <button
+              type="button"
+              onClick={() => setShowStageSettings((v) => !v)}
+              className="mt-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              {showStageSettings ? "Hide" : "Adjust"} college & retirement assumptions
+            </button>
+            {showStageSettings && (
+              <LifeStageSettingsForm
+                draft={stageDraft}
+                onChange={setStageDraft}
+                onSave={onSaveStageSettings}
+                saving={saving}
+              />
+            )}
+          </section>
         )}
 
         {dob && (

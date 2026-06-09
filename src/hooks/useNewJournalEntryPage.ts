@@ -18,6 +18,7 @@ import {
   readResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
 import { getCurrentContext } from "@/lib/journal/context";
+import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
@@ -101,6 +102,8 @@ export function useNewJournalEntryPage() {
   const [composerFocused, setComposerFocused] = useState(false);
   const composerLockScrollYRef = useRef<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const bottomDockRef = useRef<HTMLElement | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
@@ -120,6 +123,13 @@ export function useNewJournalEntryPage() {
     inlineChatMode && composerFocused,
     composerLockScrollYRef,
   );
+
+  const { scrollCaretIntoView } = useJournalEditorCaretScroll({
+    scrollRef: mainScrollRef,
+    bottomDockRef,
+    kbInset,
+    enabled: !inlineChatMode,
+  });
 
   useEffect(() => {
     const el = chatScrollRef.current;
@@ -778,7 +788,8 @@ export function useNewJournalEntryPage() {
 
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => mergeDictatedText(b, chunk));
-  }, []);
+    requestAnimationFrame(() => scrollCaretIntoView());
+  }, [scrollCaretIntoView]);
 
   const handlePhotoInputChange = useCallback((files: FileList | null) => {
     setPendingFiles((arr) => [...arr, ...Array.from(files ?? [])]);
@@ -917,6 +928,8 @@ export function useNewJournalEntryPage() {
     dictateRef,
     composerLockScrollYRef,
     photoInputRef,
+    mainScrollRef,
+    bottomDockRef,
     dateLabel,
     layoutBack,
     bodyPlaceholder,

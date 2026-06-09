@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node .cursor/hooks/start-dev-server.mjs",
+        "matcher": "startup",
+        "timeout": 60
+      }
+    ]
+  }
+}

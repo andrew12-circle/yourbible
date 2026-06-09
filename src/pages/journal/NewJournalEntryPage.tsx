@@ -1,5 +1,5 @@
 import { DictateButton } from "@/components/journal/DictateButton";
-import { ToolbarTile } from "@/components/journal/new-entry/NewJournalEntryToolbar";
+import { NewJournalEntryToolbar } from "@/components/journal/new-entry/NewJournalEntryToolbar";
 import { NewJournalEntryBodyEditor } from "@/components/journal/new-entry/NewJournalEntryBodyEditor";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate } from "react-router-dom";
@@ -9,13 +9,8 @@ import {
   BookOpen,
   Sparkles,
   PenLine,
-  ChevronDown,
   ChevronLeft,
   MoreHorizontal,
-  Image as ImageIcon,
-  Mic,
-  MessageCircle,
-  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,8 +109,9 @@ export default function NewJournalEntryPage() {
       </header>
 
       <main
-        className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 9.5rem)" }}
+        ref={p.mainScrollRef}
+        className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)" }}
       >
         <Input
           value={p.title}
@@ -165,15 +161,17 @@ export default function NewJournalEntryPage() {
         </div>
       ) : null}
 
-      <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-xl"
+      <nav
+        ref={p.bottomDockRef}
+        aria-label="Journal tools"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 sm:px-5 pt-2"
         style={{
           paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
           transform: p.kbInset ? `translateY(-${p.kbInset}px)` : undefined,
           transition: "transform 120ms ease-out",
         }}
       >
-        <div className="max-w-3xl mx-auto px-3 sm:px-5 pt-2">
+        <div className="pointer-events-auto w-full max-w-3xl">
           {p.inlineChatMode ? (
             <InlineJournalChatComposer
               value={p.body}
@@ -189,31 +187,18 @@ export default function NewJournalEntryPage() {
               aiBusy={p.aiBusy}
             />
           ) : (
-            <div className="rounded-2xl border border-border bg-background shadow-sm">
-              <div className="grid grid-cols-5 gap-1 p-1.5">
-                <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={p.triggerPhotos} />
-                <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={p.triggerHandwritten} />
-                <ToolbarTile icon={<Lightbulb className="w-5 h-5" />} label="Prompts" onClick={p.triggerPrompts} />
-                <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={p.triggerAudio} />
-                <ToolbarTile
-                  icon={<MessageCircle className="w-5 h-5" />}
-                  label="Chat AI"
-                  onClick={() => void p.openChatMode()}
-                  disabled={!p.canReplyWithAi}
-                  accent
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => p.setMoreOpen(true)}
-                className="w-full flex items-center justify-center gap-1 text-[12px] text-muted-foreground py-1.5 hover:text-foreground"
-              >
-                <ChevronDown className="w-3.5 h-3.5" /> More
-              </button>
-            </div>
+            <NewJournalEntryToolbar
+              onPhotos={p.triggerPhotos}
+              onWrite={p.triggerHandwritten}
+              onPrompts={p.triggerPrompts}
+              onAudio={p.triggerAudio}
+              onChat={() => void p.openChatMode()}
+              onMore={() => p.setMoreOpen(true)}
+              chatDisabled={!p.canReplyWithAi}
+            />
           )}
         </div>
-      </div>
+      </nav>
 
       <Sheet open={p.dateOpen} onOpenChange={p.setDateOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">

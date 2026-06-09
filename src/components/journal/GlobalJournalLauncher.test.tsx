@@ -1,11 +1,16 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import GlobalJournalLauncher from "./GlobalJournalLauncher";
+import GlobalJournalLauncher, { journalLauncherChromeHidden } from "./GlobalJournalLauncher";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "user-1" } }),
+}));
+
+vi.mock("@/hooks/useAppShellMode", () => ({
+  useAppShellMode: vi.fn(() => ({ homeMode: "ios", showHubShell: false })),
 }));
 
 vi.mock("@/components/journal/FloatingJournalPanel", () => ({
@@ -13,6 +18,7 @@ vi.mock("@/components/journal/FloatingJournalPanel", () => ({
 }));
 
 beforeEach(() => {
+  vi.mocked(useAppShellMode).mockReturnValue({ homeMode: "ios", showHubShell: false });
   useFloatingJournalStore.setState({
     panelOpen: false,
     floatingClaimResearch: null,
@@ -56,5 +62,22 @@ describe("GlobalJournalLauncher", () => {
     );
 
     expect(screen.queryByTestId("floating-journal-panel")).not.toBeInTheDocument();
+  });
+
+  it("hides the journal tab in hub shell mode", () => {
+    vi.mocked(useAppShellMode).mockReturnValue({ homeMode: "hub", showHubShell: true });
+
+    render(
+      <MemoryRouter initialEntries={["/framework/daily"]}>
+        <GlobalJournalLauncher />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTitle("Journal")).not.toBeInTheDocument();
+  });
+
+  it("journalLauncherChromeHidden returns true for hub shell", () => {
+    expect(journalLauncherChromeHidden("/framework/daily", true)).toBe(true);
+    expect(journalLauncherChromeHidden("/framework/daily", false)).toBe(false);
   });
 });

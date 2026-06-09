@@ -1,5 +1,11 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import ArtifactMobileVideoMeta from "@/components/framework/artifact-detail/ArtifactMobileVideoMeta";
+import {
+  createCoalescedLayoutSync,
+  readArtifactLayoutPxVar,
+  setArtifactLayoutPxVar,
+  syncArtifactMobilePinnedHeaderHeight,
+} from "@/lib/framework/artifactMobileLayoutSync";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -38,18 +44,13 @@ export default function ArtifactMobilePinnedScrollChrome({
     if (!sticky || !root) return;
     const sync = () => {
       const stickyH = sticky.getBoundingClientRect().height;
-      root.style.setProperty("--artifact-mobile-sticky-chrome-h", `${Math.max(0, Math.ceil(stickyH))}px`);
-      const videoH = parseFloat(
-        getComputedStyle(root).getPropertyValue("--artifact-mobile-video-h"),
-      );
-      const v = Number.isFinite(videoH) && videoH > 0 ? videoH : 0;
-      root.style.setProperty(
-        "--artifact-mobile-pinned-header-h",
-        `${Math.max(0, Math.ceil(v + stickyH))}px`,
-      );
+      setArtifactLayoutPxVar(root, "--artifact-mobile-sticky-chrome-h", stickyH);
+      const videoH = readArtifactLayoutPxVar(root, "--artifact-mobile-video-h");
+      syncArtifactMobilePinnedHeaderHeight(root, videoH, stickyH);
     };
+    const scheduleSync = createCoalescedLayoutSync(sync);
     sync();
-    const ro = new ResizeObserver(sync);
+    const ro = new ResizeObserver(scheduleSync);
     ro.observe(sticky);
     return () => ro.disconnect();
   }, [hideVideoMeta, insightExploreOpen, insightExplorePanel]);

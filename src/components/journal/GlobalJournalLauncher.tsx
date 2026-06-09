@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { ChevronLeft, NotebookPen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import FloatingJournalPanel from "@/components/journal/FloatingJournalPanel";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import { cn } from "@/lib/utils";
@@ -12,8 +13,9 @@ function isJournalRoute(pathname: string) {
 }
 
 /** Routes where the right-edge journal tab is hidden (artifact pages use embedded journal). */
-export function journalLauncherChromeHidden(pathname: string) {
+export function journalLauncherChromeHidden(pathname: string, hubShell = false) {
   return (
+    hubShell ||
     isJournalRoute(pathname) ||
     /\/framework\/artifacts\/[^/]+\/research\//.test(pathname) ||
     pathname.startsWith("/framework/artifacts") ||
@@ -27,6 +29,7 @@ export function journalLauncherChromeHidden(pathname: string) {
 export default function GlobalJournalLauncher() {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const panelOpen = useFloatingJournalStore((s) => s.panelOpen);
   const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
   const togglePanel = useFloatingJournalStore((s) => s.togglePanel);
@@ -36,15 +39,15 @@ export default function GlobalJournalLauncher() {
   const routeArtifact = useFloatingJournalStore((s) => s.routeArtifact);
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
 
-  const chromeHidden = !user || journalLauncherChromeHidden(pathname);
+  const chromeHidden = !user || journalLauncherChromeHidden(pathname, showHubShell);
   const showPanel = Boolean(user && panelOpen);
   const showChrome = !chromeHidden;
 
   useEffect(() => {
-    if (journalLauncherChromeHidden(pathname) && panelOpen && !floatingClaimResearch) {
+    if (journalLauncherChromeHidden(pathname, showHubShell) && panelOpen && !floatingClaimResearch) {
       setPanelOpen(false);
     }
-  }, [pathname, panelOpen, setPanelOpen, floatingClaimResearch]);
+  }, [pathname, panelOpen, setPanelOpen, floatingClaimResearch, showHubShell]);
 
   if (!showPanel && !showChrome) return null;
 

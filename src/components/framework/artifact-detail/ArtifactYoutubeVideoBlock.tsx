@@ -17,6 +17,13 @@ import {
   useArtifactLayoutMode,
 } from "@/hooks/useArtifactLayoutMode";
 import { artifactMobileJournalEdgePad } from "@/lib/framework/artifactLayoutCss";
+import {
+  createCoalescedLayoutSync,
+  measureArtifactMobileVideoBlockHeight,
+  readArtifactLayoutPxVar,
+  setArtifactLayoutPxVar,
+  syncArtifactMobilePinnedHeaderHeight,
+} from "@/lib/framework/artifactMobileLayoutSync";
 import { cn } from "@/lib/utils";
 
 type Pip = ReturnType<typeof useArtifactYoutubePip>;
@@ -153,21 +160,25 @@ function ArtifactYoutubeVideoBlock({
     const root = video?.closest("[data-artifact-youtube-mobile]") as HTMLElement | null;
     if (!video || !root) return;
     const sync = () => {
-      const videoH = video.getBoundingClientRect().height;
-      root.style.setProperty("--artifact-mobile-video-h", `${Math.max(0, Math.ceil(videoH))}px`);
-      const stickyChromeH = parseFloat(
-        getComputedStyle(root).getPropertyValue("--artifact-mobile-sticky-chrome-h"),
-      );
-      const chromeH = Number.isFinite(stickyChromeH) && stickyChromeH > 0 ? stickyChromeH : 0;
-      root.style.setProperty(
-        "--artifact-mobile-pinned-header-h",
-        `${Math.max(0, Math.ceil(videoH + chromeH))}px`,
-      );
+      const videoH = measureArtifactMobileVideoBlockHeight(video);
+      setArtifactLayoutPxVar(root, "--artifact-mobile-video-h", videoH);
+      const stickyChromeH = readArtifactLayoutPxVar(root, "--artifact-mobile-sticky-chrome-h");
+      syncArtifactMobilePinnedHeaderHeight(root, videoH, stickyChromeH);
     };
+    const scheduleSync = createCoalescedLayoutSync(sync);
     sync();
-    const ro = new ResizeObserver(sync);
+    const ro = new ResizeObserver(scheduleSync);
     ro.observe(video);
-    return () => ro.disconnect();
+    const onViewportChange = () => scheduleSync();
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("orientationchange", onViewportChange);
+    window.visualViewport?.addEventListener("resize", onViewportChange);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("orientationchange", onViewportChange);
+      window.visualViewport?.removeEventListener("resize", onViewportChange);
+    };
   }, [mobilePinnedLayout]);
   /** Study list already has Capture collapsible; skip duplicate bar under fixed header. */
   const showMobileCaptureSection =

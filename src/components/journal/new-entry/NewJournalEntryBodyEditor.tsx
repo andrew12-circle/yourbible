@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
+import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };
 
@@ -55,6 +56,9 @@ export function NewJournalEntryBodyEditor({
   onRemoveExistingPhoto,
   onRemovePendingFile,
 }: NewJournalEntryBodyEditorProps) {
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  useJournalEntryTextareaAutosize(bodyRef, body);
+
   if (isListening) {
     return (
       <section
@@ -115,11 +119,12 @@ export function NewJournalEntryBodyEditor({
   return (
     <>
       <PolishedTextarea
+        ref={bodyRef}
         polishResetKey={editId ?? "journal-new"}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={bodyPlaceholder}
-        className="mt-1 flex-1 min-h-[60dvh] resize-none border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+        className="mt-1 min-h-[40dvh] resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
       />
       {dictInterim.trim() ? (
         <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">

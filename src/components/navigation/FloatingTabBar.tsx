@@ -128,9 +128,6 @@ export default function FloatingTabBar({
     sync();
     const ro = new ResizeObserver(sync);
     ro.observe(bar);
-    if (layoutHeightFallbackPx != null) {
-      root.style.setProperty(layoutHeightVar, `${layoutHeightFallbackPx}px`);
-    }
     return () => {
       ro.disconnect();
       root.style.removeProperty(layoutHeightVar);

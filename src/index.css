@@ -734,6 +734,23 @@
   background-attachment: fixed;
 }
 
+/* Hub shell — top gutter for iPad/iOS status bar; fabric shows above the cards */
+.hub-shell {
+  --hub-safe-top: max(0.5rem, var(--safe-area-inset-top));
+}
+
+@supports (-webkit-touch-callout: none) {
+  .hub-shell {
+    --hub-safe-top: max(1.25rem, var(--safe-area-inset-top));
+  }
+}
+
+.hub-shell .peer[data-variant="floating"] > .fixed {
+  top: var(--hub-safe-top);
+  bottom: 0.5rem;
+  height: auto;
+}
+
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
   background-color: hsl(0 0% 100%);
