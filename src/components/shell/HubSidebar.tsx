@@ -168,12 +168,14 @@ export function HubSidebar() {
           aria-label="Belief architecture home"
         >
           <img
-            src="/app-icon-32.png"
-            srcSet="/app-icon-32.png 1x, /app-icon-180.png 2x"
+            src="/app-icon-192.png"
+            srcSet="/app-icon-192.png 96w, /app-icon-512.png 192w"
+            sizes="48px"
             alt=""
             width={48}
             height={48}
-            className="h-12 w-12 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-black/[0.06]"
+            decoding="async"
+            className="h-12 w-12 shrink-0 rounded-xl object-contain shadow-sm ring-1 ring-black/[0.06]"
           />
           <span className="min-w-0">
             <span className="block font-display text-[2.125rem] font-normal leading-none tracking-[-0.03em] text-leather">
