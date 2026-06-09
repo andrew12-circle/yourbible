@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { toast } from "@/hooks/use-toast";
-import { getDefaultJournalId } from "@/lib/journal/journals";
-import { getCurrentContext } from "@/lib/journal/context";
 import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import type { FloatingClaimResearchHandoff } from "@/lib/journal/floatingJournalStore";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
@@ -23,6 +21,10 @@ import {
   type ResearchPackResp,
 } from "@/lib/framework/claimResearchPack";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
+import {
+  ensureClaimResearchChatSession,
+  findClaimResearchChatSession,
+} from "@/lib/journal/claimResearchChatSession";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   readResponseDepthSetting,
@@ -82,58 +84,13 @@ async function ensureResearchChatSession(
   userId: string,
   artifactId: string,
   claimId: string,
-  artifactTitle: string | null,
+  title: string,
 ): Promise<{ entryId: string; chatId: string }> {
   const key = sessionKey(userId, claimId);
   const hit = claimChatSessionPromises.get(key);
   if (hit) return hit;
 
-  const p = (async () => {
-    const jid = await getDefaultJournalId(userId);
-    const ctx = await getCurrentContext().catch(() => ({} as Record<string, unknown>));
-    const now = new Date();
-    const titleBase = artifactTitle?.trim() || "Artifact";
-    const title = `Claim research — ${titleBase}`;
-    const { data: ent, error: eErr } = await supabase
-      .from("journal_entries")
-      .insert({
-        user_id: userId,
-        journal_id: jid,
-        title,
-        body: "",
-        tags: [],
-        entry_kind: "chat",
-        analyze_for_mirror: false,
-        entry_at_ts: now.toISOString(),
-        entry_at: now.toISOString().slice(0, 10),
-        location_name: (ctx.location_name as string | undefined) ?? null,
-        lat: (ctx.lat as number | undefined) ?? null,
-        lng: (ctx.lng as number | undefined) ?? null,
-        weather: (ctx.weather as string | undefined) ?? null,
-        weather_temp_c: (ctx.weather_temp_c as number | undefined) ?? null,
-        weather_icon: (ctx.weather_icon as string | undefined) ?? null,
-      })
-      .select("id")
-      .maybeSingle();
-    if (eErr || !ent?.id) throw new Error(eErr?.message ?? "Could not create chat journal entry");
-
-    const { data: chat, error: cErr } = await supabase
-      .from("my_ai_chats")
-      .insert({ user_id: userId, journal_entry_id: ent.id })
-      .select("id")
-      .maybeSingle();
-    if (cErr || !chat?.id) throw new Error(cErr?.message ?? "Could not create chat thread");
-
-    await supabase.from("journal_entry_links").insert({
-      user_id: userId,
-      entry_id: ent.id,
-      target_kind: "artifact",
-      target_ref: { id: artifactId },
-    });
-
-    return { entryId: ent.id as string, chatId: chat.id as string };
-  })();
-
+  const p = ensureClaimResearchChatSession(supabase, userId, artifactId, claimId, title);
   claimChatSessionPromises.set(key, p);
   try {
     return await p;
@@ -163,6 +120,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
   const [latestRun, setLatestRun] = useState<ClaimResearchRunRow | null>(null);
   const [briefLoading, setBriefLoading] = useState(true);
   const [beliefUpdateOpen, setBeliefUpdateOpen] = useState(false);
+  const [sessionEnsuring, setSessionEnsuring] = useState(false);
   const sendingRef = useRef(false);
   const ignoreResult = useRef(false);
   const briefStartedRef = useRef(false);
@@ -321,18 +279,32 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           eventType: "opened",
         });
 
-        const { entryId: eId, chatId: cId } = await ensureResearchChatSession(
-          userId,
-          research.artifactId,
-          research.claimId,
-          research.artifactTitle,
-        );
+        const existing = await findClaimResearchChatSession(supabase, userId, research.claimId);
         if (cancelled) return;
-        setEntryId(eId);
-        setChatId(cId);
-        await loadMessages(cId);
-        if (cancelled) return;
-        setLoadingShell(false);
+        if (existing) {
+          setEntryId(existing.entryId);
+          setChatId(existing.chatId);
+          await loadMessages(existing.chatId);
+          if (cancelled) return;
+
+          const { count } = await supabase
+            .from("my_ai_messages")
+            .select("*", { count: "exact", head: true })
+            .eq("chat_id", existing.chatId)
+            .in("role", ["user", "assistant"]);
+          if (!cancelled && (count ?? 0) === 0) {
+            setChatBootstrapping(true);
+            void runBootstrapOpener(existing.chatId, existing.entryId)
+              .catch((e) => {
+                if (!cancelled) {
+                  toast({ title: "Could not start chat", description: String(e), variant: "destructive" });
+                }
+              })
+              .finally(() => {
+                if (!cancelled) setChatBootstrapping(false);
+              });
+          }
+        }
 
         const runBrief = async () => {
           if (briefStartedRef.current) return;
@@ -384,24 +356,6 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           }
         };
         void runBrief();
-
-        const { count } = await supabase
-          .from("my_ai_messages")
-          .select("*", { count: "exact", head: true })
-          .eq("chat_id", cId)
-          .in("role", ["user", "assistant"]);
-        if (!cancelled && (count ?? 0) === 0) {
-          setChatBootstrapping(true);
-          void runBootstrapOpener(cId, eId)
-            .catch((e) => {
-              if (!cancelled) {
-                toast({ title: "Could not start chat", description: String(e), variant: "destructive" });
-              }
-            })
-            .finally(() => {
-              if (!cancelled) setChatBootstrapping(false);
-            });
-        }
       } catch (e) {
         if (!cancelled) {
           toast({ title: "Could not open claim research", description: String(e), variant: "destructive" });
@@ -415,7 +369,26 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once per claim session
-  }, [userId, research.artifactId, research.claimId, research.artifactTitle]);
+  }, [userId, research.artifactId, research.claimId]);
+
+  const resolveChatSession = useCallback(async () => {
+    if (entryId && chatId) return { entryId, chatId };
+    setSessionEnsuring(true);
+    try {
+      const title = research.journalTitle.trim() || "Claim research";
+      const session = await ensureResearchChatSession(
+        userId,
+        research.artifactId,
+        research.claimId,
+        title,
+      );
+      setEntryId(session.entryId);
+      setChatId(session.chatId);
+      return session;
+    } finally {
+      setSessionEnsuring(false);
+    }
+  }, [entryId, chatId, research.artifactId, research.claimId, research.journalTitle, userId]);
 
   const stop = () => {
     ignoreResult.current = true;
@@ -425,18 +398,19 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
 
   const send = async () => {
     const text = input.trim();
-    if (!text || sendingRef.current || !chatId || !entryId) return;
+    if (!text || sendingRef.current || sessionEnsuring) return;
     ignoreResult.current = false;
     setInput("");
     sendingRef.current = true;
     setSending(true);
     try {
+      const { entryId: eId, chatId: cId } = await resolveChatSession();
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
         body: {
-          chat_id: chatId,
+          chat_id: cId,
           message: text,
           mode: "journal",
-          journal_entry_id: entryId,
+          journal_entry_id: eId,
           include_general_knowledge: includeGeneral,
           ...claimResearchChatBodyExtras(packUseWeb),
           artifact_claim_id: research.claimId,
@@ -455,7 +429,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
         artifactId: research.artifactId,
         eventType: "message_sent",
       });
-      await loadMessages(payload?.chat_id ?? chatId);
+      await loadMessages(payload?.chat_id ?? cId);
     } catch (e) {
       if (!ignoreResult.current) {
         toast({ title: "Message failed", description: String(e), variant: "destructive" });
@@ -469,24 +443,26 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
   };
 
   const retryLast = async () => {
-    if (!chatId || !entryId || sendingRef.current) return;
+    if (sendingRef.current || sessionEnsuring) return;
+    if (!messages.some((m) => m.role === "assistant")) return;
     sendingRef.current = true;
     setSending(true);
     ignoreResult.current = false;
     try {
+      const { entryId: eId, chatId: cId } = await resolveChatSession();
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
         body: {
-          chat_id: chatId,
+          chat_id: cId,
           retry_last: true,
           mode: "journal",
-          journal_entry_id: entryId,
+          journal_entry_id: eId,
           include_general_knowledge: includeGeneral,
           ...claimResearchChatBodyExtras(packUseWeb),
           artifact_claim_id: research.claimId,
         },
       });
       if (error) throw new Error(error.message);
-      await loadMessages(chatId);
+      await loadMessages(cId);
       void data;
     } catch (e) {
       toast({ title: "Retry failed", description: String(e), variant: "destructive" });
@@ -619,7 +595,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
   const briefSummary = packData
     ? latestRun?.brief_summary ?? buildBriefSummaryFromPack(packData)
     : null;
-  const showLoading = loadingShell || !chatId || !entryId;
+  const showLoading = loadingShell;
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
 
   return {
@@ -627,6 +603,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
     chatId,
     messages: visibleMessages,
     showLoading,
+    sessionEnsuring,
     loadingMessages,
     sending,
     input,

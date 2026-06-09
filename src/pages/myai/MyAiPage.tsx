@@ -13,7 +13,6 @@ import {
   Plus,
   Send,
   Settings2,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,9 +31,10 @@ import { cn } from "@/lib/utils";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import {
-  CHAT_ASSISTANT_PROSE_CLASS,
+  CHAT_ASSISTANT_PROSE_COMPACT,
   prepareChatMarkdownForDisplay,
 } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import { MyAiMark } from "@/components/myai/MyAiMark";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -561,36 +561,36 @@ export default function MyAiPage() {
   };
 
   const sidebarContent = (
-    <div className="flex h-full min-h-0 flex-col bg-[#f9f9f9] dark:bg-muted/20">
-      <div className="flex items-center gap-1 border-b border-border/80 px-2 py-2">
+    <div className="flex h-full min-h-0 flex-col bg-card">
+      <div className="flex items-center gap-1 border-b border-border px-2 py-2">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-9 flex-1 justify-start gap-2 rounded-lg px-2.5 text-sm font-medium hover:bg-muted/80"
+          className="h-8 flex-1 justify-start gap-1.5 rounded-md px-2 text-xs font-medium hover:bg-muted/70"
           onClick={newChat}
         >
-          <Plus className="h-4 w-4 shrink-0" />
+          <Plus className="h-3.5 w-3.5 shrink-0" />
           New chat
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="hidden h-9 w-9 shrink-0 md:inline-flex"
+          className="hidden h-8 w-8 shrink-0 md:inline-flex"
           onClick={() => persistSidebar(false)}
           aria-label="Close sidebar"
         >
-          <PanelLeftClose className="h-4 w-4" />
+          <PanelLeftClose className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto py-1">
+      <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
         {loadingChats ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/60" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : chats.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-muted-foreground">No chats yet.</p>
+          <p className="px-3 py-3 text-[11px] text-muted-foreground">No chats yet.</p>
         ) : (
           chats.map((c) => (
             <div
@@ -605,13 +605,13 @@ export default function MyAiPage() {
                 }
               }}
               className={cn(
-                "group mx-1.5 flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                "group mx-1.5 flex cursor-pointer items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-xs transition-colors",
                 routeChatId === c.id
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  ? "border-emerald-500 bg-emerald-500/8 font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
-              <MessageCircle className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <MessageCircle className="h-3 w-3 shrink-0 opacity-60" />
               <span className="min-w-0 flex-1 truncate">{c.title?.trim() || "Untitled"}</span>
               <button
                 type="button"
@@ -619,7 +619,7 @@ export default function MyAiPage() {
                 className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive focus-visible:opacity-100"
                 aria-label="Delete chat"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3" />
               </button>
             </div>
           ))
@@ -634,12 +634,12 @@ export default function MyAiPage() {
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {sidebarOpen && (
-          <aside className="hidden w-[260px] shrink-0 border-r border-border/80 md:flex">{sidebarContent}</aside>
+          <aside className="hidden w-[240px] shrink-0 border-r border-border md:flex">{sidebarContent}</aside>
         )}
 
-        <section className="relative flex min-w-0 flex-1 flex-col bg-[#f7f7f8] dark:bg-background">
+        <section className="relative flex min-w-0 flex-1 flex-col bg-background">
           <header className={cn(
-            "flex shrink-0 items-center gap-2 border-b border-border/50 bg-background/80 px-2 pb-2 backdrop-blur-sm sm:px-3",
+            "flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 pb-2 sm:px-3",
             showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
           )}>
             {!showHubShell && (
@@ -686,16 +686,9 @@ export default function MyAiPage() {
               <Plus className="h-5 w-5" />
             </Button>
 
-            <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-              style={{
-                background: "linear-gradient(145deg, #6D28D9 0%, #0D9488 52%, #14B8A6 100%)",
-              }}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
-            </div>
+            <MyAiMark size="md" />
 
-            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-[15px]" title={headerTitleFull}>
+            <h1 className="min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:text-[13px]" title={headerTitleFull}>
               {headerTitle}
             </h1>
 
@@ -768,22 +761,20 @@ export default function MyAiPage() {
             )}
 
             {showWelcome && (
-              <div className="mx-auto flex max-w-lg flex-col items-center justify-center px-2 py-10 text-center sm:py-16">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <h2 className="text-lg font-semibold tracking-tight text-foreground">How can I help?</h2>
-                <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              <div className="mx-auto flex max-w-md flex-col items-center justify-center px-2 py-8 text-center sm:py-12">
+                <MyAiMark size="lg" className="mb-3" />
+                <h2 className="text-base font-semibold tracking-tight text-foreground">How can I help?</h2>
+                <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
                   Grounded in your beliefs, journals, and framework — with citations back to your sources.
                 </p>
-                <div className="mt-8 grid w-full gap-2 sm:grid-cols-2">
+                <div className="mt-6 grid w-full gap-1.5 sm:grid-cols-2">
                   {SUGGESTED_PROMPTS.map((prompt) => (
                     <button
                       key={prompt}
                       type="button"
                       disabled={sending}
                       onClick={() => void send(prompt)}
-                      className="rounded-xl border border-border/80 bg-background/80 px-3 py-2.5 text-left text-xs leading-snug text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
+                      className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-[11px] leading-snug text-muted-foreground transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-foreground disabled:opacity-50"
                     >
                       {prompt}
                     </button>
@@ -793,18 +784,18 @@ export default function MyAiPage() {
             )}
 
             {!loadingMessages && visibleMessages.length > 0 && (
-              <div className="mx-auto w-full max-w-3xl space-y-8 pb-6">
+              <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">
                 {visibleMessages.map((m) => (
                   <div key={m.id} className="w-full">
                     {m.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[min(100%,42rem)] rounded-[1.25rem] bg-[#daeeff] px-4 py-3 text-[15px] leading-relaxed text-[#0d0d0d] shadow-sm dark:bg-primary/15 dark:text-foreground">
+                        <div className="max-w-[min(100%,36rem)] rounded-2xl bg-emerald-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-emerald-500/15 dark:bg-emerald-500/15">
                           <p className="whitespace-pre-wrap">{m.content}</p>
                         </div>
                       </div>
                     ) : (
                       <div className="max-w-none px-1 sm:px-2">
-                        <div className={CHAT_ASSISTANT_PROSE_CLASS}>
+                        <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
                           {m.content ? (
                             <ReactMarkdown>{prepareChatMarkdownForDisplay(m.content)}</ReactMarkdown>
                           ) : (
@@ -821,11 +812,11 @@ export default function MyAiPage() {
           </div>
 
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#f7f7f8] via-[#f7f7f8]/95 to-transparent px-3 pb-3 pt-10 dark:from-background dark:via-background/95 sm:px-4"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4"
             style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
           >
-            <div className="pointer-events-auto mx-auto w-full max-w-3xl">
-              <div className="flex items-end gap-2 rounded-[1.75rem] border border-border/60 bg-background px-3 py-2 shadow-[0_2px_12px_rgba(0,0,0,0.08)] dark:border-border/80">
+            <div className="pointer-events-auto mx-auto w-full max-w-2xl">
+              <div className="flex items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
                 <Textarea
                   ref={taRef}
                   value={input}
@@ -840,20 +831,20 @@ export default function MyAiPage() {
                   disabled={sending}
                   spellCheck
                   placeholder={sending ? "Thinking…" : "Ask anything"}
-                  className="min-h-[44px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[15px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="min-h-[40px] max-h-36 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <Button
                   type="button"
                   size="icon"
                   disabled={sending || !input.trim()}
                   onClick={() => void send()}
-                  className="mb-0.5 h-9 w-9 shrink-0 rounded-full bg-foreground text-background hover:bg-foreground/90 disabled:opacity-40"
+                  className="mb-0.5 h-8 w-8 shrink-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 disabled:opacity-40"
                   aria-label="Send message"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
+              <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
                 My AI can make mistakes. Grounded in your framework when sources match.
               </p>
             </div>

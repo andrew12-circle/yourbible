@@ -133,7 +133,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
               <div className="flex flex-col items-center gap-4 py-16 text-center">
                 <ResearchGeminiAvatar size="md" />
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                <p className="text-[10px] text-muted-foreground">Starting your research chat…</p>
+                <p className="text-[10px] text-muted-foreground">Loading research brief…</p>
               </div>
             ) : (
               <>
@@ -191,7 +191,7 @@ export default function ClaimResearchWorkspace({ userId, research, className }: 
         onStop={ws.stop}
         onRetry={() => void ws.retryLast()}
         sending={ws.sending}
-        disabled={ws.showLoading}
+        disabled={ws.showLoading || ws.sessionEnsuring}
         canRetry={ws.messages.some((m) => m.role === "assistant")}
         packUseWeb={ws.packUseWeb}
         onPackUseWebChange={ws.setPackUseWeb}
