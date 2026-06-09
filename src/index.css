@@ -762,9 +762,12 @@
   background-attachment: fixed;
 }
 
-/* Hub shell — top gutter for iPad/iOS status bar; fabric shows above the cards */
+/* Hub shell — two equal-height cards: nav (left) + content (right) */
 .hub-shell {
   --hub-safe-top: max(0.5rem, var(--safe-area-inset-top));
+  --hub-edge: 0.75rem;
+  --hub-card-gap: 0.75rem;
+  --hub-card-height: calc(100svh - var(--hub-safe-top) - var(--hub-edge));
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -773,10 +776,42 @@
   }
 }
 
+/* Nav card — fill the padded slot so it matches content card height */
 .hub-shell .peer[data-variant="floating"] > .fixed {
-  top: var(--hub-safe-top);
-  bottom: 0.5rem;
-  height: auto;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  height: 100svh;
+  padding: var(--hub-safe-top) 0 var(--hub-edge) var(--hub-edge);
+  width: calc(var(--sidebar-width) + var(--hub-edge));
+}
+
+.hub-shell .peer[data-variant="floating"] > .fixed > [data-sidebar="sidebar"] {
+  height: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.3);
+  background: hsl(var(--background));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Reserve spacer width for nav card + left gutter */
+.hub-shell .peer[data-variant="floating"] > div:first-child {
+  width: calc(var(--sidebar-width) + var(--hub-edge)) !important;
+  height: 100svh;
+}
+
+.hub-shell .hub-content-card {
+  height: var(--hub-card-height);
+  max-height: var(--hub-card-height);
+  min-height: 0;
+  margin-top: var(--hub-safe-top);
+  margin-right: var(--hub-edge);
+  margin-bottom: var(--hub-edge);
+  margin-left: var(--hub-card-gap);
+}
+
+.hub-shell .peer[data-state="collapsed"] ~ .hub-content-card {
+  margin-left: var(--hub-edge);
 }
 
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */

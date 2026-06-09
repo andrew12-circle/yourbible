@@ -188,12 +188,16 @@ export const artifactDesktopBodySheet = cn(
   "px-4 pb-10 sm:px-6",
 );
 
-/** Desktop transcript column — light grey floating study panel. */
-export const artifactDesktopTranscriptPanel = cn(
-  "rounded-2xl border border-border/60 bg-zinc-100/90",
-  "shadow-[0_10px_40px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04]",
-  "dark:bg-muted/35 dark:ring-white/[0.04]",
+/** Desktop split-pane cards — study column + transcript column share height, gap, and chrome. */
+export const artifactDesktopSplitPaneCard = cn(
+  "lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card",
+  "lg:shadow-[0_10px_40px_rgba(0,0,0,0.06)] lg:ring-1 lg:ring-black/[0.04]",
+  "dark:lg:bg-muted/35 dark:lg:ring-white/[0.04]",
+  "lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden",
 );
+
+/** Desktop transcript column — matches study split-pane card. */
+export const artifactDesktopTranscriptPanel = artifactDesktopSplitPaneCard;
 
 /** Mobile/tablet teachings shell — light grey panel (matches transcript column). */
 export const artifactTeachingsShellMobile = cn(

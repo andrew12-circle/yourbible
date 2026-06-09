@@ -16,7 +16,7 @@ export function HubShell({ children }: { children: ReactNode }) {
         <SidebarProvider className="hub-shell bg-muted/40 bg-fabric min-h-svh">
           <HubSidebar />
           <SidebarPeekTab />
-          <SidebarInset className="min-h-[calc(100svh-var(--hub-safe-top)-0.5rem)] sm:mt-[var(--hub-safe-top)] sm:mr-2 sm:mb-2 sm:rounded-xl border border-border/30 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+          <SidebarInset className="hub-content-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/30 bg-background shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
             <HubTopBar />
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <Suspense fallback={<HubContentSkeleton />}>

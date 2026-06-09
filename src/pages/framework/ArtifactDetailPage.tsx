@@ -65,6 +65,7 @@ import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
   artifactDesktopBodySheet,
+  artifactDesktopSplitPaneCard,
   artifactMobileDockPadding,
   artifactMobilePinnedHeaderPadding,
   artifactMobileStudyContentInset,
@@ -1427,7 +1428,9 @@ export default function ArtifactDetailPage() {
 
       <div
         className={cn(
-          "space-y-6 lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-6",
+          "space-y-6",
+          desktopPremiumYoutube && "lg:p-4",
+          "lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-4",
           artifactSplitPaneHeightClass,
           mobilePinnedPane && "flex min-h-0 flex-1 flex-col space-y-0 overflow-x-visible overflow-y-hidden",
         )}
@@ -1437,9 +1440,15 @@ export default function ArtifactDetailPage() {
           onValueChange={handleMobileTabChange}
           data-artifact-study-pane={showArtifactAppDock ? "" : undefined}
           className={cn(
-            "min-w-0 lg:col-span-8 lg:flex lg:min-h-0 lg:flex-col",
+            "min-w-0 lg:col-span-8 lg:flex lg:h-full lg:min-h-0 lg:flex-col",
             showArtifactAppDock && "relative",
             mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
+          )}
+        >
+        <div
+          className={cn(
+            "min-w-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col",
+            desktopPremiumYoutube && artifactDesktopSplitPaneCard,
           )}
         >
         <div
@@ -1457,7 +1466,9 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
-        {desktopPremiumVideoShell ? desktopPremiumVideoShell : null}
+        {desktopPremiumVideoShell ? (
+          <div className="px-4 pt-4 sm:px-5">{desktopPremiumVideoShell}</div>
+        ) : null}
         {youTubeVideoId && !desktopPremiumYoutube ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
@@ -1951,6 +1962,7 @@ export default function ArtifactDetailPage() {
       ) : null}
         </div>
         </div>
+        </div>
 
         <ArtifactDetailMobileAppDock
           visible={showArtifactAppDock}
@@ -1969,7 +1981,7 @@ export default function ArtifactDetailPage() {
 
         <aside
           ref={transcriptAsideRef}
-          className="relative z-0 hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-1 lg:pr-1"
+          className="relative z-0 hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden"
           aria-label="Transcript"
         >
           {transcriptPanel}
