@@ -125,9 +125,16 @@ export function HubSidebar() {
     <Sidebar collapsible="offcanvas" variant="floating">
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center gap-2 px-1">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-            YB
-          </div>
+          <Link to="/home" className="shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <img
+              src="/app-icon-32.png"
+              srcSet="/app-icon-32.png 1x, /app-icon-180.png 2x"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg object-cover shadow-sm"
+            />
+          </Link>
           <div>
             <div className="text-sm font-semibold">Your Bible</div>
             <div className="text-[10px] text-muted-foreground">Command center</div>
