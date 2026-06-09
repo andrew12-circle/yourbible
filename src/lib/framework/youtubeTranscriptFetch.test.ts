@@ -11,7 +11,7 @@ vi.mock("@/lib/framework/youtubeInvidiousCaptions", () => ({
 }));
 
 vi.mock("@/lib/framework/youtubeTranscriptPlusClient", () => ({
-  fetchYoutubeCaptionsInBrowser: vi.fn(() => Promise.resolve(null)),
+  fetchYoutubeCaptionsInBrowser: vi.fn(() => Promise.resolve({ text: null })),
 }));
 
 vi.mock("@/integrations/supabase/client", () => {

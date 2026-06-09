@@ -51,6 +51,18 @@ verify_jwt = true
 [functions.framework-fetch-transcript]
 verify_jwt = true
 
+[functions.youtube-oauth-start]
+verify_jwt = true
+
+[functions.youtube-oauth-callback]
+verify_jwt = false
+
+[functions.youtube-oauth-status]
+verify_jwt = true
+
+[functions.youtube-oauth-disconnect]
+verify_jwt = true
+
 [functions.framework-embed-transcript]
 verify_jwt = false
 

@@ -1,5 +1,5 @@
 // Fetches a YouTube transcript, then triggers framework-analyze.
-// Order: worker → captions → Invidious mirrors → AssemblyAI → Deepgram → Gemini clips.
+// Order: cache → parallel caption race (OAuth/worker/scrape) → AssemblyAI → Deepgram → Gemini.
 // YOUTUBE_DATA_API_KEY enriches description/chapters only (not caption download).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
@@ -9,31 +9,28 @@ import {
   parseIso8601Duration,
 } from "../_shared/youtubeGeminiTranscribe.ts";
 import {
-  buildFetchResult,
-  segmentsFromTimedText,
-} from "../_shared/transcriptNormalize.ts";
-import {
   persistTranscriptChunks,
   persistTranscriptSegments,
   transcriptMetadataPatch,
 } from "../_shared/transcriptPersist.ts";
-import { fetchAssemblyAiTranscript } from "../_shared/transcriptProviders/assemblyai.ts";
-import { fetchDeepgramTranscript } from "../_shared/transcriptProviders/deepgram.ts";
-import {
-  fetchWorkerTranscript,
-  isWorkerConfigured,
-} from "../_shared/transcriptProviders/youtubeTranscriptWorker.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
-import { fetchInvidiousTranscript } from "../_shared/youtubeInvidiousTranscript.ts";
-import { fetchTranscriptPlusCaptions } from "../_shared/youtubeTranscriptPlus.ts";
-import {
-  fetchInnertubeTranscript,
-  fetchTimedTextTranscript,
-  normalizeYouTubeWatchUrl,
-} from "../_shared/youtubeTranscript.ts";
+import { normalizeYouTubeWatchUrl } from "../_shared/youtubeTranscript.ts";
 import { resolveYouTubeChannelThumbnail } from "../_shared/youtubeChannelAvatar.ts";
+import {
+  getCachedYouTubeTranscript,
+  saveCachedYouTubeTranscript,
+} from "../_shared/youtubeTranscriptCache.ts";
+import {
+  buildCaptionLanes,
+  CAPTION_RACE_TIMEOUT_MS,
+  fetchAssemblyFallback,
+  fetchDeepgramFallback,
+  outcomeFromTimedText,
+  raceCaptionLanes,
+} from "../_shared/youtubeTranscriptRace.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -572,169 +569,117 @@ type YoutubeTranscribeOutcome = {
   chaptersBundle: WatchCaptionBundle | null;
 };
 
-function outcomeFromTimedText(
-  rawText: string,
-  source: "caption" | "gemini",
-  provider: string,
-): TranscriptFetchResult {
-  const segments = segmentsFromTimedText(rawText, source);
-  if (segments.length) return buildFetchResult(segments, source, provider);
-  return buildFetchResult(
-    [{
-      seq: 0,
-      start_seconds: 0,
-      end_seconds: null,
-      text: rawText.trim().slice(0, 50000),
-      speaker: null,
-      confidence: null,
-      source,
-    }],
-    source,
-    provider,
-  );
-}
-
-async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOutcome> {
+async function transcribeYouTubeVideo(
+  url: string,
+  opts: { userId?: string; admin?: SupabaseClient | null } = {},
+): Promise<YoutubeTranscribeOutcome> {
   const metadata = await getYouTubeMetadata(url).catch(() => ({}));
   const videoId = extractYouTubeVideoId(url);
   const watchUrl = videoId ? normalizeYouTubeWatchUrl(url, videoId) : url;
-
+  const { userId, admin } = opts;
   const tierAttempts: string[] = [];
 
-  // Tier 0 (preferred): self-hosted youtube-transcript-api worker.
-  if (videoId && isWorkerConfigured()) {
-    try {
-      const worker = await fetchWorkerTranscript(videoId);
-      if (worker.rawText) {
-        return {
-          fetch: worker,
-          metadata,
-          chaptersBundle: null,
-        };
-      }
-      tierAttempts.push("Transcript worker: empty transcript");
-    } catch (e) {
-      tierAttempts.push(`Transcript worker: ${String((e as Error).message ?? e)}`);
-    }
-  }
-
-  const captionResult = await fetchYouTubeCaptionTranscript(url).catch(() => null);
-  if (captionResult?.text) {
-    const fetch = outcomeFromTimedText(captionResult.text, "caption", "youtube_watch_captions");
+  const cached = await getCachedYouTubeTranscript(admin ?? null, videoId);
+  if (cached) {
+    tierAttempts.push("Cache: hit");
     return {
-      fetch,
-      metadata: { ...metadata, title: metadata.title ?? captionResult.title },
-      chaptersBundle: captionResult,
+      fetch: outcomeFromTimedText(cached.rawText, cached.source, cached.provider),
+      metadata,
+      chaptersBundle: null,
     };
   }
+  tierAttempts.push("Cache: miss");
 
-  tierAttempts.push("Captions (watch-page): none or unavailable");
+  let chaptersBundle: WatchCaptionBundle | null = null;
+  const ensureChaptersBundle = async () => {
+    if (chaptersBundle) return chaptersBundle;
+    chaptersBundle = await fetchYouTubeCaptionTranscript(url).catch(() => null);
+    return chaptersBundle;
+  };
+
   if (videoId) {
-    const timedText = await fetchTimedTextTranscript(videoId).catch((e) => {
-      tierAttempts.push(`Captions (timedtext): ${String((e as Error).message ?? e)}`);
-      return null;
+    const lanes = buildCaptionLanes({
+      videoId,
+      userId,
+      admin,
+      fetchWatchCaptions: async () => {
+        const bundle = await ensureChaptersBundle();
+        return bundle?.text ?? null;
+      },
     });
-    if (timedText) {
-      const fetch = outcomeFromTimedText(timedText, "caption", "youtube_timedtext");
-      return {
-        fetch,
-        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
-        chaptersBundle: captionResult,
-      };
-    }
-    tierAttempts.push("Captions (timedtext): no track returned");
 
-    const innertube = await fetchInnertubeTranscript(videoId).catch((e) => {
-      tierAttempts.push(`Captions (innertube): ${String((e as Error).message ?? e)}`);
-      return null;
-    });
-    if (innertube) {
-      const fetch = outcomeFromTimedText(innertube, "caption", "youtube_innertube");
-      return {
-        fetch,
-        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
-        chaptersBundle: captionResult,
-      };
-    }
-    tierAttempts.push("Captions (innertube): no segments returned");
+    const { winner, attempts } = await raceCaptionLanes(lanes, CAPTION_RACE_TIMEOUT_MS);
+    tierAttempts.push(...attempts);
 
-    const transcriptPlus = await fetchTranscriptPlusCaptions(videoId).catch((e) => {
-      tierAttempts.push(`Captions (transcript-plus): ${String((e as Error).message ?? e)}`);
-      return null;
-    });
-    if (transcriptPlus) {
-      const fetch = outcomeFromTimedText(transcriptPlus, "caption", "youtube_transcript_plus");
+    if (winner) {
+      const bundle = await ensureChaptersBundle();
+      const fetch = outcomeFromTimedText(winner.rawText, "caption", winner.provider);
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: winner.rawText,
+        provider: winner.provider,
+        source: "caption",
+      });
       return {
         fetch,
-        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
-        chaptersBundle: captionResult,
+        metadata: { ...metadata, title: metadata.title ?? bundle?.title },
+        chaptersBundle: bundle,
       };
-    } else if (!tierAttempts.some((t) => t.startsWith("Captions (transcript-plus):"))) {
-      tierAttempts.push("Captions (transcript-plus): no segments returned");
     }
-
-    const invidious = await fetchInvidiousTranscript(videoId).catch((e) => {
-      const msg = String((e as Error).message ?? e);
-      tierAttempts.push(
-        msg.length > 200 ? `Captions (invidious): ${msg.slice(0, 200)}…` : `Captions (invidious): ${msg}`,
-      );
-      return null;
-    });
-    if (invidious) {
-      const fetch = outcomeFromTimedText(invidious, "caption", "youtube_invidious");
-      return {
-        fetch,
-        metadata: { ...metadata, title: metadata.title ?? captionResult?.title },
-        chaptersBundle: captionResult,
-      };
-    } else if (!tierAttempts.some((t) => t.startsWith("Captions (invidious):"))) {
-      tierAttempts.push("Captions (invidious): no track returned");
-    }
+    tierAttempts.push(`Captions (parallel race): none within ${CAPTION_RACE_TIMEOUT_MS}ms`);
+  } else {
+    tierAttempts.push("Captions: no video id");
   }
 
-  try {
-    const assembly = await fetchAssemblyAiTranscript(watchUrl);
-    if (assembly.rawText) {
+  const bundle = await ensureChaptersBundle();
+
+  const assembly = await fetchAssemblyFallback(watchUrl);
+  if (assembly?.rawText) {
+    tierAttempts.push("AssemblyAI: ok");
+    if (videoId) {
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: assembly.rawText,
+        provider: assembly.provider,
+        source: "third_party",
+      });
+    }
+    return {
+      fetch: assembly,
+      metadata: {
+        ...metadata,
+        durationSeconds: metadata.durationSeconds ?? bundle?.durationSeconds ?? null,
+      },
+      chaptersBundle: bundle,
+    };
+  }
+  tierAttempts.push(
+    Deno.env.get("ASSEMBLYAI_API_KEY")?.trim()
+      ? "AssemblyAI: failed or empty"
+      : "AssemblyAI: skipped — ASSEMBLYAI_API_KEY not set on edge function",
+  );
+
+  if (videoId) {
+    const deepgram = await fetchDeepgramFallback(videoId, (id) => resolveYouTubeAudioUrl(id));
+    if (deepgram?.rawText) {
+      tierAttempts.push("Deepgram: ok");
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: deepgram.rawText,
+        provider: deepgram.provider,
+        source: "deepgram",
+      });
       return {
-        fetch: assembly,
+        fetch: deepgram,
         metadata: {
           ...metadata,
-          durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? null,
+          durationSeconds: metadata.durationSeconds ?? bundle?.durationSeconds ?? null,
         },
-        chaptersBundle: captionResult,
+        chaptersBundle: bundle,
       };
     }
-  } catch (e) {
-    tierAttempts.push(`AssemblyAI: ${String((e as Error).message ?? e)}`);
-  }
-
-  if (Deno.env.get("DEEPGRAM_API_KEY")?.trim()) {
-    const deepgramUrl = videoId
-      ? await resolveYouTubeAudioUrl(videoId).catch(() => null)
-      : null;
-    if (deepgramUrl) {
-      try {
-        const deepgram = await fetchDeepgramTranscript(deepgramUrl);
-        if (deepgram.rawText) {
-          return {
-            fetch: deepgram,
-            metadata: {
-              ...metadata,
-              durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? null,
-            },
-            chaptersBundle: captionResult,
-          };
-        }
-      } catch (e) {
-        tierAttempts.push(`Deepgram: ${String((e as Error).message ?? e)}`);
-      }
-    } else {
-      tierAttempts.push(
-        "Deepgram: skipped — no direct audio URL (YouTube watch URLs are unsupported; set DEEPGRAM_AUDIO_URL or ASSEMBLYAI_API_KEY)",
-      );
-    }
-  } else {
-    tierAttempts.push("Deepgram: skipped — DEEPGRAM_API_KEY not set on edge function");
+    tierAttempts.push(
+      Deno.env.get("DEEPGRAM_API_KEY")?.trim()
+        ? "Deepgram: failed or no audio URL"
+        : "Deepgram: skipped — DEEPGRAM_API_KEY not set on edge function",
+    );
   }
 
   if (!Deno.env.get("GEMINI_API_KEY")) {
@@ -742,7 +687,7 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
   }
 
   const geminiMaxSec = Number(Deno.env.get("TRANSCRIPT_GEMINI_MAX_SECONDS") ?? "7200");
-  const durationHint = metadata.durationSeconds ?? captionResult?.durationSeconds;
+  const durationHint = metadata.durationSeconds ?? bundle?.durationSeconds;
   if (durationHint != null && durationHint > geminiMaxSec) {
     tierAttempts.push(
       `Gemini: skipped — video longer than ${Math.floor(geminiMaxSec / 60)} minutes (set TRANSCRIPT_GEMINI_MAX_SECONDS or paste transcript)`,
@@ -753,11 +698,18 @@ async function transcribeYouTubeVideo(url: string): Promise<YoutubeTranscribeOut
   try {
     const text = await transcribeYouTubeWithGemini(watchUrl, durationHint);
     const fetch = outcomeFromTimedText(text, "gemini", "gemini_video_clips");
+    if (videoId) {
+      await saveCachedYouTubeTranscript(admin ?? null, videoId, {
+        rawText: text,
+        provider: "gemini_video_clips",
+        source: "gemini",
+      });
+    }
     const mergedMetadata = {
       ...metadata,
-      durationSeconds: metadata.durationSeconds ?? captionResult?.durationSeconds ?? durationHint,
+      durationSeconds: metadata.durationSeconds ?? bundle?.durationSeconds ?? durationHint,
     };
-    return { fetch, metadata: mergedMetadata, chaptersBundle: captionResult };
+    return { fetch, metadata: mergedMetadata, chaptersBundle: bundle };
   } catch (e) {
     throw new Error(buildTranscriptFailureMessage(tierAttempts, String((e as Error).message ?? e)));
   }
@@ -828,9 +780,17 @@ Deno.serve(async (req) => {
           ? await (async (): Promise<YoutubeTranscribeOutcome> => {
             const metadata = await getYouTubeMetadata(url).catch(() => ({}));
             const fetch = outcomeFromTimedText(prefetched, "caption", "browser_captions");
+            const vid = extractYouTubeVideoId(url);
+            if (vid) {
+              await saveCachedYouTubeTranscript(admin, vid, {
+                rawText: prefetched,
+                provider: "browser_captions",
+                source: "caption",
+              });
+            }
             return { fetch, metadata, chaptersBundle: null };
           })()
-          : await transcribeYouTubeVideo(url);
+          : await transcribeYouTubeVideo(url, { userId: u.user.id, admin });
         const uploaderName = result.metadata.channelTitle ?? null;
         const vid = extractYouTubeVideoId(url);
         let desc = result.chaptersBundle?.description ?? "";

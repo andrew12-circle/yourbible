@@ -15,7 +15,11 @@ import {
   looksLikeYoutubeShowTranscriptPaste,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
-import { createTranscriptProcessingToken, startYoutubeTranscriptFetch } from "@/lib/framework/youtubeTranscriptFetch";
+import {
+  createTranscriptProcessingToken,
+  startYoutubeTranscriptFetchWithPrefetch,
+} from "@/lib/framework/youtubeTranscriptFetch";
+import { useYoutubeCaptionPrefetch } from "@/hooks/useYoutubeCaptionPrefetch";
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 
 const ONE_MB = 1024 * 1024;
@@ -132,6 +136,7 @@ export default function NewArtifactPage() {
   const youTubeVideoId = useMemo(() => getYouTubeVideoId(url), [url]);
   const embedUrl = useMemo(() => getYouTubeEmbedUrl(url), [url]);
   const showPreviewSlot = url.trim().length > 0;
+  const captionPrefetch = useYoutubeCaptionPrefetch(url);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -188,10 +193,12 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message, variant: "destructive" });
       return;
     }
-    const started = await startYoutubeTranscriptFetch({
+    const prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
+    const started = await startYoutubeTranscriptFetchWithPrefetch({
       artifactId: data.id,
       url: url.trim(),
       processingToken,
+      prefetchedRawText,
     });
     setBusy(false);
     if (!started.ok) {
@@ -521,8 +528,21 @@ export default function NewArtifactPage() {
               )}
             </div>
           )}
+          {captionPrefetch.status === "loading" && youTubeVideoId ? (
+            <p className="text-xs text-muted-foreground mb-2">Checking for captions in your browser…</p>
+          ) : null}
+          {captionPrefetch.status === "ready" ? (
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
+              Captions found — submit will skip the slow server scrape and analyze immediately.
+            </p>
+          ) : null}
+          {captionPrefetch.status === "unavailable" && youTubeVideoId ? (
+            <p className="text-xs text-muted-foreground mb-2">
+              Browser caption check did not return text; the server will try parallel fetch + AssemblyAI if configured.
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground mb-4">
-            Fetches captions when available. If fetch fails or you already have the transcript, paste it below.
+            Fetches captions when available. Connect YouTube in Settings for your own uploads. Paste below if auto-fetch fails.
           </p>
           <Button onClick={submitYoutube} disabled={busy} className="mb-6">
             {busy ? "Fetching…" : "Fetch & analyze"}

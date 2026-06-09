@@ -4,13 +4,13 @@
 
 | Tier | Provider | When | Notes |
 |------|----------|------|-------|
-| 0 | **YouTube transcript worker** (preferred) | `TRANSCRIPT_WORKER_URL` set | Self-hosted Python `youtube-transcript-api` service; most reliable for captioned videos. Source in `worker/youtube-transcript/`. Falls through on 404 (no captions). |
-| 1 | YouTube captions (scrape) | Always first | Free, fast; breaks when captions disabled |
-| 1b | **youtube-transcript-plus** | After innertube | Free; Innertube caption path (npm), often works when raw timedtext scrape fails |
-| 1c | **Invidious mirrors** | After transcript-plus | Free; public Invidious instances (fallback) |
-| 1d | **Browser Invidious** (client) | On each fetch/retry | Free; tries Invidious from the user’s browser before the edge function |
-| 2 | **AssemblyAI** | `ASSEMBLYAI_API_KEY` + `TRANSCRIPT_TIER2_ENABLED` | Accepts YouTube watch URLs via `audio_url`; utterances + optional speaker labels |
-| 3 | **Deepgram** | `DEEPGRAM_API_KEY` + resolved direct audio URL | Watch URLs fail; edge resolves `googlevideo` audio from player/InnerTube, or use `DEEPGRAM_AUDIO_URL` |
+| −1 | **Global cache** | Same `video_id` fetched before | `youtube_transcript_cache` table; 90-day TTL |
+| 0 | **Parallel caption race** (~4.5s) | Always (unless cache hit) | OAuth + worker + watch + timedtext + innertube + transcript-plus + invidious run **in parallel**; first win |
+| 0a | **YouTube OAuth captions** | User connected in Settings | Official `captions.download` for videos on the user’s channel |
+| 0b | **Transcript worker** | `TRANSCRIPT_WORKER_URL` set | Self-hosted Python `youtube-transcript-api`; use Webshare proxy in production |
+| 1 | **Browser prefetch** (client) | On URL paste / submit | `youtube-transcript-plus` + Invidious from the user’s IP before edge runs |
+| 2 | **AssemblyAI** | `ASSEMBLYAI_API_KEY` + `TRANSCRIPT_TIER2_ENABLED` | Starts right after caption race misses; accepts YouTube watch URLs |
+| 3 | **Deepgram** | `DEEPGRAM_API_KEY` + resolved direct audio URL | Watch URLs fail; edge resolves `googlevideo` when possible |
 | 4 | Gemini video clips | `GEMINI_API_KEY` | Last resort; chunked for long videos |
 
 **Default third-party:** AssemblyAI (production API, no yt-dlp worker in v1).
@@ -19,14 +19,13 @@
 
 ```
 YouTube URL
-  → transcript worker (youtube-transcript-api, if TRANSCRIPT_WORKER_URL set)
-  → captions (watch / timedtext / InnerTube)
-  → AssemblyAI (URL transcribe + poll)
-  → Deepgram (audio URL, if available)
-  → Gemini clips
-  → artifact_transcript_segments + artifacts.raw_text ([M:SS] lines)
-  → framework-analyze (OpenAI primary via AI_PROVIDER)
-  → framework-embed-transcript (semantic chunks → OpenAI 768d embeddings)
+  → browser prefetch on paste (client)
+  → cache lookup by video_id
+  → parallel caption race (OAuth / worker / scrape tiers)
+  → AssemblyAI (if race misses)
+  → Deepgram → Gemini
+  → cache write + artifact_transcript_segments + artifacts.raw_text
+  → framework-analyze → framework-embed-transcript
 ```
 
 ## YouTube transcript worker (Tier 0)
@@ -84,6 +83,9 @@ npx supabase functions deploy framework-fetch-transcript --project-ref YOUR_REF
 | `TRANSCRIPT_TIER2_ENABLED` | `false` to skip AssemblyAI even when key is set |
 | `GEMINI_API_KEY` | Required for tier-4 chunked STT + optional chapter generation |
 | `YOUTUBE_DATA_API_KEY` | Metadata / description chapters |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | YouTube OAuth (Settings → Connect YouTube) |
+| `YOUTUBE_OAUTH_APP_ORIGIN` | Where to redirect after OAuth (e.g. production app URL) |
+| `TRANSCRIPT_CAPTION_RACE_MS` | Parallel caption timeout (default `4500`) |
 
 **No-caption videos:** at least one of `ASSEMBLYAI_API_KEY` or `DEEPGRAM_API_KEY` plus `GEMINI_API_KEY` for the Gemini fallback. AssemblyAI alone is the most reliable path (watch URL). Deepgram-only works when the resolver finds a direct `googlevideo` stream.
 

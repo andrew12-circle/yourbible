@@ -75,18 +75,42 @@ async function tryClientCaptionFetch(
 
   try {
     const fromBrowser = await fetchYoutubeCaptionsInBrowser(videoId);
-    if (fromBrowser?.trim()) {
-      return submitPrefetchedCaptions(artifactId, url, fromBrowser, processingToken);
+    if (fromBrowser.text?.trim()) {
+      return submitPrefetchedCaptions(artifactId, url, fromBrowser.text, processingToken);
     }
 
     const invidious = await fetchYoutubeCaptionsViaInvidious(videoId);
     if (invidious?.trim()) {
       return submitPrefetchedCaptions(artifactId, url, invidious, processingToken);
     }
-  } catch {
+
+    if (fromBrowser.error) {
+      console.warn("Browser caption fetch failed:", fromBrowser.error);
+    }
+  } catch (err) {
+    console.warn("Client caption fetch error:", err);
     return null;
   }
   return null;
+}
+
+/** Optional captions warmed in the browser before submit (see useYoutubeCaptionPrefetch). */
+export async function startYoutubeTranscriptFetchWithPrefetch({
+  artifactId,
+  url,
+  processingToken,
+  prefetchedRawText,
+  markError = true,
+}: StartYoutubeTranscriptFetchParams & { prefetchedRawText?: string | null }): Promise<TranscriptFetchResult> {
+  const warmed = prefetchedRawText?.trim();
+  if (warmed) {
+    try {
+      return await submitPrefetchedCaptions(artifactId, url, warmed, processingToken);
+    } catch (err) {
+      console.warn("Prefetched caption submit failed, falling back to full fetch:", err);
+    }
+  }
+  return startYoutubeTranscriptFetch({ artifactId, url, processingToken, markError });
 }
 
 export async function startYoutubeTranscriptFetch({

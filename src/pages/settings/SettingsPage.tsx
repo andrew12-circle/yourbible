@@ -21,6 +21,7 @@ import {
 } from "@/lib/profile/homeMedia";
 import { SeedTimelineCard } from "@/components/settings/SeedTimelineCard";
 import { AiUsageSection } from "@/components/settings/AiUsageSection";
+import { YouTubeConnectionSection } from "@/components/settings/YouTubeConnectionSection";
 import { PartnerSettingsSection } from "@/components/partner/PartnerSettingsSection";
 
 const WALLPAPER_KEY = "yb_home_wallpaper";
@@ -476,6 +477,8 @@ export default function SettingsPage() {
         </section>
 
         <PartnerSettingsSection />
+
+        <YouTubeConnectionSection />
 
         <AiUsageSection userId={user?.id} />
 
