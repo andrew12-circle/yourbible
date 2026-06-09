@@ -4,13 +4,14 @@ import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifa
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
+import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   markYoutubeTranscriptFetchError,
   resumeYoutubeTranscriptFetch,
   restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 
-const YOUTUBE_FETCH_ENSURE_AFTER_MS = 6_000;
+const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
 const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
@@ -206,6 +207,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "fetching" || !a.url?.trim()) return;
     if (a.raw_text?.trim()) return;
     if (ensureFetchRef.current === a.id) return;
+    if (isManualYoutubeFetchActive(a.id)) return;
 
     const artifactId = a.id;
     const artifactUrl = a.url.trim();
@@ -242,6 +244,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
 
   useEffect(() => {
     if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
+    if (isManualYoutubeFetchActive(a.id)) return;
     if (elapsed < YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS) return;
 
     const retry = autoRetryRef.current[a.id] ?? { count: 0, lastAt: 0 };

@@ -48,6 +48,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "",
     items: [
+      { title: "Life weeks", icon: Calendar, to: "/life-weeks" },
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Daily", icon: Sun, to: "/framework/daily" },
@@ -75,7 +76,6 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
       { title: "Tasks", icon: ListTodo, to: "/life/todos" },
       { title: "Habits", icon: CheckSquare, to: "/life/habits" },
       { title: "Sleep", icon: Moon, to: "/sleep" },
-      { title: "Life weeks", icon: Calendar, to: "/life-weeks" },
     ],
   },
   {

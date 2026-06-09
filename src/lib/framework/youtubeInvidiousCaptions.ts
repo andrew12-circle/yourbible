@@ -4,9 +4,10 @@
  */
 
 const DEFAULT_INSTANCES = [
-  "https://invidious.io",
-  "https://yewtu.be",
   "https://inv.nadeko.net",
+  "https://inv.thepixora.com",
+  "https://invidious.f5.si",
+  "https://invidious.nerdvpn.de",
 ];
 
 type CaptionTrack = { label?: string; languageCode?: string; url?: string };

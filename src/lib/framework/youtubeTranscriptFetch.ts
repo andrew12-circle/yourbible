@@ -1,8 +1,10 @@
 import { normalizePastedTranscript } from "@/lib/normalizePastedTranscript";
 import { getYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchYoutubeCaptionsViaInvidious } from "@/lib/framework/youtubeInvidiousCaptions";
-import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
+import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
+import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 
 type StartYoutubeTranscriptFetchParams = {
   artifactId: string;
@@ -30,6 +32,12 @@ function responseError(data: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function isStaleTokenResponse(error: unknown): boolean {
+  if (!(error instanceof FunctionsHttpError)) return false;
+  const ctx = error.context;
+  return ctx instanceof Response && ctx.status === 409;
+}
+
 export function createTranscriptProcessingToken(): string {
   return crypto.randomUUID();
 }
@@ -41,6 +49,36 @@ export async function markYoutubeTranscriptFetchError(artifactId: string, messag
     .eq("id", artifactId);
 }
 
+type FetchTranscriptBody = {
+  artifact_id: string;
+  url: string;
+  processing_token: string;
+  pre_fetched_captions?: string;
+};
+
+async function invokeFetchTranscript(body: FetchTranscriptBody): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("framework-fetch-transcript", { body });
+  if (error) {
+    if (isStaleTokenResponse(error)) {
+      throw Object.assign(new Error("stale request"), { staleToken: true });
+    }
+    const msg = await edgeFunctionErrorMessage("framework-fetch-transcript", error, data);
+    throw new Error(msg);
+  }
+  const payloadError = responseError(data);
+  if (payloadError) throw new Error(payloadError);
+}
+
+async function readProcessingToken(artifactId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("artifacts")
+    .select("processing_token")
+    .eq("id", artifactId)
+    .maybeSingle();
+  const token = data?.processing_token;
+  return typeof token === "string" && token.trim() ? token : null;
+}
+
 /** Send browser-fetched captions to the edge function for segment indexing + analyze. */
 async function submitPrefetchedCaptions(
   artifactId: string,
@@ -49,20 +87,31 @@ async function submitPrefetchedCaptions(
   processingToken: string,
 ): Promise<TranscriptFetchResult> {
   const normalized = normalizePastedTranscript(rawText);
-  const { error } = await supabase.functions.invoke("framework-fetch-transcript", {
-    body: {
-      artifact_id: artifactId,
-      url,
-      processing_token: processingToken,
-      pre_fetched_captions: normalized,
-    },
-  });
-  if (error) throw error;
+  let token = processingToken;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await invokeFetchTranscript({
+        artifact_id: artifactId,
+        url,
+        processing_token: token,
+        pre_fetched_captions: normalized,
+      });
+      return { ok: true };
+    } catch (err) {
+      const stale = err instanceof Error && "staleToken" in err && (err as { staleToken?: boolean }).staleToken;
+      if (!stale || attempt > 0) throw err;
+      const fresh = await readProcessingToken(artifactId);
+      if (!fresh) throw err;
+      token = fresh;
+    }
+  }
+
   return { ok: true };
 }
 
 /**
- * Fetch captions from the user's browser (YouTube blocks datacenter edge IPs).
+ * Fetch captions from the user's browser (residential IP).
  * Falls back to Invidious mirrors, then the server-side ladder.
  */
 async function tryClientCaptionFetch(
@@ -74,22 +123,13 @@ async function tryClientCaptionFetch(
   if (!videoId) return null;
 
   try {
-    const fromBrowser = await fetchYoutubeCaptionsInBrowser(videoId);
-    if (fromBrowser.text?.trim()) {
-      return submitPrefetchedCaptions(artifactId, url, fromBrowser.text, processingToken);
+    const resolved = await resolveClientYoutubeCaptions(videoId);
+    if (resolved.text) {
+      return submitPrefetchedCaptions(artifactId, url, resolved.text, processingToken);
     }
-
-    const invidious = await fetchYoutubeCaptionsViaInvidious(videoId);
-    if (invidious?.trim()) {
-      return submitPrefetchedCaptions(artifactId, url, invidious, processingToken);
-    }
-
-    if (fromBrowser.error) {
-      console.warn("Browser caption fetch failed:", fromBrowser.error);
-    }
+    console.warn("Client caption fetch:", resolved.attempts.join("; "));
   } catch (err) {
     console.warn("Client caption fetch error:", err);
-    return null;
   }
   return null;
 }
@@ -123,12 +163,19 @@ export async function startYoutubeTranscriptFetch({
     const clientResult = await tryClientCaptionFetch(artifactId, url, processingToken);
     if (clientResult) return clientResult;
 
-    const { data, error } = await supabase.functions.invoke("framework-fetch-transcript", {
-      body: { artifact_id: artifactId, url, processing_token: processingToken },
-    });
-    if (error) throw error;
-    const payloadError = responseError(data);
-    if (payloadError) throw new Error(payloadError);
+    let token = processingToken;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await invokeFetchTranscript({ artifact_id: artifactId, url, processing_token: token });
+        return { ok: true };
+      } catch (err) {
+        const stale = err instanceof Error && "staleToken" in err && (err as { staleToken?: boolean }).staleToken;
+        if (!stale || attempt > 0) throw err;
+        const fresh = await readProcessingToken(artifactId);
+        if (!fresh) throw err;
+        token = fresh;
+      }
+    }
     return { ok: true };
   } catch (err) {
     const message = `Could not start transcript fetch: ${errorMessage(err)}`;
@@ -169,6 +216,13 @@ export async function restartYoutubeTranscriptFetch(
   artifactId: string,
   url: string,
 ): Promise<TranscriptFetchResult> {
+  markManualYoutubeFetch(artifactId);
+
+  const videoId = getYouTubeVideoId(url);
+  const prefetchedRawText = videoId
+    ? (await resolveClientYoutubeCaptions(videoId).catch(() => ({ text: null, attempts: [] }))).text
+    : null;
+
   const processingToken = createTranscriptProcessingToken();
   const { error } = await supabase
     .from("artifacts")
@@ -177,5 +231,11 @@ export async function restartYoutubeTranscriptFetch(
   if (error) {
     return { ok: false, error: `Could not queue transcript fetch: ${error.message}` };
   }
-  return startYoutubeTranscriptFetch({ artifactId, url, processingToken });
+
+  return startYoutubeTranscriptFetchWithPrefetch({
+    artifactId,
+    url,
+    processingToken,
+    prefetchedRawText,
+  });
 }

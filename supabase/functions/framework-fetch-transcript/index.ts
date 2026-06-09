@@ -560,6 +560,23 @@ async function transcribeYouTubeWithGemini(
   return transcript;
 }
 
+function serverCaptionsBlocked(tierAttempts: string[]): boolean {
+  const captionSteps = tierAttempts.filter((s) => s.startsWith("Captions"));
+  if (captionSteps.length < 3) return false;
+  if (captionSteps.some((s) => /: ok/.test(s))) return false;
+  return captionSteps.some((s) =>
+    s.includes("no longer available") ||
+    s.includes("no transcripts are available") ||
+    s.includes("transcript-plus")
+  );
+}
+
+function shouldSkipGeminiTranscribe(tierAttempts: string[]): boolean {
+  const captionSteps = tierAttempts.filter((s) => s.startsWith("Captions"));
+  if (captionSteps.length < 3) return false;
+  return !captionSteps.some((s) => /: ok/.test(s));
+}
+
 function buildTranscriptFailureMessage(tierAttempts: string[], geminiError?: string): string {
   const steps = [...tierAttempts];
   if (geminiError) {
@@ -567,11 +584,9 @@ function buildTranscriptFailureMessage(tierAttempts: string[], geminiError?: str
   } else if (!Deno.env.get("GEMINI_API_KEY")) {
     steps.push("Gemini: skipped — GEMINI_API_KEY not set on edge function");
   }
-  const edgeBlocked = steps.some((s) =>
-    s.includes("no longer available") || s.includes("transcript-plus")
-  );
+  const edgeBlocked = serverCaptionsBlocked(steps);
   const hint = edgeBlocked
-    ? "YouTube often blocks server fetches; retry after deploying the latest app build (browser caption fetch) or paste from YouTube (⋯ → Show transcript)."
+    ? "YouTube blocks our servers for this video. Tap “Try fetch again” and keep this tab open ~10s (captions load from your browser), or paste from YouTube (⋯ → Show transcript)."
     : "For long videos, paste from YouTube (⋯ → Show transcript) if automatic fetch keeps failing.";
   return [
     "Could not fetch transcript.",
@@ -668,17 +683,17 @@ async function transcribeYouTubeVideo(
   const bundle = await ensureChaptersBundle();
 
   const assembly = await fetchAssemblyFallback(watchUrl);
-  if (assembly?.rawText) {
+  if (assembly.result?.rawText) {
     tierAttempts.push("AssemblyAI: ok");
     if (videoId) {
       await saveCachedYouTubeTranscript(admin ?? null, videoId, {
-        rawText: assembly.rawText,
-        provider: assembly.provider,
+        rawText: assembly.result.rawText,
+        provider: assembly.result.provider,
         source: "third_party",
       });
     }
     return {
-      fetch: assembly,
+      fetch: assembly.result,
       metadata: {
         ...metadata,
         durationSeconds: metadata.durationSeconds ?? bundle?.durationSeconds ?? null,
@@ -688,7 +703,7 @@ async function transcribeYouTubeVideo(
   }
   tierAttempts.push(
     Deno.env.get("ASSEMBLYAI_API_KEY")?.trim()
-      ? "AssemblyAI: failed or empty"
+      ? `AssemblyAI: ${assembly.note}`
       : "AssemblyAI: skipped — ASSEMBLYAI_API_KEY not set on edge function",
   );
 
@@ -718,6 +733,11 @@ async function transcribeYouTubeVideo(
   }
 
   if (!Deno.env.get("GEMINI_API_KEY")) {
+    throw new Error(buildTranscriptFailureMessage(tierAttempts));
+  }
+
+  if (shouldSkipGeminiTranscribe(tierAttempts) || serverCaptionsBlocked(tierAttempts)) {
+    tierAttempts.push("Gemini: skipped — use browser retry or paste (server caption fetch blocked)");
     throw new Error(buildTranscriptFailureMessage(tierAttempts));
   }
 

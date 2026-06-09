@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { HubPageLayout } from "@/components/shell/HubPageLayout";
+import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,11 +58,36 @@ function todayIsoMax(): string {
   return `${y}-${m}-${day}`;
 }
 
-function StatPill({ label, value }: { label: string; value: string }) {
+function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="shrink-0 rounded-full border border-zinc-300/80 bg-white/60 px-3 py-1.5 text-xs tabular-nums dark:border-zinc-600/80 dark:bg-zinc-900/50">
+    <div
+      className={cn(
+        "shrink-0 rounded-full border px-3 py-1.5 text-xs tabular-nums",
+        highlight
+          ? "border-primary/40 bg-primary/10 font-semibold"
+          : "border-zinc-300/80 bg-white/60 dark:border-zinc-600/80 dark:bg-zinc-900/50",
+      )}
+    >
       <span className="text-muted-foreground dark:text-zinc-400">{label}</span>{" "}
-      <span className="font-semibold">{value}</span>
+      <span className={cn("font-semibold", highlight && "text-foreground")}>{value}</span>
+    </div>
+  );
+}
+
+function LifeWeeksRemainingHero({ stats }: { stats: LifePhaseStats }) {
+  const fmt = (n: number) => n.toLocaleString();
+  return (
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-4 md:px-5 md:py-5 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Time you have left
+      </p>
+      <p className="mt-1 text-4xl md:text-5xl font-bold tabular-nums tracking-tight text-foreground">
+        {fmt(stats.weeksRemaining)}
+        <span className="ml-2 text-lg md:text-2xl font-semibold text-muted-foreground">weeks</span>
+      </p>
+      <p className="mt-1.5 text-sm text-muted-foreground tabular-nums">
+        {fmt(stats.weeksLived)} lived · {stats.pctOfLifespan.toFixed(1)}% of a full life
+      </p>
     </div>
   );
 }
@@ -71,7 +100,7 @@ function LifeStatsBar({ stats }: { stats: LifePhaseStats }) {
       aria-label="Life week statistics"
     >
       <StatPill label="Lived" value={`${fmt(stats.weeksLived)} wks`} />
-      <StatPill label="Left" value={`${fmt(stats.weeksRemaining)} wks`} />
+      <StatPill label="Left" value={`${fmt(stats.weeksRemaining)} wks`} highlight />
       <StatPill label="Lifespan" value={`${stats.pctOfLifespan.toFixed(1)}%`} />
       <StatPill label="With control" value={`${fmt(stats.controlWeeksLived)} wks`} />
       <StatPill
@@ -186,6 +215,7 @@ function LifeStageSettingsForm({
 
 export default function LifeWeeksPage() {
   const { user, profile, loading, updateProfile } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const [now, setNow] = useState(() => Date.now());
   const [draftDob, setDraftDob] = useState("");
   const [saving, setSaving] = useState(false);
@@ -195,7 +225,7 @@ export default function LifeWeeksPage() {
    *  - "fit": preserve aspect ratio, bounded by viewport so the whole poster shows on one screen
    *  - number: explicit zoom multiplier of the SVG's native pixel size, container scrolls
    */
-  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>(1);
+  const [zoom, setZoom] = useState<"fit" | 1 | 1.5 | 2 | 3>(showHubShell ? "fit" : 1);
   const [showStageSettings, setShowStageSettings] = useState(false);
   const dobMax = todayIsoMax();
 
@@ -367,27 +397,28 @@ export default function LifeWeeksPage() {
     }
   };
 
+  const cardClass = showHubShell
+    ? "rounded-xl border border-border/60 bg-card shadow-sm"
+    : POSTER_CLASS;
+
+  const fitMaxHeight = showHubShell ? "min(58vh, calc(100dvh - 22rem))" : "calc(100dvh - 280px)";
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center app-mesh">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
 
-  return (
-    <div className="min-h-screen app-mesh pb-safe-16">
-      <header className="sticky top-0 z-20 flex items-center gap-2 px-3 py-3 sm:px-4 border-b border-border/60 bg-background/80 backdrop-blur-md">
-        <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-1" aria-label="Back">
-          <Link to="/home">
-            <ChevronLeft className="w-5 h-5" />
-          </Link>
-        </Button>
-        <h1 className="text-base font-semibold tracking-tight">My life in weeks</h1>
-      </header>
-
-      <div className="mx-auto w-full max-w-5xl px-3 sm:px-4 pt-4 space-y-4">
+  const pageBody = (
+      <div
+        className={cn(
+          "mx-auto w-full space-y-3 md:space-y-4",
+          showHubShell ? "flex flex-col min-h-0 flex-1" : "max-w-5xl px-3 sm:px-4 pt-4",
+        )}
+      >
         {missingDobColumn && (
           <div
             role="alert"
@@ -432,7 +463,9 @@ export default function LifeWeeksPage() {
         )}
 
         {dob && phaseStats && (
-          <section className={`mx-auto max-w-5xl p-3 sm:p-4 ${POSTER_CLASS}`}>
+          <>
+            <LifeWeeksRemainingHero stats={phaseStats} />
+            <section className={cn("p-3 sm:p-4", cardClass)}>
             <LifeStatsBar stats={phaseStats} />
             <button
               type="button"
@@ -450,6 +483,7 @@ export default function LifeWeeksPage() {
               />
             )}
           </section>
+          </>
         )}
 
         {dob && !indexState && (
@@ -459,8 +493,8 @@ export default function LifeWeeksPage() {
         )}
 
         {dob && indexState && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-end gap-1.5 px-1">
+          <div className={cn("space-y-2", showHubShell && "flex flex-col flex-1 min-h-[280px]")}>
+            <div className="flex items-center justify-end gap-1.5 px-1 shrink-0">
               <Button
                 type="button"
                 variant={zoom === "fit" ? "secondary" : "ghost"}
@@ -498,20 +532,35 @@ export default function LifeWeeksPage() {
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
-            <div className={`mx-auto w-full overflow-auto p-3 sm:p-5 ${POSTER_CLASS}`}>
+            <div
+              className={cn(
+                "mx-auto w-full p-3 sm:p-4 md:p-5",
+                cardClass,
+                showHubShell ? "flex flex-1 min-h-0 flex-col overflow-hidden" : "overflow-auto",
+              )}
+            >
               {/*
                 Two sizing modes share one SVG:
                   - "fit": wrapper div uses aspect-ratio + viewport bound; SVG is width/height "100%".
                   - zoom number: SVG gets pixel width/height; outer div scrolls in both axes.
               */}
               <div
-                className={zoom === "fit" ? "mx-auto" : "inline-block"}
+                className={cn(
+                  zoom === "fit"
+                    ? showHubShell
+                      ? "flex flex-1 min-h-0 items-center justify-center"
+                      : "mx-auto"
+                    : "inline-block overflow-auto",
+                )}
+              >
+              <div
+                className={zoom === "fit" ? (showHubShell ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined}
                 style={
                   zoom === "fit"
                     ? {
                         aspectRatio: `${gridW} / ${gridH}`,
                         maxWidth: "100%",
-                        maxHeight: "calc(100dvh - 220px)",
+                        maxHeight: showHubShell ? "100%" : fitMaxHeight,
                       }
                     : undefined
                 }
@@ -643,10 +692,20 @@ export default function LifeWeeksPage() {
               </svg>
             </div>
             </div>
+            </div>
           </div>
         )}
 
         {dob && (
+          <section className="shrink-0">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-2 px-0.5">
+              Daily review
+            </h2>
+            <LifePrioritiesPanel />
+          </section>
+        )}
+
+        {dob && !showHubShell && (
           <section className={`mx-auto max-w-lg p-4 sm:p-5 ${POSTER_CLASS}`}>
             <Label htmlFor="life-dob-edit" className="text-xs uppercase tracking-wide text-muted-foreground">
               Update birth date
@@ -667,6 +726,31 @@ export default function LifeWeeksPage() {
           </section>
         )}
       </div>
+  );
+
+  if (showHubShell) {
+    return (
+      <HubPageLayout
+        title="My life in weeks"
+        description="Your weeks at a glance — then check in on today"
+        mainClassName="flex flex-col min-h-0 overflow-y-auto"
+      >
+        {pageBody}
+      </HubPageLayout>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-safe-16">
+      <header className="sticky top-0 z-20 flex items-center gap-2 px-3 py-3 sm:px-4 border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-1" aria-label="Back">
+          <Link to="/home">
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+        </Button>
+        <h1 className="text-base font-semibold tracking-tight">My life in weeks</h1>
+      </header>
+      {pageBody}
     </div>
   );
 }

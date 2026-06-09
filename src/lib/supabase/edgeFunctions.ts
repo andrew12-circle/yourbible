@@ -93,5 +93,8 @@ function formatKnownEdgeError(message: string): string {
   if (/Invalid journal_entry_id for journal chat/i.test(message)) {
     return `${message} Save the entry and open chat mode again.`;
   }
+  if (/stale request/i.test(message)) {
+    return "Transcript fetch was interrupted by another retry. Tap Try fetch again once and wait ~10s.";
+  }
   return message;
 }

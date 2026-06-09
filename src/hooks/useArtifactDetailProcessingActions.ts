@@ -7,7 +7,8 @@ import {
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
 import { getYouTubeVideoId } from "@/lib/youtube";
-import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
+import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
+import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   createTranscriptProcessingToken,
   startYoutubeTranscriptFetchWithPrefetch,
@@ -140,6 +141,13 @@ export function useArtifactDetailProcessingActions({
 
   const retryFetch = useCallback(async () => {
     if (!a?.url) return;
+    markManualYoutubeFetch(a.id);
+
+    const videoId = getYouTubeVideoId(a.url);
+    const prefetchedRawText = videoId
+      ? (await resolveClientYoutubeCaptions(videoId).catch(() => ({ text: null, attempts: [] }))).text
+      : null;
+
     const processingToken = createTranscriptProcessingToken();
     await supabase
       .from("artifacts")
@@ -147,17 +155,20 @@ export function useArtifactDetailProcessingActions({
       .eq("id", a.id);
     setA({ ...a, status: "fetching", error: null });
 
-    const videoId = getYouTubeVideoId(a.url);
-    const prefetchedRawText = videoId
-      ? (await fetchYoutubeCaptionsInBrowser(videoId).catch(() => ({ text: null }))).text
-      : null;
-
-    void startYoutubeTranscriptFetchWithPrefetch({
+    const result = await startYoutubeTranscriptFetchWithPrefetch({
       artifactId: a.id,
       url: a.url,
       processingToken,
       prefetchedRawText,
     });
+    if (!result.ok) {
+      setA((prev) => (prev ? { ...prev, status: "error", error: result.error ?? prev.error } : prev));
+      toast({
+        title: "Transcript fetch failed",
+        description: result.error ?? "Try again or paste the transcript.",
+        variant: "destructive",
+      });
+    }
   }, [a, setA]);
 
   const submitPasted = useCallback(async () => {

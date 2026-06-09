@@ -180,12 +180,15 @@ export function buildCaptionLanes(opts: BuildCaptionLanesOpts): CaptionLane[] {
   return lanes;
 }
 
-export async function fetchAssemblyFallback(watchUrl: string): Promise<TranscriptFetchResult | null> {
+export async function fetchAssemblyFallback(
+  watchUrl: string,
+): Promise<{ result: TranscriptFetchResult | null; note: string }> {
   try {
     const assembly = await fetchAssemblyAiTranscript(watchUrl);
-    return assembly.rawText ? assembly : null;
-  } catch {
-    return null;
+    if (assembly.rawText) return { result: assembly, note: "ok" };
+    return { result: null, note: "empty response" };
+  } catch (e) {
+    return { result: null, note: String((e as Error).message ?? e) };
   }
 }
 

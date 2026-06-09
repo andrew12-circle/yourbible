@@ -20,6 +20,8 @@ import {
   startYoutubeTranscriptFetchWithPrefetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { useYoutubeCaptionPrefetch } from "@/hooks/useYoutubeCaptionPrefetch";
+import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
+import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 
 const ONE_MB = 1024 * 1024;
@@ -172,7 +174,15 @@ export default function NewArtifactPage() {
       toast({ title: "Failed", description: error?.message, variant: "destructive" });
       return;
     }
-    const prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
+    markManualYoutubeFetch(data.id);
+    let prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
+    if (!prefetchedRawText) {
+      const videoId = getYouTubeVideoId(url.trim());
+      if (videoId) {
+        const resolved = await resolveClientYoutubeCaptions(videoId);
+        prefetchedRawText = resolved.text;
+      }
+    }
     const started = await startYoutubeTranscriptFetchWithPrefetch({
       artifactId: data.id,
       url: url.trim(),
