@@ -35,6 +35,8 @@ interface MiniPhoneState {
   activeRoute: string | null;
   openApp: (route: string) => void;
   goHome: () => void;
+  /** Keep session storage in sync when navigating inside the phone. */
+  syncRoute: (route: string) => void;
 }
 
 const MiniPhoneContext = createContext<MiniPhoneState | null>(null);
@@ -47,6 +49,7 @@ const FALLBACK: MiniPhoneState = {
   activeRoute: null,
   openApp: () => {},
   goHome: () => {},
+  syncRoute: () => {},
 };
 
 export function useMiniPhone() {
@@ -73,9 +76,14 @@ export function MiniPhoneProvider({ children }: { children: ReactNode }) {
     persistActiveRoute(null);
   }, []);
 
+  const syncRoute = useCallback((route: string) => {
+    setActiveRoute(route);
+    persistActiveRoute(route);
+  }, []);
+
   return (
     <MiniPhoneContext.Provider
-      value={{ isOpen, open, close, toggle, activeRoute, openApp, goHome }}
+      value={{ isOpen, open, close, toggle, activeRoute, openApp, goHome, syncRoute }}
     >
       {children}
     </MiniPhoneContext.Provider>

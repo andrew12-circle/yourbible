@@ -7,6 +7,8 @@ import {
   MINI_PHONE_COMPACT_BREAKPOINT,
   MiniPhoneSizeContext,
 } from "@/hooks/useMiniPhoneSize";
+import { MiniPhoneAppView } from "@/components/mini-phone/MiniPhoneAppView";
+import { MiniPhoneHomeBar } from "@/components/mini-phone/MiniPhoneHomeBar";
 import { MiniPhoneHomeGrid } from "@/components/mini-phone/MiniPhoneHomeGrid";
 
 const POSITION_STORAGE_KEY = "mini-phone-position";
@@ -47,7 +49,7 @@ function loadPosition(): { x: number; y: number } | null {
 }
 
 export function MiniPhoneDrawer() {
-  const { isOpen, close } = useMiniPhone();
+  const { isOpen, close, activeRoute } = useMiniPhone();
   const { apps, wallpaper, wallpaperTint, wallpaperBlur } = useHomeApps();
   const [size, setSize] = useState(loadSize);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(loadPosition);
@@ -200,28 +202,23 @@ export function MiniPhoneDrawer() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-hidden">
-              <MiniPhoneHomeGrid
-                apps={apps}
-                wallpaper={wallpaper}
-                wallpaperTint={wallpaperTint}
-                wallpaperBlur={wallpaperBlur}
-              />
+              {activeRoute ? (
+                <MiniPhoneAppView entryRoute={activeRoute} />
+              ) : (
+                <MiniPhoneHomeGrid
+                  apps={apps}
+                  wallpaper={wallpaper}
+                  wallpaperTint={wallpaperTint}
+                  wallpaperBlur={wallpaperBlur}
+                />
+              )}
             </div>
 
-            <div className="shrink-0 flex justify-center relative z-10 pb-2 pt-2 -mt-6">
-              <button
-                type="button"
-                onPointerDown={onHandlePointerDown}
-                onPointerMove={onHandlePointerMove}
-                onPointerUp={onHandlePointerUp}
-                style={{ touchAction: "none" }}
-                className="px-6 py-2 -my-2 cursor-grab active:cursor-grabbing focus:outline-none"
-                title="Drag to move phone"
-                aria-label="Drag to move phone"
-              >
-                <div className="h-1 w-24 rounded-full shadow-sm bg-white/80" />
-              </button>
-            </div>
+            <MiniPhoneHomeBar
+              onDragPointerDown={onHandlePointerDown}
+              onDragPointerMove={onHandlePointerMove}
+              onDragPointerUp={onHandlePointerUp}
+            />
           </div>
 
           <button

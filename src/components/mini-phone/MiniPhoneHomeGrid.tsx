@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { IosAppIcon } from "@/components/home/IosAppIcon";
+import { useMiniPhone } from "@/contexts/MiniPhoneContext";
 import { useMiniPhoneSize } from "@/hooks/useMiniPhoneSize";
 import type { HomeAppIcon } from "@/lib/home/homeApps";
 
@@ -22,7 +22,7 @@ function useNow() {
 }
 
 export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlur }: MiniPhoneHomeGridProps) {
-  const navigate = useNavigate();
+  const { openApp } = useMiniPhone();
   const now = useNow();
   const { compact } = useMiniPhoneSize();
 
@@ -37,9 +37,12 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
       }
     : undefined;
 
-  const openApp = (app: HomeAppIcon) => {
-    if (app.onOpen) app.onOpen();
-    else if (app.to) navigate(app.to);
+  const launchApp = (app: HomeAppIcon) => {
+    if (app.label === "YouTube") {
+      openApp("/phone/youtube");
+      return;
+    }
+    if (app.to) openApp(app.to);
   };
 
   return (
@@ -96,7 +99,7 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
             <button
               key={app.label}
               type="button"
-              onClick={() => openApp(app)}
+              onClick={() => launchApp(app)}
               className="group flex flex-col items-center gap-1 focus:outline-none"
               aria-label={app.ariaLabel ?? app.label}
             >
