@@ -10,7 +10,9 @@ import {
   IOS_GRID_ICON_PT,
   MINI_PHONE_DOCK_LABELS,
   iosScaledPx,
+  DEFAULT_MINI_PHONE_WALLPAPER_STYLE,
   iosWallpaperBlurPx,
+  miniPhoneRowStride,
 } from "@/lib/mini-phone/miniPhoneIosLayout";
 import type { HomeAppIcon } from "@/lib/home/homeApps";
 
@@ -86,7 +88,7 @@ function MiniPhoneAppTile({
 
 function MiniPhoneStatusBar({ time }: { time: string }) {
   return (
-    <div className="relative z-10 shrink-0 flex items-center justify-between px-4 pt-2 pb-1 text-white select-none">
+    <div className="relative z-20 shrink-0 flex items-center justify-between bg-black px-4 pt-2 pb-1 text-white select-none">
       <span className="text-[11px] font-semibold tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
         {time}
       </span>
@@ -162,8 +164,10 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
   const now = useNow();
   const { width } = useMiniPhoneSize();
   const gridAreaRef = useRef<HTMLDivElement>(null);
+  const measureGridRef = useRef<HTMLDivElement>(null);
   const pagerRef = useRef<HTMLDivElement>(null);
   const [gridHeightPx, setGridHeightPx] = useState(200);
+  const [rowStridePx, setRowStridePx] = useState(() => miniPhoneRowStride(width));
   const [activePage, setActivePage] = useState(0);
 
   const iconSize = iosScaledPx(width, IOS_GRID_ICON_PT);
@@ -182,20 +186,52 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
     [apps],
   );
 
+  const gridApps = useMemo(
+    () =>
+      apps.filter(
+        (app) => !MINI_PHONE_DOCK_LABELS.includes(app.label as (typeof MINI_PHONE_DOCK_LABELS)[number]),
+      ),
+    [apps],
+  );
+
   const pages = useMemo(
-    () => splitMiniPhoneHomePages(apps.length, gridHeightPx, width),
-    [apps.length, gridHeightPx, width],
+    () => splitMiniPhoneHomePages(gridApps.length, gridHeightPx, rowStridePx),
+    [gridApps.length, gridHeightPx, rowStridePx],
   );
 
   useLayoutEffect(() => {
     const el = gridAreaRef.current;
     if (!el) return;
-    const measure = () => setGridHeightPx(Math.max(80, el.clientHeight));
-    measure();
-    const ro = new ResizeObserver(measure);
+    const measureHeight = () => setGridHeightPx(Math.max(80, el.clientHeight));
+    measureHeight();
+    const ro = new ResizeObserver(measureHeight);
     ro.observe(el);
     return () => ro.disconnect();
   }, [width]);
+
+  useLayoutEffect(() => {
+    const measureStride = () => {
+      const gridEl = measureGridRef.current;
+      if (!gridEl) {
+        setRowStridePx(miniPhoneRowStride(width));
+        return;
+      }
+      const first = gridEl.querySelector("button");
+      if (!first) {
+        setRowStridePx(miniPhoneRowStride(width));
+        return;
+      }
+      const style = getComputedStyle(gridEl);
+      const gapY = parseFloat(style.rowGap) || gridGapY;
+      const cellH = first.getBoundingClientRect().height;
+      setRowStridePx(cellH > 0 ? cellH + gapY : miniPhoneRowStride(width));
+    };
+
+    measureStride();
+    const ro = new ResizeObserver(measureStride);
+    if (measureGridRef.current) ro.observe(measureGridRef.current);
+    return () => ro.disconnect();
+  }, [width, gridGapY, gridApps.length, iconSize]);
 
   useEffect(() => {
     if (activePage >= pages.length) {
@@ -225,32 +261,39 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
     pager.scrollTo({ left: i * pager.clientWidth, behavior: "smooth" });
   };
 
-  const bgStyle = wallpaper
+  const wallpaperLayerStyle = wallpaper
     ? {
         backgroundImage: `url(${wallpaper})`,
         backgroundSize: "cover" as const,
         backgroundPosition: "center" as const,
+        backgroundAttachment: "scroll" as const,
       }
     : undefined;
 
   return (
-    <div className="h-full w-full overflow-hidden flex flex-col relative">
+    <div className="relative isolate flex h-full w-full flex-col overflow-hidden bg-black">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className={cn("absolute inset-0", wallpaper ? "" : "ios-wallpaper ios-wallpaper-blur-layer")}
-          style={bgStyle}
-        />
-        {wallpaper && (
+        <div className="absolute inset-0 bg-black" aria-hidden />
+        {wallpaper ? (
           <div
-            className="absolute inset-0 ios-wallpaper-blur-layer"
-            style={bgStyle}
+            className="mini-phone-wallpaper absolute inset-0"
+            style={
+              effectiveBlur > 0
+                ? { ...wallpaperLayerStyle, filter: `blur(${effectiveBlur}px) saturate(120%)` }
+                : wallpaperLayerStyle
+            }
+          />
+        ) : (
+          <div
+            className="mini-phone-wallpaper absolute inset-0"
+            style={DEFAULT_MINI_PHONE_WALLPAPER_STYLE}
           />
         )}
         <div
-          className="absolute inset-0"
-          style={{ backdropFilter: `blur(${effectiveBlur}px) saturate(120%)` }}
+          className="absolute inset-x-0 top-0 h-14 bg-black"
+          aria-hidden
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/8 via-transparent to-black/25" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/10 to-black/30" />
         <div
           className="absolute inset-0"
           style={{ background: `rgba(17, 24, 39, ${wallpaperTint / 100})` }}
@@ -259,25 +302,29 @@ export function MiniPhoneHomeGrid({ apps, wallpaper, wallpaperTint, wallpaperBlu
 
       <MiniPhoneStatusBar time={time} />
 
-      <div ref={gridAreaRef} className="relative z-10 flex-1 min-h-0 px-3">
+      <div ref={gridAreaRef} className="relative z-10 flex-1 min-h-0 px-3 overflow-hidden">
         <div
           ref={pagerRef}
           onScroll={onPagerScroll}
-          className="flex h-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide touch-pan-x"
+          className="flex h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide touch-pan-x"
           style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}
         >
           {pages.map((indexes, pageIdx) => (
-            <div key={pageIdx} className="w-full h-full shrink-0 snap-start overflow-hidden">
+            <div
+              key={pageIdx}
+              className="flex-[0_0_100%] h-full shrink-0 snap-start overflow-hidden box-border"
+            >
               <div
-                className="grid grid-cols-4"
+                ref={pageIdx === 0 ? measureGridRef : undefined}
+                className="grid grid-cols-4 content-start"
                 style={{ columnGap: gridGapX, rowGap: gridGapY }}
               >
                 {indexes.map((i) => (
                   <MiniPhoneAppTile
-                    key={apps[i].label}
-                    app={apps[i]}
+                    key={gridApps[i].label}
+                    app={gridApps[i]}
                     iconSize={iconSize}
-                    onLaunch={() => launchApp(apps[i])}
+                    onLaunch={() => launchApp(gridApps[i])}
                   />
                 ))}
               </div>

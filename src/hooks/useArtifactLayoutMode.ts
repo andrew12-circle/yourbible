@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import {
   ARTIFACT_TABLET_MIN_PX,
   ARTIFACT_VIDEO_DESKTOP_MIN_PX,
@@ -15,6 +16,7 @@ function resolveLayoutMode(): ArtifactLayoutMode {
 
 /** Single layout signal for YouTube artifact detail (phone / tablet / desktop). */
 export function useArtifactLayoutMode(): ArtifactLayoutMode {
+  const inMiniPhone = useMiniPhoneEmbed();
   const [mode, setMode] = React.useState<ArtifactLayoutMode>(resolveLayoutMode);
 
   React.useEffect(() => {
@@ -30,6 +32,7 @@ export function useArtifactLayoutMode(): ArtifactLayoutMode {
     };
   }, []);
 
+  if (inMiniPhone) return "phone";
   return mode;
 }
 

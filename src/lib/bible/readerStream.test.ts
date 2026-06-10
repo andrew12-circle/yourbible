@@ -42,6 +42,38 @@ describe("readerStream", () => {
     ]);
   });
 
+  it("inserts illustration plates before chapter headers and mid-chapter verses", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Gen",
+        bookName: "Genesis",
+        chapter: 1,
+        verses: verses([1, 2]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+      {
+        bookAbbr: "2Sa",
+        bookName: "2 Samuel",
+        chapter: 23,
+        verses: verses([14, 15, 16]),
+        paragraphStarts: [14],
+        headings: [],
+      },
+    ]);
+    expect(stream.map((u) => u.kind)).toEqual([
+      "plate",
+      "chapter-header",
+      "verse",
+      "verse",
+      "chapter-header",
+      "verse",
+      "plate",
+      "verse",
+      "verse",
+    ]);
+  });
+
   it("slices pages by stream indices", () => {
     const stream = buildReaderStream([
       {

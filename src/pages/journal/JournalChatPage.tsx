@@ -32,6 +32,12 @@ import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { toast } from "@/hooks/use-toast";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import {
+  JOURNAL_CHAT_TEXTAREA_LINE_HEIGHT_PX,
+  JOURNAL_CHAT_TEXTAREA_VERTICAL_PADDING_PX,
+  textareaHeightForLines,
+  useAutoGrowTextarea,
+} from "@/hooks/useAutoGrowTextarea";
 import { cn } from "@/lib/utils";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
 import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
@@ -51,6 +57,13 @@ import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClas
 
 const LS_INCLUDE_GENERAL = "journal_chat.include_general";
 const LS_VOICE_REPLIES = "journal_chat.voice_replies";
+
+const JOURNAL_CHAT_TEXTAREA_HEIGHT = {
+  lineHeightPx: JOURNAL_CHAT_TEXTAREA_LINE_HEIGHT_PX,
+  verticalPaddingPx: JOURNAL_CHAT_TEXTAREA_VERTICAL_PADDING_PX,
+};
+const JOURNAL_CHAT_COMPOSER_MIN_HEIGHT_PX = textareaHeightForLines(1, JOURNAL_CHAT_TEXTAREA_HEIGHT);
+const JOURNAL_CHAT_COMPOSER_MAX_HEIGHT_PX = textareaHeightForLines(8, JOURNAL_CHAT_TEXTAREA_HEIGHT);
 
 /** Silence after last *final* speech chunk before auto-send (~1.2–1.8s band; mid-phrase pauses use interim text to hold). */
 const SILENCE_AFTER_FINAL_MS = 1500;
@@ -239,6 +252,7 @@ export default function JournalChatPage() {
   const [claimFocusSession, setClaimFocusSession] = useState<ClaimFocusSession | null>(null);
   const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
   useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
+  useAutoGrowTextarea(taRef, input, { maxLines: 8, minLines: 1, ...JOURNAL_CHAT_TEXTAREA_HEIGHT });
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
@@ -950,16 +964,52 @@ export default function JournalChatPage() {
                 </div>
               )}
               <div className="flex items-end gap-2 rounded-[28px] border border-border bg-background/95 px-2 py-1.5 shadow-lg shadow-black/5 backdrop-blur-md">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                  aria-label="Add"
-                  disabled
-                >
-                  <Plus className="h-5 w-5" />
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                      aria-label="Chat options"
+                      disabled={sending || bootstrapping || showLoadingShell}
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72">
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start text-xs"
+                        onClick={() => navigate(chatId ? `/my-ai/${chatId}` : "/my-ai")}
+                      >
+                        Open in My AI
+                      </Button>
+                      <ResponseDepthControl
+                        idPrefix="jc-composer-depth"
+                        value={responseDepth}
+                        onChange={setResponseDepth}
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="jc-composer-outside" className="text-sm">
+                          Outside knowledge
+                        </Label>
+                        <Switch
+                          id="jc-composer-outside"
+                          checked={includeGeneral}
+                          onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                        />
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        When on, replies can use general knowledge like ChatGPT, plus your journal, beliefs, and
+                        framework context.
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <PolishedTextarea
                   polishResetKey={routeEntryId ?? chatId ?? "journal-chat"}
                   ref={taRef}
@@ -979,7 +1029,8 @@ export default function JournalChatPage() {
                   rows={1}
                   disabled={sending || bootstrapping || showLoadingShell}
                   placeholder={sending || bootstrapping ? "Thinking…" : `Message ${entryTitle.trim() || "session"}`}
-                  className="min-h-[36px] max-h-40 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[16px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  style={{ minHeight: JOURNAL_CHAT_COMPOSER_MIN_HEIGHT_PX, maxHeight: JOURNAL_CHAT_COMPOSER_MAX_HEIGHT_PX }}
+                  className="!min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent px-1 py-2 text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]"
                 />
                 <DictateButton
                   ref={dictateRef}

@@ -52,6 +52,7 @@ const NewJournalEntryPage = lazy(() => import("./pages/journal/NewJournalEntryPa
 const JournalMirrorPage = lazy(() => import("./pages/journal/JournalMirrorPage"));
 const JournalMediaPage = lazy(() => import("./pages/journal/JournalMediaPage"));
 const JournalMapPage = lazy(() => import("./pages/journal/JournalMapPage"));
+const JournalGraphPage = lazy(() => import("./pages/journal/JournalGraphPage"));
 const JournalPromptsPage = lazy(() => import("./pages/journal/JournalPromptsPage"));
 const JournalTodayPage = lazy(() => import("./pages/journal/JournalTodayPage"));
 const JournalLifePage = lazy(() => import("./pages/journal/JournalLifePage"));
@@ -68,6 +69,10 @@ const LifePrioritiesPage = lazy(() => import("./pages/life/LifePrioritiesPage"))
 const HabitsPage = lazy(() => import("./pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("./pages/life/TodosPage"));
 const ReadingPlansPage = lazy(() => import("./pages/bible/ReadingPlansPage"));
+const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPage"));
+const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage"));
+const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
+const WorkbookSectionPage = lazy(() => import("./pages/living-hope/WorkbookSectionPage"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -94,6 +99,10 @@ const App = () => (
                   <Route path="/reading-plans" element={<ReadingPlansPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/sleep" element={<SleepPage />} />
+                  <Route path="/living-hope" element={<LivingHopeHubPage />} />
+                  <Route path="/living-hope/letter" element={<FutureLetterPage />} />
+                  <Route path="/living-hope/review" element={<MorningReviewPage />} />
+                  <Route path="/living-hope/workbook/:section" element={<WorkbookSectionPage />} />
                   <Route path="/life-weeks" element={<LifeWeeksPage />} />
                   <Route path="/life/priorities" element={<LifePrioritiesPage />} />
                   <Route path="/life/habits" element={<HabitsPage />} />
@@ -125,6 +134,8 @@ const App = () => (
                   <Route path="/journal/j/:journalId/media" element={<JournalMediaPage />} />
                   <Route path="/journal/map" element={<JournalMapPage />} />
                   <Route path="/journal/j/:journalId/map" element={<JournalMapPage />} />
+                  <Route path="/journal/graph" element={<JournalGraphPage />} />
+                  <Route path="/journal/j/:journalId/graph" element={<JournalGraphPage />} />
                   <Route path="/journal/mirror" element={<JournalMirrorPage />} />
                   <Route path="/journal/prompts" element={<JournalPromptsPage />} />
                   <Route path="/journal/today" element={<JournalTodayPage />} />

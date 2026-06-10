@@ -17,7 +17,8 @@ import {
   transcribeEntrySketchPaths,
 } from "@/lib/journal/sketchTranscription";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
-import { listEntryLinks, type EntryLink } from "@/lib/journal/links";
+import { listEntryLinks, syncEntryWikilinks, type EntryLink } from "@/lib/journal/links";
+import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
 import {
   LISTENING_SECTIONS,
   isListeningBody,
@@ -59,6 +60,7 @@ export default function JournalEntryPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
   const [links, setLinks] = useState<EntryLink[]>([]);
+  const [linksReloadKey, setLinksReloadKey] = useState(0);
   const [openingAi, setOpeningAi] = useState(false);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
   const [entryLoading, setEntryLoading] = useState(true);
@@ -110,6 +112,11 @@ export default function JournalEntryPage() {
       .maybeSingle();
     setScore((s as Score | null) ?? null);
     setLinks(await listEntryLinks(id));
+    if (user?.id && typeof data.body === "string" && data.body.includes("[[")) {
+      await syncEntryWikilinks(user.id, id, data.body);
+      setLinks(await listEntryLinks(id));
+      setLinksReloadKey((k) => k + 1);
+    }
     setEntryLoading(false);
   };
 
@@ -428,15 +435,25 @@ export default function JournalEntryPage() {
         <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mb-6" />
       )}
 
-      {links.length > 0 && (
+      {id ? (
+        <EntryLinksPanel
+          entryId={id}
+          reloadKey={linksReloadKey}
+          className="mb-6 rounded-xl border border-border bg-card p-4"
+        />
+      ) : null}
+
+      {links.filter((l) => l.target_kind !== "entry").length > 0 && (
         <section className="mb-6 rounded-xl border border-border bg-card p-4">
           <h3 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-muted-foreground mb-2">
             Linked
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {links.map((l) => (
-              <LinkChip key={l.id} link={l} />
-            ))}
+            {links
+              .filter((l) => l.target_kind !== "entry")
+              .map((l) => (
+                <LinkChip key={l.id} link={l} />
+              ))}
           </div>
         </section>
       )}
@@ -648,6 +665,12 @@ function LinkChip({ link }: { link: EntryLink }) {
       label = `prompt: ${String(ref.text ?? "").slice(0, 40)}`;
       to = "/journal";
       break;
+    case "entry": {
+      const eid = String(ref.entry_id ?? "");
+      label = "entry";
+      to = eid ? `/journal/${eid}` : "/journal";
+      break;
+    }
   }
   return (
     <Link

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 /** Reference iPhone logical width (pt) for home-screen proportions. */
 export const IOS_HOME_SCREEN_WIDTH = 393;
 
@@ -30,3 +32,16 @@ export function miniPhoneRowStride(phoneWidth: number): number {
 }
 
 export const MINI_PHONE_DOCK_LABELS = ["Bible", "Journal", "Daily", "Settings"] as const;
+
+/** Self-contained default wallpaper — never uses viewport-fixed attachment. */
+export const DEFAULT_MINI_PHONE_WALLPAPER_STYLE: CSSProperties = {
+  backgroundColor: "hsl(220 60% 12%)",
+  backgroundImage: [
+    "radial-gradient(circle at 18% 12%, hsl(280 95% 62% / 0.95) 0px, transparent 40%)",
+    "radial-gradient(circle at 82% 18%, hsl(330 100% 64% / 0.9) 0px, transparent 42%)",
+    "radial-gradient(circle at 92% 78%, hsl(28 100% 60% / 0.85) 0px, transparent 45%)",
+    "radial-gradient(circle at 8% 88%, hsl(200 100% 58% / 0.9) 0px, transparent 45%)",
+    "radial-gradient(circle at 50% 55%, hsl(260 90% 55% / 0.55) 0px, transparent 60%)",
+  ].join(", "),
+  backgroundAttachment: "scroll",
+};

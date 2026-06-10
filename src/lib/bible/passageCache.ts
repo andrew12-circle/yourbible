@@ -10,8 +10,8 @@ export type CachedPassageRecord = {
   cachedAt: number;
 };
 
-/** Bump when passage payload shape changes (e.g. paragraph metadata). */
-const PASSAGE_CACHE_VERSION = 2;
+/** Bump when passage payload shape changes (e.g. paragraph metadata, marker cleanup). */
+const PASSAGE_CACHE_VERSION = 4;
 
 export function passageCacheKey(bibleId: string, book: string, chapter: number): string {
   return `${bibleId}|${book}|${chapter}|v${PASSAGE_CACHE_VERSION}`;

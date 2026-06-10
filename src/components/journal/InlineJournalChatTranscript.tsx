@@ -1,5 +1,6 @@
+import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
+import type { InlineChatCitation, InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,47 @@ type Props = {
   dictInterim?: string;
   className?: string;
 };
+
+function citationHref(c: InlineChatCitation): string | null {
+  if (c.id) {
+    if (c.source_type === "belief") return `/framework/beliefs/${c.id}`;
+    if (c.source_type === "journal") return `/journal/${c.id}`;
+    if (c.source_type === "artifact") return `/framework/artifacts/${c.id}`;
+  }
+  if (c.source_type === "identity") return "/settings";
+  if (c.source_type === "influence") return "/framework/influences";
+  return null;
+}
+
+function CitationChips({ citations }: { citations: InlineChatCitation[] }) {
+  if (!citations.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {citations.map((c, i) => {
+        const href = citationHref(c);
+        const chip = (
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium tracking-tight",
+              href
+                ? "border-primary/25 bg-primary/5 text-primary hover:bg-primary/10"
+                : "border-border bg-muted/50 text-muted-foreground",
+            )}
+          >
+            {c.label}
+          </span>
+        );
+        return href ? (
+          <Link key={`${c.source_type}-${c.id ?? "x"}-${i}`} to={href} className="no-underline">
+            {chip}
+          </Link>
+        ) : (
+          <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function InlineJournalChatTranscript({
   scrollRef,
@@ -48,6 +90,7 @@ export default function InlineJournalChatTranscript({
               <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
                 <ReactMarkdown>{prepareChatMarkdownForDisplay(t.content)}</ReactMarkdown>
               </div>
+              {t.citations?.length ? <CitationChips citations={t.citations} /> : null}
             </div>
           )}
         </div>

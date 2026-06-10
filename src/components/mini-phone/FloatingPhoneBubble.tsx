@@ -68,7 +68,7 @@ export function FloatingPhoneBubble() {
       onPointerUp={onPointerUp}
       style={{ top: `${yPct}%`, touchAction: "none" }}
       className={cn(
-        "fixed right-0 z-[80] flex items-center gap-2 py-4 pl-3.5 pr-2.5 rounded-l-xl shadow-lg transition-shadow duration-200 select-none",
+        "fixed right-0 z-[120] flex items-center gap-2 py-4 pl-3.5 pr-2.5 rounded-l-xl shadow-lg transition-shadow duration-200 select-none",
         dragging.current ? "cursor-grabbing" : "cursor-grab",
         isOpen
           ? "bg-muted text-muted-foreground"

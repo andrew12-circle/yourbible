@@ -44,7 +44,9 @@ interface AuthCtx {
   updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null; profile: Profile | null }>;
 }
 
-const AuthContext = createContext<AuthCtx | undefined>(undefined);
+export type AuthContextValue = AuthCtx;
+
+export const AuthContext = createContext<AuthCtx | undefined>(undefined);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

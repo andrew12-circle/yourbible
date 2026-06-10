@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
   Heading1, List as ListIcon, ListOrdered, CheckSquare, Quote,
-  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle,
+  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle, Link2,
 } from "lucide-react";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
@@ -36,6 +36,18 @@ import { autosaveSketchPhoto } from "@/lib/journal/sketchPhotos";
 import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
+import {
+  persistJournalChatIncludeGeneral,
+  readJournalChatIncludeGeneralDefault,
+} from "@/lib/journal/chatComposerSettings";
+import {
+  JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  persistResponseDepthSetting,
+  readResponseDepthSetting,
+  type ResponseDepthSetting,
+} from "@/lib/journal/responseDepth";
+import { syncEntryWikilinks } from "@/lib/journal/links";
+import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
 
 interface EntryRow {
   id: string;
@@ -88,8 +100,13 @@ export default function EntryEditorPane({
   const [sketchOpen, setSketchOpen] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
+  const [includeGeneral, setIncludeGeneral] = useState(readJournalChatIncludeGeneralDefault);
+  const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
+    readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+  );
   const [loadingEntry, setLoadingEntry] = useState(false);
   const [entryNotFound, setEntryNotFound] = useState(false);
+  const [linksReloadKey, setLinksReloadKey] = useState(0);
   const paneScrollRef = useRef<HTMLElement | null>(null);
 
   const reloadEntryFromServer = useCallback(async (id: string) => {
@@ -233,7 +250,14 @@ export default function EntryEditorPane({
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
       else {
         onChanged();
-        if ("body" in patch && !("title" in patch)) scheduleTitleSuggestion(merged);
+        if ("body" in patch) {
+          if (user?.id) {
+            void syncEntryWikilinks(user.id, merged.id, merged.body).then(() => {
+              setLinksReloadKey((k) => k + 1);
+            });
+          }
+          if (!("title" in patch)) scheduleTitleSuggestion(merged);
+        }
       }
     }, 400);
   };
@@ -302,8 +326,17 @@ export default function EntryEditorPane({
     journalId: entry?.journal_id,
     title: entry?.title,
     active: inlineChatMode,
+    includeGeneralKnowledge: includeGeneral,
     onPersistTranscript: persistChatTranscript,
   });
+
+  useEffect(() => {
+    persistJournalChatIncludeGeneral(includeGeneral);
+  }, [includeGeneral]);
+
+  useEffect(() => {
+    persistResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
+  }, [responseDepth]);
 
   const openChatMode = async () => {
     if (!canReplyWithAi) {
@@ -560,6 +593,7 @@ export default function EntryEditorPane({
         <TBtn title="Numbered list" onClick={() => insert("\n1. ", "", "item")}><ListOrdered className="w-4 h-4" /></TBtn>
         <TBtn title="Checklist" onClick={() => insert("\n- [ ] ", "", "task")}><CheckSquare className="w-4 h-4" /></TBtn>
         <TBtn title="Quote" onClick={() => insert("\n> ", "", "quote")}><Quote className="w-4 h-4" /></TBtn>
+        <TBtn title="Link to entry ([[title]])" onClick={() => insert("[[", "]]", "entry title")}><Link2 className="w-4 h-4" /></TBtn>
         <TBtn title="Table" onClick={() => insert("\n| col1 | col2 |\n| --- | --- |\n| ", " | |\n", "")}><TableIcon className="w-4 h-4" /></TBtn>
         <div className="w-px h-5 bg-border mx-1" />
         <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>
@@ -667,6 +701,14 @@ export default function EntryEditorPane({
             </>
           )}
 
+          {!inlineChatMode && !showSavedChatView && entry.id ? (
+            <EntryLinksPanel
+              entryId={entry.id}
+              reloadKey={linksReloadKey}
+              className="mt-6 rounded-xl border border-border/60 bg-muted/20 p-4"
+            />
+          ) : null}
+
           {showMeta && !inlineChatMode && (
             <div className="mt-6 space-y-4 pt-4 border-t border-border/40">
               <div>
@@ -739,6 +781,16 @@ export default function EntryEditorPane({
               dictateControl={dictateButton}
               aiBusy={aiBusy}
               rounded="card"
+              onAttachPhotos={() => fileInputRef.current?.click()}
+              onHandwritten={() => {
+                dictateRef.current?.stop();
+                setSketchOpen(true);
+              }}
+              includeGeneral={includeGeneral}
+              onIncludeGeneralChange={setIncludeGeneral}
+              responseDepth={responseDepth}
+              onResponseDepthChange={setResponseDepth}
+              onOpenInMyAi={chatId ? () => navigate(`/my-ai/${chatId}`) : undefined}
               extraActions={
                 entry.entry_kind === "chat" ? (
                   <button

@@ -1,3 +1,4 @@
+import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { supabase } from "@/integrations/supabase/client";
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
@@ -15,7 +16,7 @@ export interface Passage {
 export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "reference" | "verses">): Passage {
   const verses = (raw.verses ?? []).map((v) => ({
     number: v.number,
-    text: typeof v.text === "string" ? v.text : "",
+    text: sanitizePubVerseText(typeof v.text === "string" ? v.text : ""),
   }));
   return {
     reference: raw.reference,
@@ -26,7 +27,10 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
         : verses.length > 0
           ? [verses[0]!.number]
           : [],
-    headings: raw.headings ?? [],
+    headings: (raw.headings ?? []).map((h) => ({
+      ...h,
+      text: sanitizePubVerseText(h.text),
+    })),
   };
 }
 

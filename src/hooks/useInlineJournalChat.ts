@@ -9,6 +9,9 @@ import {
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
 import {
+  readJournalChatIncludeGeneralDefault,
+} from "@/lib/journal/chatComposerSettings";
+import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   readResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
@@ -19,6 +22,7 @@ type UseInlineJournalChatOpts = {
   journalId?: string | null;
   title?: string | null;
   active: boolean;
+  includeGeneralKnowledge?: boolean;
   onPersistTranscript?: (body: string) => void;
 };
 
@@ -28,6 +32,7 @@ export function useInlineJournalChat({
   journalId,
   title,
   active,
+  includeGeneralKnowledge = readJournalChatIncludeGeneralDefault(),
   onPersistTranscript,
 }: UseInlineJournalChatOpts) {
   const [chatId, setChatId] = useState<string | null>(null);
@@ -108,6 +113,7 @@ export function useInlineJournalChat({
           entryId: ensured.entryId,
           message: trimmed,
           responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          includeGeneralKnowledge,
         });
         const loaded = await loadInlineChatTurns(ensured.chatId);
         setChatTurns(loaded);
@@ -123,7 +129,7 @@ export function useInlineJournalChat({
         setAiBusy(false);
       }
     },
-    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom],
+    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom, includeGeneralKnowledge],
   );
 
   return {

@@ -521,6 +521,169 @@
     margin-top: 0;
   }
 
+  /* Full-page Bible illustration plates (classic study-Bible style) */
+  .scripture-plate {
+    margin: 0;
+    padding: 0.25rem 0 0.5rem;
+    height: 100%;
+    min-height: 0;
+  }
+  .scripture-plate-image-wrap {
+    padding: 0.15rem 0.35rem 0.35rem;
+  }
+  .scripture-plate-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto;
+    filter: saturate(1.05) contrast(1.02);
+  }
+  .scripture-plate-caption {
+    flex-shrink: 0;
+    text-align: right;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic;
+    font-size: 0.92em;
+    line-height: 1.35;
+    padding: 0.35rem 0.5rem 0.15rem;
+    color: hsl(0 72% 36%);
+    border-top: 1px solid hsl(var(--paper-edge) / 0.85);
+  }
+  .dark .scripture-plate-caption {
+    color: hsl(0 68% 62%);
+  }
+  .scripture-plate-title {
+    font-weight: 600;
+  }
+  .scripture-plate-ref {
+    font-weight: 500;
+  }
+  .scripture-plate-measure .scripture-plate-image {
+    max-height: 72vh;
+  }
+
+  /* Ornamental chapter opener — old-print Bible feel */
+  .chapter-ornament-header {
+    color: hsl(var(--foreground) / 0.9);
+    padding: 0.15rem 0 0.35rem;
+  }
+  .chapter-ornament-line {
+    display: flex;
+    justify-content: center;
+    color: hsl(var(--gold-deep) / 0.55);
+    margin: 0.15rem 0;
+  }
+  .chapter-ornament-svg {
+    width: min(11rem, 72vw);
+    height: 0.75rem;
+  }
+  .chapter-ornament-book {
+    letter-spacing: 0.02em;
+  }
+  .chapter-ornament-chapter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.2rem 0 0.1rem;
+    padding: 0.2rem 0.85rem;
+    border: 1px solid hsl(var(--gold-deep) / 0.28);
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--gold-bright) / 0.12),
+      hsl(var(--gold-deep) / 0.04)
+    );
+    box-shadow: inset 0 1px 0 hsl(var(--gold-bright) / 0.18);
+  }
+  .chapter-ornament-chapter-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    color: hsl(var(--muted-foreground));
+    font-weight: 600;
+  }
+  .chapter-ornament-chapter-num {
+    font-size: 1.35rem;
+    line-height: 1;
+    color: hsl(var(--leather));
+    font-weight: 600;
+  }
+
+  /* Illuminated drop caps — first letter of chapter / section paragraphs */
+  .scripture-dropcap {
+    text-indent: 0;
+  }
+  .scripture-illuminated-cap {
+    float: left;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    line-height: 0.82;
+    text-align: center;
+    color: hsl(var(--leather));
+    border: 1px solid hsl(var(--gold-deep) / 0.42);
+    background:
+      linear-gradient(145deg, hsl(var(--gold-bright) / 0.34), hsl(var(--gold-deep) / 0.08)),
+      hsl(var(--paper-warm));
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--gold-bright) / 0.22),
+      0 1px 0 hsl(var(--foreground) / 0.06);
+    margin: 0.04em 0.14em 0 0;
+    padding: 0.02em 0.08em 0.04em;
+  }
+  .scripture-illuminated-cap--chapter {
+    font-size: 3.55em;
+    min-width: 1.05em;
+    margin-top: 0.02em;
+    margin-right: 0.12em;
+    border-width: 1.5px;
+    padding: 0.04em 0.1em 0.06em;
+    background:
+      radial-gradient(circle at 28% 18%, hsl(var(--gold-bright) / 0.45), transparent 52%),
+      linear-gradient(155deg, hsl(var(--gold-bright) / 0.3), hsl(var(--gold-deep) / 0.1)),
+      hsl(var(--paper-warm));
+  }
+  .scripture-illuminated-cap--section {
+    font-size: 2.45em;
+    min-width: 0.95em;
+    border-color: hsl(var(--gold-deep) / 0.3);
+    background:
+      linear-gradient(160deg, hsl(var(--gold-bright) / 0.22), hsl(var(--gold-deep) / 0.06)),
+      hsl(var(--paper-warm));
+  }
+  .scripture-dropcap-chapter + .scripture-paragraph,
+  .scripture-dropcap-section + .scripture-paragraph {
+    margin-top: 0;
+  }
+
+  /* Subtle page corner flourishes on the reading column */
+  article[data-reading-area].scripture-page-frame {
+    position: relative;
+  }
+  article[data-reading-area].scripture-page-frame::before,
+  article[data-reading-area].scripture-page-frame::after {
+    content: "";
+    position: absolute;
+    width: 2.4rem;
+    height: 2.4rem;
+    pointer-events: none;
+    opacity: 0.22;
+    border-color: hsl(var(--gold-deep) / 0.45);
+    border-style: solid;
+  }
+  article[data-reading-area].scripture-page-frame::before {
+    top: 0.15rem;
+    left: 0.1rem;
+    border-width: 1px 0 0 1px;
+  }
+  article[data-reading-area].scripture-page-frame::after {
+    bottom: 0.15rem;
+    right: 0.1rem;
+    border-width: 0 1px 1px 0;
+  }
+
   /* Red-letter words of Jesus — warm Bible-red, sits a touch heavier than
      surrounding body type so it reads as emphasis without the shimmery
      drop-shadow that makes long passages dizzy to look at. */
@@ -973,6 +1136,44 @@
   transform: scale(1.12);
   transform-origin: center;
   filter: blur(32px);
+}
+
+/* Mini phone — wallpaper must stay inside the screen, not fixed to the viewport. */
+[data-mini-phone-drawer] {
+  overflow: hidden;
+}
+
+[data-mini-phone-screen] {
+  isolation: isolate;
+}
+
+[data-mini-phone-drawer] .mini-phone-wallpaper,
+[data-mini-phone-drawer] .ios-wallpaper {
+  background-attachment: scroll !important;
+}
+
+/* Scale + blur on wallpaper layers can bleed hub content at the top edge. */
+[data-mini-phone-drawer] .ios-wallpaper-blur-layer {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Frosted chrome inside the phone should not sample the hub page behind the drawer. */
+[data-mini-phone-drawer] .ios-dock,
+[data-mini-phone-drawer] .ios-search-pill {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Mini phone embed — constrain apps to the phone pane width. */
+[data-mini-phone-app] {
+  container-type: inline-size;
+  max-width: 100%;
+}
+
+[data-mini-phone-app] .hub-shell,
+[data-mini-phone-app] .hub-content-card {
+  max-width: 100%;
 }
 
 /* Compatibility shims — when app-theme is active, neutralize the

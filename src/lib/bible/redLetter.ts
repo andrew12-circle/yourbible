@@ -10,7 +10,7 @@
  * within a chapter so Jesus' speech that spans several verses (e.g. Mat 11:4–6)
  * stays red until the closing quote. Depth resets at non-speech verses and at
  * chapter boundaries. Only depth-1 (outermost) quoted text is red; nested
- * quotes stay black.
+ * quotes stay black. Curly apostrophes in contractions (Haven't) are not quotes.
  */
 
 export type Segment = { text: string; isJesus: boolean };
@@ -395,22 +395,38 @@ function isJesusSpeechVerse(
   return classify(bookAbbr, chapter, verse) !== "none";
 }
 
+/** True when this verse is entirely Jesus' speech in red-letter editions (no quote marks in some translations). */
+function isListedWhole(
+  bookAbbr: string,
+  chapter: number,
+  verse: number,
+): boolean {
+  const key = BOOK_ALIAS[bookAbbr];
+  if (!key) return false;
+  return RED_WHOLE[key]?.has(`${chapter}:${verse}`) ?? false;
+}
+
+/** Opening single-quote characters (straight + curly). */
+const OPEN_SINGLE = new Set(["'", "\u2018"]);
+/** Closing single-quote characters (straight + curly). */
+const CLOSE_SINGLE = new Set(["'", "\u2019"]);
+
 /**
- * Straight apostrophe used as an opening single-quote (e.g. `say, 'He…`),
- * not a contraction (`isn't`) or possessive (`Jesus'`).
+ * Opening single quote — not a contraction (`isn't`, `Haven't`) or possessive (`Jesus'`).
+ * Curly `\u2019` in contractions must NOT be treated as a closing quote (CSB/ESV/NIV).
  */
-function isSingleQuoteOpener(text: string, i: number): boolean {
-  if (text[i] !== "'") return false;
+function isOpenSingleQuote(text: string, i: number): boolean {
+  if (!OPEN_SINGLE.has(text[i] ?? "")) return false;
   if (i === 0) return true;
   const before = text[i - 1];
   if (!/[\s,([{—–-]/.test(before)) return false;
   const after = text[i + 1];
-  return after !== undefined && /[A-Za-z0-9"']/.test(after);
+  return after !== undefined && /[A-Za-z0-9"\u201C\u2018']/.test(after);
 }
 
-/** Straight apostrophe closing a single-quoted span, not a contraction. */
-function isSingleQuoteCloser(text: string, i: number): boolean {
-  if (text[i] !== "'") return false;
+/** Closing single quote — not an apostrophe inside a word. */
+function isCloseSingleQuote(text: string, i: number): boolean {
+  if (!CLOSE_SINGLE.has(text[i] ?? "")) return false;
   const before = text[i - 1];
   const after = text[i + 1];
   if (
@@ -425,16 +441,20 @@ function isSingleQuoteCloser(text: string, i: number): boolean {
   return after === undefined || /[\s,.!?;:)\]}]/.test(after);
 }
 
+function hasDoubleQuoteMarks(text: string): boolean {
+  return /["\u201C\u201D]/.test(text);
+}
+
 type QuoteAction = "open" | "close";
 
 /** Classify a character as opening/closing a quoted span at the current depth. */
 function quoteAction(text: string, i: number, depth: number): QuoteAction | null {
   const ch = text[i];
-  if (ch === "\u201C" || ch === "\u2018") return "open";
-  if (ch === "\u201D" || ch === "\u2019") return "close";
+  if (ch === "\u201C") return "open";
+  if (ch === "\u201D") return "close";
   if (ch === '"') return depth % 2 === 0 ? "open" : "close";
-  if (isSingleQuoteOpener(text, i)) return "open";
-  if (depth > 0 && isSingleQuoteCloser(text, i)) return "close";
+  if (isOpenSingleQuote(text, i)) return "open";
+  if (depth > 0 && isCloseSingleQuote(text, i)) return "close";
   return null;
 }
 
@@ -485,9 +505,8 @@ function splitByQuotesStateful(
  *
  * For each verse:
  *   • speech  (WHOLE or PARTIAL list) → split by quotation marks; carry depth
+ *   • WHOLE with no quote marks (KJV-style) → entire verse red
  *   • none    → one segment, no red (resets quote depth)
- *
- * Nothing is painted red except text inside outermost quotation marks.
  */
 export function splitJesusSpeechForChapter(
   bookAbbr: string,
@@ -500,12 +519,21 @@ export function splitJesusSpeechForChapter(
   for (const v of verses) {
     const text = typeof v.text === "string" ? v.text : "";
     if (isJesusSpeechVerse(bookAbbr, chapter, v.number)) {
+      const startDepth = quoteDepth;
       const { segments, depth } = splitByQuotesStateful(text, quoteDepth);
       quoteDepth = depth;
-      result.set(
-        v.number,
-        segments.length > 0 ? segments : [{ text, isJesus: false }],
-      );
+      let finalSegments =
+        segments.length > 0 ? segments : [{ text, isJesus: false }];
+      if (
+        isListedWhole(bookAbbr, chapter, v.number) &&
+        startDepth === 0 &&
+        depth === 0 &&
+        !hasDoubleQuoteMarks(text) &&
+        !finalSegments.some((s) => s.isJesus)
+      ) {
+        finalSegments = [{ text, isJesus: true }];
+      }
+      result.set(v.number, finalSegments);
     } else {
       quoteDepth = 0;
       result.set(v.number, [{ text, isJesus: false }]);

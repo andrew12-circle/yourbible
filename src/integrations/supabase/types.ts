@@ -1378,6 +1378,225 @@ export type Database = {
         }
         Relationships: []
       }
+      living_hope_goals: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          letter_id: string | null
+          parent_goal_id: string | null
+          scripture_refs: string[]
+          sort_order: number
+          status: string
+          steps: Json
+          target_metric: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          vivid_detail: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain?: string
+          id?: string
+          letter_id?: string | null
+          parent_goal_id?: string | null
+          scripture_refs?: string[]
+          sort_order?: number
+          status?: string
+          steps?: Json
+          target_metric?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          vivid_detail?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          letter_id?: string | null
+          parent_goal_id?: string | null
+          scripture_refs?: string[]
+          sort_order?: number
+          status?: string
+          steps?: Json
+          target_metric?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vivid_detail?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "living_hope_goals_letter_id_fkey"
+            columns: ["letter_id"]
+            isOneToOne: false
+            referencedRelation: "living_hope_letters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "living_hope_goals_parent_goal_id_fkey"
+            columns: ["parent_goal_id"]
+            isOneToOne: false
+            referencedRelation: "living_hope_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      living_hope_letters: {
+        Row: {
+          created_at: string
+          full_letter: string | null
+          gratitude: string | null
+          id: string
+          mission_statement: string | null
+          opened_at: string | null
+          outlook: string | null
+          realizations: string | null
+          scripture_anchor: string | null
+          sealed_at: string | null
+          status: string
+          surrender_prayer: string | null
+          timeframe_years: number
+          title: string
+          unlock_at: string | null
+          updated_at: string
+          user_id: string
+          wishes: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_letter?: string | null
+          gratitude?: string | null
+          id?: string
+          mission_statement?: string | null
+          opened_at?: string | null
+          outlook?: string | null
+          realizations?: string | null
+          scripture_anchor?: string | null
+          sealed_at?: string | null
+          status?: string
+          surrender_prayer?: string | null
+          timeframe_years?: number
+          title?: string
+          unlock_at?: string | null
+          updated_at?: string
+          user_id: string
+          wishes?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_letter?: string | null
+          gratitude?: string | null
+          id?: string
+          mission_statement?: string | null
+          opened_at?: string | null
+          outlook?: string | null
+          realizations?: string | null
+          scripture_anchor?: string | null
+          sealed_at?: string | null
+          status?: string
+          surrender_prayer?: string | null
+          timeframe_years?: number
+          title?: string
+          unlock_at?: string | null
+          updated_at?: string
+          user_id?: string
+          wishes?: string | null
+        }
+        Relationships: []
+      }
+      living_hope_reviews: {
+        Row: {
+          completed_at: string
+          created_at: string
+          goal_touches: Json
+          id: string
+          manifesto_index: number | null
+          metric_values: Json
+          review_date: string
+          routine_checks: Json
+          story_index: number | null
+          surrender_note: string | null
+          user_id: string
+          vision_recall: string | null
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          goal_touches?: Json
+          id?: string
+          manifesto_index?: number | null
+          metric_values?: Json
+          review_date: string
+          routine_checks?: Json
+          story_index?: number | null
+          surrender_note?: string | null
+          user_id: string
+          vision_recall?: string | null
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          goal_touches?: Json
+          id?: string
+          manifesto_index?: number | null
+          metric_values?: Json
+          review_date?: string
+          routine_checks?: Json
+          story_index?: number | null
+          surrender_note?: string | null
+          user_id?: string
+          vision_recall?: string | null
+        }
+        Relationships: []
+      }
+      living_hope_workbook: {
+        Row: {
+          content: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      living_hope_weekly_reviews: {
+        Row: {
+          answers: Json
+          completed_at: string
+          created_at: string
+          id: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string
+          created_at?: string
+          id?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       life_priorities: {
         Row: {
           archived_at: string | null

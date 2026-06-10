@@ -4,11 +4,23 @@ import { useCallback, useEffect, type RefObject } from "react";
 export const TEXTAREA_LINE_HEIGHT_PX = 14;
 const TEXTAREA_VERTICAL_PADDING_PX = 12;
 
-export function textareaHeightForLines(lines: number): number {
-  return Math.ceil(TEXTAREA_LINE_HEIGHT_PX * lines + TEXTAREA_VERTICAL_PADDING_PX);
+/** Matches journal inline chat: text-[13px] leading-relaxed py-2 */
+export const JOURNAL_CHAT_TEXTAREA_LINE_HEIGHT_PX = 21;
+export const JOURNAL_CHAT_TEXTAREA_VERTICAL_PADDING_PX = 16;
+
+export type TextareaHeightOptions = {
+  lineHeightPx?: number;
+  verticalPaddingPx?: number;
+};
+
+export function textareaHeightForLines(
+  lines: number,
+  { lineHeightPx = TEXTAREA_LINE_HEIGHT_PX, verticalPaddingPx = TEXTAREA_VERTICAL_PADDING_PX }: TextareaHeightOptions = {},
+): number {
+  return Math.ceil(lineHeightPx * lines + verticalPaddingPx);
 }
 
-type Options = {
+type Options = TextareaHeightOptions & {
   maxLines?: number;
   minLines?: number;
 };
@@ -19,10 +31,16 @@ type Options = {
 export function useAutoGrowTextarea(
   ref: RefObject<HTMLTextAreaElement | null>,
   value: string,
-  { maxLines = 7, minLines = 1 }: Options = {},
+  {
+    maxLines = 7,
+    minLines = 1,
+    lineHeightPx = TEXTAREA_LINE_HEIGHT_PX,
+    verticalPaddingPx = TEXTAREA_VERTICAL_PADDING_PX,
+  }: Options = {},
 ) {
-  const maxPx = textareaHeightForLines(maxLines);
-  const minPx = textareaHeightForLines(minLines);
+  const heightOpts = { lineHeightPx, verticalPaddingPx };
+  const maxPx = textareaHeightForLines(maxLines, heightOpts);
+  const minPx = textareaHeightForLines(minLines, heightOpts);
 
   const resize = useCallback(() => {
     const el = ref.current;

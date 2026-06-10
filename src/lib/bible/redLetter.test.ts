@@ -117,4 +117,51 @@ describe("splitJesusSpeechForChapter", () => {
     const segs = splitJesusSpeechForChapter("Mat", 11, verses);
     expect(segs.get(4)).toEqual([{ text: "", isJesus: false }]);
   });
+
+  it("does not break on curly apostrophes in contractions (CSB-style)", () => {
+    const verses = [
+      {
+        number: 3,
+        text:
+          "He said to them, \u201CHaven\u2019t you read what David did when he was hungry:",
+      },
+      {
+        number: 8,
+        text: "For the Son of Man is Lord of the Sabbath.\u201D",
+      },
+      {
+        number: 11,
+        text:
+          "He said to them, \u201CWho among you, if he had a sheep that fell into a pit on the Sabbath, wouldn\u2019t take hold of it and lift it out?",
+      },
+      {
+        number: 12,
+        text:
+          "Isn\u2019t a person worth more than a sheep? So it is lawful to do what is good on the Sabbath.\u201D",
+      },
+    ];
+
+    const segs = splitJesusSpeechForChapter("Mat", 12, verses);
+    const red = [3, 8, 11, 12].map((n) => jesusText(segs.get(n)!)).join(" ");
+
+    expect(red).toContain("Haven\u2019t you read");
+    expect(red).toContain("Lord of the Sabbath");
+    expect(red).toContain("wouldn\u2019t take hold");
+    expect(red).toContain("lawful to do what is good");
+    expect(segs.get(3)!.some((s) => !s.isJesus && s.text.includes("He said to them"))).toBe(
+      true,
+    );
+  });
+
+  it("paints WHOLE-list verses red when translation omits quote marks", () => {
+    const verses = [
+      {
+        number: 3,
+        text: "Blessed are the poor in spirit, for the kingdom of heaven is theirs.",
+      },
+    ];
+
+    const segs = splitJesusSpeechForChapter("Mat", 5, verses);
+    expect(jesusText(segs.get(3)!)).toBe(verses[0]!.text);
+  });
 });

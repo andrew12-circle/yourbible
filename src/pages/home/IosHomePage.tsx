@@ -8,6 +8,7 @@ import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { BibleHomeWidgets } from "@/components/home/BibleHomeWidgets";
 import { HomeFloatingTabBar } from "@/components/home/HomeFloatingTabBar";
 import { HomeJournalCards } from "@/components/home/HomeJournalCards";
+import { MorningFormulaHomeCard } from "@/components/home/MorningFormulaHomeCard";
 import { HomeAppButton } from "@/components/home/HomeAppButton";
 import { useHomeDashboardData } from "@/hooks/useHomeDashboardData";
 import { getBibleRoute } from "@/lib/home/homeApps";
@@ -232,6 +233,7 @@ export default function IosHomePage() {
             >
               {page.type === "widgets" ? (
                 <div ref={widgetsRef}>
+                  <MorningFormulaHomeCard />
                   <BibleHomeWidgets />
                   <LifePrioritiesPanel />
                   <HomeJournalCards

@@ -589,7 +589,6 @@ Deno.serve(async (req) => {
       journalEntryId: typeof body.journal_entry_id === "string" ? body.journal_entry_id : null,
     });
 
-    const includeGeneral = body.include_general_knowledge !== false;
     const mode = body.mode === "journal" ? "journal" : "chat";
     const journalEntryId = typeof body.journal_entry_id === "string" && body.journal_entry_id.length
       ? body.journal_entry_id
@@ -1010,6 +1009,7 @@ Deno.serve(async (req) => {
 
       let reply = "";
       let citations: Citation[] = [];
+      const includeGeneral = body.include_general_knowledge === true;
 
       if (shouldUseOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)) {
         const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
@@ -1252,6 +1252,10 @@ Deno.serve(async (req) => {
     if (chatUseWeb && claimPackId && resolvedDepth !== "deep") {
       resolvedDepth = "deep";
     }
+
+    const includeGeneral = journalMode
+      ? body.include_general_knowledge === true
+      : body.include_general_knowledge !== false;
 
     const generated = await generateClaimChatReply(
       journalMode,

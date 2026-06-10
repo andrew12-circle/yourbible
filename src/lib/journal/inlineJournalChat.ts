@@ -7,10 +7,17 @@ import {
   type ResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
 
+export type InlineChatCitation = {
+  source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
+  id?: string;
+  label: string;
+};
+
 export type InlineChatTurn = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  citations?: InlineChatCitation[];
 };
 
 export function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft?: string): string {
@@ -25,15 +32,44 @@ export function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft
   return lines.join("\n---\n\n").trim();
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+export function parseInlineChatCitations(raw: unknown): InlineChatCitation[] {
+  if (!Array.isArray(raw)) return [];
+  const out: InlineChatCitation[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const st = item.source_type;
+    const label = item.label;
+    if (typeof st !== "string" || typeof label !== "string" || !label.trim()) continue;
+    if (
+      st !== "belief" && st !== "journal" && st !== "artifact" && st !== "entity" &&
+      st !== "identity" && st !== "general" && st !== "influence"
+    ) {
+      continue;
+    }
+    const id = typeof item.id === "string" && item.id.length >= 32 ? item.id : undefined;
+    out.push(id ? { source_type: st, id, label: label.trim() } : { source_type: st, label: label.trim() });
+  }
+  return out;
+}
+
 export async function loadInlineChatTurns(chatId: string): Promise<InlineChatTurn[]> {
   const { data } = await supabase
     .from("my_ai_messages")
-    .select("id,role,content,created_at")
+    .select("id,role,content,citations,created_at")
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
-  return ((data as { id: string; role: string; content: string }[]) ?? [])
+  return ((data as { id: string; role: string; content: string; citations?: unknown }[]) ?? [])
     .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content }));
+    .map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      citations: m.role === "assistant" ? parseInlineChatCitations(m.citations) : undefined,
+    }));
 }
 
 export type EnsureInlineChatParams = {
@@ -95,6 +131,7 @@ export async function sendInlineJournalChatMessage(params: {
   entryId: string;
   message: string;
   responseDepth?: ResponseDepthSetting;
+  includeGeneralKnowledge?: boolean;
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke("my-ai-chat", {
     body: {
@@ -102,7 +139,7 @@ export async function sendInlineJournalChatMessage(params: {
       message: params.message,
       mode: "journal",
       journal_entry_id: params.entryId,
-      include_general_knowledge: true,
+      include_general_knowledge: params.includeGeneralKnowledge === true,
       response_depth: params.responseDepth ?? readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
     },
   });

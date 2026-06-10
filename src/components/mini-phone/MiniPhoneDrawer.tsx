@@ -175,13 +175,20 @@ export function MiniPhoneDrawer() {
           background: "linear-gradient(145deg, #f5f5f7 0%, #b8b8bd 25%, #e8e8ec 50%, #8a8a90 75%, #d4d4d8 100%)",
         }}
         className={cn(
-          "fixed z-[80] max-h-[calc(100vh-2rem)] rounded-[36px] p-[3px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(255,255,255,0.4)]",
+          "fixed isolate z-[120] max-h-[calc(100vh-2rem)] overflow-hidden rounded-[36px] p-[3px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(255,255,255,0.4)]",
           "animate-in slide-in-from-bottom-4 fade-in-0 duration-200",
         )}
       >
-        <div className="relative w-full h-full rounded-[33px] bg-black p-[3px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-          <div className="relative w-full h-full rounded-[30px] bg-background overflow-hidden flex flex-col">
-            <div className="absolute top-2.5 right-3.5 z-[6] flex items-center gap-1.5">
+        <div className="relative h-full w-full overflow-hidden rounded-[33px] bg-black p-[3px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+          <div
+            data-mini-phone-screen
+            className="relative flex h-full w-full flex-col overflow-hidden rounded-[30px] bg-black [contain:paint]"
+          >
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 z-[3] h-3 rounded-t-[30px] bg-black"
+              aria-hidden
+            />
+            <div className="absolute top-2.5 right-3.5 z-[50] flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={close}

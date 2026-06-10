@@ -15,12 +15,18 @@ import {
 import { getDefaultJournalId } from "@/lib/journal/journals";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
+  persistResponseDepthSetting,
   readResponseDepthSetting,
+  type ResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
+import {
+  persistJournalChatIncludeGeneral,
+  readJournalChatIncludeGeneralDefault,
+} from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
-import { JOURNAL_EXPAND_HANDOFF_KEY, type JournalExpandHandoffPayload } from "@/lib/journal/links";
+import { JOURNAL_EXPAND_HANDOFF_KEY, syncEntryWikilinks, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
   coerceJournalEntryKind,
   ENTRY_KIND_META,
@@ -73,6 +79,10 @@ export function useNewJournalEntryPage() {
   const [locationName, setLocationName] = useState("");
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState<boolean>(false);
+  const [includeGeneral, setIncludeGeneral] = useState(readJournalChatIncludeGeneralDefault);
+  const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
+    readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+  );
   const [journalId, setJournalId] = useState<string | null>(null);
   const [promptId, setPromptId] = useState<string | null>(null);
   const [lat, setLat] = useState<number | null>(null);
@@ -123,6 +133,14 @@ export function useNewJournalEntryPage() {
     inlineChatMode && composerFocused,
     composerLockScrollYRef,
   );
+
+  useEffect(() => {
+    persistJournalChatIncludeGeneral(includeGeneral);
+  }, [includeGeneral]);
+
+  useEffect(() => {
+    persistResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
+  }, [responseDepth]);
 
   const { scrollCaretIntoView } = useJournalEditorCaretScroll({
     scrollRef: mainScrollRef,
@@ -561,8 +579,8 @@ export function useNewJournalEntryPage() {
           message: text,
           mode: "journal",
           journal_entry_id: ensured.entryId,
-          include_general_knowledge: true,
-          response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
         },
       });
       if (error) {
@@ -581,7 +599,7 @@ export function useNewJournalEntryPage() {
     } finally {
       setAiBusy(false);
     }
-  }, [body, aiBusy, ensureChatEntry, loadChatTurns]);
+  }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth]);
 
   const save = useCallback(async () => {
     if (!user) return;
@@ -645,6 +663,10 @@ export function useNewJournalEntryPage() {
         return;
       }
       entryId = data.id;
+    }
+
+    if (entryId && composedBody.includes("[[")) {
+      await syncEntryWikilinks(user.id, entryId, composedBody);
     }
 
     if (pendingFiles.length && entryId) {
@@ -907,6 +929,11 @@ export function useNewJournalEntryPage() {
     setAnalyzeForMirror,
     replyWithAi,
     setReplyWithAi,
+    includeGeneral,
+    setIncludeGeneral,
+    responseDepth,
+    setResponseDepth,
+    chatId,
     busy,
     chatTurns,
     aiBusy,

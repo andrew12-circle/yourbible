@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
-import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
+import {
+  buildVerseInnerHtml,
+  nextParagraphIllumination,
+  scriptureParagraphClassNameMeasure,
+  type IlluminationState,
+} from "@/lib/bible/scriptureIllumination";
 import {
   CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
@@ -89,6 +95,12 @@ export function BookPaginator({
     let i = 0;
     let pageIndex = 0;
     while (i < stream.length) {
+      if (stream[i]?.kind === "plate") {
+        splits.push(i + 1);
+        i += 1;
+        pageIndex += 1;
+        continue;
+      }
       const startsWithHeader = stream[i]?.kind === "chapter-header";
       const limit = pageContentLimit(
         pageIndex,
@@ -191,7 +203,17 @@ function renderStreamSlice(
   columnsClassName?: string,
 ) {
   const parts: string[] = [];
+  let illumState: IlluminationState = {
+    chapterCapUsed: false,
+    chapterCapEligible: slice[0]?.kind === "chapter-header",
+  };
   for (const unit of slice) {
+    if (unit.kind === "plate") {
+      parts.push(
+        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(unit.plate.imageUrl)}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
+      );
+      continue;
+    }
     if (unit.kind === "chapter-header") {
       continue;
     }
@@ -212,22 +234,28 @@ function renderStreamSlice(
       if (heading) {
         parts.push(`<p class="scripture-heading">${escapeHtml(heading)}</p>`);
       }
+      const { kind: illumination, state: nextState } = nextParagraphIllumination(
+        illumState,
+        group.isContinuation,
+        !!heading,
+      );
+      illumState = nextState;
       const versesHtml = group.verses
-        .map((v) => {
-          const segs = redLetterSegmentsForVerse(redSegments, v.number, v.text ?? "");
-          const inner = segs
-            .map((s) =>
-              s.isJesus
-                ? `<span class="red-letter">${escapeHtml(s.text)}</span>`
-                : escapeHtml(s.text),
-            )
-            .join("");
+        .map((v, vi) => {
+          const inner = buildVerseInnerHtml(
+            v.number,
+            v.text ?? "",
+            redSegments,
+            vi === 0 ? illumination : undefined,
+            escapeHtml,
+          );
           return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
         })
         .join("");
-      const paraClass = group.isContinuation
-        ? "scripture-paragraph scripture-paragraph-continue text-justify"
-        : "scripture-paragraph text-justify";
+      const paraClass = scriptureParagraphClassNameMeasure(
+        group.isContinuation,
+        illumination,
+      );
       parts.push(
         `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`,
       );
@@ -243,4 +271,8 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
+}
+
+function escapeAttr(s: string) {
+  return escapeHtml(s).replace(/`/g, "&#96;");
 }

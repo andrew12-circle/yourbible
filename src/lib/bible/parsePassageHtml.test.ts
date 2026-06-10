@@ -3,6 +3,7 @@ import {
   groupVersesIntoParagraphs,
   parseChapterText,
   parsePassageHtml,
+  sanitizePubVerseText,
 } from "./parsePassageHtml";
 
 const JOHN1_HTML = `
@@ -21,6 +22,25 @@ describe("parsePassageHtml", () => {
     expect(parsed.headings).toEqual([
       { beforeVerse: 14, text: "The Word Became Flesh" },
     ]);
+  });
+
+  it("strips API.Bible footnote hash markers and restores em dashes", () => {
+    const html = `
+<p class="p"><span class="v">23</span>The Egyptians set out in pursuit<span class="xo">#</span><span class="xt">—</span><span class="xo">#</span>all Pharaoh's horses, his chariots, and his horsemen<span class="xo">#</span><span class="xt">—</span><span class="xo">#</span>and went into the sea after them.</p>`;
+    const parsed = parsePassageHtml(html, "Exodus 14");
+    expect(parsed.verses[0]?.text).toBe(
+      "The Egyptians set out in pursuit\u2014all Pharaoh's horses, his chariots, and his horsemen\u2014and went into the sea after them.",
+    );
+  });
+
+  it("sanitizes already-parsed #-# debris from cached passages", () => {
+    expect(
+      sanitizePubVerseText(
+        "The Egyptians set out in pursuit#-#all Pharaoh's horses#-#and went into the sea.",
+      ),
+    ).toBe(
+      "The Egyptians set out in pursuit\u2014all Pharaoh's horses\u2014and went into the sea.",
+    );
   });
 
   it("groups a page slice into continuation vs new paragraphs", () => {

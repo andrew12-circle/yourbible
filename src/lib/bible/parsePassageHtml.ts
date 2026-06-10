@@ -35,11 +35,63 @@ function decodeEntities(text: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&#8212;/g, "\u2014")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&#8211;/g, "\u2013");
+}
+
+/** Any dash-like character used in API.Bible `#-#` bridge markers. */
+const PUB_DASH = /[-—–‐‑‒–—]/;
+
+/**
+ * Remove API.Bible publisher debris from verse text (`#-#`, `#— #`, lone `#` anchors).
+ * Exported so cached passages are cleaned on every load, not only at parse time.
+ */
+export function sanitizePubVerseText(text: string): string {
+  let t = text;
+  // # - # / #-# / #—# (with or without spaces, any common dash)
+  t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
+  // Stray doubled hashes
+  t = t.replace(/#\s*#/g, "\u2014");
+  // Lone footnote/cross-ref hash before a word
+  t = t.replace(/\s+#\s+(?=[A-Za-z0-9"(\[])/g, " ");
+  t = t.replace(/([,.;:]|\u2014)\s*#\s+(?=[A-Za-z0-9])/g, "$1 ");
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
+
+/** API.Bible cross-ref anchors like `<span class="xo">#</span><span class="xt">—</span>…` → em dash. */
+function normalizePubHtml(html: string): string {
+  return html
+    .replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014")
+    .replace(
+      /<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt[^"']*["'][^>]*>\s*[—–-]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>/gi,
+      "\u2014",
+    )
+    .replace(/<span\b[^>]*>\s*#\s*<\/span>/gi, "");
+}
+
+/** Drop footnotes / cross-refs before tag stripping (API.Bible leaves `#` anchor text otherwise). */
+function stripPubMarkup(html: string): string {
+  return html
+    .replace(/<note\b[\s\S]*?<\/note>/gi, "")
+    .replace(
+      /<(?:span|a|sup|div)\b[^>]*\bclass=["'][^"']*\b(?:note|ft|fr|fk|fqa|fq|xt|xo|xop|xot|xnt|notelink|footnote|crossref|x)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|a|sup|div)>/gi,
+      "",
+    );
+}
+
+function removeStrayPubMarkers(text: string): string {
+  return sanitizePubVerseText(text);
 }
 
 function cleanText(raw: string): string {
-  return decodeEntities(raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")).trim();
+  const normalized = normalizePubHtml(raw);
+  const noPub = stripPubMarkup(normalized);
+  const decoded = decodeEntities(noPub.replace(/<[^>]+>/g, " "));
+  return removeStrayPubMarkers(decoded);
 }
 
 function extractVersesFromBlock(html: string): PassageVerse[] {
@@ -137,7 +189,7 @@ export function parseChapterText(content: string): PassageVerse[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const num = parseInt(m[1], 10);
-    const text = m[2].replace(/\s+/g, " ").trim();
+    const text = sanitizePubVerseText(m[2].replace(/\s+/g, " ").trim());
     if (text) verses.push({ number: num, text });
   }
   return verses;

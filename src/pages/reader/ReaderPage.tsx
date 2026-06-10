@@ -27,6 +27,18 @@ import {
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
+import {
+  illuminatedCapClassName,
+  illuminationBodyStart,
+  nextParagraphIllumination,
+  scriptureParagraphClassName,
+  splitIlluminationLetter,
+  type IlluminationKind,
+  type IlluminationState,
+} from "@/lib/bible/scriptureIllumination";
+import { ChapterOrnamentHeader } from "@/components/bible/ChapterOrnamentHeader";
+import { ScripturePlate } from "@/components/bible/ScripturePlate";
+import { platesForChapter } from "@/lib/bible/biblePlates";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
 import {
@@ -511,22 +523,42 @@ export default function ReaderPage() {
     articleRoRef.current = null;
   }, [book.abbr, chapter]);
   const verses = passage?.verses ?? [];
+  const chapterPlates = useMemo(
+    () => platesForChapter(book.abbr, chapter),
+    [book.abbr, chapter],
+  );
+  const hasChapterPlates = chapterPlates.length > 0;
   const streamChapters = useMemo(
-    () =>
-      readerSpread
-        ? buildAdjacentStreamChapters(
-            adjacentPassages.prevRef,
-            adjacentPassages.prev,
-            book.abbr,
-            book.name,
+    () => {
+      if (readerSpread) {
+        return buildAdjacentStreamChapters(
+          adjacentPassages.prevRef,
+          adjacentPassages.prev,
+          book.abbr,
+          book.name,
+          chapter,
+          adjacentPassages.current ?? passage,
+          adjacentPassages.nextRef,
+          adjacentPassages.next,
+        );
+      }
+      if (hasChapterPlates && passage) {
+        return [
+          {
+            bookAbbr: book.abbr,
+            bookName: book.name,
             chapter,
-            adjacentPassages.current ?? passage,
-            adjacentPassages.nextRef,
-            adjacentPassages.next,
-          )
-        : [],
+            verses: passage.verses,
+            paragraphStarts: passage.paragraphStarts ?? (passage.verses[0] ? [passage.verses[0].number] : []),
+            headings: passage.headings ?? [],
+          },
+        ];
+      }
+      return [];
+    },
     [
       readerSpread,
+      hasChapterPlates,
       adjacentPassages.prevRef,
       adjacentPassages.prev,
       adjacentPassages.current,
@@ -539,8 +571,8 @@ export default function ReaderPage() {
     ],
   );
   const readerStream = useMemo(
-    () => (readerSpread ? buildReaderStream(streamChapters) : []),
-    [readerSpread, streamChapters],
+    () => (streamChapters.length > 0 ? buildReaderStream(streamChapters) : []),
+    [streamChapters],
   );
   const paginatorParagraphStarts = useMemo(
     () => passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : []),
@@ -580,6 +612,8 @@ export default function ReaderPage() {
   const totalStreamPages = streamPageCount(streamSplits, readerStream.length);
   const streamSplitsReady = isStreamSplitsReady(streamSplits, readerStream.length);
   const useBookSpread = readerSpread && adjacentPassages.streamReady;
+  const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
+  const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
   // quotes (an opener in v.5, closer in v.8) carry red text across verses.
@@ -589,7 +623,7 @@ export default function ReaderPage() {
   );
   const redSegmentsByChapter = useMemo(() => {
     const m = new Map<string, Map<number, JesusSegment[]>>();
-    const chaptersToMap = useBookSpread
+    const chaptersToMap = useStreamReader
       ? streamChapters
       : [{ bookAbbr: book.abbr, chapter, verses }];
     for (const ch of chaptersToMap) {
@@ -600,7 +634,7 @@ export default function ReaderPage() {
       );
     }
     return m;
-  }, [useBookSpread, streamChapters, book.abbr, chapter, verses]);
+  }, [useStreamReader, streamChapters, book.abbr, chapter, verses]);
 
   // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
@@ -641,7 +675,7 @@ export default function ReaderPage() {
 
   useEffect(() => {
     if (pendingVerse == null) return;
-    if (useBookSpread) {
+    if (useStreamReader) {
       if (!streamSplitsReady) return;
       let target = 0;
       for (let p = 0; p < streamSplits.length - 1; p++) {
@@ -654,8 +688,9 @@ export default function ReaderPage() {
         );
         if (containsVerse) target = p;
       }
-      if (target % 2 === 1) target -= 1;
-      setSpreadPageIdx(Math.max(0, target));
+      if (useBookSpread && target % 2 === 1) target -= 1;
+      if (useBookSpread) setSpreadPageIdx(Math.max(0, target));
+      else setChapterPage(Math.max(0, target));
       setPendingVerse(null);
       return;
     }
@@ -674,28 +709,35 @@ export default function ReaderPage() {
     streamSplits,
     streamSplitsReady,
     readerStream,
+    useStreamReader,
     useBookSpread,
     book.abbr,
     chapter,
   ]);
 
   useEffect(() => {
-    if (!useBookSpread || !streamSplitsReady || pendingVerse != null) return;
+    if (!useStreamReader || !streamSplitsReady || pendingVerse != null) return;
     const anchorKey = `${book.abbr}|${chapter}|${pendingSpreadEnd ? "end" : "start"}`;
     const needsAnchor = lastSpreadAnchorKeyRef.current !== anchorKey;
     if (!needsAnchor) return;
     lastSpreadAnchorKeyRef.current = anchorKey;
-    if (pendingSpreadEnd) {
+    if (useBookSpread && pendingSpreadEnd) {
       setSpreadPageIdx(
         spreadPageForChapterEnd(readerStream, streamSplits, book.abbr, chapter),
       );
       setPendingSpreadEnd(false);
       return;
     }
-    setSpreadPageIdx(
-      spreadPageForChapterStart(readerStream, streamSplits, book.abbr, chapter),
+    const startPage = spreadPageForChapterStart(
+      readerStream,
+      streamSplits,
+      book.abbr,
+      chapter,
     );
+    if (useBookSpread) setSpreadPageIdx(startPage);
+    else setChapterPage(startPage);
   }, [
+    useStreamReader,
     useBookSpread,
     streamSplitsReady,
     streamSplits,
@@ -716,12 +758,13 @@ export default function ReaderPage() {
     tbSelRef.current = null;
     setTbSel(null);
     setFlipDirection(delta > 0 ? "forward" : "back");
-    if (useBookSpread && streamSplitsReady) {
-      const next = spreadPageIdx + delta * pagesPerTurn;
+    if (useStreamReader && streamSplitsReady) {
+      const activeIdx = useBookSpread ? spreadPageIdx : chapterPage;
+      const next = activeIdx + delta * pagesPerTurn;
       if (next < 0) {
         const prev = getPrevChapterRef(book.abbr, chapter);
         if (prev) {
-          setPendingSpreadEnd(true);
+          if (useBookSpread) setPendingSpreadEnd(true);
           navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
         }
         return;
@@ -731,14 +774,17 @@ export default function ReaderPage() {
         if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`);
         return;
       }
-      startTransition(() => setSpreadPageIdx(next));
+      startTransition(() => {
+        if (useBookSpread) setSpreadPageIdx(next);
+        else setChapterPage(next);
+      });
       return;
     }
     const next = chapterPage + delta * pagesPerTurn;
     if (next < 0) {
       const prev = getPrevChapterRef(book.abbr, chapter);
       if (prev) navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
-    } else if (next >= totalPagesInChapter) {
+    } else if (next >= totalPagesForNav) {
       const nxt = getNextChapterRef(book.abbr, chapter);
       if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`);
     } else {
@@ -1126,34 +1172,22 @@ export default function ReaderPage() {
     clearWindowSelection();
   };
 
-  // Header for first page of chapter
-  const chapterHeaderFont = scriptureFontFamily(fontChoice);
-  const renderChapterHeader = (bookName: string, chapterNum: number) => (
-    <div className="text-center mb-6" style={{ fontFamily: chapterHeaderFont }}>
-      <motion.h1
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-2xl sm:text-3xl ink-text mb-1 font-semibold tracking-tight"
-      >
-        {bookName}
-      </motion.h1>
-      <div className="flex items-center justify-center gap-3 text-muted-foreground">
-        <span className="h-px w-8 bg-gradient-to-r from-transparent to-gold/40" />
-        <span className="text-[11px] uppercase tracking-[0.3em] font-medium">Chapter {chapterNum}</span>
-        <span className="h-px w-8 bg-gradient-to-l from-transparent to-gold/40" />
-      </div>
-    </div>
-  );
-
   const renderVerse = (
     v: PassageVerse,
-    ctx?: { bookAbbr: string; chapter: number },
+    ctx?: {
+      bookAbbr: string;
+      chapter: number;
+      illuminate?: IlluminationKind;
+    },
   ) => {
     const verseBook = ctx?.bookAbbr ?? book.abbr;
     const verseChapter = ctx?.chapter ?? chapter;
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
     const verseText = typeof v.text === "string" ? v.text : "";
+    const illuminate = ctx?.illuminate;
+    const illuminationSplit = illuminate ? splitIlluminationLetter(verseText) : null;
+    const bodyStart = illuminate ? illuminationBodyStart(verseText) : 0;
     const segments = redLetterSegmentsForVerse(
       (useBookSpread
         ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
@@ -1174,15 +1208,30 @@ export default function ReaderPage() {
     }
 
     const bodyNodes: React.ReactNode[] = [];
+    if (illuminate && illuminationSplit?.letter) {
+      if (illuminationSplit.prefix) {
+        bodyNodes.push(<span key="cap-prefix">{illuminationSplit.prefix}</span>);
+      }
+      bodyNodes.push(
+        <span
+          key="cap-letter"
+          className={illuminatedCapClassName(illuminate)}
+          aria-hidden="true"
+        >
+          {illuminationSplit.letter}
+        </span>,
+      );
+    }
     let global = 0;
     for (let pi = 0; pi < textParts.length; pi++) {
       const part = textParts[pi];
       const pStart = global;
       const pEnd = global + part.text.length;
       global = pEnd;
+      if (pEnd <= bodyStart) continue;
       for (let si = 0; si < segBounds.length; si++) {
         const { start: sStart, end: sEnd, seg } = segBounds[si];
-        const oStart = Math.max(pStart, sStart);
+        const oStart = Math.max(pStart, sStart, bodyStart);
         const oEnd = Math.min(pEnd, sEnd);
         if (oEnd <= oStart) continue;
         const chunk = verseText.slice(oStart, oEnd);
@@ -1262,12 +1311,13 @@ export default function ReaderPage() {
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
-    const streamSlice = useBookSpread
+    const streamSlice = useStreamReader
       ? sliceReaderPage(readerStream, streamSplits, pageIdx)
       : null;
-    const slice = useBookSpread ? null : pageVerseSlice(splits, pageIdx, verses);
-    const pageContentReady = useBookSpread
-      ? streamSlice != null && streamSlice.verseGroups.length > 0
+    const slice = useStreamReader ? null : pageVerseSlice(splits, pageIdx, verses);
+    const pageContentReady = useStreamReader
+      ? streamSlice != null &&
+        (streamSlice.isPlatePage || streamSlice.verseGroups.length > 0)
       : slice != null;
     const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
     const pagePrimary = streamSlice?.primaryChapter;
@@ -1313,16 +1363,23 @@ export default function ReaderPage() {
             {pageBookName}
           </button>
         </div>
-        {streamSlice?.startsWithChapterHeader ? (
+        {streamSlice?.startsWithChapterHeader && !streamSlice.isPlatePage ? (
           <div className="flex-shrink-0">
-            {renderChapterHeader(
-              streamSlice.startsWithChapterHeader.bookName,
-              streamSlice.startsWithChapterHeader.chapter,
-            )}
+            <ChapterOrnamentHeader
+              bookName={streamSlice.startsWithChapterHeader.bookName}
+              chapter={streamSlice.startsWithChapterHeader.chapter}
+              fontFamily={scriptureFontFamily(fontChoice)}
+            />
           </div>
         ) : null}
-        {!useBookSpread && pageIdx === 0 ? (
-          <div className="flex-shrink-0">{renderChapterHeader(book.name, chapter)}</div>
+        {!useStreamReader && pageIdx === 0 ? (
+          <div className="flex-shrink-0">
+            <ChapterOrnamentHeader
+              bookName={book.name}
+              chapter={chapter}
+              fontFamily={scriptureFontFamily(fontChoice)}
+            />
+          </div>
         ) : null}
         {pageLoading ? (
           <div className="flex flex-1 justify-center items-center">
@@ -1344,7 +1401,7 @@ export default function ReaderPage() {
               }
               data-reading-area
               aria-busy={!pageContentReady}
-              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
+              className={`h-full min-h-0 w-full overflow-hidden scripture-page-frame ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
                 inkMode ? "!select-none" : "selectable-text"
               }`}
               style={{
@@ -1354,80 +1411,113 @@ export default function ReaderPage() {
             >
               {!pageContentReady ? (
                 <div className="h-full w-full" aria-hidden />
-              ) : useBookSpread && streamSlice ? (
-                streamSlice.verseGroups.flatMap((verseGroup) => {
-                  const paragraphStarts = paragraphStartsForChapter(
-                    streamChapters,
-                    verseGroup.bookAbbr,
-                    verseGroup.chapter,
-                  );
-                  const headingByVerseLocal = new Map(
-                    headingsForChapter(
-                      streamChapters,
-                      verseGroup.bookAbbr,
-                      verseGroup.chapter,
-                    ).map((h) => [h.beforeVerse, h.text]),
-                  );
-                  return groupVersesIntoParagraphs(verseGroup.verses, paragraphStarts).flatMap(
-                    (group) => {
-                      const nodes: ReactNode[] = [];
-                      const first = group.verses[0]?.number;
-                      const heading =
-                        first != null ? headingByVerseLocal.get(first) : undefined;
-                      if (heading) {
+              ) : streamSlice?.isPlatePage ? (
+                streamSlice.plates.map((plate) => (
+                  <ScripturePlate key={plate.id} plate={plate} />
+                ))
+              ) : useStreamReader && streamSlice ? (
+                (() => {
+                  let illumState: IlluminationState = {
+                    chapterCapUsed: false,
+                    chapterCapEligible: streamSlice.startsWithChapterHeader != null,
+                  };
+                  return streamSlice.verseGroups.flatMap((verseGroup) => {
+                    const paragraphStarts = new Set(
+                      paragraphStartsForChapter(
+                        streamChapters,
+                        verseGroup.bookAbbr,
+                        verseGroup.chapter,
+                      ),
+                    );
+                    const headingByVerseLocal = new Map(
+                      headingsForChapter(
+                        streamChapters,
+                        verseGroup.bookAbbr,
+                        verseGroup.chapter,
+                      ).map((h) => [h.beforeVerse, h.text]),
+                    );
+                    return groupVersesIntoParagraphs(verseGroup.verses, paragraphStarts).flatMap(
+                      (group) => {
+                        const nodes: ReactNode[] = [];
+                        const first = group.verses[0]?.number;
+                        const heading =
+                          first != null ? headingByVerseLocal.get(first) : undefined;
+                        if (heading) {
+                          nodes.push(
+                            <p key={`h-${verseGroup.chapter}-${first}`} className="scripture-heading">
+                              {heading}
+                            </p>,
+                          );
+                        }
+                        const { kind: illumination, state: nextState } = nextParagraphIllumination(
+                          illumState,
+                          group.isContinuation,
+                          !!heading,
+                        );
+                        illumState = nextState;
                         nodes.push(
-                          <p key={`h-${verseGroup.chapter}-${first}`} className="scripture-heading">
-                            {heading}
+                          <p
+                            key={`p-${verseGroup.chapter}-${first}`}
+                            className={scriptureParagraphClassName(
+                              group.isContinuation,
+                              illumination,
+                            )}
+                            style={{ orphans: 2, widows: 2 }}
+                          >
+                            {group.verses.map((v, vi) =>
+                              renderVerse(v, {
+                                bookAbbr: verseGroup.bookAbbr,
+                                chapter: verseGroup.chapter,
+                                illuminate: vi === 0 ? illumination : undefined,
+                              }),
+                            )}
                           </p>,
                         );
-                      }
+                        return nodes;
+                      },
+                    );
+                  });
+                })()
+              ) : (
+                (() => {
+                  let illumState: IlluminationState = {
+                    chapterCapUsed: false,
+                    chapterCapEligible: pageIdx === 0,
+                  };
+                  return groupVersesIntoParagraphs(slice!, paragraphStarts).flatMap((group) => {
+                    const nodes: ReactNode[] = [];
+                    const first = group.verses[0]?.number;
+                    const heading = first != null ? headingByVerse.get(first) : undefined;
+                    if (heading) {
                       nodes.push(
-                        <p
-                          key={`p-${verseGroup.chapter}-${first}`}
-                          className={cn(
-                            "scripture-paragraph text-justify hyphens-auto",
-                            group.isContinuation && "scripture-paragraph-continue",
-                          )}
-                          style={{ orphans: 2, widows: 2 }}
-                        >
-                          {group.verses.map((v) =>
-                            renderVerse(v, {
-                              bookAbbr: verseGroup.bookAbbr,
-                              chapter: verseGroup.chapter,
-                            }),
-                          )}
+                        <p key={`h-${first}`} className="scripture-heading">
+                          {heading}
                         </p>,
                       );
-                      return nodes;
-                    },
-                  );
-                })
-              ) : (
-                groupVersesIntoParagraphs(slice!, paragraphStarts).flatMap((group) => {
-                  const nodes: ReactNode[] = [];
-                  const first = group.verses[0]?.number;
-                  const heading = first != null ? headingByVerse.get(first) : undefined;
-                  if (heading) {
+                    }
+                    const { kind: illumination, state: nextState } = nextParagraphIllumination(
+                      illumState,
+                      group.isContinuation,
+                      !!heading,
+                    );
+                    illumState = nextState;
                     nodes.push(
-                      <p key={`h-${first}`} className="scripture-heading">
-                        {heading}
+                      <p
+                        key={`p-${first}`}
+                        className={scriptureParagraphClassName(
+                          group.isContinuation,
+                          illumination,
+                        )}
+                        style={{ orphans: 2, widows: 2 }}
+                      >
+                        {group.verses.map((v, vi) =>
+                          renderVerse(v, { illuminate: vi === 0 ? illumination : undefined }),
+                        )}
                       </p>,
                     );
-                  }
-                  nodes.push(
-                    <p
-                      key={`p-${first}`}
-                      className={cn(
-                        "scripture-paragraph text-justify hyphens-auto",
-                        group.isContinuation && "scripture-paragraph-continue",
-                      )}
-                      style={{ orphans: 2, widows: 2 }}
-                    >
-                      {group.verses.map((v) => renderVerse(v))}
-                    </p>,
-                  );
-                  return nodes;
-                })
+                    return nodes;
+                  });
+                })()
               )}
             </article>
           </div>
@@ -1652,7 +1742,7 @@ export default function ReaderPage() {
       />
 
       {/* Headless paginator — measures and reports splits */}
-      {pageBox.w > 0 && subsequentPageHeight > 0 && useBookSpread && streamChapters.length > 0 ? (
+      {pageBox.w > 0 && subsequentPageHeight > 0 && useStreamReader && streamChapters.length > 0 ? (
         <BookPaginator
           chapters={streamChapters}
           pageWidth={Math.max(180, pageBox.w)}
@@ -1665,7 +1755,7 @@ export default function ReaderPage() {
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
-      {pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useBookSpread ? (
+      {pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useStreamReader ? (
         <Paginator
           verses={verses}
           paragraphStarts={paginatorParagraphStarts}

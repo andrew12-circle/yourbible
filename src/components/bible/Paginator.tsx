@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
-import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
+import {
+  buildVerseInnerHtml,
+  nextParagraphIllumination,
+  scriptureParagraphClassNameMeasure,
+  type IlluminationState,
+} from "@/lib/bible/scriptureIllumination";
 
 interface Props {
   verses: Verse[];
@@ -125,7 +131,15 @@ export function Paginator({
       // exponential search to find a too-many size, then binary search down
       let n = 1;
       while (i + n <= verses.length) {
-        renderInto(node, verses.slice(i, i + n), redSegments, paragraphStartSet, headingByVerse, columnsClassName);
+        renderInto(
+          node,
+          verses.slice(i, i + n),
+          redSegments,
+          paragraphStartSet,
+          headingByVerse,
+          columnsClassName,
+          isFirstPage,
+        );
         if (node.scrollHeight <= limit) {
           lastFit = i + n;
           n *= 2;
@@ -138,7 +152,15 @@ export function Paginator({
       hi = Math.min(i + n, verses.length);
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
-        renderInto(node, verses.slice(i, mid), redSegments, paragraphStartSet, headingByVerse, columnsClassName);
+        renderInto(
+          node,
+          verses.slice(i, mid),
+          redSegments,
+          paragraphStartSet,
+          headingByVerse,
+          columnsClassName,
+          isFirstPage,
+        );
         if (node.scrollHeight <= limit) {
           lastFit = mid;
           lo = mid + 1;
@@ -189,8 +211,13 @@ function renderInto(
   paragraphStarts: Set<number>,
   headingByVerse: Map<number, string>,
   columnsClassName?: string,
+  chapterCapEligible = false,
 ) {
   const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
+  let illumState: IlluminationState = {
+    chapterCapUsed: false,
+    chapterCapEligible,
+  };
   const bodyHtml = groups
     .map((group) => {
       const first = group.verses[0]?.number;
@@ -198,22 +225,28 @@ function renderInto(
       const headingHtml = heading
         ? `<p class="scripture-heading">${escapeHtml(heading)}</p>`
         : "";
+      const { kind: illumination, state: nextState } = nextParagraphIllumination(
+        illumState,
+        group.isContinuation,
+        !!heading,
+      );
+      illumState = nextState;
       const versesHtml = group.verses
-        .map(v => {
-          const segs = redLetterSegmentsForVerse(redSegments, v.number, v.text ?? "");
-          const inner = segs
-            .map(s =>
-              s.isJesus
-                ? `<span class="red-letter">${escapeHtml(s.text)}</span>`
-                : escapeHtml(s.text),
-            )
-            .join("");
+        .map((v, vi) => {
+          const inner = buildVerseInnerHtml(
+            v.number,
+            v.text ?? "",
+            redSegments,
+            vi === 0 ? illumination : undefined,
+            escapeHtml,
+          );
           return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
         })
         .join("");
-      const paraClass = group.isContinuation
-        ? "scripture-paragraph scripture-paragraph-continue text-justify"
-        : "scripture-paragraph text-justify";
+      const paraClass = scriptureParagraphClassNameMeasure(
+        group.isContinuation,
+        illumination,
+      );
       return `${headingHtml}<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
     })
     .join("");

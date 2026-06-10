@@ -1,4 +1,6 @@
 import type { PassageHeading, PassageVerse } from "@/lib/bible/api";
+import { platesForChapter } from "@/lib/bible/biblePlates";
+import type { BiblePlate } from "@/lib/bible/biblePlates";
 
 /** Chapter title block above the article on pages where a chapter begins. */
 export const CHAPTER_HEADER_RESERVE_PX = 96;
@@ -14,17 +16,34 @@ export interface ReaderChapterPassage {
 
 export type ReaderStreamUnit =
   | { kind: "chapter-header"; bookAbbr: string; bookName: string; chapter: number }
+  | {
+      kind: "plate";
+      bookAbbr: string;
+      bookName: string;
+      chapter: number;
+      plate: BiblePlate;
+    }
   | { kind: "verse"; bookAbbr: string; bookName: string; chapter: number; verse: PassageVerse };
 
 export function chapterStreamKey(bookAbbr: string, chapter: number): string {
   return `${bookAbbr}|${chapter}`;
 }
 
-/** Flatten chapters into a continuous reading stream with chapter headers. */
+/** Flatten chapters into a continuous reading stream with plates, headers, and verses. */
 export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStreamUnit[] {
   const stream: ReaderStreamUnit[] = [];
   for (const ch of chapters) {
     if (ch.verses.length === 0) continue;
+    const plates = platesForChapter(ch.bookAbbr, ch.chapter);
+    for (const plate of plates.filter((p) => p.beforeVerse === 1)) {
+      stream.push({
+        kind: "plate",
+        bookAbbr: ch.bookAbbr,
+        bookName: ch.bookName,
+        chapter: ch.chapter,
+        plate,
+      });
+    }
     stream.push({
       kind: "chapter-header",
       bookAbbr: ch.bookAbbr,
@@ -32,6 +51,15 @@ export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStrea
       chapter: ch.chapter,
     });
     for (const verse of ch.verses) {
+      for (const plate of plates.filter((p) => p.beforeVerse === verse.number)) {
+        stream.push({
+          kind: "plate",
+          bookAbbr: ch.bookAbbr,
+          bookName: ch.bookName,
+          chapter: ch.chapter,
+          plate,
+        });
+      }
       stream.push({
         kind: "verse",
         bookAbbr: ch.bookAbbr,
@@ -78,6 +106,26 @@ export function findChapterHeaderStreamIndex(
   );
 }
 
+/** First stream index for a chapter — opening plate if present, else chapter header. */
+export function findChapterStartStreamIndex(
+  stream: ReaderStreamUnit[],
+  bookAbbr: string,
+  chapter: number,
+): number {
+  const headerIdx = findChapterHeaderStreamIndex(stream, bookAbbr, chapter);
+  if (headerIdx < 0) return -1;
+  const prev = stream[headerIdx - 1];
+  if (
+    prev?.kind === "plate" &&
+    prev.bookAbbr === bookAbbr &&
+    prev.chapter === chapter &&
+    prev.plate.beforeVerse === 1
+  ) {
+    return headerIdx - 1;
+  }
+  return headerIdx;
+}
+
 /** Spread anchor: even page index that shows the target chapter start. */
 export function spreadPageForChapterStart(
   stream: ReaderStreamUnit[],
@@ -86,7 +134,7 @@ export function spreadPageForChapterStart(
   chapter: number,
 ): number {
   if (!isStreamSplitsReady(splits, stream.length)) return 0;
-  const headerIdx = findChapterHeaderStreamIndex(stream, bookAbbr, chapter);
+  const headerIdx = findChapterStartStreamIndex(stream, bookAbbr, chapter);
   if (headerIdx < 0) return 0;
   let pageIdx = 0;
   for (let p = 0; p < splits.length - 1; p++) {
@@ -125,6 +173,8 @@ export function spreadPageForChapterEnd(
 export interface ReaderPageSlice {
   pageIdx: number;
   startsWithChapterHeader: Extract<ReaderStreamUnit, { kind: "chapter-header" }> | null;
+  plates: BiblePlate[];
+  isPlatePage: boolean;
   verseGroups: {
     bookAbbr: string;
     bookName: string;
@@ -148,13 +198,21 @@ export function sliceReaderPage(
   const startsWithChapterHeader =
     stream[start]?.kind === "chapter-header"
       ? (stream[start] as Extract<ReaderStreamUnit, { kind: "chapter-header" }>)
-      : null;
+      : stream[start + 1]?.kind === "chapter-header"
+        ? (stream[start + 1] as Extract<ReaderStreamUnit, { kind: "chapter-header" }>)
+        : null;
 
+  const plates: BiblePlate[] = [];
   const verseGroups: ReaderPageSlice["verseGroups"] = [];
   let current: ReaderPageSlice["verseGroups"][number] | null = null;
   for (let i = start; i < end; i++) {
     const unit = stream[i];
-    if (!unit || unit.kind !== "verse") continue;
+    if (!unit) continue;
+    if (unit.kind === "plate") {
+      plates.push(unit.plate);
+      continue;
+    }
+    if (unit.kind !== "verse") continue;
     if (
       !current ||
       current.bookAbbr !== unit.bookAbbr ||
@@ -171,6 +229,7 @@ export function sliceReaderPage(
     current.verses.push(unit.verse);
   }
 
+  const plateUnit = stream.slice(start, end).find((u) => u.kind === "plate");
   const primary = startsWithChapterHeader
     ? {
         bookAbbr: startsWithChapterHeader.bookAbbr,
@@ -183,14 +242,22 @@ export function sliceReaderPage(
           bookName: verseGroups[0].bookName,
           chapter: verseGroups[0].chapter,
         }
-      : null;
+      : plateUnit?.kind === "plate"
+        ? {
+            bookAbbr: plateUnit.bookAbbr,
+            bookName: plateUnit.bookName,
+            chapter: plateUnit.chapter,
+          }
+        : null;
 
   return {
     pageIdx,
     startsWithChapterHeader,
+    plates,
+    isPlatePage: plates.length > 0 && verseGroups.length === 0,
     verseGroups,
     primaryChapter: primary,
-    anchorVerse: verseGroups[0]?.verses[0]?.number ?? null,
+    anchorVerse: verseGroups[0]?.verses[0]?.number ?? plates[0]?.beforeVerse ?? null,
   };
 }
 

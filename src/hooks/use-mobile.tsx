@@ -1,7 +1,9 @@
 import * as React from "react";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { readIsCompactViewport } from "@/lib/shell/viewport";
 
 export function useIsMobile() {
+  const inMiniPhone = useMiniPhoneEmbed();
   const [isMobile, setIsMobile] = React.useState(readIsCompactViewport);
 
   React.useEffect(() => {
@@ -19,5 +21,5 @@ export function useIsMobile() {
     };
   }, []);
 
-  return isMobile;
+  return inMiniPhone || isMobile;
 }

@@ -21,7 +21,7 @@ interface Props {
   /** Currently scoped journal (null = aggregate). */
   journalId: string | null;
   /** Tab key for the cover. */
-  activeTab: "list" | "calendar" | "media" | "map";
+  activeTab: "list" | "calendar" | "media" | "map" | "graph";
   /** Subtitle override. Default: derived year range. */
   subtitle?: string;
   children: ReactNode;
@@ -113,6 +113,7 @@ export default function JournalShell({
     },
     { key: "media", label: "Media", to: `${tabBase}/media`, active: activeTab === "media" },
     { key: "map", label: "Map", to: `${tabBase}/map`, active: activeTab === "map" },
+    { key: "graph", label: "Graph", to: `${tabBase}/graph`, active: activeTab === "graph" },
   ];
 
   const sub =

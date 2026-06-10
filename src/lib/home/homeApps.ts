@@ -2,6 +2,7 @@ import {
   BookOpen, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
+  Sunrise,
   type LucideIcon,
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
@@ -41,6 +42,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
 
   return [
     { label: "Bible", to: bibleTo, icon: BookOpen, color: IOS_APP_BG.bible, badge: lastRead?.replace("/", " ") },
+    {
+      label: "Morning formula",
+      to: "/living-hope",
+      icon: Sunrise,
+      color: IOS_APP_BG.firstLight,
+      ariaLabel: "Morning formula — vision workbook and daily review",
+    },
     { label: "Daily", to: "/framework/daily", icon: Sun, color: IOS_APP_BG.daily },
     { label: "Framework", to: "/framework", icon: Brain, color: IOS_APP_BG.framework },
     { label: "Journey", to: "/framework/journey", icon: Sprout, color: IOS_APP_BG.journey },

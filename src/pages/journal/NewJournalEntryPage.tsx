@@ -189,6 +189,13 @@ export default function NewJournalEntryPage() {
               onFocus={() => p.setComposerFocused(true)}
               onBlur={() => p.setComposerFocused(false)}
               aiBusy={p.aiBusy}
+              onAttachPhotos={p.triggerPhotos}
+              onHandwritten={p.triggerHandwritten}
+              includeGeneral={p.includeGeneral}
+              onIncludeGeneralChange={p.setIncludeGeneral}
+              responseDepth={p.responseDepth}
+              onResponseDepthChange={p.setResponseDepth}
+              onOpenInMyAi={p.chatId ? () => p.navigate(`/my-ai/${p.chatId}`) : undefined}
             />
           ) : (
             <NewJournalEntryToolbar

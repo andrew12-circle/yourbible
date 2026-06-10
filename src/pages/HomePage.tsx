@@ -3,11 +3,13 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 import IosHomePage from "@/pages/home/IosHomePage";
 import HubHomePage from "@/pages/home/HubHomePage";
 
 export default function HomePage() {
   const { user, profile, loading } = useAuth();
+  const isMobile = useIsMobile();
   const { showHubShell } = useAppShellMode();
 
   if (loading) {
@@ -20,5 +22,7 @@ export default function HomePage() {
   if (!user) return <Navigate to="/auth" replace />;
   if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
+  // Phones always open the iOS app launcher; command-center overview is desktop-only.
+  if (isMobile) return <IosHomePage />;
   return showHubShell ? <HubHomePage /> : <IosHomePage />;
 }

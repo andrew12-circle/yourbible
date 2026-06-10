@@ -8,7 +8,7 @@ export function useMiniPhoneEmbed(): boolean {
 
 export function MiniPhoneEmbedProvider({ children }: { children: ReactNode }) {
   return (
-    <MiniPhoneEmbedContext.Provider value>
+    <MiniPhoneEmbedContext.Provider value={true}>
       {children}
     </MiniPhoneEmbedContext.Provider>
   );
