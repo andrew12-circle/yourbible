@@ -124,7 +124,11 @@ function resolveBookAbbrev(bookRaw: string): string | null {
 type ParsedRef = { book: string; chapter: number; v0?: number; v1?: number };
 
 function parseSingleRef(raw: string): ParsedRef | null {
-  const s = raw.trim().replace(/^[[(<"'`]+|[])>"'`]+$/g, "").trim();
+  const s = raw
+    .trim()
+    .replace(/^[[(<"'`]+/, "")
+    .replace(/[)\]>"'`]+$/, "")
+    .trim();
   if (!s) return null;
   const m = s.match(/^(.+?)\s+(\d+)\s*(?::\s*(\d+)(?:\s*[-–]\s*(\d+))?)?\s*$/);
   if (!m) return null;
@@ -374,61 +378,198 @@ async function gatherScripture(
   return { block: lines.join("\n\n"), entries };
 }
 
+type WebSearchHit = { title: string; url: string; snippet: string };
+
+function formatWebSearchHits(hits: WebSearchHit[]): string {
+  return hits
+    .map((h) => `- ${h.title}${h.url ? ` (${h.url})` : ""}\n  ${h.snippet}`)
+    .join("\n\n");
+}
+
+async function fetchBraveHits(query: string, count: number): Promise<WebSearchHit[]> {
+  const key = Deno.env.get("BRAVE_SEARCH_API_KEY") ?? Deno.env.get("BRAVE_API_KEY");
+  if (!key) return [];
+  const u = new URL("https://api.search.brave.com/res/v1/web/search");
+  u.searchParams.set("q", query.trim().slice(0, 400));
+  u.searchParams.set("count", String(Math.min(10, Math.max(1, count))));
+  const r = await fetch(u.toString(), { headers: { Accept: "application/json", "X-Subscription-Token": key } });
+  if (!r.ok) return [];
+  const j: unknown = await r.json().catch(() => null);
+  const hits: WebSearchHit[] = [];
+  if (isRecord(j) && isRecord(j.web) && Array.isArray(j.web.results)) {
+    for (const item of j.web.results.slice(0, count)) {
+      if (!isRecord(item)) continue;
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const snippet = typeof item.description === "string" ? item.description.trim() : "";
+      const url = typeof item.url === "string" ? item.url.trim() : "";
+      if ((title || snippet) && url.startsWith("http")) hits.push({ title: title || url, url, snippet });
+    }
+  }
+  return hits;
+}
+
+async function fetchSerpApiHits(query: string, count: number): Promise<WebSearchHit[]> {
+  const key = Deno.env.get("SERPAPI_API_KEY");
+  if (!key) return [];
+  const u = new URL("https://serpapi.com/search.json");
+  u.searchParams.set("engine", "google");
+  u.searchParams.set("q", query.trim().slice(0, 400));
+  u.searchParams.set("api_key", key);
+  const r = await fetch(u.toString());
+  if (!r.ok) return [];
+  const j: unknown = await r.json().catch(() => null);
+  const hits: WebSearchHit[] = [];
+  const org = isRecord(j) ? j.organic_results : null;
+  if (Array.isArray(org)) {
+    for (const item of org.slice(0, count)) {
+      if (!isRecord(item)) continue;
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const snippet = typeof item.snippet === "string" ? item.snippet.trim() : "";
+      const url = typeof item.link === "string" ? item.link.trim() : "";
+      if ((title || snippet) && url.startsWith("http")) hits.push({ title: title || url, url, snippet });
+    }
+  }
+  return hits;
+}
+
+async function runWebSearchHits(
+  query: string,
+  providerRaw: string | undefined,
+  count = 5,
+): Promise<{ hits: WebSearchHit[]; provider: string | null }> {
+  const provider = (providerRaw ?? "").trim().toLowerCase();
+  const q = query.trim().slice(0, 400);
+  if (!q) return { hits: [], provider: null };
+  if (provider === "brave") {
+    const hits = await fetchBraveHits(q, count);
+    return { hits, provider: hits.length ? "brave" : "brave" };
+  }
+  if (provider === "serpapi") {
+    const hits = await fetchSerpApiHits(q, count);
+    return { hits, provider: hits.length ? "serpapi" : "serpapi" };
+  }
+  return { hits: [], provider: null };
+}
+
 async function runWebSearch(
   query: string,
   providerRaw: string | undefined,
 ): Promise<{ text: string; provider: string | null }> {
   const provider = (providerRaw ?? "").trim().toLowerCase();
-  const q = query.trim().slice(0, 400);
-  if (!q) return { text: "", provider: null };
+  if (provider === "brave" && !Deno.env.get("BRAVE_SEARCH_API_KEY") && !Deno.env.get("BRAVE_API_KEY")) {
+    return { text: "(Brave search configured but API key missing.)", provider: "brave" };
+  }
+  if (provider === "serpapi" && !Deno.env.get("SERPAPI_API_KEY")) {
+    return { text: "(SerpAPI configured but SERPAPI_API_KEY missing.)", provider: "serpapi" };
+  }
+  const { hits, provider: p } = await runWebSearchHits(query, providerRaw, 5);
+  if (!p) return { text: "", provider: null };
+  if (!hits.length) {
+    return { text: `(No ${p} results parsed.)`, provider: p };
+  }
+  return { text: formatWebSearchHits(hits), provider: p };
+}
 
-  if (provider === "brave") {
-    const key = Deno.env.get("BRAVE_SEARCH_API_KEY") ?? Deno.env.get("BRAVE_API_KEY");
-    if (!key) return { text: "(Brave search configured but API key missing.)", provider: "brave" };
-    const u = new URL("https://api.search.brave.com/res/v1/web/search");
-    u.searchParams.set("q", q);
-    u.searchParams.set("count", "5");
-    const r = await fetch(u.toString(), { headers: { Accept: "application/json", "X-Subscription-Token": key } });
-    if (!r.ok) return { text: `(Brave search failed: HTTP ${r.status})`, provider: "brave" };
-    const j: unknown = await r.json().catch(() => null);
-    const bits: string[] = [];
-    if (isRecord(j) && isRecord(j.web) && Array.isArray(j.web.results)) {
-      for (const item of j.web.results.slice(0, 5)) {
-        if (!isRecord(item)) continue;
-        const title = typeof item.title === "string" ? item.title : "";
-        const desc = typeof item.description === "string" ? item.description : "";
-        const url = typeof item.url === "string" ? item.url : "";
-        if (title || desc) bits.push(`- ${title}${url ? ` (${url})` : ""}\n  ${desc}`);
-      }
-    }
-    return { text: bits.join("\n\n") || "(No Brave results parsed.)", provider: "brave" };
+export type DiscoveredSourceKind = "youtube" | "article" | "book" | "study";
+
+export type DiscoveredSource = {
+  kind: DiscoveredSourceKind;
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
+function normalizeDiscoveryUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = "";
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    return url.trim();
+  }
+}
+
+export function classifyDiscoveredSource(url: string, title: string): DiscoveredSourceKind {
+  const u = url.toLowerCase();
+  const t = title.toLowerCase();
+  if (/youtube\.com|youtu\.be/.test(u)) return "youtube";
+  if (
+    /scholar\.google|jstor\.org|ncbi\.nlm|doi\.org|academia\.edu|ssrn\.com|researchgate\.net|\.edu\/.*paper/i.test(u)
+  ) {
+    return "study";
+  }
+  if (
+    /goodreads|amazon\.|christianbook\.com|books\.google|openlibrary\.org|banneroftruth|crossway|ivpress|zondervan|tyndale|bakerbooks|thegospelcoalition\.org\/books/i.test(u)
+  ) {
+    return "book";
+  }
+  if (/\b(book|books)\b/.test(t) && !/youtube/.test(u)) return "book";
+  return "article";
+}
+
+async function discoverSources(
+  researchText: string,
+  userQuestion: string,
+  providerRaw: string | undefined,
+): Promise<{
+  sources: DiscoveredSource[];
+  snippetText: string;
+  usedWeb: boolean;
+  provider: string | null;
+  queries: string[];
+}> {
+  const provider = providerRaw?.trim().toLowerCase();
+  if (!provider || provider === "none" || provider === "off") {
+    return { sources: [], snippetText: "", usedWeb: false, provider: null, queries: [] };
   }
 
-  if (provider === "serpapi") {
-    const key = Deno.env.get("SERPAPI_API_KEY");
-    if (!key) return { text: "(SerpAPI configured but SERPAPI_API_KEY missing.)", provider: "serpapi" };
-    const u = new URL("https://serpapi.com/search.json");
-    u.searchParams.set("engine", "google");
-    u.searchParams.set("q", q);
-    u.searchParams.set("api_key", key);
-    const r = await fetch(u.toString());
-    if (!r.ok) return { text: `(SerpAPI failed: HTTP ${r.status})`, provider: "serpapi" };
-    const j: unknown = await r.json().catch(() => null);
-    const bits: string[] = [];
-    const org = isRecord(j) ? j.organic_results : null;
-    if (Array.isArray(org)) {
-      for (const item of org.slice(0, 5)) {
-        if (!isRecord(item)) continue;
-        const title = typeof item.title === "string" ? item.title : "";
-        const snip = typeof item.snippet === "string" ? item.snippet : "";
-        const link = typeof item.link === "string" ? item.link : "";
-        if (title || snip) bits.push(`- ${title}${link ? ` (${link})` : ""}\n  ${snip}`);
-      }
+  const base = researchText.replace(/\s+/g, " ").trim().slice(0, 160);
+  const extra = userQuestion.trim().slice(0, 80);
+  const topic = extra ? `${base} ${extra}` : base;
+  const queries = [
+    `${topic} site:youtube.com`,
+    `${topic} Christian theology teaching sermon`,
+    `${topic} book author Christian theology`,
+    `${topic} scholarly article study theology`,
+  ];
+
+  const seen = new Set<string>();
+  const sources: DiscoveredSource[] = [];
+  const blocks: string[] = [];
+  let usedWeb = false;
+
+  for (const q of queries) {
+    const { hits } = await runWebSearchHits(q, provider, 6);
+    if (hits.length) {
+      usedWeb = true;
+      blocks.push(`### Query: ${q}\n\n${formatWebSearchHits(hits)}`);
     }
-    return { text: bits.join("\n\n") || "(No SerpAPI organic results parsed.)", provider: "serpapi" };
+    for (const h of hits) {
+      const key = normalizeDiscoveryUrl(h.url);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      sources.push({
+        kind: classifyDiscoveredSource(h.url, h.title),
+        title: h.title,
+        url: h.url,
+        snippet: h.snippet || undefined,
+      });
+      if (sources.length >= 24) break;
+    }
+    if (sources.length >= 24) break;
   }
 
-  return { text: "", provider: null };
+  return {
+    sources,
+    snippetText: blocks.join("\n\n---\n\n"),
+    usedWeb,
+    provider: usedWeb ? provider : null,
+    queries,
+  };
+}
+
+function stripEpistemicLine(body: string): string {
+  return body.trim().replace(/^Epistemic:\s*[\w.]+\s*(\n+|$)/i, "").trim();
 }
 
 async function runValidationWebSearches(
@@ -508,7 +649,7 @@ Lens rules:
    { "name": string, "tradition_or_role": string, "angle": string, "summary": string, "agreement": "agrees"|"qualifies"|"disagrees"|"unclear", "source_url"?: string (only if present in web snippets), "epistemic": "web_snippet"|"training_only" }
    Voices must be plausibly real teachers, scholars, or named traditions — not fictional. Prefer different angles (e.g. one devotional teacher, one academic, one historical stream). If web snippets name people, use them and set epistemic web_snippet with URLs only from snippets.
    If NO web snippets: still name well-known figures but set epistemic training_only; body must say these are model-recalled summaries, not verified live quotes.
-${usedWeb ? "4) Web snippets were retrieved — prioritize them for independent_voices when they name teachers or articles." : "4) No live web search — independent_voices must flag training_only and avoid fake URLs."}
+${usedWeb ? "4) Web snippets and Discovered sources were retrieved — prioritize them for independent_voices when they name teachers, videos, or articles. Use source URLs only from Discovered sources or web snippets." : "4) No live web search — independent_voices must flag training_only and avoid fake URLs."}
 Never invent URLs, book pages, or direct quotes not grounded in supplied text.
 Tone: warm, precise, non-preachy.`;
 }
@@ -530,8 +671,8 @@ Rules:
    or
    Epistemic: unknown
    (Pick training_only when reasoning from model training data; unknown when you cannot ground an answer.)
-3) Never invent book titles, page numbers, journal volumes, or URLs not present in the user payload. If you did not receive web snippets with real URLs, do not fabricate citations.
-4) If web snippets were NOT provided or are empty, the second paragraph (after the epistemic line) must clearly say answers may omit recent scholarship and are limited to general training-data knowledge.
+3) Never invent book titles, page numbers, journal volumes, or URLs not present in the user payload. If a "Discovered sources" section lists real URLs, you may reference those titles/URLs in synthesis and historical_theology — nowhere else unless the URL appeared in web snippets.
+4) If web snippets and Discovered sources were NOT provided or are empty, the second paragraph (after the epistemic line) must clearly say answers may omit recent scholarship and are limited to general training-data knowledge.
 5) historical_theology: major streams and cautions, no fake citations.
 6) opposing_views: steel-man counterpositions.
 7) denominational_notes: high-level patterns only; no database of official positions.
@@ -546,11 +687,15 @@ export type ResearchPackResult = {
   pack_type: PackType;
   sections: Record<string, { body: string; epistemic: string; voices?: IndependentVoice[] }>;
   independent_voices: IndependentVoice[] | null;
+  discovered_sources: DiscoveredSource[];
+  research_conclusion: string | null;
   scripture: ScriptureEntry[];
   meta: {
     bible_id: string;
     used_web: boolean;
     web_provider: string | null;
+    discovery_count: number;
+    discovery_queries: string[];
     lenses: LensId[];
     pack_type: PackType;
     user_question: string | null;
@@ -611,13 +756,27 @@ export async function generateResearchPack(
   let webSnippets = "";
   let usedWeb = false;
   let webProviderUsed: string | null = null;
+  let discoveredSources: DiscoveredSource[] = [];
+  let discoveryQueries: string[] = [];
+
   if (useWeb && webProviderEnv && webProviderEnv !== "none" && webProviderEnv !== "off") {
+    const discovery = await discoverSources(researchText, userQuestion, webProviderEnv);
+    discoveredSources = discovery.sources;
+    discoveryQueries = discovery.queries;
+    if (discovery.usedWeb) {
+      usedWeb = true;
+      webProviderUsed = discovery.provider;
+      webSnippets = discovery.snippetText;
+    }
+
     if (packType === "validation") {
       const ws = await runValidationWebSearches(researchText, userQuestion, webProviderEnv);
-      webSnippets = ws.text;
-      usedWeb = ws.usedWeb;
-      webProviderUsed = ws.provider;
-    } else {
+      if (ws.usedWeb) {
+        usedWeb = true;
+        webProviderUsed = ws.provider ?? webProviderUsed;
+        webSnippets = [webSnippets, ws.text].filter(Boolean).join("\n\n---\n\n");
+      }
+    } else if (!discovery.usedWeb) {
       const q = (webSearchQuery ?? `${researchText.slice(0, 280)} theology interpretation`).trim();
       const ws = await runWebSearch(q, webProviderEnv);
       webSnippets = ws.text;
@@ -626,8 +785,23 @@ export async function generateResearchPack(
     }
   }
 
+  const discoveryBlock = discoveredSources.length
+    ? [
+      "## Discovered sources (live search; not vetted — verify before citing)",
+      "",
+      ...discoveredSources.map((s) =>
+        `- [${s.kind}] **${s.title}** (${s.url})${s.snippet ? `\n  ${s.snippet}` : ""}`
+      ),
+    ].join("\n")
+    : "";
+
   const webBlock = usedWeb
-    ? `## Retrieved web snippets (provider: ${webProviderUsed}; not vetted)\n\n${webSnippets}`
+    ? [
+      `## Retrieved web snippets (provider: ${webProviderUsed}; not vetted)`,
+      "",
+      webSnippets,
+      discoveryBlock ? `\n\n${discoveryBlock}` : "",
+    ].join("\n")
     : `## Web search\n\nNot used for this request (claim_research.use_web=false or WEB_SEARCH_PROVIDER unset). Live search requires WEB_SEARCH_PROVIDER=brave|serpapi and BRAVE_SEARCH_API_KEY or SERPAPI_API_KEY in Edge secrets.`;
 
   const lensJson = JSON.stringify(lensList);
@@ -729,17 +903,27 @@ export async function generateResearchPack(
 
   const independentVoices = sectionsOut.independent_voices?.voices ?? null;
 
+  const conclusionRaw =
+    sectionsOut.synthesis?.body?.trim() ||
+    sectionsOut.bible_alignment?.body?.trim() ||
+    null;
+  const researchConclusion = conclusionRaw ? stripEpistemicLine(conclusionRaw) : null;
+
   return {
     ok: true,
     data: {
       pack_type: packType,
       sections: sectionsOut,
       independent_voices: independentVoices,
+      discovered_sources: discoveredSources,
+      research_conclusion: researchConclusion,
       scripture: scriptureEntries,
       meta: {
         bible_id: bibleId,
         used_web: usedWeb,
         web_provider: webProviderUsed,
+        discovery_count: discoveredSources.length,
+        discovery_queries: discoveryQueries,
         lenses: lensList,
         pack_type: packType,
         user_question: userQuestion || null,

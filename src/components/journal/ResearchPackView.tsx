@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AlertCircle, BookOpen } from "lucide-react";
+import { AlertCircle, BookOpen, Link2 } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -21,6 +21,7 @@ import {
   type ResearchPackSection,
 } from "@/lib/framework/claimResearchPack";
 import ResearchAssistantBubble from "@/components/journal/ResearchAssistantBubble";
+import ResearchDiscoveredSources from "@/components/journal/ResearchDiscoveredSources";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -64,14 +65,28 @@ function LensSectionBody({
 }
 
 export default function ResearchPackView({ data, className, instanceKey }: Props) {
-  const { loaded, failed } = partitionScriptureEntries(data.scripture);
-  const failedRefs = new Set(failed.map((f) => f.ref));
-  const extraFailed = extraReferenceParseErrors(data.meta, failedRefs);
-  const allFailed = [...failed, ...extraFailed];
-  const lensOrder = getResearchPackLensOrder(data);
-
   const accordionItems = useMemo(() => {
+    const { loaded, failed } = partitionScriptureEntries(data.scripture);
+    const failedRefs = new Set(failed.map((f) => f.ref));
+    const extraFailed = extraReferenceParseErrors(data.meta, failedRefs);
+    const allFailed = [...failed, ...extraFailed];
+    const lensOrder = getResearchPackLensOrder(data);
+    const discoveredSources = data.discovered_sources ?? [];
+    const sourceCount = discoveredSources.filter((s) => s.url?.startsWith("http")).length;
     const items: { id: string; title: React.ReactNode; content: React.ReactNode }[] = [];
+
+    if (sourceCount > 0 || data.meta?.used_web) {
+      items.push({
+        id: "sources-gathered",
+        title: (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Link2 className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate">Sources gathered ({sourceCount})</span>
+          </span>
+        ),
+        content: <ResearchDiscoveredSources sources={discoveredSources} />,
+      });
+    }
 
     if (loaded.length > 0) {
       items.push({
@@ -138,7 +153,7 @@ export default function ResearchPackView({ data, className, instanceKey }: Props
     }
 
     return items;
-  }, [allFailed, data, lensOrder, loaded]);
+  }, [data]);
 
   const defaultOpen = accordionItems[0]?.id;
 
@@ -156,6 +171,17 @@ export default function ResearchPackView({ data, className, instanceKey }: Props
         <p className="mb-2 rounded-md border border-border/40 bg-muted/25 px-2.5 py-1.5 text-[10px] leading-snug text-muted-foreground">
           {webSearchStatusLabel(data.meta)}
         </p>
+      ) : null}
+
+      {data.research_conclusion?.trim() ? (
+        <section className="mb-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
+          <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+            Research conclusion
+          </h3>
+          <ResearchAssistantBubble variant="brief">
+            {sanitizeResearchSectionBody(data.research_conclusion)}
+          </ResearchAssistantBubble>
+        </section>
       ) : null}
 
       <Accordion

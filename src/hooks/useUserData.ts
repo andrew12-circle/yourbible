@@ -30,13 +30,13 @@ export interface Bookmark {
   book: string; chapter: number; verse: number | null; position: 1 | 2 | 3;
 }
 
-export function useChapterData(book: string, chapter: number) {
+export function useChapterData(book: string, chapter: number, enabled = true) {
   const { user } = useAuth();
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
 
   const reload = useCallback(async () => {
-    if (!user) { setHighlights([]); setNotes([]); return; }
+    if (!enabled || !user) { setHighlights([]); setNotes([]); return; }
     const [{ data: h }, { data: n }] = await Promise.all([
       supabase.from("highlights").select("*").eq("user_id", user.id).eq("book", book).eq("chapter", chapter),
       supabase.from("notes").select("*").eq("user_id", user.id).eq("book", book).eq("chapter", chapter),
@@ -51,7 +51,7 @@ export function useChapterData(book: string, chapter: number) {
       })),
     );
     setNotes((n ?? []) as Note[]);
-  }, [user, book, chapter]);
+  }, [user, book, chapter, enabled]);
 
   useEffect(() => { reload(); }, [reload]);
 

@@ -9,6 +9,16 @@ describe("sanitizeResearchSectionBody", () => {
 });
 
 describe("buildBriefSummaryFromPack", () => {
+  it("prefers research_conclusion when present", () => {
+    const brief = buildBriefSummaryFromPack({
+      research_conclusion: "Epistemic: mixed\n\nTop-line conclusion.",
+      sections: {
+        synthesis: { body: "Longer synthesis.", epistemic: "mixed" },
+      },
+    });
+    expect(brief).toBe("Top-line conclusion.");
+  });
+
   it("prefers synthesis section", () => {
     const brief = buildBriefSummaryFromPack({
       sections: {

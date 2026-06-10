@@ -102,7 +102,7 @@ async function loadClaimChatWebBlock(
   return ws.usedWeb ? `${WEB_CHAT_TURN_INSTRUCTIONS}\n\n${ws.block}` : ws.block;
 }
 
-function useOpenAiWebResearch(chatUseWeb: boolean, claimPackId: string, chatCfg: ReturnType<typeof getChatConfig>): boolean {
+function shouldUseOpenAiWebResearch(chatUseWeb: boolean, claimPackId: string, chatCfg: ReturnType<typeof getChatConfig>): boolean {
   return chatUseWeb && !!claimPackId && !("error" in chatCfg) && chatCfg.provider === "openai";
 }
 
@@ -141,7 +141,7 @@ async function generateClaimChatReply(
   const chatCfg = getChatConfig();
   if ("error" in chatCfg) return { error: chatCfg.error };
 
-  if (useOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)) {
+  if (shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)) {
     const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
     const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, "", message, false);
     const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
@@ -1004,14 +1004,14 @@ Deno.serve(async (req) => {
 
       const bootstrapUseWeb = body.claim_research?.use_web === true;
       const bootstrapChatCfg = getChatConfig();
-      const webBlock = bootstrapUseWeb && packClaimId && !useOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)
+      const webBlock = bootstrapUseWeb && packClaimId && !shouldUseOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)
         ? await loadClaimChatWebBlock(supabase, userId, packClaimId, "")
         : "";
 
       let reply = "";
       let citations: Citation[] = [];
 
-      if (useOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)) {
+      if (shouldUseOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)) {
         const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
         const userPayload =
           `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nWrite the opening message.`;
@@ -1244,8 +1244,7 @@ Deno.serve(async (req) => {
       : "";
 
     const chatUseWeb = body.claim_research?.use_web === true;
-    const chatCfg = getChatConfig();
-    const webBlock = chatUseWeb && claimPackId && !useOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
+    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
       ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
       : "";
 

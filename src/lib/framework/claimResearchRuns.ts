@@ -26,6 +26,9 @@ export type ClaimResearchRunRow = {
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export function buildBriefSummaryFromPack(pack: ResearchPackResp): string {
+  if (pack.research_conclusion?.trim()) {
+    return sanitizeResearchSectionBody(pack.research_conclusion).slice(0, 1200);
+  }
   const synthesis = pack.sections.synthesis?.body?.trim();
   if (synthesis) return sanitizeResearchSectionBody(synthesis).slice(0, 1200);
 

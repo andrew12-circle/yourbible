@@ -7,16 +7,16 @@ export function passageQueryKey(bibleId: string, book: string, chapter: number) 
   return ["passage", bibleId, book, chapter] as const;
 }
 
-export function usePassage(bibleId: string, book: string, chapter: number) {
+export function usePassage(bibleId: string, book: string, chapter: number, enabled = true) {
   useEffect(() => {
-    if (!bibleId) return;
+    if (!bibleId || !enabled) return;
     void hydratePassageFromCache(bibleId, book, chapter);
-  }, [bibleId, book, chapter]);
+  }, [bibleId, book, chapter, enabled]);
 
   return useQuery<Passage>({
     queryKey: passageQueryKey(bibleId, book, chapter),
     queryFn: ({ signal }) => fetchPassageWithCache(bibleId, book, chapter, signal),
-    enabled: Boolean(bibleId),
+    enabled: Boolean(bibleId) && enabled,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60 * 24 * 7,
     gcTime: 1000 * 60 * 60 * 24 * 30,

@@ -55,8 +55,10 @@ function readIncludeGeneralDefault(): boolean {
 }
 
 function readPackWebDefault(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(LS_PACK_WEB) === "1";
+  if (typeof window === "undefined") return true;
+  const v = localStorage.getItem(LS_PACK_WEB);
+  if (v === "0" || v === "false") return false;
+  return true;
 }
 
 const chatSessionPromises = new Map<string, Promise<{ entryId: string; chatId: string }>>();

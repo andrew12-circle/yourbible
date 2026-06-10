@@ -9,12 +9,11 @@
  *                   non-red)
  *   - (unlisted)  : Jesus does not speak → no red
  *
- * Quote state is **reset at every verse boundary**. We never carry an
- * "inside-a-quote" flag from one verse into the next: in real Bible text
- * stray or stylistic quote marks would otherwise bleed red into pages of
- * narration. If a chapter has Jesus' speech spanning many verses without
- * intermediate close-quotes, those verses are listed individually as WHOLE
- * instead of being inferred from quote-tracking.
+ * For PARTIAL verses, quote depth is **carried across verse boundaries**
+ * within a chapter so Jesus' speech that spans several verses (e.g. Mat 11:4–6)
+ * stays red until the closing quote. Depth resets at WHOLE/none verses and at
+ * chapter boundaries. Only depth-1 (outermost) quoted text is red; nested
+ * quotes (what others said inside Jesus' speech) stay black.
  */
 
 export type Segment = { text: string; isJesus: boolean };
@@ -378,65 +377,100 @@ function classify(
 }
 
 /**
- * Quote-character pairs we treat as opening / closing.
- * Matches straight + curly double quotes and curly single quotes. Straight
- * single quote/apostrophe is intentionally excluded (too ambiguous: it
- * collides with possessives and contractions like "don't" / "Jesus'").
+ * Straight apostrophe used as an opening single-quote (e.g. `say, 'He…`),
+ * not a contraction (`isn't`) or possessive (`Jesus'`).
  */
-const OPENERS = new Set(["\u201C", "\u2018", '"']);
-const CLOSERS = new Set(["\u201D", "\u2019", '"']);
+function isSingleQuoteOpener(text: string, i: number): boolean {
+  if (text[i] !== "'") return false;
+  if (i === 0) return true;
+  const before = text[i - 1];
+  if (!/[\s,([{—–-]/.test(before)) return false;
+  const after = text[i + 1];
+  return after !== undefined && /[A-Za-z0-9"']/.test(after);
+}
+
+/** Straight apostrophe closing a single-quoted span, not a contraction. */
+function isSingleQuoteCloser(text: string, i: number): boolean {
+  if (text[i] !== "'") return false;
+  const before = text[i - 1];
+  const after = text[i + 1];
+  if (
+    before !== undefined &&
+    after !== undefined &&
+    /[a-zA-Z]/.test(before) &&
+    /[a-zA-Z]/.test(after)
+  ) {
+    return false;
+  }
+  if (before !== undefined && /[a-zA-Z]/.test(before)) return false;
+  return after === undefined || /[\s,.!?;:)\]}]/.test(after);
+}
+
+type QuoteAction = "open" | "close";
+
+/** Classify a character as opening/closing a quoted span at the current depth. */
+function quoteAction(text: string, i: number, depth: number): QuoteAction | null {
+  const ch = text[i];
+  if (ch === "\u201C" || ch === "\u2018") return "open";
+  if (ch === "\u201D" || ch === "\u2019") return "close";
+  if (ch === '"') return depth % 2 === 0 ? "open" : "close";
+  if (isSingleQuoteOpener(text, i)) return "open";
+  if (depth > 0 && isSingleQuoteCloser(text, i)) return "close";
+  return null;
+}
 
 /**
- * Split a single verse's text using paired quotation marks. Used only for
- * PARTIAL verses (those where Jesus speaks part of the verse).
- *
- * IMPORTANT: state is local to this verse — never carried across verses.
+ * Split verse text by quotation marks. Only outermost quoted spans (depth 1)
+ * are Jesus' words; nested quotes stay black. Returns remaining quote depth so
+ * callers can continue across verse boundaries.
  */
-function splitByQuotes(text: string): Segment[] {
+function splitByQuotesStateful(
+  text: string,
+  initialDepth: number,
+): { segments: Segment[]; depth: number } {
   const out: Segment[] = [];
   let buf = "";
-  let inside = false;
+  let depth = initialDepth;
 
-  const flush = (jesus: boolean) => {
-    if (buf) {
-      out.push({ text: buf, isJesus: jesus });
-      buf = "";
-    }
+  const flush = () => {
+    if (!buf) return;
+    out.push({ text: buf, isJesus: depth === 1 });
+    buf = "";
   };
 
-  for (const ch of text) {
-    if (!inside && OPENERS.has(ch)) {
-      flush(false);
-      buf += ch;          // keep the opening quote with non-Jesus
-      flush(false);
-      inside = true;
+  for (let i = 0; i < text.length; i++) {
+    const action = quoteAction(text, i, depth);
+    if (action === "open") {
+      flush();
+      buf += text[i];
+      flush();
+      depth++;
       continue;
     }
-    if (inside && CLOSERS.has(ch)) {
-      flush(true);
-      buf += ch;          // keep the closing quote with non-Jesus
-      flush(false);
-      inside = false;
+    if (action === "close" && depth > 0) {
+      flush();
+      buf += text[i];
+      flush();
+      depth--;
       continue;
     }
-    buf += ch;
+    buf += text[i];
   }
-  // Any trailing text inside an unclosed quote is NOT painted red — without
-  // a closer we can't be sure where Jesus' speech ends.
-  flush(false);
-  return out;
+
+  flush();
+  return { segments: out, depth };
 }
 
 /**
  * Chapter-level splitter. Returns segments for every verse in the chapter.
  *
  * For each verse:
- *   • WHOLE   → one segment, entire verse painted red
- *   • PARTIAL → split by paired quotation marks; only quoted spans red
- *   • none    → one segment, no red
+ *   • WHOLE   → one segment, entire verse painted red (resets quote depth)
+ *   • PARTIAL → split by quotation marks; only outer quoted spans red
+ *   • none    → one segment, no red (resets quote depth)
  *
- * No state is carried across verses, so a stray quote in narration cannot
- * bleed red into following verses.
+ * Quote depth carries across consecutive PARTIAL verses so multi-verse
+ * speeches stay red until the closing quote.
  */
 export function splitJesusSpeechForChapter(
   bookAbbr: string,
@@ -444,14 +478,19 @@ export function splitJesusSpeechForChapter(
   verses: { number: number; text: string }[],
 ): Map<number, Segment[]> {
   const result = new Map<number, Segment[]>();
+  let quoteDepth = 0;
 
   for (const v of verses) {
     const kind = classify(bookAbbr, chapter, v.number);
     if (kind === "whole") {
+      quoteDepth = 0;
       result.set(v.number, [{ text: v.text, isJesus: true }]);
     } else if (kind === "partial") {
-      result.set(v.number, splitByQuotes(v.text));
+      const { segments, depth } = splitByQuotesStateful(v.text, quoteDepth);
+      quoteDepth = depth;
+      result.set(v.number, segments);
     } else {
+      quoteDepth = 0;
       result.set(v.number, [{ text: v.text, isJesus: false }]);
     }
   }

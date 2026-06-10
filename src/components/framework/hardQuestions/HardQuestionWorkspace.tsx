@@ -260,7 +260,7 @@ export default function HardQuestionWorkspace({ userId, question }: Props) {
           <SheetHeader className="shrink-0 space-y-1 border-b border-border/60 px-4 py-4 text-left">
             <SheetTitle className="text-lg font-normal">Research report</SheetTitle>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Scripture, history, opposing views, and synthesis.
+              Sources gathered, Scripture, opposing views, and research conclusion.
             </p>
             {ws.webStatusLabel ? (
               <p className="text-[10px] text-muted-foreground">{ws.webStatusLabel}</p>

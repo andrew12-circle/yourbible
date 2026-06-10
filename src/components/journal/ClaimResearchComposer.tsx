@@ -281,7 +281,7 @@ export default function ClaimResearchComposer({
             Regenerate last
           </button>
           <span aria-hidden>·</span>
-          <span>{packUseWeb ? "OpenAI web search on" : "Companion chat"}</span>
+          <span>{packUseWeb ? "Live web search on" : "Web search off"}</span>
         </div>
       </div>
     </div>

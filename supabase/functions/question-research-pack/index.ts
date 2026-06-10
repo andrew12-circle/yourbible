@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     }
 
     const claimResearch = isRecord(bodyRaw.claim_research) ? bodyRaw.claim_research : null;
-    const useWeb = claimResearch?.use_web === true;
+    const useWeb = claimResearch?.use_web !== false;
     const packTypeRaw = typeof bodyRaw.pack_type === "string" ? bodyRaw.pack_type.trim().toLowerCase() : "";
     const packType: PackType = packTypeRaw === "validation" ? "validation" : "standard";
     const userQuestion = typeof bodyRaw.user_question === "string" ? bodyRaw.user_question.trim().slice(0, 2000) : "";

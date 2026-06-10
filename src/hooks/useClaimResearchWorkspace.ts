@@ -61,8 +61,10 @@ function readIncludeGeneralDefault(): boolean {
 }
 
 function readPackWebDefault(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(LS_PACK_WEB) === "1";
+  if (typeof window === "undefined") return true;
+  const v = localStorage.getItem(LS_PACK_WEB);
+  if (v === "0" || v === "false") return false;
+  return true;
 }
 
 function claimResearchChatBodyExtras(packUseWeb: boolean) {
@@ -152,12 +154,12 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
     setLoadingMessages(false);
   }, []);
 
-  const invokeValidationPack = useCallback(
+  const invokeResearchPack = useCallback(
     async (question?: string) => {
       const { data, error } = await supabase.functions.invoke<ResearchPackResp>("claim-research-pack", {
         body: {
           artifact_claim_id: research.claimId,
-          pack_type: "validation",
+          pack_type: "standard",
           user_question: question?.trim() || undefined,
           claim_research: { use_web: packUseWeb },
         },
@@ -168,7 +170,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
         throw new Error(payload.error);
       }
       if (!payload || typeof payload !== "object" || !("sections" in payload) || !payload.sections) {
-        throw new Error("Unexpected response from validation research");
+        throw new Error("Unexpected response from research pack");
       }
       return payload as ResearchPackResp;
     },
@@ -212,7 +214,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           }
         }
 
-        const pack = await invokeValidationPack();
+        const pack = await invokeResearchPack();
         setPackData(pack);
         setPackInstance((n) => n + 1);
         await persistPack(pack);
@@ -228,7 +230,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
         setBriefLoading(false);
       }
     },
-    [briefLoading, userId, research.claimId, research.artifactId, invokeValidationPack, persistPack, packUseWeb],
+    [briefLoading, userId, research.claimId, research.artifactId, invokeResearchPack, persistPack, packUseWeb],
   );
 
   const runBootstrapOpener = useCallback(
@@ -324,7 +326,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
               });
               return;
             }
-            const pack = await invokeValidationPack();
+            const pack = await invokeResearchPack();
             if (cancelled) return;
             setPackData(pack);
             setPackInstance((n) => n + 1);

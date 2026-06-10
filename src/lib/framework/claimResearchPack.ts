@@ -14,15 +14,28 @@ export type IndependentVoice = {
   epistemic: "web_snippet" | "training_only";
 };
 
+export type DiscoveredSourceKind = "youtube" | "article" | "book" | "study";
+
+export type DiscoveredSource = {
+  kind: DiscoveredSourceKind;
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
 export type ResearchPackResp = {
   pack_type?: "standard" | "validation";
   sections: Record<string, ResearchPackSection>;
   independent_voices?: IndependentVoice[] | null;
+  discovered_sources?: DiscoveredSource[];
+  research_conclusion?: string | null;
   scripture?: { ref: string; reference?: string; text?: string; error?: string }[];
   meta?: {
     bible_id?: string;
     used_web?: boolean;
     web_provider?: string | null;
+    discovery_count?: number;
+    discovery_queries?: string[];
     lenses?: string[];
     pack_type?: string;
     user_question?: string | null;
@@ -30,6 +43,64 @@ export type ResearchPackResp = {
   };
   error?: string;
 };
+
+const DISCOVERED_KIND_LABELS: Record<DiscoveredSourceKind, string> = {
+  youtube: "Videos & talks",
+  article: "Articles & essays",
+  book: "Books",
+  study: "Studies & papers",
+};
+
+const DISCOVERED_KIND_ORDER: DiscoveredSourceKind[] = ["youtube", "article", "book", "study"];
+
+export function discoveredSourceKindLabel(kind: DiscoveredSourceKind): string {
+  return DISCOVERED_KIND_LABELS[kind] ?? kind;
+}
+
+export function groupDiscoveredSources(
+  sources: DiscoveredSource[] | undefined | null,
+): Partial<Record<DiscoveredSourceKind, DiscoveredSource[]>> {
+  const out: Partial<Record<DiscoveredSourceKind, DiscoveredSource[]>> = {};
+  for (const s of sources ?? []) {
+    if (!s.url?.startsWith("http") || !s.title?.trim()) continue;
+    const bucket = out[s.kind] ?? [];
+    bucket.push(s);
+    out[s.kind] = bucket;
+  }
+  return out;
+}
+
+export function formatDiscoveredSourcesMarkdown(sources: DiscoveredSource[]): string {
+  const grouped = groupDiscoveredSources(sources);
+  const lines: string[] = [];
+  for (const kind of DISCOVERED_KIND_ORDER) {
+    const items = grouped[kind];
+    if (!items?.length) continue;
+    lines.push(`### ${discoveredSourceKindLabel(kind)}`, "");
+    for (const s of items) {
+      lines.push(`- [${s.title}](${s.url})${s.snippet ? `\n  ${s.snippet}` : ""}`, "");
+    }
+  }
+  return lines.join("\n").trimEnd();
+}
+
+export function classifyDiscoveredSource(url: string, title: string): DiscoveredSourceKind {
+  const u = url.toLowerCase();
+  const t = title.toLowerCase();
+  if (/youtube\.com|youtu\.be/.test(u)) return "youtube";
+  if (
+    /scholar\.google|jstor\.org|ncbi\.nlm|doi\.org|academia\.edu|ssrn\.com|researchgate\.net|\.edu\/.*paper/i.test(u)
+  ) {
+    return "study";
+  }
+  if (
+    /goodreads|amazon\.|christianbook\.com|books\.google|openlibrary\.org|banneroftruth|crossway|ivpress|zondervan|tyndale|bakerbooks|thegospelcoalition\.org\/books/i.test(u)
+  ) {
+    return "book";
+  }
+  if (/\b(book|books)\b/.test(t) && !/youtube/.test(u)) return "book";
+  return "article";
+}
 
 const STANDARD_LENS_ORDER = [
   "scripture_context",
@@ -264,9 +335,17 @@ export function formatResearchPackMarkdown(data: ResearchPackResp): string {
   const meta = data.meta;
   if (meta) {
     const webNote = meta.used_web
-      ? `live web snippets via ${meta.web_provider ?? "?"} (not vetted)`
+      ? `live web search via ${meta.web_provider ?? "?"} · ${meta.discovery_count ?? 0} sources gathered (not vetted)`
       : "no live web search — training-data / fetched scripture only";
     lines.push(`_${webNote} · Bible id: ${meta.bible_id ?? "—"}_`, "");
+  }
+
+  if (data.research_conclusion?.trim()) {
+    lines.push("## Research conclusion", "", data.research_conclusion.trim(), "", "---", "");
+  }
+
+  if (data.discovered_sources?.length) {
+    lines.push("## Sources gathered", "", formatDiscoveredSourcesMarkdown(data.discovered_sources), "", "---", "");
   }
   const { loaded, failed } = partitionScriptureEntries(data.scripture);
   const failedRefs = new Set(failed.map((f) => f.ref));
@@ -317,7 +396,9 @@ export function formatResearchPackMarkdown(data: ResearchPackResp): string {
 export function webSearchStatusLabel(meta?: ResearchPackResp["meta"]): string {
   if (!meta) return "Web search status unknown.";
   if (meta.used_web) {
-    return `Live web search ran (${meta.web_provider ?? "provider"}). Snippets are not vetted — verify names and links yourself.`;
+    const count = meta.discovery_count ?? 0;
+    const sourceNote = count > 0 ? ` ${count} clickable sources gathered.` : "";
+    return `Live web search ran (${meta.web_provider ?? "provider"}).${sourceNote} Snippets are not vetted — verify names and links yourself.`;
   }
-  return "No live web search for this run. Voices and historical notes come from the model's training data unless scripture was fetched from your Bible API.";
+  return "No live web search for this run. Enable web search in research settings and configure WEB_SEARCH_PROVIDER on the server for YouTube, articles, and books discovery.";
 }

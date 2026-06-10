@@ -11,7 +11,6 @@ import {
   PanelLeft,
   PanelLeftClose,
   Plus,
-  Send,
   Settings2,
   Trash2,
 } from "lucide-react";
@@ -25,9 +24,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import MyAiComposer from "@/components/myai/MyAiComposer";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import {
@@ -414,13 +413,6 @@ export default function MyAiPage() {
     [user],
   );
 
-  const resizeComposer = useCallback(() => {
-    const el = taRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, []);
-
   useEffect(() => {
     void loadChats();
   }, [loadChats]);
@@ -445,10 +437,6 @@ export default function MyAiPage() {
   useEffect(() => {
     persistResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
   }, [responseDepth]);
-
-  useEffect(() => {
-    resizeComposer();
-  }, [input, resizeComposer]);
 
   if (authLoading) {
     return (
@@ -521,7 +509,6 @@ export default function MyAiPage() {
     ]);
     setInput("");
     setSending(true);
-    resizeComposer();
 
     try {
       const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
@@ -811,44 +798,25 @@ export default function MyAiPage() {
             )}
           </div>
 
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4"
-            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
-          >
-            <div className="pointer-events-auto mx-auto w-full max-w-2xl">
-              <div className="flex items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
-                <Textarea
-                  ref={taRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!sending) void send();
-                    }
-                  }}
-                  rows={1}
-                  disabled={sending}
-                  spellCheck
-                  placeholder={sending ? "Thinking…" : "Ask anything"}
-                  className="min-h-[40px] max-h-36 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  disabled={sending || !input.trim()}
-                  onClick={() => void send()}
-                  className="mb-0.5 h-8 w-8 shrink-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 disabled:opacity-40"
-                  aria-label="Send message"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-                My AI can make mistakes. Grounded in your framework when sources match.
-              </p>
-            </div>
-          </div>
+          <MyAiComposer
+            input={input}
+            onInputChange={setInput}
+            onSend={() => void send()}
+            sending={sending}
+            userId={user.id}
+            textareaRef={taRef}
+            responseDepth={responseDepth}
+            onResponseDepthChange={setResponseDepth}
+            includeGeneral={includeGeneral}
+            onIncludeGeneralChange={setIncludeGeneral}
+            suggestedPrompts={SUGGESTED_PROMPTS}
+            onSuggestedPrompt={(prompt) => void send(prompt)}
+            canSaveJournal={Boolean(routeChatId && visibleMessages.length > 0)}
+            onSaveJournal={() => void saveAsJournalEntry()}
+            savingJournal={savingJournal}
+            onNewChat={newChat}
+            onOpenCognitiveState={() => setStateOpen(true)}
+          />
         </section>
       </div>
     </div>
