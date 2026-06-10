@@ -26,7 +26,7 @@ import {
 } from "@/lib/bible/fontChoices";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
-import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { VerseSheet } from "@/components/bible/VerseSheet";
 import {
@@ -568,7 +568,7 @@ export default function ReaderPage() {
   }, [passage?.headings]);
   const verseLengths = useMemo(() => {
     const m = new Map<number, number>();
-    for (const v of verses) m.set(v.number, v.text.length);
+    for (const v of verses) m.set(v.number, (typeof v.text === "string" ? v.text : "").length);
     return m;
   }, [verses]);
   const highlightColor =
@@ -1153,14 +1153,17 @@ export default function ReaderPage() {
     const verseChapter = ctx?.chapter ?? chapter;
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
-    const segments =
+    const verseText = typeof v.text === "string" ? v.text : "";
+    const segments = redLetterSegmentsForVerse(
       (useBookSpread
         ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
-        : redSegments
-      )?.get(v.number) ?? [{ text: v.text, isJesus: false }];
+        : redSegments) ?? new Map<number, JesusSegment[]>(),
+      v.number,
+      verseText,
+    );
     const hlMarks = hlsFor(v.number, verseBook, verseChapter);
-    const intervals = highlightIntervalsForVerse(v.text.length, hlMarks);
-    const textParts = sliceTextByHighlights(v.text, intervals);
+    const intervals = highlightIntervalsForVerse(verseText.length, hlMarks);
+    const textParts = sliceTextByHighlights(verseText, intervals);
     const mv = markerVariant(verseBook, verseChapter, v.number);
 
     const segBounds: { start: number; end: number; seg: JesusSegment }[] = [];
@@ -1182,7 +1185,7 @@ export default function ReaderPage() {
         const oStart = Math.max(pStart, sStart);
         const oEnd = Math.min(pEnd, sEnd);
         if (oEnd <= oStart) continue;
-        const chunk = v.text.slice(oStart, oEnd);
+        const chunk = verseText.slice(oStart, oEnd);
         let inner: React.ReactNode = chunk;
         if (part.color) {
           inner = (

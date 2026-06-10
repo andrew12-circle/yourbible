@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
-import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment } from "@/lib/bible/redLetter";
 import {
   CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
@@ -214,7 +214,7 @@ function renderStreamSlice(
       }
       const versesHtml = group.verses
         .map((v) => {
-          const segs = redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
+          const segs = redLetterSegmentsForVerse(redSegments, v.number, v.text ?? "");
           const inner = segs
             .map((s) =>
               s.isJesus

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
-import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
+import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment } from "@/lib/bible/redLetter";
 
 interface Props {
   verses: Verse[];
@@ -200,7 +200,7 @@ function renderInto(
         : "";
       const versesHtml = group.verses
         .map(v => {
-          const segs = redSegments.get(v.number) ?? [{ text: v.text, isJesus: false }];
+          const segs = redLetterSegmentsForVerse(redSegments, v.number, v.text ?? "");
           const inner = segs
             .map(s =>
               s.isJesus

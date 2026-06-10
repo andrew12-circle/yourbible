@@ -11,9 +11,12 @@ export interface Passage {
   headings: PassageHeading[];
 }
 
-/** Ensure older cached payloads still render with paragraph flow. */
+/** Ensure every verse has a string body (cached/API payloads can omit text). */
 export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "reference" | "verses">): Passage {
-  const verses = raw.verses ?? [];
+  const verses = (raw.verses ?? []).map((v) => ({
+    number: v.number,
+    text: typeof v.text === "string" ? v.text : "",
+  }));
   return {
     reference: raw.reference,
     verses,

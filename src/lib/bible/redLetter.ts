@@ -1,31 +1,41 @@
 /**
  * Red-letter Bible support — segment a verse into Jesus/non-Jesus text.
  *
- * Scholar-curated approach. Each verse is classified as one of:
- *   - WHOLE       : the verse is entirely Jesus' direct speech → paint red
- *   - PARTIAL     : Jesus speaks somewhere in the verse, but other speakers
- *                   or narration are also present → only the *quoted* spans
- *                   are painted red (and the surrounding narration stays
- *                   non-red)
- *   - (unlisted)  : Jesus does not speak → no red
+ * Scholar-curated approach. Verses where Jesus speaks (WHOLE or PARTIAL lists)
+ * are split by quotation marks. Only text inside the outermost pair of quotes
+ * is painted red — narration ("Jesus replied…", "He answered them,") and
+ * nested quotes (what others said) stay black.
  *
  * For PARTIAL verses, quote depth is **carried across verse boundaries**
  * within a chapter so Jesus' speech that spans several verses (e.g. Mat 11:4–6)
- * stays red until the closing quote. Depth resets at WHOLE/none verses and at
+ * stays red until the closing quote. Depth resets at non-speech verses and at
  * chapter boundaries. Only depth-1 (outermost) quoted text is red; nested
- * quotes (what others said inside Jesus' speech) stay black.
+ * quotes stay black.
  */
 
 export type Segment = { text: string; isJesus: boolean };
 
+/** Safe lookup — never returns an empty segment list. */
+export function redLetterSegmentsForVerse(
+  map: Map<number, Segment[]>,
+  verseNumber: number,
+  verseText: string,
+): Segment[] {
+  const text = typeof verseText === "string" ? verseText : "";
+  const segs = map.get(verseNumber);
+  if (!segs || segs.length === 0) {
+    return [{ text, isJesus: false }];
+  }
+  return segs;
+}
+
 /**
- * WHOLE: every verse listed here is entirely Jesus' direct speech. The full
- * verse is painted red — no quote scanning needed. This handles translations
- * (KJV, WEB, ASV) that omit quotation marks.
+ * WHOLE: verses that are entirely Jesus' direct speech in red-letter editions.
+ * Used only to flag speech candidates — rendering still follows quotation marks
+ * so translations like CSB don't paint narration red.
  *
  * PARTIAL: Jesus speaks somewhere in the verse but the verse also contains
- * narration ("And he answered…") or another speaker quoted nearby. Only the
- * spans inside paired quotation marks within the verse are painted red.
+ * narration ("And he answered…") or another speaker quoted nearby.
  */
 type WholeMap = Record<string, Set<string>>;   // "chapter:verse"
 type PartialMap = Record<string, Set<string>>;
@@ -376,6 +386,15 @@ function classify(
   return "none";
 }
 
+/** True when this verse is a candidate for Jesus' speech (either list). */
+function isJesusSpeechVerse(
+  bookAbbr: string,
+  chapter: number,
+  verse: number,
+): boolean {
+  return classify(bookAbbr, chapter, verse) !== "none";
+}
+
 /**
  * Straight apostrophe used as an opening single-quote (e.g. `say, 'He…`),
  * not a contraction (`isn't`) or possessive (`Jesus'`).
@@ -465,12 +484,10 @@ function splitByQuotesStateful(
  * Chapter-level splitter. Returns segments for every verse in the chapter.
  *
  * For each verse:
- *   • WHOLE   → one segment, entire verse painted red (resets quote depth)
- *   • PARTIAL → split by quotation marks; only outer quoted spans red
+ *   • speech  (WHOLE or PARTIAL list) → split by quotation marks; carry depth
  *   • none    → one segment, no red (resets quote depth)
  *
- * Quote depth carries across consecutive PARTIAL verses so multi-verse
- * speeches stay red until the closing quote.
+ * Nothing is painted red except text inside outermost quotation marks.
  */
 export function splitJesusSpeechForChapter(
   bookAbbr: string,
@@ -481,17 +498,17 @@ export function splitJesusSpeechForChapter(
   let quoteDepth = 0;
 
   for (const v of verses) {
-    const kind = classify(bookAbbr, chapter, v.number);
-    if (kind === "whole") {
-      quoteDepth = 0;
-      result.set(v.number, [{ text: v.text, isJesus: true }]);
-    } else if (kind === "partial") {
-      const { segments, depth } = splitByQuotesStateful(v.text, quoteDepth);
+    const text = typeof v.text === "string" ? v.text : "";
+    if (isJesusSpeechVerse(bookAbbr, chapter, v.number)) {
+      const { segments, depth } = splitByQuotesStateful(text, quoteDepth);
       quoteDepth = depth;
-      result.set(v.number, segments);
+      result.set(
+        v.number,
+        segments.length > 0 ? segments : [{ text, isJesus: false }],
+      );
     } else {
       quoteDepth = 0;
-      result.set(v.number, [{ text: v.text, isJesus: false }]);
+      result.set(v.number, [{ text, isJesus: false }]);
     }
   }
 

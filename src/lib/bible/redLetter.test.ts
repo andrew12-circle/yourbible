@@ -83,4 +83,38 @@ describe("splitJesusSpeechForChapter", () => {
     expect(red).toContain("and say,");
     expect(red).not.toContain("We played the flute");
   });
+
+  it("does not paint narration red in formerly-WHOLE verses", () => {
+    const verses = [
+      {
+        number: 11,
+        text:
+          'He answered them, "Because the secrets of the kingdom of heaven have been given for you to know, but not to them."',
+      },
+    ];
+
+    const segs = splitJesusSpeechForChapter("Mat", 13, verses);
+    const red = jesusText(segs.get(11)!);
+
+    expect(red).toContain("Because the secrets");
+    expect(red).not.toContain("He answered them");
+  });
+
+  it("does not paint epistle text red", () => {
+    const verses = [
+      {
+        number: 1,
+        text: "Paul, a servant of Christ Jesus, called as an apostle and set apart for the gospel of God—",
+      },
+    ];
+
+    const segs = splitJesusSpeechForChapter("Rom", 1, verses);
+    expect(jesusText(segs.get(1)!)).toBe("");
+  });
+
+  it("handles missing verse text without empty segments", () => {
+    const verses = [{ number: 4, text: undefined as unknown as string }];
+    const segs = splitJesusSpeechForChapter("Mat", 11, verses);
+    expect(segs.get(4)).toEqual([{ text: "", isJesus: false }]);
+  });
 });
