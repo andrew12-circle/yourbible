@@ -28,13 +28,17 @@ const FILTER_LABELS: { key: keyof MindGraphFilters; label: string }[] = [
 interface Props {
   journalId?: string | null;
   className?: string;
+  /** Fixed height when `fill` is false (e.g. journal tab). */
   heightClassName?: string;
+  /** Grow the canvas to fill the parent flex column. */
+  fill?: boolean;
 }
 
 export default function MindGraphView({
   journalId = null,
   className,
-  heightClassName = "min(72vh, 600px)",
+  heightClassName = "calc(100svh - 18rem)",
+  fill = false,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -43,7 +47,7 @@ export default function MindGraphView({
   const [filters, setFilters] = useState<MindGraphFilters>(DEFAULT_MIND_GRAPH_FILTERS);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 520 });
   const [hover, setHover] = useState<MindGraphNode | null>(null);
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
 
   useEffect(() => {
@@ -57,16 +61,6 @@ export default function MindGraphView({
       .catch(() => setBusy(false));
   }, [user, journalId]);
 
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const sync = () => setCanvasSize({ w: el.clientWidth, h: Math.max(el.clientHeight, 360) });
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   const graphData = useMemo(() => {
     if (!raw) return { nodes: [], links: [] };
     const built = buildUnifiedMindGraph(raw, filters);
@@ -76,6 +70,18 @@ export default function MindGraphView({
       raw.entries.map((e) => e.id),
     );
   }, [raw, filters, journalId]);
+
+  const hasGraph = !busy && graphData.nodes.length > 0;
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const sync = () => setCanvasSize({ w: el.clientWidth, h: Math.max(el.clientHeight, 280) });
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasGraph, fill]);
 
   const handleNodeClick = useCallback(
     (node: object) => {
@@ -90,25 +96,37 @@ export default function MindGraphView({
 
   const connected = graphData.nodes.filter((n) => n.val > 2).length;
 
+  const statsLine = `${graphData.nodes.length} nodes · ${graphData.links.length} connections${
+    connected > 0 ? ` · ${connected} linked` : ""
+  }${journalId ? " · journal scope" : ""}`;
+
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
-        {FILTER_LABELS.map(({ key, label }) => (
-          <div key={key} className="flex items-center gap-2">
-            <Switch
-              id={`mind-filter-${key}`}
-              checked={filters[key]}
-              onCheckedChange={() => toggle(key)}
-            />
-            <Label htmlFor={`mind-filter-${key}`} className="text-[12px] text-muted-foreground">
-              {label}
-            </Label>
-          </div>
-        ))}
-      </div>
+    <div
+      className={cn(
+        "flex flex-col",
+        fill ? "h-full min-h-0 flex-1 gap-2" : "gap-3",
+        className,
+      )}
+    >
+      {!fill ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
+          {FILTER_LABELS.map(({ key, label }) => (
+            <div key={key} className="flex items-center gap-2">
+              <Switch
+                id={`mind-filter-${key}`}
+                checked={filters[key]}
+                onCheckedChange={() => toggle(key)}
+              />
+              <Label htmlFor={`mind-filter-${key}`} className="text-[12px] text-muted-foreground">
+                {label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {busy ? (
-        <div className="flex items-center justify-center py-24">
+        <div className="flex flex-1 items-center justify-center py-24">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       ) : graphData.nodes.length === 0 ? (
@@ -122,21 +140,40 @@ export default function MindGraphView({
           </p>
         </div>
       ) : (
-        <>
-          <p className="text-[12px] text-muted-foreground px-1">
-            {graphData.nodes.length} nodes · {graphData.links.length} connections
-            {connected > 0 ? ` · ${connected} linked` : ""}
-            {journalId ? " · journal scope" : ""}
-          </p>
-          <div
-            ref={hostRef}
-            className="relative overflow-hidden rounded-2xl border border-border bg-card"
-            style={{ height: heightClassName }}
-          >
+        <div
+          className={cn(
+            "flex min-h-0 flex-col overflow-hidden border border-border bg-card",
+            fill ? "min-h-[280px] flex-1 rounded-lg" : "rounded-2xl",
+          )}
+          style={fill ? undefined : { height: heightClassName }}
+        >
+          {fill ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 bg-muted/30 px-3 py-2">
+              {FILTER_LABELS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-1.5">
+                  <Switch
+                    id={`mind-filter-${key}`}
+                    checked={filters[key]}
+                    onCheckedChange={() => toggle(key)}
+                  />
+                  <Label
+                    htmlFor={`mind-filter-${key}`}
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    {label}
+                  </Label>
+                </div>
+              ))}
+              <p className="ml-auto text-[11px] text-muted-foreground">{statsLine}</p>
+            </div>
+          ) : (
+            <p className="shrink-0 px-3 pt-2 text-[12px] text-muted-foreground">{statsLine}</p>
+          )}
+          <div ref={canvasRef} className="relative min-h-0 min-w-0 flex-1">
             <ForceGraph2D
               ref={fgRef}
               width={canvasSize.w}
-              height={canvasSize.h}
+              height={Math.max(canvasSize.h, 280)}
               graphData={graphData}
               nodeId="id"
               nodeVal="val"
@@ -173,23 +210,25 @@ export default function MindGraphView({
                 ctx.fillText(label, n.x, n.y + r + 2);
               }}
             />
+            {hover ? (
+              <p className="pointer-events-none absolute bottom-2 left-3 right-3 z-10 rounded-md border border-border/60 bg-background/85 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur-sm supports-[backdrop-filter]:bg-background/75">
+                <span className="capitalize">{hover.kind}</span> · {hover.label} — click to open
+              </p>
+            ) : null}
           </div>
-          {hover && (
-            <p className="text-[12px] text-muted-foreground px-1">
-              <span className="capitalize">{hover.kind}</span> · {hover.label} — click to open
-            </p>
-          )}
-        </>
+        </div>
       )}
 
-      <p className="text-[11px] text-muted-foreground px-1 leading-relaxed">
-        Link while writing:{" "}
-        <code className="bg-muted px-1 rounded">[[entry title]]</code>{" "}
-        <code className="bg-muted px-1 rounded">[[video:Title]]</code>{" "}
-        <code className="bg-muted px-1 rounded">[[belief:…]]</code>{" "}
-        <code className="bg-muted px-1 rounded">[[person:Name]]</code>{" "}
-        <code className="bg-muted px-1 rounded">[[verse:John 3:16]]</code>
-      </p>
+      {!fill ? (
+        <p className="text-[11px] text-muted-foreground px-1 leading-relaxed">
+          Link while writing:{" "}
+          <code className="bg-muted px-1 rounded">[[entry title]]</code>{" "}
+          <code className="bg-muted px-1 rounded">[[video:Title]]</code>{" "}
+          <code className="bg-muted px-1 rounded">[[belief:…]]</code>{" "}
+          <code className="bg-muted px-1 rounded">[[person:Name]]</code>{" "}
+          <code className="bg-muted px-1 rounded">[[verse:John 3:16]]</code>
+        </p>
+      ) : null}
     </div>
   );
 }

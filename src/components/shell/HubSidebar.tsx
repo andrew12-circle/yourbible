@@ -182,7 +182,7 @@ export function HubSidebar() {
             <span className="block font-display text-[2.125rem] font-normal leading-none tracking-[-0.03em] text-leather">
               {APP_WORDMARK}
             </span>
-            <span className="mt-1 block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/85">
+            <span className="-mt-0.5 block text-[11px] font-medium uppercase leading-none tracking-[0.16em] text-muted-foreground/85">
               {APP_WORDMARK_SUBTITLE}
             </span>
           </span>

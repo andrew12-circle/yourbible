@@ -14,8 +14,8 @@ export default function JournalGraphPage() {
 
   return (
     <JournalShell journalId={journalId} activeTab="graph">
-      <div className="px-3 pb-4">
-        <MindGraphView journalId={journalId} />
+      <div className="flex min-h-[calc(100svh-14rem)] flex-col px-3 pb-4">
+        <MindGraphView journalId={journalId} fill className="min-h-0 flex-1" />
       </div>
     </JournalShell>
   );

@@ -15,7 +15,7 @@ export default function MindGraphPage() {
     <FrameworkLayout
       title="Mind map"
       back="/framework"
-      contentClassName="max-w-none px-0 pb-0"
+      contentClassName="max-w-none flex min-h-0 flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 sm:pb-3"
       headerContentClassName="max-w-none"
       headerActions={
         <Button variant="ghost" size="sm" className="text-[12px]" asChild>
@@ -23,9 +23,7 @@ export default function MindGraphPage() {
         </Button>
       }
     >
-      <div className="px-3 pb-6 pt-2 md:px-4">
-        <MindGraphView />
-      </div>
+      <MindGraphView fill className="min-h-0 flex-1" />
     </FrameworkLayout>
   );
 }
