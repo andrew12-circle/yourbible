@@ -72,9 +72,19 @@ export function useArtifactVideoPlayback(options: {
 
   const documentPip = useYouTubeDocumentPip({
     enabled: pipEnabled && !apiPlayerWanted,
+    youTubeVideoId,
+    videoTitle,
     videoSlotRef: youtubePip.videoSlotRef,
     pipLayout: youtubePip.pipOverlayLayout,
     getIsPlaying: () => getIsPlayingForDocPipRef.current(),
+    getCurrentTime: () => staticTelemetry.getCurrentTime(),
+    requestCurrentTime: () => staticTelemetry.requestCurrentTime(),
+    onSyncInline: (seconds, resume) => {
+      playbackFallbackRef.current = seconds;
+      persistSeconds(seconds);
+      staticTelemetry.seekTo(seconds, true);
+      if (resume) staticTelemetry.playVideo();
+    },
   });
 
   useEffect(() => {

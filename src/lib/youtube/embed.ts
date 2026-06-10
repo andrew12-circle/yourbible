@@ -3,6 +3,8 @@ import { youtubeDocumentPipWindowRef } from "@/lib/youtube/documentPictureInPict
 export type YouTubeEmbedSrcOptions = {
   startSeconds?: number;
   autoplay?: boolean;
+  /** Embed origin — defaults to the opener page origin. */
+  origin?: string;
 };
 
 /** Standard YouTube embed URL for in-slot iframe; enablejsapi allows commands via postMessage. */
@@ -23,10 +25,11 @@ export function buildYouTubeEmbedSrc(
     playsinline: "1",
     rel: "0",
   });
-  if (typeof window !== "undefined") {
-    params.set("origin", window.location.origin);
-  }
   if (start > 0) params.set("start", String(start));
+  const origin =
+    options?.origin ??
+    (typeof window !== "undefined" ? window.location.origin : undefined);
+  if (origin) params.set("origin", origin);
   return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
 }
 
@@ -36,14 +39,15 @@ export function getStaticYouTubeEmbedIframe(
   videoSlot: HTMLElement | null,
 ): HTMLIFrameElement | null {
   const selector = "iframe[data-youtube-static-embed]";
-  const inSlot = videoSlot?.querySelector(selector);
-  if (inSlot instanceof HTMLIFrameElement) return inSlot;
 
   const pipWindow = youtubeDocumentPipWindowRef.current;
   if (pipWindow && !pipWindow.closed) {
     const inPip = pipWindow.document.querySelector(selector);
     if (inPip instanceof HTMLIFrameElement) return inPip;
   }
+
+  const inSlot = videoSlot?.querySelector(selector);
+  if (inSlot instanceof HTMLIFrameElement) return inSlot;
 
   return null;
 }

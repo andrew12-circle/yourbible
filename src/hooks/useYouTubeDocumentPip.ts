@@ -7,49 +7,93 @@ import {
   openYouTubeDocumentPip,
   type DocumentPipSession,
 } from "@/lib/youtube/documentPictureInPicture";
+import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 
 export function useYouTubeDocumentPip(options: {
   enabled: boolean;
+  youTubeVideoId: string | null;
+  videoTitle?: string | null;
   videoSlotRef: RefObject<HTMLElement | null>;
   pipLayout?: ArtifactPipLayout;
   getIsPlaying?: () => boolean;
+  getCurrentTime?: () => number;
+  requestCurrentTime?: () => void;
+  onSyncInline?: (seconds: number, resume: boolean) => void;
 }) {
-  const { enabled, videoSlotRef, pipLayout, getIsPlaying } = options;
+  const {
+    enabled,
+    youTubeVideoId,
+    videoTitle = null,
+    videoSlotRef,
+    pipLayout,
+    getIsPlaying,
+    getCurrentTime,
+    requestCurrentTime,
+    onSyncInline,
+  } = options;
   const sessionRef = useRef<DocumentPipSession | null>(null);
   const tabHideToastShownRef = useRef(false);
   const getIsPlayingRef = useRef(getIsPlaying);
+  const getCurrentTimeRef = useRef(getCurrentTime);
+  const requestCurrentTimeRef = useRef(requestCurrentTime);
+  const onSyncInlineRef = useRef(onSyncInline);
   getIsPlayingRef.current = getIsPlaying;
+  getCurrentTimeRef.current = getCurrentTime;
+  requestCurrentTimeRef.current = requestCurrentTime;
+  onSyncInlineRef.current = onSyncInline;
   const [documentPipActive, setDocumentPipActive] = useState(false);
 
   const supported = enabled && isDocumentPictureInPictureSupported();
 
-  const exitDocumentPip = useCallback(() => {
+  const syncInlineFromPip = useCallback((resume: boolean) => {
+    requestCurrentTimeRef.current?.();
+    const seconds = Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
+    onSyncInlineRef.current?.(seconds, resume);
+  }, []);
+
+  const finishDocumentPip = useCallback((resume: boolean) => {
+    if (!sessionRef.current) return;
+    syncInlineFromPip(resume);
     closeYouTubeDocumentPip(sessionRef.current);
     sessionRef.current = null;
     setDocumentPipActive(false);
-  }, []);
+  }, [syncInlineFromPip]);
+
+  const exitDocumentPip = useCallback(() => {
+    finishDocumentPip(getIsPlayingRef.current?.() ?? false);
+  }, [finishDocumentPip]);
 
   const enterDocumentPip = useCallback(async () => {
-    if (!supported || sessionRef.current) return false;
+    if (!supported || sessionRef.current || !youTubeVideoId) return false;
 
-    const shell =
+    const inlineShell =
       findYouTubeStaticShell(videoSlotRef.current) ??
       findYouTubeStaticShell(document.body);
-    if (!shell) return false;
+    if (!inlineShell) return false;
+
+    requestCurrentTimeRef.current?.();
+    const wasPlaying = getIsPlayingRef.current?.() ?? false;
+    const seconds = Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
+    const embedSrc = buildYouTubeEmbedSrc(youTubeVideoId, seconds, {
+      autoplay: wasPlaying,
+      origin: window.location.origin,
+    });
 
     const layout = pipLayout;
-    const rect = shell.getBoundingClientRect();
+    const rect = inlineShell.getBoundingClientRect();
     const width = layout?.width ?? (rect.width || 480);
     const height = layout ? pipTotalHeightPx(layout.width) : rect.height || 270;
 
     const session = await openYouTubeDocumentPip({
-      shell,
+      inlineShell,
+      embedSrc,
+      pageUrl: window.location.href,
       width,
       height,
+      title: videoTitle ?? undefined,
       onClose: () => {
-        sessionRef.current = null;
-        setDocumentPipActive(false);
+        finishDocumentPip(getIsPlayingRef.current?.() ?? false);
       },
     });
 
@@ -65,14 +109,14 @@ export function useYouTubeDocumentPip(options: {
     setDocumentPipActive(true);
     tabHideToastShownRef.current = false;
     return true;
-  }, [pipLayout, supported, videoSlotRef]);
+  }, [finishDocumentPip, pipLayout, supported, videoSlotRef, videoTitle, youTubeVideoId]);
 
   useEffect(() => {
     if (!supported) return;
     return () => {
-      exitDocumentPip();
+      finishDocumentPip(getIsPlayingRef.current?.() ?? false);
     };
-  }, [exitDocumentPip, supported]);
+  }, [finishDocumentPip, supported]);
 
   /** One-time hint when tab hides while playing without OS PiP. */
   useEffect(() => {

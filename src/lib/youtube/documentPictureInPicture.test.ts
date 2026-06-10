@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   closeYouTubeDocumentPip,
+  configureDocumentPipDocument,
+  createDocumentPipEmbedShell,
   findYouTubeStaticShell,
-  insertDocumentPipPlaceholder,
+  hideInlineShellForDocumentPip,
   isDocumentPictureInPictureSupported,
-  restoreShellToPlaceholder,
+  showInlineShellAfterDocumentPip,
   youtubeDocumentPipActiveRef,
   youtubeDocumentPipWindowRef,
 } from "./documentPictureInPicture";
@@ -22,37 +24,56 @@ describe("documentPictureInPicture", () => {
     expect(isDocumentPictureInPictureSupported()).toBe(true);
   });
 
-  it("finds static shell in a root node", () => {
+  it("finds inline static shell but not doc-pip shell", () => {
     const root = document.createElement("div");
-    const shell = document.createElement("div");
-    shell.setAttribute("data-youtube-static-shell", "true");
-    root.appendChild(shell);
-    expect(findYouTubeStaticShell(root)).toBe(shell);
-    expect(findYouTubeStaticShell(document.createElement("div"))).toBeNull();
+    const inline = document.createElement("div");
+    inline.setAttribute("data-youtube-static-shell", "true");
+    const pip = document.createElement("div");
+    pip.setAttribute("data-youtube-static-shell", "true");
+    pip.setAttribute("data-youtube-doc-pip-shell", "true");
+    root.appendChild(inline);
+    root.appendChild(pip);
+    expect(findYouTubeStaticShell(root)).toBe(inline);
   });
 
-  it("inserts placeholder and restores shell", () => {
-    const parent = document.createElement("div");
-    const shell = document.createElement("div");
-    shell.textContent = "player";
-    parent.appendChild(shell);
+  it("configures PiP document referrer and base href", () => {
+    const doc = document.implementation.createHTMLDocument("pip");
+    const pipWindow = { document: doc } as unknown as Window;
 
-    const placeholder = insertDocumentPipPlaceholder(shell);
-    expect(parent.contains(placeholder)).toBe(true);
-    expect(parent.contains(shell)).toBe(true);
-    expect(placeholder.nextSibling).toBe(shell);
-
-    parent.removeChild(shell);
-    restoreShellToPlaceholder(shell, placeholder);
-    expect(parent.contains(shell)).toBe(true);
-    expect(parent.querySelector("[data-youtube-doc-pip-placeholder]")).toBeNull();
+    configureDocumentPipDocument(pipWindow, "https://example.com/artifacts/1");
+    expect(doc.head.querySelector('meta[name="referrer"]')).not.toBeNull();
+    expect(doc.head.querySelector("base")?.getAttribute("href")).toBe(
+      "https://example.com/artifacts/1",
+    );
   });
 
-  it("closeYouTubeDocumentPip restores shell and clears refs", () => {
-    const parent = document.createElement("div");
+  it("creates a fresh embed shell in the PiP window", () => {
+    const doc = document.implementation.createHTMLDocument("pip");
+    const pipWindow = { document: doc } as unknown as Window;
+
+    configureDocumentPipDocument(pipWindow, "https://example.com/artifacts/1");
+    const { iframe } = createDocumentPipEmbedShell(
+      pipWindow,
+      "https://www.youtube.com/embed/abc?enablejsapi=1",
+    );
+    expect(iframe.getAttribute("data-youtube-static-embed")).toBe("true");
+    expect(iframe.referrerPolicy).toBe("strict-origin-when-cross-origin");
+    expect(doc.body.querySelector("[data-youtube-doc-pip-shell]")).not.toBeNull();
+  });
+
+  it("hides and shows inline shell", () => {
     const shell = document.createElement("div");
-    parent.appendChild(shell);
-    const placeholder = insertDocumentPipPlaceholder(shell);
+    hideInlineShellForDocumentPip(shell);
+    expect(shell.style.visibility).toBe("hidden");
+    showInlineShellAfterDocumentPip(shell);
+    expect(shell.style.visibility).toBe("");
+  });
+
+  it("closeYouTubeDocumentPip restores inline shell and clears refs", () => {
+    const inlineShell = document.createElement("div");
+    const pipShell = document.createElement("div");
+    hideInlineShellForDocumentPip(inlineShell);
+
     const pipWindow = {
       closed: false,
       close: vi.fn(),
@@ -64,15 +85,15 @@ describe("documentPictureInPicture", () => {
 
     const session = {
       pipWindow,
-      shell,
-      placeholder,
+      inlineShell,
+      pipShell,
       onPageHide: vi.fn(),
       onPipClick: vi.fn(),
     };
 
     closeYouTubeDocumentPip(session);
 
-    expect(parent.contains(shell)).toBe(true);
+    expect(inlineShell.style.visibility).toBe("");
     expect(youtubeDocumentPipActiveRef.current).toBe(false);
     expect(youtubeDocumentPipWindowRef.current).toBeNull();
     expect(pipWindow.close).toHaveBeenCalled();
