@@ -3,17 +3,16 @@ import { toast } from "@/hooks/use-toast";
 import {
   closeYouTubeDocumentPip,
   findYouTubeStaticShell,
+  isArtifactVideoPopoutMessage,
   isDocumentPictureInPictureSupported,
   openYouTubeDocumentPip,
   type DocumentPipSession,
 } from "@/lib/youtube/documentPictureInPicture";
-import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 
 export function useYouTubeDocumentPip(options: {
   enabled: boolean;
   youTubeVideoId: string | null;
-  videoTitle?: string | null;
   videoSlotRef: RefObject<HTMLElement | null>;
   pipLayout?: ArtifactPipLayout;
   getIsPlaying?: () => boolean;
@@ -24,7 +23,6 @@ export function useYouTubeDocumentPip(options: {
   const {
     enabled,
     youTubeVideoId,
-    videoTitle = null,
     videoSlotRef,
     pipLayout,
     getIsPlaying,
@@ -34,6 +32,7 @@ export function useYouTubeDocumentPip(options: {
   } = options;
   const sessionRef = useRef<DocumentPipSession | null>(null);
   const tabHideToastShownRef = useRef(false);
+  const popoutPlaybackRef = useRef({ seconds: 0, playing: false });
   const getIsPlayingRef = useRef(getIsPlaying);
   const getCurrentTimeRef = useRef(getCurrentTime);
   const requestCurrentTimeRef = useRef(requestCurrentTime);
@@ -46,11 +45,32 @@ export function useYouTubeDocumentPip(options: {
 
   const supported = enabled && isDocumentPictureInPictureSupported();
 
+  useEffect(() => {
+    if (!supported) return;
+
+    const onMessage = (event: MessageEvent) => {
+      if (!isArtifactVideoPopoutMessage(event.data, window.location.origin, event.origin)) {
+        return;
+      }
+      popoutPlaybackRef.current = {
+        seconds: Math.max(0, Math.floor(event.data.seconds)),
+        playing: event.data.playing,
+      };
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [supported]);
+
   const syncInlineFromPip = useCallback((resume: boolean) => {
-    requestCurrentTimeRef.current?.();
-    const seconds = Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
-    onSyncInlineRef.current?.(seconds, resume);
-  }, []);
+    const fromPopout = popoutPlaybackRef.current;
+    const hasPopoutTelemetry = fromPopout.seconds > 0 || documentPipActive;
+    const seconds = hasPopoutTelemetry
+      ? fromPopout.seconds
+      : Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
+    const shouldResume = resume || fromPopout.playing;
+    onSyncInlineRef.current?.(seconds, shouldResume);
+  }, [documentPipActive]);
 
   const finishDocumentPip = useCallback((resume: boolean) => {
     if (!sessionRef.current) return;
@@ -61,7 +81,7 @@ export function useYouTubeDocumentPip(options: {
   }, [syncInlineFromPip]);
 
   const exitDocumentPip = useCallback(() => {
-    finishDocumentPip(getIsPlayingRef.current?.() ?? false);
+    finishDocumentPip(getIsPlayingRef.current?.() ?? popoutPlaybackRef.current.playing);
   }, [finishDocumentPip]);
 
   const enterDocumentPip = useCallback(async () => {
@@ -75,10 +95,7 @@ export function useYouTubeDocumentPip(options: {
     requestCurrentTimeRef.current?.();
     const wasPlaying = getIsPlayingRef.current?.() ?? false;
     const seconds = Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
-    const embedSrc = buildYouTubeEmbedSrc(youTubeVideoId, seconds, {
-      autoplay: wasPlaying,
-      origin: window.location.origin,
-    });
+    popoutPlaybackRef.current = { seconds, playing: wasPlaying };
 
     const layout = pipLayout;
     const rect = inlineShell.getBoundingClientRect();
@@ -87,13 +104,14 @@ export function useYouTubeDocumentPip(options: {
 
     const session = await openYouTubeDocumentPip({
       inlineShell,
-      embedSrc,
+      videoId: youTubeVideoId,
+      startSeconds: seconds,
+      autoplay: wasPlaying,
       pageUrl: window.location.href,
       width,
       height,
-      title: videoTitle ?? undefined,
       onClose: () => {
-        finishDocumentPip(getIsPlayingRef.current?.() ?? false);
+        finishDocumentPip(popoutPlaybackRef.current.playing);
       },
     });
 
@@ -109,12 +127,12 @@ export function useYouTubeDocumentPip(options: {
     setDocumentPipActive(true);
     tabHideToastShownRef.current = false;
     return true;
-  }, [finishDocumentPip, pipLayout, supported, videoSlotRef, videoTitle, youTubeVideoId]);
+  }, [finishDocumentPip, pipLayout, supported, videoSlotRef, youTubeVideoId]);
 
   useEffect(() => {
     if (!supported) return;
     return () => {
-      finishDocumentPip(getIsPlayingRef.current?.() ?? false);
+      finishDocumentPip(popoutPlaybackRef.current.playing);
     };
   }, [finishDocumentPip, supported]);
 

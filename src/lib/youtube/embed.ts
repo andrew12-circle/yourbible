@@ -5,6 +5,8 @@ export type YouTubeEmbedSrcOptions = {
   autoplay?: boolean;
   /** Embed origin — defaults to the opener page origin. */
   origin?: string;
+  /** Page URL YouTube uses for embed referrer validation (fixes error 153). */
+  widgetReferrer?: string;
 };
 
 /** Standard YouTube embed URL for in-slot iframe; enablejsapi allows commands via postMessage. */
@@ -30,6 +32,10 @@ export function buildYouTubeEmbedSrc(
     options?.origin ??
     (typeof window !== "undefined" ? window.location.origin : undefined);
   if (origin) params.set("origin", origin);
+  const widgetReferrer =
+    options?.widgetReferrer ??
+    (typeof window !== "undefined" ? window.location.href : undefined);
+  if (widgetReferrer) params.set("widget_referrer", widgetReferrer);
   return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
 }
 

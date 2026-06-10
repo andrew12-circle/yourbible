@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ARTIFACT_VIDEO_POPOUT_PATH,
+  buildArtifactVideoPopoutUrl,
   closeYouTubeDocumentPip,
-  configureDocumentPipDocument,
-  createDocumentPipEmbedShell,
   findYouTubeStaticShell,
   hideInlineShellForDocumentPip,
+  isArtifactVideoPopoutMessage,
   isDocumentPictureInPictureSupported,
   showInlineShellAfterDocumentPip,
   youtubeDocumentPipActiveRef,
@@ -36,29 +37,36 @@ describe("documentPictureInPicture", () => {
     expect(findYouTubeStaticShell(root)).toBe(inline);
   });
 
-  it("configures PiP document referrer and base href", () => {
-    const doc = document.implementation.createHTMLDocument("pip");
-    const pipWindow = { document: doc } as unknown as Window;
-
-    configureDocumentPipDocument(pipWindow, "https://example.com/artifacts/1");
-    expect(doc.head.querySelector('meta[name="referrer"]')).not.toBeNull();
-    expect(doc.head.querySelector("base")?.getAttribute("href")).toBe(
-      "https://example.com/artifacts/1",
-    );
+  it("builds same-origin popout URL with widget referrer", () => {
+    const url = buildArtifactVideoPopoutUrl({
+      videoId: "abc123",
+      startSeconds: 42,
+      autoplay: true,
+      widgetReferrer: "https://example.com/artifacts/1",
+      openerOrigin: "https://example.com",
+    });
+    expect(url).toContain(ARTIFACT_VIDEO_POPOUT_PATH);
+    expect(url).toContain("v=abc123");
+    expect(url).toContain("t=42");
+    expect(url).toContain("ap=1");
+    expect(url).toContain(encodeURIComponent("https://example.com/artifacts/1"));
   });
 
-  it("creates a fresh embed shell in the PiP window", () => {
-    const doc = document.implementation.createHTMLDocument("pip");
-    const pipWindow = { document: doc } as unknown as Window;
-
-    configureDocumentPipDocument(pipWindow, "https://example.com/artifacts/1");
-    const { iframe } = createDocumentPipEmbedShell(
-      pipWindow,
-      "https://www.youtube.com/embed/abc?enablejsapi=1",
-    );
-    expect(iframe.getAttribute("data-youtube-static-embed")).toBe("true");
-    expect(iframe.referrerPolicy).toBe("strict-origin-when-cross-origin");
-    expect(doc.body.querySelector("[data-youtube-doc-pip-shell]")).not.toBeNull();
+  it("validates popout postMessage payloads", () => {
+    expect(
+      isArtifactVideoPopoutMessage(
+        { type: "yb-artifact-video-popout", seconds: 10, playing: true },
+        "https://example.com",
+        "https://example.com",
+      ),
+    ).toBe(true);
+    expect(
+      isArtifactVideoPopoutMessage(
+        { type: "other", seconds: 10, playing: true },
+        "https://example.com",
+        "https://example.com",
+      ),
+    ).toBe(false);
   });
 
   it("hides and shows inline shell", () => {
@@ -71,7 +79,6 @@ describe("documentPictureInPicture", () => {
 
   it("closeYouTubeDocumentPip restores inline shell and clears refs", () => {
     const inlineShell = document.createElement("div");
-    const pipShell = document.createElement("div");
     hideInlineShellForDocumentPip(inlineShell);
 
     const pipWindow = {
@@ -86,7 +93,6 @@ describe("documentPictureInPicture", () => {
     const session = {
       pipWindow,
       inlineShell,
-      pipShell,
       onPageHide: vi.fn(),
       onPipClick: vi.fn(),
     };

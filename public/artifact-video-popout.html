@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>YourBible video</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="player"
+      data-youtube-static-embed="true"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen
+    ></iframe>
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        var videoId = params.get("v") || "";
+        var start = Math.max(0, parseInt(params.get("t") || "0", 10) || 0);
+        var autoplay = params.get("ap") === "1" ? "1" : "0";
+        var widgetReferrer = params.get("wr") || location.href;
+        var openerOrigin = params.get("oo") || location.origin;
+        var lastSeconds = start;
+        var playing = autoplay === "1";
+        var iframe = document.getElementById("player");
+
+        if (!videoId) {
+          document.body.innerHTML =
+            '<p style="color:#fff;font:14px system-ui;padding:16px">Missing video id.</p>';
+          return;
+        }
+
+        function buildEmbedSrc() {
+          var q = new URLSearchParams({
+            autoplay: autoplay,
+            controls: "1",
+            enablejsapi: "1",
+            fs: "1",
+            iv_load_policy: "3",
+            modestbranding: "1",
+            playsinline: "1",
+            rel: "0",
+            origin: location.origin,
+            widget_referrer: widgetReferrer,
+          });
+          if (start > 0) q.set("start", String(start));
+          return (
+            "https://www.youtube.com/embed/" +
+            encodeURIComponent(videoId) +
+            "?" +
+            q.toString()
+          );
+        }
+
+        function notifyOpener(closing) {
+          if (!window.opener) return;
+          try {
+            window.opener.postMessage(
+              {
+                type: "yb-artifact-video-popout",
+                seconds: lastSeconds,
+                playing: playing,
+                closing: Boolean(closing),
+              },
+              openerOrigin,
+            );
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
+        function isYouTubeOrigin(origin) {
+          return (
+            origin === "https://www.youtube.com" ||
+            origin === "https://www.youtube-nocookie.com"
+          );
+        }
+
+        function parseMsg(data) {
+          try {
+            return typeof data === "string" ? JSON.parse(data) : data;
+          } catch (_) {
+            return null;
+          }
+        }
+
+        function startListening() {
+          if (!iframe.contentWindow) return;
+          try {
+            iframe.contentWindow.postMessage(
+              JSON.stringify({ event: "listening", id: 1, channel: "widget" }),
+              "https://www.youtube.com",
+            );
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
+        function requestCurrentTime() {
+          if (!iframe.contentWindow) return;
+          try {
+            iframe.contentWindow.postMessage(
+              JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
+              "https://www.youtube.com",
+            );
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
+        window.addEventListener("message", function (event) {
+          if (!isYouTubeOrigin(event.origin)) return;
+          if (!iframe.contentWindow || event.source !== iframe.contentWindow) return;
+          var msg = parseMsg(event.data);
+          if (!msg || !msg.event) return;
+
+          if (msg.event === "onStateChange" && typeof msg.info === "number") {
+            playing = msg.info === 1 || msg.info === 3;
+            notifyOpener(false);
+            return;
+          }
+
+          if (msg.event === "infoDelivery" && msg.info && typeof msg.info === "object") {
+            if (typeof msg.info.currentTime === "number") {
+              lastSeconds = Math.max(0, msg.info.currentTime);
+            }
+            if (typeof msg.info.playerState === "number") {
+              playing = msg.info.playerState === 1 || msg.info.playerState === 3;
+            }
+            notifyOpener(false);
+          }
+        });
+
+        iframe.addEventListener("load", function () {
+          startListening();
+          requestCurrentTime();
+          notifyOpener(false);
+        });
+
+        iframe.src = buildEmbedSrc();
+        setInterval(startListening, 2000);
+        setInterval(requestCurrentTime, 250);
+        setInterval(function () {
+          notifyOpener(false);
+        }, 2000);
+
+        window.addEventListener("pagehide", function () {
+          notifyOpener(true);
+        });
+      })();
+    </script>
+  </body>
+</html>

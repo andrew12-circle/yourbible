@@ -14,7 +14,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!assets/|app-icon|icon-|favicon|apple-touch|site\\.webmanifest|framework-icon|robots\\.txt|placeholder).*)",
+      "source": "/((?!assets/|app-icon|icon-|favicon|apple-touch|site\\.webmanifest|framework-icon|robots\\.txt|placeholder|artifact-video-popout\\.html).*)",
       "destination": "/index.html"
     }
   ]

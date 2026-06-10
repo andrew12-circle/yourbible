@@ -73,7 +73,6 @@ export function useArtifactVideoPlayback(options: {
   const documentPip = useYouTubeDocumentPip({
     enabled: pipEnabled && !apiPlayerWanted,
     youTubeVideoId,
-    videoTitle,
     videoSlotRef: youtubePip.videoSlotRef,
     pipLayout: youtubePip.pipOverlayLayout,
     getIsPlaying: () => getIsPlayingForDocPipRef.current(),

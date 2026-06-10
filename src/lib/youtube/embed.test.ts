@@ -20,4 +20,12 @@ describe("buildYouTubeEmbedSrc", () => {
     const url = buildYouTubeEmbedSrc("dQw4w9WgXcQ", 0, { autoplay: true });
     expect(url).toContain("autoplay=1");
   });
+
+  it("includes widget_referrer when provided", () => {
+    const url = buildYouTubeEmbedSrc("dQw4w9WgXcQ", 0, {
+      widgetReferrer: "https://example.com/artifacts/1",
+    });
+    expect(url).toContain("widget_referrer=");
+    expect(url).toContain(encodeURIComponent("https://example.com/artifacts/1"));
+  });
 });
