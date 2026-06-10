@@ -12,7 +12,9 @@ import {
   type YouTubeChannelSubscription,
 } from "@/lib/youtube/youtubeSubscriptions";
 
-export function YouTubeSubscriptionsSection() {
+type Props = { embedded?: boolean };
+
+export function YouTubeSubscriptionsSection({ embedded }: Props = {}) {
   const [subs, setSubs] = useState<YouTubeChannelSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelInput, setChannelInput] = useState("");
@@ -108,14 +110,18 @@ export function YouTubeSubscriptionsSection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg text-leather mb-3">YouTube subscriptions</h2>
-      <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4">
+      {!embedded ? (
+        <h2 className="font-display text-lg text-leather mb-3">YouTube subscriptions</h2>
+      ) : (
+        <h3 className="text-sm font-semibold mb-3">YouTube subscriptions</h3>
+      )}
+      <div className={embedded ? "rounded-xl border bg-card p-4 space-y-4 shadow-sm" : "rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-4"}>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-600/10 flex items-center justify-center shrink-0">
             <Bell className="w-5 h-5 text-red-600" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-leather font-medium">Follow channels in your library</p>
+            <p className="text-sm font-medium">Follow channels in your library</p>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Subscribe to a YouTube channel and new uploads are pulled into your artifact library as they go live.
               They show up in the <strong>Unwatched</strong> shelf until you open them.

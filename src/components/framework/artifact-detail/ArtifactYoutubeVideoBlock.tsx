@@ -39,6 +39,8 @@ type Playback = Pick<
   | "showApiPlayer"
   | "useStaticPip"
   | "isPlaying"
+  | "documentPip"
+  | "handleRestoreFromDocumentPip"
 >;
 
 type Props = {
@@ -148,6 +150,10 @@ function ArtifactYoutubeVideoBlock({
   onScrollVideoIntoView,
 }: Props) {
   const restoreVideo = onScrollVideoIntoView ?? youtubePip.scrollVideoIntoView;
+  const { documentPip, handleRestoreFromDocumentPip } = playback;
+  const handleEnterDocumentPip = useCallback(() => {
+    void documentPip.enterDocumentPip();
+  }, [documentPip]);
   const layoutMode = useArtifactLayoutMode();
   const isDesktop = isArtifactLayoutDesktop(layoutMode);
   const usesPipVideo = isArtifactPipVideo(layoutMode, true);
@@ -293,6 +299,9 @@ function ArtifactYoutubeVideoBlock({
             youtubePlayer.reinit();
           }}
           onScrollVideoIntoView={restoreVideo}
+          documentPipSupported={documentPip.documentPipSupported}
+          documentPipActive={documentPip.documentPipActive}
+          onEnterDocumentPip={handleEnterDocumentPip}
         >
           {!stickyMode ? captureSection : null}
         </ArtifactVideoStage>
@@ -335,6 +344,10 @@ function ArtifactYoutubeVideoBlock({
           isPlaying={playback.isPlaying}
           onTogglePlay={playback.togglePlayback}
           onScrollVideoIntoView={restoreVideo}
+          documentPipSupported={documentPip.documentPipSupported}
+          documentPipActive={documentPip.documentPipActive}
+          onEnterDocumentPip={handleEnterDocumentPip}
+          onExitDocumentPip={documentPip.exitDocumentPip}
           onDragHeaderPointerDown={youtubePip.onPipDragHeaderPointerDown}
           onDragHeaderPointerMove={youtubePip.onPipDragHeaderPointerMove}
           onDragHeaderPointerUp={youtubePip.onPipDragHeaderPointerUp}
@@ -342,6 +355,18 @@ function ArtifactYoutubeVideoBlock({
           onResizePointerMove={youtubePip.onPipResizePointerMove}
           onResizePointerUp={youtubePip.onPipResizePointerUp}
         />
+      ) : null}
+      {documentPip.documentPipActive ? (
+        <div className="fixed bottom-4 left-1/2 z-[92] flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/80 px-4 py-2 text-sm text-white shadow-lg ring-1 ring-white/15">
+          <span>Video popped out</span>
+          <button
+            type="button"
+            className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium hover:bg-white/25"
+            onClick={handleRestoreFromDocumentPip}
+          >
+            Restore
+          </button>
+        </div>
       ) : null}
     </>
   );

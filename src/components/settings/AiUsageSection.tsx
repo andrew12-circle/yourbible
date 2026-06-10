@@ -15,9 +15,10 @@ const DAY_OPTIONS = [7, 30, 90] as const;
 
 type AiUsageSectionProps = {
   userId: string | undefined;
+  embedded?: boolean;
 };
 
-export function AiUsageSection({ userId }: AiUsageSectionProps) {
+export function AiUsageSection({ userId, embedded }: AiUsageSectionProps) {
   const [days, setDays] = useState<(typeof DAY_OPTIONS)[number]>(30);
   const { summary, loading, error, reload } = useAiUsageSummary(days, Boolean(userId));
 
@@ -30,12 +31,14 @@ export function AiUsageSection({ userId }: AiUsageSectionProps) {
 
   return (
     <section>
-      <h2 className="font-display text-lg text-leather mb-3">AI usage &amp; cost</h2>
-      <Card className="border-paper-edge bg-paper/70">
+      {!embedded ? (
+        <h2 className="font-display text-lg text-leather mb-3">AI usage &amp; cost</h2>
+      ) : null}
+      <Card className={embedded ? "border bg-card shadow-sm" : "border-paper-edge bg-paper/70"}>
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle className="font-display text-leather flex items-center gap-2">
+              <CardTitle className={embedded ? "flex items-center gap-2 text-base" : "font-display text-leather flex items-center gap-2"}>
                 <BarChart3 className="h-4 w-4" />
                 Estimated API spend
               </CardTitle>

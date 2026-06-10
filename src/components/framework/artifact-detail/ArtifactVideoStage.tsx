@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, PictureInPicture2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
@@ -28,6 +28,10 @@ type Props = {
   onTogglePlay?: () => void;
   onReinitPlayer?: () => void;
   onScrollVideoIntoView: () => void;
+  documentPipSupported?: boolean;
+  documentPipActive?: boolean;
+  onEnterDocumentPip?: () => void;
+  onExitDocumentPip?: () => void;
   children?: React.ReactNode;
   /** Fills desktop cinematic hero (no card chrome). */
   variant?: "default" | "hero";
@@ -53,6 +57,9 @@ export default function ArtifactVideoStage({
   onTogglePlay,
   onReinitPlayer,
   onScrollVideoIntoView,
+  documentPipSupported = false,
+  documentPipActive = false,
+  onEnterDocumentPip,
   children,
   variant = "default",
 }: Props) {
@@ -164,6 +171,17 @@ export default function ArtifactVideoStage({
       ) : null}
       {staticEmbedShell}
       {apiPlayerShell}
+      {documentPipSupported && !pipMode && !documentPipActive && onEnterDocumentPip ? (
+        <button
+          type="button"
+          onClick={onEnterDocumentPip}
+          aria-label="Pop out player to keep watching in other tabs"
+          title="Pop out player"
+          className="absolute right-2 top-2 z-[5] rounded-full bg-black/55 p-1.5 text-white hover:bg-black/75"
+        >
+          <PictureInPicture2 className="h-4 w-4" aria-hidden />
+        </button>
+      ) : null}
     </div>
   );
 

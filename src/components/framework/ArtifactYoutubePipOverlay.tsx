@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { GripVertical, Maximize2, Pause, Play } from "lucide-react";
+import { GripVertical, Maximize2, Pause, PictureInPicture2, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
 import { pipTotalHeightPx, type ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
@@ -10,6 +10,10 @@ type Props = {
   isPlaying: boolean;
   onTogglePlay: () => void;
   onScrollVideoIntoView: () => void;
+  documentPipSupported?: boolean;
+  documentPipActive?: boolean;
+  onEnterDocumentPip?: () => void;
+  onExitDocumentPip?: () => void;
   onDragHeaderPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDragHeaderPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDragHeaderPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -25,6 +29,10 @@ export default function ArtifactYoutubePipOverlay({
   isPlaying,
   onTogglePlay,
   onScrollVideoIntoView,
+  documentPipSupported = false,
+  documentPipActive = false,
+  onEnterDocumentPip,
+  onExitDocumentPip,
   onDragHeaderPointerDown,
   onDragHeaderPointerMove,
   onDragHeaderPointerUp,
@@ -33,6 +41,11 @@ export default function ArtifactYoutubePipOverlay({
   onResizePointerUp,
 }: Props) {
   if (typeof document === "undefined" || !active) return null;
+
+  const handleRestore = () => {
+    if (documentPipActive) onExitDocumentPip?.();
+    onScrollVideoIntoView();
+  };
 
   return createPortal(
     <div
@@ -74,15 +87,29 @@ export default function ArtifactYoutubePipOverlay({
             <Play className="h-4 w-4" aria-hidden />
           )}
         </button>
-        <button
-          type="button"
-          onClick={onScrollVideoIntoView}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Restore video to original position"
-          className="rounded-full p-1 text-white hover:bg-white/15"
-        >
-          <Maximize2 className="h-4 w-4" aria-hidden />
-        </button>
+        <div className="flex items-center gap-0.5">
+          {documentPipSupported && !documentPipActive && onEnterDocumentPip ? (
+            <button
+              type="button"
+              onClick={onEnterDocumentPip}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Pop out player to keep watching in other tabs"
+              title="Pop out player"
+              className="rounded-full p-1 text-white hover:bg-white/15"
+            >
+              <PictureInPicture2 className="h-4 w-4" aria-hidden />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleRestore}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Restore video to original position"
+            className="rounded-full p-1 text-white hover:bg-white/15"
+          >
+            <Maximize2 className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
       </div>
 
       <button

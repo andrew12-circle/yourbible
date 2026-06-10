@@ -47,7 +47,9 @@ type ShareRow = {
 
 const REL_OPTIONS = ["spouse", "friend", "mentor", "family", "other"] as const;
 
-export function PartnerSettingsSection() {
+type PartnerSettingsSectionProps = { embedded?: boolean };
+
+export function PartnerSettingsSection({ embedded }: PartnerSettingsSectionProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [conns, setConns] = useState<Conn[]>([]);
@@ -259,13 +261,15 @@ export function PartnerSettingsSection() {
 
   return (
     <section className="space-y-6">
-      <div>
-        <h2 className="font-display text-lg text-leather mb-1">Partner connection</h2>
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-prose">
-          Walk together with a privacy-safe snapshot — never raw journals, vents, or private notes. You each control what
-          you share.
-        </p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h2 className="font-display text-lg text-leather mb-1">Partner connection</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-prose">
+            Walk together with a privacy-safe snapshot — never raw journals, vents, or private notes. You each control what
+            you share.
+          </p>
+        </div>
+      ) : null}
 
       {conns.length > 0 && (
         <div className="space-y-4">

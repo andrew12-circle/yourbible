@@ -1,3 +1,5 @@
+import { youtubeDocumentPipWindowRef } from "@/lib/youtube/documentPictureInPicture";
+
 export type YouTubeEmbedSrcOptions = {
   startSeconds?: number;
   autoplay?: boolean;
@@ -33,8 +35,17 @@ export type YouTubeEmbedCommand = "playVideo" | "pauseVideo" | "seekTo";
 export function getStaticYouTubeEmbedIframe(
   videoSlot: HTMLElement | null,
 ): HTMLIFrameElement | null {
-  const iframe = videoSlot?.querySelector("iframe[data-youtube-static-embed]");
-  return iframe instanceof HTMLIFrameElement ? iframe : null;
+  const selector = "iframe[data-youtube-static-embed]";
+  const inSlot = videoSlot?.querySelector(selector);
+  if (inSlot instanceof HTMLIFrameElement) return inSlot;
+
+  const pipWindow = youtubeDocumentPipWindowRef.current;
+  if (pipWindow && !pipWindow.closed) {
+    const inPip = pipWindow.document.querySelector(selector);
+    if (inPip instanceof HTMLIFrameElement) return inPip;
+  }
+
+  return null;
 }
 
 /** Send play/pause/seek to the in-page static YouTube embed (requires enablejsapi=1). */

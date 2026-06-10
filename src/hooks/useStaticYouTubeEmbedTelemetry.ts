@@ -11,6 +11,7 @@ import {
   canSendEmbedAutoResume,
   shouldUseEmbedAutoResumeKeepalive,
 } from "@/lib/youtube/embedAutoResume";
+import { youtubeDocumentPipActiveRef } from "@/lib/youtube/documentPictureInPicture";
 import {
   getStaticYouTubeEmbedIframe,
   postYouTubeEmbedCommand,
@@ -258,8 +259,10 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     if (!enabled || !syncBackgroundPlayback) return;
 
     const resumeAfterVisible = (shouldResume: boolean, overrideSeconds?: number) => {
-      requestCurrentTime();
-      window.setTimeout(() => {
+      if (youtubeDocumentPipActiveRef.current) return;
+
+      const runResume = (attempt = 0) => {
+        requestCurrentTime();
         const live = currentTimeRef.current;
         const savedFromParent = getSavedPlaybackSecondsRef.current?.() ?? 0;
         const resolved = Math.max(
@@ -270,13 +273,25 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         onPersistPlaybackSecondsRef.current?.(resolved);
 
         const fresh = isTelemetryFresh(800);
-        if (embedNeedsResumeSeek(live, resolved, fresh, shouldResume) && resolved > 0) {
+        const iframeReset =
+          typeof document !== "undefined" &&
+          "wasDiscarded" in document &&
+          (document as Document & { wasDiscarded?: boolean }).wasDiscarded;
+
+        if (
+          embedNeedsResumeSeek(live, resolved, fresh, shouldResume || iframeReset) &&
+          resolved > 0
+        ) {
           seekTo(resolved, true);
         }
         if (shouldResume && !isPlayingRef.current) {
           playVideo();
+        } else if (attempt < 2 && shouldResume && !fresh) {
+          window.setTimeout(() => runResume(attempt + 1), 200);
         }
-      }, 120);
+      };
+
+      window.setTimeout(() => runResume(0), 250);
     };
 
     const onVisibility = () => {
@@ -285,6 +300,8 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         requestCurrentTime();
         const seconds = currentTimeRef.current;
         onPersistPlaybackSecondsRef.current?.(seconds);
+
+        if (youtubeDocumentPipActiveRef.current) return;
 
         const videoId = iosAudioHandoff?.videoId;
         if (
@@ -318,13 +335,18 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         return;
       }
 
+      if (youtubeDocumentPipActiveRef.current) return;
+
       const shouldResume = resumeOnVisibleRef.current;
       resumeOnVisibleRef.current = false;
       resumeAfterVisible(shouldResume);
     };
 
     const onPageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return;
+      if (youtubeDocumentPipActiveRef.current) return;
+      if (!event.persisted && !("wasDiscarded" in document && (document as Document & { wasDiscarded?: boolean }).wasDiscarded)) {
+        return;
+      }
       const shouldResume = resumeOnVisibleRef.current;
       resumeOnVisibleRef.current = false;
       resumeAfterVisible(shouldResume);

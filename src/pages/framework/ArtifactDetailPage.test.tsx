@@ -92,6 +92,13 @@ vi.mock("@/hooks/useArtifactVideoPlayback", () => ({
     showApiPlayer: false,
     useStaticPip: false,
     playerReady: false,
+    documentPip: {
+      documentPipSupported: false,
+      documentPipActive: false,
+      enterDocumentPip: vi.fn(),
+      exitDocumentPip: vi.fn(),
+    },
+    handleRestoreFromDocumentPip: vi.fn(),
   }),
 }));
 

@@ -10,7 +10,9 @@ import {
   type YouTubeConnectionStatus,
 } from "@/lib/youtube/youtubeOAuthClient";
 
-export function YouTubeConnectionSection() {
+type Props = { embedded?: boolean };
+
+export function YouTubeConnectionSection({ embedded }: Props = {}) {
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<YouTubeConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export function YouTubeConnectionSection() {
   const onConnect = async () => {
     setBusy(true);
     try {
-      const authUrl = await startYouTubeOAuth("/settings");
+      const authUrl = await startYouTubeOAuth("/settings?section=integrations");
       window.location.href = authUrl;
     } catch (e) {
       setBusy(false);
@@ -90,14 +92,18 @@ export function YouTubeConnectionSection() {
 
   return (
     <section>
-      <h2 className="font-display text-lg text-leather mb-3">YouTube transcripts</h2>
-      <div className="rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-3">
+      {!embedded ? (
+        <h2 className="font-display text-lg text-leather mb-3">YouTube transcripts</h2>
+      ) : (
+        <h3 className="text-sm font-semibold mb-3">YouTube transcripts</h3>
+      )}
+      <div className={embedded ? "rounded-xl border bg-card p-4 space-y-3 shadow-sm" : "rounded-lg border border-paper-edge bg-paper/70 p-4 space-y-3"}>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-600/10 flex items-center justify-center shrink-0">
             <Youtube className="w-5 h-5 text-red-600" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-leather font-medium">Connect your YouTube channel</p>
+            <p className="text-sm font-medium">Connect your YouTube channel</p>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Pulls official captions for videos you own (including private/unlisted uploads). Public videos still use
               the fast caption race and AssemblyAI fallback.
