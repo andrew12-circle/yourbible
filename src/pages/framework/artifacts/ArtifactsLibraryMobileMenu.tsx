@@ -29,7 +29,7 @@ const FRAMEWORK_NAV = [
   { to: "/framework/playbook", label: "Playbook", icon: ClipboardList },
   { to: "/framework/artifacts", label: "Artifacts", icon: FileStack },
   { to: "/framework/research-later", label: "Research later", icon: Clock },
-  { to: "/framework/graph", label: "Graph", icon: Share2 },
+  { to: "/framework/graph", label: "Mind map", icon: Share2 },
   { to: "/framework/beliefs", label: "Beliefs", icon: Network },
   { to: "/framework/influences", label: "Influences", icon: Users },
   { to: "/framework/tensions", label: "Tensions", icon: AlertTriangle },

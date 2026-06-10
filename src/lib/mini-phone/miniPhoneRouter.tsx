@@ -24,6 +24,7 @@ const HardQuestionsListPage = lazy(() => import("@/pages/framework/hardQuestions
 const HardQuestionNewPage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionNewPage"));
 const HardQuestionWorkspacePage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionWorkspacePage"));
 const BeliefGraphPage = lazy(() => import("@/pages/framework/BeliefGraphPage"));
+const MindGraphPage = lazy(() => import("@/pages/framework/MindGraphPage"));
 const PlaybookPage = lazy(() => import("@/pages/framework/PlaybookPage"));
 const PlaybookDetailPage = lazy(() => import("@/pages/framework/PlaybookDetailPage"));
 const TensionsPage = lazy(() => import("@/pages/framework/TensionsPage"));
@@ -94,7 +95,8 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/framework/interview/:layer", element: <InterviewPage /> },
   { path: "/framework/beliefs", element: <BeliefsListPage /> },
   { path: "/framework/beliefs/:id", element: <BeliefDetailPage /> },
-  { path: "/framework/graph", element: <BeliefGraphPage /> },
+  { path: "/framework/graph", element: <MindGraphPage /> },
+  { path: "/framework/graph/beliefs", element: <BeliefGraphPage /> },
   { path: "/framework/tensions", element: <TensionsPage /> },
   { path: "/framework/influences", element: <InfluencesPage /> },
   { path: "/framework/digest", element: <DigestPage /> },

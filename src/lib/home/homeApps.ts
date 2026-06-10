@@ -56,7 +56,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Artifacts", to: "/framework/artifacts", icon: FileStack, color: IOS_APP_BG.artifacts, badge: counts.artifacts || undefined },
     { label: "Research later", to: "/framework/research-later", icon: Clock, color: IOS_APP_BG.research, ariaLabel: "Research later" },
     { label: "Hard questions", to: "/framework/hard-questions", icon: CircleHelp, color: IOS_APP_BG.study, ariaLabel: "Hard questions research" },
-    { label: "Graph", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph },
+    { label: "Mind map", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph, ariaLabel: "Mind map — unified graph of notes, videos, beliefs" },
     { label: "Beliefs", to: "/framework/beliefs", icon: Network, color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
     { label: "Influences", to: "/framework/influences", icon: Users, color: IOS_APP_BG.influences },
     { label: "Journal", to: "/journal", icon: NotebookPen, color: IOS_APP_BG.journal, badge: promptBadge },

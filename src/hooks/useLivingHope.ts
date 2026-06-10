@@ -15,6 +15,7 @@ import {
   type LivingHopeLetterRow,
   type LivingHopeReviewRow,
 } from "@/lib/livingHope/api";
+import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
 import { defaultLetterTitle } from "@/lib/livingHope/letterSections";
 
 export function useLivingHope(userId: string | undefined) {
@@ -41,6 +42,13 @@ export function useLivingHope(userId: string | undefined) {
       setStreak(str);
       const g = await listGoals(userId, ltr.id);
       setGoals(g);
+      if (isLocalModeNotified()) {
+        toast({
+          title: "Saving on this device",
+          description:
+            "Morning formula database tables are not set up yet. Data is stored locally until you run Supabase migrations.",
+        });
+      }
     } catch (e) {
       toast({
         title: "Couldn't load Morning formula",

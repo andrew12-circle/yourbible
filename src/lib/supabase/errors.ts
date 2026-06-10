@@ -9,6 +9,11 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   habit_notes: "20260518190000_habits_tracker.sql",
   habit_bills: "20260518190000_habits_tracker.sql",
   habit_badges: "20260519120000_habit_badges.sql",
+  living_hope_letters: "20260610120000_living_hope.sql",
+  living_hope_goals: "20260610120000_living_hope.sql",
+  living_hope_reviews: "20260610120000_living_hope.sql",
+  living_hope_workbook: "20260610130000_living_hope_workbook.sql",
+  living_hope_weekly_reviews: "20260610130000_living_hope_workbook.sql",
 };
 
 function isPostgrestError(error: unknown): error is PostgrestError {
@@ -42,6 +47,12 @@ function isMissingSchemaError(code: string, message: string): boolean {
     /Could not find the table/i.test(message) ||
     /Could not find the function/i.test(message)
   );
+}
+
+/** True when Postgres/PostgREST reports a missing table, function, or schema object. */
+export function isSupabaseMissingTable(error: unknown): boolean {
+  if (!isPostgrestError(error)) return false;
+  return isMissingSchemaError(error.code, error.message);
 }
 
 /** User-facing message for Supabase/Postgres errors (e.g. missing tables after migration). */

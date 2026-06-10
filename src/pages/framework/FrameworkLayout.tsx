@@ -56,6 +56,7 @@ export function isArtifactsLibraryPath(pathname: string): boolean {
 export function isFrameworkWorkspacePath(pathname: string): boolean {
   return (
     pathname === "/framework/graph" ||
+    pathname === "/framework/graph/beliefs" ||
     pathname === "/framework/chat" ||
     pathname === "/framework/artifacts/live"
   );

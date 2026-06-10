@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  BookOpen, Sun, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
+  BookOpen, Sun, Sunrise, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
 } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
   Bible: "text-amber-600",
+  "Morning formula": "text-amber-500",
   Daily: "text-orange-500",
   Journal: "text-violet-500",
   Framework: "text-indigo-500",
@@ -54,6 +55,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
     items: [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
+      { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Daily", icon: Sun, to: "/framework/daily" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
     ],
@@ -68,7 +70,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
       { title: "Influences", icon: Users, to: "/framework/influences" },
       { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
       { title: "Library standing", icon: Layers, to: "/framework/library-standing" },
-      { title: "Graph", icon: Share2, to: "/framework/graph" },
+      { title: "Mind map", icon: Share2, to: "/framework/graph" },
       { title: "Tensions", icon: Sparkles, to: "/framework/tensions" },
       { title: "Study", icon: GraduationCap, to: "/framework/study" },
       { title: "Digest", icon: Mail, to: "/framework/digest" },

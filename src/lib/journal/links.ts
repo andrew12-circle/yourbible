@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { parseWikilinks, resolveWikilinksToEntryIds } from "@/lib/journal/wikilinks";
+import { parseWikilinks, resolveWikilinks, type WikilinkTargetKind } from "@/lib/journal/wikilinks";
 
 export type LinkKind =
   | "verse"
@@ -11,7 +11,8 @@ export type LinkKind =
   | "chat_thread"
   | "artifact"
   | "prompt"
-  | "entry";
+  | "entry"
+  | "entity";
 
 export interface EntryLinkInput {
   kind: LinkKind;
@@ -109,9 +110,17 @@ export async function listOutgoingEntryLinks(entryId: string): Promise<EntryLink
   return all.filter((l) => l.target_kind === "entry");
 }
 
+const WIKILINK_SYNC_KINDS: WikilinkTargetKind[] = [
+  "entry",
+  "artifact",
+  "belief",
+  "entity",
+  "verse",
+];
+
 /**
- * Parse `[[wikilinks]]` in body and sync outgoing entry links.
- * Other link kinds (verse, belief, etc.) are left untouched.
+ * Parse `[[wikilinks]]` in body and sync outgoing mind-graph links.
+ * System links (tension, study, chat_thread, prompt) are left untouched.
  */
 export async function syncEntryWikilinks(
   userId: string,
@@ -119,34 +128,93 @@ export async function syncEntryWikilinks(
   body: string,
 ): Promise<{ linked: number; error?: string }> {
   const parsed = parseWikilinks(body);
-  const { data: titles, error: titleErr } = await supabase
-    .from("journal_entries")
-    .select("id, title")
-    .eq("user_id", userId)
-    .or("entry_kind.is.null,entry_kind.neq.vent");
-  if (titleErr) return { linked: 0, error: titleErr.message };
+  const [
+    { data: entries, error: eErr },
+    { data: artifacts, error: aErr },
+    { data: beliefs, error: bErr },
+    { data: entities, error: entErr },
+  ] = await Promise.all([
+    supabase
+      .from("journal_entries")
+      .select("id, title")
+      .eq("user_id", userId)
+      .or("entry_kind.is.null,entry_kind.neq.vent"),
+    supabase.from("artifacts").select("id, title").eq("user_id", userId),
+    supabase.from("belief_nodes").select("id, statement").eq("user_id", userId),
+    supabase.from("knowledge_entities").select("id, title").eq("user_id", userId),
+  ]);
+  const indexErr = eErr ?? aErr ?? bErr ?? entErr;
+  if (indexErr) return { linked: 0, error: indexErr.message };
 
-  const targetIds = resolveWikilinksToEntryIds(parsed, entryId, titles ?? []);
+  const resolved = resolveWikilinks(parsed, entryId, {
+    entries: entries ?? [],
+    artifacts: artifacts ?? [],
+    beliefs: beliefs ?? [],
+    entities: entities ?? [],
+  });
 
-  const { error: delErr } = await supabase
-    .from("journal_entry_links")
-    .delete()
-    .eq("entry_id", entryId)
-    .eq("target_kind", "entry");
-  if (delErr) return { linked: 0, error: delErr.message };
+  for (const kind of WIKILINK_SYNC_KINDS) {
+    const { error: delErr } = await supabase
+      .from("journal_entry_links")
+      .delete()
+      .eq("entry_id", entryId)
+      .eq("target_kind", kind);
+    if (delErr) return { linked: 0, error: delErr.message };
+  }
 
-  if (!targetIds.length) return { linked: 0 };
+  const rows: {
+    user_id: string;
+    entry_id: string;
+    target_kind: string;
+    target_ref: Json;
+  }[] = [];
 
-  const { error: insErr } = await supabase.from("journal_entry_links").insert(
-    targetIds.map((tid) => ({
+  for (const tid of resolved.entryIds) {
+    rows.push({
       user_id: userId,
       entry_id: entryId,
-      target_kind: "entry" as const,
-      target_ref: { entry_id: tid } as Json,
-    })),
-  );
+      target_kind: "entry",
+      target_ref: { entry_id: tid },
+    });
+  }
+  for (const tid of resolved.artifactIds) {
+    rows.push({
+      user_id: userId,
+      entry_id: entryId,
+      target_kind: "artifact",
+      target_ref: { id: tid },
+    });
+  }
+  for (const tid of resolved.beliefIds) {
+    rows.push({
+      user_id: userId,
+      entry_id: entryId,
+      target_kind: "belief",
+      target_ref: { belief_id: tid },
+    });
+  }
+  for (const tid of resolved.entityIds) {
+    rows.push({
+      user_id: userId,
+      entry_id: entryId,
+      target_kind: "entity",
+      target_ref: { entity_id: tid },
+    });
+  }
+  for (const ref of resolved.verses) {
+    rows.push({
+      user_id: userId,
+      entry_id: entryId,
+      target_kind: "verse",
+      target_ref: { ref },
+    });
+  }
+
+  if (!rows.length) return { linked: 0 };
+
+  const { error: insErr } = await supabase.from("journal_entry_links").insert(rows);
   if (insErr) return { linked: 0, error: insErr.message };
-  return { linked: targetIds.length };
+  return { linked: rows.length };
 }
 
 /** `localStorage` handoff when opening full journal editor from the floating panel. */

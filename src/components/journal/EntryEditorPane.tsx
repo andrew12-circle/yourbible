@@ -593,7 +593,7 @@ export default function EntryEditorPane({
         <TBtn title="Numbered list" onClick={() => insert("\n1. ", "", "item")}><ListOrdered className="w-4 h-4" /></TBtn>
         <TBtn title="Checklist" onClick={() => insert("\n- [ ] ", "", "task")}><CheckSquare className="w-4 h-4" /></TBtn>
         <TBtn title="Quote" onClick={() => insert("\n> ", "", "quote")}><Quote className="w-4 h-4" /></TBtn>
-        <TBtn title="Link to entry ([[title]])" onClick={() => insert("[[", "]]", "entry title")}><Link2 className="w-4 h-4" /></TBtn>
+        <TBtn title="Wikilink ([[note]], [[video:…]], [[belief:…]])" onClick={() => insert("[[", "]]", "title")}><Link2 className="w-4 h-4" /></TBtn>
         <TBtn title="Table" onClick={() => insert("\n| col1 | col2 |\n| --- | --- |\n| ", " | |\n", "")}><TableIcon className="w-4 h-4" /></TBtn>
         <div className="w-px h-5 bg-border mx-1" />
         <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>

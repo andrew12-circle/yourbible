@@ -37,6 +37,7 @@ const HardQuestionsListPage = lazy(() => import("./pages/framework/hardQuestions
 const HardQuestionNewPage = lazy(() => import("./pages/framework/hardQuestions/HardQuestionNewPage"));
 const HardQuestionWorkspacePage = lazy(() => import("./pages/framework/hardQuestions/HardQuestionWorkspacePage"));
 const BeliefGraphPage = lazy(() => import("./pages/framework/BeliefGraphPage"));
+const MindGraphPage = lazy(() => import("./pages/framework/MindGraphPage"));
 const PlaybookPage = lazy(() => import("./pages/framework/PlaybookPage"));
 const PlaybookDetailPage = lazy(() => import("./pages/framework/PlaybookDetailPage"));
 const TensionsPage = lazy(() => import("./pages/framework/TensionsPage"));
@@ -115,7 +116,8 @@ const App = () => (
                   <Route path="/framework/interview/:layer" element={<InterviewPage />} />
                   <Route path="/framework/beliefs" element={<BeliefsListPage />} />
                   <Route path="/framework/beliefs/:id" element={<BeliefDetailPage />} />
-                  <Route path="/framework/graph" element={<BeliefGraphPage />} />
+                  <Route path="/framework/graph" element={<MindGraphPage />} />
+                  <Route path="/framework/graph/beliefs" element={<BeliefGraphPage />} />
                   <Route path="/framework/tensions" element={<TensionsPage />} />
                   <Route path="/framework/influences" element={<InfluencesPage />} />
                   <Route path="/framework/digest" element={<DigestPage />} />

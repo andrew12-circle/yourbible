@@ -17,7 +17,7 @@ import {
   transcribeEntrySketchPaths,
 } from "@/lib/journal/sketchTranscription";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
-import { listEntryLinks, syncEntryWikilinks, type EntryLink } from "@/lib/journal/links";
+import { syncEntryWikilinks } from "@/lib/journal/links";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
 import {
   LISTENING_SECTIONS,
@@ -59,7 +59,6 @@ export default function JournalEntryPage() {
   const [beliefStatement, setBeliefStatement] = useState<string | null>(null);
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
-  const [links, setLinks] = useState<EntryLink[]>([]);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
   const [openingAi, setOpeningAi] = useState(false);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
@@ -111,10 +110,8 @@ export default function JournalEntryPage() {
       .eq("entry_id", id)
       .maybeSingle();
     setScore((s as Score | null) ?? null);
-    setLinks(await listEntryLinks(id));
     if (user?.id && typeof data.body === "string" && data.body.includes("[[")) {
       await syncEntryWikilinks(user.id, id, data.body);
-      setLinks(await listEntryLinks(id));
       setLinksReloadKey((k) => k + 1);
     }
     setEntryLoading(false);
@@ -443,21 +440,6 @@ export default function JournalEntryPage() {
         />
       ) : null}
 
-      {links.filter((l) => l.target_kind !== "entry").length > 0 && (
-        <section className="mb-6 rounded-xl border border-border bg-card p-4">
-          <h3 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-muted-foreground mb-2">
-            Linked
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {links
-              .filter((l) => l.target_kind !== "entry")
-              .map((l) => (
-                <LinkChip key={l.id} link={l} />
-              ))}
-          </div>
-        </section>
-      )}
-
       {(entry.tags.length > 0 || entry.verse_ref || entry.belief_id) && (
         <div className="flex flex-wrap gap-1.5 mb-6">
           {entry.verse_ref && (
@@ -624,60 +606,4 @@ function guessBookAbbr(ref: string): string {
 function guessChapter(ref: string): number {
   const m = ref.match(/(\d+):/);
   return m ? Number(m[1]) : 1;
-}
-
-function LinkChip({ link }: { link: EntryLink }) {
-  const ref = link.target_ref as Record<string, unknown>;
-  let label: string = link.target_kind;
-  let to = "/journal";
-  switch (link.target_kind) {
-    case "verse": {
-      const r = String(ref.ref ?? "");
-      label = r || "verse";
-      to = `/read/${guessBookAbbr(r)}/${guessChapter(r)}`;
-      break;
-    }
-    case "belief":
-      label = `belief: ${String(ref.statement ?? "").slice(0, 40) || "open"}`;
-      to = `/framework/beliefs/${String(ref.id ?? "")}`;
-      break;
-    case "tension":
-      label = "tension";
-      to = `/framework/tensions`;
-      break;
-    case "study":
-      label = `study: ${String(ref.topic ?? "")}`;
-      to = `/framework/study`;
-      break;
-    case "daily":
-      label = "daily reading";
-      to = `/framework/daily`;
-      break;
-    case "chat_thread":
-      label = "chat";
-      to = `/my-ai`;
-      break;
-    case "artifact":
-      label = "artifact";
-      to = `/framework/artifacts/${String(ref.id ?? "")}`;
-      break;
-    case "prompt":
-      label = `prompt: ${String(ref.text ?? "").slice(0, 40)}`;
-      to = "/journal";
-      break;
-    case "entry": {
-      const eid = String(ref.entry_id ?? "");
-      label = "entry";
-      to = eid ? `/journal/${eid}` : "/journal";
-      break;
-    }
-  }
-  return (
-    <Link
-      to={to}
-      className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground/80 hover:bg-muted/70 transition"
-    >
-      {label}
-    </Link>
-  );
 }

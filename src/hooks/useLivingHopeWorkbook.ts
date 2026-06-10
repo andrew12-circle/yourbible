@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
 import { getOrCreateWorkbook, saveWorkbook } from "@/lib/livingHope/workbookApi";
 import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
@@ -17,6 +18,13 @@ export function useLivingHopeWorkbook(userId: string | undefined) {
     try {
       const wb = await getOrCreateWorkbook(userId);
       setWorkbook(wb);
+      if (isLocalModeNotified()) {
+        toast({
+          title: "Saving on this device",
+          description:
+            "Morning formula tables are not in Supabase yet. Your workbook is stored locally until migrations are applied.",
+        });
+      }
     } catch (e) {
       toast({
         title: "Couldn't load workbook",
