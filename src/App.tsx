@@ -19,6 +19,7 @@ const HomePage = lazy(() => import("./pages/HomePage"));
 const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const ReaderPage = lazy(() => import("./pages/reader/ReaderPage"));
+const ContentsReaderPage = lazy(() => import("./pages/reader/ContentsReaderPage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const SleepPage = lazy(() => import("./pages/sleep/SleepPage"));
 const FrameworkDashboard = lazy(() => import("./pages/framework/FrameworkDashboard"));
@@ -92,6 +93,7 @@ const App = () => (
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/partner/accept" element={<PartnerAcceptPage />} />
                 <Route element={<ShellGate />}>
+                  <Route path="/read/contents" element={<ContentsReaderPage />} />
                   <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/my-ai" element={<MyAiPage />} />

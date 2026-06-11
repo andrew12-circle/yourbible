@@ -1,4 +1,5 @@
-import { Search } from "lucide-react";
+import { Search, List } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { BibleBook } from "@/data/books";
 import { BOOKS } from "@/data/books";
 import {
@@ -123,6 +124,17 @@ export function BookPickerStep({ currentBook, onPickBook, gridCols = "responsive
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
+      <Link
+        to="/read/contents"
+        className={cn(
+          readerPickerBookCard,
+          "flex items-center justify-center gap-2 col-span-full text-sm font-medium",
+        )}
+      >
+        <List className="w-4 h-4 shrink-0 opacity-70" strokeWidth={2} />
+        Table of contents
+      </Link>
+
       <div className="relative">
         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" strokeWidth={2} />
         <input

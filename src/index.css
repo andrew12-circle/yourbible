@@ -488,18 +488,56 @@
   }
 
   .verse-num {
-    font-size: 0.62em;
     font-weight: 600;
-    vertical-align: super;
-    color: hsl(var(--leather) / 0.7);
-    margin-right: 0.25em;
-    font-family: 'Inter', sans-serif;
-    letter-spacing: 0.02em;
+    color: hsl(var(--leather) / 0.72);
+    font-family: var(--reader-scripture-font-family, 'Cormorant Garamond', serif);
+    letter-spacing: 0.01em;
   }
 
-  /* Traditional Bible paragraph flow — first line indented, following lines flush. */
+  /* Verse rows — gutter numbers + body text (printed Bible layout). */
+  .scripture-verse {
+    display: grid;
+    grid-template-columns: 1.85em minmax(0, 1fr);
+    column-gap: 0.45em;
+    align-items: start;
+    margin: 0.08em 0;
+  }
+  .scripture-verse-chapter-open {
+    display: block;
+    margin: 0.12em 0 0.2em;
+  }
+  .verse-num-gutter {
+    display: block;
+    text-align: right;
+    font-size: 0.74em;
+    line-height: 1.45;
+    padding-top: 0.12em;
+    vertical-align: baseline;
+    margin: 0;
+  }
+  .verse-body-wrap {
+    min-width: 0;
+    text-align: justify;
+  }
+  .scripture-verse-chapter-open .verse-body-wrap {
+    display: flow-root;
+  }
+  .chapter-drop-cap {
+    float: left;
+    font-family: var(--reader-scripture-font-family, 'Cormorant Garamond', serif);
+    font-size: 3.35em;
+    font-weight: 700;
+    line-height: 0.82;
+    letter-spacing: -0.02em;
+    color: hsl(var(--foreground) / 0.92);
+    margin: 0.02em 0.1em 0 0;
+    padding-right: 0.06em;
+    user-select: none;
+  }
+
+  /* Traditional Bible paragraph flow — drop-cap + gutter verses replace indent. */
   .scripture-paragraph {
-    text-indent: 1.75em;
+    text-indent: 0;
     margin: 0;
   }
   .scripture-paragraph-continue {
@@ -521,18 +559,133 @@
     margin-top: 0;
   }
 
-  /* Traditional two-column Bible page (opt-in from reader settings). */
+  /* Traditional two-column Bible page — each page face splits like a printed Bible. */
   .scripture-columns-2 {
     columns: 2;
-    column-gap: clamp(1.25rem, 4vw, 2rem);
-    column-fill: balance;
+    column-gap: clamp(1rem, 3.5vw, 1.65rem);
+    column-fill: auto;
+    column-rule: 1px solid hsl(var(--foreground) / 0.1);
+  }
+  .reader-theme-dark .scripture-columns-2 {
+    column-rule-color: hsl(var(--foreground) / 0.14);
   }
   .scripture-columns-2 .scripture-heading {
     column-span: all;
     text-align: center;
   }
   .scripture-columns-2 .scripture-paragraph {
-    break-inside: avoid;
+    break-inside: avoid-column;
+  }
+
+  /* Printed-Bible table of contents (/read/contents). */
+  .bible-toc-page {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: hsl(var(--foreground) / 0.92);
+    padding-bottom: 1.5rem;
+  }
+  .bible-toc-main-title {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    margin: 0 0 1.1rem;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .bible-toc-main-title-compact {
+    margin-bottom: 0.65rem;
+  }
+  .bible-toc-section-title {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin: 1.25rem 0 0.85rem;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .bible-toc-testament-title {
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    margin: 0 0 0.55rem;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .bible-toc-book-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(0.75rem, 3vw, 1.35rem);
+  }
+  .bible-toc-column-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: hsl(var(--foreground) / 0.55);
+    margin-bottom: 0.35rem;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .bible-toc-entry {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.2rem 0.35rem;
+    align-items: baseline;
+    width: 100%;
+    text-align: left;
+    font-size: inherit;
+    line-height: 1.35;
+    padding: 0.06rem 0;
+  }
+  .bible-toc-entry-button {
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    border-radius: 0.15rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .bible-toc-entry-button:hover {
+    background: hsl(var(--gold-bright) / 0.14);
+    color: hsl(var(--foreground));
+  }
+  .bible-toc-entry-button:focus-visible {
+    outline: 2px solid hsl(var(--gold-deep) / 0.55);
+    outline-offset: 1px;
+  }
+  .bible-toc-label {
+    white-space: nowrap;
+    font-variant: normal;
+  }
+  .bible-toc-leader {
+    border-bottom: 1px dotted hsl(var(--foreground) / 0.32);
+    margin-bottom: 0.18em;
+    min-width: 0.35rem;
+  }
+  .bible-toc-page {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 0.78rem;
+  }
+  .bible-toc-front-matter,
+  .bible-toc-back-matter {
+    max-width: 28rem;
+    margin-inline: auto;
+  }
+  .bible-toc-front-matter {
+    margin-bottom: 0.5rem;
+  }
+  .bible-toc-back-matter {
+    margin-top: 1.35rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid hsl(var(--foreground) / 0.08);
+  }
+  .bible-toc-testament + .bible-toc-testament {
+    margin-top: 1rem;
+  }
+  .bible-toc-page-single-testament .bible-toc-book-grid {
+    gap: 0.65rem;
   }
 
   /* Reader page tone + night reading (scoped to reader shell) */

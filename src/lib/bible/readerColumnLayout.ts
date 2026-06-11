@@ -25,5 +25,5 @@ export function readerColumnClassName(layout: ReaderColumnLayout): string {
 }
 
 export function readerColumnLayoutLabel(layout: ReaderColumnLayout): string {
-  return layout === "double" ? "Two columns" : "Single column";
+  return layout === "double" ? "Two columns per page" : "Single column";
 }

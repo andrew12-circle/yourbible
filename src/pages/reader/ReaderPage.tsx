@@ -27,8 +27,10 @@ import {
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import { scriptureParagraphClassName } from "@/lib/bible/scriptureParagraph";
-import { ChapterOrnamentHeader } from "@/components/bible/ChapterOrnamentHeader";
+import {
+  scriptureParagraphClassName,
+  shouldShowChapterDropCap,
+} from "@/lib/bible/scriptureParagraph";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { platesForChapter } from "@/lib/bible/biblePlates";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
@@ -145,6 +147,18 @@ function pageHorizontalPadding(
   return side === "left"
     ? { paddingLeft: PAGE_MARGIN_OUTER, paddingRight: PAGE_MARGIN_GUTTER }
     : { paddingLeft: PAGE_MARGIN_GUTTER, paddingRight: PAGE_MARGIN_OUTER };
+}
+
+function wrapScriptureColumns(
+  layout: ReaderColumnLayout,
+  scrollMode: boolean,
+  children: ReactNode,
+): ReactNode {
+  const columnsClass = readerColumnClassName(layout);
+  if (!columnsClass) return children;
+  return (
+    <div className={cn(columnsClass, !scrollMode && "h-full w-full min-h-0")}>{children}</div>
+  );
 }
 
 // Deterministic 1..10 stroke variant per verse so the same verse always
@@ -350,7 +364,7 @@ export default function ReaderPage() {
     setColumnLayout((prev) => {
       const next: ReaderColumnLayout = prev === "double" ? "single" : "double";
       writeReaderColumnLayout(next);
-      toast({ title: `${readerColumnLayoutLabel(next)} per page` });
+      toast({ title: readerColumnLayoutLabel(next) });
       return next;
     });
   }, []);
@@ -1261,10 +1275,13 @@ export default function ReaderPage() {
     ctx?: {
       bookAbbr: string;
       chapter: number;
+      paragraphIsContinuation?: boolean;
     },
   ) => {
     const verseBook = ctx?.bookAbbr ?? book.abbr;
     const verseChapter = ctx?.chapter ?? chapter;
+    const paragraphIsContinuation = ctx?.paragraphIsContinuation ?? false;
+    const chapterDropCap = shouldShowChapterDropCap(v.number, paragraphIsContinuation);
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
     const verseText = typeof v.text === "string" ? v.text : "";
@@ -1337,60 +1354,72 @@ export default function ReaderPage() {
     );
 
     return (
-      <span key={`${verseBook}-${verseChapter}-${v.number}`} data-verse={v.number}>
-        <button
-          type="button"
-          onClick={(e) => onVerseNumberClick(e, v)}
-          className="verse-num bg-transparent border-0 p-0 m-0 cursor-pointer hover:text-leather transition-colors"
-          aria-label={`Verse ${v.number}`}
-          // The verse number itself is not selectable — keeps drag-selection
-          // of body text from accidentally including the number.
-          style={{ userSelect: "none" }}
-        >
-          {v.number}
-        </button>
-        {wrappedBody}
-        {v.crossRefs?.map((ref, ri) => (
-          <button
-            key={`xr-${verseBook}-${verseChapter}-${v.number}-${ri}`}
-            type="button"
-            className="scripture-xref"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/read/${ref.book}/${ref.chapter}?v=${ref.verse}`);
-            }}
-            title={`Go to ${ref.label}`}
-          >
-            {ref.label}
-          </button>
-        ))}
-        {v.footnotes?.map((fn) => (
-          <span
-            key={`fn-${verseBook}-${verseChapter}-${v.number}-${fn.marker}`}
-            className="scripture-footnote"
-            title={fn.text}
-          >
-            [{fn.marker}]
+      <span
+        key={`${verseBook}-${verseChapter}-${v.number}`}
+        data-verse={v.number}
+        className={
+          chapterDropCap ? "scripture-verse scripture-verse-chapter-open" : "scripture-verse"
+        }
+      >
+        {chapterDropCap ? (
+          <span className="chapter-drop-cap" aria-label={`Chapter ${verseChapter}`}>
+            {verseChapter}
           </span>
-        ))}
-        {note && (
+        ) : (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (verseBook !== book.abbr || verseChapter !== chapter) {
-                navigate(`/read/${verseBook}/${verseChapter}?v=${v.number}`);
-                return;
-              }
-              setNoteOpen({ verse: v.number });
-            }}
-            className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
-            aria-label="Open note"
+            type="button"
+            onClick={(e) => onVerseNumberClick(e, v)}
+            className="verse-num verse-num-gutter bg-transparent border-0 p-0 m-0 cursor-pointer hover:text-leather transition-colors"
+            aria-label={`Verse ${v.number}`}
             style={{ userSelect: "none" }}
           >
-            <NotebookPen className="w-2.5 h-2.5 m-auto" />
+            {v.number}
           </button>
         )}
-        {" "}
+        <span className="verse-body-wrap">
+          {wrappedBody}
+          {v.crossRefs?.map((ref, ri) => (
+            <button
+              key={`xr-${verseBook}-${verseChapter}-${v.number}-${ri}`}
+              type="button"
+              className="scripture-xref"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/read/${ref.book}/${ref.chapter}?v=${ref.verse}`);
+              }}
+              title={`Go to ${ref.label}`}
+            >
+              {ref.label}
+            </button>
+          ))}
+          {v.footnotes?.map((fn) => (
+            <span
+              key={`fn-${verseBook}-${verseChapter}-${v.number}-${fn.marker}`}
+              className="scripture-footnote"
+              title={fn.text}
+            >
+              [{fn.marker}]
+            </span>
+          ))}
+          {note ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (verseBook !== book.abbr || verseChapter !== chapter) {
+                  navigate(`/read/${verseBook}/${verseChapter}?v=${v.number}`);
+                  return;
+                }
+                setNoteOpen({ verse: v.number });
+              }}
+              className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
+              aria-label="Open note"
+              style={{ userSelect: "none" }}
+            >
+              <NotebookPen className="w-2.5 h-2.5 m-auto" />
+            </button>
+          ) : null}
+        </span>
       </span>
     );
   };
@@ -1458,24 +1487,6 @@ export default function ReaderPage() {
             {pageBookName}
           </button>
         </div>
-        {streamSlice?.startsWithChapterHeader && !streamSlice.isPlatePage ? (
-          <div className="flex-shrink-0">
-            <ChapterOrnamentHeader
-              bookName={streamSlice.startsWithChapterHeader.bookName}
-              chapter={streamSlice.startsWithChapterHeader.chapter}
-              fontFamily={scriptureFontFamily(fontChoice)}
-            />
-          </div>
-        ) : null}
-        {!useStreamReader && pageIdx === 0 ? (
-          <div className="flex-shrink-0">
-            <ChapterOrnamentHeader
-              bookName={book.name}
-              chapter={chapter}
-              fontFamily={scriptureFontFamily(fontChoice)}
-            />
-          </div>
-        ) : null}
         {pageLoading ? (
           <div className="flex flex-1 justify-center items-center">
             <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
@@ -1500,7 +1511,6 @@ export default function ReaderPage() {
                 "h-full min-h-0 w-full",
                 scrollMode ? "overflow-y-auto overscroll-contain" : "overflow-hidden",
                 pageTypoClass(fontChoice),
-                columnClassName,
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
@@ -1508,7 +1518,10 @@ export default function ReaderPage() {
                 ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
               }}
             >
-              {streamSlice?.isPlatePage && ready ? (
+              {wrapScriptureColumns(
+                columnLayout,
+                scrollMode,
+                streamSlice?.isPlatePage && ready ? (
                 streamSlice.plates.map((plate) => (
                   <ScripturePlate key={plate.id} plate={plate} />
                 ))
@@ -1552,6 +1565,7 @@ export default function ReaderPage() {
                               renderVerse(v, {
                                 bookAbbr: verseGroup.bookAbbr,
                                 chapter: verseGroup.chapter,
+                                paragraphIsContinuation: group.isContinuation,
                               }),
                             )}
                           </p>,
@@ -1580,11 +1594,14 @@ export default function ReaderPage() {
                         className={scriptureParagraphClassName(group.isContinuation)}
                         style={{ orphans: 2, widows: 2 }}
                       >
-                        {group.verses.map((v) => renderVerse(v))}
+                        {group.verses.map((v) =>
+                          renderVerse(v, { paragraphIsContinuation: group.isContinuation }),
+                        )}
                       </p>,
                     );
                     return nodes;
                   }))()
+              ),
               )}
             </article>
           </div>

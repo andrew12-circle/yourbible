@@ -6,6 +6,7 @@ import { MiniPhoneRoutePersist } from "@/components/mini-phone/MiniPhoneRoutePer
 import { MiniPhoneYouTubePage } from "@/components/mini-phone/MiniPhoneYouTubePage";
 
 const ReaderPage = lazy(() => import("@/pages/reader/ReaderPage"));
+const ContentsReaderPage = lazy(() => import("@/pages/reader/ContentsReaderPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 const SleepPage = lazy(() => import("@/pages/sleep/SleepPage"));
 const FrameworkDashboard = lazy(() => import("@/pages/framework/FrameworkDashboard"));
@@ -72,6 +73,7 @@ function MiniPhoneRouteLayout() {
 
 const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/phone/youtube", element: <MiniPhoneYouTubePage /> },
+  { path: "/read/contents", element: <ContentsReaderPage /> },
   { path: "/read/:book/:chapter", element: <ReaderPage /> },
   { path: "/my-ai", element: <MyAiPage /> },
   { path: "/my-ai/:chatId", element: <MyAiPage /> },

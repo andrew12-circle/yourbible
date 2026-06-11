@@ -33,3 +33,25 @@ export function buildVerseInnerHtml(
     )
     .join("");
 }
+
+/** Large chapter numeral beside verse 1 — like a printed study Bible. */
+export function shouldShowChapterDropCap(
+  verseNumber: number,
+  paragraphIsContinuation: boolean,
+): boolean {
+  return verseNumber === 1 && !paragraphIsContinuation;
+}
+
+/** Outer verse shell for paginator measurement (must match live reader DOM). */
+export function wrapVerseShellHtml(
+  verseNum: number,
+  chapter: number,
+  innerHtml: string,
+  paragraphIsContinuation: boolean,
+): string {
+  const body = `<span class="verse-body-wrap"><span data-verse-body="${verseNum}">${innerHtml}</span></span>`;
+  if (shouldShowChapterDropCap(verseNum, paragraphIsContinuation)) {
+    return `<span class="scripture-verse scripture-verse-chapter-open" data-verse="${verseNum}"><span class="chapter-drop-cap">${chapter}</span>${body}</span> `;
+  }
+  return `<span class="scripture-verse" data-verse="${verseNum}"><span class="verse-num verse-num-gutter">${verseNum}</span>${body}</span> `;
+}

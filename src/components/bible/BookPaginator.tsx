@@ -4,6 +4,7 @@ import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter"
 import {
   buildVerseInnerHtml,
   scriptureParagraphClassNameMeasure,
+  wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
 import {
   CHAPTER_HEADER_RESERVE_PX,
@@ -236,7 +237,12 @@ function renderStreamSlice(
             redSegments,
             escapeHtml,
           );
-          return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
+          return wrapVerseShellHtml(
+            v.number,
+            unit.chapter,
+            inner,
+            group.isContinuation,
+          );
         })
         .join("");
       const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);

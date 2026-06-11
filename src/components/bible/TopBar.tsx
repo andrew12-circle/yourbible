@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Sun, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2, ScrollText, BookOpen, Columns2 } from "lucide-react";
+import { Eye, EyeOff, Moon, Sun, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2, ScrollText, BookOpen, Columns2, List } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
 import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
@@ -527,6 +527,20 @@ export function TopBar({
                   )}
                 </ReaderIconButton>
               ) : null}
+              {onToggleColumnLayout ? (
+                <ReaderIconButton
+                  onClick={onToggleColumnLayout}
+                  title={
+                    columnLayout === "double"
+                      ? "Single column per page"
+                      : "Two columns per page (like a printed Bible)"
+                  }
+                  active={columnLayout === "double"}
+                  ariaPressed={columnLayout === "double"}
+                >
+                  <Columns2 className="w-[18px] h-[18px]" strokeWidth={2} />
+                </ReaderIconButton>
+              ) : null}
               {onToggleInkMode ? (
               <ReaderIconButton
                 onClick={onToggleInkMode}
@@ -640,6 +654,12 @@ export function TopBar({
                       Two columns per page
                     </DropdownMenuCheckboxItem>
                   ) : null}
+                  <DropdownMenuItem asChild>
+                    <Link to="/read/contents" className="gap-2">
+                      <List className="w-3.5 h-3.5 text-muted-foreground" />
+                      Table of contents
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings">All settings</Link>
                   </DropdownMenuItem>

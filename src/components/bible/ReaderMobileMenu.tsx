@@ -21,6 +21,7 @@ import {
   Volume2,
   X,
   Columns2,
+  List,
 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
@@ -264,6 +265,13 @@ export function ReaderMobileMenu({
             </section>
 
             <Button asChild variant="outline" className={cn("w-full", readerPickerMenuButton)}>
+              <Link to="/read/contents" onClick={close}>
+                <List className="w-4 h-4" />
+                Table of contents
+              </Link>
+            </Button>
+
+            <Button asChild variant="outline" className={cn("w-full", readerPickerMenuButton)}>
               <Link to="/settings" onClick={close}>
                 <Settings className="w-4 h-4" />
                 All app settings
@@ -446,6 +454,20 @@ export function ReaderMobileMenu({
                       <BookOpen className="w-4 h-4" />
                     )}
                     {displayMode === "scroll" ? "Page mode" : "Scroll mode"}
+                  </Button>
+                ) : null}
+                {onToggleColumnLayout ? (
+                  <Button
+                    type="button"
+                    variant={columnLayout === "double" ? "default" : "outline"}
+                    className={readerPickerMenuButton}
+                    onClick={() => {
+                      onToggleColumnLayout();
+                      close();
+                    }}
+                  >
+                    <Columns2 className="w-4 h-4" />
+                    {columnLayout === "double" ? "Two columns per page" : "Single column"}
                   </Button>
                 ) : null}
                 {onToggleReaderDark ? (
