@@ -10,6 +10,7 @@ import ArtifactJournalEntryPageHeader from "@/components/framework/artifact-deta
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import { useArtifactJournalEditor } from "@/hooks/useArtifactJournalEditor";
+import { useVisualViewportMetrics } from "@/hooks/useKeyboardInset";
 import { isArtifactLayoutDesktop, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { useIsDesktop } from "@/hooks/use-desktop";
@@ -78,6 +79,7 @@ export default function ArtifactEmbeddedJournal({
   const isDesktopViewport = useIsDesktop();
   const preferHandwritten = useHandwrittenPreferredJournal();
   const { hash } = useLocation();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
   const inlineHandwrite = !isDesktop;
   const dismissedHandwriteRef = useRef(false);
   const {
@@ -250,6 +252,13 @@ export default function ArtifactEmbeddedJournal({
               : "max-h-[min(50vh,520px)] shrink-0",
         className,
       )}
+      style={
+        fillUnderVideo && kbInset > 0
+          ? {
+              bottom: `calc(${kbInset}px + var(--artifact-mobile-dock-h, 5.5rem) + env(safe-area-inset-bottom, 0px))`,
+            }
+          : undefined
+      }
       aria-label="Study journal"
     >
       {!handwriteActive && !fillUnderVideo ? (
@@ -339,7 +348,8 @@ export default function ArtifactEmbeddedJournal({
           <ArtifactJournalEntryPageHeader
             {...pageHeaderProps}
             variant="notebook"
-            className="shrink-0"
+            className="sticky z-10 shrink-0"
+            style={vvOffsetTop > 0 ? { top: vvOffsetTop } : { top: 0 }}
             titleActions={typedJournalTitleActions}
           />
           {timestampMarkersStrip ? (
@@ -356,6 +366,11 @@ export default function ArtifactEmbeddedJournal({
               artifactMobileJournalEdgePad,
               "text-base leading-relaxed shadow-none focus-visible:ring-0",
             )}
+            style={
+              kbInset > 0
+                ? { paddingBottom: `calc(${kbInset}px + 0.5rem)` }
+                : undefined
+            }
           />
         </div>
       ) : (

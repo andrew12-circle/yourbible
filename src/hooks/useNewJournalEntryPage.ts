@@ -25,7 +25,10 @@ import {
 } from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
-import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import {
+  useLockBodyScrollWhenKeyboardActive,
+  useVisualViewportMetrics,
+} from "@/hooks/useKeyboardInset";
 import { JOURNAL_EXPAND_HANDOFF_KEY, syncEntryWikilinks, type JournalExpandHandoffPayload } from "@/lib/journal/links";
 import {
   coerceJournalEntryKind,
@@ -61,7 +64,7 @@ export function useNewJournalEntryPage() {
   const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
-  const kbInset = useKeyboardInset();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -110,10 +113,12 @@ export function useNewJournalEntryPage() {
   const [dateOpen, setDateOpen] = useState(false);
   const [journalName, setJournalName] = useState<string>("Journal");
   const [composerFocused, setComposerFocused] = useState(false);
+  const [bodyFocused, setBodyFocused] = useState(false);
   const composerLockScrollYRef = useRef<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
@@ -130,7 +135,7 @@ export function useNewJournalEntryPage() {
   const inlineChatMode = replyWithAi && canReplyWithAi;
 
   useLockBodyScrollWhenKeyboardActive(
-    inlineChatMode && composerFocused,
+    (inlineChatMode && composerFocused) || bodyFocused,
     composerLockScrollYRef,
   );
 
@@ -144,9 +149,11 @@ export function useNewJournalEntryPage() {
 
   const { scrollCaretIntoView } = useJournalEditorCaretScroll({
     scrollRef: mainScrollRef,
-    bottomDockRef,
+    bottomDockRef: bodyFocused ? undefined : bottomDockRef,
     kbInset,
     enabled: !inlineChatMode,
+    fixedBottomInsetPx: bodyFocused ? kbInset + 16 : undefined,
+    topInsetPx: vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
 
   useEffect(() => {
@@ -808,6 +815,15 @@ export function useNewJournalEntryPage() {
   const triggerPrompts = useCallback(() => navigate("/journal/prompts"), [navigate]);
   const triggerHandwritten = useCallback(() => setSketchOpen(true), []);
 
+  const focusBodyEditor = useCallback(() => {
+    composerLockScrollYRef.current = window.scrollY;
+    const el = bodyTextareaRef.current;
+    if (!el) return;
+    el.focus();
+    const pos = el.value.length;
+    el.setSelectionRange(pos, pos);
+  }, []);
+
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => mergeDictatedText(b, chunk));
     requestAnimationFrame(() => scrollCaretIntoView());
@@ -906,6 +922,11 @@ export function useNewJournalEntryPage() {
     editId,
     navigate,
     kbInset,
+    vvOffsetTop,
+    bodyFocused,
+    setBodyFocused,
+    bodyTextareaRef,
+    focusBodyEditor,
     title,
     setTitle,
     body,

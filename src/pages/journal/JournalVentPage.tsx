@@ -4,6 +4,8 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Flame, Lock, Loader2, Trash2 } from "lucide-react";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { Button } from "@/components/ui/button";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,7 +112,7 @@ export default function JournalVentPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <JournalLayout title="Vent space" back="/journal" largeTitle right={<AiWritingAssistToggle compact />}>
+    <JournalLayout title="Vent space" back="/journal" largeTitle right={<><JournalPrivacyBlurToggle /><AiWritingAssistToggle compact /></>}>
       <div className="-mt-2 mb-5 flex items-start gap-3 rounded-2xl border border-zinc-800/15 bg-zinc-900/[0.04] p-4 text-[14px] leading-relaxed text-foreground/85 dark:border-white/10 dark:bg-white/[0.04]">
         <Flame className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" aria-hidden />
         <p className="min-w-0">
@@ -133,11 +135,10 @@ export default function JournalVentPage() {
         className="resize-y rounded-2xl border-border/70 bg-card font-sans text-[16px] leading-relaxed shadow-sm"
       />
 
-      {dictInterim.trim() ? (
-        <p className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-          {dictInterim}
-        </p>
-      ) : null}
+      <DictInterimPreview
+        text={dictInterim}
+        className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+      />
 
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
         <Lock className="h-3.5 w-3.5" aria-hidden />

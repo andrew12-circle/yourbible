@@ -1,22 +1,47 @@
 import { useEffect, useState } from "react";
 
+export type VisualViewportMetrics = {
+  /** Height occluded by the on-screen keyboard (px). */
+  keyboardInset: number;
+  /** Visual viewport offset from layout top — non-zero when iOS shifts content for the keyboard. */
+  offsetTop: number;
+};
+
+export function readVisualViewportMetricsForTest(layout: {
+  innerHeight: number;
+  vvHeight: number;
+  vvOffsetTop: number;
+}): VisualViewportMetrics {
+  const diff = layout.innerHeight - layout.vvHeight - layout.vvOffsetTop;
+  const keyboardOpen = diff > 40;
+  return {
+    keyboardInset: keyboardOpen ? diff : 0,
+    offsetTop: keyboardOpen ? Math.max(0, layout.vvOffsetTop) : 0,
+  };
+}
+
+function readVisualViewportMetrics(): VisualViewportMetrics {
+  const vv = typeof window !== "undefined" ? window.visualViewport : null;
+  if (!vv) return { keyboardInset: 0, offsetTop: 0 };
+  return readVisualViewportMetricsForTest({
+    innerHeight: window.innerHeight,
+    vvHeight: vv.height,
+    vvOffsetTop: vv.offsetTop,
+  });
+}
+
 /**
- * Returns the height (px) currently occluded by the on-screen keyboard.
- * Uses visualViewport so the value updates as the keyboard opens/closes.
- * Returns 0 on desktop or when no keyboard is visible.
+ * Keyboard inset and visual-viewport offset for mobile typing layouts.
+ * Uses visualViewport so values update as the keyboard opens/closes.
  */
-export function useKeyboardInset(): number {
-  const [inset, setInset] = useState(0);
+export function useVisualViewportMetrics(): VisualViewportMetrics {
+  const [metrics, setMetrics] = useState<VisualViewportMetrics>(() => readVisualViewportMetrics());
 
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
 
-    const update = () => {
-      // Difference between layout viewport and visual viewport == keyboard.
-      const diff = window.innerHeight - vv.height - vv.offsetTop;
-      setInset(diff > 40 ? diff : 0);
-    };
+    const update = () => setMetrics(readVisualViewportMetrics());
     update();
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
@@ -26,7 +51,16 @@ export function useKeyboardInset(): number {
     };
   }, []);
 
-  return inset;
+  return metrics;
+}
+
+/**
+ * Returns the height (px) currently occluded by the on-screen keyboard.
+ * Uses visualViewport so the value updates as the keyboard opens/closes.
+ * Returns 0 on desktop or when no keyboard is visible.
+ */
+export function useKeyboardInset(): number {
+  return useVisualViewportMetrics().keyboardInset;
 }
 
 /**

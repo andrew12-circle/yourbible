@@ -17,7 +17,7 @@ import ChatJournalView from "@/components/journal/ChatJournalView";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
-import { Input } from "@/components/ui/input";
+import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
 import { toast } from "@/hooks/use-toast";
 import { Journal } from "@/lib/journal/journals";
 import {
@@ -48,6 +48,9 @@ import {
 } from "@/lib/journal/responseDepth";
 import { syncEntryWikilinks } from "@/lib/journal/links";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
+import { JournalPrivacyBlurToolbarButton } from "@/components/journal/JournalPrivacyBlurToggle";
+import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
+import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 
 interface EntryRow {
   id: string;
@@ -87,7 +90,6 @@ export default function EntryEditorPane({
   const [entry, setEntry] = useState<EntryRow | null>(null);
   const [photos, setPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
   const [showMeta, setShowMeta] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [scoring, setScoring] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -108,6 +110,18 @@ export default function EntryEditorPane({
   const [entryNotFound, setEntryNotFound] = useState(false);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
   const paneScrollRef = useRef<HTMLElement | null>(null);
+  const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        togglePrivacyBlur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [togglePrivacyBlur]);
 
   const reloadEntryFromServer = useCallback(async (id: string) => {
     const { data } = await supabase
@@ -239,13 +253,11 @@ export default function EntryEditorPane({
     const generation = ++saveGenerationRef.current;
     saveTimer.current = setTimeout(async () => {
       if (generation !== saveGenerationRef.current) return;
-      setSaving(true);
       const { error } = await supabase
         .from("journal_entries")
         .update(patch)
         .eq("id", merged.id)
         .eq("user_id", user.id);
-      setSaving(false);
       if (generation !== saveGenerationRef.current) return;
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
       else {
@@ -534,7 +546,6 @@ export default function EntryEditorPane({
         </button>
         <div className="flex-1 text-center text-[13px] text-muted-foreground tabular-nums">
           {dateLabel}
-          {saving && <span className="ml-2 text-[11px] opacity-70">Saving…</span>}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -611,6 +622,7 @@ export default function EntryEditorPane({
           <MessageCircle className="w-4 h-4" />
         </TBtn>
         {!inlineChatMode ? dictateButton : null}
+        <JournalPrivacyBlurToolbarButton />
         <TBtn title="AI score" onClick={scoreNow}>
           {scoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
         </TBtn>
@@ -631,7 +643,7 @@ export default function EntryEditorPane({
         className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-8 pb-4 pt-6">
-          <Input
+          <PrivacyBlurInput
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
             placeholder="Title"
@@ -690,14 +702,10 @@ export default function EntryEditorPane({
                 placeholder="What happened today? What are you carrying?"
                 className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
               />
-              {dictInterim.trim() ? (
-                <p
-                  className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
-                  aria-live="polite"
-                >
-                  {dictInterim}
-                </p>
-              ) : null}
+              <DictInterimPreview
+                text={dictInterim}
+                className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+              />
             </>
           )}
 

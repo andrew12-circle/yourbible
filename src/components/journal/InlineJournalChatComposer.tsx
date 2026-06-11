@@ -24,6 +24,8 @@ import {
   textareaHeightForLines,
   useAutoGrowTextarea,
 } from "@/hooks/useAutoGrowTextarea";
+import { privacyBlurMirrorClass, usePrivacyBlurField } from "@/hooks/usePrivacyBlurField";
+import { PrivacyBlurOverlay } from "@/components/writing/PrivacyBlurOverlay";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +81,31 @@ export default function InlineJournalChatComposer({
 }: Props) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   useAutoGrowTextarea(taRef, value, { maxLines: 8, minLines: 1, ...JOURNAL_CHAT_TEXTAREA_HEIGHT });
+
+  const textareaClassName =
+    "!min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent px-1 py-2 text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]";
+
+  const {
+    privacyBlurEnabled,
+    fieldClassName,
+    bindPrivacyBlurHandlers,
+    setCombinedRef,
+    overlayProps,
+  } = usePrivacyBlurField({
+    value,
+    mirrorClassName: privacyBlurMirrorClass(textareaClassName),
+  });
+
+  const privacyHandlers = bindPrivacyBlurHandlers({
+    onChange: (e) => onChange(e.target.value),
+    onFocus: () => onFocus?.(),
+    onBlur: () => onBlur?.(),
+  });
+
+  const setRefs = (el: HTMLTextAreaElement | null) => {
+    setCombinedRef(el);
+    taRef.current = el;
+  };
 
   const shellClass =
     rounded === "pill"
@@ -174,24 +201,29 @@ export default function InlineJournalChatComposer({
             <Plus className="h-5 w-5 rotate-45" />
           </button>
         )}
-        <Textarea
-          ref={taRef}
-          value={value}
-          onPointerDown={onPointerDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onChange={(e) => onChange(e.target.value)}
-          rows={1}
-          placeholder={aiBusy ? "Thinking…" : "Message"}
-          style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
-          className="!min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent px-1 py-2 text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSend();
-            }
-          }}
-        />
+        <div className="relative min-w-0 flex-1">
+          {overlayProps ? <PrivacyBlurOverlay {...overlayProps} /> : null}
+          <Textarea
+            ref={setRefs}
+            value={value}
+            onPointerDown={onPointerDown}
+            {...privacyHandlers}
+            rows={1}
+            placeholder={aiBusy ? "Thinking…" : "Message"}
+            style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
+            className={cn(
+              textareaClassName,
+              fieldClassName,
+              privacyBlurEnabled && "relative z-[1]",
+            )}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onSend();
+              }
+            }}
+          />
+        </div>
         {dictateControl}
         <Button
           type="button"

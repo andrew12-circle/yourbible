@@ -17,6 +17,8 @@ import {
 } from "@/lib/livingHope/workbookTypes";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { lh } from "@/lib/livingHope/themeClasses";
+import { cn } from "@/lib/utils";
 
 const VALID_SECTIONS = new Set(WORKBOOK_SECTIONS.map((s) => s.key));
 
@@ -71,16 +73,15 @@ export default function WorkbookSectionPage() {
 
   return (
     <LivingHopeChrome backTo="/living-hope" subtitle={meta.hint}>
-      <style>{`.field-input{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:white}`}</style>
       {busy || !workbook ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+          <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2 space-y-4">
-          <h1 className="font-display text-xl text-white">{meta.label}</h1>
+          <h1 className={lh.titleXl}>{meta.label}</h1>
           {section === "weekly" && !isSunday ? (
-            <p className="text-[13px] text-amber-200/70 rounded-xl bg-amber-400/10 px-3 py-2">
+            <p className="text-[13px] text-amber-800/80 rounded-xl bg-amber-100/80 px-3 py-2">
               Best on Sunday — week of {weekStartISO()}
             </p>
           ) : null}

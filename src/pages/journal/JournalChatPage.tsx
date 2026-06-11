@@ -22,13 +22,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { toast } from "@/hooks/use-toast";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
@@ -46,6 +48,12 @@ import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import {
+  journalChatCitationChipBaseClass,
+  journalChatCitationChipLinkedClass,
+  journalChatCitationChipMutedClass,
+  journalChatUserBubbleClass,
+} from "@/lib/journal/journalChatUi";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -168,10 +176,8 @@ function CitationChips({ citations }: { citations: Citation[] }) {
         const chip = (
           <span
             className={cn(
-              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium tracking-tight",
-              href
-                ? "border-primary/25 bg-primary/5 text-primary hover:bg-primary/10"
-                : "border-border bg-muted/50 text-muted-foreground",
+              journalChatCitationChipBaseClass,
+              href ? journalChatCitationChipLinkedClass : journalChatCitationChipMutedClass,
             )}
           >
             {c.label}
@@ -780,7 +786,7 @@ export default function JournalChatPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center">
-          <Input
+          <PrivacyBlurInput
             value={entryTitle}
             onChange={(e) => setEntryTitle(e.target.value)}
             onBlur={() => void persistTitle(entryTitle)}
@@ -789,6 +795,7 @@ export default function JournalChatPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <JournalPrivacyBlurToggle />
           <AiWritingAssistToggle compact />
           <Button type="button" variant="outline" size="sm" className="text-xs" disabled={ending} onClick={() => void endSession()}>
             {ending ? "Saving…" : "Save as journal entry"}
@@ -898,7 +905,7 @@ export default function JournalChatPage() {
                 {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
                   <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
                     {m.role === "user" ? (
-                      <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-3 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
+                      <div className={journalChatUserBubbleClass}>
                         {m.content}
                       </div>
                     ) : (
@@ -1063,14 +1070,10 @@ export default function JournalChatPage() {
                   <AudioLines className="h-5 w-5" />
                 </Button>
               </div>
-              {dictInterim.trim() ? (
-                <p
-                  className="mt-1.5 px-3 text-xs italic leading-relaxed text-muted-foreground/80"
-                  aria-live="polite"
-                >
-                  {dictInterim}
-                </p>
-              ) : null}
+              <DictInterimPreview
+                text={dictInterim}
+                className="mt-1.5 px-3 text-xs italic leading-relaxed text-muted-foreground/80"
+              />
             </div>
           </div>
         </section>

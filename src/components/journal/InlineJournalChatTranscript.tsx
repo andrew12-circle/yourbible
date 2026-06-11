@@ -2,6 +2,12 @@ import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import type { InlineChatCitation, InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import {
+  journalChatCitationChipBaseClass,
+  journalChatCitationChipLinkedClass,
+  journalChatCitationChipMutedClass,
+  journalChatUserBubbleClass,
+} from "@/lib/journal/journalChatUi";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -34,10 +40,8 @@ function CitationChips({ citations }: { citations: InlineChatCitation[] }) {
         const chip = (
           <span
             className={cn(
-              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium tracking-tight",
-              href
-                ? "border-primary/25 bg-primary/5 text-primary hover:bg-primary/10"
-                : "border-border bg-muted/50 text-muted-foreground",
+              journalChatCitationChipBaseClass,
+              href ? journalChatCitationChipLinkedClass : journalChatCitationChipMutedClass,
             )}
           >
             {c.label}
@@ -71,7 +75,7 @@ export default function InlineJournalChatTranscript({
     >
       {seedUserText?.trim() && turns.length === 0 && (
         <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
+          <div className={journalChatUserBubbleClass}>
             {seedUserText}
           </div>
         </div>
@@ -82,7 +86,7 @@ export default function InlineJournalChatTranscript({
           className={cn("flex", t.role === "user" ? "justify-end" : "justify-start")}
         >
           {t.role === "user" ? (
-            <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
+            <div className={journalChatUserBubbleClass}>
               {t.content}
             </div>
           ) : (

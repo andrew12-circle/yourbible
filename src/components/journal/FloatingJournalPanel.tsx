@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Maximize2, GripHorizontal, Loader2, Clock, Minus, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { toast } from "@/hooks/use-toast";
 import { getDefaultJournalId } from "@/lib/journal/journals";
@@ -17,6 +17,8 @@ import {
   handoffArtifactVideoForJournal,
 } from "@/lib/framework/artifactJournalNavigation";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
@@ -618,13 +620,14 @@ export default function FloatingJournalPanel({
           </Button>
         </div>
       )}
-      <Input
+      <PrivacyBlurInput
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title (optional)"
         className="mb-2 h-auto shrink-0 border-0 bg-transparent px-0.5 py-1 text-lg font-sans font-semibold shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
       />
       <div className="mb-2 flex shrink-0 items-center justify-end gap-1">
+        <JournalPrivacyBlurToggle />
         <Button
           type="button"
           size="sm"
@@ -668,14 +671,10 @@ export default function FloatingJournalPanel({
           className="relative z-[1] min-h-[120px] w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2.5 font-sans text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:ring-0 dark:placeholder:text-muted-foreground/45"
           rows={4}
         />
-        {dictInterim.trim() ? (
-          <p
-            className="relative z-[1] px-3 pb-2 text-xs italic leading-relaxed text-muted-foreground/80"
-            aria-live="polite"
-          >
-            {dictInterim}
-          </p>
-        ) : null}
+        <DictInterimPreview
+          text={dictInterim}
+          className="relative z-[1] px-3 pb-2 text-xs italic leading-relaxed text-muted-foreground/80"
+        />
       </div>
       <div
         className={cn(

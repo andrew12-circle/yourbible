@@ -1,13 +1,15 @@
 import { Ear, Trash2, X } from "lucide-react";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
+import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
-import { useRef, type RefObject } from "react";
+import { useRef, type MutableRefObject, type RefObject } from "react";
 import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
+import { cn } from "@/lib/utils";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };
 
@@ -15,6 +17,7 @@ interface NewJournalEntryBodyEditorProps {
   editId?: string;
   isListening: boolean;
   inlineChatMode: boolean;
+  bodyFocused?: boolean;
   body: string;
   setBody: (value: string) => void;
   bodyPlaceholder: string;
@@ -29,6 +32,9 @@ interface NewJournalEntryBodyEditorProps {
   existingAttachments: PhotoItem[];
   pendingSketches: File[];
   pendingAttachments: File[];
+  bodyTextareaRef?: MutableRefObject<HTMLTextAreaElement | null>;
+  onBodyFocus?: () => void;
+  onBodyBlur?: () => void;
   onOpenSketch: () => void;
   onRemoveExistingPhoto: (photoId: string, storage_path: string) => void;
   onRemovePendingFile: (file: File) => void;
@@ -38,6 +44,7 @@ export function NewJournalEntryBodyEditor({
   editId,
   isListening,
   inlineChatMode,
+  bodyFocused = false,
   body,
   setBody,
   bodyPlaceholder,
@@ -52,11 +59,15 @@ export function NewJournalEntryBodyEditor({
   existingAttachments,
   pendingSketches,
   pendingAttachments,
+  bodyTextareaRef,
+  onBodyFocus,
+  onBodyBlur,
   onOpenSketch,
   onRemoveExistingPhoto,
   onRemovePendingFile,
 }: NewJournalEntryBodyEditorProps) {
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const localBodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = bodyTextareaRef ?? localBodyRef;
   useJournalEntryTextareaAutosize(bodyRef, body);
 
   if (isListening) {
@@ -91,6 +102,8 @@ export function NewJournalEntryBodyEditor({
                 id={`listening-${section.key}`}
                 value={listeningSections[section.key]}
                 onChange={(e) => setListeningSection(section.key, e.target.value)}
+                onFocus={onBodyFocus}
+                onBlur={onBodyBlur}
                 rows={section.rows}
                 placeholder={section.placeholder}
                 className="mt-2 font-sans text-[15px] leading-relaxed"
@@ -123,14 +136,19 @@ export function NewJournalEntryBodyEditor({
         polishResetKey={editId ?? "journal-new"}
         value={body}
         onChange={(e) => setBody(e.target.value)}
+        onFocus={onBodyFocus}
+        onBlur={onBodyBlur}
         placeholder={bodyPlaceholder}
-        className="mt-1 min-h-[40dvh] resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+        wrapperClassName={bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined}
+        className={cn(
+          "mt-1 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50",
+          bodyFocused ? "min-h-0 flex-1" : "min-h-[40dvh]",
+        )}
       />
-      {dictInterim.trim() ? (
-        <p className="text-sm italic leading-relaxed text-muted-foreground/80" aria-live="polite">
-          {dictInterim}
-        </p>
-      ) : null}
+      <DictInterimPreview
+        text={dictInterim}
+        className="text-sm italic leading-relaxed text-muted-foreground/80"
+      />
       {existingSketches.length > 0 ? (
         <JournalSketchInline
           sketches={existingSketches}

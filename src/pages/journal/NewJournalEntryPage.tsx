@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -25,10 +26,25 @@ import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
+import { useEffect } from "react";
 
 export default function NewJournalEntryPage() {
   const p = useNewJournalEntryPage();
   const { showHubShell } = useAppShellMode();
+  const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        togglePrivacyBlur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [togglePrivacyBlur]);
 
   if (p.loading) return null;
   if (!p.user) return <Navigate to="/auth" replace />;
@@ -46,7 +62,10 @@ export default function NewJournalEntryPage() {
 
   return (
     <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
-      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
+      <header
+        className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]"
+        style={p.vvOffsetTop > 0 ? { top: p.vvOffsetTop } : undefined}
+      >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
             type="button"
@@ -63,6 +82,7 @@ export default function NewJournalEntryPage() {
           >
             {p.dateLabel}
           </button>
+          <JournalPrivacyBlurToggle />
           <button
             type="button"
             onClick={p.triggerHandwritten}
@@ -114,10 +134,23 @@ export default function NewJournalEntryPage() {
 
       <main
         ref={p.mainScrollRef}
-        className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)" }}
+        className={cn(
+          "flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain",
+          p.bodyFocused && !p.inlineChatMode && "flex flex-col",
+        )}
+        style={{
+          paddingBottom: p.bodyFocused && !p.inlineChatMode
+            ? `calc(${p.kbInset}px + env(safe-area-inset-bottom) + 1rem)`
+            : "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)",
+        }}
+        onPointerDown={(e) => {
+          if (p.inlineChatMode) return;
+          const target = e.target as HTMLElement;
+          if (target.closest("textarea, input, button, a, label, [role='button']")) return;
+          p.focusBodyEditor();
+        }}
       >
-        <Input
+        <PrivacyBlurInput
           value={p.title}
           onChange={(e) => p.setTitle(e.target.value)}
           placeholder="Title"
@@ -128,6 +161,7 @@ export default function NewJournalEntryPage() {
           editId={p.editId}
           isListening={p.isListening}
           inlineChatMode={p.inlineChatMode}
+          bodyFocused={p.bodyFocused}
           body={p.body}
           setBody={p.setBody}
           bodyPlaceholder={p.bodyPlaceholder}
@@ -142,6 +176,12 @@ export default function NewJournalEntryPage() {
           existingAttachments={p.existingAttachments}
           pendingSketches={p.pendingSketches}
           pendingAttachments={p.pendingAttachments}
+          bodyTextareaRef={p.bodyTextareaRef}
+          onBodyFocus={() => {
+            p.composerLockScrollYRef.current = window.scrollY;
+            p.setBodyFocused(true);
+          }}
+          onBodyBlur={() => p.setBodyFocused(false)}
           onOpenSketch={p.triggerHandwritten}
           onRemoveExistingPhoto={(id, path) => void p.removeExistingPhoto(id, path)}
           onRemovePendingFile={p.removePendingFile}
@@ -168,7 +208,13 @@ export default function NewJournalEntryPage() {
       <nav
         ref={p.bottomDockRef}
         aria-label="Journal tools"
-        className={hubShellBottomDock(showHubShell, "z-30 flex justify-center px-3 sm:px-5 pt-2")}
+        className={hubShellBottomDock(
+          showHubShell,
+          cn(
+            "z-30 flex justify-center px-3 sm:px-5 pt-2",
+            p.bodyFocused && !p.inlineChatMode && "hidden",
+          ),
+        )}
         style={{
           paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
           transform: p.kbInset ? `translateY(-${p.kbInset}px)` : undefined,

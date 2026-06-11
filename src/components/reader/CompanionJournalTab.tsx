@@ -3,7 +3,7 @@ import { useCompanion, scopeRef } from "@/lib/reader/companionStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Loader2, Save, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -108,7 +108,7 @@ export function CompanionJournalTab() {
 
   return (
     <div className="h-full flex flex-col p-3 gap-2">
-      <Input
+      <PrivacyBlurInput
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="A title for this thought (optional)"

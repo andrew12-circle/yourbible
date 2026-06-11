@@ -5,6 +5,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { polishText } from "@/lib/ai/polishText";
 import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
+import { privacyBlurMirrorClass, usePrivacyBlurField } from "@/hooks/usePrivacyBlurField";
+import { PrivacyBlurOverlay } from "@/components/writing/PrivacyBlurOverlay";
 
 const MIN_POLISH_CHARS = 12;
 const DEFAULT_IDLE_MS = 2000;
@@ -99,11 +101,6 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       return () => window.clearTimeout(id);
     }, [value, allowAiPolish, aiWritingAssistEnabled, enableIdlePolish, disabled, idleDebounceMs, runPolish]);
 
-    const setRefs = (el: HTMLTextAreaElement | null) => {
-      if (typeof ref === "function") ref(el);
-      else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
-    };
-
     const handleBlur: React.FocusEventHandler<HTMLTextAreaElement> = async (e) => {
       if (allowAiPolish && useAiWritingAssistStore.getState().aiWritingAssistEnabled && !disabled) {
         await runPolish(valueRef.current);
@@ -112,17 +109,44 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       onAfterBlurAssist?.(valueRef.current);
     };
 
+    const {
+      privacyBlurEnabled,
+      fieldClassName,
+      bindPrivacyBlurHandlers,
+      setCombinedRef,
+      overlayProps,
+    } = usePrivacyBlurField({
+      value,
+      mirrorClassName: privacyBlurMirrorClass(className),
+    });
+
+    const privacyHandlers = bindPrivacyBlurHandlers({
+      onChange,
+      onBlur: handleBlur,
+    });
+
+    const setRefs = (el: HTMLTextAreaElement | null) => {
+      setCombinedRef(el);
+      if (typeof ref === "function") ref(el);
+      else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+    };
+
     return (
       <div className={cn("relative", wrapperClassName)}>
+        {overlayProps ? <PrivacyBlurOverlay {...overlayProps} /> : null}
         <Textarea
           {...rest}
+          {...privacyHandlers}
           ref={setRefs}
           value={value}
-          onChange={onChange}
-          onBlur={handleBlur}
           spellCheck
           disabled={disabled}
-          className={cn(className, polishing && "opacity-[0.92]")}
+          className={cn(
+            className,
+            fieldClassName,
+            privacyBlurEnabled && "relative z-[1] bg-transparent",
+            polishing && "opacity-[0.92]",
+          )}
         />
         {polishing && (
           <div

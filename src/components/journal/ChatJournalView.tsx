@@ -11,6 +11,7 @@ import {
   parseChatJournalEntry,
   type ChatJournalMessage,
 } from "@/lib/journal/chatJournalEntry";
+import { journalChatUserBubbleClass } from "@/lib/journal/journalChatUi";
 
 type Props = {
   body: string;
@@ -70,7 +71,7 @@ function SavedChatTranscript({ messages }: { messages: ChatJournalMessage[] }) {
           className={cn("flex", t.role === "user" ? "justify-end" : "justify-start")}
         >
           {t.role === "user" ? (
-            <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap">
+            <div className={journalChatUserBubbleClass}>
               {t.content}
             </div>
           ) : (

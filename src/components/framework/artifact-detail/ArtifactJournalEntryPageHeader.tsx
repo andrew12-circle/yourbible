@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +14,7 @@ export type ArtifactJournalEntryPageHeaderProps = ArtifactJournalSourceInput & {
   onTitleChange: (value: string) => void;
   titlePlaceholder?: string;
   className?: string;
+  style?: CSSProperties;
   /** Handwritten pad: compact header on ruled paper. */
   variant?: "sheet" | "compact" | "notebook";
   /** Icons/actions on the same row as the title (mobile typed journal). */
@@ -32,6 +33,7 @@ export default function ArtifactJournalEntryPageHeader({
   onTitleChange,
   titlePlaceholder = "Title",
   className,
+  style,
   variant = "sheet",
   channel,
   channelUrl,
@@ -78,6 +80,7 @@ export default function ArtifactJournalEntryPageHeader({
           : cn("border-b border-border/35", compact ? "px-3 py-2" : "pb-2"),
         className,
       )}
+      style={style}
     >
       {hasArtifactJournalSourceContent(source) ? (
         <div

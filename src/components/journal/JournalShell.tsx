@@ -16,6 +16,7 @@ import {
 import { exportJournalAsZip } from "@/lib/journal/export";
 import { toast } from "@/hooks/use-toast";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 
 interface Props {
   /** Currently scoped journal (null = aggregate). */
@@ -156,6 +157,7 @@ export default function JournalShell({
             backTo={backTo}
             right={
               <div className="flex items-center gap-2">
+                <JournalPrivacyBlurToggle tone="onCover" />
                 <AiWritingAssistToggle compact tone="onCover" />
                 <DropdownMenu>
                 <DropdownMenuTrigger asChild>

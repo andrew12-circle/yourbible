@@ -11,9 +11,9 @@ export const claimResearchColumn = "mx-auto w-full max-w-3xl";
 export const geminiSparkleIcon =
   "bg-gradient-to-br from-[#4285F4] via-[#9B72CB] via-40% to-[#EA4335] text-white";
 
-/** User turn — subtle pill, not a loud gradient bubble. */
+/** User turn — rounded rectangle that grows with content. */
 export const geminiUserTurn =
-  "max-w-[min(100%,85%)] whitespace-pre-wrap rounded-[18px] bg-muted/50 px-2.5 py-1 text-[11px] leading-snug text-foreground " +
+  "w-fit max-w-[min(100%,85%)] whitespace-pre-wrap break-words rounded-xl bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-foreground " +
   "dark:bg-muted/30";
 
 /** Gemini multi-line composer: textarea grows on top, toolbar row below. */
