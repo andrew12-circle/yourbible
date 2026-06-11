@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Calendar as CalIcon,
   Lightbulb,
@@ -32,6 +32,7 @@ interface Props {
 
 export default function JournalsRail({ journals, onChange, activeJournalId, inSheet, inDesk, onImportDayOne }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -46,7 +47,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
     setOpen(false);
     setName("");
     onChange();
-    if (j) window.location.href = `/journal/j/${j.id}`;
+    if (j) navigate(`/journal/j/${j.id}`);
   };
 
   return (

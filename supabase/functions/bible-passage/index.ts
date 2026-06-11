@@ -53,9 +53,14 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") ?? "passage";
 
-    // List available English bibles for the API key
+    // List available bibles for the API key
     if (action === "bibles") {
-      const r = await fetch(`${API_BASE}/bibles?language=eng`, {
+      const lang = url.searchParams.get("language") ?? "eng";
+      const apiUrl =
+        lang === "all"
+          ? `${API_BASE}/bibles`
+          : `${API_BASE}/bibles?language=${encodeURIComponent(lang)}`;
+      const r = await fetch(apiUrl, {
         headers: { "api-key": API_BIBLE_KEY },
       });
       const data = await r.json();

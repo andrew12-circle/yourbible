@@ -521,6 +521,58 @@
     margin-top: 0;
   }
 
+  /* Reader page tone + night reading (scoped to reader shell) */
+  .reader-page-cream {
+    --paper: 40 42% 93%;
+    --paper-warm: 38 38% 90%;
+    --paper-deep: 36 34% 84%;
+    --paper-edge: 34 28% 78%;
+  }
+  .reader-page-warm {
+    --paper: 38 28% 96%;
+    --paper-warm: 36 26% 93%;
+    --paper-deep: 34 22% 88%;
+    --paper-edge: 32 18% 82%;
+  }
+  .reader-theme-dark {
+    --paper: 222 16% 13%;
+    --paper-warm: 222 14% 16%;
+    --paper-deep: 222 12% 10%;
+    --paper-edge: 222 10% 22%;
+    --foreground: 40 18% 90%;
+    --muted-foreground: 40 8% 62%;
+    --leather: 38 55% 72%;
+    --gold-deep: 42 48% 58%;
+    --gold-bright: 46 62% 68%;
+  }
+  .reader-theme-dark .red-letter {
+    color: hsl(0 62% 58%);
+  }
+  .scripture-xref {
+    display: inline;
+    margin: 0 0.12em;
+    padding: 0 0.2em;
+    font-size: 0.72em;
+    vertical-align: super;
+    line-height: 1;
+    color: hsl(var(--gold-deep));
+    border: 0;
+    background: hsl(var(--gold-bright) / 0.12);
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+  .scripture-xref:hover {
+    background: hsl(var(--gold-bright) / 0.28);
+  }
+  .scripture-footnote {
+    display: inline;
+    margin: 0 0.1em;
+    font-size: 0.68em;
+    vertical-align: super;
+    color: hsl(var(--muted-foreground));
+    cursor: help;
+  }
+
   /* Full-page Bible illustration plates (classic study-Bible style) */
   .scripture-plate {
     margin: 0;

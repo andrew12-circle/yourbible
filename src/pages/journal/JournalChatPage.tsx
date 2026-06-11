@@ -60,10 +60,12 @@ import {
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 
-const LS_INCLUDE_GENERAL = "journal_chat.include_general";
-const LS_VOICE_REPLIES = "journal_chat.voice_replies";
-
-/** Silence after last *final* speech chunk before auto-send (~1.2–1.8s band; mid-phrase pauses use interim text to hold). */
+import {
+  readJournalChatIncludeGeneralDefault,
+  persistJournalChatIncludeGeneral,
+  readJournalChatVoiceRepliesDefault,
+  persistJournalChatVoiceReplies,
+} from "@/lib/journal/chatComposerSettings";
 const SILENCE_AFTER_FINAL_MS = 1500;
 
 type Citation = {
@@ -95,17 +97,11 @@ type MyAiInvokeOk = {
 };
 
 function readIncludeGeneralDefault(): boolean {
-  if (typeof window === "undefined") return true;
-  const v = localStorage.getItem(LS_INCLUDE_GENERAL);
-  if (v === "0" || v === "false") return false;
-  return true;
+  return readJournalChatIncludeGeneralDefault();
 }
 
 function readVoiceRepliesDefault(): boolean {
-  if (typeof window === "undefined") return false;
-  const v = localStorage.getItem(LS_VOICE_REPLIES);
-  if (v === "1" || v === "true") return true;
-  return false;
+  return readJournalChatVoiceRepliesDefault();
 }
 
 function stripMarkdownForTts(md: string): string {
@@ -358,8 +354,7 @@ export default function JournalChatPage() {
   }, [loadSessions]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(LS_INCLUDE_GENERAL, includeGeneral ? "1" : "0");
+    persistJournalChatIncludeGeneral(includeGeneral);
   }, [includeGeneral]);
 
   useEffect(() => {
@@ -367,8 +362,7 @@ export default function JournalChatPage() {
   }, [responseDepth]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(LS_VOICE_REPLIES, voiceReplies ? "1" : "0");
+    persistJournalChatVoiceReplies(voiceReplies);
   }, [voiceReplies]);
 
   // Load entry + linked chat for :entryId; bootstrap opener when thread is empty.

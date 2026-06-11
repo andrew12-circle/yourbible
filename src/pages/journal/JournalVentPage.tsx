@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { getDefaultJournalId } from "@/lib/journal/journals";
-import JournalLayout from "@/pages/journal/JournalLayout";
+import JournalShell from "@/components/journal/JournalShell";
 
 interface VentRow {
   id: string;
@@ -40,7 +40,7 @@ export default function JournalVentPage() {
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
 
-  const loadRecent = async () => {
+  const loadRecent = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from("journal_entries")
@@ -50,14 +50,13 @@ export default function JournalVentPage() {
       .order("entry_at_ts", { ascending: false })
       .limit(20);
     setRecent((data as VentRow[]) ?? []);
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
     void loadRecent();
     requestAnimationFrame(() => taRef.current?.focus());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loadRecent]);
 
   const charCount = body.length;
   const wordCount = useMemo(() => (body.trim() ? body.trim().split(/\s+/).length : 0), [body]);
@@ -112,7 +111,16 @@ export default function JournalVentPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <JournalLayout title="Vent space" back="/journal" largeTitle right={<><JournalPrivacyBlurToggle /><AiWritingAssistToggle compact /></>}>
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle="Vent space"
+      backTo="/journal"
+      hideComposeFab
+      headerRight={<><JournalPrivacyBlurToggle tone="onCover" /><AiWritingAssistToggle compact tone="onCover" /></>}
+    >
+      <div className="px-5 pt-3 pb-safe-28">
       <div className="-mt-2 mb-5 flex items-start gap-3 rounded-2xl border border-zinc-800/15 bg-zinc-900/[0.04] p-4 text-[14px] leading-relaxed text-foreground/85 dark:border-white/10 dark:bg-white/[0.04]">
         <Flame className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" aria-hidden />
         <p className="min-w-0">
@@ -197,7 +205,8 @@ export default function JournalVentPage() {
           </div>
         )}
       </section>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }
 

@@ -26,12 +26,12 @@ export function readViewportSize(): ViewportSize {
 }
 
 /**
- * Two-page spread: any landscape (including phones) + large portrait monitors.
- * Single page: phone/tablet portrait only.
+ * Two-page spread: tablet+ landscape and large portrait monitors.
+ * Phone landscape stays single-page (columns too narrow).
  */
 export function isReaderSpreadLayout(size: ViewportSize = readViewportSize()): boolean {
   const { width, height, landscape } = size;
-  if (landscape) return true;
+  if (landscape) return width >= READER_SINGLE_PAGE_MAX;
   if (width >= READER_DESKTOP_MIN_PX && height >= 800) return true;
   return false;
 }

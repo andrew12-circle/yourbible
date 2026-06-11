@@ -13,6 +13,8 @@ import { parseHomeMode } from "@/lib/profile/homeMedia";
 import { cn } from "@/lib/utils";
 import { todayIso, useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
+import { SettingsOfflineBible } from "@/components/settings/SettingsOfflineBible";
+import { readBibleLanguage, LS_BIBLE_LANGUAGE_KEY } from "@/hooks/useBibles";
 
 type SettingsState = ReturnType<typeof useSettingsPage>;
 
@@ -128,9 +130,37 @@ export function SettingsReaderSection({ state }: { state: SettingsState }) {
   if (!profile) return null;
 
   const previewPalette = PALETTES.find((p) => p.id === profile.highlight_palette) ?? PALETTES[0];
+  const bibleLanguage = readBibleLanguage();
 
   return (
     <div className="space-y-4">
+      <SettingsCard>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+            <Languages className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="settings-bible-lang">Bible language</Label>
+            <select
+              id="settings-bible-lang"
+              value={bibleLanguage}
+              onChange={(e) => {
+                localStorage.setItem(LS_BIBLE_LANGUAGE_KEY, e.target.value);
+                window.location.reload();
+              }}
+              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="eng">English</option>
+              <option value="spa">Spanish</option>
+              <option value="fra">French</option>
+              <option value="deu">German</option>
+              <option value="por">Portuguese</option>
+              <option value="all">All languages</option>
+            </select>
+          </div>
+        </div>
+      </SettingsCard>
+
       <SettingsCard>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
@@ -189,6 +219,8 @@ export function SettingsReaderSection({ state }: { state: SettingsState }) {
           </p>
         </motion.div>
       </SettingsCard>
+
+      <SettingsOfflineBible bibleId={bibleId} />
     </div>
   );
 }

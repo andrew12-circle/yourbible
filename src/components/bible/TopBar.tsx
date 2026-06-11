@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2 } from "lucide-react";
+import { Eye, EyeOff, Moon, Sun, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2, ScrollText, BookOpen } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
 import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
@@ -73,6 +73,12 @@ interface Props {
   audioLoading?: boolean;
   audioDisabled?: boolean;
   online?: boolean;
+  displayMode?: "scroll" | "pages";
+  onToggleDisplayMode?: () => void;
+  readerDark?: boolean;
+  onToggleReaderDark?: () => void;
+  audioPlaybackRate?: number;
+  onCycleAudioSpeed?: () => void;
   /** Position chrome within the hub workspace card instead of the viewport. */
   containedInHub?: boolean;
   hubFullscreen?: boolean;
@@ -98,6 +104,12 @@ export function TopBar({
   audioLoading = false,
   audioDisabled = false,
   online = true,
+  displayMode = "pages",
+  onToggleDisplayMode,
+  readerDark = false,
+  onToggleReaderDark,
+  audioPlaybackRate = 1,
+  onCycleAudioSpeed,
   containedInHub = false,
   hubFullscreen = false,
   onToggleHubFullscreen,
@@ -483,6 +495,20 @@ export function TopBar({
                   </PopoverContent>
                 </Popover>
               ) : null}
+              {onToggleDisplayMode ? (
+                <ReaderIconButton
+                  onClick={onToggleDisplayMode}
+                  title={displayMode === "scroll" ? "Switch to page mode" : "Switch to scroll mode"}
+                  active={displayMode === "scroll"}
+                  ariaPressed={displayMode === "scroll"}
+                >
+                  {displayMode === "scroll" ? (
+                    <ScrollText className="w-[18px] h-[18px]" strokeWidth={2} />
+                  ) : (
+                    <BookOpen className="w-[18px] h-[18px]" strokeWidth={2} />
+                  )}
+                </ReaderIconButton>
+              ) : null}
               {onToggleInkMode ? (
               <ReaderIconButton
                 onClick={onToggleInkMode}
@@ -505,12 +531,17 @@ export function TopBar({
               {onToggleAudio ? (
                 <ReaderIconButton
                   onClick={onToggleAudio}
+                  onContextMenu={(e) => {
+                    if (!onCycleAudioSpeed) return;
+                    e.preventDefault();
+                    onCycleAudioSpeed();
+                  }}
                   title={
                     audioDisabled
                       ? "Audio unavailable offline"
                       : audioPlaying
-                        ? "Pause chapter audio"
-                        : "Listen to chapter"
+                        ? `Pause chapter audio (${audioPlaybackRate}x — right-click for speed)`
+                        : `Listen to chapter (${audioPlaybackRate}x — right-click for speed)`
                   }
                   disabled={audioDisabled || audioLoading}
                   active={audioPlaying}
@@ -528,11 +559,26 @@ export function TopBar({
               <ReaderIconButton onClick={onBookmark} title="Bookmark this page">
                 <BookmarkPlus className="w-[18px] h-[18px]" strokeWidth={2} />
               </ReaderIconButton>
-              <ReaderIconButton asChild title="Sleep mode">
-                <Link to="/sleep">
-                  <Moon className="w-[18px] h-[18px]" strokeWidth={2} />
-                </Link>
-              </ReaderIconButton>
+              {onToggleReaderDark ? (
+                <ReaderIconButton
+                  onClick={onToggleReaderDark}
+                  title={readerDark ? "Light page" : "Dark page"}
+                  active={readerDark}
+                  ariaPressed={readerDark}
+                >
+                  {readerDark ? (
+                    <Sun className="w-[18px] h-[18px]" strokeWidth={2} />
+                  ) : (
+                    <Moon className="w-[18px] h-[18px]" strokeWidth={2} />
+                  )}
+                </ReaderIconButton>
+              ) : (
+                <ReaderIconButton asChild title="Sleep mode">
+                  <Link to="/sleep">
+                    <Moon className="w-[18px] h-[18px]" strokeWidth={2} />
+                  </Link>
+                </ReaderIconButton>
+              )}
               <ReaderIconButton asChild title="My Framework">
                 <Link to="/framework">
                   <Network className="w-[18px] h-[18px]" strokeWidth={2} />

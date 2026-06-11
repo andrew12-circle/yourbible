@@ -1,5 +1,6 @@
-import { ReactNode } from "react";
+import { ReactNode, type CSSProperties } from "react";
 import { PageStackEdge } from "@/components/bible/PageStackEdge";
+import { cn } from "@/lib/utils";
 
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
@@ -14,6 +15,11 @@ interface Props {
   fillContainer?: boolean;
   pageSide?: "left" | "right";
   ribbons?: ReactNode;
+  /** User-selected leather cover (CSS variables). */
+  coverStyle?: CSSProperties;
+  coverClassName?: string;
+  /** Page tone / reader theme classes on the paper surface. */
+  pageClassName?: string;
 }
 
 const LEATHER_BG = {
@@ -29,7 +35,7 @@ const LEATHER_BG = {
 const MOBILE_SPINE_W = 20;
 
 /** Leather spine strip on the outer edge of a single-page mobile view. */
-function MobileBookSpine() {
+function MobileBookSpine({ coverStyle }: { coverStyle?: CSSProperties }) {
   return (
     <>
       <div
@@ -47,6 +53,7 @@ function MobileBookSpine() {
         style={{
           width: MOBILE_SPINE_W,
           ...LEATHER_BG,
+          ...coverStyle,
           boxShadow:
             "-10px 0 22px -8px hsl(0 0% 0% / 0.42), " +
             "inset 2px 0 0 hsl(38 58% 52% / 0.55), " +
@@ -84,6 +91,9 @@ export function BookScene({
   fillContainer = false,
   pageSide = "left",
   ribbons,
+  coverStyle,
+  coverClassName,
+  pageClassName,
 }: Props) {
   const showLeft = !singlePage || pageSide === "left";
   const showRight = !singlePage || pageSide === "right";
@@ -123,9 +133,10 @@ export function BookScene({
         >
           {/* Leather cover — visible on top, left, right, and bottom */}
           <div
-            className="relative flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden"
+            className={cn("relative flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden", coverClassName)}
             style={{
               ...LEATHER_BG,
+              ...coverStyle,
               boxShadow:
                 "0 20px 48px -16px hsl(0 0% 0% / 0.45), " +
                 "0 6px 16px -6px hsl(0 0% 0% / 0.35), " +
@@ -163,6 +174,8 @@ export function BookScene({
                 <div
                   className={
                     "relative flex flex-1 min-h-0 min-w-0 overflow-hidden bg-paper " +
+                    (pageClassName ?? "") +
+                    " " +
                     (singlePage ? "" : "flex-row")
                   }
                 >
@@ -178,7 +191,7 @@ export function BookScene({
                       >
                         {pageSide === "left" ? leftPage : rightPage}
                       </div>
-                      <MobileBookSpine />
+                      <MobileBookSpine coverStyle={coverStyle} />
                     </div>
                   ) : (
                     <>

@@ -2,9 +2,18 @@ import { useEffect, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { searchBible, type BibleSearchHit } from "@/lib/bible/api";
-import { findBookByAbbr } from "@/data/books";
+import { BOOKS, findBookByAbbr } from "@/data/books";
+import { looksLikeBibleReference, parseBibleReference } from "@/lib/bible/parseBibleReference";
+import { pushRecentSearch, readRecentSearches } from "@/lib/bible/searchRecent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 type Props = {
@@ -17,15 +26,20 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
   const navigate = useNavigate();
   const online = useOnlineStatus();
   const [query, setQuery] = useState("");
+  const [bookFilter, setBookFilter] = useState<string>("all");
   const [results, setResults] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
       setResults([]);
       setError(null);
+      setBookFilter("all");
+    } else {
+      setRecent(readRecentSearches());
     }
   }, [open]);
 
@@ -33,6 +47,14 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
     if (!open || !bibleId || query.trim().length < 2) {
       setResults([]);
       setError(null);
+      return;
+    }
+
+    const ref = parseBibleReference(query);
+    if (ref) {
+      setResults([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
@@ -46,7 +68,11 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      searchBible(bibleId, query.trim(), 25, controller.signal)
+      searchBible(bibleId, query.trim(), 40, controller.signal)
+        .then((hits) => {
+          if (bookFilter === "all") return hits;
+          return hits.filter((h) => h.book === bookFilter);
+        })
         .then(setResults)
         .catch((err) => {
           if (controller.signal.aborted) return;
@@ -62,16 +88,28 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [open, bibleId, query, online]);
+  }, [open, bibleId, query, online, bookFilter]);
 
   if (!open) return null;
 
-  const jumpTo = (hit: BibleSearchHit) => {
+  const jumpToHit = (hit: BibleSearchHit) => {
+    pushRecentSearch(query.trim() || hit.reference);
     const book = findBookByAbbr(hit.book);
     const abbr = book?.abbr ?? hit.book;
     onClose();
     navigate(`/read/${abbr}/${hit.chapter}?v=${hit.verse}`);
   };
+
+  const jumpToReference = () => {
+    const ref = parseBibleReference(query);
+    if (!ref) return;
+    pushRecentSearch(query.trim());
+    onClose();
+    const suffix = ref.verse ? `?v=${ref.verse}` : "";
+    navigate(`/read/${ref.bookAbbr}/${ref.chapter}${suffix}`);
+  };
+
+  const parsedRef = looksLikeBibleReference(query) ? parseBibleReference(query) : null;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-start justify-center bg-black/40 px-4 pt-[max(3rem,env(safe-area-inset-top))]">
@@ -87,7 +125,10 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the Bible…"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && parsedRef) jumpToReference();
+            }}
+            placeholder="Search or type John 3:16…"
             className="border-0 shadow-none focus-visible:ring-0"
             aria-label="Search query"
           />
@@ -96,8 +137,56 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
           </Button>
         </div>
 
+        <div className="flex items-center gap-2 border-b px-3 py-2">
+          <Select value={bookFilter} onValueChange={setBookFilter}>
+            <SelectTrigger className="h-8 text-xs" aria-label="Filter by book">
+              <SelectValue placeholder="All books" />
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              <SelectItem value="all">All books</SelectItem>
+              {BOOKS.map((b) => (
+                <SelectItem key={b.abbr} value={b.abbr}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="max-h-[min(60vh,420px)] overflow-y-auto p-2">
-          {!online && (
+          {parsedRef ? (
+            <button
+              type="button"
+              onClick={jumpToReference}
+              className="w-full text-left rounded-xl px-3 py-3 hover:bg-muted/60 transition border border-primary/20 bg-primary/5"
+            >
+              <div className="text-xs font-semibold text-primary">Go to reference</div>
+              <p className="text-sm mt-0.5">
+                {findBookByAbbr(parsedRef.bookAbbr)?.name ?? parsedRef.bookAbbr} {parsedRef.chapter}
+                {parsedRef.verse ? `:${parsedRef.verse}` : ""}
+              </p>
+            </button>
+          ) : null}
+
+          {!query.trim() && recent.length > 0 ? (
+            <div className="px-1 py-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                Recent
+              </p>
+              {recent.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setQuery(r)}
+                  className="w-full text-left rounded-lg px-2 py-1.5 text-sm hover:bg-muted/50"
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!online && !parsedRef && (
             <p className="text-sm text-muted-foreground px-2 py-4">Connect to search Scripture.</p>
           )}
           {loading && (
@@ -109,14 +198,14 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
           {error && !loading && (
             <p className="text-sm text-destructive px-2 py-4">{error}</p>
           )}
-          {!loading && !error && query.trim().length >= 2 && results.length === 0 && online && (
+          {!loading && !error && !parsedRef && query.trim().length >= 2 && results.length === 0 && online && (
             <p className="text-sm text-muted-foreground px-2 py-4">No results for “{query.trim()}”.</p>
           )}
           {results.map((hit, i) => (
             <button
               key={`${hit.reference}-${i}`}
               type="button"
-              onClick={() => jumpTo(hit)}
+              onClick={() => jumpToHit(hit)}
               className="w-full text-left rounded-xl px-3 py-2.5 hover:bg-muted/60 transition"
             >
               <div className="text-xs font-semibold text-primary">{hit.reference}</div>

@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalShell from "@/components/journal/JournalShell";
+import { journalEntryHref } from "@/lib/journal/entryNavigation";
 
 interface Row {
   id: string;
@@ -13,6 +14,35 @@ interface Row {
   lat: number;
   lng: number;
   location_name: string | null;
+  entry_kind: string | null;
+}
+
+const MAX_MAP_MARKERS = 25;
+
+function buildStaticMapUrl(rows: Row[]): string | null {
+  if (!rows.length) return null;
+  const lats = rows.map((r) => r.lat);
+  const lngs = rows.map((r) => r.lng);
+  const pad = 0.05;
+  const minLat = Math.min(...lats) - pad;
+  const maxLat = Math.max(...lats) + pad;
+  const minLng = Math.min(...lngs) - pad;
+  const maxLng = Math.max(...lngs) + pad;
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
+  const span = Math.max(maxLat - minLat, maxLng - minLng);
+  const zoom = span > 8 ? 4 : span > 2 ? 6 : span > 0.5 ? 8 : span > 0.1 ? 10 : 12;
+  const markers = rows
+    .slice(0, MAX_MAP_MARKERS)
+    .map((r) => `${r.lat},${r.lng},red`)
+    .join("|");
+  const params = new URLSearchParams({
+    center: `${centerLat},${centerLng}`,
+    zoom: String(zoom),
+    size: "640x360",
+    markers,
+  });
+  return `https://staticmap.openstreetmap.de/staticmap.php?${params.toString()}`;
 }
 
 export default function JournalMapPage() {
@@ -23,10 +53,10 @@ export default function JournalMapPage() {
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
+    void (async () => {
       let q = supabase
         .from("journal_entries")
-        .select("id,title,body,entry_at_ts,lat,lng,location_name")
+        .select("id,title,body,entry_at_ts,lat,lng,location_name,entry_kind")
         .or("entry_kind.is.null,entry_kind.neq.vent")
         .not("lat", "is", null)
         .not("lng", "is", null)
@@ -38,37 +68,29 @@ export default function JournalMapPage() {
     })();
   }, [user, journalId]);
 
-  // Compute bbox containing all markers, fall back to a sane default.
-  const { bbox, markers } = useMemo(() => {
-    if (!rows.length) {
-      return { bbox: "-180,-60,180,75", markers: "" };
-    }
-    const lats = rows.map((r) => r.lat);
-    const lngs = rows.map((r) => r.lng);
-    const pad = 0.05;
-    const bb = `${Math.min(...lngs) - pad},${Math.min(...lats) - pad},${Math.max(...lngs) + pad},${Math.max(...lats) + pad}`;
-    // OSM embed only supports a single marker; use the most recent.
-    const m = `${rows[0].lat},${rows[0].lng}`;
-    return { bbox: bb, markers: m };
-  }, [rows]);
+  const mapUrl = useMemo(() => buildStaticMapUrl(rows), [rows]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik${markers ? `&marker=${markers}` : ""}`;
-
   return (
-    <JournalShell journalId={journalId} activeTab="map" totalCount={rows.length}>
+    <JournalShell journalId={journalId} activeTab="map" totalCount={rows.length} backTo="/journal">
       <div className="px-3">
-        <div className="overflow-hidden rounded-2xl border border-border mb-4" style={{ height: 360 }}>
-          <iframe
-            title="Entries map"
-            src={src}
-            className="w-full h-full"
-            style={{ border: 0 }}
-            loading="lazy"
-          />
-        </div>
+        {mapUrl ? (
+          <div className="overflow-hidden rounded-2xl border border-border mb-2" style={{ height: 360 }}>
+            <img
+              src={mapUrl}
+              alt="Map of journal entry locations"
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+        {rows.length > MAX_MAP_MARKERS && (
+          <p className="mb-4 text-center text-[12px] text-muted-foreground">
+            Showing {MAX_MAP_MARKERS} of {rows.length} locations on the map.
+          </p>
+        )}
 
         {rows.length === 0 ? (
           <div className="text-center py-12 px-6">
@@ -82,7 +104,7 @@ export default function JournalMapPage() {
             {rows.map((r) => (
               <li key={r.id}>
                 <Link
-                  to={`/journal/${r.id}`}
+                  to={journalEntryHref(r.id, r.entry_kind)}
                   className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40"
                 >
                   <MapPin className="w-4 h-4 mt-1 text-primary flex-shrink-0" />

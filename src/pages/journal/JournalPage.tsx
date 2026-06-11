@@ -24,6 +24,17 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useJournalTitleBackfill } from "@/hooks/useJournalTitleBackfill";
 import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
+import {
+  fetchJournalEntryListPage,
+  JOURNAL_LIST_PAGE_SIZE,
+  type JournalEntryListRow,
+} from "@/lib/journal/entryListQuery";
+import {
+  journalDeskEntryHref,
+  journalEntryHref,
+  journalNewEntryEditHref,
+} from "@/lib/journal/entryNavigation";
+import { Button } from "@/components/ui/button";
 
 interface Entry extends EntryListData {
   journal_id: string | null;
@@ -84,8 +95,12 @@ export default function JournalPage() {
         return;
       }
       setReloadKey((k) => k + 1);
-      if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
-      else navigate(`/journal/e/${data.id}`);
+      if (isDesktop) {
+        if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
+        else navigate(`/journal/e/${data.id}`);
+      } else {
+        navigate(journalNewEntryEditHref(data.id));
+      }
     } finally {
       setCreating(false);
     }
@@ -116,10 +131,8 @@ export default function JournalPage() {
               selectedId={entryId}
               reloadKey={reloadKey}
               headingLabel={activeJournal?.name ?? "All entries"}
-              onSelect={(id) =>
-                journalId
-                  ? navigate(`/journal/j/${journalId}/e/${id}`)
-                  : navigate(`/journal/e/${id}`)
+              onSelect={(id, entryKind) =>
+                navigate(journalDeskEntryHref(id, journalId, entryKind))
               }
               onNew={createNew}
               onDeleted={() => {
@@ -181,7 +194,34 @@ export default function JournalPage() {
     );
   }
 
+  if (!isDesktop && entryId) {
+    return <MobileEntryRedirect entryId={entryId} />;
+  }
+
   return <MobileJournalList journalId={journalId} />;
+}
+
+/** Resolve entry kind then open the correct mobile read/chat route. */
+function MobileEntryRedirect({ entryId }: { entryId: string }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("journal_entries")
+        .select("entry_kind")
+        .eq("id", entryId)
+        .maybeSingle();
+      if (cancelled) return;
+      navigate(journalEntryHref(entryId, data?.entry_kind), { replace: true });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entryId, navigate]);
+
+  return null;
 }
 
 /** Mobile list with swipe actions on each row. */
@@ -191,48 +231,65 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadEntries = useCallback(async () => {
-    if (!user) return;
-    let query = supabase
-      .from("journal_entries")
-      .select(
-        "id,title,body,summary,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
-      )
-      .order("pinned", { ascending: false })
-      .order("entry_at_ts", { ascending: false })
-      .limit(300);
-    if (journalId) query = query.eq("journal_id", journalId);
-    query = query.or("entry_kind.is.null,entry_kind.neq.vent");
-    const { data } = await query;
-    const list = (data as Entry[]) ?? [];
-    setEntries(list);
-
+  const attachPhotoUrls = useCallback(async (list: JournalEntryListRow[], merge: boolean) => {
     const ids = list.map((e) => e.id);
-    if (ids.length) {
-      const { data: photos } = await supabase
-        .from("journal_photos")
-        .select("entry_id,storage_path,created_at")
-        .in("entry_id", ids)
-        .order("created_at");
-      const firstByEntry: Record<string, string> = {};
-      (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-        if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-      });
-      const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-      const byEntry: Record<string, string> = {};
-      for (const [eid, p] of Object.entries(firstByEntry)) {
-        if (urls[p]) byEntry[eid] = urls[p];
-      }
-      setPhotoUrls(byEntry);
-    } else {
-      setPhotoUrls({});
+    if (!ids.length) {
+      if (!merge) setPhotoUrls({});
+      return;
     }
-  }, [user, journalId]);
+    const { data: photos } = await supabase
+      .from("journal_photos")
+      .select("entry_id,storage_path,created_at")
+      .in("entry_id", ids)
+      .order("created_at");
+    const firstByEntry: Record<string, string> = {};
+    (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
+      if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
+    });
+    const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
+    const byEntry: Record<string, string> = {};
+    for (const [eid, p] of Object.entries(firstByEntry)) {
+      if (urls[p]) byEntry[eid] = urls[p];
+    }
+    setPhotoUrls((prev) => (merge ? { ...prev, ...byEntry } : byEntry));
+  }, []);
+
+  const loadEntries = useCallback(
+    async (append = false) => {
+      if (!user) return;
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setLoadError(null);
+      try {
+        const offset = append ? entries.length : 0;
+        const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
+          journalId,
+          offset,
+          limit: JOURNAL_LIST_PAGE_SIZE,
+        });
+        setHasMore(more);
+        setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
+        await attachPhotoUrls(rows, append);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setLoadError(msg);
+        toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [user, journalId, entries.length, attachPhotoUrls],
+  );
 
   useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    void loadEntries(false);
+  }, [user, journalId]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when journal scope changes
 
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -324,7 +381,21 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
         </div>
       </div>
 
-      {filtered.length === 0 && (
+      {loadError && filtered.length === 0 && (
+        <div className="text-center py-16 px-6">
+          <p className="text-[15px] font-semibold">Couldn&apos;t load entries</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-3">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => void loadEntries(false)}>
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {loading && entries.length === 0 && !loadError && (
+        <div className="text-center py-20 px-6 text-muted-foreground text-sm">Loading…</div>
+      )}
+
+      {!loading && filtered.length === 0 && !loadError && (
         <div className="text-center py-20 px-6">
           <p className="text-lg font-semibold tracking-tight">No entries yet</p>
           <p className="text-[15px] text-muted-foreground mt-1">
@@ -370,6 +441,19 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
           </div>
         </section>
       ))}
+
+      {hasMore && !q.trim() && (
+        <div className="px-5 py-6 text-center">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={loadingMore}
+            onClick={() => void loadEntries(true)}
+          >
+            {loadingMore ? "Loading…" : "Load more entries"}
+          </Button>
+        </div>
+      )}
     </JournalShell>
   );
 }

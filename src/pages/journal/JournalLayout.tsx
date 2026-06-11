@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 
 /**
- * Compatibility layout used by sub-pages (composer, entry detail, calendar,
- * mirror) that haven't been migrated to JournalShell yet. iOS-style nav bar.
+ * Legacy layout kept for routes that embed a minimal back header outside JournalShell.
+ * Prefer JournalShell for new journal sub-pages.
  */
 export default function JournalLayout({
   title,

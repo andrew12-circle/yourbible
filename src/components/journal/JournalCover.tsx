@@ -85,8 +85,17 @@ export default function JournalCover({
             >
               <Menu className="w-[22px] h-[22px]" strokeWidth={2.2} />
             </button>
+            {backTo && backTo !== "/home" ? (
+              <Link
+                to={backTo}
+                className="md:hidden flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]"
+              >
+                <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
+                Back
+              </Link>
+            ) : null}
             <Link
-              to={backTo}
+              to={backTo ?? "/home"}
               className="hidden md:flex items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]"
             >
               <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />

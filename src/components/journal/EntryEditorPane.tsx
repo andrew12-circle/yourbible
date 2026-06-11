@@ -299,7 +299,7 @@ export default function EntryEditorPane({
     : null;
   const editingChatSummary = showSavedChatView && bodyEditing;
   const bodyTextareaValue = editingChatSummary
-    ? (chatParsed?.summary ?? "")
+    ? (entry?.summary ?? chatParsed?.summary ?? "")
     : (entry?.body ?? "");
 
   useJournalEntryTextareaAutosize(
@@ -597,9 +597,8 @@ export default function EntryEditorPane({
     const cur = entryRef.current;
     if (!cur) return;
     if (editingChatSummary && chatParsed && chatParsed.kind !== "plain") {
-      const summary = nextText.trim();
-      const newBody = composeSavedChatJournalBody(summary, chatParsed.messages);
-      queueSave({ body: newBody, summary: summary || null });
+      const newBody = composeSavedChatJournalBody(nextText, chatParsed.messages);
+      queueSave({ body: newBody, summary: nextText || null });
       return;
     }
     queueSave({ body: nextText });

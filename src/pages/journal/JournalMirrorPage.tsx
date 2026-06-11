@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { Loader2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import JournalLayout from "./JournalLayout";
+import JournalShell from "@/components/journal/JournalShell";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
@@ -34,7 +34,7 @@ export default function JournalMirrorPage() {
   const [running, setRunning] = useState(false);
   const [scoredCount, setScoredCount] = useState(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data } = await supabase
       .from("journal_mirror_reports")
       .select("*")
@@ -45,12 +45,12 @@ export default function JournalMirrorPage() {
       .from("journal_entry_scores")
       .select("id", { count: "exact", head: true });
     setScoredCount(count ?? 0);
-  };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    load();
-  }, [user]);
+    void load();
+  }, [user, load]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -68,7 +68,15 @@ export default function JournalMirrorPage() {
   };
 
   return (
-    <JournalLayout title="Worldview mirror" back="/journal">
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle="Worldview mirror"
+      backTo="/journal"
+      hideComposeFab
+    >
+      <div className="px-5 pt-3 pb-safe-28">
       <div className="rounded-xl border border-border bg-gradient-to-br from-amber-50 to-rose-50 p-5 mb-6">
         <div className="flex items-start gap-3">
           <Sparkles className="w-6 h-6 text-amber-600" />
@@ -99,7 +107,8 @@ export default function JournalMirrorPage() {
           <ReportCard key={r.id} report={r} />
         ))}
       </div>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }
 

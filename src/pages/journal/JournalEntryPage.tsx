@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import JournalLayout from "./JournalLayout";
+import JournalShell from "@/components/journal/JournalShell";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
+import { deleteJournalEntry } from "@/lib/journal/entryActions";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
@@ -67,7 +68,7 @@ export default function JournalEntryPage() {
   const autoTranscribeAttempted = useRef(false);
   const titleSuggestAttempted = useRef(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setEntryLoading(true);
     setEntryNotFound(false);
@@ -115,15 +116,14 @@ export default function JournalEntryPage() {
       setLinksReloadKey((k) => k + 1);
     }
     setEntryLoading(false);
-  };
+  }, [id, user?.id]);
 
   useEffect(() => {
     if (!user) return;
     autoTranscribeAttempted.current = false;
     titleSuggestAttempted.current = false;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, id]);
+    void load();
+  }, [user, load]);
 
   const sketchStoragePaths = useMemo(() => {
     const { sketches } = partitionJournalPhotos(photos);
@@ -163,7 +163,7 @@ export default function JournalEntryPage() {
         });
       }
     })();
-  }, [entry, needsSketchTranscription, sketchStoragePaths, transcribingSketch]);
+  }, [entry, needsSketchTranscription, sketchStoragePaths, transcribingSketch, load]);
 
   useEffect(() => {
     if (!entry || titleSuggestAttempted.current) return;
@@ -200,18 +200,19 @@ export default function JournalEntryPage() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
+
   if (entryLoading) {
     return (
-      <JournalLayout title="Entry" back="/journal">
-        <div className="flex justify-center py-16">
+      <JournalShell journalId={null} activeTab="list" showTabs={false} coverTitle="Entry" backTo="/journal" hideComposeFab>
+        <div className="flex justify-center py-16 px-5">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      </JournalLayout>
+      </JournalShell>
     );
   }
   if (entryNotFound || !entry) {
     return (
-      <JournalLayout title="Entry not found" back="/journal">
+      <JournalShell journalId={null} activeTab="list" showTabs={false} coverTitle="Entry not found" backTo="/journal" hideComposeFab>
         <div className="text-center py-16 px-6">
           <p className="text-[15px] font-semibold">Entry not found</p>
           <p className="text-[13px] text-muted-foreground mt-1 mb-4">This entry may have been deleted.</p>
@@ -219,13 +220,22 @@ export default function JournalEntryPage() {
             <Link to="/journal">Back to journal</Link>
           </Button>
         </div>
-      </JournalLayout>
+      </JournalShell>
     );
   }
 
+  if (entry.entry_kind === "chat") {
+    return <Navigate to={`/journal/chat/${entry.id}`} replace />;
+  }
+
   const remove = async () => {
+    if (!user || !entry) return;
     if (!confirm("Delete this entry permanently?")) return;
-    await supabase.from("journal_entries").delete().eq("id", entry.id);
+    const { error } = await deleteJournalEntry(entry.id, user.id);
+    if (error) {
+      toast({ title: "Couldn't delete entry", description: error.message, variant: "destructive" });
+      return;
+    }
     navigate("/journal");
   };
 
@@ -279,20 +289,25 @@ export default function JournalEntryPage() {
   const entryHeading = entry.title?.trim() || null;
 
   return (
-    <JournalLayout
-      title={entryHeading ?? "Entry"}
-      back="/journal"
-      right={
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle={entryHeading ?? "Entry"}
+      backTo="/journal"
+      hideComposeFab
+      headerRight={
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" onClick={() => navigate(`/journal/${entry.id}/edit`)}>
+          <Button size="icon" variant="ghost" className="text-white hover:bg-white/15" onClick={() => navigate(`/journal/${entry.id}/edit`)}>
             <Edit className="w-4 h-4" />
           </Button>
-          <Button size="icon" variant="ghost" onClick={remove}>
-            <Trash2 className="w-4 h-4 text-destructive" />
+          <Button size="icon" variant="ghost" className="text-white hover:bg-white/15" onClick={() => void remove()}>
+            <Trash2 className="w-4 h-4 text-red-200" />
           </Button>
         </div>
       }
     >
+      <div className="px-5 pt-3 pb-safe-28">
       {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
         <Button
           variant="outline"
@@ -506,7 +521,8 @@ export default function JournalEntryPage() {
           </div>
         </div>
       </section>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }
 

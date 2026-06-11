@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Lightbulb, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import JournalLayout from "./JournalLayout";
+import JournalShell from "@/components/journal/JournalShell";
 import { Input } from "@/components/ui/input";
 
 interface Prompt {
@@ -18,7 +18,7 @@ export default function JournalPromptsPage() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    supabase
+    void supabase
       .from("journal_prompts")
       .select("id,text,category")
       .order("category")
@@ -46,7 +46,14 @@ export default function JournalPromptsPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <JournalLayout title="Prompts" back="/journal">
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle="Prompts"
+      backTo="/journal"
+    >
+      <div className="px-5 pt-3 pb-safe-28">
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
@@ -86,6 +93,7 @@ export default function JournalPromptsPage() {
           </section>
         ))}
       </div>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }

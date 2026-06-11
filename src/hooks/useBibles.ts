@@ -2,11 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
 
 export const BIBLES_QUERY_KEY = ["bibles"] as const;
+export const LS_BIBLE_LANGUAGE_KEY = "yb.bibleLanguage";
 
-export function useBibles() {
+export function readBibleLanguage(): string {
+  try {
+    return localStorage.getItem(LS_BIBLE_LANGUAGE_KEY) ?? "eng";
+  } catch {
+    return "eng";
+  }
+}
+
+export function useBibles(language = readBibleLanguage()) {
   return useQuery<BibleEntry[]>({
-    queryKey: BIBLES_QUERY_KEY,
-    queryFn: listBibles,
+    queryKey: [...BIBLES_QUERY_KEY, language],
+    queryFn: () => listBibles(language),
     staleTime: 1000 * 60 * 60 * 24,
     gcTime: 1000 * 60 * 60 * 24 * 7,
   });

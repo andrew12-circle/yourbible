@@ -18,9 +18,9 @@ describe("layoutMode", () => {
     expect(isReaderSinglePageLayout(vp(390, 844, false))).toBe(true);
   });
 
-  it("uses spread layout for phone landscape", () => {
-    expect(isReaderSpreadLayout(vp(844, 390, true))).toBe(true);
-    expect(isReaderSinglePageLayout(vp(844, 390, true))).toBe(false);
+  it("keeps phone landscape on single-page layout", () => {
+    expect(isReaderSpreadLayout(vp(844, 390, true))).toBe(false);
+    expect(isReaderSinglePageLayout(vp(844, 390, true))).toBe(true);
     expect(isReaderCompactChrome(vp(844, 390, true))).toBe(true);
   });
 

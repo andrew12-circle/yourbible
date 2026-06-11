@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-export interface PassageVerse { number: number; text: string; }
+export interface PassageVerse { number: number; text: string; crossRefs?: PassageCrossRef[]; footnotes?: PassageFootnote[]; }
+export interface PassageCrossRef { label: string; book: string; chapter: number; verse: number; }
+export interface PassageFootnote { marker: number; text: string; }
 export interface PassageHeading { beforeVerse: number; text: string; }
 export interface Passage {
   reference: string;
@@ -17,6 +19,8 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
   const verses = (raw.verses ?? []).map((v) => ({
     number: v.number,
     text: sanitizePubVerseText(typeof v.text === "string" ? v.text : ""),
+    crossRefs: v.crossRefs,
+    footnotes: v.footnotes,
   }));
   return {
     reference: raw.reference,
@@ -44,8 +48,11 @@ export interface BibleEntry {
 
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export async function listBibles(): Promise<BibleEntry[]> {
-  const r = await fetch(`${FUNCTIONS_BASE}/bible-passage?action=bibles`, {
+export async function listBibles(language = "eng"): Promise<BibleEntry[]> {
+  const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
+  u.searchParams.set("action", "bibles");
+  if (language !== "all") u.searchParams.set("language", language);
+  const r = await fetch(u.toString(), {
     headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
   });
   if (!r.ok) throw new Error(`bibles: ${r.status}`);

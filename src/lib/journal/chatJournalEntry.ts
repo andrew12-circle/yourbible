@@ -22,9 +22,8 @@ export function composeSavedChatJournalBody(
   messages: ChatJournalMessage[],
 ): string {
   const payload = JSON.stringify({ v: 1, messages });
-  const summaryText = summary.trim();
-  if (!summaryText) return `${CHAT_EXPORT_MARKER}\n${payload}`;
-  return `${summaryText}\n\n${CHAT_EXPORT_MARKER}\n${payload}`;
+  if (!summary.trim()) return `${CHAT_EXPORT_MARKER}\n${payload}`;
+  return `${summary}\n\n${CHAT_EXPORT_MARKER}\n${payload}`;
 }
 
 function normalizeMessages(raw: unknown): ChatJournalMessage[] {

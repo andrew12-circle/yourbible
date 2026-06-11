@@ -1,6 +1,10 @@
+import { parseBibleReference } from "@/lib/bible/parseBibleReference";
+
 export interface PassageVerse {
   number: number;
   text: string;
+  crossRefs?: { label: string; book: string; chapter: number; verse: number }[];
+  footnotes?: { marker: number; text: string }[];
 }
 
 export interface PassageHeading {
@@ -94,6 +98,47 @@ function cleanText(raw: string): string {
   return removeStrayPubMarkers(decoded);
 }
 
+function extractVerseAnnotations(html: string): {
+  html: string;
+  crossRefs: NonNullable<PassageVerse["crossRefs"]>;
+  footnotes: NonNullable<PassageVerse["footnotes"]>;
+} {
+  const crossRefs: NonNullable<PassageVerse["crossRefs"]> = [];
+  const footnotes: NonNullable<PassageVerse["footnotes"]> = [];
+  let footnoteIdx = 0;
+  let work = html;
+
+  work = work.replace(/<note\b[\s\S]*?<\/note>/gi, (noteHtml) => {
+    footnoteIdx += 1;
+    const text = cleanText(noteHtml);
+    if (text) footnotes.push({ marker: footnoteIdx, text });
+    return "";
+  });
+
+  work = work.replace(
+    /<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
+    (_m, rawLabel: string) => {
+      const label = decodeEntities(rawLabel.replace(/^[\s—–-]+/, "").trim());
+      if (!label || /^[—–-]+$/.test(label)) return "\u2014";
+      const parsed = parseBibleReference(label);
+      if (parsed?.verse) {
+        crossRefs.push({
+          label,
+          book: parsed.bookAbbr,
+          chapter: parsed.chapter,
+          verse: parsed.verse,
+        });
+        return "";
+      }
+      return label;
+    },
+  );
+
+  work = work.replace(/<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>/gi, "");
+
+  return { html: work, crossRefs, footnotes };
+}
+
 function extractVersesFromBlock(html: string): PassageVerse[] {
   const markers: { index: number; num: number; length: number }[] = [];
   const re = new RegExp(VERSE_MARKER.source, "gi");
@@ -107,8 +152,17 @@ function extractVersesFromBlock(html: string): PassageVerse[] {
   for (let i = 0; i < markers.length; i++) {
     const start = markers[i].index + markers[i].length;
     const end = i + 1 < markers.length ? markers[i + 1].index : html.length;
-    const text = cleanText(html.slice(start, end));
-    if (text) verses.push({ number: markers[i].num, text });
+    const slice = html.slice(start, end);
+    const { html: annotated, crossRefs, footnotes } = extractVerseAnnotations(slice);
+    const text = cleanText(annotated);
+    if (text) {
+      verses.push({
+        number: markers[i].num,
+        text,
+        ...(crossRefs.length ? { crossRefs } : {}),
+        ...(footnotes.length ? { footnotes } : {}),
+      });
+    }
   }
   return verses;
 }

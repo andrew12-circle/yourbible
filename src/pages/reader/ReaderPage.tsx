@@ -106,6 +106,18 @@ import {
   readerOverlayPosition,
   writeReaderHubFullscreen,
 } from "@/lib/bible/readerHubLayout";
+import {
+  coverStyle as buildCoverStyle,
+  leatherCoverClass,
+  pageToneClass,
+} from "@/lib/bible/readerAppearance";
+import {
+  readReaderDisplayMode,
+  writeReaderDisplayMode,
+  type ReaderDisplayMode,
+  readerDisplayModeLabel,
+} from "@/lib/bible/readerDisplayMode";
+import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
 
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
@@ -287,6 +299,45 @@ export default function ReaderPage() {
   const compactChrome = useReaderCompactChrome();
   const tabletPortrait = useIsTabletPortrait();
   const compactInkLayout = useCompactInkLayout();
+  const [displayMode, setDisplayMode] = useState<ReaderDisplayMode>(() => readReaderDisplayMode());
+  const [readerDark, setReaderDark] = useState(readReaderDarkMode);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("yb.reader.displayMode") && compactChrome) {
+        setDisplayMode("scroll");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [compactChrome]);
+
+  const scrollMode = displayMode === "scroll";
+  const effectiveSpread = readerSpread && !scrollMode;
+  const readerPageClass = cn(
+    pageToneClass(profile?.page_tone),
+    readerDark && "reader-theme-dark",
+  );
+  const readerCoverStyle = buildCoverStyle(profile?.cover);
+  const readerCoverClass = leatherCoverClass(profile?.cover);
+
+  const toggleDisplayMode = useCallback(() => {
+    setDisplayMode((prev) => {
+      const next: ReaderDisplayMode = prev === "scroll" ? "pages" : "scroll";
+      writeReaderDisplayMode(next);
+      toast({ title: `${readerDisplayModeLabel(next)} reading` });
+      return next;
+    });
+  }, []);
+
+  const toggleReaderDark = useCallback(() => {
+    setReaderDark((prev) => {
+      const next = !prev;
+      writeReaderDarkMode(next);
+      return next;
+    });
+  }, []);
+
   const { inkMode, toggleInkMode } = useReaderInkMode();
   const [inkTool, setInkTool] = useState<InkTool>("fountain");
   const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
@@ -620,7 +671,7 @@ export default function ReaderPage() {
   const splitsReady = isPageSplitsReady(splits, verses.length);
   const totalStreamPages = streamPageCount(streamSplits, readerStream.length);
   const streamSplitsReady = isStreamSplitsReady(streamSplits, readerStream.length);
-  const useBookSpread = readerSpread && adjacentPassages.streamReady;
+  const useBookSpread = readerSpread && adjacentPassages.streamReady && !scrollMode;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
@@ -664,6 +715,13 @@ export default function ReaderPage() {
   // remember it so once the chapter (re)loads and pagination splits are known,
   // we can hop to the page that contains that verse.
   const [pendingVerse, setPendingVerse] = useState<number | null>(null);
+
+  const bookmarkVerse = useMemo(() => {
+    if (activeVerse?.number) return activeVerse.number;
+    if (pendingVerse != null) return pendingVerse;
+    if (tbSel?.verses[0]) return tbSel.verses[0];
+    return 1;
+  }, [activeVerse?.number, pendingVerse, tbSel?.verses]);
 
   useEffect(() => {
     const v = parseInt(searchParams.get("v") ?? "", 10);
@@ -758,7 +816,7 @@ export default function ReaderPage() {
   ]);
 
   // Spread shows two consecutive pages; portrait mobile shows one page per turn.
-  const pagesPerTurn = readerSpread ? 2 : 1;
+  const pagesPerTurn = effectiveSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
     flipLockUntil.current = performance.now() + 420;
@@ -1275,6 +1333,29 @@ export default function ReaderPage() {
           {v.number}
         </button>
         {wrappedBody}
+        {v.crossRefs?.map((ref, ri) => (
+          <button
+            key={`xr-${verseBook}-${verseChapter}-${v.number}-${ri}`}
+            type="button"
+            className="scripture-xref"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/read/${ref.book}/${ref.chapter}?v=${ref.verse}`);
+            }}
+            title={`Go to ${ref.label}`}
+          >
+            {ref.label}
+          </button>
+        ))}
+        {v.footnotes?.map((fn) => (
+          <span
+            key={`fn-${verseBook}-${verseChapter}-${v.number}-${fn.marker}`}
+            className="scripture-footnote"
+            title={fn.text}
+          >
+            [{fn.marker}]
+          </span>
+        ))}
         {note && (
           <button
             onClick={(e) => {
@@ -1331,17 +1412,24 @@ export default function ReaderPage() {
     const globalPage = chaptersBefore + pageChapter;
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageLoading = useBookSpread ? adjacentPassages.loading : loadingPassage;
+    const ready = scrollMode || pageContentReady;
+    const pageSlice =
+      scrollMode || !pageContentReady ? verses : slice ?? verses;
+    if (scrollMode && pageIdx !== chapterPage) {
+      return <div className="h-full min-h-0" aria-hidden />;
+    }
     return (
       <div
         className={cn(
           "relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2",
+          readerPageClass,
           inkMode && "reader-ink-active",
         )}
-        style={pageHorizontalPadding(side, !readerSpread)}
+        style={pageHorizontalPadding(side, !effectiveSpread)}
       >
         <div
           className={`flex-shrink-0 ${
-            !readerSpread || side === "left" ? "text-left" : "text-right"
+            !effectiveSpread || side === "left" ? "text-left" : "text-right"
           } ${inkMode ? "pointer-events-none" : ""}`}
         >
           <button
@@ -1390,22 +1478,24 @@ export default function ReaderPage() {
                     : undefined
               }
               data-reading-area
-              aria-busy={!pageContentReady}
-              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
-                inkMode ? "!select-none" : "selectable-text"
-              }`}
+              aria-busy={!ready}
+              className={cn(
+                "h-full min-h-0 w-full",
+                scrollMode ? "overflow-y-auto overscroll-contain" : "overflow-hidden",
+                pageTypoClass(fontChoice),
+                COLUMN_CLASS,
+                inkMode ? "!select-none" : "selectable-text",
+              )}
               style={{
                 ...readerScriptureTypographyStyle(fontChoice, fontScale),
                 ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
               }}
             >
-              {!pageContentReady ? (
-                <div className="h-full w-full" aria-hidden />
-              ) : streamSlice?.isPlatePage ? (
+              {streamSlice?.isPlatePage && ready ? (
                 streamSlice.plates.map((plate) => (
                   <ScripturePlate key={plate.id} plate={plate} />
                 ))
-              ) : useStreamReader && streamSlice ? (
+              ) : useStreamReader && streamSlice && !scrollMode && pageContentReady ? (
                 (() => {
                   return streamSlice.verseGroups.flatMap((verseGroup) => {
                     const paragraphStarts = new Set(
@@ -1456,7 +1546,7 @@ export default function ReaderPage() {
                 })()
               ) : (
                 (() =>
-                  groupVersesIntoParagraphs(slice!, paragraphStarts).flatMap((group) => {
+                  groupVersesIntoParagraphs(pageSlice, paragraphStarts).flatMap((group) => {
                     const nodes: ReactNode[] = [];
                     const first = group.verses[0]?.number;
                     const heading = first != null ? headingByVerse.get(first) : undefined;
@@ -1482,7 +1572,7 @@ export default function ReaderPage() {
             </article>
           </div>
         )}
-        {!pageLoading && pageContentReady ? (
+        {!pageLoading && ready ? (
           <ReaderInkLayer
             layerId={inkLayerId}
             interactive={inkMode}
@@ -1580,7 +1670,13 @@ export default function ReaderPage() {
         audioPlaying={readerAudio.playing}
         audioLoading={readerAudio.loading}
         audioDisabled={readerAudio.disabled}
+        audioPlaybackRate={readerAudio.playbackRate}
+        onCycleAudioSpeed={readerAudio.cycleSpeed}
         online={online}
+        displayMode={displayMode}
+        onToggleDisplayMode={toggleDisplayMode}
+        readerDark={readerDark}
+        onToggleReaderDark={toggleReaderDark}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
@@ -1649,39 +1745,52 @@ export default function ReaderPage() {
 
       <BookScene
         progress={progress}
-        singlePage={!readerSpread}
+        singlePage={!effectiveSpread}
         tabletPortrait={tabletPortrait}
         fillContainer={containedInHub}
         pageSide="left"
+        coverStyle={readerCoverStyle}
+        coverClassName={readerCoverClass}
+        pageClassName={readerPageClass}
         ribbons={
           focusMode ? null : (
             <Ribbons
               ribbons={bookmarks as RibbonData[]}
-              anchor={readerSpread ? "gutter" : "spine"}
+              anchor={effectiveSpread ? "gutter" : "spine"}
               swaying={false}
-              onJump={(r) => navigate(`/read/${r.book}/${r.chapter}`)}
+              onJump={(r) =>
+                navigate(
+                  `/read/${r.book}/${r.chapter}${r.verse ? `?v=${r.verse}` : ""}`,
+                )
+              }
               onAddAt={(p) => setBmDialog({ position: p })}
             />
           )
         }
         leftPage={
+          scrollMode ? (
+            renderPageSurface(chapterPage, "left")
+          ) : (
           <SwipePage side="left" onTurn={goPage} inkMode={inkMode}>
             <PageFlip
               pageKey={
-                readerSpread
+                effectiveSpread
                   ? `L-${book.abbr}-${chapter}-${leftIdx}`
                   : `P-${book.abbr}-${chapter}-${chapterPage}`
               }
               direction={flipDirection}
               side="left"
-              enableSlide={!readerSpread}
+              enableSlide={!effectiveSpread}
             >
-              {renderPageSurface(readerSpread ? leftIdx : chapterPage, "left")}
+              {renderPageSurface(effectiveSpread ? leftIdx : chapterPage, "left")}
             </PageFlip>
           </SwipePage>
+          )
         }
         rightPage={
-          readerSpread ? (
+          scrollMode ? (
+            <div className="h-full w-full" aria-hidden />
+          ) : effectiveSpread ? (
             <SwipePage side="right" onTurn={goPage} inkMode={inkMode}>
               <PageFlip
                 pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`}
@@ -1698,6 +1807,8 @@ export default function ReaderPage() {
       />
 
       {/* Page-turn hot zones — narrow strips at the screen edge */}
+      {!scrollMode && (
+        <>
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
@@ -1708,9 +1819,11 @@ export default function ReaderPage() {
         aria-label="Next page"
         className={`${overlayPos} top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
+        </>
+      )}
 
-      {/* Headless paginator — measures and reports splits */}
-      {pageBox.w > 0 && subsequentPageHeight > 0 && useStreamReader && streamChapters.length > 0 ? (
+      {/* Headless paginator — measures and reports splits (page mode only) */}
+      {!scrollMode && pageBox.w > 0 && subsequentPageHeight > 0 && useStreamReader && streamChapters.length > 0 ? (
         <BookPaginator
           chapters={streamChapters}
           pageWidth={Math.max(180, pageBox.w)}
@@ -1723,7 +1836,7 @@ export default function ReaderPage() {
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
-      {pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useStreamReader ? (
+      {!scrollMode && pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useStreamReader ? (
         <Paginator
           verses={verses}
           paragraphStarts={paginatorParagraphStarts}
@@ -1834,8 +1947,18 @@ export default function ReaderPage() {
           defaultColor={bookmarks.find(b => b.position === bmDialog.position)?.color}
           onClose={() => setBmDialog(null)}
           onSave={(label, color) => {
-            setBookmark({ position: bmDialog.position, label, color, book: book.abbr, chapter, verse: null });
-            toast({ title: "Ribbon saved", description: `${label} → ${book.name} ${chapter}` });
+            setBookmark({
+              position: bmDialog.position,
+              label,
+              color,
+              book: book.abbr,
+              chapter,
+              verse: bookmarkVerse,
+            });
+            toast({
+              title: "Ribbon saved",
+              description: `${label} → ${book.name} ${chapter}:${bookmarkVerse}`,
+            });
             setBmDialog(null);
           }}
         />

@@ -17,6 +17,12 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
+import {
+  fetchJournalEntryListPage,
+  JOURNAL_LIST_PAGE_SIZE,
+  type JournalEntryListRow,
+} from "@/lib/journal/entryListQuery";
+import { Button } from "@/components/ui/button";
 
 interface Entry {
   id: string;
@@ -65,61 +71,62 @@ export default function EntryListPane({
   const [view, setView] = useState<View>("list");
   const [searchOpen, setSearchOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!user) return;
-    setLoading(true);
-    setLoadError(null);
-    let query = supabase
-      .from("journal_entries")
-      .select(
-        "id,title,body,summary,entry_at_ts,mood,location_name,weather,weather_temp_c,weather_icon,pinned,analyze_for_mirror,journal_id,entry_kind",
-      )
-      .order("pinned", { ascending: false })
-      .order("entry_at_ts", { ascending: false })
-      .limit(300);
-    if (journalId) query = query.eq("journal_id", journalId);
-    if (entryKindFilter) {
-      query = query.eq("entry_kind", entryKindFilter);
-    } else {
-      // Hide vents from the main journal feed — they live only on /journal/vent.
-      query = query.or("entry_kind.is.null,entry_kind.neq.vent");
-    }
-    const { data, error } = await query;
-    if (error) {
-      setLoadError(error.message);
-      setLoading(false);
-      toast({ title: "Couldn't load entries", description: error.message, variant: "destructive" });
+  const attachPhotos = async (list: JournalEntryListRow[], merge: boolean) => {
+    const ids = list.map((e) => e.id);
+    if (!ids.length) {
+      if (!merge) setPhotoUrls({});
       return;
     }
-    const list = (data as Entry[]) ?? [];
-    setEntries(list);
-
-    const ids = list.map((e) => e.id);
-    if (ids.length) {
-      const { data: photos } = await supabase
-        .from("journal_photos")
-        .select("entry_id,storage_path,created_at")
-        .in("entry_id", ids)
-        .order("created_at");
-      const firstByEntry: Record<string, string> = {};
-      (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-        if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-      });
-      const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-      const byEntry: Record<string, string> = {};
-      for (const [eid, p] of Object.entries(firstByEntry)) {
-        if (urls[p]) byEntry[eid] = urls[p];
-      }
-      setPhotoUrls(byEntry);
-    } else {
-      setPhotoUrls({});
+    const { data: photos } = await supabase
+      .from("journal_photos")
+      .select("entry_id,storage_path,created_at")
+      .in("entry_id", ids)
+      .order("created_at");
+    const firstByEntry: Record<string, string> = {};
+    (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
+      if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
+    });
+    const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
+    const byEntry: Record<string, string> = {};
+    for (const [eid, p] of Object.entries(firstByEntry)) {
+      if (urls[p]) byEntry[eid] = urls[p];
     }
-    setLoading(false);
+    setPhotoUrls((prev) => (merge ? { ...prev, ...byEntry } : byEntry));
   };
 
-  useEffect(() => { load();   }, [user, journalId, reloadKey, entryKindFilter]);
+  const load = async (append = false) => {
+    if (!user) return;
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setLoadError(null);
+    try {
+      const offset = append ? entries.length : 0;
+      const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
+        journalId,
+        entryKindFilter,
+        offset,
+        limit: JOURNAL_LIST_PAGE_SIZE,
+      });
+      setHasMore(more);
+      setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
+      await attachPhotos(rows, append);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLoadError(msg);
+      toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    void load(false);
+  }, [user, journalId, reloadKey, entryKindFilter]); // eslint-disable-line react-hooks/exhaustive-deps -- reset list when scope changes
 
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -225,7 +232,7 @@ export default function EntryListPane({
           {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
         </button>
         <button
-          onClick={load}
+          onClick={() => void load(false)}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
           title="Refresh"
         >
@@ -256,7 +263,7 @@ export default function EntryListPane({
           <div className="text-center py-16 px-6">
             <p className="text-[15px] font-semibold">Couldn&apos;t load entries</p>
             <p className="text-sm text-muted-foreground mt-1 mb-3">{loadError}</p>
-            <button type="button" onClick={() => void load()} className="text-primary text-sm font-medium">
+            <button type="button" onClick={() => void load(false)} className="text-primary text-sm font-medium">
               Try again
             </button>
           </div>
@@ -302,7 +309,7 @@ export default function EntryListPane({
               .map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => onSelect(e.id)}
+                  onClick={() => onSelect(e.id, e.entry_kind)}
                   className="aspect-square overflow-hidden bg-muted hover:opacity-90"
                 >
                   <img src={photoUrls[e.id]} alt="" className="w-full h-full object-cover" />
@@ -315,6 +322,18 @@ export default function EntryListPane({
         )}
         {view === "calendar" && (
           <CalendarMini entries={filtered} selectedId={selectedId} onSelect={onSelect} />
+        )}
+        {view === "list" && hasMore && !q.trim() && (
+          <div className="px-4 py-4 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loadingMore}
+              onClick={() => void load(true)}
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </Button>
+          </div>
         )}
       </div>
 

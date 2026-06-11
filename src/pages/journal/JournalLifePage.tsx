@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { BookOpenCheck, ChevronRight, CloudMoon, NotebookPen, PartyPopper } from "lucide-react";
 import JournalShell from "@/components/journal/JournalShell";
-import JournalLayout from "./JournalLayout";
 import EntryListItem, { type EntryListData } from "@/components/journal/EntryListItem";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,8 +36,15 @@ export default function JournalLifePage() {
 
 function Hub() {
   return (
-    <JournalLayout title="Faith journal" back="/journal" largeTitle>
-      <p className="text-[15px] text-muted-foreground leading-relaxed -mt-1 mb-5">
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle="Faith journal"
+      backTo="/journal"
+    >
+      <div className="px-5 pt-3 pb-safe-28">
+      <p className="text-[15px] text-muted-foreground leading-relaxed mb-5">
         Dreams, praise reports, and testimonies live here as journal entries. Mark the type when you write (or pick
         it on the full composer). Your testimony naturally changes over time—each entry is a snapshot you can revisit.
       </p>
@@ -86,7 +92,8 @@ function Hub() {
           />
         </div>
       </section>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }
 

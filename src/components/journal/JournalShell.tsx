@@ -34,6 +34,12 @@ interface Props {
   backTo?: string;
   /** FAB "new entry" URL (default `/journal/new` with optional journalId). */
   composeHref?: string;
+  /** Hide List/Calendar/Media/Map/Graph tabs (utility pages like Today, Mirror). */
+  showTabs?: boolean;
+  /** Hide the floating compose button. */
+  hideComposeFab?: boolean;
+  /** Override cover header actions (export menu, etc.). */
+  headerRight?: ReactNode;
 }
 
 export default function JournalShell({
@@ -45,6 +51,9 @@ export default function JournalShell({
   coverTitle,
   backTo,
   composeHref,
+  showTabs = true,
+  hideComposeFab = false,
+  headerRight,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -104,18 +113,51 @@ export default function JournalShell({
   };
 
   const tabBase = journalId ? `/journal/j/${journalId}` : "/journal";
-  const tabs = [
-    { key: "list", label: "List", to: tabBase, active: activeTab === "list" },
-    {
-      key: "calendar",
-      label: "Calendar",
-      to: `${tabBase}/calendar`,
-      active: activeTab === "calendar",
-    },
-    { key: "media", label: "Media", to: `${tabBase}/media`, active: activeTab === "media" },
-    { key: "map", label: "Map", to: `${tabBase}/map`, active: activeTab === "map" },
-    { key: "graph", label: "Graph", to: `${tabBase}/graph`, active: activeTab === "graph" },
-  ];
+  const tabs = showTabs
+    ? [
+        { key: "list", label: "List", to: tabBase, active: activeTab === "list" },
+        {
+          key: "calendar",
+          label: "Calendar",
+          to: `${tabBase}/calendar`,
+          active: activeTab === "calendar",
+        },
+        { key: "media", label: "Media", to: `${tabBase}/media`, active: activeTab === "media" },
+        { key: "map", label: "Map", to: `${tabBase}/map`, active: activeTab === "map" },
+        { key: "graph", label: "Graph", to: `${tabBase}/graph`, active: activeTab === "graph" },
+      ]
+    : undefined;
+
+  const defaultHeaderRight = (
+    <div className="flex items-center gap-2">
+      <JournalPrivacyBlurToggle tone="onCover" />
+      <AiWritingAssistToggle compact tone="onCover" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="p-2 rounded-full hover:bg-white/15"
+            aria-label="More"
+          >
+            {exporting ? (
+              <Loader2 className="w-[20px] h-[20px] animate-spin" />
+            ) : (
+              <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={2.2} />
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setDayOneImportOpen(true)}>
+            <FileUp className="w-4 h-4 mr-2" />
+            Import from Day One
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExport} disabled={exporting}>
+            <Download className="w-4 h-4 mr-2" />
+            Export as Markdown (.zip)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 
   const sub =
     subtitle ??
@@ -155,42 +197,14 @@ export default function JournalShell({
             tabs={tabs}
             onOpenRail={() => setSheetOpen(true)}
             backTo={backTo}
-            right={
-              <div className="flex items-center gap-2">
-                <JournalPrivacyBlurToggle tone="onCover" />
-                <AiWritingAssistToggle compact tone="onCover" />
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="p-2 rounded-full hover:bg-white/15"
-                    aria-label="More"
-                  >
-                    {exporting ? (
-                      <Loader2 className="w-[20px] h-[20px] animate-spin" />
-                    ) : (
-                      <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={2.2} />
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setDayOneImportOpen(true)}>
-                    <FileUp className="w-4 h-4 mr-2" />
-                    Import from Day One
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onExport} disabled={exporting}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export as Markdown (.zip)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              </div>
-            }
+            right={headerRight ?? defaultHeaderRight}
           />
           <main className="pb-[calc(8rem+var(--safe-area-inset-bottom))]">{children}</main>
         </div>
       </div>
 
       {/* Floating compose */}
+      {!hideComposeFab && (
       <button
         onClick={() =>
           navigate(
@@ -204,6 +218,7 @@ export default function JournalShell({
       >
         <SquarePen className="w-6 h-6" strokeWidth={2.2} />
       </button>
+      )}
 
       <DayOneImportDialog
         open={dayOneImportOpen}

@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Lightbulb, NotebookPen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import JournalLayout from "./JournalLayout";
+import JournalShell from "@/components/journal/JournalShell";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 
 interface Prompt {
@@ -27,7 +27,7 @@ export default function JournalTodayPage() {
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
 
-    (async () => {
+    void (async () => {
       const { data: t } = await supabase
         .from("journal_entries")
         .select(
@@ -80,9 +80,15 @@ export default function JournalTodayPage() {
   });
 
   return (
-    <JournalLayout title="Today" back="/journal">
-      <p className="text-[15px] text-muted-foreground -mt-1 mb-5">{dateLabel}</p>
-
+    <JournalShell
+      journalId={null}
+      activeTab="list"
+      showTabs={false}
+      coverTitle="Today"
+      subtitle={dateLabel}
+      backTo="/journal"
+    >
+      <div className="px-5 pt-3 pb-safe-28">
       {prompt && (
         <Link
           to={`/journal/new?promptId=${prompt.id}&prompt=${encodeURIComponent(prompt.text)}`}
@@ -127,6 +133,7 @@ export default function JournalTodayPage() {
           </div>
         )}
       </section>
-    </JournalLayout>
+      </div>
+    </JournalShell>
   );
 }
