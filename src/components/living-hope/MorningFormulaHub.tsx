@@ -205,7 +205,7 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
         <p className="text-[13px] text-muted-foreground">{dateStr}</p>
         <div className="mt-0.5 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[34px] font-bold tracking-tight leading-[1.08] text-foreground lg:text-[40px]">
+            <h1 className="text-[34px] font-extrabold tracking-tight leading-[1.08] text-foreground lg:text-[40px]">
               Morning formula
             </h1>
             <p className="mt-1 text-[15px] text-muted-foreground leading-snug">

@@ -27,15 +27,7 @@ import {
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import {
-  illuminatedCapClassName,
-  illuminationBodyStart,
-  nextParagraphIllumination,
-  scriptureParagraphClassName,
-  splitIlluminationLetter,
-  type IlluminationKind,
-  type IlluminationState,
-} from "@/lib/bible/scriptureIllumination";
+import { scriptureParagraphClassName } from "@/lib/bible/scriptureParagraph";
 import { ChapterOrnamentHeader } from "@/components/bible/ChapterOrnamentHeader";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { platesForChapter } from "@/lib/bible/biblePlates";
@@ -1194,7 +1186,6 @@ export default function ReaderPage() {
     ctx?: {
       bookAbbr: string;
       chapter: number;
-      illuminate?: IlluminationKind;
     },
   ) => {
     const verseBook = ctx?.bookAbbr ?? book.abbr;
@@ -1202,9 +1193,6 @@ export default function ReaderPage() {
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
     const verseText = typeof v.text === "string" ? v.text : "";
-    const illuminate = ctx?.illuminate;
-    const illuminationSplit = illuminate ? splitIlluminationLetter(verseText) : null;
-    const bodyStart = illuminate ? illuminationBodyStart(verseText) : 0;
     const segments = redLetterSegmentsForVerse(
       (useBookSpread
         ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
@@ -1225,30 +1213,15 @@ export default function ReaderPage() {
     }
 
     const bodyNodes: React.ReactNode[] = [];
-    if (illuminate && illuminationSplit?.letter) {
-      if (illuminationSplit.prefix) {
-        bodyNodes.push(<span key="cap-prefix">{illuminationSplit.prefix}</span>);
-      }
-      bodyNodes.push(
-        <span
-          key="cap-letter"
-          className={illuminatedCapClassName(illuminate)}
-          aria-hidden="true"
-        >
-          {illuminationSplit.letter}
-        </span>,
-      );
-    }
     let global = 0;
     for (let pi = 0; pi < textParts.length; pi++) {
       const part = textParts[pi];
       const pStart = global;
       const pEnd = global + part.text.length;
       global = pEnd;
-      if (pEnd <= bodyStart) continue;
       for (let si = 0; si < segBounds.length; si++) {
         const { start: sStart, end: sEnd, seg } = segBounds[si];
-        const oStart = Math.max(pStart, sStart, bodyStart);
+        const oStart = Math.max(pStart, sStart);
         const oEnd = Math.min(pEnd, sEnd);
         if (oEnd <= oStart) continue;
         const chunk = verseText.slice(oStart, oEnd);
@@ -1434,10 +1407,6 @@ export default function ReaderPage() {
                 ))
               ) : useStreamReader && streamSlice ? (
                 (() => {
-                  let illumState: IlluminationState = {
-                    chapterCapUsed: false,
-                    chapterCapEligible: streamSlice.startsWithChapterHeader != null,
-                  };
                   return streamSlice.verseGroups.flatMap((verseGroup) => {
                     const paragraphStarts = new Set(
                       paragraphStartsForChapter(
@@ -1466,26 +1435,16 @@ export default function ReaderPage() {
                             </p>,
                           );
                         }
-                        const { kind: illumination, state: nextState } = nextParagraphIllumination(
-                          illumState,
-                          group.isContinuation,
-                          !!heading,
-                        );
-                        illumState = nextState;
                         nodes.push(
                           <p
                             key={`p-${verseGroup.chapter}-${first}`}
-                            className={scriptureParagraphClassName(
-                              group.isContinuation,
-                              illumination,
-                            )}
+                            className={scriptureParagraphClassName(group.isContinuation)}
                             style={{ orphans: 2, widows: 2 }}
                           >
-                            {group.verses.map((v, vi) =>
+                            {group.verses.map((v) =>
                               renderVerse(v, {
                                 bookAbbr: verseGroup.bookAbbr,
                                 chapter: verseGroup.chapter,
-                                illuminate: vi === 0 ? illumination : undefined,
                               }),
                             )}
                           </p>,
@@ -1496,12 +1455,8 @@ export default function ReaderPage() {
                   });
                 })()
               ) : (
-                (() => {
-                  let illumState: IlluminationState = {
-                    chapterCapUsed: false,
-                    chapterCapEligible: pageIdx === 0,
-                  };
-                  return groupVersesIntoParagraphs(slice!, paragraphStarts).flatMap((group) => {
+                (() =>
+                  groupVersesIntoParagraphs(slice!, paragraphStarts).flatMap((group) => {
                     const nodes: ReactNode[] = [];
                     const first = group.verses[0]?.number;
                     const heading = first != null ? headingByVerse.get(first) : undefined;
@@ -1512,29 +1467,17 @@ export default function ReaderPage() {
                         </p>,
                       );
                     }
-                    const { kind: illumination, state: nextState } = nextParagraphIllumination(
-                      illumState,
-                      group.isContinuation,
-                      !!heading,
-                    );
-                    illumState = nextState;
                     nodes.push(
                       <p
                         key={`p-${first}`}
-                        className={scriptureParagraphClassName(
-                          group.isContinuation,
-                          illumination,
-                        )}
+                        className={scriptureParagraphClassName(group.isContinuation)}
                         style={{ orphans: 2, widows: 2 }}
                       >
-                        {group.verses.map((v, vi) =>
-                          renderVerse(v, { illuminate: vi === 0 ? illumination : undefined }),
-                        )}
+                        {group.verses.map((v) => renderVerse(v))}
                       </p>,
                     );
                     return nodes;
-                  });
-                })()
+                  }))()
               )}
             </article>
           </div>

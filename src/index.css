@@ -612,52 +612,6 @@
     font-weight: 600;
   }
 
-  /* Illuminated drop caps — first letter of chapter / section paragraphs */
-  .scripture-dropcap {
-    text-indent: 0;
-  }
-  .scripture-illuminated-cap {
-    float: left;
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 700;
-    line-height: 0.82;
-    text-align: center;
-    color: hsl(var(--leather));
-    border: 1px solid hsl(var(--gold-deep) / 0.42);
-    background:
-      linear-gradient(145deg, hsl(var(--gold-bright) / 0.34), hsl(var(--gold-deep) / 0.08)),
-      hsl(var(--paper-warm));
-    box-shadow:
-      inset 0 0 0 1px hsl(var(--gold-bright) / 0.22),
-      0 1px 0 hsl(var(--foreground) / 0.06);
-    margin: 0.04em 0.14em 0 0;
-    padding: 0.02em 0.08em 0.04em;
-  }
-  .scripture-illuminated-cap--chapter {
-    font-size: 3.55em;
-    min-width: 1.05em;
-    margin-top: 0.02em;
-    margin-right: 0.12em;
-    border-width: 1.5px;
-    padding: 0.04em 0.1em 0.06em;
-    background:
-      radial-gradient(circle at 28% 18%, hsl(var(--gold-bright) / 0.45), transparent 52%),
-      linear-gradient(155deg, hsl(var(--gold-bright) / 0.3), hsl(var(--gold-deep) / 0.1)),
-      hsl(var(--paper-warm));
-  }
-  .scripture-illuminated-cap--section {
-    font-size: 2.45em;
-    min-width: 0.95em;
-    border-color: hsl(var(--gold-deep) / 0.3);
-    background:
-      linear-gradient(160deg, hsl(var(--gold-bright) / 0.22), hsl(var(--gold-deep) / 0.06)),
-      hsl(var(--paper-warm));
-  }
-  .scripture-dropcap-chapter + .scripture-paragraph,
-  .scripture-dropcap-section + .scripture-paragraph {
-    margin-top: 0;
-  }
-
   /* Subtle page corner flourishes on the reading column */
   article[data-reading-area].scripture-page-frame {
     position: relative;

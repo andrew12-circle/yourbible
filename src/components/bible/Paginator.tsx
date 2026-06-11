@@ -4,10 +4,8 @@ import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
   buildVerseInnerHtml,
-  nextParagraphIllumination,
   scriptureParagraphClassNameMeasure,
-  type IlluminationState,
-} from "@/lib/bible/scriptureIllumination";
+} from "@/lib/bible/scriptureParagraph";
 
 interface Props {
   verses: Verse[];
@@ -138,7 +136,6 @@ export function Paginator({
           paragraphStartSet,
           headingByVerse,
           columnsClassName,
-          isFirstPage,
         );
         if (node.scrollHeight <= limit) {
           lastFit = i + n;
@@ -159,7 +156,6 @@ export function Paginator({
           paragraphStartSet,
           headingByVerse,
           columnsClassName,
-          isFirstPage,
         );
         if (node.scrollHeight <= limit) {
           lastFit = mid;
@@ -211,13 +207,8 @@ function renderInto(
   paragraphStarts: Set<number>,
   headingByVerse: Map<number, string>,
   columnsClassName?: string,
-  chapterCapEligible = false,
 ) {
   const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
-  let illumState: IlluminationState = {
-    chapterCapUsed: false,
-    chapterCapEligible,
-  };
   const bodyHtml = groups
     .map((group) => {
       const first = group.verses[0]?.number;
@@ -225,28 +216,18 @@ function renderInto(
       const headingHtml = heading
         ? `<p class="scripture-heading">${escapeHtml(heading)}</p>`
         : "";
-      const { kind: illumination, state: nextState } = nextParagraphIllumination(
-        illumState,
-        group.isContinuation,
-        !!heading,
-      );
-      illumState = nextState;
       const versesHtml = group.verses
-        .map((v, vi) => {
+        .map((v) => {
           const inner = buildVerseInnerHtml(
             v.number,
             v.text ?? "",
             redSegments,
-            vi === 0 ? illumination : undefined,
             escapeHtml,
           );
           return `<span><span class="verse-num">${v.number}</span>${inner} </span>`;
         })
         .join("");
-      const paraClass = scriptureParagraphClassNameMeasure(
-        group.isContinuation,
-        illumination,
-      );
+      const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);
       return `${headingHtml}<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
     })
     .join("");
