@@ -63,7 +63,7 @@ export function LivingHopeChrome({
             <div className="w-9 shrink-0" aria-hidden />
           )}
           <span className="text-[15px] font-semibold tracking-tight truncate max-w-[50%]">{title}</span>
-          <div className="w-9 flex justify-end shrink-0">{right}</div>
+          <div className="flex justify-end shrink-0 min-w-[3.25rem] -mr-1 pt-0.5">{right}</div>
         </header>
       ) : null}
 

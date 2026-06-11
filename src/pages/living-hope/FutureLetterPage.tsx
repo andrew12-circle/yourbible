@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Loader2, Lock, Plus, Unlock } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GoalEditorCard } from "@/components/living-hope/GoalEditorCard";
+import { LetterWaxSealButton } from "@/components/living-hope/LetterWaxSealButton";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import {
@@ -96,25 +97,11 @@ export default function FutureLetterPage() {
       }
       right={
         isDraft ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={lh.headerAction}
-            onClick={() => setSealOpen(true)}
-          >
-            <Lock className="w-3.5 h-3.5 mr-1" />
-            Seal
-          </Button>
+          <LetterWaxSealButton variant="seal" onClick={() => setSealOpen(true)} />
         ) : isSealed && canUnlock ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={lh.headerAction}
-            onClick={() => void unlock()}
-          >
-            <Unlock className="w-3.5 h-3.5 mr-1" />
-            Open
-          </Button>
+          <LetterWaxSealButton variant="open" onClick={() => void unlock()} />
+        ) : isSealed ? (
+          <LetterWaxSealButton variant="sealed" />
         ) : null
       }
     >

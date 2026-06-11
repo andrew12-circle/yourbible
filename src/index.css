@@ -578,6 +578,128 @@
     break-inside: auto;
   }
 
+  /* Morning formula — ribbon + wax seal (future letter). */
+  .letter-wax-seal {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 3.25rem;
+    height: 3.5rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    flex-shrink: 0;
+  }
+  .letter-wax-seal--interactive {
+    cursor: pointer;
+    border-radius: 0.5rem;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+  .letter-wax-seal--interactive:hover {
+    transform: scale(1.04);
+    filter: brightness(1.03);
+  }
+  .letter-wax-seal--interactive:active {
+    transform: scale(0.97);
+  }
+  .letter-wax-seal--interactive:focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.45);
+    outline-offset: 2px;
+  }
+  .letter-wax-seal__ribbon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3.35rem;
+    height: 0.62rem;
+    margin-left: -1.675rem;
+    margin-top: -0.31rem;
+    border-radius: 1px;
+    background: linear-gradient(
+      180deg,
+      hsl(220 38% 34%) 0%,
+      hsl(220 48% 22%) 48%,
+      hsl(220 52% 16%) 100%
+    );
+    box-shadow:
+      0 1px 0 hsl(220 30% 42% / 0.35) inset,
+      0 1px 2px hsl(220 60% 8% / 0.35);
+  }
+  .letter-wax-seal__ribbon--a {
+    transform: rotate(32deg);
+  }
+  .letter-wax-seal__ribbon--b {
+    transform: rotate(-32deg);
+  }
+  .letter-wax-seal__wax {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.55rem;
+    transform: translate(-50%, -52%);
+    border-radius: 46% 54% 52% 48% / 48% 46% 54% 52%;
+    background: radial-gradient(
+      circle at 32% 28%,
+      hsl(43 82% 62%) 0%,
+      hsl(38 68% 46%) 52%,
+      hsl(32 58% 34%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 hsl(48 95% 78% / 0.55),
+      inset 0 -2px 4px hsl(28 50% 22% / 0.35),
+      0 2px 5px hsl(220 40% 12% / 0.28);
+    color: hsl(32 45% 22%);
+  }
+  .letter-wax-seal__wax--set {
+    background: radial-gradient(
+      circle at 32% 28%,
+      hsl(40 55% 52%) 0%,
+      hsl(35 48% 38%) 55%,
+      hsl(30 42% 28%) 100%
+    );
+  }
+  .letter-wax-seal__wax--open {
+    background: radial-gradient(
+      circle at 32% 28%,
+      hsl(43 75% 58%) 0%,
+      hsl(38 62% 44%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 hsl(48 90% 72% / 0.45),
+      0 2px 4px hsl(220 40% 12% / 0.22);
+  }
+  .letter-wax-seal__mark {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+  .letter-wax-seal__monogram {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    opacity: 0.55;
+    text-shadow: 0 1px 0 hsl(48 90% 75% / 0.35);
+  }
+  .letter-wax-seal__caption {
+    position: absolute;
+    bottom: -0.05rem;
+    z-index: 3;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: hsl(var(--primary));
+    pointer-events: none;
+  }
+
   /* Printed-Bible table of contents (/read/contents). */
   .bible-toc-page {
     font-size: 0.82rem;
