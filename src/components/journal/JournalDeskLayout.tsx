@@ -2,22 +2,22 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 
 /**
 
- * Day One-style 3-pane desktop shell: sidebar | entry list | editor.
+ * Day One-style 3-pane desktop shell: sidebar | entry list | journal area.
 
- * Sidebar and overview/editor pane widths are draggable; list fills the rest.
+ * Sidebar and entry-list widths are draggable; the journal area fills the rest.
 
  */
 
 const SIDEBAR_KEY = "yb.journal.sidebar.v1";
-const EDITOR_KEY = "yb.journal.editor.v1";
+const LIST_KEY = "yb.journal.list.v1";
 
 const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 360;
 const DEFAULT_SIDEBAR = 248;
 
-const MIN_EDITOR = 240;
-const MAX_EDITOR = 560;
-const DEFAULT_EDITOR = 300;
+const MIN_LIST = 220;
+const MAX_LIST = 480;
+const DEFAULT_LIST = 300;
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
@@ -28,7 +28,7 @@ function loadStoredWidth(
   fallback: number,
   min: number,
   max: number,
-  field: "sidebar" | "editor",
+  field: "sidebar" | "list",
 ) {
   try {
     const raw = localStorage.getItem(key);
@@ -44,35 +44,22 @@ function loadSidebarWidth() {
   return loadStoredWidth(SIDEBAR_KEY, DEFAULT_SIDEBAR, MIN_SIDEBAR, MAX_SIDEBAR, "sidebar");
 }
 
-function loadEditorWidth() {
-  return loadStoredWidth(EDITOR_KEY, DEFAULT_EDITOR, MIN_EDITOR, MAX_EDITOR, "editor");
+function loadListWidth() {
+  return loadStoredWidth(LIST_KEY, DEFAULT_LIST, MIN_LIST, MAX_LIST, "list");
 }
 
-
-
 export default function JournalDeskLayout({
-
   sidebar,
-
   list,
-
   editor,
-
 }: {
-
   sidebar: ReactNode;
-
   list: ReactNode;
-
   editor: ReactNode;
-
 }) {
-
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
-  const [editorWidth, setEditorWidth] = useState(loadEditorWidth);
-  const dragRef = useRef<null | { pane: "sidebar" | "editor"; startX: number; startW: number }>(
-    null,
-  );
+  const [listWidth, setListWidth] = useState(loadListWidth);
+  const dragRef = useRef<null | { pane: "sidebar" | "list"; startX: number; startW: number }>(null);
 
   useEffect(() => {
     try {
@@ -82,9 +69,9 @@ export default function JournalDeskLayout({
 
   useEffect(() => {
     try {
-      localStorage.setItem(EDITOR_KEY, JSON.stringify({ editor: editorWidth }));
+      localStorage.setItem(LIST_KEY, JSON.stringify({ list: listWidth }));
     } catch { /* */ }
-  }, [editorWidth]);
+  }, [listWidth]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -94,7 +81,7 @@ export default function JournalDeskLayout({
         setSidebarWidth(clamp(dragRef.current.startW + dx, MIN_SIDEBAR, MAX_SIDEBAR));
         return;
       }
-      setEditorWidth(clamp(dragRef.current.startW + dx, MIN_EDITOR, MAX_EDITOR));
+      setListWidth(clamp(dragRef.current.startW + dx, MIN_LIST, MAX_LIST));
     };
 
     const onUp = () => {
@@ -111,13 +98,11 @@ export default function JournalDeskLayout({
     };
   }, []);
 
-  const startPaneDrag = (pane: "sidebar" | "editor", startW: number) => (e: React.MouseEvent) => {
+  const startPaneDrag = (pane: "sidebar" | "list", startW: number) => (e: React.MouseEvent) => {
     dragRef.current = { pane, startX: e.clientX, startW };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   };
-
-
 
   return (
     <div className="flex min-h-0 flex-1 w-full overflow-hidden bg-muted/30">
@@ -136,29 +121,24 @@ export default function JournalDeskLayout({
         aria-label="Resize journals sidebar"
       />
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-border/60 bg-background">
+      <section
+        className="flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border/60 bg-background"
+        style={{ width: listWidth }}
+      >
         {list}
       </section>
 
       <div
-        onMouseDown={startPaneDrag("editor", editorWidth)}
+        onMouseDown={startPaneDrag("list", listWidth)}
         className="w-px shrink-0 cursor-col-resize bg-border/60 transition-all hover:w-1 hover:bg-primary/40"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize overview panel"
+        aria-label="Resize entry list"
       />
 
-      <main
-        className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-background"
-        style={{ width: editorWidth }}
-      >
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {editor}
       </main>
-
     </div>
-
   );
-
 }
-
-
