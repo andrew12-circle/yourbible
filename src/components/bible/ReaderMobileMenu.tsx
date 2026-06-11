@@ -1,17 +1,24 @@
 import { Link } from "react-router-dom";
 import {
   BookmarkPlus,
+  BookOpen,
   ChevronLeft,
   Eye,
   EyeOff,
   Languages,
+  Loader2,
   Minus,
   Home,
   Moon,
   Network,
+  Pause,
   PenLine,
   Plus,
+  ScrollText,
+  Search,
   Settings,
+  Sun,
+  Volume2,
   X,
 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
@@ -50,6 +57,16 @@ interface Props {
   onToggleFocus: () => void;
   inkMode?: boolean;
   onToggleInkMode?: () => void;
+  onSearch?: () => void;
+  onToggleAudio?: () => void;
+  audioPlaying?: boolean;
+  audioLoading?: boolean;
+  audioDisabled?: boolean;
+  online?: boolean;
+  displayMode?: "scroll" | "pages";
+  onToggleDisplayMode?: () => void;
+  readerDark?: boolean;
+  onToggleReaderDark?: () => void;
 }
 
 export function ReaderMobileMenu({
@@ -72,6 +89,16 @@ export function ReaderMobileMenu({
   onToggleFocus,
   inkMode = false,
   onToggleInkMode,
+  onSearch,
+  onToggleAudio,
+  audioPlaying = false,
+  audioLoading = false,
+  audioDisabled = false,
+  online = true,
+  displayMode = "pages",
+  onToggleDisplayMode,
+  readerDark = false,
+  onToggleReaderDark,
   initialPanel = "nav",
 }: Props) {
   const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
@@ -346,6 +373,74 @@ export function ReaderMobileMenu({
 
             <div className="shrink-0 border-t border-white/40 px-4 py-3">
               <div className="grid grid-cols-2 gap-2">
+                {onSearch ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={readerPickerMenuButton}
+                    disabled={!online}
+                    onClick={() => {
+                      onSearch();
+                      close();
+                    }}
+                  >
+                    <Search className="w-4 h-4" />
+                    Search
+                  </Button>
+                ) : null}
+                {onToggleAudio ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={readerPickerMenuButton}
+                    disabled={audioDisabled || audioLoading}
+                    onClick={() => {
+                      onToggleAudio();
+                      close();
+                    }}
+                  >
+                    {audioLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                    ) : audioPlaying ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    {audioPlaying ? "Pause audio" : "Listen"}
+                  </Button>
+                ) : null}
+                {onToggleDisplayMode ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={readerPickerMenuButton}
+                    onClick={() => {
+                      onToggleDisplayMode();
+                      close();
+                    }}
+                  >
+                    {displayMode === "scroll" ? (
+                      <ScrollText className="w-4 h-4" />
+                    ) : (
+                      <BookOpen className="w-4 h-4" />
+                    )}
+                    {displayMode === "scroll" ? "Page mode" : "Scroll mode"}
+                  </Button>
+                ) : null}
+                {onToggleReaderDark ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={readerPickerMenuButton}
+                    onClick={() => {
+                      onToggleReaderDark();
+                      close();
+                    }}
+                  >
+                    {readerDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    {readerDark ? "Light page" : "Dark page"}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"

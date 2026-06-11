@@ -230,6 +230,16 @@ export function TopBar({
           onToggleFocus={onToggleFocus}
           inkMode={inkMode}
           onToggleInkMode={onToggleInkMode}
+          onSearch={onSearch}
+          onToggleAudio={onToggleAudio}
+          audioPlaying={audioPlaying}
+          audioLoading={audioLoading}
+          audioDisabled={audioDisabled}
+          online={online}
+          displayMode={displayMode}
+          onToggleDisplayMode={onToggleDisplayMode}
+          readerDark={readerDark}
+          onToggleReaderDark={onToggleReaderDark}
         />
       )}
 

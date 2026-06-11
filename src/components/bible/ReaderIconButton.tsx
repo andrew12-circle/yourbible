@@ -1,19 +1,16 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { readerIconButton, readerIconButtonActive } from "@/lib/bible/readerChromeClasses";
 
-interface Props {
+type Props = Omit<ComponentPropsWithoutRef<typeof Button>, "title" | "children"> & {
   title: string;
-  onClick?: () => void;
   active?: boolean;
-  disabled?: boolean;
   ariaPressed?: boolean;
   asChild?: boolean;
   children: ReactNode;
-  className?: string;
-}
+};
 
 export const ReaderIconButton = forwardRef<HTMLButtonElement, Props>(function ReaderIconButton(
   {
@@ -25,6 +22,7 @@ export const ReaderIconButton = forwardRef<HTMLButtonElement, Props>(function Re
     asChild = false,
     children,
     className,
+    ...rest
   },
   ref,
 ) {
@@ -38,9 +36,11 @@ export const ReaderIconButton = forwardRef<HTMLButtonElement, Props>(function Re
       size={asChild ? undefined : "icon"}
       onClick={onClick}
       title={title}
+      aria-label={rest["aria-label"] ?? title}
       disabled={disabled}
       aria-pressed={ariaPressed}
       className={cn(readerIconButton, active && readerIconButtonActive, className)}
+      {...rest}
     >
       {children}
     </Comp>
