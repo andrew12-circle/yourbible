@@ -101,10 +101,10 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
               Today&apos;s formula
             </p>
             <p className="text-[17px] font-semibold leading-snug mt-0.5">
-              {reviewedToday ? "Review again" : ritualReady ? "Enter today's formula" : "Start building"}
+              {reviewedToday ? "Review again" : "Enter today's formula"}
             </p>
             <p className="text-[13px] text-white/75 mt-1 leading-snug">
-              Manifesto · vision · story · goals · surrender
+              Worship · scripture · pray · vision · today&apos;s assignment
             </p>
           </div>
           <ChevronRight className="w-5 h-5 text-white/60 shrink-0 mt-2" aria-hidden />

@@ -246,6 +246,7 @@ export function localSaveMorningReview(
     manifesto_index: input.manifesto_index ?? null,
     routine_checks: input.routine_checks ?? {},
     metric_values: input.metric_values ?? {},
+    connection_notes: (input.connection_notes ?? {}) as LivingHopeReviewRow["connection_notes"],
     completed_at: nowIso(),
     created_at: nowIso(),
   };

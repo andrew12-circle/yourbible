@@ -20,7 +20,7 @@ export function MorningFormulaHomeCard() {
         <p className="text-[15px] font-semibold text-white leading-snug">
           {isMorning ? "Start today's review" : "Review your vision"}
         </p>
-        <p className="text-[12px] text-white/75 mt-0.5">Manifesto · vision · stories · goals</p>
+        <p className="text-[12px] text-white/75 mt-0.5">Worship · scripture · pray · assign · execute</p>
       </div>
       <ChevronRight className="w-5 h-5 text-white/70 shrink-0" aria-hidden />
     </button>

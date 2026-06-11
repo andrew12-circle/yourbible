@@ -15,6 +15,7 @@ import {
   notifyLocalModeOnce,
 } from "@/lib/livingHope/livingHopeLocalStore";
 import { localDateISO } from "@/lib/lifePriorities";
+import type { MorningConnectionNotes } from "@/lib/livingHope/morningRitual";
 import { isSupabaseMissingTable } from "@/lib/supabase/errors";
 
 export type LivingHopeLetterRow = Tables<"living_hope_letters">;
@@ -200,6 +201,7 @@ export interface MorningReviewPayload {
   manifesto_index?: number;
   routine_checks?: Record<string, boolean>;
   metric_values?: Record<string, number | string>;
+  connection_notes?: MorningConnectionNotes;
 }
 
 export async function saveMorningReview(
@@ -218,6 +220,7 @@ export async function saveMorningReview(
       manifesto_index: input.manifesto_index ?? null,
       routine_checks: input.routine_checks ?? {},
       metric_values: input.metric_values ?? {},
+      connection_notes: (input.connection_notes ?? {}) as TablesInsert<"living_hope_reviews">["connection_notes"],
       completed_at: new Date().toISOString(),
     };
     const { data, error } = await supabase

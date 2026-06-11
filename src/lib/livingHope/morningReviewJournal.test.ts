@@ -13,6 +13,17 @@ describe("buildMorningReviewJournalContent", () => {
     const { title, body, summary, verseRefs } = buildMorningReviewJournalContent({
       reviewDate: "2026-06-11",
       surrenderNote: "Father, not my will but Yours.",
+      connectionNotes: {
+        worship_note: "You are sovereign.",
+        thanksgiving_note: "Family and provision.",
+        prayer_note: "Guide my business today.",
+        scripture_ref: "James 1:5",
+        daily_assignment: {
+          spiritual: "Read James 1 at lunch",
+          family: "Finish closet",
+          business: "Fix outage",
+        },
+      },
       visionRecall: "I see the dashboard green.",
       goalTouches: [
         { goal_id: "g1", vivid_recall: "Team aligned", obedience_step: "Send one email" },
@@ -42,6 +53,9 @@ describe("buildMorningReviewJournalContent", () => {
     });
 
     expect(title).toContain("Morning formula");
+    expect(body).toContain("You are sovereign.");
+    expect(body).toContain("Today's assignment");
+    expect(body).toContain("Fix outage");
     expect(body).toContain("I am submitted to God.");
     expect(body).toContain("Seven figures");
     expect(body).toContain("Launch product");
@@ -49,6 +63,7 @@ describe("buildMorningReviewJournalContent", () => {
     expect(body).toContain("Revenue");
     expect(body).toContain("Father, not my will");
     expect(summary).toContain("dashboard green");
+    expect(verseRefs).toContain("James 1:5");
     expect(verseRefs).toContain("Rom 12:2");
     expect(verseRefs).toContain("Prov 16:3");
   });

@@ -8,10 +8,14 @@ import {
 } from "@/lib/livingHope/workbookTypes";
 
 export const RITUAL_STEPS = [
+  { key: "worship", label: "Worship" },
+  { key: "thanks", label: "Thanks" },
+  { key: "scripture", label: "Scripture" },
+  { key: "pray", label: "Pray" },
   { key: "manifesto", label: "Manifesto" },
   { key: "vision", label: "Vision" },
   { key: "story", label: "Story" },
-  { key: "goals", label: "Goals" },
+  { key: "assignment", label: "Today" },
   { key: "surrender", label: "Surrender" },
 ] as const;
 

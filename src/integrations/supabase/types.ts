@@ -1510,6 +1510,7 @@ export type Database = {
       living_hope_reviews: {
         Row: {
           completed_at: string
+          connection_notes: Json
           created_at: string
           goal_touches: Json
           id: string
@@ -1524,6 +1525,7 @@ export type Database = {
         }
         Insert: {
           completed_at?: string
+          connection_notes?: Json
           created_at?: string
           goal_touches?: Json
           id?: string
@@ -1538,6 +1540,7 @@ export type Database = {
         }
         Update: {
           completed_at?: string
+          connection_notes?: Json
           created_at?: string
           goal_touches?: Json
           id?: string

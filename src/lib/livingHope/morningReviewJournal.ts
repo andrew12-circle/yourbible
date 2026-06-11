@@ -3,6 +3,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { setEntryLinks, type EntryLinkInput } from "@/lib/journal/links";
 import { localDateISO } from "@/lib/lifePriorities";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
+import type { MorningConnectionNotes } from "@/lib/livingHope/morningRitual";
 import { WORKBOOK_PHASES, type LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
 export const MORNING_REVIEW_ENTRY_KIND = "morning_review";
@@ -18,6 +19,7 @@ export interface MorningReviewJournalContext {
   manifestoIndex?: number | null;
   storyIndex?: number | null;
   metricValues?: Record<string, number | string>;
+  connectionNotes?: MorningConnectionNotes;
   workbook: LivingHopeWorkbookContent | null;
   goals: LivingHopeGoalRow[];
 }
@@ -92,10 +94,31 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
       })
       .filter(Boolean) ?? [];
 
+  const assignment = ctx.connectionNotes?.daily_assignment;
+  const assignmentLines: string[] = [];
+  if (assignment?.spiritual?.trim()) assignmentLines.push(`- **Spiritual:** ${assignment.spiritual.trim()}`);
+  if (assignment?.family?.trim()) assignmentLines.push(`- **Family:** ${assignment.family.trim()}`);
+  if (assignment?.business?.trim()) assignmentLines.push(`- **Business:** ${assignment.business.trim()}`);
+
   const body = [
+    section("Worship", ctx.connectionNotes?.worship_note),
+    section("Thanksgiving", ctx.connectionNotes?.thanksgiving_note),
+    ctx.connectionNotes?.scripture_ref
+      ? section(
+          "Scripture",
+          [
+            ctx.connectionNotes.scripture_ref,
+            ctx.connectionNotes.scripture_reflection?.trim(),
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+        )
+      : section("Scripture", ctx.connectionNotes?.scripture_reflection),
+    section("Prayer", ctx.connectionNotes?.prayer_note),
     section("Manifesto", manifesto),
     visionParts.length ? section("Vision", visionParts.join("\n\n")) : "",
     section("Story", story),
+    assignmentLines.length ? `## Today's assignment\n\n${assignmentLines.join("\n")}\n` : "",
     goalBlocks.length ? `## Goals\n\n${goalBlocks.join("\n\n")}\n` : "",
     metricLines.length ? `## Metrics\n\n${metricLines.join("\n")}\n` : "",
     section("Surrender", ctx.surrenderNote),
@@ -116,9 +139,14 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
     return Array.isArray(goal?.scripture_refs) ? goal.scripture_refs : [];
   });
 
-  const verseRefs = [...new Set([...PHASE_SCRIPTURES, ...goalScriptures.map((r) => String(r).trim())])].filter(
-    Boolean,
-  );
+  const scriptureRef = ctx.connectionNotes?.scripture_ref?.trim();
+  const verseRefs = [
+    ...new Set([
+      ...PHASE_SCRIPTURES,
+      ...(scriptureRef ? [scriptureRef] : []),
+      ...goalScriptures.map((r) => String(r).trim()),
+    ]),
+  ].filter(Boolean);
 
   return {
     title: formatReviewTitle(ctx.reviewDate),
