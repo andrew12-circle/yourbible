@@ -79,6 +79,14 @@ describe("parsePassageHtml", () => {
     );
   });
 
+  it("strips stray carets and doubled commas from cross-ref debris", () => {
+    expect(sanitizePubVerseText("born again, , he cannot")).toBe("born again, he cannot");
+    expect(sanitizePubVerseText("Truly I tell you,^unless someone")).toBe(
+      "Truly I tell you, unless someone",
+    );
+    expect(sanitizePubVerseText("the Son of Man. ,")).toBe("the Son of Man.");
+  });
+
   it("preserves spaces between words when inline tags sit on word boundaries", () => {
     const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
     const parsed = parsePassageHtml(html);

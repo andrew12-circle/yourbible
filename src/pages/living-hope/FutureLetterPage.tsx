@@ -86,6 +86,7 @@ export default function FutureLetterPage() {
 
   return (
     <LivingHopeChrome
+      title="Letter from the future"
       subtitle={
         isDraft
           ? "Write to future-you. Seal it when ready — then review each morning."

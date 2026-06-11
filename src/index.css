@@ -573,8 +573,9 @@
     column-span: all;
     text-align: center;
   }
+  /* Let paragraphs flow across columns like a printed Bible page. */
   .scripture-columns-2 .scripture-paragraph {
-    break-inside: avoid-column;
+    break-inside: auto;
   }
 
   /* Printed-Bible table of contents (/read/contents). */

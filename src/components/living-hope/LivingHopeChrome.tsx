@@ -29,6 +29,9 @@ export function LivingHopeChrome({
 }: Props) {
   const { showHubShell } = useAppShellMode();
   const showNav = !hubLanding || !showHubShell;
+  /** Sub-pages always get back — hub landing relies on sidebar / home navigation. */
+  const showBack = !hubLanding;
+  const backLabel = backTo === "/living-hope" ? "Morning formula" : "Back";
 
   return (
     <div
@@ -45,19 +48,19 @@ export function LivingHopeChrome({
     >
       {showNav ? (
         <header className="relative z-10 flex items-center justify-between px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0">
-          {showHubShell ? (
-            <div className="w-9" aria-hidden />
-          ) : (
+          {showBack ? (
             <Link to={backTo}>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-primary hover:text-primary -ml-2 h-9 px-2 font-normal text-[17px] gap-0.5"
+                className="text-primary hover:text-primary -ml-2 h-9 px-2 font-normal text-[17px] gap-0.5 max-w-[42vw] sm:max-w-none"
               >
-                <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
-                Back
+                <ChevronLeft className="w-5 h-5 -mr-0.5 shrink-0" strokeWidth={2.5} />
+                <span className="truncate">{backLabel}</span>
               </Button>
             </Link>
+          ) : (
+            <div className="w-9 shrink-0" aria-hidden />
           )}
           <span className="text-[15px] font-semibold tracking-tight truncate max-w-[50%]">{title}</span>
           <div className="w-9 flex justify-end shrink-0">{right}</div>

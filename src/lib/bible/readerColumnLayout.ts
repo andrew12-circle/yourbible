@@ -9,7 +9,7 @@ export function readReaderColumnLayout(): ReaderColumnLayout {
   } catch {
     /* ignore */
   }
-  return "single";
+  return "double";
 }
 
 export function writeReaderColumnLayout(layout: ReaderColumnLayout): void {

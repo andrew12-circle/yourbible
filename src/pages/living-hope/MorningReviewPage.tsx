@@ -178,7 +178,7 @@ export default function MorningReviewPage() {
   const loadingAll = busy || wbBusy;
 
   return (
-    <LivingHopeChrome subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}>
+    <LivingHopeChrome title="Today's formula" subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}>
       {loadingAll ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />

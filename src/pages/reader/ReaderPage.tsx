@@ -135,7 +135,7 @@ const CHAPTER_HEADER_RESERVE_PX = 96;
 /** Matches `h-10` page footer — paginator must reserve this space. */
 const PAGE_FOOTER_HEIGHT_PX = 40;
 /** Extra slack so two-column pages do not clip the last line. */
-const PAGINATOR_OVERFLOW_GUARD_PX = 12;
+const PAGINATOR_OVERFLOW_GUARD_PX = 20;
 
 const PAGE_MARGIN_OUTER = "clamp(1.125rem, 4vmin, 2.25rem)";
 /** Gutter toward spine / center — extra room on desktop spreads. */

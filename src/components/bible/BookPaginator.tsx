@@ -14,6 +14,7 @@ import {
   paragraphStartsForChapter,
   headingsForChapter,
 } from "@/lib/bible/readerStream";
+import type { PassageVerse } from "@/lib/bible/api";
 
 interface Props {
   chapters: ReaderChapterPassage[];
@@ -202,27 +203,26 @@ function renderStreamSlice(
   columnsClassName?: string,
 ) {
   const parts: string[] = [];
-  for (const unit of slice) {
-    if (unit.kind === "plate") {
-      parts.push(
-        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(unit.plate.imageUrl)}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
-      );
-      continue;
-    }
-    if (unit.kind === "chapter-header") {
-      continue;
-    }
+  let batch: {
+    bookAbbr: string;
+    bookName: string;
+    chapter: number;
+    verses: PassageVerse[];
+  } | null = null;
+
+  const flushBatch = () => {
+    if (!batch || batch.verses.length === 0) return;
     const paragraphStarts = new Set(
-      paragraphStartsForChapter(chapters, unit.bookAbbr, unit.chapter),
+      paragraphStartsForChapter(chapters, batch.bookAbbr, batch.chapter),
     );
     const headingByVerse = new Map<number, string>();
-    for (const h of headingsForChapter(chapters, unit.bookAbbr, unit.chapter)) {
+    for (const h of headingsForChapter(chapters, batch.bookAbbr, batch.chapter)) {
       headingByVerse.set(h.beforeVerse, h.text);
     }
     const redSegments =
-      redByChapter.get(`${unit.bookAbbr}|${unit.chapter}`) ??
+      redByChapter.get(`${batch.bookAbbr}|${batch.chapter}`) ??
       new Map<number, Segment[]>();
-    const groups = groupVersesIntoParagraphs([unit.verse], paragraphStarts);
+    const groups = groupVersesIntoParagraphs(batch.verses, paragraphStarts);
     for (const group of groups) {
       const first = group.verses[0]?.number;
       const heading = first != null ? headingByVerse.get(first) : undefined;
@@ -239,7 +239,7 @@ function renderStreamSlice(
           );
           return wrapVerseShellHtml(
             v.number,
-            unit.chapter,
+            batch!.chapter,
             inner,
             group.isContinuation,
           );
@@ -250,7 +250,38 @@ function renderStreamSlice(
         `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`,
       );
     }
+    batch = null;
+  };
+
+  for (const unit of slice) {
+    if (unit.kind === "plate") {
+      flushBatch();
+      parts.push(
+        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(unit.plate.imageUrl)}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
+      );
+      continue;
+    }
+    if (unit.kind === "chapter-header") continue;
+    if (unit.kind === "verse") {
+      if (
+        batch &&
+        (batch.bookAbbr !== unit.bookAbbr || batch.chapter !== unit.chapter)
+      ) {
+        flushBatch();
+      }
+      if (!batch) {
+        batch = {
+          bookAbbr: unit.bookAbbr,
+          bookName: unit.bookName,
+          chapter: unit.chapter,
+          verses: [],
+        };
+      }
+      batch.verses.push(unit.verse);
+    }
   }
+  flushBatch();
+
   const bodyHtml = parts.join("");
   node.innerHTML = columnsClassName
     ? `<div class="${columnsClassName}">${bodyHtml}</div>`

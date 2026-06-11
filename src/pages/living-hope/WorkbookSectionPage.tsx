@@ -72,7 +72,7 @@ export default function WorkbookSectionPage() {
   const isSunday = new Date().getDay() === 0;
 
   return (
-    <LivingHopeChrome backTo="/living-hope" subtitle={meta.hint}>
+    <LivingHopeChrome backTo="/living-hope" title={meta.label} subtitle={meta.hint}>
       {busy || !workbook ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />

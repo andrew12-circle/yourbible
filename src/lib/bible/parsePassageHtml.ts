@@ -96,6 +96,11 @@ export function sanitizePubVerseText(text: string): string {
   // Lone footnote/cross-ref hash before a word
   t = t.replace(/\s+#\s+(?=[A-Za-z0-9"(\[])/g, " ");
   t = t.replace(/([,.;:]|\u2014)\s*#\s+(?=[A-Za-z0-9])/g, "$1 ");
+  // Stray cross-ref carets and doubled punctuation from stripped markup
+  t = t.replace(/\^+/g, "");
+  t = t.replace(/,\s*,+/g, ",");
+  t = t.replace(/([,.;:])([A-Za-z])/g, "$1 $2");
+  t = t.replace(/\.\s*,+\s*$/g, ".");
   t = t.replace(/\s+/g, " ").trim();
   t = t.replace(/\s+([,.!?;:])/g, "$1");
   return t;

@@ -136,6 +136,7 @@ export function Paginator({
           redSegments,
           paragraphStartSet,
           headingByVerse,
+          chapter,
           columnsClassName,
         );
         if (node.scrollHeight <= limit) {
@@ -156,6 +157,7 @@ export function Paginator({
           redSegments,
           paragraphStartSet,
           headingByVerse,
+          chapter,
           columnsClassName,
         );
         if (node.scrollHeight <= limit) {
@@ -207,6 +209,7 @@ function renderInto(
   redSegments: Map<number, Segment[]>,
   paragraphStarts: Set<number>,
   headingByVerse: Map<number, string>,
+  chapter: number,
   columnsClassName?: string,
 ) {
   const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
