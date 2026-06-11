@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { postAuthPath } from "@/lib/auth/onboardingGate";
 import { toast } from "@/hooks/use-toast";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/appBrand";
 
@@ -107,11 +107,16 @@ export default function AuthPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[26px] mb-5
-            bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700
-            shadow-[0_18px_40px_-12px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(255,255,255,0.45)]">
-            <BookOpen className="w-9 h-9 text-white drop-shadow" strokeWidth={2} />
-          </div>
+          <img
+            src="/app-icon-192.png"
+            srcSet="/app-icon-192.png 96w, /app-icon-512.png 192w"
+            sizes="80px"
+            alt=""
+            width={80}
+            height={80}
+            decoding="async"
+            className="mx-auto mb-5 h-20 w-20 rounded-[26px] object-contain shadow-[0_18px_40px_-12px_rgba(15,23,42,0.22)] ring-1 ring-black/[0.06]"
+          />
           <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-1">{APP_NAME}</h1>
           <p className="text-muted-foreground text-[15px]">{APP_DESCRIPTION}</p>
         </div>
