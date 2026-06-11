@@ -199,7 +199,7 @@ export default function PlaybookPage() {
         <div className="flex items-center gap-3 text-primary">
           <ClipboardList className="h-8 w-8 opacity-90" aria-hidden />
         </div>
-        <h2 className="mt-3 font-serif text-2xl sm:text-3xl tracking-tight text-foreground">Your playbook</h2>
+        <h2 className="mt-3 font-display text-2xl sm:text-3xl tracking-tight text-foreground">Your playbook</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
           Concrete plans from teachings you accepted — organized so what you learn actually shapes how you live.
         </p>
@@ -268,7 +268,7 @@ export default function PlaybookPage() {
                           <div className="min-w-0 flex-1">
                             <Link
                               to={`/framework/playbook/${row.id}`}
-                              className="font-semibold tracking-tight text-foreground hover:text-primary hover:underline"
+                              className="font-display text-base leading-snug tracking-tight text-foreground hover:text-primary hover:underline"
                             >
                               {row.title}
                             </Link>

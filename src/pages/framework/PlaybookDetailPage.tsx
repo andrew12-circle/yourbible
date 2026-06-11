@@ -246,6 +246,15 @@ export default function PlaybookDetailPage() {
 
   return (
     <FrameworkLayout title={row.title} back="/framework/playbook" contentClassName="max-w-2xl">
+      <div className="mb-6">
+        <h2 className="font-display text-2xl leading-snug text-foreground">{row.title}</h2>
+        {teaching && (
+          <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {teaching.category}
+          </p>
+        )}
+      </div>
+
       <div className="mb-6 flex flex-wrap gap-2">
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => void regenerate()}>
           {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}
@@ -355,7 +364,7 @@ export default function PlaybookDetailPage() {
               <li key={bid}>
                 <Link
                   to={`/framework/beliefs/${bid}`}
-                  className="text-sm font-medium text-primary hover:underline"
+                  className="font-display text-sm leading-snug text-primary hover:underline"
                 >
                   {beliefs[bid]?.topic ?? "Belief"}
                 </Link>
@@ -371,7 +380,7 @@ export default function PlaybookDetailPage() {
       {teaching && (
         <div className="rounded-xl border border-border/60 bg-muted/15 p-4 text-sm">
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Source teaching</div>
-          <p className="mt-1 font-medium text-foreground">{teaching.title}</p>
+          <p className="mt-1 font-display text-base leading-snug text-foreground">{teaching.title}</p>
           {teaching.summary && <p className="mt-1 text-muted-foreground leading-relaxed">{teaching.summary}</p>}
           {artifact && (
             <div className="mt-3 text-xs">

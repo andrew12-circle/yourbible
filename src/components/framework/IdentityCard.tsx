@@ -243,7 +243,7 @@ export default function IdentityCard() {
               <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85">
                 Who you are
               </div>
-              <h2 className="mt-1.5 font-serif text-2xl sm:text-[1.75rem] leading-tight tracking-tight text-foreground text-balance">
+              <h2 className="mt-1.5 font-display text-2xl sm:text-[1.75rem] leading-tight tracking-tight text-foreground text-balance">
                 {titleText}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">

@@ -275,7 +275,7 @@ export default function FrameworkDashboard() {
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
             Library
           </div>
-          <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+          <h2 className="mt-0.5 font-display text-lg tracking-tight text-foreground sm:text-xl">
             Recently added
           </h2>
         </div>
@@ -344,7 +344,7 @@ export default function FrameworkDashboard() {
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 mb-3 sm:mb-4">
               Your Framework
             </div>
-            <h2 className="font-serif text-3xl sm:text-[2.5rem] lg:text-[2.75rem] leading-[1.05] tracking-tight text-foreground text-balance">
+            <h2 className="font-display text-3xl sm:text-[2.5rem] lg:text-[2.75rem] leading-[1.05] tracking-tight text-foreground text-balance">
               Where your beliefs live.
             </h2>
             <p className="mt-3 sm:mt-4 text-[15px] sm:text-base leading-relaxed text-muted-foreground max-w-[34rem] text-balance">
@@ -446,7 +446,7 @@ export default function FrameworkDashboard() {
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
               Chapter 01 · The Interview
             </div>
-            <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+            <h3 className="mt-1 font-display text-lg sm:text-xl tracking-tight text-foreground">
               Begin the belief interview
             </h3>
             <p className="mt-1 text-sm text-muted-foreground leading-relaxed max-w-[34rem]">

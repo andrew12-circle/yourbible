@@ -38,7 +38,7 @@ export default function JournalLayout({
       </header>
       <main className="max-w-3xl mx-auto px-4 pt-3 pb-safe-28">
         {largeTitle && (
-          <h1 className="text-[34px] leading-tight font-bold tracking-tight mb-3">
+          <h1 className="font-display text-[34px] leading-tight tracking-tight mb-3">
             {title}
           </h1>
         )}

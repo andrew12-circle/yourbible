@@ -231,9 +231,7 @@ export default function FrameworkLayout({
                 <h1
                   className={cn(
                     "truncate tracking-tight text-foreground",
-                    immersive || studioLibrary || workspace
-                      ? "font-display text-xl font-normal sm:text-2xl"
-                      : "text-lg font-semibold sm:text-xl",
+                    "font-display text-xl font-normal tracking-tight sm:text-2xl",
                   )}
                 >
                   {title}
