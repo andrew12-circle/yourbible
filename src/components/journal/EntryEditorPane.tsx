@@ -370,9 +370,13 @@ export default function EntryEditorPane({
   };
 
   const handleChatSend = async () => {
-    const text = chatDraft;
+    const text = chatDraft.trim();
+    if (!text || aiBusy) return;
+    setChatDraft("");
+    dictateRef.current?.stop();
+    setDictInterim("");
     const ok = await sendMessage(text);
-    if (ok) setChatDraft("");
+    if (!ok) setChatDraft(text);
   };
 
   const finalizeChatEntry = async () => {

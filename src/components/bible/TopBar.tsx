@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home } from "lucide-react";
+import { Eye, EyeOff, Moon, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
 import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
@@ -22,6 +22,7 @@ import {
   readerPickerSectionLabel,
 } from "@/lib/bible/readerChromeClasses";
 import type { FontChoiceId } from "@/lib/bible/fontChoices";
+import { readerOverlayPosition } from "@/lib/bible/readerHubLayout";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -72,6 +73,10 @@ interface Props {
   audioLoading?: boolean;
   audioDisabled?: boolean;
   online?: boolean;
+  /** Position chrome within the hub workspace card instead of the viewport. */
+  containedInHub?: boolean;
+  hubFullscreen?: boolean;
+  onToggleHubFullscreen?: () => void;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -93,7 +98,11 @@ export function TopBar({
   audioLoading = false,
   audioDisabled = false,
   online = true,
+  containedInHub = false,
+  hubFullscreen = false,
+  onToggleHubFullscreen,
 }: Props) {
+  const overlayPos = readerOverlayPosition(containedInHub);
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -166,7 +175,7 @@ export function TopBar({
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show header"
-          className={`fixed left-1/2 top-[calc(var(--safe-area-inset-top)+0.35rem)] -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
+          className={`${overlayPos} left-1/2 top-[calc(var(--safe-area-inset-top)+0.35rem)] -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
         >
           <ChevronDown className="w-3.5 h-3.5" strokeWidth={2.25} />
         </button>
@@ -177,7 +186,7 @@ export function TopBar({
           type="button"
           onClick={onToggleFocus}
           aria-label="Exit Secret Place"
-          className={`fixed right-4 top-[calc(var(--safe-area-inset-top)+0.75rem)] z-40 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${readerGlassBar} ${readerChromeText}`}
+          className={`${overlayPos} right-4 top-[calc(var(--safe-area-inset-top)+0.75rem)] z-40 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${readerGlassBar} ${readerChromeText}`}
         >
           <EyeOff className="w-3.5 h-3.5" strokeWidth={2.25} aria-hidden />
           Exit Secret Place
@@ -213,7 +222,7 @@ export function TopBar({
       )}
 
       <header
-        className={`fixed top-0 inset-x-0 z-30 pt-[var(--safe-area-inset-top)] transition-[transform,opacity] duration-300 ease-out ${
+        className={`${overlayPos} top-0 inset-x-0 z-30 pt-[var(--safe-area-inset-top)] transition-[transform,opacity] duration-300 ease-out ${
           open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-[calc(100%+0.75rem)] opacity-0 pointer-events-none"
         }`}
       >
@@ -252,6 +261,18 @@ export function TopBar({
             <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"}>
               {focusMode ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={2} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={2} />}
             </ReaderIconButton>
+            {onToggleHubFullscreen ? (
+              <ReaderIconButton
+                onClick={onToggleHubFullscreen}
+                title={hubFullscreen ? "Exit full screen" : "Full screen"}
+              >
+                {hubFullscreen ? (
+                  <Minimize2 className="w-[18px] h-[18px]" strokeWidth={2} />
+                ) : (
+                  <Maximize2 className="w-[18px] h-[18px]" strokeWidth={2} />
+                )}
+              </ReaderIconButton>
+            ) : null}
             <ReaderIconButton onClick={() => setOpen(false)} title="Hide header">
               <ChevronUp className="w-[18px] h-[18px]" strokeWidth={2.25} />
             </ReaderIconButton>
@@ -555,6 +576,18 @@ export function TopBar({
           <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Enter Secret Place (focus)"}>
             {focusMode ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={2} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={2} />}
           </ReaderIconButton>
+          {onToggleHubFullscreen ? (
+            <ReaderIconButton
+              onClick={onToggleHubFullscreen}
+              title={hubFullscreen ? "Exit full screen" : "Full screen"}
+            >
+              {hubFullscreen ? (
+                <Minimize2 className="w-[18px] h-[18px]" strokeWidth={2} />
+              ) : (
+                <Maximize2 className="w-[18px] h-[18px]" strokeWidth={2} />
+              )}
+            </ReaderIconButton>
+          ) : null}
           <ReaderIconButton onClick={() => setOpen(false)} title="Hide header">
             <ChevronUp className="w-[18px] h-[18px]" strokeWidth={2.25} />
           </ReaderIconButton>

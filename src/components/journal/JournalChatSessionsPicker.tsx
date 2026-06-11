@@ -18,7 +18,7 @@ type Props = {
   onSelect: (id: string) => void;
   onNew: () => void;
   /** Desktop rail — omit trigger/sheet wrapper. */
-  variant?: "rail" | "mobile-trigger";
+  variant?: "rail" | "mobile-trigger" | "sheet-only";
 };
 
 function formatSessionDate(ts: string): string {
@@ -101,6 +101,25 @@ export default function JournalChatSessionsPicker({
   onNew,
   variant = "mobile-trigger",
 }: Props) {
+  if (variant === "sheet-only") {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[min(72dvh,520px)] rounded-t-2xl p-0">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chat sessions</SheetTitle>
+          </SheetHeader>
+          <SessionsList
+            sessions={sessions}
+            loading={loading}
+            activeId={activeId}
+            onSelect={onSelect}
+            onNew={onNew}
+          />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   if (variant === "rail") {
     return (
       <div className="h-full min-h-0 border-r border-border bg-card/80 backdrop-blur-sm">

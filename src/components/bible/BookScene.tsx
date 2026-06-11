@@ -10,6 +10,8 @@ interface Props {
   singlePage?: boolean;
   /** iPad portrait — single page with centered, narrower spread. */
   tabletPortrait?: boolean;
+  /** Fill parent height (hub workspace) instead of viewport height. */
+  fillContainer?: boolean;
   pageSide?: "left" | "right";
   ribbons?: ReactNode;
 }
@@ -79,6 +81,7 @@ export function BookScene({
   rightPage,
   singlePage = false,
   tabletPortrait = false,
+  fillContainer = false,
   pageSide = "left",
   ribbons,
 }: Props) {
@@ -96,7 +99,10 @@ export function BookScene({
 
   return (
     <div
-      className="relative h-[100dvh] w-full flex flex-col items-center"
+      className={
+        "relative w-full flex flex-col items-center " +
+        (fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]")
+      }
       style={{
         background:
           "linear-gradient(180deg, hsl(var(--muted) / 0.35) 0%, hsl(var(--background)) 12%, hsl(var(--background)) 100%)",

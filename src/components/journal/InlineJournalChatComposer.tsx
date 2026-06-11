@@ -4,6 +4,7 @@ import {
   Loader2,
   PenLine,
   Plus,
+  RefreshCw,
   Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,10 @@ type Props = {
   responseDepth?: ResponseDepthSetting;
   onResponseDepthChange?: (value: ResponseDepthSetting) => void;
   onOpenInMyAi?: () => void;
+  placeholder?: string;
+  trailingControls?: ReactNode;
+  onRetryLast?: () => void;
+  canRetryLast?: boolean;
 };
 
 export default function InlineJournalChatComposer({
@@ -78,6 +83,10 @@ export default function InlineJournalChatComposer({
   responseDepth,
   onResponseDepthChange,
   onOpenInMyAi,
+  placeholder = "Type anything",
+  trailingControls,
+  onRetryLast,
+  canRetryLast = false,
 }: Props) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   useAutoGrowTextarea(taRef, value, { maxLines: 8, minLines: 1, ...JOURNAL_CHAT_TEXTAREA_HEIGHT });
@@ -109,19 +118,21 @@ export default function InlineJournalChatComposer({
 
   const shellClass =
     rounded === "pill"
-      ? "flex items-end gap-2 rounded-[28px] border border-border bg-background px-2 py-1.5 shadow-sm"
-      : "flex items-end gap-2 rounded-xl border border-border bg-muted/30 px-2 py-2";
+      ? "flex items-center gap-1 rounded-[28px] border border-border bg-background px-1.5 py-1 shadow-sm"
+      : "flex items-center gap-1 rounded-xl border border-border bg-muted/30 px-1.5 py-1.5";
 
   const showOptions =
     onAttachPhotos ||
     onHandwritten ||
     onIncludeGeneralChange ||
     onResponseDepthChange ||
-    onOpenInMyAi;
+    onOpenInMyAi ||
+    onRetryLast;
 
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className={shellClass}>
+        <div className="shrink-0">
         {showOptions ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -140,6 +151,12 @@ export default function InlineJournalChatComposer({
               <DropdownMenuItem onClick={onExit}>
                 Back to writing
               </DropdownMenuItem>
+              {onRetryLast ? (
+                <DropdownMenuItem onClick={onRetryLast} disabled={aiBusy || !canRetryLast}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry last reply
+                </DropdownMenuItem>
+              ) : null}
               {onAttachPhotos ? (
                 <DropdownMenuItem onClick={onAttachPhotos} disabled={aiBusy}>
                   <ImageIcon className="mr-2 h-4 w-4" />
@@ -201,7 +218,8 @@ export default function InlineJournalChatComposer({
             <Plus className="h-5 w-5 rotate-45" />
           </button>
         )}
-        <div className="relative min-w-0 flex-1">
+        </div>
+        <div className="relative min-w-0 flex-1 self-stretch flex items-center">
           {overlayProps ? <PrivacyBlurOverlay {...overlayProps} /> : null}
           <Textarea
             ref={setRefs}
@@ -209,7 +227,7 @@ export default function InlineJournalChatComposer({
             onPointerDown={onPointerDown}
             {...privacyHandlers}
             rows={1}
-            placeholder={aiBusy ? "Thinking…" : "Message"}
+            placeholder={aiBusy ? "Thinking…" : placeholder}
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
               textareaClassName,
@@ -224,17 +242,20 @@ export default function InlineJournalChatComposer({
             }}
           />
         </div>
-        {dictateControl}
-        <Button
-          type="button"
-          size="icon"
-          onClick={onSend}
-          disabled={aiBusy || !value.trim()}
-          className="h-9 w-9 shrink-0 rounded-full"
-          aria-label="Send"
-        >
-          {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
+        <div className="flex shrink-0 items-center gap-0.5 pl-0.5">
+          {dictateControl}
+          {trailingControls}
+          <Button
+            type="button"
+            size="icon"
+            onClick={onSend}
+            disabled={aiBusy || !value.trim()}
+            className="h-9 w-9 shrink-0 rounded-full"
+            aria-label="Send"
+          >
+            {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
       {extraActions ? <div className="flex justify-end px-1">{extraActions}</div> : null}
     </div>

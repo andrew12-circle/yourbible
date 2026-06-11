@@ -108,6 +108,12 @@ import {
   streamPageCount,
 } from "@/lib/bible/readerStream";
 import { useAdjacentPassages } from "@/hooks/useAdjacentPassages";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import {
+  readReaderHubFullscreen,
+  readerOverlayPosition,
+  writeReaderHubFullscreen,
+} from "@/lib/bible/readerHubLayout";
 
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
@@ -147,6 +153,17 @@ export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showHubShell } = useAppShellMode();
+  const [hubFullscreen, setHubFullscreen] = useState(readReaderHubFullscreen);
+  const containedInHub = showHubShell && !hubFullscreen;
+  const overlayPos = readerOverlayPosition(containedInHub);
+  const toggleHubFullscreen = useCallback(() => {
+    setHubFullscreen((prev) => {
+      const next = !prev;
+      writeReaderHubFullscreen(next);
+      return next;
+    });
+  }, []);
   const [searchParams] = useSearchParams();
   const params = useParams<{ book?: string; chapter?: string }>();
   const dailyToastShown = useRef(false);
@@ -1595,9 +1612,13 @@ export default function ReaderPage() {
 
   return (
     <div
-      className={`min-h-screen relative transition-all duration-700 ${
-        focusMode ? "saturate-[0.88] contrast-[0.97] bg-paper/98" : ""
-      }`}
+      className={cn(
+        "relative transition-all duration-700 overflow-hidden",
+        containedInHub && "flex h-full min-h-0 flex-col",
+        showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
+        !showHubShell && "min-h-screen",
+        focusMode && "saturate-[0.88] contrast-[0.97] bg-paper/98",
+      )}
     >
       <MarkerSvgFilter />
 
@@ -1648,11 +1669,14 @@ export default function ReaderPage() {
         settingsOpenRequest={settingsOpenRequest}
         inkMode={inkMode}
         onToggleInkMode={toggleInkMode}
+        containedInHub={containedInHub}
+        hubFullscreen={hubFullscreen}
+        onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
       />
 
       {staleLayoutInk && inkMode ? (
         <div
-          className="fixed left-1/2 top-[calc(var(--safe-area-inset-top)+3.5rem)] z-[34] max-w-md -translate-x-1/2 rounded-lg border border-amber-200/80 bg-amber-50/95 px-3 py-2 text-center text-xs text-amber-950 shadow-sm backdrop-blur-sm"
+          className={`${overlayPos} left-1/2 top-[calc(var(--safe-area-inset-top)+3.5rem)] z-[34] max-w-md -translate-x-1/2 rounded-lg border border-amber-200/80 bg-amber-50/95 px-3 py-2 text-center text-xs text-amber-950 shadow-sm backdrop-blur-sm`}
           role="status"
         >
           Layout changed — ink from your previous text size or page layout is hidden.
@@ -1684,6 +1708,7 @@ export default function ReaderPage() {
         progress={progress}
         singlePage={!readerSpread}
         tabletPortrait={tabletPortrait}
+        fillContainer={containedInHub}
         pageSide="left"
         ribbons={
           focusMode ? null : (
@@ -1733,12 +1758,12 @@ export default function ReaderPage() {
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className={`fixed top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={`${overlayPos} top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className={`fixed top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={`${overlayPos} top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
 
       {/* Headless paginator — measures and reports splits */}
@@ -1781,7 +1806,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             onClick={() => setFocusMode(false)}
-            className="fixed bottom-safe-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur shadow-md"
+            className={`${overlayPos} bottom-safe-16 left-1/2 -translate-x-1/2 z-30 bg-leather/90 text-paper text-xs px-4 py-2 rounded-full backdrop-blur shadow-md`}
           >
             Secret Place — tap to leave
           </motion.button>
@@ -1877,7 +1902,7 @@ export default function ReaderPage() {
       {anchorBelief && !focusMode && (
         <button
           onClick={() => navigate(`/framework/beliefs/${anchorBelief.id}`)}
-          className="fixed top-14 left-1/2 -translate-x-1/2 z-30 max-w-[min(680px,92vw)] bg-paper border border-gold/50 rounded-full shadow-leather px-4 py-1.5 text-xs flex items-center gap-2 hover:bg-paper-warm transition"
+          className={`${overlayPos} top-14 left-1/2 -translate-x-1/2 z-30 max-w-[min(680px,92vw)] bg-paper border border-gold/50 rounded-full shadow-leather px-4 py-1.5 text-xs flex items-center gap-2 hover:bg-paper-warm transition`}
           title="Your anchor belief for this chapter"
         >
           <Sparkles className="w-3.5 h-3.5 text-leather shrink-0" />

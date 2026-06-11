@@ -10,7 +10,7 @@ import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
-import { localDateISO } from "@/lib/lifePriorities";
+import { livingHopeDaySeed } from "@/lib/livingHope/workbookProgress";
 import { toast } from "@/hooks/use-toast";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
@@ -24,11 +24,6 @@ type Step =
   | { kind: "metrics" }
   | { kind: "surrender" }
   | { kind: "done" };
-
-function daySeed(): number {
-  const iso = localDateISO();
-  return iso.split("-").reduce((a, b) => a + Number(b), 0);
-}
 
 export default function MorningReviewPage() {
   const { user, loading } = useAuth();
@@ -46,7 +41,7 @@ export default function MorningReviewPage() {
   const [saving, setSaving] = useState(false);
 
   const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
-  const seed = daySeed();
+  const seed = livingHopeDaySeed();
   const manifestoItem = workbook?.manifesto[seed % Math.max(1, workbook?.manifesto.length ?? 1)];
   const storyItem = workbook?.stories[seed % Math.max(1, workbook?.stories.length ?? 1)];
   const manifestoIndex = workbook?.manifesto.length ? seed % workbook.manifesto.length : 0;

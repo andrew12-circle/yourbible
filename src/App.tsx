@@ -90,9 +90,9 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                 <Route path="/partner/accept" element={<PartnerAcceptPage />} />
                 <Route element={<ShellGate />}>
+                  <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/my-ai" element={<MyAiPage />} />
                   <Route path="/my-ai/:chatId" element={<MyAiPage />} />

@@ -10,8 +10,8 @@ import {
   ArrowLeft,
   Loader2,
   MessageCircle,
-  RefreshCw,
   MoreHorizontal,
+  MessageSquare,
   PenLine,
   Settings2,
   Square,
@@ -763,12 +763,12 @@ export default function JournalChatPage() {
 
   return (
     <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
-      <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/90 backdrop-blur-md pt-[calc(var(--safe-area-inset-top)+0.5rem)]">
-        <div className="flex items-center gap-2 px-3 pb-2">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/90 backdrop-blur-md pt-[calc(var(--safe-area-inset-top)+0.25rem)]">
+        <div className="flex h-11 items-center gap-1 px-2 sm:gap-2 sm:px-3">
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="h-9 w-9 shrink-0"
             onClick={() => navigate("/journal")}
             aria-label="Back to journal"
           >
@@ -779,18 +779,46 @@ export default function JournalChatPage() {
             onChange={(e) => setEntryTitle(e.target.value)}
             onBlur={() => void persistTitle(entryTitle)}
             placeholder="Session title"
-            className="h-9 min-w-0 flex-1 border-border/80 text-[15px] font-semibold tracking-tight"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold tracking-tight shadow-none focus-visible:ring-0"
           />
-          <JournalChatSessionsPicker
-            variant="mobile-trigger"
-            sessions={sessions}
-            loading={loadingSessions}
-            activeId={routeEntryId}
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            onSelect={openSession}
-            onNew={newSession}
-          />
+          <div
+            className="flex shrink-0 rounded-lg border border-border bg-muted/40 p-0.5"
+            role="tablist"
+            aria-label="Journal view"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "write"}
+              aria-label="Write"
+              title="Write"
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                viewMode === "write"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setViewMode("write")}
+            >
+              <PenLine className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "chat"}
+              aria-label="Chat"
+              title="Chat"
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                viewMode === "chat"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setViewMode("chat")}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </button>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -801,49 +829,18 @@ export default function JournalChatPage() {
             <MoreHorizontal className="h-5 w-5" />
           </Button>
         </div>
-        <div className="flex items-center gap-2 px-3 pb-2">
-          <div
-            className="inline-flex w-full max-w-xs rounded-lg border border-border bg-muted/40 p-0.5"
-            role="tablist"
-            aria-label="Journal view"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={viewMode === "write"}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                viewMode === "write"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setViewMode("write")}
-            >
-              <PenLine className="h-3.5 w-3.5" />
-              Write
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={viewMode === "chat"}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                viewMode === "chat"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setViewMode("chat")}
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Chat
-            </button>
-          </div>
-          <div className="ml-auto hidden items-center gap-2 sm:flex">
-            <JournalPrivacyBlurToggle />
-            <AiWritingAssistToggle compact />
-          </div>
-        </div>
       </header>
+
+      <JournalChatSessionsPicker
+        variant="sheet-only"
+        sessions={sessions}
+        loading={loadingSessions}
+        activeId={routeEntryId}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onSelect={openSession}
+        onNew={newSession}
+      />
 
       <Sheet open={headerMoreOpen} onOpenChange={setHeaderMoreOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[85dvh] overflow-y-auto">
@@ -851,6 +848,18 @@ export default function JournalChatPage() {
             <SheetTitle>Session options</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-4 pb-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-start gap-2 md:hidden"
+              onClick={() => {
+                setHeaderMoreOpen(false);
+                setSheetOpen(true);
+              }}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Chat sessions
+            </Button>
             <div className="flex items-center justify-between gap-3 sm:hidden">
               <span className="text-sm">Privacy blur</span>
               <JournalPrivacyBlurToggle />
@@ -1039,42 +1048,17 @@ export default function JournalChatPage() {
                 transition: "transform 120ms ease-out",
               }}
             >
-              <div className="pointer-events-auto mx-auto max-w-2xl space-y-2">
-                {(messages.some((m) => m.role === "assistant") || sending) && (
-                  <div className="flex justify-end gap-2">
+              <div className="pointer-events-auto mx-auto max-w-2xl">
+                {sending && (
+                  <div className="mb-1 flex justify-end">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-xs text-muted-foreground"
-                      disabled={sending || !messages.some((m) => m.role === "assistant")}
-                      onClick={() => void retryLast()}
+                      onClick={stop}
                     >
-                      <RefreshCw className="mr-1 h-3 w-3" /> Retry
-                    </Button>
-                    {sending && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-muted-foreground"
-                        onClick={stop}
-                      >
-                        <Square className="mr-1 h-3 w-3" /> Stop
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "h-7 px-2 text-xs",
-                        voiceReplies ? "text-primary" : "text-muted-foreground",
-                      )}
-                      aria-pressed={voiceReplies}
-                      onClick={() => setVoiceReplies((v) => !v)}
-                    >
-                      <AudioLines className="mr-1 h-3 w-3" /> Voice
+                      <Square className="mr-1 h-3 w-3" /> Stop
                     </Button>
                   </div>
                 )}
@@ -1083,6 +1067,7 @@ export default function JournalChatPage() {
                   onChange={setInput}
                   onSend={() => void send()}
                   onExit={() => setViewMode("write")}
+                  placeholder="Type anything"
                   onPointerDown={() => {
                     composerLockScrollYRef.current = window.scrollY;
                   }}
@@ -1094,6 +1079,8 @@ export default function JournalChatPage() {
                   responseDepth={responseDepth}
                   onResponseDepthChange={setResponseDepth}
                   onOpenInMyAi={chatId ? () => navigate(`/my-ai/${chatId}`) : undefined}
+                  onRetryLast={() => void retryLast()}
+                  canRetryLast={messages.some((m) => m.role === "assistant")}
                   dictateControl={
                     <DictateButton
                       ref={dictateRef}
@@ -1111,6 +1098,22 @@ export default function JournalChatPage() {
                         if (on) voiceHadFinalSinceMicOnRef.current = false;
                       }}
                     />
+                  }
+                  trailingControls={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant={voiceReplies ? "default" : "ghost"}
+                      className={cn(
+                        "h-9 w-9 shrink-0 rounded-full",
+                        voiceReplies ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                      aria-label="Toggle voice replies"
+                      aria-pressed={voiceReplies}
+                      onClick={() => setVoiceReplies((v) => !v)}
+                    >
+                      <AudioLines className="h-4 w-4" />
+                    </Button>
                   }
                 />
                 <DictInterimPreview

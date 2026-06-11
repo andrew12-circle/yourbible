@@ -202,9 +202,11 @@ export function HubSidebar() {
                   const to = item.to === "__bible__" ? bibleTo : item.to;
                   const navItem = { ...item, to };
                   const isActive =
-                    to === "/home"
-                      ? pathname === "/home"
-                      : pathname === to || (to !== "/home" && pathname.startsWith(to + "/"));
+                    item.title === "Bible"
+                      ? pathname.startsWith("/read/")
+                      : to === "/home"
+                        ? pathname === "/home"
+                        : pathname === to || (to !== "/home" && pathname.startsWith(to + "/"));
                   const withBadge = { ...navItem, badge: badgeMap[item.title] };
                   return <NavItem key={item.title} item={withBadge} isActive={isActive} />;
                 })}

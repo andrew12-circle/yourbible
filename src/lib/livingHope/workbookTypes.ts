@@ -72,24 +72,38 @@ export type WorkbookSection =
   | "weekly"
   | "metrics";
 
+export type WorkbookPhase = "anchor" | "see" | "move";
+
+export const WORKBOOK_PHASES: {
+  key: WorkbookPhase;
+  label: string;
+  scripture: string;
+  description: string;
+}[] = [
+  { key: "anchor", label: "Anchor", scripture: "Rom 12:2", description: "Identity — who God is making you" },
+  { key: "see", label: "See", scripture: "Hab 2:2", description: "Vision — write it plainly" },
+  { key: "move", label: "Move", scripture: "James 2:17", description: "Structure — how you build" },
+];
+
 export const WORKBOOK_SECTIONS: {
   key: WorkbookSection;
   label: string;
   hint: string;
-  icon?: string;
+  phase: WorkbookPhase;
+  ritualOrder?: number;
 }[] = [
-  { key: "vision", label: "Vision & income", hint: "Forward-only. Structure, not fantasy." },
-  { key: "stories", label: "Daily stories", hint: "Scenes to visualize each morning." },
-  { key: "manifesto", label: "Manifesto", hint: "Who you are becoming — submitted to God." },
-  { key: "quotes", label: "Quotes", hint: "Anchors that pull you forward." },
-  { key: "lifestyle", label: "Lifestyle vision", hint: "Homes, margin, freedom, giving." },
-  { key: "routine", label: "Daily routine", hint: "Protect energy like capital." },
-  { key: "business", label: "Business targets", hint: "Operational KPIs per venture." },
-  { key: "standards", label: "Financial standards", hint: "Reserves, no scarcity mindset." },
-  { key: "family", label: "Family & leadership", hint: "Present, spiritual, legacy." },
-  { key: "rules", label: "Rules of operation", hint: "How you decide and build." },
-  { key: "weekly", label: "Weekly review", hint: "Sunday questions — move the machine." },
-  { key: "metrics", label: "Metrics", hint: "Track revenue, conversion, energy." },
+  { key: "manifesto", label: "Manifesto", hint: "Who you are becoming — submitted to God.", phase: "anchor", ritualOrder: 1 },
+  { key: "quotes", label: "Quotes", hint: "Anchors that pull you forward.", phase: "anchor" },
+  { key: "vision", label: "Vision & income", hint: "Forward-only. Structure, not fantasy.", phase: "see", ritualOrder: 2 },
+  { key: "stories", label: "Daily stories", hint: "Scenes to visualize each morning.", phase: "see", ritualOrder: 3 },
+  { key: "lifestyle", label: "Lifestyle vision", hint: "Homes, margin, freedom, giving.", phase: "see" },
+  { key: "family", label: "Family & leadership", hint: "Present, spiritual, legacy.", phase: "see" },
+  { key: "routine", label: "Daily routine", hint: "Protect energy like capital.", phase: "move" },
+  { key: "business", label: "Business targets", hint: "Operational KPIs per venture.", phase: "move" },
+  { key: "standards", label: "Financial standards", hint: "Reserves, no scarcity mindset.", phase: "move" },
+  { key: "rules", label: "Rules of operation", hint: "How you decide and build.", phase: "move" },
+  { key: "weekly", label: "Weekly review", hint: "Sunday questions — move the machine.", phase: "move" },
+  { key: "metrics", label: "Metrics", hint: "Track revenue, conversion, energy.", phase: "move" },
 ];
 
 export function newId(): string {
