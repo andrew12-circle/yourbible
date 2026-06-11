@@ -1469,7 +1469,16 @@ export default function ReaderPage() {
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
-    const splitsComputing = !scrollMode && !pageOutOfRange && !pageContentReady && !pageLoading;
+    const paginationPending =
+      !scrollMode && !pageOutOfRange && !pageContentReady && verses.length > 0;
+    const showPaginationFallback =
+      paginationPending && pageIdx === (useBookSpread ? spreadPageIdx : chapterPage);
+    const attachMeasureRef =
+      measuresFirstPage
+        ? onMeasureFirstRef
+        : measuresRestPage || isCurrentLeftPage
+          ? onMeasureRestRef
+          : undefined;
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
@@ -1496,7 +1505,7 @@ export default function ReaderPage() {
             {pageBookName}
           </button>
         </div>
-        {pageLoading || splitsComputing ? (
+        {pageLoading ? (
           <div className="flex flex-1 justify-center items-center">
             <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
           </div>
@@ -1508,14 +1517,16 @@ export default function ReaderPage() {
             data-ink-anchor={inkLayerId}
             className="relative flex flex-1 min-h-0 min-w-0"
           >
+            {paginationPending && showPaginationFallback ? (
+              <div
+                className="absolute inset-0 z-[2] flex items-center justify-center bg-paper/40 pointer-events-none"
+                aria-hidden
+              >
+                <Loader2 className="w-5 h-5 animate-spin text-leather/50" />
+              </div>
+            ) : null}
             <article
-              ref={
-                measuresFirstPage
-                  ? onMeasureFirstRef
-                  : measuresRestPage
-                    ? onMeasureRestRef
-                    : undefined
-              }
+              ref={attachMeasureRef}
               data-reading-area
               aria-busy={!ready}
               className={cn(
@@ -1589,6 +1600,32 @@ export default function ReaderPage() {
               ) : slice && slice.length > 0 ? (
                 (() =>
                   groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
+                    const nodes: ReactNode[] = [];
+                    const first = group.verses[0]?.number;
+                    const heading = first != null ? headingByVerse.get(first) : undefined;
+                    if (heading) {
+                      nodes.push(
+                        <p key={`h-${first}`} className="scripture-heading">
+                          {heading}
+                        </p>,
+                      );
+                    }
+                    nodes.push(
+                      <p
+                        key={`p-${first}`}
+                        className={scriptureParagraphClassName(group.isContinuation)}
+                        style={{ orphans: 2, widows: 2 }}
+                      >
+                        {group.verses.map((v) =>
+                          renderVerse(v, { paragraphIsContinuation: group.isContinuation }),
+                        )}
+                      </p>,
+                    );
+                    return nodes;
+                  }))()
+              ) : showPaginationFallback ? (
+                (() =>
+                  groupVersesIntoParagraphs(verses, paragraphStarts).flatMap((group) => {
                     const nodes: ReactNode[] = [];
                     const first = group.verses[0]?.number;
                     const heading = first != null ? headingByVerse.get(first) : undefined;
