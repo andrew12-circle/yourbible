@@ -50,16 +50,36 @@ function decodeEntities(text: string): string {
 const PUB_DASH = /[-—–‐‑‒–—]/;
 
 /**
+ * Join API.Bible small-cap span splits. Inscriptions use short tails (THIS, KING);
+ * the pronoun "I" must stay separate from the next word.
+ */
+function joinSmallCapSpan(first: string, rest: string): string {
+  if (!rest) return first;
+  if (first === "I") {
+    if (rest.length === 1) return (first + rest).toUpperCase();
+    return `${first} ${rest}`;
+  }
+  if (rest.length <= 3) return (first + rest).toUpperCase();
+  return first + rest;
+}
+
+/** Fix pronoun I merged with a following word from older parsers (IDIDN'T → I didn't). */
+function repairGluedPronounI(text: string): string {
+  return text.replace(/\bI([A-Z][A-Za-z']+)/g, (_m, tail: string) => `I ${tail.toLowerCase()}`);
+}
+
+/**
  * Repair verse text when inline HTML tags were replaced with spaces (e.g. CSB
  * small-cap spans `<span class="sc">T</span>his` → "T his").
  */
 function repairSplitInitialCaps(text: string): string {
   const splits = text.match(/\b[A-Z] [a-z]+\b/g);
   if (!splits || splits.length < 2) return text;
-  return text
-    .replace(/\b([A-Z]) ([a-z]+)\b/g, (_m, cap: string, rest: string) =>
-      (cap + rest).toUpperCase(),
-    );
+  return text.replace(/\b([A-Z]) ([a-z]+)\b/g, (_m, cap: string, rest: string) => {
+    if (cap === "I" && rest.length === 1) return (cap + rest).toUpperCase();
+    if (cap === "I") return `I ${rest}`;
+    return (cap + rest).toUpperCase();
+  });
 }
 
 /**
@@ -67,7 +87,8 @@ function repairSplitInitialCaps(text: string): string {
  * Exported so cached passages are cleaned on every load, not only at parse time.
  */
 export function sanitizePubVerseText(text: string): string {
-  let t = repairSplitInitialCaps(text);
+  let t = repairGluedPronounI(text);
+  t = repairSplitInitialCaps(t);
   // # - # / #-# / #—# (with or without spaces, any common dash)
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
   // Stray doubled hashes
@@ -105,11 +126,11 @@ function removeStrayPubMarkers(text: string): string {
   return sanitizePubVerseText(text);
 }
 
-/** API.Bible small caps: `<span class="sc">T</span>his` → `THIS` (print-style caps). */
+/** API.Bible small caps: `<span class="sc">T</span>his` → inscription `THIS`; keep `I` separate. */
 function normalizeSmallCapsMarkup(html: string): string {
   return html.replace(
     /<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi,
-    (_m, first: string, rest: string) => (first + rest).toUpperCase(),
+    (_m, first: string, rest: string) => joinSmallCapSpan(first, rest),
   );
 }
 

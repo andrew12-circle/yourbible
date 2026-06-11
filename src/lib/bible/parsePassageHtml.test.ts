@@ -60,6 +60,25 @@ describe("parsePassageHtml", () => {
     );
   });
 
+  it("keeps pronoun I separate from following words (CSB John 1:31)", () => {
+    const html = `
+<p class="p"><span data-number="31" data-sid="JHN 1:31" class="v">31</span><span class="sc">I</span>didn't know him, but <span class="sc">I</span>came baptizing with water so that he might be revealed to Israel.</p>`;
+    const parsed = parsePassageHtml(html, "John 1");
+    expect(parsed.verses[0]?.text).toBe(
+      "I didn't know him, but I came baptizing with water so that he might be revealed to Israel.",
+    );
+  });
+
+  it("repairs glued pronoun I from older cached parsers", () => {
+    expect(
+      sanitizePubVerseText(
+        "IDIDN't know him, but ICAME baptizing with water so that he might be revealed to Israel.",
+      ),
+    ).toBe(
+      "I didn't know him, but I came baptizing with water so that he might be revealed to Israel.",
+    );
+  });
+
   it("preserves spaces between words when inline tags sit on word boundaries", () => {
     const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
     const parsed = parsePassageHtml(html);
