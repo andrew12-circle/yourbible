@@ -5,8 +5,8 @@
   "description": "Map beliefs, journal, study scripture, and grow your personal faith framework.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#EF852C",
-  "theme_color": "#EF852C",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/app-icon-192.png",

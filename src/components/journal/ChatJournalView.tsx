@@ -17,9 +17,19 @@ type Props = {
   body: string;
   summary?: string | null;
   className?: string;
+  /** When set, the summary paragraph is clickable (e.g. to resume journaling). */
+  onSummaryClick?: () => void;
+  /** Hide the summary block — useful when editing the summary in a textarea above. */
+  hideSummary?: boolean;
 };
 
-export default function ChatJournalView({ body, summary, className }: Props) {
+export default function ChatJournalView({
+  body,
+  summary,
+  className,
+  onSummaryClick,
+  hideSummary = false,
+}: Props) {
   const parsed = useMemo(
     () => parseChatJournalEntry(body, summary),
     [body, summary],
@@ -37,10 +47,30 @@ export default function ChatJournalView({ body, summary, className }: Props) {
 
   return (
     <div className={cn("space-y-4", className)}>
-      {parsed.summary ? (
-        <p className="text-[16px] leading-relaxed whitespace-pre-wrap text-foreground">
-          {parsed.summary}
-        </p>
+      {!hideSummary && parsed.summary ? (
+        onSummaryClick ? (
+          <button
+            type="button"
+            onClick={onSummaryClick}
+            className="block w-full cursor-text rounded-lg text-left text-[16px] leading-relaxed whitespace-pre-wrap text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 -mx-2 px-2 py-1"
+          >
+            {parsed.summary}
+          </button>
+        ) : (
+          <p className="text-[16px] leading-relaxed whitespace-pre-wrap text-foreground">
+            {parsed.summary}
+          </p>
+        )
+      ) : null}
+
+      {!hideSummary && onSummaryClick && !parsed.summary ? (
+        <button
+          type="button"
+          onClick={onSummaryClick}
+          className="block w-full rounded-lg border border-dashed border-border/70 px-3 py-4 text-left text-[15px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        >
+          Click to continue writing…
+        </button>
       ) : null}
 
       {parsed.messages.length > 0 ? (

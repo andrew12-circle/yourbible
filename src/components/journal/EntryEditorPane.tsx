@@ -11,7 +11,13 @@ import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatT
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
 import { composeChatTranscript } from "@/lib/journal/inlineJournalChat";
-import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
+import {
+  composeSavedChatJournalBody,
+  isChatJournalExport,
+  parseChatJournalEntry,
+} from "@/lib/journal/chatJournalEntry";
+import EntryMiniMap from "@/components/journal/EntryMiniMap";
+import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
 import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
@@ -69,6 +75,8 @@ interface EntryRow {
   weather_temp_c: number | null;
   weather_icon: string | null;
   entry_kind: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export default function EntryEditorPane({
@@ -110,6 +118,7 @@ export default function EntryEditorPane({
   const [loadingEntry, setLoadingEntry] = useState(false);
   const [entryNotFound, setEntryNotFound] = useState(false);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
+  const [bodyEditing, setBodyEditing] = useState(false);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
 
@@ -128,7 +137,7 @@ export default function EntryEditorPane({
     const { data } = await supabase
       .from("journal_entries")
       .select(
-        "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+        "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
       )
       .eq("id", id)
       .maybeSingle();
@@ -172,11 +181,12 @@ export default function EntryEditorPane({
     setEntryNotFound(false);
     setEntry(null);
     setPhotos([]);
+    setBodyEditing(false);
     (async () => {
       const { data, error } = await supabase
         .from("journal_entries")
         .select(
-          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
         )
         .eq("id", entryId)
         .maybeSingle();
@@ -218,6 +228,7 @@ export default function EntryEditorPane({
     dictateRef.current?.stop();
     setDictInterim("");
     setChatDraft("");
+    setBodyEditing(false);
   }, [entryId]);
 
   const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
@@ -283,13 +294,23 @@ export default function EntryEditorPane({
     !!entry &&
     !inlineChatMode &&
     isChatJournalExport(entry.body, entry.summary);
+  const chatParsed = showSavedChatView && entry
+    ? parseChatJournalEntry(entry.body, entry.summary)
+    : null;
+  const editingChatSummary = showSavedChatView && bodyEditing;
+  const bodyTextareaValue = editingChatSummary
+    ? (chatParsed?.summary ?? "")
+    : (entry?.body ?? "");
 
-  useJournalEntryTextareaAutosize(bodyRef, inlineChatMode || showSavedChatView ? "" : (entry?.body ?? ""));
+  useJournalEntryTextareaAutosize(
+    bodyRef,
+    inlineChatMode || (showSavedChatView && !bodyEditing) ? "" : bodyTextareaValue,
+  );
 
   useJournalEditorCaretScroll({
     scrollRef: paneScrollRef,
     kbInset: 0,
-    enabled: !!entry && !inlineChatMode && !showSavedChatView,
+    enabled: !!entry && !inlineChatMode && (!showSavedChatView || bodyEditing),
     fixedBottomInsetPx: 24,
     topInsetPx: 16,
   });
@@ -390,7 +411,7 @@ export default function EntryEditorPane({
       const { data: refreshed } = await supabase
         .from("journal_entries")
         .select(
-          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind",
+          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
         )
         .eq("id", entry.id)
         .maybeSingle();
@@ -471,6 +492,39 @@ export default function EntryEditorPane({
     queueSave({ pinned: !entry.pinned });
   };
 
+  const openFocusedEntry = async () => {
+    if (!entry || !user?.id) return;
+    dictateRef.current?.stop();
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      const cur = entryRef.current;
+      if (cur) {
+        await supabase
+          .from("journal_entries")
+          .update({
+            title: cur.title,
+            body: cur.body,
+            mood: cur.mood,
+            tags: cur.tags,
+            entry_kind: cur.entry_kind,
+            pinned: cur.pinned,
+            analyze_for_mirror: cur.analyze_for_mirror,
+          })
+          .eq("id", cur.id)
+          .eq("user_id", user.id);
+      }
+    }
+    if (inlineChatMode || entry.entry_kind === "chat") {
+      if (inlineChatMode && chatTurns.length > 0) {
+        persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
+      }
+      navigate(`/journal/chat/${entry.id}`);
+      return;
+    }
+    navigate(`/journal/${entry.id}/edit`);
+  };
+
   const scoreNow = async () => {
     if (!entry) return;
     dictateRef.current?.stop();
@@ -530,10 +584,32 @@ export default function EntryEditorPane({
 
   entryRef.current = entry;
 
+  const openBodyEditing = () => {
+    setBodyEditing(true);
+    requestAnimationFrame(() => {
+      bodyRef.current?.focus();
+      const len = bodyRef.current?.value.length ?? 0;
+      bodyRef.current?.setSelectionRange(len, len);
+    });
+  };
+
+  const handleBodyChange = (nextText: string) => {
+    const cur = entryRef.current;
+    if (!cur) return;
+    if (editingChatSummary && chatParsed && chatParsed.kind !== "plain") {
+      const summary = nextText.trim();
+      const newBody = composeSavedChatJournalBody(summary, chatParsed.messages);
+      queueSave({ body: newBody, summary: summary || null });
+      return;
+    }
+    queueSave({ body: nextText });
+  };
+
   const dt = new Date(entry.entry_at_ts);
   const dateLabel = dt.toLocaleString(undefined, {
     month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
   });
+  const mood = moodMeta(entry.mood);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -559,7 +635,7 @@ export default function EntryEditorPane({
             <DropdownMenuItem onClick={togglePin}>
               {entry.pinned ? "Unpin" : "Pin"}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate(`/journal/${entry.id}/edit`)}>
+            <DropdownMenuItem onClick={() => void openFocusedEntry()}>
               Open in full editor
             </DropdownMenuItem>
             {chatId && (
@@ -584,9 +660,9 @@ export default function EntryEditorPane({
           </DropdownMenuContent>
         </DropdownMenu>
         <button
-          onClick={() => setShowMeta((v) => !v)}
-          className={`p-1.5 rounded-md hover:bg-muted ${showMeta ? "text-primary" : "text-muted-foreground"}`}
-          title="Toggle details"
+          onClick={() => void openFocusedEntry()}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+          title="Open entry"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
@@ -690,17 +766,41 @@ export default function EntryEditorPane({
               className="-mx-2 px-2"
             />
           ) : showSavedChatView ? (
-            <ChatJournalView
-              body={entry.body}
-              summary={entry.summary}
-            />
+            editingChatSummary ? (
+              <>
+                <PolishedTextarea
+                  ref={bodyRef}
+                  polishResetKey={entry.id}
+                  value={bodyTextareaValue}
+                  onChange={(e) => handleBodyChange(e.target.value)}
+                  placeholder="What happened today? What are you carrying?"
+                  className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
+                />
+                <DictInterimPreview
+                  text={dictInterim}
+                  className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+                />
+                <ChatJournalView
+                  body={entry.body}
+                  summary={entry.summary}
+                  hideSummary
+                  className="mt-6"
+                />
+              </>
+            ) : (
+              <ChatJournalView
+                body={entry.body}
+                summary={entry.summary}
+                onSummaryClick={openBodyEditing}
+              />
+            )
           ) : (
             <>
               <PolishedTextarea
                 ref={bodyRef}
                 polishResetKey={entry.id}
                 value={entry.body}
-                onChange={(e) => queueSave({ body: e.target.value })}
+                onChange={(e) => handleBodyChange(e.target.value)}
                 placeholder="What happened today? What are you carrying?"
                 className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
               />
@@ -714,12 +814,32 @@ export default function EntryEditorPane({
             </>
           )}
 
-          {!inlineChatMode && !showSavedChatView && entry.id ? (
+          {!inlineChatMode && entry.id ? (
             <EntryLinksPanel
               entryId={entry.id}
               reloadKey={linksReloadKey}
               className="mt-6 rounded-xl border border-border/60 bg-muted/20 p-4"
             />
+          ) : null}
+
+          {!inlineChatMode && entry.lat != null && entry.lng != null ? (
+            <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mt-6" height={200} />
+          ) : null}
+
+          {!inlineChatMode && (entry.tags?.length > 0 || mood) ? (
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              {mood ? (
+                <span className={`text-xs font-medium ${mood.color}`}>{mood.label}</span>
+              ) : null}
+              {(entry.tags ?? []).map((t) => (
+                <span
+                  key={t}
+                  className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                >
+                  #{t}
+                </span>
+              ))}
+            </div>
           ) : null}
 
           {showMeta && !inlineChatMode && (

@@ -34,7 +34,7 @@ export function IosAppIcon({
         !pixelSize &&
           (isDock
             ? "ios-icon-dock w-[44px] h-[44px] sm:w-[50px] sm:h-[50px]"
-            : "w-[52px] h-[52px] sm:w-[60px] sm:h-[60px]"),
+            : "w-[60px] h-[60px]"),
         className,
       )}
       style={{
@@ -46,7 +46,7 @@ export function IosAppIcon({
         <img src={imageSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
         <Icon
-          className={cn("relative z-[1] shrink-0", !glyphPx && (isDock ? "h-[22px] w-[22px] sm:h-[26px] sm:w-[26px]" : "h-[26px] w-[26px] sm:h-[30px] sm:w-[30px]"))}
+          className={cn("relative z-[1] shrink-0", !glyphPx && (isDock ? "h-[22px] w-[22px] sm:h-[26px] sm:w-[26px]" : "h-[30px] w-[30px]"))}
           style={glyphPx ? { width: glyphPx, height: glyphPx } : undefined}
           color={iconColor}
           strokeWidth={2.25}

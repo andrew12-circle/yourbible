@@ -12,6 +12,15 @@ import { MorningFormulaHomeCard } from "@/components/home/MorningFormulaHomeCard
 import { HomeAppButton } from "@/components/home/HomeAppButton";
 import { useHomeDashboardData } from "@/hooks/useHomeDashboardData";
 import { getBibleRoute } from "@/lib/home/homeApps";
+import {
+  IOS_GRID_ICON_PT,
+  iosHomeGridGapX,
+  iosHomeGridGapY,
+  iosHomeRowStride,
+  iosScaledPx,
+} from "@/lib/home/iosHomeLayout";
+import { readIsCompactViewport } from "@/lib/shell/viewport";
+import { cn } from "@/lib/utils";
 import type { HomeAppIcon } from "@/lib/home/homeApps";
 
 type PageDef = { type: "apps"; indexes: number[] } | { type: "widgets" };
@@ -56,6 +65,23 @@ export default function IosHomePage() {
   ]);
   const [pageHeightPx, setPageHeightPx] = useState<number | null>(null);
   const [activePage, setActivePage] = useState(0);
+  const [isCompact, setIsCompact] = useState(readIsCompactViewport);
+  const [gridWidthPx, setGridWidthPx] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 393,
+  );
+
+  useEffect(() => {
+    const syncViewport = () => setIsCompact(readIsCompactViewport());
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    window.visualViewport?.addEventListener("resize", syncViewport);
+    return () => {
+      window.removeEventListener("resize", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+      window.visualViewport?.removeEventListener("resize", syncViewport);
+    };
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -69,18 +95,23 @@ export default function IosHomePage() {
 
     const measureGrid = (gridEl: HTMLDivElement | null, w: number) => {
       const cols = gridColsForWidth(w);
-      const fallbackRow = w < 640 ? 90 : 103;
+      const fallbackRow = isCompact ? iosHomeRowStride(w) : w < 640 ? 90 : 103;
       if (!gridEl) return { cols, rowStride: fallbackRow };
       const first = gridEl.querySelector("button");
       if (!first) return { cols, rowStride: fallbackRow };
       const style = getComputedStyle(gridEl);
-      const gapY = parseFloat(style.rowGap) || parseFloat(style.gap) || (w < 640 ? 20 : 24);
+      const gapY =
+        parseFloat(style.rowGap) ||
+        parseFloat(style.gap) ||
+        (isCompact ? iosHomeGridGapY(w) : w < 640 ? 20 : 24);
       const cellH = first.getBoundingClientRect().height;
       return { cols, rowStride: cellH > 0 ? cellH + gapY : fallbackRow };
     };
 
     const calc = () => {
       const w = window.innerWidth;
+      const gridW = gridMeasureRef.current?.clientWidth ?? w;
+      setGridWidthPx(gridW);
       const vh = window.visualViewport?.height ?? window.innerHeight;
       const pagerTop = pagerRef.current?.getBoundingClientRect().top ?? 0;
       const availH = Math.max(160, vh - pagerTop - HOME_BOTTOM_CHROME_PX - readSafeAreaInsetBottom());
@@ -126,7 +157,7 @@ export default function IosHomePage() {
       window.removeEventListener("resize", calc);
       window.removeEventListener("orientationchange", calc);
     };
-  }, [appCount]);
+  }, [appCount, isCompact]);
 
   useEffect(() => {
     if (activePage >= pages.length && pages.length > 0) {
@@ -150,6 +181,10 @@ export default function IosHomePage() {
 
   const pageCount = Math.max(1, pages.length);
   const bibleTo = getBibleRoute();
+  const gridIconSize = isCompact ? iosScaledPx(gridWidthPx, IOS_GRID_ICON_PT) : undefined;
+  const gridGapStyle = isCompact
+    ? { columnGap: iosHomeGridGapX(gridWidthPx), rowGap: iosHomeGridGapY(gridWidthPx) }
+    : undefined;
 
   const greeting = (() => {
     const h = now.getHours();
@@ -251,10 +286,19 @@ export default function IosHomePage() {
                   )}
                   <div
                     ref={pageIdx === 0 ? gridMeasureRef : undefined}
-                    className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6"
+                    className={cn(
+                      "grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6",
+                      !isCompact && "gap-x-3 sm:gap-x-4 gap-y-5 sm:gap-y-6",
+                    )}
+                    style={gridGapStyle}
                   >
                     {page.indexes.map((i) => (
-                      <HomeAppButton key={apps[i].label} app={apps[i]} onClick={() => openApp(apps[i])} />
+                      <HomeAppButton
+                        key={apps[i].label}
+                        app={apps[i]}
+                        iconSize={gridIconSize}
+                        onClick={() => openApp(apps[i])}
+                      />
                     ))}
                   </div>
                 </>

@@ -15,8 +15,8 @@ export const RITUAL_STEPS = [
   { key: "manifesto", label: "Manifesto" },
   { key: "vision", label: "Vision" },
   { key: "story", label: "Story" },
-  { key: "assignment", label: "Today" },
   { key: "surrender", label: "Surrender" },
+  { key: "assignment", label: "Today" },
 ] as const;
 
 export function livingHopeDaySeed(): number {

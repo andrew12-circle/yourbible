@@ -7,6 +7,8 @@ import { fetchUnifiedMindGraph } from "@/lib/graph/fetchUnifiedMindGraph";
 import {
   buildUnifiedMindGraph,
   DEFAULT_MIND_GRAPH_FILTERS,
+  MIND_GRAPH_PALETTE,
+  MIND_NODE_COLORS,
   mindNodeRoute,
   pruneMindGraphToEntryRoots,
   type MindGraphFilters,
@@ -16,13 +18,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const FILTER_LABELS: { key: keyof MindGraphFilters; label: string }[] = [
-  { key: "entry", label: "Journal" },
-  { key: "belief", label: "Beliefs" },
-  { key: "artifact", label: "Videos & books" },
-  { key: "entity", label: "People" },
-  { key: "verse", label: "Scripture" },
-  { key: "claim", label: "Claims" },
+const FILTER_LABELS: { key: keyof MindGraphFilters; label: string; color: string }[] = [
+  { key: "entry", label: "Journal", color: MIND_NODE_COLORS.entry },
+  { key: "belief", label: "Beliefs", color: MIND_NODE_COLORS.belief },
+  { key: "artifact", label: "Videos & books", color: MIND_NODE_COLORS.artifact },
+  { key: "entity", label: "People", color: MIND_NODE_COLORS.entity },
+  { key: "verse", label: "Scripture", color: MIND_NODE_COLORS.verse },
+  { key: "claim", label: "Claims", color: MIND_NODE_COLORS.claim },
 ];
 
 interface Props {
@@ -123,14 +125,19 @@ export default function MindGraphView({
     >
       {!fill ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
-          {FILTER_LABELS.map(({ key, label }) => (
+          {FILTER_LABELS.map(({ key, label, color }) => (
             <div key={key} className="flex items-center gap-2">
               <Switch
                 id={`mind-filter-${key}`}
                 checked={filters[key]}
                 onCheckedChange={() => toggle(key)}
               />
-              <Label htmlFor={`mind-filter-${key}`} className="text-[12px] text-muted-foreground">
+              <Label htmlFor={`mind-filter-${key}`} className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: color }}
+                  aria-hidden
+                />
                 {label}
               </Label>
             </div>
@@ -162,7 +169,7 @@ export default function MindGraphView({
         >
           {fill ? (
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 bg-muted/30 px-3 py-2">
-              {FILTER_LABELS.map(({ key, label }) => (
+              {FILTER_LABELS.map(({ key, label, color }) => (
                 <div key={key} className="flex items-center gap-1.5">
                   <Switch
                     id={`mind-filter-${key}`}
@@ -171,8 +178,13 @@ export default function MindGraphView({
                   />
                   <Label
                     htmlFor={`mind-filter-${key}`}
-                    className="text-[11px] text-muted-foreground"
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground"
                   >
+                    <span
+                      className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
+                    />
                     {label}
                   </Label>
                 </div>
@@ -191,7 +203,7 @@ export default function MindGraphView({
               nodeId="id"
               nodeVal="val"
               nodeColor="color"
-              linkColor={(l) => (l as { color?: string }).color ?? "rgba(0, 122, 255, 0.22)"}
+              linkColor={(l) => (l as { color?: string }).color ?? "rgba(28, 28, 30, 0.2)"}
               linkWidth={1}
               cooldownTicks={100}
               onEngineStop={() => fitView()}
@@ -217,7 +229,7 @@ export default function MindGraphView({
                 if (globalScale < 0.55 && !active) return;
                 const fontSize = Math.max(8 / globalScale, 2.8);
                 ctx.font = `${fontSize}px ui-sans-serif, system-ui`;
-                ctx.fillStyle = "hsl(var(--foreground))";
+                ctx.fillStyle = MIND_GRAPH_PALETTE.black;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "top";
                 const label = n.label.length > 32 ? `${n.label.slice(0, 31)}…` : n.label;

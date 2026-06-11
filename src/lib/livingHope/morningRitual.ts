@@ -63,9 +63,9 @@ export const RITUAL_STEP_LABELS = [
   { key: "manifesto", label: "Manifesto" },
   { key: "vision", label: "Vision" },
   { key: "story", label: "Story" },
+  { key: "surrender", label: "Surrender" },
   { key: "assignment", label: "Today" },
   { key: "goals", label: "Goals" },
-  { key: "surrender", label: "Surrender" },
 ] as const;
 
 export type RitualStep =
@@ -128,10 +128,10 @@ export function buildRitualSteps(
   if (workbook?.manifesto.length) steps.push({ kind: "manifesto" });
   if (workbook?.vision_headline || workbook?.income_lines.length) steps.push({ kind: "vision" });
   if (workbook?.stories.length) steps.push({ kind: "story" });
-  steps.push({ kind: "assignment" });
+  steps.push({ kind: "surrender" }, { kind: "assignment" });
   for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
   if (workbook?.metrics.length) steps.push({ kind: "metrics" });
-  steps.push({ kind: "surrender" }, { kind: "done" });
+  steps.push({ kind: "done" });
   return steps;
 }
 

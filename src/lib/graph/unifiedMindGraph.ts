@@ -26,18 +26,25 @@ export type MindGraphLink = {
   color: string;
 };
 
-/** Apple system-style accent colors (matches home-screen icon palette). */
+/** Mind map palette — blue, red, green, black only. */
+export const MIND_GRAPH_PALETTE = {
+  blue: "#007AFF",
+  red: "#FF3B30",
+  green: "#34C759",
+  black: "#1C1C1E",
+} as const;
+
 export const MIND_NODE_COLORS: Record<MindNodeKind, string> = {
-  entry: "#FF9500",
-  belief: "#34C759",
-  artifact: "#AF52DE",
-  entity: "#FF3B30",
-  verse: "#007AFF",
-  claim: "#48484A",
+  entry: MIND_GRAPH_PALETTE.blue,
+  belief: MIND_GRAPH_PALETTE.green,
+  artifact: MIND_GRAPH_PALETTE.black,
+  entity: MIND_GRAPH_PALETTE.red,
+  verse: MIND_GRAPH_PALETTE.blue,
+  claim: MIND_GRAPH_PALETTE.black,
 };
 
-const LINK_DEFAULT = "rgba(0, 122, 255, 0.22)";
-const LINK_TENSION = "rgba(255, 59, 48, 0.45)";
+const LINK_DEFAULT = "rgba(28, 28, 30, 0.2)";
+const LINK_TENSION = "rgba(255, 59, 48, 0.55)";
 
 export const mindNodeId = {
   entry: (id: string) => `e:${id}`,

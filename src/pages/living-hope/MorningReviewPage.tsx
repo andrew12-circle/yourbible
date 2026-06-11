@@ -242,7 +242,9 @@ export default function MorningReviewPage() {
                 className={lh.btnPrimary}
                 disabled={saving}
                 onClick={() => {
-                  if (step.kind === "surrender") void finish();
+                  const isLastBeforeDone =
+                    stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done";
+                  if (isLastBeforeDone) void finish();
                   else setStepIndex((i) => Math.min(i + 1, steps.length - 1));
                 }}
               >
@@ -250,7 +252,7 @@ export default function MorningReviewPage() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    {step.kind === "surrender" ? "Complete review" : "Continue"}
+                    {stepIndex === steps.length - 2 ? "Complete review" : "Continue"}
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </>
                 )}

@@ -23,8 +23,10 @@ describe("buildRitualSteps", () => {
     expect(kinds).toContain("manifesto");
     expect(kinds).toContain("vision");
     expect(kinds).toContain("story");
+    const surrenderIdx = kinds.indexOf("surrender");
     const assignmentIdx = kinds.indexOf("assignment");
     const manifestoIdx = kinds.indexOf("manifesto");
-    expect(manifestoIdx).toBeLessThan(assignmentIdx);
+    expect(manifestoIdx).toBeLessThan(surrenderIdx);
+    expect(surrenderIdx).toBeLessThan(assignmentIdx);
   });
 });

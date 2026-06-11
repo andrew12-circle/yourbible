@@ -27,6 +27,7 @@ import {
   WORKBOOK_PHASES,
   WORKBOOK_SECTIONS,
   type LivingHopeWorkbookContent,
+  type WorkbookPhase,
 } from "@/lib/livingHope/workbookTypes";
 import { IosGroupedRow, IosGroupedSection } from "@/components/living-hope/IosGroupedSection";
 import { cn } from "@/lib/utils";
@@ -72,62 +73,59 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
     return "Opened — review each morning";
   })();
 
-  return (
-    <div className="flex-1 flex flex-col py-1 md:py-2 overflow-y-auto scrollbar-hide max-w-xl mx-auto w-full">
-      <header className="mb-5 pt-1">
-        <p className="text-[13px] text-muted-foreground">{dateStr}</p>
-        <div className="mt-0.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[34px] font-bold tracking-tight leading-[1.08] text-foreground">
-              Morning formula
-            </h1>
-            <p className="mt-1 text-[15px] text-muted-foreground leading-snug">
-              {greeting} — never look backwards.
-            </p>
-          </div>
-          {streak > 0 ? (
-            <span className={cn("shrink-0 mt-2", lh.pillActive)}>{streak}-day streak</span>
-          ) : null}
-        </div>
-      </header>
+  const renderPhaseSection = (phaseKey: WorkbookPhase) => {
+    const phase = WORKBOOK_PHASES.find((p) => p.key === phaseKey);
+    if (!phase) return null;
 
-      <Link to="/living-hope/review" className={cn(lh.heroCard, "block mb-5")}>
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/20">
-            <Sunrise className="h-6 w-6 text-white" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1 text-white">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80">
-              Today&apos;s formula
-            </p>
-            <p className="text-[17px] font-semibold leading-snug mt-0.5">
-              {reviewedToday ? "Review again" : "Enter today's formula"}
-            </p>
-            <p className="text-[13px] text-white/75 mt-1 leading-snug">
-              Worship · scripture · pray · vision · today&apos;s assignment
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/60 shrink-0 mt-2" aria-hidden />
-        </div>
+    const prog = workbook
+      ? getPhaseProgress(phase.key, workbook, letter)
+      : { filled: 0, total: phase.key === "anchor" ? 3 : 0 };
+    const sections = WORKBOOK_SECTIONS.filter((s) => s.phase === phase.key);
 
-        <div className="mt-3 flex flex-wrap gap-1">
-          {RITUAL_STEPS.map((step) => (
-            <span
-              key={step.key}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                reviewedToday ? "bg-white/25 text-white" : "bg-black/10 text-white/85",
-              )}
-            >
-              {reviewedToday ? <Check className="w-2.5 h-2.5" /> : null}
-              {step.label}
-            </span>
-          ))}
-        </div>
-      </Link>
+    return (
+      <IosGroupedSection
+        key={phase.key}
+        title={`${phase.label} · ${prog.filled}/${prog.total}`}
+        footer={`${phase.scripture} — ${phase.description}`}
+        className="mb-0 h-full"
+      >
+        {phase.key === "anchor" ? (
+          <IosGroupedRow
+            to="/living-hope/letter"
+            icon={Mail}
+            label="Letter from the future"
+            detail={letterDetail}
+            done={letterStatus !== "draft"}
+          />
+        ) : null}
+        {sections.map((s) => (
+          <IosGroupedRow
+            key={s.key}
+            to={`/living-hope/workbook/${s.key}`}
+            label={s.label}
+            detail={s.hint}
+            done={workbook ? isSectionComplete(workbook, s.key) : false}
+          />
+        ))}
+        {phase.key === "see" && goals.length > 0 ? (
+          <IosGroupedRow
+            to="/living-hope/letter"
+            icon={Target}
+            label={`Fractal goals (${goals.length})`}
+            detail={goals
+              .slice(0, 2)
+              .map((g) => g.title)
+              .join(" · ")}
+          />
+        ) : null}
+      </IosGroupedSection>
+    );
+  };
 
+  const sideSections = (
+    <>
       {reviewedToday && todayReview?.surrender_note ? (
-        <IosGroupedSection title="Today's surrender" className="mb-5">
+        <IosGroupedSection title="Today's surrender" className="mb-0">
           <p className="px-4 py-3 text-[15px] text-muted-foreground italic leading-relaxed">
             &ldquo;{todayReview.surrender_note}&rdquo;
           </p>
@@ -146,14 +144,14 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
         <IosGroupedSection
           title="Get started"
           footer={`Foundation ${percent}% ready — build once, review every morning.`}
-          className="mb-5"
+          className="mb-0"
         >
           <IosGroupedRow to={nextStep.href} icon={Sparkles} label={nextStep.label} detail="Next step" />
         </IosGroupedSection>
       ) : null}
 
       {isSunday ? (
-        <IosGroupedSection title="This week" className="mb-5">
+        <IosGroupedSection title="This week" className="mb-0">
           <IosGroupedRow
             to="/living-hope/workbook/weekly"
             icon={Calendar}
@@ -164,7 +162,7 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
       ) : null}
 
       {ritualReady && preview && (preview.manifesto || workbook?.vision_headline || preview.story) ? (
-        <IosGroupedSection title="Today's preview" footer="Heb 11:1 · Thy will be done" className="mb-5">
+        <IosGroupedSection title="Today's preview" footer="Heb 11:1 · Thy will be done" className="mb-0">
           {preview.manifesto?.text ? (
             <IosGroupedRow
               to="/living-hope/workbook/manifesto"
@@ -192,56 +190,91 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
           ) : null}
         </IosGroupedSection>
       ) : null}
+    </>
+  );
 
-      <div className="mb-2 flex items-baseline justify-between px-1">
-        <h2 className="text-[22px] font-bold tracking-tight text-foreground">Foundation</h2>
-        <span className="text-[13px] text-muted-foreground">{percent}%</span>
+  const hasSideSections =
+    (reviewedToday && !!todayReview?.surrender_note) ||
+    (!ritualReady && !!nextStep) ||
+    isSunday ||
+    (ritualReady && !!preview && !!(preview.manifesto || workbook?.vision_headline || preview.story));
+
+  return (
+    <div className="flex-1 flex flex-col py-1 md:py-2 overflow-y-auto scrollbar-hide w-full">
+      <header className="mb-5 pt-1">
+        <p className="text-[13px] text-muted-foreground">{dateStr}</p>
+        <div className="mt-0.5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[34px] font-bold tracking-tight leading-[1.08] text-foreground lg:text-[40px]">
+              Morning formula
+            </h1>
+            <p className="mt-1 text-[15px] text-muted-foreground leading-snug">
+              {greeting} — never look backwards.
+            </p>
+          </div>
+          {streak > 0 ? (
+            <span className={cn("shrink-0 mt-2", lh.pillActive)}>{streak}-day streak</span>
+          ) : null}
+        </div>
+      </header>
+
+      <div
+        className={cn(
+          "mb-5 lg:mb-6 gap-5",
+          hasSideSections ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] lg:items-start" : "",
+        )}
+      >
+        <Link
+          to="/living-hope/review"
+          className={cn(lh.heroCard, "block h-full min-h-[148px] lg:min-h-[180px]")}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/20 lg:h-12 lg:w-12">
+              <Sunrise className="h-6 w-6 text-white lg:h-7 lg:w-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 text-white">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80">
+                Today&apos;s formula
+              </p>
+              <p className="text-[17px] font-semibold leading-snug mt-0.5 lg:text-[20px]">
+                {reviewedToday ? "Review again" : "Enter today's formula"}
+              </p>
+              <p className="text-[13px] text-white/75 mt-1 leading-snug lg:text-[14px]">
+                Worship · scripture · pray · vision · today&apos;s assignment
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/60 shrink-0 mt-2" aria-hidden />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1 lg:mt-4 lg:gap-1.5">
+            {RITUAL_STEPS.map((step) => (
+              <span
+                key={step.key}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium lg:text-[11px] lg:px-2.5",
+                  reviewedToday ? "bg-white/25 text-white" : "bg-black/10 text-white/85",
+                )}
+              >
+                {reviewedToday ? <Check className="w-2.5 h-2.5" /> : null}
+                {step.label}
+              </span>
+            ))}
+          </div>
+        </Link>
+
+        {hasSideSections ? (
+          <div className="flex flex-col gap-5 min-w-0">{sideSections}</div>
+        ) : null}
       </div>
 
-      {WORKBOOK_PHASES.map((phase) => {
-        const prog = workbook
-          ? getPhaseProgress(phase.key, workbook, letter)
-          : { filled: 0, total: phase.key === "anchor" ? 3 : 0 };
-        const sections = WORKBOOK_SECTIONS.filter((s) => s.phase === phase.key);
+      <div className="mb-3 flex items-baseline justify-between px-1 lg:mb-4">
+        <h2 className="text-[22px] font-bold tracking-tight text-foreground lg:text-[24px]">Foundation</h2>
+        <span className="text-[13px] text-muted-foreground tabular-nums">{percent}%</span>
+      </div>
 
-        return (
-          <IosGroupedSection
-            key={phase.key}
-            title={`${phase.label} · ${prog.filled}/${prog.total}`}
-            footer={`${phase.scripture} — ${phase.description}`}
-          >
-            {phase.key === "anchor" ? (
-              <IosGroupedRow
-                to="/living-hope/letter"
-                icon={Mail}
-                label="Letter from the future"
-                detail={letterDetail}
-                done={letterStatus !== "draft"}
-              />
-            ) : null}
-            {sections.map((s) => (
-              <IosGroupedRow
-                key={s.key}
-                to={`/living-hope/workbook/${s.key}`}
-                label={s.label}
-                detail={s.hint}
-                done={workbook ? isSectionComplete(workbook, s.key) : false}
-              />
-            ))}
-            {phase.key === "see" && goals.length > 0 ? (
-              <IosGroupedRow
-                to="/living-hope/letter"
-                icon={Target}
-                label={`Fractal goals (${goals.length})`}
-                detail={goals
-                  .slice(0, 2)
-                  .map((g) => g.title)
-                  .join(" · ")}
-              />
-            ) : null}
-          </IosGroupedSection>
-        );
-      })}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 pb-2">
+        {WORKBOOK_PHASES.map((phase) => renderPhaseSection(phase.key))}
+      </div>
     </div>
   );
 }
