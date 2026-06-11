@@ -51,6 +51,9 @@ const LAYER_ICONS: Record<FrameworkLayer, LucideIcon> = {
   emotional: Heart,
 };
 
+/** Hub/desktop overview column — keeps hero + interview grid readable without stretching edge-to-edge. */
+const OVERVIEW_CONTENT_MAX = "max-w-4xl lg:max-w-[min(100%,920px)]";
+
 interface SecondaryActionProps {
   to: string;
   icon: LucideIcon;
@@ -263,7 +266,7 @@ export default function FrameworkDashboard() {
     <section
       className={cn(
         "rounded-2xl border border-border/50 bg-card/40 p-5 sm:p-6 shadow-sm ring-1 ring-border/30 animate-fade-up",
-        hasRecentArtifacts ? "mb-8 sm:mb-10" : "mt-10 sm:mt-12",
+        hasRecentArtifacts ? "mb-6 sm:mb-8" : "mt-6 sm:mt-8",
       )}
       style={{
         animationDelay: hasRecentArtifacts ? "0ms" : "220ms",
@@ -316,11 +319,15 @@ export default function FrameworkDashboard() {
   );
 
   return (
-    <FrameworkLayout title="Overview">
+    <FrameworkLayout
+      title="Overview"
+      contentClassName={OVERVIEW_CONTENT_MAX}
+      headerContentClassName={OVERVIEW_CONTENT_MAX}
+    >
       {hasRecentArtifacts ? libraryRecentlyAdded : null}
 
       <section
-        className="relative overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm animate-fade-up"
+        className="relative overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm animate-fade-up sm:rounded-3xl"
         style={{
           ...(hasRecentArtifacts
             ? { animationDelay: "60ms", animationFillMode: "backwards" as const }
@@ -339,24 +346,24 @@ export default function FrameworkDashboard() {
           }}
           aria-hidden
         />
-        <div className="relative grid gap-8 p-6 sm:gap-10 sm:p-10 lg:p-12 sm:grid-cols-[1.15fr,1fr] sm:items-center">
+        <div className="relative grid gap-6 p-5 sm:grid-cols-[1.2fr,0.8fr] sm:items-center sm:gap-8 sm:p-7 lg:p-8">
           <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 mb-3 sm:mb-4">
+            <div className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 sm:mb-3">
               Your Framework
             </div>
-            <h2 className="font-display text-3xl sm:text-[2.5rem] lg:text-[2.75rem] leading-[1.05] tracking-tight text-foreground text-balance">
+            <h2 className="font-display text-2xl leading-[1.1] tracking-tight text-foreground text-balance sm:text-3xl lg:text-[2rem]">
               Where your beliefs live.
             </h2>
-            <p className="mt-3 sm:mt-4 text-[15px] sm:text-base leading-relaxed text-muted-foreground max-w-[34rem] text-balance">
+            <p className="mt-2.5 max-w-[34rem] text-sm leading-relaxed text-muted-foreground text-balance sm:mt-3 sm:text-[15px]">
               A living map of what you actually believe — examined, sourced,
               and tested against scripture. Start with one belief, then run
               sermons, podcasts, and journal entries through the analyzer.
             </p>
-            <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 sm:mt-6">
               <Button
-                size="lg"
+                size="default"
                 onClick={() => setQuickOpen(true)}
-                className="rounded-2xl shadow-sm h-11 px-5 text-[15px]"
+                className="h-10 rounded-xl px-4 text-sm shadow-sm sm:h-11 sm:rounded-2xl sm:px-5 sm:text-[15px]"
               >
                 <Sparkles className="w-4 h-4" />
                 Capture a belief
@@ -377,7 +384,7 @@ export default function FrameworkDashboard() {
               </Link>
             </div>
           </div>
-          <div className="relative -mx-2 sm:mx-0">
+          <div className="relative mx-auto w-full max-w-[11rem] opacity-90 sm:max-w-[9.5rem] lg:max-w-[10.5rem]">
             <BookMapEmblem />
           </div>
         </div>
@@ -389,7 +396,7 @@ export default function FrameworkDashboard() {
 
       <nav
         aria-label="Quick actions"
-        className="mt-5 sm:mt-6 flex flex-wrap items-center gap-2 animate-fade-up"
+        className="mt-4 flex flex-wrap items-center gap-2 animate-fade-up sm:mt-5"
         style={{ animationDelay: "80ms", animationFillMode: "backwards" }}
       >
         <SecondaryAction to="/framework/artifacts" icon={FileStack} label="Artifacts" />
@@ -431,7 +438,7 @@ export default function FrameworkDashboard() {
       </nav>
 
       <section
-        className="relative mt-10 sm:mt-12 overflow-hidden rounded-3xl border border-border/60 p-5 sm:p-7 animate-fade-up"
+        className="relative mt-6 overflow-hidden rounded-2xl border border-border/60 p-4 animate-fade-up sm:mt-8 sm:rounded-3xl sm:p-6"
         style={{
           backgroundImage:
             "linear-gradient(180deg, hsl(40 42% 97%) 0%, hsl(40 30% 99%) 100%)",
@@ -441,7 +448,7 @@ export default function FrameworkDashboard() {
           animationFillMode: "backwards",
         }}
       >
-        <div className="mb-5 sm:mb-6 flex items-baseline justify-between gap-4">
+        <div className="mb-4 flex items-baseline justify-between gap-4 sm:mb-5">
           <div className="min-w-0">
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
               Chapter 01 · The Interview
@@ -465,7 +472,7 @@ export default function FrameworkDashboard() {
               <Link
                 key={layer}
                 to={`/framework/interview/${layer}`}
-                className="group block rounded-2xl border border-border/60 bg-background/90 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-up"
+                className="group block rounded-xl border border-border/60 bg-background/90 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-up sm:rounded-2xl sm:p-5"
                 style={{
                   animationDelay: `${180 + idx * 60}ms`,
                   animationFillMode: "backwards",

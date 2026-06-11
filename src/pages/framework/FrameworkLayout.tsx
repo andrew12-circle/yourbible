@@ -1,4 +1,5 @@
-import { ReactNode, useLayoutEffect, useRef } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef } from "react";
+import { warmYouTubeIframeApi } from "@/lib/youtube/warmEmbed";
 import {
   ARTIFACT_TABLET_MIN_PX,
   ARTIFACT_VIDEO_PIP_MIN_PX,
@@ -86,8 +87,16 @@ export default function FrameworkLayout({
   const hideMobileFrameworkHeader = Boolean(immersiveMobileMinimal);
   const hideDesktopFrameworkHeader = Boolean(immersiveDesktopMinimal);
   const headerMax = headerContentClassName ?? "max-w-none";
+  const hideHubRootBack = showHubShell && pathname === "/framework";
+  const compactHubHeader = showHubShell && !immersive && !workspace;
   const layoutRootRef = useRef<HTMLDivElement>(null);
   const frameworkHeaderRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isArtifactDetailPath(pathname) || isArtifactsLibraryPath(pathname)) {
+      warmYouTubeIframeApi();
+    }
+  }, [pathname]);
 
   useLayoutEffect(() => {
     if (!immersiveMobileMinimal) return;
@@ -207,31 +216,35 @@ export default function FrameworkLayout({
               !(headerLeading && immersive) && "flex-1",
             )}
           >
-            <Link
-              to={back ?? "/"}
-              className={cn(
-                "shrink-0 rounded-lg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                immersive
-                  ? "inline-flex items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
-                  : "inline-flex h-9 w-9 items-center justify-center hover:bg-muted/50 hover:text-foreground",
-                headerLeading &&
-                  immersive &&
-                  (immersiveCompactTitle || immersiveMobileMinimal) &&
-                  "hidden md:inline-flex",
-              )}
-              aria-label={immersive ? "Back to artifacts" : "Back"}
-            >
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-              {immersive ? <span className="hidden sm:inline">Artifacts</span> : null}
-            </Link>
+            {!hideHubRootBack ? (
+              <Link
+                to={back ?? "/"}
+                className={cn(
+                  "shrink-0 rounded-lg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  immersive
+                    ? "inline-flex items-center gap-1.5 border border-border/60 bg-card/90 px-2.5 py-1.5 text-xs font-medium shadow-sm hover:border-border hover:bg-muted/40 hover:text-foreground"
+                    : "inline-flex h-9 w-9 items-center justify-center hover:bg-muted/50 hover:text-foreground",
+                  headerLeading &&
+                    immersive &&
+                    (immersiveCompactTitle || immersiveMobileMinimal) &&
+                    "hidden md:inline-flex",
+                )}
+                aria-label={immersive ? "Back to artifacts" : "Back"}
+              >
+                <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                {immersive ? <span className="hidden sm:inline">Artifacts</span> : null}
+              </Link>
+            ) : null}
             <div className="min-w-0 flex-1">
               {headerLeading ? (
                 headerLeading
               ) : title ? (
                 <h1
                   className={cn(
-                    "truncate tracking-tight text-foreground",
-                    "font-display text-xl font-normal tracking-tight sm:text-2xl",
+                    "truncate font-display tracking-tight text-foreground",
+                    compactHubHeader
+                      ? "text-base font-medium sm:text-lg"
+                      : "text-xl font-normal sm:text-2xl",
                   )}
                 >
                   {title}

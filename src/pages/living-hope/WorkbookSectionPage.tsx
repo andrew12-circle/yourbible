@@ -81,7 +81,7 @@ export default function WorkbookSectionPage() {
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2 space-y-4">
           <h1 className={lh.titleXl}>{meta.label}</h1>
           {section === "weekly" && !isSunday ? (
-            <p className="text-[13px] text-amber-800/80 rounded-xl bg-amber-100/80 px-3 py-2">
+            <p className="text-[13px] text-muted-foreground rounded-xl bg-muted/50 px-3 py-2">
               Best on Sunday — week of {weekStartISO()}
             </p>
           ) : null}
@@ -96,7 +96,7 @@ export default function WorkbookSectionPage() {
           />
           {section === "weekly" ? (
             <Button
-              className="w-full rounded-xl bg-amber-400 text-amber-950 hover:bg-amber-300"
+              className={lh.btnPrimary}
               disabled={savingWeekly}
               onClick={() => void saveWeekly()}
             >

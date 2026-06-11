@@ -26,6 +26,7 @@ const iconColorMap: Record<string, string> = {
   Beliefs: "text-sky-500",
   Artifacts: "text-rose-500",
   Graph: "text-cyan-500",
+  "Mind map": "text-cyan-500",
   Tensions: "text-fuchsia-500",
   Study: "text-blue-400",
   Digest: "text-slate-500",
@@ -54,23 +55,23 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
     label: "",
     items: [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
-      { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
-      { title: "Daily", icon: Sun, to: "/framework/daily" },
+      { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
+      { title: "Mind map", icon: Share2, to: "/framework/graph" },
+      { title: "Framework", icon: Brain, to: "/framework" },
+      { title: "Beliefs", icon: Network, to: "/framework/beliefs" },
+      { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
+      { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
     ],
   },
   {
     label: "Framework",
     items: [
-      { title: "Framework", icon: Brain, to: "/framework" },
+      { title: "Daily", icon: Sun, to: "/framework/daily" },
       { title: "Journey", icon: Sprout, to: "/framework/journey" },
-      { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
-      { title: "Beliefs", icon: Network, to: "/framework/beliefs" },
       { title: "Influences", icon: Users, to: "/framework/influences" },
-      { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
       { title: "Library standing", icon: Layers, to: "/framework/library-standing" },
-      { title: "Mind map", icon: Share2, to: "/framework/graph" },
       { title: "Tensions", icon: Sparkles, to: "/framework/tensions" },
       { title: "Study", icon: GraduationCap, to: "/framework/study" },
       { title: "Digest", icon: Mail, to: "/framework/digest" },
@@ -161,7 +162,7 @@ export function HubSidebar() {
   };
 
   return (
-    <Sidebar collapsible="offcanvas" variant="floating">
+    <Sidebar collapsible="offcanvas" variant="floating" className="app-theme">
       <SidebarHeader className="px-3 py-5">
         <Link
           to="/home"

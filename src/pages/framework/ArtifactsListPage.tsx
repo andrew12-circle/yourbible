@@ -30,6 +30,7 @@ import { ArtifactShelf } from "./artifacts/ArtifactShelf";
 import { ArtifactGrid } from "./artifacts/ArtifactGrid";
 import { ArtifactListRow } from "./artifacts/ArtifactListRow";
 import { ArtifactLibrarySkeleton } from "./artifacts/ArtifactLibrarySkeleton";
+import { warmYouTubeIframeApi } from "@/lib/youtube/warmEmbed";
 
 export default function ArtifactsListPage() {
   const { user, loading } = useAuth();
@@ -43,6 +44,10 @@ export default function ArtifactsListPage() {
   const [category, setCategory] = useState<LibraryCategoryId>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    warmYouTubeIframeApi();
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search), 150);

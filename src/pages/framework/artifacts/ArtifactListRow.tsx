@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { prepareArtifactNavigation } from "@/lib/framework/artifactShellCache";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ interface ArtifactListRowProps {
 export function ArtifactListRow({ r, deletingId, onDelete, isUnwatched = false }: ArtifactListRowProps) {
   const displayTitle = artifactDisplayTitle(r);
   const tip = linkFullTitle(r);
+  const primeNavigation = () => prepareArtifactNavigation(r);
   return (
     <li>
       <div className="flex items-start gap-4 rounded-2xl border border-border bg-card/30 p-3 pr-2 shadow-sm transition-colors hover:bg-muted/25">
@@ -56,6 +58,8 @@ export function ArtifactListRow({ r, deletingId, onDelete, isUnwatched = false }
           to={`/framework/artifacts/${r.id}`}
           className="shrink-0 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
           title={tip}
+          onPointerEnter={primeNavigation}
+          onClick={primeNavigation}
         >
           <RowThumbnail artifactId={r.id} kind={r.kind} url={r.url} metadata={r.metadata} />
         </Link>
@@ -63,6 +67,8 @@ export function ArtifactListRow({ r, deletingId, onDelete, isUnwatched = false }
           to={`/framework/artifacts/${r.id}`}
           className="min-w-0 flex-1 pt-0.5 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
           title={tip}
+          onPointerEnter={primeNavigation}
+          onClick={primeNavigation}
         >
           <div className="truncate font-bold text-[15px] leading-snug">{displayTitle}</div>
           <MetaBlock r={r} />

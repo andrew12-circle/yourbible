@@ -103,10 +103,7 @@ export function BookScene({
         "relative w-full flex flex-col items-center " +
         (fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]")
       }
-      style={{
-        background:
-          "linear-gradient(180deg, hsl(var(--muted) / 0.35) 0%, hsl(var(--background)) 12%, hsl(var(--background)) 100%)",
-      }}
+      style={{ background: "hsl(0 0% 100%)" }}
     >
       <div
         className="relative z-10 w-full flex flex-col flex-1 min-h-0"

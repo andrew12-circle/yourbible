@@ -26,10 +26,7 @@ export default function LivingHopeHubPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <LivingHopeChrome
-      backTo="/home"
-      subtitle={`${greeting} — never look backwards. The future is in front.`}
-    >
+    <LivingHopeChrome hubLanding>
       {loadingAll ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
@@ -41,6 +38,7 @@ export default function LivingHopeHubPage() {
           goals={goals}
           todayReview={todayReview}
           streak={streak}
+          greeting={greeting}
         />
       )}
     </LivingHopeChrome>

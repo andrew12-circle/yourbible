@@ -1,5 +1,6 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { prepareArtifactNavigation } from "@/lib/framework/artifactShellCache";
 import { MoreVertical, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -104,7 +105,14 @@ export const ArtifactTile = memo(function ArtifactTile({
     return <GeneratedCover artifactId={r.id} title={title} variant={generatedVariant(r.kind)} />;
   })();
 
-  const open = () => navigate(detailPath);
+  const primeNavigation = useCallback(() => {
+    prepareArtifactNavigation(r);
+  }, [r]);
+
+  const open = () => {
+    primeNavigation();
+    navigate(detailPath);
+  };
 
   const tileBody = (
     <div
@@ -136,6 +144,8 @@ export const ArtifactTile = memo(function ArtifactTile({
         className="absolute inset-0 z-10 touch-pan-x rounded-2xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
+        onPointerEnter={primeNavigation}
+        onClick={primeNavigation}
         aria-label={`Open ${title}`}
       />
       {unwatched ? (

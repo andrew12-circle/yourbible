@@ -39,8 +39,12 @@ export function useArtifactVideoPlayback(options: {
   /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
   /** Locked iframe start — set once per video; remote progress seeks instead of reloading src. */
-  const lockedEmbedStartRef = useRef(0);
-  const [staticEmbedStart, setStaticEmbedStart] = useState(0);
+  const lockedEmbedStartRef = useRef(
+    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+  );
+  const [staticEmbedStart, setStaticEmbedStart] = useState(() =>
+    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+  );
   const [apiStartSeconds, setApiStartSeconds] = useState(0);
 
   const youtubePip = useArtifactYoutubePip({

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
+import { peekArtifactShellCache } from "@/lib/framework/artifactShellCache";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
@@ -63,8 +64,8 @@ export type ArtifactMoment = {
 };
 
 export function useArtifactDetailData(artifactId: string | undefined, userId: string | undefined) {
-  const [a, setA] = useState<ArtifactRow | null>(null);
-  const [artifactLoaded, setArtifactLoaded] = useState(false);
+  const [a, setA] = useState<ArtifactRow | null>(() => peekArtifactShellCache(artifactId));
+  const [artifactLoaded, setArtifactLoaded] = useState(() => Boolean(peekArtifactShellCache(artifactId)));
   const [claims, setClaims] = useState<ArtifactDetailClaim[]>([]);
   const [matchedBeliefs, setMatchedBeliefs] = useState<Record<string, MatchedBelief>>({});
   const [moments, setMoments] = useState<ArtifactMoment[]>([]);
@@ -205,12 +206,19 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
 
   useEffect(() => {
     if (!userId || !artifactId) return;
-    setArtifactLoaded(false);
+    const cached = peekArtifactShellCache(artifactId);
+    if (cached) {
+      applyArtifact(cached);
+      setArtifactLoaded(true);
+    } else {
+      setArtifactLoaded(false);
+      applyArtifact(null);
+    }
     setClaims([]);
     setMoments([]);
     setMatchedBeliefs({});
     void loadShell();
-  }, [userId, artifactId, loadShell]);
+  }, [applyArtifact, userId, artifactId, loadShell]);
 
   const inFlight = !!a && ["fetching", "transcribing", "analyzing"].includes(a.status);
 

@@ -105,11 +105,13 @@ export async function buildFrameworkRetrievalContext(
 
   const [bRes, jRes, cRes, tRes, eRes, mRes] = semanticHits;
 
-  const [profileRes, historyRes, sourcesRes, tensionsRes] = await Promise.all([
+  const [profileRes, historyRes, sourcesRes, tensionsRes, workbookRes, lhReviewRes] = await Promise.all([
     supabase.from("profiles").select("identity_summary").eq("user_id", userId).maybeSingle(),
     supabase.from("my_ai_messages").select("role, content, created_at").eq("user_id", userId).eq("chat_id", chatId).order("created_at", { ascending: false }).limit(12),
     supabase.from("belief_sources").select("id, source_type, label, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabase.from("belief_tensions").select("id, a_id, b_id, summary, severity, status").eq("user_id", userId).eq("status", "open").order("severity", { ascending: false }).limit(20),
+    supabase.from("living_hope_workbook").select("content").eq("user_id", userId).maybeSingle(),
+    supabase.from("living_hope_reviews").select("review_date,vision_recall,surrender_note,goal_touches,completed_at").eq("user_id", userId).order("review_date", { ascending: false }).limit(3),
   ]);
 
   const { data: cogState } = await supabase
@@ -251,6 +253,8 @@ export async function buildFrameworkRetrievalContext(
     .map((h) => `${h.role.toUpperCase()}: ${truncate(h.content.replace(/\s+/g, " ").trim(), 900)}`)
     .join("\n");
 
+  const livingHopeBlock = formatLivingHopeContext(workbookRes.data?.content, lhReviewRes.data ?? []);
+
   const sections: string[] = [
     "## Living cognitive state (compressed identity from last nightly sweep — this is the user's voice and current season; honor it)\n" + (cogState
       ? (() => {
@@ -275,6 +279,7 @@ export async function buildFrameworkRetrievalContext(
     "## Belief trajectories — EARLIER → LATER (use to name evolution; do not invent transitions not shown here)\n" + (temporalLines.length ? temporalLines.join("\n") : "(none recorded)"),
     "## Open tensions adjacent to this turn (surface them if relevant)\n" + (tensionLines.length ? tensionLines.join("\n") : "(none)"),
     "## Most-relevant journals\n" + (journalLines.length ? journalLines.join("\n") : "(none)"),
+    "## Morning formula (Living Hope — vision workbook + recent reviews)\n" + livingHopeBlock,
     "## Most-relevant artifact claims\n" + (claimLines.length ? claimLines.join("\n") : "(none)"),
     "## Transcript moments (semantic — cite artifact + time when relevant)\n" + (transcriptLines.length ? transcriptLines.join("\n") : "(none)"),
     "## Most-relevant knowledge entities\n" + (entityLines.length ? entityLines.join("\n") : "(none)"),
@@ -284,6 +289,35 @@ export async function buildFrameworkRetrievalContext(
   ];
 
   return { contextBlock: shrinkToLimit(sections, MAX_CONTEXT_CHARS) };
+}
+
+function formatLivingHopeContext(workbookRaw: unknown, reviews: unknown[]): string {
+  const lines: string[] = [];
+  if (isRecord(workbookRaw)) {
+    const headline = typeof workbookRaw.vision_headline === "string" ? workbookRaw.vision_headline.trim() : "";
+    if (headline) lines.push(`Vision headline: ${truncate(headline, 280)}`);
+    const manifesto = Array.isArray(workbookRaw.manifesto) ? workbookRaw.manifesto : [];
+    for (const item of manifesto.slice(0, 4)) {
+      if (!isRecord(item)) continue;
+      const text = typeof item.text === "string" ? item.text.trim() : "";
+      if (text) lines.push(`Manifesto: ${truncate(text, 220)}`);
+    }
+    const stories = Array.isArray(workbookRaw.stories) ? workbookRaw.stories : [];
+    for (const item of stories.slice(0, 2)) {
+      if (!isRecord(item)) continue;
+      const text = typeof item.text === "string" ? item.text.trim() : "";
+      if (text) lines.push(`Daily story: ${truncate(text, 220)}`);
+    }
+  }
+  for (const r of reviews) {
+    if (!isRecord(r)) continue;
+    const day = typeof r.review_date === "string" ? r.review_date : "";
+    const recall = typeof r.vision_recall === "string" ? r.vision_recall.trim() : "";
+    const surrender = typeof r.surrender_note === "string" ? r.surrender_note.trim() : "";
+    if (recall) lines.push(`Review ${day} vision recall: ${truncate(recall, 240)}`);
+    if (surrender) lines.push(`Review ${day} surrender: ${truncate(surrender, 200)}`);
+  }
+  return lines.length ? lines.join("\n") : "(none — Morning formula workbook not filled yet)";
 }
 
 type PartnerPeerRpcRow = { connection_id: string; peer_user_id: string; peer_display_name: string | null; peer_email: string | null };

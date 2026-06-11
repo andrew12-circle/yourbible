@@ -1,5 +1,12 @@
 /** Stored on `journal_entries.entry_kind` (null = ordinary journal entry). */
-export type JournalEntryKind = "dream" | "praise_report" | "testimony" | "vent" | "chat" | "listening";
+export type JournalEntryKind =
+  | "dream"
+  | "praise_report"
+  | "testimony"
+  | "vent"
+  | "chat"
+  | "listening"
+  | "morning_review";
 
 /** Faith-journal kinds (shown under /journal/life). */
 export type FaithJournalKind = "dream" | "praise_report" | "testimony";
@@ -72,6 +79,12 @@ export const ENTRY_KIND_META: Record<
       "What did you hear, see, or sense? Catch it before it leaves — a word, a picture, a phrase.",
     newTitleHint: "Heard",
   },
+  morning_review: {
+    label: "Morning formula",
+    shortHint: "Auto-saved from your daily Morning formula review.",
+    placeholder: "",
+    newTitleHint: "Morning formula",
+  },
 };
 
 /** `?kind=` on `/journal/new` */
@@ -90,7 +103,7 @@ export function parseJournalEntryKindParam(raw: string | null): JournalEntryKind
 export function coerceJournalEntryKind(raw: string | null | undefined): JournalEntryKind | null {
   if (
     raw === "dream" || raw === "praise_report" || raw === "testimony" || raw === "vent" ||
-    raw === "chat" || raw === "listening"
+    raw === "chat" || raw === "listening" || raw === "morning_review"
   ) {
     return raw;
   }

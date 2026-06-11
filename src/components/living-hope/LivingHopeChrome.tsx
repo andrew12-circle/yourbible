@@ -1,12 +1,9 @@
 import { Link } from "react-router-dom";
-import { ChevronLeft, Sunrise } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
-
-const DAWN_GRADIENT =
-  "linear-gradient(165deg, #fff9f2 0%, #fde8c8 28%, #f5c878 52%, #faebd0 100%)";
 
 type Props = {
   title?: string;
@@ -16,6 +13,8 @@ type Props = {
   children: React.ReactNode;
   className?: string;
   fillHeight?: boolean;
+  /** Hub landing: large title lives in page body, not the nav bar. */
+  hubLanding?: boolean;
 };
 
 export function LivingHopeChrome({
@@ -26,13 +25,16 @@ export function LivingHopeChrome({
   children,
   className,
   fillHeight = true,
+  hubLanding = false,
 }: Props) {
   const { showHubShell } = useAppShellMode();
+  const showNav = !hubLanding || !showHubShell;
 
   return (
     <div
       className={cn(
-        "living-hope-root bg-[#faf6f0] text-stone-900 flex flex-col relative overflow-hidden",
+        "living-hope-root flex flex-col relative overflow-hidden",
+        showHubShell ? "bg-transparent text-foreground" : "bg-background text-foreground min-h-[100dvh]",
         showHubShell
           ? hubShellPageHeight(showHubShell)
           : fillHeight
@@ -41,42 +43,32 @@ export function LivingHopeChrome({
         className,
       )}
     >
-      <div className="absolute inset-0 pointer-events-none opacity-55" style={{ background: DAWN_GRADIENT }} />
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/50 via-transparent to-amber-100/25" />
+      {showNav ? (
+        <header className="relative z-10 flex items-center justify-between px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0">
+          {showHubShell ? (
+            <div className="w-9" aria-hidden />
+          ) : (
+            <Link to={backTo}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary -ml-2 h-9 px-2 font-normal text-[17px] gap-0.5"
+              >
+                <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
+                Back
+              </Button>
+            </Link>
+          )}
+          <span className="text-[15px] font-semibold tracking-tight truncate max-w-[50%]">{title}</span>
+          <div className="w-9 flex justify-end shrink-0">{right}</div>
+        </header>
+      ) : null}
 
-      <style>{`
-        .living-hope-root .field-input {
-          background: rgb(255 255 255 / 0.92);
-          border-color: hsl(32 24% 82%);
-          color: hsl(24 18% 14%);
-        }
-        .living-hope-root .field-input::placeholder {
-          color: hsl(24 12% 55%);
-        }
-      `}</style>
-
-      <header className="relative z-10 flex items-center justify-between px-4 md:px-6 lg:px-10 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-        {showHubShell ? (
-          <div className="w-10" aria-hidden />
-        ) : (
-          <Link to={backTo}>
-            <Button variant="ghost" size="icon" className="text-stone-600 hover:text-stone-900 hover:bg-stone-100/80 rounded-full">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-        )}
-        <div className="flex items-center gap-2 text-stone-600">
-          <Sunrise className="w-3.5 h-3.5 text-amber-600" />
-          <span className="text-[11px] font-medium uppercase tracking-[0.2em]">{title}</span>
-        </div>
-        <div className="w-10 flex justify-end">{right}</div>
-      </header>
-
-      {subtitle ? (
+      {subtitle && showNav ? (
         <p
           className={cn(
-            "relative z-10 -mt-1 mb-2 text-sm text-stone-600",
-            showHubShell ? "px-6 lg:px-10 text-left" : "px-5 text-center",
+            "relative z-10 px-4 md:px-6 -mt-0.5 mb-2 text-[13px] text-muted-foreground text-center",
+            showHubShell && "md:text-left md:px-6 lg:px-8",
           )}
         >
           {subtitle}
@@ -85,10 +77,10 @@ export function LivingHopeChrome({
 
       <main
         className={cn(
-          "relative z-10 flex-1 flex flex-col w-full min-w-0",
+          "relative z-10 flex-1 flex flex-col w-full min-w-0 min-h-0",
           showHubShell
-            ? "max-w-none mx-0 px-6 lg:px-10 xl:px-12 pb-6 overflow-y-auto"
-            : "max-w-lg mx-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+            ? "max-w-none mx-0 px-4 md:px-6 lg:px-8 pb-6 overflow-y-auto scrollbar-hide"
+            : "max-w-lg mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
         )}
       >
         {children}
@@ -96,5 +88,3 @@ export function LivingHopeChrome({
     </div>
   );
 }
-
-export { DAWN_GRADIENT };

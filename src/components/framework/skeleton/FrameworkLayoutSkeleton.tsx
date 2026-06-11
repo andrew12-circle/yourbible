@@ -29,7 +29,7 @@ export function FrameworkLayoutSkeleton({
       </header>
       <main
         className={cn(
-          "mx-auto max-w-none px-4 pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:px-5 sm:py-10",
+          "mx-auto max-w-4xl px-4 pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:px-5 sm:py-10 lg:max-w-[min(100%,920px)]",
           mainClassName,
         )}
       >

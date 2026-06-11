@@ -10,6 +10,10 @@ import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
+import {
+  defaultMorningReviewDate,
+  syncMorningReviewToJournal,
+} from "@/lib/livingHope/morningReviewJournal";
 import { livingHopeDaySeed } from "@/lib/livingHope/workbookProgress";
 import { toast } from "@/hooks/use-toast";
 import { lh } from "@/lib/livingHope/themeClasses";
@@ -39,6 +43,7 @@ export default function MorningReviewPage() {
     letter?.surrender_prayer ?? "Father, not my will but Yours. Amen.",
   );
   const [saving, setSaving] = useState(false);
+  const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
 
   const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
   const seed = livingHopeDaySeed();
@@ -93,7 +98,23 @@ export default function MorningReviewPage() {
         ),
       });
       setTodayReview(review);
-      toast({ title: "Morning review complete" });
+      try {
+        const synced = await syncMorningReviewToJournal(user.id, {
+          reviewDate: defaultMorningReviewDate(),
+          surrenderNote: surrender,
+          visionRecall,
+          goalTouches: goal_touches,
+          manifestoIndex,
+          storyIndex,
+          metricValues,
+          workbook: workbook ?? null,
+          goals: activeGoals,
+        });
+        if (synced?.entryId) setJournalEntryId(synced.entryId);
+      } catch {
+        // Review saved; journal sync is best-effort (offline / local-only).
+      }
+      toast({ title: "Morning review complete", description: "Saved to your journal and mind map." });
       setStepIndex(steps.length - 1);
     } catch (e) {
       toast({
@@ -115,6 +136,7 @@ export default function MorningReviewPage() {
     metricValues,
     setTodayReview,
     steps.length,
+    workbook,
   ]);
 
   if (loading) return null;
@@ -134,7 +156,7 @@ export default function MorningReviewPage() {
             Add vision, stories, manifesto, and goals — then run the morning formula each day.
           </p>
           <Link to="/living-hope">
-            <Button className="rounded-xl bg-amber-400 text-amber-950 hover:bg-amber-300">
+            <Button className={lh.btnPrimary}>
               Open workbook
             </Button>
           </Link>
@@ -174,7 +196,7 @@ export default function MorningReviewPage() {
         <div className="flex-1 flex flex-col py-2">
           <div className={lh.progress}>
             <motion.div
-              className="h-full bg-amber-400/80"
+              className={lh.progressFill}
               animate={{ width: `${Math.round(progress * 100)}%` }}
               transition={{ duration: 0.35 }}
             />
@@ -313,7 +335,18 @@ export default function MorningReviewPage() {
                   <p className={cn("text-[14px] max-w-xs", lh.bodySm)}>
                     Go live what you saw.
                   </p>
-                  <Link to="/journal/life/praise" className={cn("mt-4 text-[13px]", lh.accentLink)}>
+                  {journalEntryId ? (
+                    <Link
+                      to={`/journal/${journalEntryId}`}
+                      className={cn("mt-4 text-[13px] font-medium", lh.accentLink)}
+                    >
+                      Open journal entry →
+                    </Link>
+                  ) : null}
+                  <Link to="/framework/graph" className={cn("mt-2 text-[13px]", lh.accentLink)}>
+                    View on mind map →
+                  </Link>
+                  <Link to="/journal/life/praise" className={cn("mt-2 text-[13px]", lh.muted)}>
                     Praise report →
                   </Link>
                 </div>
@@ -324,10 +357,7 @@ export default function MorningReviewPage() {
           {step.kind !== "done" ? (
             <div className="mt-6 pt-2">
               <Button
-                className={cn(
-                  "w-full rounded-xl h-12 font-medium",
-                  "bg-amber-400 text-amber-950 hover:bg-amber-300",
-                )}
+                className={lh.btnPrimary}
                 disabled={saving}
                 onClick={() => {
                   if (step.kind === "surrender") void finish();

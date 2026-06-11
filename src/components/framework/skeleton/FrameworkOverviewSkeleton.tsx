@@ -26,18 +26,18 @@ export function RecentlyAddedShelfSkeleton() {
 function HeroSkeleton() {
   return (
     <section className="overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm">
-      <div className="grid gap-8 p-6 sm:grid-cols-[1.15fr,1fr] sm:items-center sm:gap-10 sm:p-10 lg:p-12">
-        <div className="min-w-0 space-y-4">
+      <div className="grid gap-6 p-5 sm:grid-cols-[1.2fr,0.8fr] sm:items-center sm:gap-8 sm:p-7 lg:p-8">
+        <div className="min-w-0 space-y-3">
           <FrameworkShimmerBlock className="h-3 w-28" />
-          <FrameworkShimmerBlock className="h-10 w-full max-w-lg sm:h-12" />
+          <FrameworkShimmerBlock className="h-8 w-full max-w-md sm:h-9" />
           <FrameworkShimmerBlock className="h-4 w-full max-w-xl" />
           <FrameworkShimmerBlock className="h-4 w-5/6 max-w-lg" />
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <FrameworkShimmerBlock className="h-11 w-40 rounded-2xl" />
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <FrameworkShimmerBlock className="h-10 w-36 rounded-xl sm:h-11 sm:w-40 sm:rounded-2xl" />
             <FrameworkShimmerBlock className="h-4 w-32" />
           </div>
         </div>
-        <FrameworkShimmerBlock className="aspect-[5/4] w-full rounded-2xl" />
+        <FrameworkShimmerBlock className="mx-auto aspect-[5/4] w-full max-w-[10.5rem] rounded-2xl" />
       </div>
     </section>
   );
@@ -65,7 +65,7 @@ function QuickActionsSkeleton() {
 
 function InterviewSkeleton() {
   return (
-    <section className="mt-10 overflow-hidden rounded-3xl border border-border/60 p-5 sm:mt-12 sm:p-7">
+    <section className="mt-6 overflow-hidden rounded-2xl border border-border/60 p-4 sm:mt-8 sm:rounded-3xl sm:p-6">
       <div className="mb-5 space-y-2 sm:mb-6">
         <FrameworkShimmerBlock className="h-3 w-44" />
         <FrameworkShimmerBlock className="h-6 w-56 sm:h-7 sm:w-64" />
