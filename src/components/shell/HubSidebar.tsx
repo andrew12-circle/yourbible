@@ -189,7 +189,7 @@ export function HubSidebar() {
           </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="sidebar-scroll">
         {sidebarGroups.map((group, gi) => (
           <SidebarGroup key={gi}>
             {group.label && (

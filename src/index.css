@@ -859,6 +859,35 @@
     background: transparent;
   }
 
+  /* Hub sidebar nav — hairline thumb on hover only; no arrow buttons. */
+  .sidebar-scroll {
+    scrollbar-gutter: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  [data-sidebar="sidebar"]:hover .sidebar-scroll {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.32) transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  [data-sidebar="sidebar"]:hover .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.32);
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
   .pb-safe { padding-bottom: var(--safe-area-bottom-gutter); }
