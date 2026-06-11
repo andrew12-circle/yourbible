@@ -132,6 +132,10 @@ const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
+/** Matches `h-10` page footer — paginator must reserve this space. */
+const PAGE_FOOTER_HEIGHT_PX = 40;
+/** Extra slack so two-column pages do not clip the last line. */
+const PAGINATOR_OVERFLOW_GUARD_PX = 12;
 
 const PAGE_MARGIN_OUTER = "clamp(1.125rem, 4vmin, 2.25rem)";
 /** Gutter toward spine / center — extra room on desktop spreads. */
@@ -702,8 +706,9 @@ export default function ReaderPage() {
   const splitsReady = isPageSplitsReady(splits, verses.length);
   const totalStreamPages = streamPageCount(streamSplits, readerStream.length);
   const streamSplitsReady = isStreamSplitsReady(streamSplits, readerStream.length);
-  const useBookSpread = readerSpread && adjacentPassages.streamReady && !scrollMode;
+  const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
+  const paginatorFooterHeight = PAGE_FOOTER_HEIGHT_PX + PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -1428,14 +1433,19 @@ export default function ReaderPage() {
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
-    const streamSlice = useStreamReader
-      ? sliceReaderPage(readerStream, streamSplits, pageIdx)
-      : null;
-    const slice = useStreamReader ? null : pageVerseSlice(splits, pageIdx, verses);
-    const pageContentReady = useStreamReader
-      ? streamSlice != null &&
-        (streamSlice.isPlatePage || streamSlice.verseGroups.length > 0)
-      : slice != null;
+    const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
+    const streamSlice =
+      useStreamReader && !pageOutOfRange
+        ? sliceReaderPage(readerStream, streamSplits, pageIdx)
+        : null;
+    const slice =
+      useStreamReader || pageOutOfRange ? null : pageVerseSlice(splits, pageIdx, verses);
+    const pageContentReady = pageOutOfRange
+      ? false
+      : useStreamReader
+        ? streamSlice != null &&
+          (streamSlice.isPlatePage || streamSlice.verseGroups.length > 0)
+        : slice != null;
     const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
     const pagePrimary = streamSlice?.primaryChapter;
     const pageBookAbbr = pagePrimary?.bookAbbr ?? book.abbr;
@@ -1457,10 +1467,9 @@ export default function ReaderPage() {
       (isCurrentLeftPage && !measuresFirstPage);
     const globalPage = chaptersBefore + pageChapter;
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
-    const pageLoading = useBookSpread ? adjacentPassages.loading : loadingPassage;
+    const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
-    const pageSlice =
-      scrollMode || !pageContentReady ? verses : slice ?? verses;
+    const splitsComputing = !scrollMode && !pageOutOfRange && !pageContentReady && !pageLoading;
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
@@ -1487,10 +1496,12 @@ export default function ReaderPage() {
             {pageBookName}
           </button>
         </div>
-        {pageLoading ? (
+        {pageLoading || splitsComputing ? (
           <div className="flex flex-1 justify-center items-center">
             <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
           </div>
+        ) : pageOutOfRange ? (
+          <div className="flex flex-1 min-h-0" aria-hidden />
         ) : (
           <div
             ref={getInkAnchorRef(inkLayerId)}
@@ -1575,9 +1586,9 @@ export default function ReaderPage() {
                     );
                   });
                 })()
-              ) : (
+              ) : slice && slice.length > 0 ? (
                 (() =>
-                  groupVersesIntoParagraphs(pageSlice, paragraphStarts).flatMap((group) => {
+                  groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
                     const nodes: ReactNode[] = [];
                     const first = group.verses[0]?.number;
                     const heading = first != null ? headingByVerse.get(first) : undefined;
@@ -1601,7 +1612,7 @@ export default function ReaderPage() {
                     );
                     return nodes;
                   }))()
-              ),
+              ) : null,
               )}
             </article>
           </div>
@@ -1665,9 +1676,10 @@ export default function ReaderPage() {
     );
   };
 
-  // Determine left & right page indices
-  const leftIdx = useBookSpread ? spreadPageIdx : chapterPage;
-  const rightIdx = useBookSpread ? spreadPageIdx + 1 : chapterPage;
+  // Determine left & right page indices (spread = two consecutive pages)
+  const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
+  const leftIdx = activePageIdx;
+  const rightIdx = effectiveSpread ? activePageIdx + 1 : activePageIdx;
   const subsequentPageHeight =
     pageBox.h > 0
       ? pageBox.h
@@ -1868,7 +1880,7 @@ export default function ReaderPage() {
           className={pageTypoClass(fontChoice)}
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
-          footerHeight={0}
+          footerHeight={paginatorFooterHeight}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
@@ -1885,7 +1897,7 @@ export default function ReaderPage() {
           className={pageTypoClass(fontChoice)}
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
-          footerHeight={0}
+          footerHeight={paginatorFooterHeight}
           onSplitsChange={handleSplitsChange}
         />
       ) : null}

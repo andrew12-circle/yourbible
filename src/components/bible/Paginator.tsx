@@ -122,7 +122,7 @@ export function Paginator({
     let isFirstPage = true;
     while (i < verses.length) {
       const baseHeight = isFirstPage ? resolvedFirstPageHeight : pageHeight;
-      const limit = baseHeight - (isFirstPage ? 0 : footerHeight);
+      const limit = baseHeight - footerHeight;
       // Add verses one at a time until we overflow
       let lastFit = i;
       let lo = i + 1;
