@@ -7,6 +7,8 @@ import {
   type LivingHopeWorkbookContent,
   type WorkbookSection,
 } from "@/lib/livingHope/workbookTypes";
+import { lh } from "@/lib/livingHope/themeClasses";
+import { cn } from "@/lib/utils";
 
 type Props = {
   section: WorkbookSection;
@@ -70,7 +72,7 @@ export function WorkbookSectionEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-white/40 shrink-0"
+                className={cn(lh.faint, "shrink-0")}
                 onClick={() => set({ income_lines: workbook.income_lines.filter((_, j) => j !== i) })}
               >
                 <Trash2 className="w-4 h-4" />
@@ -156,7 +158,7 @@ export function WorkbookSectionEditor({
     return (
       <div className="space-y-3">
         {workbook.routine.map((item, i) => (
-          <div key={item.id} className="rounded-xl border border-white/10 p-3 space-y-2">
+          <div key={item.id} className={cn(lh.cardFlat, "p-3 space-y-2")}>
             <div className="flex gap-2">
               <Input
                 value={item.label}
@@ -172,7 +174,7 @@ export function WorkbookSectionEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-white/40"
+                className={lh.faint}
                 onClick={() => set({ routine: workbook.routine.filter((_, j) => j !== i) })}
               >
                 <Trash2 className="w-4 h-4" />
@@ -202,7 +204,7 @@ export function WorkbookSectionEditor({
     return (
       <div className="space-y-4">
         {workbook.business_targets.map((biz, bi) => (
-          <div key={biz.id} className="rounded-xl border border-white/10 p-3">
+          <div key={biz.id} className={cn(lh.cardFlat, "p-3")}>
             <div className="flex gap-2 mb-2">
               <Input
                 value={biz.name}
@@ -218,7 +220,7 @@ export function WorkbookSectionEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-white/40"
+                className={lh.faint}
                 onClick={() =>
                   set({ business_targets: workbook.business_targets.filter((_, j) => j !== bi) })
                 }
@@ -270,7 +272,9 @@ export function WorkbookSectionEditor({
             />
           </Field>
         ))}
-        <p className="text-[11px] text-white/35">Edit questions in workbook — tap ⋯ on hub if we add settings later.</p>
+        <p className={cn("text-[11px]", lh.faint)}>
+          Edit questions in workbook — tap ⋯ on hub if we add settings later.
+        </p>
       </div>
     );
   }
@@ -305,7 +309,7 @@ export function WorkbookSectionEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-white/40"
+                className={lh.faint}
                 onClick={() => set({ metrics: workbook.metrics.filter((_, j) => j !== i) })}
               >
                 <Trash2 className="w-4 h-4" />
@@ -320,7 +324,7 @@ export function WorkbookSectionEditor({
           <Field label="Today's values">
             {workbook.metrics.map((m) => (
               <div key={m.id} className="flex items-center gap-2 mb-2">
-                <span className="text-[13px] text-white/60 w-32 shrink-0 truncate">{m.label}</span>
+                <span className={cn("text-[13px] w-32 shrink-0 truncate", lh.muted)}>{m.label}</span>
                 <Input
                   value={metricValues[m.id] ?? ""}
                   onChange={(e) => onMetricValuesChange({ ...metricValues, [m.id]: e.target.value })}
@@ -349,8 +353,8 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-[12px] font-medium text-white/70 block mb-0.5">{label}</label>
-      {hint ? <p className="text-[11px] text-white/40 mb-2">{hint}</p> : null}
+      <label className={cn("text-[12px] font-medium block mb-0.5", "text-stone-700")}>{label}</label>
+      {hint ? <p className={cn("text-[11px] mb-2", lh.faint)}>{hint}</p> : null}
       {children}
     </div>
   );
@@ -388,7 +392,7 @@ function StringListEditor({
               type="button"
               variant="ghost"
               size="icon"
-              className="text-white/40 shrink-0"
+              className={cn(lh.faint, "shrink-0")}
               onClick={() => onChange(list.filter((_, j) => j !== i))}
             >
               <Trash2 className="w-4 h-4" />
@@ -406,7 +410,7 @@ function AddRow({ onClick, label = "Add" }: { onClick: () => void; label?: strin
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1.5 text-[12px] text-amber-300/80 hover:text-amber-200 py-1"
+      className={lh.addLink}
     >
       <Plus className="w-3.5 h-3.5" />
       {label}

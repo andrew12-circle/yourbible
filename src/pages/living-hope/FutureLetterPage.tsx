@@ -26,6 +26,7 @@ import {
   type LetterSectionKey,
 } from "@/lib/livingHope/letterSections";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
+import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
 const FIELD_MAP: Record<LetterSectionKey, keyof LivingHopeLetterRow> = {
@@ -97,7 +98,7 @@ export default function FutureLetterPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-amber-300 hover:text-amber-200 hover:bg-white/10 text-[11px] uppercase tracking-wider h-8 px-2"
+            className={lh.headerAction}
             onClick={() => setSealOpen(true)}
           >
             <Lock className="w-3.5 h-3.5 mr-1" />
@@ -107,7 +108,7 @@ export default function FutureLetterPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-amber-300 hover:text-amber-200 hover:bg-white/10 text-[11px] uppercase tracking-wider h-8 px-2"
+            className={lh.headerAction}
             onClick={() => void unlock()}
           >
             <Unlock className="w-3.5 h-3.5 mr-1" />
@@ -118,7 +119,7 @@ export default function FutureLetterPage() {
     >
       {busy || !letter ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+          <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2 space-y-5 -mx-1 px-1">
@@ -132,8 +133,8 @@ export default function FutureLetterPage() {
                   className={cn(
                     "rounded-full px-3 py-1 text-[12px] font-medium transition",
                     letter.timeframe_years === opt.years
-                      ? "bg-amber-400/25 text-amber-100 border border-amber-400/40"
-                      : "bg-white/5 text-white/50 border border-white/10 hover:text-white/70",
+                      ? lh.pillActive
+                      : lh.pillInactive,
                   )}
                 >
                   {opt.label}
@@ -142,9 +143,9 @@ export default function FutureLetterPage() {
             </div>
           ) : null}
 
-          <section className="rounded-2xl border border-amber-400/25 bg-amber-400/5 p-4 backdrop-blur-sm">
-            <h3 className="text-[14px] font-medium text-white mb-1">Letter from 2 years in the future</h3>
-            <p className="text-[12px] text-white/45 mb-2 leading-relaxed">
+          <section className={cn(lh.cardAmber, "p-4")}>
+            <h3 className={cn(lh.heading, "mb-1")}>Letter from 2 years in the future</h3>
+            <p className={cn(lh.bodySm, "mb-2")}>
               The full narrative — paste your Reflect letter here. This is what you read in morning review.
             </p>
             <Textarea
@@ -158,7 +159,7 @@ export default function FutureLetterPage() {
                   void saveLetterField({ full_letter: e.target.value });
                 }, 600);
               }}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/25 resize-none text-[15px] leading-relaxed"
+              className={cn(lh.textarea, "text-[15px] leading-relaxed")}
             />
           </section>
 
@@ -166,21 +167,21 @@ export default function FutureLetterPage() {
             const field = FIELD_MAP[sec.key];
             const value = (letter[field] as string | null) ?? "";
             return (
-              <section key={sec.key} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+              <section key={sec.key} className={cn(lh.card, "p-4")}>
                 <div className="flex items-baseline gap-2 mb-1">
                   {sec.growLabel ? (
-                    <span className="text-[10px] font-bold text-amber-400/70 w-4">{sec.growLabel}</span>
+                    <span className="text-[10px] font-bold text-amber-600/80 w-4">{sec.growLabel}</span>
                   ) : null}
-                  <h3 className="text-[14px] font-medium text-white">{sec.label}</h3>
+                  <h3 className={lh.heading}>{sec.label}</h3>
                 </div>
-                <p className="text-[12px] text-white/45 mb-2 leading-relaxed">{sec.hint}</p>
+                <p className={cn(lh.bodySm, "mb-2")}>{sec.hint}</p>
                 <Textarea
                   defaultValue={value}
                   readOnly={readOnly}
                   rows={sec.rows}
                   placeholder={sec.placeholder}
                   onChange={(e) => debouncedSave(sec.key, e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 resize-none text-[15px] leading-relaxed"
+                  className={cn(lh.textarea, "text-[15px] leading-relaxed")}
                 />
               </section>
             );
@@ -188,8 +189,8 @@ export default function FutureLetterPage() {
 
           <section className="space-y-3">
             <div>
-              <h3 className="text-[14px] font-medium text-white mb-1">Fractal goals</h3>
-              <p className="text-[12px] text-white/45 leading-relaxed">
+              <h3 className={cn(lh.heading, "mb-1")}>Fractal goals</h3>
+              <p className={lh.bodySm}>
                 Big goals → smaller steps. What you review each morning with vivid detail.
               </p>
             </div>
@@ -211,12 +212,12 @@ export default function FutureLetterPage() {
                   onChange={(e) => setNewGoalTitle(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && void handleAddGoal()}
                   placeholder="New goal…"
-                  className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-[15px] text-white placeholder:text-white/30"
+                  className={cn("flex-1 rounded-xl px-3 py-2 text-[15px]", lh.input)}
                 />
                 <Button
                   type="button"
                   onClick={() => void handleAddGoal()}
-                  className="rounded-xl bg-white/10 hover:bg-white/15 text-white border-0 shrink-0"
+                  className={cn("shrink-0", lh.btnSecondary)}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>

@@ -12,6 +12,7 @@ import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
 import { localDateISO } from "@/lib/lifePriorities";
 import { toast } from "@/hooks/use-toast";
+import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
 type Step =
@@ -134,7 +135,7 @@ export default function MorningReviewPage() {
     return (
       <LivingHopeChrome subtitle="Build your workbook first.">
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-8">
-          <p className="text-white/55 text-[15px] leading-relaxed max-w-xs">
+          <p className={cn(lh.body, "max-w-xs")}>
             Add vision, stories, manifesto, and goals — then run the morning formula each day.
           </p>
           <Link to="/living-hope">
@@ -172,11 +173,11 @@ export default function MorningReviewPage() {
     >
       {loadingAll ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+          <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col py-2">
-          <div className="h-1 rounded-full bg-white/10 mb-6 overflow-hidden">
+          <div className={lh.progress}>
             <motion.div
               className="h-full bg-amber-400/80"
               animate={{ width: `${Math.round(progress * 100)}%` }}
@@ -195,12 +196,12 @@ export default function MorningReviewPage() {
             >
               {step.kind === "intro" ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-3">Morning formula</h1>
-                  <p className="text-[15px] text-white/55 leading-relaxed mb-4">
+                  <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
+                  <p className={cn(lh.body, "mb-4")}>
                     Manifesto → vision → story → goals → metrics → surrender. Present tense. Faith, not fear.
                   </p>
                   {(letter?.full_letter ?? letter?.outlook) ? (
-                    <blockquote className="rounded-xl border border-white/10 bg-white/5 p-4 text-[13px] text-white/65 leading-relaxed italic">
+                    <blockquote className={lh.quote}>
                       {(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…
                     </blockquote>
                   ) : null}
@@ -209,34 +210,34 @@ export default function MorningReviewPage() {
 
               {step.kind === "manifesto" && manifestoItem ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-4">Manifesto</h1>
-                  <p className="text-[17px] text-white/85 leading-relaxed">{manifestoItem.text}</p>
-                  <p className="text-[13px] text-white/45 mt-6">Speak it slowly. Let it land.</p>
+                  <h1 className={cn(lh.titleLg, "mb-4")}>Manifesto</h1>
+                  <p className={cn(lh.bodyQuote, "mb-0")}>{manifestoItem.text}</p>
+                  <p className={cn("text-[13px] mt-6", lh.muted)}>Speak it slowly. Let it land.</p>
                 </>
               ) : null}
 
               {step.kind === "vision" && workbook ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-3">Vision</h1>
+                  <h1 className={cn(lh.titleLg, "mb-3")}>Vision</h1>
                   {workbook.vision_headline ? (
-                    <p className="text-[15px] text-white/70 mb-4">{workbook.vision_headline}</p>
+                    <p className="text-[15px] text-stone-700 mb-4">{workbook.vision_headline}</p>
                   ) : null}
-                  <ul className="space-y-1 mb-4 text-[13px] text-white/55">
+                  <ul className={cn("space-y-1 mb-4 text-[13px]", lh.muted)}>
                     {workbook.income_lines.map((l) => (
                       <li key={l.id}>
-                        {l.label}: <span className="text-amber-200/80">{l.amount}</span>
+                        {l.label}: <span className={lh.accentMuted}>{l.amount}</span>
                       </li>
                     ))}
                   </ul>
                   {workbook.income_total_label ? (
-                    <p className="text-[14px] font-medium text-amber-300/90 mb-4">{workbook.income_total_label}</p>
+                    <p className={cn("text-[14px] font-medium mb-4", lh.accent)}>{workbook.income_total_label}</p>
                   ) : null}
-                  <label className="text-[12px] text-white/50 mb-1 block">See it vividly — present tense</label>
+                  <label className={cn(lh.label, "mb-1 block")}>See it vividly — present tense</label>
                   <Textarea
                     value={visionRecall}
                     onChange={(e) => setVisionRecall(e.target.value)}
                     rows={5}
-                    className="bg-white/5 border-white/10 text-white resize-none"
+                    className={lh.textarea}
                     placeholder="I walk into the office knowing revenue is automated…"
                   />
                 </>
@@ -244,48 +245,48 @@ export default function MorningReviewPage() {
 
               {step.kind === "story" && storyItem ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-4">Story</h1>
-                  <p className="text-[16px] text-white/80 leading-relaxed">{storyItem.text}</p>
-                  <p className="text-[13px] text-white/45 mt-6">Picture it. Feel it. Thank God before you see it.</p>
+                  <h1 className={cn(lh.titleLg, "mb-4")}>Story</h1>
+                  <p className={lh.bodyLg}>{storyItem.text}</p>
+                  <p className={cn("text-[13px] mt-6", lh.muted)}>Picture it. Feel it. Thank God before you see it.</p>
                 </>
               ) : null}
 
               {step.kind === "goal" && currentGoal ? (
                 <>
-                  <p className="text-[11px] uppercase tracking-wider text-amber-300/70 mb-1 capitalize">
+                  <p className={cn(lh.labelUpper, "mb-1 capitalize", lh.accentMuted)}>
                     {currentGoal.domain}
                   </p>
-                  <h1 className="font-display text-2xl text-white mb-4">{currentGoal.title}</h1>
+                  <h1 className={cn(lh.titleLg, "mb-4")}>{currentGoal.title}</h1>
                   {currentGoal.target_metric ? (
-                    <p className="text-[13px] text-white/45 mb-4">Target: {currentGoal.target_metric}</p>
+                    <p className={cn("text-[13px] mb-4", lh.muted)}>Target: {currentGoal.target_metric}</p>
                   ) : null}
-                  <label className="text-[12px] text-white/50 mb-1 block">See it vividly</label>
+                  <label className={cn(lh.label, "mb-1 block")}>See it vividly</label>
                   <Textarea
                     value={touches[currentGoal.id]?.vivid_recall ?? currentGoal.vivid_detail ?? ""}
                     onChange={(e) => setTouch(currentGoal.id, { vivid_recall: e.target.value })}
                     rows={4}
-                    className="bg-white/5 border-white/10 text-white mb-4 resize-none"
+                    className={cn(lh.textarea, "mb-4")}
                   />
-                  <label className="text-[12px] text-white/50 mb-1 block">One obedience step today</label>
+                  <label className={cn(lh.label, "mb-1 block")}>One obedience step today</label>
                   <Textarea
                     value={touches[currentGoal.id]?.obedience_step ?? ""}
                     onChange={(e) => setTouch(currentGoal.id, { obedience_step: e.target.value })}
                     rows={2}
-                    className="bg-white/5 border-white/10 text-white resize-none"
+                    className={lh.textarea}
                   />
                 </>
               ) : null}
 
               {step.kind === "metrics" && workbook ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-4">Metrics</h1>
+                  <h1 className={cn(lh.titleLg, "mb-4")}>Metrics</h1>
                   {workbook.metrics.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 mb-3">
-                      <span className="text-[13px] text-white/60 w-36 shrink-0 truncate">{m.label}</span>
+                      <span className={cn("text-[13px] w-36 shrink-0 truncate", lh.muted)}>{m.label}</span>
                       <Input
                         value={metricValues[m.id] ?? ""}
                         onChange={(e) => setMetricValues((v) => ({ ...v, [m.id]: e.target.value }))}
-                        className="bg-white/5 border-white/10 text-white flex-1"
+                        className={cn(lh.input, "flex-1")}
                         placeholder={m.unit ?? "today"}
                       />
                     </div>
@@ -295,29 +296,29 @@ export default function MorningReviewPage() {
 
               {step.kind === "surrender" ? (
                 <>
-                  <h1 className="font-display text-2xl text-white mb-3">Surrender</h1>
-                  <p className="text-[14px] text-white/55 leading-relaxed mb-4">
+                  <h1 className={cn(lh.titleLg, "mb-3")}>Surrender</h1>
+                  <p className={cn("text-[14px] mb-4", lh.bodySm)}>
                     Not my will, but Yours. I say thank you before I see results.
                   </p>
                   <Textarea
                     value={surrender}
                     onChange={(e) => setSurrender(e.target.value)}
                     rows={5}
-                    className="bg-white/5 border-white/10 text-white resize-none"
+                    className={lh.textarea}
                   />
                 </>
               ) : null}
 
               {step.kind === "done" ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="w-14 h-14 rounded-full bg-amber-400/20 flex items-center justify-center mb-4">
-                    <Check className="w-7 h-7 text-amber-300" />
+                  <div className={lh.iconBoxLg}>
+                    <Check className="w-7 h-7 text-amber-600" />
                   </div>
-                  <h1 className="font-display text-2xl text-white mb-2">You&apos;re set</h1>
-                  <p className="text-[14px] text-white/55 max-w-xs leading-relaxed">
+                  <h1 className={cn(lh.titleLg, "mb-2")}>You&apos;re set</h1>
+                  <p className={cn("text-[14px] max-w-xs", lh.bodySm)}>
                     Go live what you saw.
                   </p>
-                  <Link to="/journal/life/praise" className="mt-4 text-[13px] text-amber-300/80 hover:text-amber-200">
+                  <Link to="/journal/life/praise" className={cn("mt-4 text-[13px]", lh.accentLink)}>
                     Praise report →
                   </Link>
                 </div>
@@ -350,7 +351,7 @@ export default function MorningReviewPage() {
             </div>
           ) : (
             <Button
-              className="w-full rounded-xl h-12 bg-white/10 text-white hover:bg-white/15 mt-6"
+              className={cn(lh.btnDone, "mt-6")}
               onClick={() => {
                 void load();
                 navigate("/living-hope");
