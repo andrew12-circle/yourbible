@@ -1391,7 +1391,7 @@ export default function ReaderPage() {
               }
               data-reading-area
               aria-busy={!pageContentReady}
-              className={`h-full min-h-0 w-full overflow-hidden scripture-page-frame ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
+              className={`h-full min-h-0 w-full overflow-hidden ${pageTypoClass(fontChoice)} ${COLUMN_CLASS} ${
                 inkMode ? "!select-none" : "selectable-text"
               }`}
               style={{

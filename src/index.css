@@ -612,32 +612,6 @@
     font-weight: 600;
   }
 
-  /* Subtle page corner flourishes on the reading column */
-  article[data-reading-area].scripture-page-frame {
-    position: relative;
-  }
-  article[data-reading-area].scripture-page-frame::before,
-  article[data-reading-area].scripture-page-frame::after {
-    content: "";
-    position: absolute;
-    width: 2.4rem;
-    height: 2.4rem;
-    pointer-events: none;
-    opacity: 0.22;
-    border-color: hsl(var(--gold-deep) / 0.45);
-    border-style: solid;
-  }
-  article[data-reading-area].scripture-page-frame::before {
-    top: 0.15rem;
-    left: 0.1rem;
-    border-width: 1px 0 0 1px;
-  }
-  article[data-reading-area].scripture-page-frame::after {
-    bottom: 0.15rem;
-    right: 0.1rem;
-    border-width: 0 1px 1px 0;
-  }
-
   /* Red-letter words of Jesus — warm Bible-red, sits a touch heavier than
      surrounding body type so it reads as emphasis without the shimmery
      drop-shadow that makes long passages dizzy to look at. */
