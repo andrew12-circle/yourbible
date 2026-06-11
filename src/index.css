@@ -521,6 +521,20 @@
     margin-top: 0;
   }
 
+  /* Traditional two-column Bible page (opt-in from reader settings). */
+  .scripture-columns-2 {
+    columns: 2;
+    column-gap: clamp(1.25rem, 4vw, 2rem);
+    column-fill: balance;
+  }
+  .scripture-columns-2 .scripture-heading {
+    column-span: all;
+    text-align: center;
+  }
+  .scripture-columns-2 .scripture-paragraph {
+    break-inside: avoid;
+  }
+
   /* Reader page tone + night reading (scoped to reader shell) */
   .reader-page-cream {
     --paper: 40 42% 93%;

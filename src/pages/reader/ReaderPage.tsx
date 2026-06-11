@@ -118,10 +118,16 @@ import {
   readerDisplayModeLabel,
 } from "@/lib/bible/readerDisplayMode";
 import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
+import {
+  readReaderColumnLayout,
+  readerColumnClassName,
+  readerColumnLayoutLabel,
+  writeReaderColumnLayout,
+  type ReaderColumnLayout,
+} from "@/lib/bible/readerColumnLayout";
 
 const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
-const COLUMN_CLASS = "";
 /** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
 
@@ -301,6 +307,8 @@ export default function ReaderPage() {
   const compactInkLayout = useCompactInkLayout();
   const [displayMode, setDisplayMode] = useState<ReaderDisplayMode>(() => readReaderDisplayMode());
   const [readerDark, setReaderDark] = useState(readReaderDarkMode);
+  const [columnLayout, setColumnLayout] = useState<ReaderColumnLayout>(() => readReaderColumnLayout());
+  const columnClassName = readerColumnClassName(columnLayout);
 
   useEffect(() => {
     try {
@@ -334,6 +342,15 @@ export default function ReaderPage() {
     setReaderDark((prev) => {
       const next = !prev;
       writeReaderDarkMode(next);
+      return next;
+    });
+  }, []);
+
+  const toggleColumnLayout = useCallback(() => {
+    setColumnLayout((prev) => {
+      const next: ReaderColumnLayout = prev === "double" ? "single" : "double";
+      writeReaderColumnLayout(next);
+      toast({ title: `${readerColumnLayoutLabel(next)} per page` });
       return next;
     });
   }, []);
@@ -709,7 +726,7 @@ export default function ReaderPage() {
     setPendingSpreadEnd(false);
     skipSpreadUrlSyncRef.current = true;
     lastSpreadAnchorKeyRef.current = "";
-  }, [book.abbr, chapter, fontScale]);
+  }, [book.abbr, chapter, fontScale, columnLayout]);
 
   // Pending verse-jump: after the user picks a verse from the TopBar picker,
   // remember it so once the chapter (re)loads and pagination splits are known,
@@ -1483,7 +1500,7 @@ export default function ReaderPage() {
                 "h-full min-h-0 w-full",
                 scrollMode ? "overflow-y-auto overscroll-contain" : "overflow-hidden",
                 pageTypoClass(fontChoice),
-                COLUMN_CLASS,
+                columnClassName,
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
@@ -1677,6 +1694,8 @@ export default function ReaderPage() {
         onToggleDisplayMode={toggleDisplayMode}
         readerDark={readerDark}
         onToggleReaderDark={toggleReaderDark}
+        columnLayout={columnLayout}
+        onToggleColumnLayout={toggleColumnLayout}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
@@ -1831,7 +1850,7 @@ export default function ReaderPage() {
           firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
           className={pageTypoClass(fontChoice)}
           fontSizeStyle={paginatorFontStyle}
-          columnsClassName={COLUMN_CLASS}
+          columnsClassName={columnClassName}
           footerHeight={0}
           onSplitsChange={handleStreamSplitsChange}
         />
@@ -1848,7 +1867,7 @@ export default function ReaderPage() {
           firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
           className={pageTypoClass(fontChoice)}
           fontSizeStyle={paginatorFontStyle}
-          columnsClassName={COLUMN_CLASS}
+          columnsClassName={columnClassName}
           footerHeight={0}
           onSplitsChange={handleSplitsChange}
         />

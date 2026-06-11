@@ -43,6 +43,29 @@ describe("parsePassageHtml", () => {
     );
   });
 
+  it("repairs cached small-cap split debris from older parsers", () => {
+    expect(
+      sanitizePubVerseText(
+        "An inscription was above him: T his I s the K ing of the J ews .",
+      ),
+    ).toBe("An inscription was above him: THIS IS the KING of the JEWS.");
+  });
+
+  it("joins small-cap span splits without inserting spaces (CSB inscription text)", () => {
+    const html = `
+<p class="p"><span data-number="38" data-sid="LUK 23:38" class="v">38</span>An inscription was above him: <span class="sc">T</span>his <span class="sc">I</span>s the <span class="sc">K</span>ing of the <span class="sc">J</span>ews . </p>`;
+    const parsed = parsePassageHtml(html, "Luke 23");
+    expect(parsed.verses[0]?.text).toBe(
+      "An inscription was above him: THIS IS the KING of the JEWS.",
+    );
+  });
+
+  it("preserves spaces between words when inline tags sit on word boundaries", () => {
+    const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
+    const parsed = parsePassageHtml(html);
+    expect(parsed.verses[0]?.text).toBe("In the Lord we trust.");
+  });
+
   it("groups a page slice into continuation vs new paragraphs", () => {
     const parsed = parsePassageHtml(JOHN1_HTML);
     const starts = new Set(parsed.paragraphStarts);

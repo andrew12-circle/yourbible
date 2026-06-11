@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Moon, Sun, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2, ScrollText, BookOpen } from "lucide-react";
+import { Eye, EyeOff, Moon, Sun, Settings, BookmarkPlus, ChevronDown, ChevronUp, ChevronLeft, X, Minus, Plus, Network, Menu, Languages, PenLine, Search, Volume2, Pause, Loader2, Type, Home, Maximize2, Minimize2, ScrollText, BookOpen, Columns2 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
 import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSub,
@@ -35,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { BibleEntry } from "@/lib/bible/api";
+import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
 import { BOOKS, BibleBook } from "@/data/books";
 import { useEffect, useState } from "react";
 
@@ -77,6 +79,8 @@ interface Props {
   onToggleDisplayMode?: () => void;
   readerDark?: boolean;
   onToggleReaderDark?: () => void;
+  columnLayout?: ReaderColumnLayout;
+  onToggleColumnLayout?: () => void;
   audioPlaybackRate?: number;
   onCycleAudioSpeed?: () => void;
   /** Position chrome within the hub workspace card instead of the viewport. */
@@ -108,6 +112,8 @@ export function TopBar({
   onToggleDisplayMode,
   readerDark = false,
   onToggleReaderDark,
+  columnLayout = "single",
+  onToggleColumnLayout,
   audioPlaybackRate = 1,
   onCycleAudioSpeed,
   containedInHub = false,
@@ -240,6 +246,8 @@ export function TopBar({
           onToggleDisplayMode={onToggleDisplayMode}
           readerDark={readerDark}
           onToggleReaderDark={onToggleReaderDark}
+          columnLayout={columnLayout}
+          onToggleColumnLayout={onToggleColumnLayout}
         />
       )}
 
@@ -622,6 +630,16 @@ export function TopBar({
                       ))}
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
+                  {onToggleColumnLayout ? (
+                    <DropdownMenuCheckboxItem
+                      checked={columnLayout === "double"}
+                      onCheckedChange={() => onToggleColumnLayout()}
+                      className="gap-2"
+                    >
+                      <Columns2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      Two columns per page
+                    </DropdownMenuCheckboxItem>
+                  ) : null}
                   <DropdownMenuItem asChild>
                     <Link to="/settings">All settings</Link>
                   </DropdownMenuItem>

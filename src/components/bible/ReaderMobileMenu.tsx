@@ -20,6 +20,7 @@ import {
   Sun,
   Volume2,
   X,
+  Columns2,
 } from "lucide-react";
 import { BookPickerStep } from "@/components/bible/BookPickerStep";
 import { ReaderFontPicker } from "@/components/bible/ReaderFontPicker";
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { BibleEntry } from "@/lib/bible/api";
+import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
 import { BOOKS, BibleBook } from "@/data/books";
 import { useEffect, useState } from "react";
 
@@ -67,6 +69,8 @@ interface Props {
   onToggleDisplayMode?: () => void;
   readerDark?: boolean;
   onToggleReaderDark?: () => void;
+  columnLayout?: ReaderColumnLayout;
+  onToggleColumnLayout?: () => void;
 }
 
 export function ReaderMobileMenu({
@@ -99,6 +103,8 @@ export function ReaderMobileMenu({
   onToggleDisplayMode,
   readerDark = false,
   onToggleReaderDark,
+  columnLayout = "single",
+  onToggleColumnLayout,
   initialPanel = "nav",
 }: Props) {
   const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
@@ -203,6 +209,21 @@ export function ReaderMobileMenu({
                 <p className="mt-1.5 text-[11px] text-zinc-500 truncate">{currentBible.name}</p>
               ) : null}
             </section>
+
+            {onToggleColumnLayout ? (
+              <section>
+                <p className={cn(readerPickerSectionLabel, "mb-2")}>Page layout</p>
+                <Button
+                  type="button"
+                  variant={columnLayout === "double" ? "default" : "outline"}
+                  className={cn("w-full", readerPickerMenuButton)}
+                  onClick={onToggleColumnLayout}
+                >
+                  <Columns2 className="w-4 h-4" />
+                  Two columns per page
+                </Button>
+              </section>
+            ) : null}
 
             {onFontChoiceChange ? (
               <section>

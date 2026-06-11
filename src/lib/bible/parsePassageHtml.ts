@@ -50,11 +50,24 @@ function decodeEntities(text: string): string {
 const PUB_DASH = /[-—–‐‑‒–—]/;
 
 /**
+ * Repair verse text when inline HTML tags were replaced with spaces (e.g. CSB
+ * small-cap spans `<span class="sc">T</span>his` → "T his").
+ */
+function repairSplitInitialCaps(text: string): string {
+  const splits = text.match(/\b[A-Z] [a-z]+\b/g);
+  if (!splits || splits.length < 2) return text;
+  return text
+    .replace(/\b([A-Z]) ([a-z]+)\b/g, (_m, cap: string, rest: string) =>
+      (cap + rest).toUpperCase(),
+    );
+}
+
+/**
  * Remove API.Bible publisher debris from verse text (`#-#`, `#— #`, lone `#` anchors).
  * Exported so cached passages are cleaned on every load, not only at parse time.
  */
 export function sanitizePubVerseText(text: string): string {
-  let t = text;
+  let t = repairSplitInitialCaps(text);
   // # - # / #-# / #—# (with or without spaces, any common dash)
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
   // Stray doubled hashes
@@ -63,6 +76,7 @@ export function sanitizePubVerseText(text: string): string {
   t = t.replace(/\s+#\s+(?=[A-Za-z0-9"(\[])/g, " ");
   t = t.replace(/([,.;:]|\u2014)\s*#\s+(?=[A-Za-z0-9])/g, "$1 ");
   t = t.replace(/\s+/g, " ").trim();
+  t = t.replace(/\s+([,.!?;:])/g, "$1");
   return t;
 }
 
@@ -91,10 +105,26 @@ function removeStrayPubMarkers(text: string): string {
   return sanitizePubVerseText(text);
 }
 
+/** API.Bible small caps: `<span class="sc">T</span>his` → `THIS` (print-style caps). */
+function normalizeSmallCapsMarkup(html: string): string {
+  return html.replace(
+    /<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi,
+    (_m, first: string, rest: string) => (first + rest).toUpperCase(),
+  );
+}
+
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(?:p|div|li|tr|td|th|h[1-6])>/gi, " ")
+    .replace(/<[^>]+>/g, "");
+}
+
 function cleanText(raw: string): string {
   const normalized = normalizePubHtml(raw);
   const noPub = stripPubMarkup(normalized);
-  const decoded = decodeEntities(noPub.replace(/<[^>]+>/g, " "));
+  const withSmallCaps = normalizeSmallCapsMarkup(noPub);
+  const decoded = decodeEntities(stripHtmlTags(withSmallCaps));
   return removeStrayPubMarkers(decoded);
 }
 
