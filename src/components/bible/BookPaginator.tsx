@@ -7,6 +7,10 @@ import {
   wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
 import {
+  applyScriptureColumnMeasureHtml,
+  scriptureContentFitsPage,
+} from "@/lib/bible/readerColumnMeasure";
+import {
   CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
   type ReaderStreamUnit,
@@ -118,8 +122,9 @@ export function BookPaginator({
           chapters,
           redByChapter,
           columnsClassName,
+          limit,
         );
-        if (node.scrollHeight <= limit) {
+        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = i + n;
           n *= 2;
         } else {
@@ -136,8 +141,9 @@ export function BookPaginator({
           chapters,
           redByChapter,
           columnsClassName,
+          limit,
         );
-        if (node.scrollHeight <= limit) {
+        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = mid;
           lo = mid + 1;
         } else {
@@ -200,7 +206,8 @@ function renderStreamSlice(
   slice: ReaderStreamUnit[],
   chapters: ReaderChapterPassage[],
   redByChapter: Map<string, Map<number, Segment[]>>,
-  columnsClassName?: string,
+  columnsClassName: string | undefined,
+  contentHeightPx: number,
 ) {
   const parts: string[] = [];
   let batch: {
@@ -283,9 +290,7 @@ function renderStreamSlice(
   flushBatch();
 
   const bodyHtml = parts.join("");
-  node.innerHTML = columnsClassName
-    ? `<div class="${columnsClassName}">${bodyHtml}</div>`
-    : bodyHtml;
+  applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
 }
 
 function escapeHtml(s: string) {

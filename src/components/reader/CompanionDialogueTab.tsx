@@ -4,9 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
-import { Loader2, Send, Library, Globe, BookOpen } from "lucide-react";
+import { Loader2, Send, Library, Globe, BookOpen, Link2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import ResearchDiscoveredSources from "@/components/journal/ResearchDiscoveredSources";
+import type { DiscoveredSource } from "@/lib/framework/claimResearchPack";
+import {
+  passageDiscoverStatusLabel,
+  type PassageDiscoverResp,
+} from "@/lib/reader/passageDiscover";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reader-dialogue`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -25,8 +31,12 @@ export function CompanionDialogueTab() {
   const [streaming, setStreaming] = useState(false);
   const [hits, setHits] = useState<ArtifactHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [webSources, setWebSources] = useState<DiscoveredSource[] | null>(null);
+  const [webMeta, setWebMeta] = useState<PassageDiscoverResp["meta"] | null>(null);
+  const [webDiscovering, setWebDiscovering] = useState(false);
   const [draftBody, setDraftBody] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scopeVersesKey = scope?.verses.join(",") ?? "";
 
   // Load journal draft to send as context
   useEffect(() => {
@@ -34,6 +44,13 @@ export function CompanionDialogueTab() {
     supabase.from("journal_entries").select("body").eq("id", entryId).maybeSingle()
       .then(({ data }) => setDraftBody(data?.body ?? ""));
   }, [entryId, user]);
+
+  // Reset library + web results when passage scope changes
+  useEffect(() => {
+    setHits(null);
+    setWebSources(null);
+    setWebMeta(null);
+  }, [scope?.book, scope?.chapter, scopeVersesKey]);
 
   // Find or create thread for this scope
   useEffect(() => {
@@ -68,7 +85,7 @@ export function CompanionDialogueTab() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [msgs, streaming]);
+  }, [msgs, streaming, webSources]);
 
   const send = async () => {
     if (!user || !scope || !threadId || !input.trim() || streaming) return;
@@ -138,6 +155,55 @@ export function CompanionDialogueTab() {
     } finally { setSearching(false); }
   };
 
+  const fetchWebSources = async () => {
+    if (!user || !scope) return;
+    setWebDiscovering(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(FN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ANON,
+          Authorization: `Bearer ${session?.access_token ?? ANON}`,
+        },
+        body: JSON.stringify({
+          action: "discover_sources",
+          scope,
+          journal_draft: draftBody,
+        }),
+      });
+      const j = (await r.json()) as PassageDiscoverResp & { error?: string };
+      if (!r.ok || j.error) {
+        toast({
+          variant: "destructive",
+          title: "Web search failed",
+          description: (j.error ?? r.statusText).slice(0, 200),
+        });
+        return;
+      }
+      setWebSources(j.discovered_sources ?? []);
+      setWebMeta(j.meta ?? null);
+      const count = j.discovered_sources?.length ?? 0;
+      if (count === 0) {
+        toast({
+          title: "No sources found",
+          description: passageDiscoverStatusLabel(j.meta),
+        });
+      }
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Web search failed",
+        description: String((e as Error).message ?? e).slice(0, 200),
+      });
+    } finally {
+      setWebDiscovering(false);
+    }
+  };
+
+  const webSourceCount = webSources?.filter((s) => s.url?.startsWith("http")).length ?? 0;
+
   return (
     <div className="h-full flex flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-3 text-sm">
@@ -176,6 +242,18 @@ export function CompanionDialogueTab() {
         {hits && hits.length === 0 && (
           <div className="text-xs text-muted-foreground italic">No matching claims in your library yet.</div>
         )}
+        {webSources !== null && (
+          <div className="space-y-2 pt-2 border-t border-paper-edge/60">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Link2 className="w-3 h-3" />
+              On the web ({webSourceCount})
+            </div>
+            <p className="text-[10px] leading-snug text-muted-foreground">
+              {passageDiscoverStatusLabel(webMeta ?? undefined)}
+            </p>
+            <ResearchDiscoveredSources sources={webSources} />
+          </div>
+        )}
       </div>
       <div className="border-t border-paper-edge p-2 space-y-2">
         <div className="flex gap-1.5">
@@ -189,11 +267,13 @@ export function CompanionDialogueTab() {
             From my library
           </Button>
           <Button
-            type="button" size="sm" variant="outline" disabled
-            title="Coming soon"
-            className="text-[11px] h-7 gap-1.5 opacity-60"
+            type="button" size="sm" variant="outline"
+            onClick={fetchWebSources}
+            disabled={webDiscovering || !scope}
+            className="text-[11px] h-7 gap-1.5"
           >
-            <Globe className="w-3 h-3" /> Web (soon)
+            {webDiscovering ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+            {webDiscovering ? "Searching…" : "On the web"}
           </Button>
         </div>
         <div className="flex gap-1.5">

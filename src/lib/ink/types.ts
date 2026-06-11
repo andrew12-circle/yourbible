@@ -45,4 +45,5 @@ export type ReaderLayoutFingerprintInput = {
   pageWidth: number;
   pageHeight: number;
   singlePage: boolean;
+  columnLayout?: "single" | "double";
 };

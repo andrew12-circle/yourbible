@@ -1,6 +1,7 @@
 // Reader Companion — streaming Socratic dialogue scoped to a passage + journal.
-// Tools: search_my_artifacts, propose_beliefs.
+// Tools: search_my_artifacts, propose_beliefs, discover_sources.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { discoverPassageSources } from "../_shared/researchPackCore.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,12 +9,13 @@ const corsHeaders = {
 };
 
 interface Body {
-  action: "chat" | "search_artifacts" | "propose_beliefs";
+  action: "chat" | "search_artifacts" | "propose_beliefs" | "discover_sources";
   thread_id?: string;
   content?: string;
   scope?: { book: string; bookName: string; chapter: number; verses: number[]; passageText: string };
   journal_draft?: string;
   query?: string;
+  user_question?: string;
 }
 
 function ref(s: NonNullable<Body["scope"]>) {
@@ -82,6 +84,31 @@ Deno.serve(async (req) => {
           verdict: x.c.verdict,
         }));
       return new Response(JSON.stringify({ results: ranked }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---------- discover web sources (YouTube, books, articles) ----------
+    if (body.action === "discover_sources") {
+      if (!body.scope) {
+        return new Response(JSON.stringify({ error: "scope required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const refStr = ref(body.scope);
+      const userQuestion = [
+        typeof body.user_question === "string" ? body.user_question.trim() : "",
+        body.journal_draft?.trim().slice(0, 200) ?? "",
+      ].filter(Boolean).join(" ").slice(0, 500);
+
+      const result = await discoverPassageSources({
+        passageRef: refStr,
+        userQuestion: userQuestion || undefined,
+        supabaseUrl: SUPABASE_URL,
+        anonKey: SUPABASE_ANON,
+      });
+
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

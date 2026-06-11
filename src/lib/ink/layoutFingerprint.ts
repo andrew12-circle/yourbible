@@ -7,6 +7,7 @@ export function computeReaderLayoutFingerprint(input: ReaderLayoutFingerprintInp
     Math.round(input.pageWidth),
     Math.round(input.pageHeight),
     input.singlePage ? "1" : "0",
+    input.columnLayout === "double" ? "2" : "1",
   ].join("|");
   return fnv1a(payload);
 }

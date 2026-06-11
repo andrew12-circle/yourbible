@@ -3,6 +3,10 @@ import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
+  applyScriptureColumnMeasureHtml,
+  scriptureContentFitsPage,
+} from "@/lib/bible/readerColumnMeasure";
+import {
   buildVerseInnerHtml,
   scriptureParagraphClassNameMeasure,
   wrapVerseShellHtml,
@@ -138,8 +142,9 @@ export function Paginator({
           headingByVerse,
           chapter,
           columnsClassName,
+          limit,
         );
-        if (node.scrollHeight <= limit) {
+        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = i + n;
           n *= 2;
         } else {
@@ -159,8 +164,9 @@ export function Paginator({
           headingByVerse,
           chapter,
           columnsClassName,
+          limit,
         );
-        if (node.scrollHeight <= limit) {
+        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = mid;
           lo = mid + 1;
         } else {
@@ -210,7 +216,8 @@ function renderInto(
   paragraphStarts: Set<number>,
   headingByVerse: Map<number, string>,
   chapter: number,
-  columnsClassName?: string,
+  columnsClassName: string | undefined,
+  contentHeightPx: number,
 ) {
   const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
   const bodyHtml = groups
@@ -240,9 +247,7 @@ function renderInto(
       return `${headingHtml}<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
     })
     .join("");
-  node.innerHTML = columnsClassName
-    ? `<div class="${columnsClassName}">${bodyHtml}</div>`
-    : bodyHtml;
+  applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
 }
 
 function escapeHtml(s: string) {

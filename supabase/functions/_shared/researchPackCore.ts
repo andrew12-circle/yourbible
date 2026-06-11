@@ -1,6 +1,11 @@
 /**
  * Shared research-pack core for claim-research-pack and question-research-pack.
  */
+import {
+  searchPassageYouTubeVideos,
+  youtubeVideoIdFromUrl,
+} from "./youtubePassageSearch.ts";
+
 export const researchPackCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -477,6 +482,8 @@ export type DiscoveredSource = {
   title: string;
   url: string;
   snippet?: string;
+  /** Populated for YouTube hits when YOUTUBE_DATA_API_KEY is configured. */
+  view_count?: number;
 };
 
 function normalizeDiscoveryUrl(url: string): string {
@@ -929,6 +936,107 @@ export async function generateResearchPack(
         user_question: userQuestion || null,
         ref_parse_errors: scriptureEntries.filter((e) => e.error).map((e) => ({ ref: e.ref, error: e.error! })),
       },
+    },
+  };
+}
+
+export type PassageDiscoverResult = {
+  discovered_sources: DiscoveredSource[];
+  scripture: ScriptureEntry[];
+  meta: {
+    passage_ref: string;
+    used_web: boolean;
+    web_provider: string | null;
+    used_youtube_api: boolean;
+    discovery_count: number;
+    discovery_queries: string[];
+  };
+};
+
+function mergePassageDiscoveredSources(
+  youtubeApi: DiscoveredSource[],
+  webSources: DiscoveredSource[],
+): DiscoveredSource[] {
+  const ytIds = new Set<string>();
+  for (const s of youtubeApi) {
+    const id = youtubeVideoIdFromUrl(s.url);
+    if (id) ytIds.add(id);
+  }
+
+  const nonYoutube: DiscoveredSource[] = [];
+  const webYoutube: DiscoveredSource[] = [];
+  for (const s of webSources) {
+    if (s.kind === "youtube") {
+      const id = youtubeVideoIdFromUrl(s.url);
+      if (id && ytIds.has(id)) continue;
+      webYoutube.push(s);
+    } else {
+      nonYoutube.push(s);
+    }
+  }
+
+  const youtube = [...youtubeApi, ...webYoutube].sort(
+    (a, b) => (b.view_count ?? 0) - (a.view_count ?? 0),
+  );
+
+  return [...youtube, ...nonYoutube].slice(0, 32);
+}
+
+/** Fast passage discovery: web search + YouTube API (view-count order), no Gemini lenses. */
+export async function discoverPassageSources(input: {
+  passageRef: string;
+  userQuestion?: string;
+  supabaseUrl: string;
+  anonKey: string;
+}): Promise<PassageDiscoverResult> {
+  const passageRef = input.passageRef.trim();
+  const userQuestion = input.userQuestion?.trim().slice(0, 500) ?? "";
+  const researchText = passageRef;
+
+  const envBible = Deno.env.get("CLAIM_RESEARCH_DEFAULT_BIBLE_ID")?.trim();
+  const bibleId = envBible && envBible.length > 4
+    ? envBible
+    : (await fetchDefaultBibleId(input.supabaseUrl, input.anonKey)) ?? "";
+
+  let scripture: ScriptureEntry[] = [];
+  if (bibleId) {
+    const gathered = await gatherScripture(
+      input.supabaseUrl,
+      input.anonKey,
+      bibleId,
+      [passageRef],
+    );
+    scripture = gathered.entries;
+  } else {
+    scripture = [{ ref: passageRef, error: "Could not resolve Bible translation id." }];
+  }
+
+  const webProviderEnv = Deno.env.get("WEB_SEARCH_PROVIDER")?.trim().toLowerCase();
+  const [webDiscovery, ytDiscovery] = await Promise.all([
+    discoverSources(researchText, userQuestion, webProviderEnv),
+    searchPassageYouTubeVideos(passageRef, { userQuestion }),
+  ]);
+
+  const discovered_sources = mergePassageDiscoveredSources(
+    ytDiscovery.sources,
+    webDiscovery.sources,
+  );
+
+  const discovery_queries = [
+    ...ytDiscovery.queries,
+    ...webDiscovery.queries,
+  ];
+
+  return {
+    discovered_sources,
+    scripture,
+    meta: {
+      passage_ref: passageRef,
+      used_web: webDiscovery.usedWeb,
+      web_provider: webDiscovery.provider,
+      used_youtube_api: ytDiscovery.usedApi,
+      discovery_count: discovered_sources.length,
+      discovery_queries,
     },
   };
 }

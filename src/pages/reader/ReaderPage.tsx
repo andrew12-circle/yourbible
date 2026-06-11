@@ -487,8 +487,9 @@ export default function ReaderPage() {
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
         singlePage: !readerSpread,
+        columnLayout,
       }),
-    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread],
+    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, columnLayout],
   );
 
   useEffect(() => {
@@ -611,7 +612,7 @@ export default function ReaderPage() {
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, columnLayout]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
     articleRoRef.current?.disconnect();

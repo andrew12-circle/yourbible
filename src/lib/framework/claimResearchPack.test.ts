@@ -3,6 +3,7 @@ import {
   classifyDiscoveredSource,
   formatPassageFetchError,
   formatResearchPackMarkdown,
+  formatViewCount,
   groupDiscoveredSources,
   partitionScriptureEntries,
   sanitizeResearchSectionBody,
@@ -113,5 +114,13 @@ describe("formatResearchPackMarkdown", () => {
     expect(md).toContain("Not available in your selected Bible translation");
     expect(md).not.toContain("## Reference notes");
     expect(md).not.toContain('{"error"');
+  });
+});
+
+describe("formatViewCount", () => {
+  it("formats large counts compactly", () => {
+    expect(formatViewCount(1_250_000)).toBe("1.3M");
+    expect(formatViewCount(45_000)).toBe("45K");
+    expect(formatViewCount(999)).toBe("999");
   });
 });

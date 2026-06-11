@@ -1,6 +1,7 @@
 import { ExternalLink, Film, BookOpen, FileText, GraduationCap } from "lucide-react";
 import {
   discoveredSourceKindLabel,
+  formatViewCount,
   groupDiscoveredSources,
   type DiscoveredSourceKind,
   type DiscoveredSource,
@@ -66,6 +67,11 @@ export default function ResearchDiscoveredSources({ sources, className }: Props)
                       aria-hidden
                     />
                   </a>
+                  {s.kind === "youtube" && s.view_count != null ? (
+                    <p className="mt-0.5 text-[9px] font-medium text-muted-foreground/80">
+                      {formatViewCount(s.view_count)} views
+                    </p>
+                  ) : null}
                   {s.snippet ? (
                     <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground line-clamp-3">
                       {s.snippet}
