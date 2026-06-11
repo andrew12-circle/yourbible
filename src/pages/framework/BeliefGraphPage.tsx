@@ -824,7 +824,11 @@ export default function BeliefGraphPage() {
   const showTemporal = versions.length > 0;
 
   return (
-    <FrameworkLayout title="Belief Graph" back="/framework">
+    <FrameworkLayout
+      title="Belief Graph"
+      back="/framework"
+      contentClassName="max-w-none w-full min-w-0 flex min-h-0 flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 sm:pb-3 sm:pt-3"
+    >
       <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-2 text-[11px]">

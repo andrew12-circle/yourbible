@@ -36,45 +36,32 @@ function startOfPreviousWord(text: string, wordStart: number): number {
   return i + 1;
 }
 
-function isStartingNewWord(text: string, pos: number): boolean {
-  return pos > 0 && isWhitespace(text[pos - 1]);
-}
+export type PrivacyBlurSplit = {
+  blurred: string;
+  visible: string;
+  blurredAfter: string;
+};
 
 /**
  * Split text for shoulder-surfing privacy: blur everything except the last
  * completed word and the word at the caret (max ~2 words visible).
  */
-export function splitTextForPrivacyBlur(
-  text: string,
-  caretIndex: number,
-): { blurred: string; visible: string } {
+export function splitTextForPrivacyBlur(text: string, caretIndex: number): PrivacyBlurSplit {
   if (!text) {
-    return { blurred: "", visible: "" };
+    return { blurred: "", visible: "", blurredAfter: "" };
   }
 
   const pos = clampCaret(text, caretIndex);
   const currentStart = startOfWordAt(text, pos);
   const currentEnd = endOfWordAt(text, currentStart);
+  const prevStart = startOfPreviousWord(text, currentStart);
 
-  let visibleStart: number;
-  let visibleEnd: number;
-
-  if (isStartingNewWord(text, pos) && currentStart < text.length) {
-    // After a completed word — show that word plus the new one being typed.
-    visibleStart = startOfPreviousWord(text, currentStart);
-    visibleEnd = currentEnd;
-  } else if (currentStart < text.length || (currentStart === text.length && pos > 0)) {
-    // Inside a word (or at end of text after last word).
-    visibleStart = currentStart;
-    visibleEnd = currentEnd;
-  } else {
-    // Trailing whitespace at end with no next word.
-    visibleStart = startOfPreviousWord(text, pos);
-    visibleEnd = pos;
-  }
+  const visibleStart = prevStart < currentStart ? prevStart : currentStart;
+  const visibleEnd = currentEnd;
 
   return {
     blurred: text.slice(0, visibleStart),
     visible: text.slice(visibleStart, visibleEnd),
+    blurredAfter: text.slice(visibleEnd),
   };
 }

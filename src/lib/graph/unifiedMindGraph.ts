@@ -26,17 +26,18 @@ export type MindGraphLink = {
   color: string;
 };
 
+/** Apple system-style accent colors (matches home-screen icon palette). */
 export const MIND_NODE_COLORS: Record<MindNodeKind, string> = {
-  entry: "hsl(32 88% 52%)",
-  belief: "hsl(250 52% 58%)",
-  artifact: "hsl(270 55% 58%)",
-  entity: "hsl(340 48% 58%)",
-  verse: "hsl(38 72% 48%)",
-  claim: "hsl(220 12% 68%)",
+  entry: "#FF9500",
+  belief: "#34C759",
+  artifact: "#AF52DE",
+  entity: "#FF3B30",
+  verse: "#007AFF",
+  claim: "#48484A",
 };
 
-const LINK_DEFAULT = "hsla(270 30% 50% / 0.28)";
-const LINK_TENSION = "hsla(0 55% 55% / 0.45)";
+const LINK_DEFAULT = "rgba(0, 122, 255, 0.22)";
+const LINK_TENSION = "rgba(255, 59, 48, 0.45)";
 
 export const mindNodeId = {
   entry: (id: string) => `e:${id}`,

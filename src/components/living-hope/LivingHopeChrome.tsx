@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { ChevronLeft, Sunrise } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
 
 const DAWN_GRADIENT =
@@ -25,11 +27,17 @@ export function LivingHopeChrome({
   className,
   fillHeight = true,
 }: Props) {
+  const { showHubShell } = useAppShellMode();
+
   return (
     <div
       className={cn(
         "living-hope-root bg-[#faf6f0] text-stone-900 flex flex-col relative overflow-hidden",
-        fillHeight ? "min-h-[100dvh]" : "",
+        showHubShell
+          ? hubShellPageHeight(showHubShell)
+          : fillHeight
+            ? "min-h-[100dvh]"
+            : "",
         className,
       )}
     >
@@ -47,12 +55,16 @@ export function LivingHopeChrome({
         }
       `}</style>
 
-      <header className="relative z-10 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-        <Link to={backTo}>
-          <Button variant="ghost" size="icon" className="text-stone-600 hover:text-stone-900 hover:bg-stone-100/80 rounded-full">
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+      <header className="relative z-10 flex items-center justify-between px-4 md:px-6 lg:px-10 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+        {showHubShell ? (
+          <div className="w-10" aria-hidden />
+        ) : (
+          <Link to={backTo}>
+            <Button variant="ghost" size="icon" className="text-stone-600 hover:text-stone-900 hover:bg-stone-100/80 rounded-full">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+        )}
         <div className="flex items-center gap-2 text-stone-600">
           <Sunrise className="w-3.5 h-3.5 text-amber-600" />
           <span className="text-[11px] font-medium uppercase tracking-[0.2em]">{title}</span>
@@ -61,10 +73,24 @@ export function LivingHopeChrome({
       </header>
 
       {subtitle ? (
-        <p className="relative z-10 px-5 -mt-1 mb-2 text-sm text-stone-600 text-center">{subtitle}</p>
+        <p
+          className={cn(
+            "relative z-10 -mt-1 mb-2 text-sm text-stone-600",
+            showHubShell ? "px-6 lg:px-10 text-left" : "px-5 text-center",
+          )}
+        >
+          {subtitle}
+        </p>
       ) : null}
 
-      <main className="relative z-10 flex-1 flex flex-col max-w-lg mx-auto w-full px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <main
+        className={cn(
+          "relative z-10 flex-1 flex flex-col w-full min-w-0",
+          showHubShell
+            ? "max-w-none mx-0 px-6 lg:px-10 xl:px-12 pb-6 overflow-y-auto"
+            : "max-w-lg mx-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+        )}
+      >
         {children}
       </main>
     </div>

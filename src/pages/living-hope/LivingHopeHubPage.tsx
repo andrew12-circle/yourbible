@@ -44,8 +44,9 @@ export default function LivingHopeHubPage() {
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
         </div>
       ) : (
-        <div className="flex-1 flex flex-col gap-3 py-2 overflow-y-auto scrollbar-hide">
-          <section className={cn(lh.card, "p-4")}>
+        <div className="flex-1 flex flex-col gap-3 py-2 overflow-y-auto scrollbar-hide md:grid md:grid-cols-2 md:gap-4 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+          <div className="space-y-3 min-w-0">
+          <section className={cn(lh.card, "p-4 md:p-5")}>
             <div className="flex items-start gap-3">
               <div className={lh.iconBox}>
                 <Sunrise className="h-5 w-5 text-amber-600" />
@@ -101,7 +102,9 @@ export default function LivingHopeHubPage() {
               </Button>
             </Link>
           </section>
+          </div>
 
+          <div className="space-y-3 min-w-0">
           <div>
             <h2 className={cn(lh.labelUpper, "px-1 mb-2")}>Workbook</h2>
             <ul className="space-y-1">
@@ -131,8 +134,9 @@ export default function LivingHopeHubPage() {
               </ul>
             </section>
           ) : null}
+          </div>
 
-          <p className={cn(lh.footnote, "text-center pt-2 pb-1 leading-relaxed")}>
+          <p className={cn(lh.footnote, "text-center pt-2 pb-1 leading-relaxed md:col-span-2")}>
             Heb 11:1 · Thy will be done
           </p>
         </div>

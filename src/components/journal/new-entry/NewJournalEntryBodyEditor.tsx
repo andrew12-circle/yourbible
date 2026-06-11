@@ -1,6 +1,7 @@
 import { Ear, Trash2, X } from "lucide-react";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
+import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Label } from "@/components/ui/label";
@@ -149,6 +150,9 @@ export function NewJournalEntryBodyEditor({
         text={dictInterim}
         className="text-sm italic leading-relaxed text-muted-foreground/80"
       />
+      {chatTurns.length > 0 ? (
+        <JournalLiveChatCollapsible turns={chatTurns} className="mt-4" />
+      ) : null}
       {existingSketches.length > 0 ? (
         <JournalSketchInline
           sketches={existingSketches}

@@ -14,6 +14,7 @@ import { composeChatTranscript } from "@/lib/journal/inlineJournalChat";
 import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
+import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -364,9 +365,6 @@ export default function EntryEditorPane({
   };
 
   const exitChatMode = () => {
-    if (chatTurns.length > 0) {
-      persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
-    }
     setReplyWithAi(false);
     setChatDraft("");
   };
@@ -706,6 +704,9 @@ export default function EntryEditorPane({
                 text={dictInterim}
                 className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
               />
+              {chatTurns.length > 0 ? (
+                <JournalLiveChatCollapsible turns={chatTurns} className="mt-6" />
+              ) : null}
             </>
           )}
 

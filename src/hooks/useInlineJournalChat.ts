@@ -51,10 +51,13 @@ export function useInlineJournalChat({
   }, []);
 
   useEffect(() => {
-    setChatId(null);
-    setChatTurns([]);
-    setAiBusy(false);
-    if (!active || !userId || !entryId) return;
+    if (!userId || !entryId) {
+      setChatId(null);
+      setChatTurns([]);
+      setAiBusy(false);
+      return;
+    }
+    let cancelled = false;
     (async () => {
       const { data: chatRow } = await supabase
         .from("my_ai_chats")
@@ -62,11 +65,19 @@ export function useInlineJournalChat({
         .eq("journal_entry_id", entryId)
         .eq("user_id", userId)
         .maybeSingle();
-      if (!chatRow?.id) return;
+      if (cancelled) return;
+      if (!chatRow?.id) {
+        setChatId(null);
+        setChatTurns([]);
+        return;
+      }
       setChatId(chatRow.id);
       setChatTurns(await loadInlineChatTurns(chatRow.id));
     })();
-  }, [active, entryId, userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [entryId, userId]);
 
   useEffect(() => {
     if (!active) return;
@@ -75,10 +86,10 @@ export function useInlineJournalChat({
 
   const persistTranscript = useCallback(
     (turns: InlineChatTurn[], trailingDraft?: string) => {
-      if (!onPersistTranscript || turns.length === 0) return;
+      if (!onPersistTranscript || !active || turns.length === 0) return;
       onPersistTranscript(composeChatTranscript(turns, trailingDraft));
     },
-    [onPersistTranscript],
+    [onPersistTranscript, active],
   );
 
   const ensureSession = useCallback(async () => {

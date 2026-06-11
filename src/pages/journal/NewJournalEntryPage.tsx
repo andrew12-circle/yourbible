@@ -227,7 +227,7 @@ export default function NewJournalEntryPage() {
               value={p.body}
               onChange={p.setBody}
               onSend={() => void p.sendToAi()}
-              onExit={() => p.setReplyWithAi(false)}
+              onExit={p.exitChatMode}
               dictateControl={dictateButton}
               onPointerDown={() => {
                 p.composerLockScrollYRef.current = window.scrollY;

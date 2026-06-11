@@ -291,7 +291,7 @@ export default function FrameworkLayout({
                 ? "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8 lg:px-0 lg:py-0 lg:pb-0"
                 : "py-4 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:py-6 sm:pb-8"
             : workspace
-              ? "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4"
+              ? "mx-0 w-full min-w-0 flex min-h-0 flex-1 flex-col px-0 pb-0 pt-0"
               : studioLibrary
                 ? showHubShell
                   ? "min-h-0 flex-1 overflow-y-auto pt-4 pb-4 sm:py-5"

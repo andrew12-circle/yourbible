@@ -50,6 +50,13 @@ export default function MindGraphView({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
 
+  const fitView = useCallback(
+    (padding = fill ? 28 : 48) => {
+      fgRef.current?.zoomToFit(400, padding);
+    },
+    [fill],
+  );
+
   useEffect(() => {
     if (!user) return;
     setBusy(true);
@@ -83,6 +90,12 @@ export default function MindGraphView({
     return () => ro.disconnect();
   }, [hasGraph, fill]);
 
+  useEffect(() => {
+    if (!hasGraph || canvasSize.w < 40) return;
+    const id = window.setTimeout(() => fitView(), 120);
+    return () => window.clearTimeout(id);
+  }, [graphData, canvasSize.w, canvasSize.h, hasGraph, fitView]);
+
   const handleNodeClick = useCallback(
     (node: object) => {
       navigate(mindNodeRoute(node as MindGraphNode));
@@ -103,7 +116,7 @@ export default function MindGraphView({
   return (
     <div
       className={cn(
-        "flex flex-col",
+        "flex w-full min-w-0 flex-col",
         fill ? "h-full min-h-0 flex-1 gap-2" : "gap-3",
         className,
       )}
@@ -142,7 +155,7 @@ export default function MindGraphView({
       ) : (
         <div
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden border border-border bg-card",
+            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border border-border bg-card",
             fill ? "min-h-[280px] flex-1 rounded-lg" : "rounded-2xl",
           )}
           style={fill ? undefined : { height: heightClassName }}
@@ -178,9 +191,10 @@ export default function MindGraphView({
               nodeId="id"
               nodeVal="val"
               nodeColor="color"
-              linkColor={(l) => (l as { color?: string }).color ?? "hsla(270 30% 50% / 0.28)"}
+              linkColor={(l) => (l as { color?: string }).color ?? "rgba(0, 122, 255, 0.22)"}
               linkWidth={1}
               cooldownTicks={100}
+              onEngineStop={() => fitView()}
               onNodeClick={handleNodeClick}
               onNodeHover={(n) => setHover(n ? (n as MindGraphNode) : null)}
               nodePointerAreaPaint={(node, color, ctx, globalScale) => {

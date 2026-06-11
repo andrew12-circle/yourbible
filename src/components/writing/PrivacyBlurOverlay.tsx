@@ -10,6 +10,8 @@ type PrivacyBlurOverlayProps = {
   mirrorRef?: React.RefObject<HTMLDivElement | null>;
 };
 
+const BLUR_CLASS = "blur-[6px] select-none";
+
 export function PrivacyBlurOverlay({
   text,
   caretIndex,
@@ -17,7 +19,7 @@ export function PrivacyBlurOverlay({
   className,
   mirrorRef,
 }: PrivacyBlurOverlayProps) {
-  const { blurred, visible } = useMemo(
+  const { blurred, visible, blurredAfter } = useMemo(
     () => splitTextForPrivacyBlur(text, caretIndex),
     [text, caretIndex],
   );
@@ -27,18 +29,18 @@ export function PrivacyBlurOverlay({
       ref={mirrorRef}
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words",
+        "pointer-events-none absolute inset-0 min-h-full overflow-hidden whitespace-pre-wrap break-words text-foreground",
         className,
       )}
-      style={{ scrollBehavior: "auto" }}
     >
       <div style={{ transform: `translateY(-${scrollTop}px)` }}>
-        {blurred ? <span className="blur-[6px] select-none">{blurred}</span> : null}
+        {blurred ? <span className={BLUR_CLASS}>{blurred}</span> : null}
         <span>{visible}</span>
+        {blurredAfter ? <span className={BLUR_CLASS}>{blurredAfter}</span> : null}
       </div>
     </div>
   );
 }
 
 export const PRIVACY_BLUR_FIELD_CLASS =
-  "text-transparent caret-foreground selection:bg-primary/20 selection:text-transparent";
+  "text-transparent caret-foreground selection:bg-primary/20 selection:text-transparent [-webkit-text-fill-color:transparent]";

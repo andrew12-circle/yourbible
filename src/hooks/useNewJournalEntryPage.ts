@@ -45,6 +45,7 @@ import {
   type ListeningSectionKey,
   type ListeningSections,
 } from "@/lib/journal/listeningEntry";
+import { parseChatJournalEntry } from "@/lib/journal/chatJournalEntry";
 import {
   composeChatTranscript,
   loadInlineChatTurns,
@@ -127,6 +128,7 @@ export function useNewJournalEntryPage() {
   });
   const lastSyncedListeningKey = useRef<string | null>(null);
   const handoffAppliedForKey = useRef<string | null>(null);
+  const journalProseBeforeChatRef = useRef("");
   const [artifactReturnTo, setArtifactReturnTo] = useState<string | null>(null);
 
   const isVent = entryKind === "vent";
@@ -301,7 +303,11 @@ export function useNewJournalEntryPage() {
         .maybeSingle();
       if (!data) return;
       setTitle(data.title ?? "");
-      setBody(data.body ?? "");
+      const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
+      const prose =
+        parsedBody.kind === "plain" ? (data.body ?? "") : parsedBody.summary;
+      setBody(prose);
+      journalProseBeforeChatRef.current = prose;
       setMood(data.mood);
       setTags(data.tags ?? []);
       const loadedKind = coerceJournalEntryKind((data as { entry_kind?: string | null }).entry_kind);
@@ -325,19 +331,19 @@ export function useNewJournalEntryPage() {
       dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
       setEntryAt(dt.toISOString().slice(0, 16));
 
+      setInlineEntryId(editId);
+      const { data: chatRow } = await supabase
+        .from("my_ai_chats")
+        .select("id")
+        .eq("journal_entry_id", editId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (chatRow?.id) {
+        setChatId(chatRow.id);
+        await loadChatTurns(chatRow.id);
+      }
       if (loadedKind === "chat") {
-        setInlineEntryId(editId);
         setReplyWithAi(true);
-        const { data: chatRow } = await supabase
-          .from("my_ai_chats")
-          .select("id")
-          .eq("journal_entry_id", editId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (chatRow?.id) {
-          setChatId(chatRow.id);
-          await loadChatTurns(chatRow.id);
-        }
       }
 
       const { data: photos } = await supabase
@@ -803,12 +809,21 @@ export function useNewJournalEntryPage() {
       toast({ title: "Not available for this entry type" });
       return;
     }
+    if (chatTurns.length === 0 && body.trim()) {
+      journalProseBeforeChatRef.current = body;
+      setBody("");
+    }
     setReplyWithAi(true);
     await ensureChatEntry();
     setTimeout(() => {
       chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
     }, 50);
-  }, [canReplyWithAi, ensureChatEntry]);
+  }, [canReplyWithAi, ensureChatEntry, chatTurns.length, body]);
+
+  const exitChatMode = useCallback(() => {
+    setReplyWithAi(false);
+    setBody((cur) => cur.trim() || journalProseBeforeChatRef.current || cur);
+  }, []);
 
   const triggerPhotos = useCallback(() => photoInputRef.current?.click(), []);
   const triggerAudio = useCallback(() => dictateRef.current?.toggle(), []);
@@ -994,6 +1009,7 @@ export function useNewJournalEntryPage() {
     save,
     sendToAi,
     openChatMode,
+    exitChatMode,
     triggerPhotos,
     triggerAudio,
     triggerPrompts,

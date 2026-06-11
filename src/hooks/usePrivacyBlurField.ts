@@ -4,6 +4,7 @@ import {
   useState,
   type ChangeEvent,
   type FocusEvent,
+  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type UIEvent,
@@ -24,6 +25,10 @@ type PrivacyBlurHandlers = {
   onBlur?: (e: FocusEvent<TextFieldElement>) => void;
 };
 
+function readCaret(el: TextFieldElement): number {
+  return el.selectionStart ?? el.value.length;
+}
+
 export function usePrivacyBlurField({
   value,
   mirrorClassName,
@@ -36,11 +41,26 @@ export function usePrivacyBlurField({
   const [scrollTop, setScrollTop] = useState(0);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<TextFieldElement | null>(null);
+  const caretRafRef = useRef<number | null>(null);
 
   const syncCaretFromField = useCallback((el: TextFieldElement | null) => {
     if (!el) return;
-    setCaretIndex(el.selectionStart ?? value.length);
-  }, [value.length]);
+    setCaretIndex(readCaret(el));
+  }, []);
+
+  const scheduleCaretSync = useCallback(
+    (el: TextFieldElement) => {
+      syncCaretFromField(el);
+      if (caretRafRef.current != null) {
+        cancelAnimationFrame(caretRafRef.current);
+      }
+      caretRafRef.current = requestAnimationFrame(() => {
+        caretRafRef.current = null;
+        syncCaretFromField(el);
+      });
+    },
+    [syncCaretFromField],
+  );
 
   const bindPrivacyBlurHandlers = useCallback(
     (handlers: PrivacyBlurHandlers = {}) => {
@@ -52,31 +72,34 @@ export function usePrivacyBlurField({
         };
 
       return {
+        onInput: chain((e: FormEvent<TextFieldElement>) => {
+          scheduleCaretSync(e.currentTarget);
+        }, undefined),
         onChange: chain((e: ChangeEvent<TextFieldElement>) => {
           const el = e.currentTarget;
           fieldRef.current = el;
-          syncCaretFromField(el);
+          scheduleCaretSync(el);
         }, handlers.onChange),
         onSelect: chain((e: React.SyntheticEvent<TextFieldElement>) => {
-          syncCaretFromField(e.currentTarget);
+          scheduleCaretSync(e.currentTarget);
         }, handlers.onSelect),
         onKeyUp: chain((e: KeyboardEvent<TextFieldElement>) => {
-          syncCaretFromField(e.currentTarget);
+          scheduleCaretSync(e.currentTarget);
         }, handlers.onKeyUp),
         onClick: chain((e: MouseEvent<TextFieldElement>) => {
-          syncCaretFromField(e.currentTarget);
+          scheduleCaretSync(e.currentTarget);
         }, handlers.onClick),
         onScroll: chain((e: UIEvent<TextFieldElement>) => {
           setScrollTop(e.currentTarget.scrollTop);
         }, handlers.onScroll),
         onFocus: chain((e: FocusEvent<TextFieldElement>) => {
           fieldRef.current = e.currentTarget;
-          syncCaretFromField(e.currentTarget);
+          scheduleCaretSync(e.currentTarget);
         }, handlers.onFocus),
         onBlur: handlers.onBlur,
       };
     },
-    [syncCaretFromField],
+    [scheduleCaretSync],
   );
 
   const setCombinedRef = useCallback(
@@ -122,9 +145,7 @@ export function mergeFieldRefs<T extends TextFieldElement>(
   };
 }
 
+/** Mirror must match the field typography exactly — pass through the field className. */
 export function privacyBlurMirrorClass(className?: string) {
-  return cn(
-    "border-0 bg-transparent px-0 py-0 shadow-none font-sans text-[16px] leading-relaxed",
-    className,
-  );
+  return cn(className);
 }

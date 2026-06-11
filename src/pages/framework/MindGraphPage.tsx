@@ -15,7 +15,7 @@ export default function MindGraphPage() {
     <FrameworkLayout
       title="Mind map"
       back="/framework"
-      contentClassName="max-w-none flex min-h-0 flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 sm:pb-3"
+      contentClassName="max-w-none w-full min-w-0 flex min-h-0 flex-1 flex-col px-0 pb-0 pt-2 sm:pt-3"
       headerContentClassName="max-w-none"
       headerActions={
         <Button variant="ghost" size="sm" className="text-[12px]" asChild>
