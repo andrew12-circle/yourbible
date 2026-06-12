@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { ArrowLeft, BookMarked, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,9 +7,12 @@ import { useLifeGuide } from "@/hooks/useLifeGuide";
 import { getStoredBibleId } from "@/lib/bible/storedBibleId";
 import { LIFE_GUIDE_STARTERS } from "@/lib/bible/lifeGuide";
 import { LifeGuideResult } from "@/components/bible/LifeGuideResult";
+import { LifeGuideActions } from "@/components/bible/LifeGuideActions";
+import { LifeGuideFollowUpPanel } from "@/components/bible/LifeGuideFollowUpPanel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { toast } from "@/hooks/use-toast";
 import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
 
@@ -17,10 +21,57 @@ export default function LifeGuidePage() {
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) ?? "";
-  const { issue, setIssue, busy, error, result, recent, search, loadRecent, clear } = useLifeGuide(bibleId);
+  const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
+  const [playbookId, setPlaybookId] = useState<string | null>(null);
+
+  const {
+    issue,
+    setIssue,
+    busy,
+    followUpBusy,
+    saveBusy,
+    error,
+    result,
+    followups,
+    recent,
+    search,
+    askFollowUp,
+    saveJournal,
+    savePlaybook,
+    loadRecent,
+    clear,
+  } = useLifeGuide(bibleId, user?.id);
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
+
+  const handleClear = () => {
+    clear();
+    setJournalEntryId(null);
+    setPlaybookId(null);
+  };
+
+  const handleSaveJournal = async () => {
+    const id = await saveJournal();
+    if (id) {
+      setJournalEntryId(id);
+      toast({ title: "Saved to journal", description: "Your Life Manual guide is in your journal." });
+    }
+  };
+
+  const handleSavePlaybook = async () => {
+    const id = await savePlaybook();
+    if (id) {
+      setPlaybookId(id);
+      toast({ title: "Added to playbook", description: "Action steps are ready to track." });
+    }
+  };
+
+  const handleLoadRecent = (session: (typeof recent)[number]) => {
+    loadRecent(session);
+    setJournalEntryId(null);
+    setPlaybookId(null);
+  };
 
   return (
     <div className={hubShellPageRoot}>
@@ -118,11 +169,14 @@ export default function LifeGuidePage() {
                 <li key={session.id}>
                   <button
                     type="button"
-                    onClick={() => loadRecent(session)}
+                    onClick={() => handleLoadRecent(session)}
                     className="w-full text-left rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/20 transition"
                   >
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
-                      {session.result.topic} · {new Date(session.createdAt).toLocaleDateString()}
+                      {session.result.topic}
+                      {session.followups?.length ? ` · ${session.followups.length} follow-up${session.followups.length === 1 ? "" : "s"}` : ""}
+                      {" · "}
+                      {new Date(session.createdAt).toLocaleDateString()}
                     </div>
                     <p className="text-sm line-clamp-2">{session.issue}</p>
                   </button>
@@ -134,12 +188,25 @@ export default function LifeGuidePage() {
 
         {result && (
           <>
-            <div className="flex justify-end">
-              <Button variant="ghost" size="sm" onClick={clear}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button variant="ghost" size="sm" onClick={handleClear}>
                 Ask about something else
               </Button>
+              <LifeGuideActions
+                saveBusy={saveBusy}
+                journalEntryId={journalEntryId}
+                playbookId={playbookId}
+                onSaveJournal={() => void handleSaveJournal()}
+                onSavePlaybook={() => void handleSavePlaybook()}
+                disabled={!online}
+              />
             </div>
             <LifeGuideResult result={result} />
+            <LifeGuideFollowUpPanel
+              followups={followups}
+              busy={followUpBusy}
+              onAsk={(q) => void askFollowUp(q)}
+            />
           </>
         )}
       </main>
