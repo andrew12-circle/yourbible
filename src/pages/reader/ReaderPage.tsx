@@ -225,6 +225,9 @@ export default function ReaderPage() {
     () => `${book.nameAm ?? book.name} ${chapter}`,
     [book.name, book.nameAm, chapter],
   );
+
+  const online = useOnlineStatus();
+  const { data: bibles = [], isError: biblesError } = useBibles();
   const displayBibles = useMemo(
     () =>
       readCanon() === "ethiopian"
@@ -232,9 +235,6 @@ export default function ReaderPage() {
         : bibles.filter((b) => b.id !== EOTC_BIBLE_ID),
     [bibles],
   );
-
-  const online = useOnlineStatus();
-  const { data: bibles = [], isError: biblesError } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
   const {
     data: passage,

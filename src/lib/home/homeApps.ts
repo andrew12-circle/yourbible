@@ -1,5 +1,5 @@
 import {
-  BookOpen, ListTodo, CheckSquare, MessageCircleHeart,
+  BookOpen, BookMarked, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
   Sunrise,
@@ -42,6 +42,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
 
   return [
     { label: "Bible", to: bibleTo, icon: BookOpen, color: IOS_APP_BG.bible, badge: lastRead?.replace("/", " ") },
+    {
+      label: "Life Manual",
+      to: "/bible/life-guide",
+      icon: BookMarked,
+      color: IOS_APP_BG.lifeGuide,
+      ariaLabel: "Life Manual — find biblical instruction for your issues",
+    },
     {
       label: "Morning formula",
       to: "/living-hope",

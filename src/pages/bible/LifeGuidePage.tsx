@@ -1,0 +1,148 @@
+import { Link, Navigate } from "react-router-dom";
+import { ArrowLeft, BookMarked, Loader2, Sparkles } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
+import { useLifeGuide } from "@/hooks/useLifeGuide";
+import { getStoredBibleId } from "@/lib/bible/storedBibleId";
+import { LIFE_GUIDE_STARTERS } from "@/lib/bible/lifeGuide";
+import { LifeGuideResult } from "@/components/bible/LifeGuideResult";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
+import { cn } from "@/lib/utils";
+
+export default function LifeGuidePage() {
+  const { user, loading: authLoading } = useAuth();
+  const online = useOnlineStatus();
+  const { data: bibles = [] } = useBibles();
+  const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) ?? "";
+  const { issue, setIssue, busy, error, result, recent, search, loadRecent, clear } = useLifeGuide(bibleId);
+
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+
+  return (
+    <div className={hubShellPageRoot}>
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur-md px-4 pt-safe pb-3">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+          <Link
+            to="/home"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
+            aria-label="Back to home"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <BookMarked className="w-4 h-4 text-gold-deep shrink-0" aria-hidden />
+              <h1 className="font-display text-xl text-leather truncate">Life Manual</h1>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              Describe your issue — find what Scripture literally says to do
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <main className={cn(hubShellScrollMain, "max-w-2xl mx-auto px-4 py-5 pb-safe-28 space-y-6")}>
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <label htmlFor="life-guide-issue" className="block text-sm font-medium mb-2">
+            What are you facing?
+          </label>
+          <Textarea
+            id="life-guide-issue"
+            value={issue}
+            onChange={(e) => setIssue(e.target.value)}
+            placeholder="e.g. I'm struggling with anxiety about losing my job and don't know what to do..."
+            rows={4}
+            className="resize-none rounded-xl bg-muted/40 border-0 text-[15px] leading-relaxed mb-3"
+            disabled={busy}
+          />
+          <Button
+            onClick={() => void search()}
+            disabled={busy || !issue.trim() || !bibleId || !online}
+            className="w-full sm:w-auto"
+          >
+            {busy ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                Searching Scripture…
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" aria-hidden />
+                Find biblical instruction
+              </>
+            )}
+          </Button>
+          {!online && (
+            <p className="text-xs text-muted-foreground mt-2">You need internet to search Scripture.</p>
+          )}
+          {error && (
+            <p className="text-sm text-destructive mt-3" role="alert">{error}</p>
+          )}
+        </section>
+
+        {!result && !busy && (
+          <section>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+              Common issues
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {LIFE_GUIDE_STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  type="button"
+                  onClick={() => {
+                    setIssue(starter);
+                    void search(starter);
+                  }}
+                  disabled={busy || !bibleId || !online}
+                  className="text-left text-[13px] leading-snug px-3 py-2 rounded-xl bg-muted/60 hover:bg-muted border border-border/50 transition disabled:opacity-50"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!result && recent.length > 0 && (
+          <section>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+              Recent
+            </h2>
+            <ul className="space-y-2">
+              {recent.map((session) => (
+                <li key={session.id}>
+                  <button
+                    type="button"
+                    onClick={() => loadRecent(session)}
+                    className="w-full text-left rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/20 transition"
+                  >
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                      {session.result.topic} · {new Date(session.createdAt).toLocaleDateString()}
+                    </div>
+                    <p className="text-sm line-clamp-2">{session.issue}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {result && (
+          <>
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={clear}>
+                Ask about something else
+              </Button>
+            </div>
+            <LifeGuideResult result={result} />
+          </>
+        )}
+      </main>
+    </div>
+  );
+}

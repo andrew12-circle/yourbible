@@ -20,6 +20,7 @@ const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const ReaderPage = lazy(() => import("./pages/reader/ReaderPage"));
 const ContentsReaderPage = lazy(() => import("./pages/reader/ContentsReaderPage"));
+const LifeGuidePage = lazy(() => import("./pages/bible/LifeGuidePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const SleepPage = lazy(() => import("./pages/sleep/SleepPage"));
 const FrameworkDashboard = lazy(() => import("./pages/framework/FrameworkDashboard"));
@@ -95,6 +96,7 @@ const App = () => (
                 <Route element={<ShellGate />}>
                   <Route path="/read/contents" element={<ContentsReaderPage />} />
                   <Route path="/read/:book/:chapter" element={<ReaderPage />} />
+                  <Route path="/bible/life-guide" element={<LifeGuidePage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/my-ai" element={<MyAiPage />} />
                   <Route path="/my-ai/:chatId" element={<MyAiPage />} />
