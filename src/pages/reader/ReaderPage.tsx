@@ -132,6 +132,7 @@ import {
 import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
 import {
   readReaderColumnLayout,
+  effectiveReaderColumnLayout,
   readerColumnClassName,
   readerColumnLayoutLabel,
   writeReaderColumnLayout,
@@ -328,7 +329,10 @@ export default function ReaderPage() {
 
   const scrollMode = displayMode === "scroll";
   const effectiveSpread = readerSpread && !scrollMode;
-  const spreadColumnLayout: ReaderColumnLayout = effectiveSpread ? "double" : columnLayout;
+  const spreadColumnLayout = effectiveReaderColumnLayout({
+    spread: effectiveSpread,
+    stored: columnLayout,
+  });
   const columnClassName = readerColumnClassName(spreadColumnLayout);
   const readerPageClass = cn(
     pageToneClass(profile?.page_tone),
@@ -478,9 +482,9 @@ export default function ReaderPage() {
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
         singlePage: !readerSpread,
-        columnLayout,
+        columnLayout: spreadColumnLayout,
       }),
-    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, columnLayout],
+    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, spreadColumnLayout],
   );
 
   useEffect(() => {
@@ -603,7 +607,7 @@ export default function ReaderPage() {
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, columnLayout]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
     articleRoRef.current?.disconnect();
@@ -758,7 +762,7 @@ export default function ReaderPage() {
     setPendingSpreadEnd(false);
     skipSpreadUrlSyncRef.current = true;
     lastSpreadAnchorKeyRef.current = "";
-  }, [book.abbr, chapter, fontScale, columnLayout]);
+  }, [book.abbr, chapter, fontScale, spreadColumnLayout]);
 
   useEffect(() => {
     if (!scrollMode) return;
@@ -1415,7 +1419,7 @@ export default function ReaderPage() {
           readerPageClass,
           inkMode && "reader-ink-active",
         )}
-        style={pageHorizontalPadding(side, !effectiveSpread)}
+        style={pageHorizontalPadding(side, !effectiveSpread, compactChrome)}
       >
         <div
           className={`flex-shrink-0 ${
@@ -1704,8 +1708,8 @@ export default function ReaderPage() {
         onToggleDisplayMode={toggleDisplayMode}
         readerDark={readerDark}
         onToggleReaderDark={toggleReaderDark}
-        columnLayout={columnLayout}
-        onToggleColumnLayout={toggleColumnLayout}
+        columnLayout={spreadColumnLayout}
+        onToggleColumnLayout={readerSpread ? toggleColumnLayout : undefined}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;

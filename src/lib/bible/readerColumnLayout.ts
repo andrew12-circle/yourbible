@@ -9,7 +9,16 @@ export function readReaderColumnLayout(): ReaderColumnLayout {
   } catch {
     /* ignore */
   }
-  return "double";
+  return "single";
+}
+
+/** Open-book spread uses two columns; phones and single-page layouts stay single. */
+export function effectiveReaderColumnLayout(options: {
+  spread: boolean;
+  stored?: ReaderColumnLayout;
+}): ReaderColumnLayout {
+  if (options.spread) return "double";
+  return "single";
 }
 
 export function writeReaderColumnLayout(layout: ReaderColumnLayout): void {

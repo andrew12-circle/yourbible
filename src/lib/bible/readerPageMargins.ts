@@ -25,10 +25,20 @@ export function spreadOverlayForeEdgeStackPx(leftStackPx: number, rightStackPx: 
   return Math.round((Math.max(0, leftStackPx) + Math.max(0, rightStackPx)) / 2);
 }
 
+/** Comfortable horizontal inset on phones / compact reader chrome. */
+export const MOBILE_PAGE_MARGIN_H = "clamp(1rem, 4.5vw, 1.375rem)";
+
 export function pageHorizontalPadding(
   side: "left" | "right",
   singlePage?: boolean,
+  compactSinglePage?: boolean,
 ): CSSProperties {
+  if (singlePage && compactSinglePage) {
+    return {
+      paddingLeft: MOBILE_PAGE_MARGIN_H,
+      paddingRight: MOBILE_PAGE_MARGIN_H,
+    };
+  }
   const outer = singlePage ? PAGE_MARGIN_OUTER : SPREAD_PAGE_MARGIN_OUTER;
   const gutter = singlePage ? PAGE_MARGIN_GUTTER : SPREAD_PAGE_MARGIN_GUTTER;
   if (singlePage) {
