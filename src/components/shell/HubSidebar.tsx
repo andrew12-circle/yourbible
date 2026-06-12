@@ -33,7 +33,7 @@ const iconColorMap: Record<string, string> = {
   Tasks: "text-teal-500",
   Habits: "text-green-500",
   Sleep: "text-indigo-400",
-  "My AI": "text-emerald-500",
+  "My AI": "text-blue-500",
   Partner: "text-red-400",
   Settings: "text-gray-500",
   "Research later": "text-slate-400",

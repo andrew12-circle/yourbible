@@ -349,6 +349,7 @@ export default function EntryEditorPane({
     chatId,
     chatTurns,
     aiBusy,
+    streamingAssistantId,
     chatScrollRef,
     chatBottomRef,
     ensureSession,
@@ -761,6 +762,7 @@ export default function EntryEditorPane({
               bottomRef={chatBottomRef}
               turns={chatTurns}
               aiBusy={aiBusy}
+              streamingAssistantId={streamingAssistantId}
               dictInterim={dictInterim}
               className="-mx-2 px-2"
             />

@@ -17,7 +17,7 @@ export type InlineChatTurn = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  citations?: InlineChatCitation[];
+  citations?: InlineChatCitation[] | unknown;
 };
 
 export function composeChatTranscript(turns: InlineChatTurn[], trailingUserDraft?: string): string {
@@ -68,7 +68,7 @@ export async function loadInlineChatTurns(chatId: string): Promise<InlineChatTur
       id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
-      citations: m.role === "assistant" ? parseInlineChatCitations(m.citations) : undefined,
+      citations: m.role === "assistant" ? m.citations : undefined,
     }));
 }
 

@@ -171,6 +171,7 @@ export default function NewJournalEntryPage() {
           chatBottomRef={p.chatBottomRef}
           chatTurns={p.chatTurns}
           aiBusy={p.aiBusy}
+          streamingAssistantId={p.streamingAssistantId}
           dictInterim={p.dictInterim}
           existingSketches={p.existingSketches}
           existingAttachments={p.existingAttachments}

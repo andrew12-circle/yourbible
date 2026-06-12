@@ -7,9 +7,12 @@ import {
   wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
 import {
+  SPREAD_MEASURE_GAP_PX,
   applyScriptureColumnMeasureHtml,
   scriptureContentFitsPage,
+  type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
+import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
   CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
@@ -29,6 +32,8 @@ interface Props {
   columnsClassName?: string;
   footerHeight?: number;
   fontSizeStyle?: React.CSSProperties;
+  /** Two-page spread with two columns per page — paginate as L-col1 → L-col2 → R-col1 → R-col2. */
+  spreadMode?: boolean;
   onSplitsChange: (splits: number[]) => void;
 }
 
@@ -41,6 +46,7 @@ export function BookPaginator({
   columnsClassName,
   footerHeight = 0,
   fontSizeStyle,
+  spreadMode = false,
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -80,13 +86,18 @@ export function BookPaginator({
     footerHeight,
     className,
     columnsClassName,
+    spreadMode,
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
   ]);
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || stream.length === 0) {
-      const next = [0, stream.length];
+      const useSpreadColumns = Boolean(spreadMode && columnsClassName);
+      const next =
+        useSpreadColumns && stream.length > 2
+          ? [0, Math.max(1, Math.floor(stream.length / 2)), stream.length]
+          : [0, stream.length];
       const key = next.join(",");
       if (lastSplitsRef.current !== key) {
         lastSplitsRef.current = key;
@@ -98,6 +109,9 @@ export function BookPaginator({
     const splits: number[] = [0];
     let i = 0;
     let pageIndex = 0;
+    const useSpreadColumns = Boolean(spreadMode && columnsClassName);
+    const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
+
     while (i < stream.length) {
       if (stream[i]?.kind === "plate") {
         splits.push(i + 1);
@@ -105,6 +119,57 @@ export function BookPaginator({
         pageIndex += 1;
         continue;
       }
+
+      if (useSpreadColumns) {
+        const spreadStart = i;
+        const spreadStartsWithHeader = stream[i]?.kind === "chapter-header";
+        const leftLimit = pageContentLimit(
+          pageIndex,
+          spreadStartsWithHeader,
+          resolvedFirstPageHeight,
+          pageHeight,
+          footerHeight,
+        );
+        const spreadLimit = spreadStartsWithHeader
+          ? leftLimit
+          : pageHeight - footerHeight;
+        const spreadEnd = findStreamSliceEnd(
+          node,
+          stream,
+          spreadStart,
+          stream.length,
+          chapters,
+          redByChapter,
+          READER_SPREAD_COLUMNS_CLASS,
+          spreadLimit,
+          { columnCount: 4, measureWidthPx: spreadMeasureWidth },
+        );
+        const leftEnd = findStreamSliceEnd(
+          node,
+          stream,
+          spreadStart,
+          spreadEnd,
+          chapters,
+          redByChapter,
+          columnsClassName,
+          leftLimit,
+          { columnCount: 2, measureWidthPx: pageWidth },
+        );
+        if (leftEnd === spreadStart) {
+          splits.push(spreadStart + 1);
+          i = spreadStart + 1;
+          pageIndex += 1;
+          continue;
+        }
+        splits.push(leftEnd);
+        if (leftEnd < spreadEnd) {
+          splits.push(spreadEnd);
+        }
+        i = spreadEnd;
+        pageIndex += leftEnd < spreadEnd ? 2 : 1;
+        continue;
+      }
+
       const startsWithHeader = stream[i]?.kind === "chapter-header";
       const limit = pageContentLimit(
         pageIndex,
@@ -113,44 +178,16 @@ export function BookPaginator({
         pageHeight,
         footerHeight,
       );
-      let lastFit = i;
-      let n = 1;
-      while (i + n <= stream.length) {
-        renderStreamSlice(
-          node,
-          stream.slice(i, i + n),
-          chapters,
-          redByChapter,
-          columnsClassName,
-          limit,
-        );
-        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
-          lastFit = i + n;
-          n *= 2;
-        } else {
-          break;
-        }
-      }
-      let lo = lastFit + 1;
-      let hi = Math.min(i + n, stream.length);
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        renderStreamSlice(
-          node,
-          stream.slice(i, mid),
-          chapters,
-          redByChapter,
-          columnsClassName,
-          limit,
-        );
-        if (scriptureContentFitsPage(node, limit, columnsClassName)) {
-          lastFit = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      if (lastFit === i) lastFit = i + 1;
+      const lastFit = findStreamSliceEnd(
+        node,
+        stream,
+        i,
+        stream.length,
+        chapters,
+        redByChapter,
+        columnsClassName,
+        limit,
+      );
       splits.push(lastFit);
       i = lastFit;
       pageIndex += 1;
@@ -170,7 +207,7 @@ export function BookPaginator({
         position: "fixed",
         top: -99999,
         left: -99999,
-        width: pageWidth,
+        width: spreadMode && columnsClassName ? pageWidth * 2 + SPREAD_MEASURE_GAP_PX : pageWidth,
         visibility: "hidden",
         pointerEvents: "none",
       }}
@@ -179,10 +216,68 @@ export function BookPaginator({
         ref={ref}
         data-reading-area
         className={className}
-        style={{ width: pageWidth, ...fontSizeStyle }}
+        style={{
+          width: spreadMode && columnsClassName ? pageWidth * 2 + SPREAD_MEASURE_GAP_PX : pageWidth,
+          ...fontSizeStyle,
+        }}
       />
     </div>
   );
+}
+
+function findStreamSliceEnd(
+  node: HTMLDivElement,
+  stream: ReaderStreamUnit[],
+  start: number,
+  maxEnd: number,
+  chapters: ReaderChapterPassage[],
+  redByChapter: Map<string, Map<number, Segment[]>>,
+  columnsClassName: string | undefined,
+  limit: number,
+  measureOptions?: ScriptureColumnMeasureOptions,
+): number {
+  if (start >= maxEnd) return start;
+  let lastFit = start;
+  let n = 1;
+  while (start + n <= maxEnd) {
+    renderStreamSlice(
+      node,
+      stream.slice(start, start + n),
+      chapters,
+      redByChapter,
+      columnsClassName,
+      limit,
+      measureOptions,
+    );
+    if (scriptureContentFitsPage(node, limit, columnsClassName)) {
+      lastFit = start + n;
+      n *= 2;
+    } else {
+      break;
+    }
+  }
+  let lo = lastFit + 1;
+  let hi = Math.min(start + n, maxEnd);
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    renderStreamSlice(
+      node,
+      stream.slice(start, mid),
+      chapters,
+      redByChapter,
+      columnsClassName,
+      limit,
+      measureOptions,
+    );
+    if (scriptureContentFitsPage(node, limit, columnsClassName)) {
+      lastFit = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (lastFit === start) lastFit = start + 1;
+  return lastFit;
 }
 
 function pageContentLimit(
@@ -208,6 +303,7 @@ function renderStreamSlice(
   redByChapter: Map<string, Map<number, Segment[]>>,
   columnsClassName: string | undefined,
   contentHeightPx: number,
+  measureOptions?: ScriptureColumnMeasureOptions,
 ) {
   const parts: string[] = [];
   let batch: {
@@ -290,7 +386,13 @@ function renderStreamSlice(
   flushBatch();
 
   const bodyHtml = parts.join("");
-  applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
+  applyScriptureColumnMeasureHtml(
+    node,
+    bodyHtml,
+    columnsClassName,
+    contentHeightPx,
+    measureOptions,
+  );
 }
 
 function escapeHtml(s: string) {

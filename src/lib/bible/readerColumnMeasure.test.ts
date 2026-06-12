@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   applyScriptureColumnMeasureHtml,
   scriptureColumnWrapperStyle,
+  scriptureContentFitsPage,
 } from "./readerColumnMeasure";
 
 describe("readerColumnMeasure", () => {
@@ -37,5 +38,48 @@ describe("readerColumnMeasure", () => {
     expect(col.className).toBe("scripture-columns-2");
     expect(col.style.height).toBe("120px");
     expect(col.style.overflow).toBe("hidden");
+  });
+
+  it("scriptureContentFitsPage rejects clipped vertical overflow in columns", () => {
+    applyScriptureColumnMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>alpha</p>",
+      "scripture-columns-2",
+      80,
+    );
+    const col = node.firstElementChild as HTMLElement;
+    Object.defineProperty(col, "scrollWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(col, "clientWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 140 });
+
+    expect(scriptureContentFitsPage(node, 80, "scripture-columns-2")).toBe(false);
+  });
+
+  it("scriptureContentFitsPage rejects implicit overflow columns via scrollWidth", () => {
+    applyScriptureColumnMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>alpha</p>",
+      "scripture-columns-2",
+      80,
+    );
+    const col = node.firstElementChild as HTMLElement;
+    Object.defineProperty(col, "scrollWidth", { configurable: true, get: () => 500 });
+    Object.defineProperty(col, "clientWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 80 });
+
+    expect(scriptureContentFitsPage(node, 80, "scripture-columns-2")).toBe(false);
+  });
+
+  it("applyScriptureColumnMeasureHtml can render four columns for spread measurement", () => {
+    applyScriptureColumnMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>alpha</p>",
+      "scripture-columns-2",
+      120,
+      { columnCount: 4, measureWidthPx: 640 },
+    );
+    const col = node.firstElementChild as HTMLElement;
+    expect(col.style.columns).toBe("4");
+    expect(col.style.width).toBe("640px");
   });
 });

@@ -4,7 +4,10 @@ import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts
 import { buildClaimChatWebBlock } from "../_shared/researchPackCore.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
+import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
 import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
+import { createStreamingChatResponse } from "./streamTurn.ts";
+import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +43,10 @@ type RequestBody = {
   /** Standalone My AI thread → new journal entry with transcript + summary. */
   export_chat_to_journal_id?: string | null;
   retry_last?: boolean;
+  /** When true (default), stream markdown tokens via SSE. Set false for legacy JSON ranked reply. */
+  stream?: boolean;
+  /** Edit a user message: truncate thread after this id, update content, regenerate assistant reply. */
+  edit_user_message_id?: string | null;
   /** auto | reflect | deep — controls substantive vs reflective replies. */
   response_depth?: "auto" | "reflect" | "deep";
 };
@@ -154,7 +161,11 @@ async function generateClaimChatReply(
       ...parsed.citations,
       { source_type: "general", label: "Web search (OpenAI)" },
     ]);
-    return { reply, citations, ranked: null };
+    return {
+      reply,
+      citations: attachSourceAttribution(citations, { includeGeneral, usedWeb: true }),
+      ranked: null,
+    };
   }
 
   const systemText = journalMode
@@ -163,7 +174,11 @@ async function generateClaimChatReply(
   const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, webBlock, message, true);
   const ranked = await generateRankedReply(systemText, userPayload, message, resolvedDepth);
   if ("error" in ranked) return { error: ranked.error };
-  return { reply: ranked.winner.reply, citations: ranked.winner.citations, ranked };
+  return {
+    reply: ranked.winner.reply,
+    citations: attachSourceAttribution(ranked.winner.citations, { includeGeneral, usedWeb: false }),
+    ranked,
+  };
 }
 
 async function loadClaimResearchPackBlock(
@@ -331,17 +346,9 @@ function dedupeCitations(items: Citation[]): Citation[] {
 function looksLikeGeneralKnowledgeFallback(reply: string): Citation[] {
   const t = reply.toLowerCase();
   if (t.includes("nothing in your framework speaks") && t.includes("general knowledge")) {
-    return [{ source_type: "general", label: "General knowledge (fallback)" }];
+    return [{ source_type: "general", label: "Outside knowledge (OpenAI)" }];
   }
   return [];
-}
-
-function titleFromFirstMessage(message: string): string {
-  const flat = message.replace(/\s+/g, " ").trim();
-  if (!flat) return "New chat";
-  const sentence = flat.split(/[.!?](?:\s|$)/)[0]?.trim() || flat;
-  const base = sentence.length > 56 ? `${sentence.slice(0, 53).trim()}…` : sentence;
-  return base || "New chat";
 }
 
 const CHAT_EXPORT_MARKER = "<!-- chat-export:v1 -->";
@@ -1021,10 +1028,13 @@ Deno.serve(async (req) => {
         }
         const parsed = parseAssistantPayload(webRes.rawText);
         reply = parsed.reply.trim() || webRes.rawText.trim();
-        citations = dedupeCitations([
-          ...parsed.citations,
-          { source_type: "general", label: "Web search (OpenAI)" },
-        ]);
+        citations = attachSourceAttribution(
+          dedupeCitations([
+            ...parsed.citations,
+            { source_type: "general", label: "Web search (OpenAI)" },
+          ]),
+          { includeGeneral, usedWeb: true },
+        );
       } else {
         const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
         const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
@@ -1034,7 +1044,10 @@ Deno.serve(async (req) => {
         if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
         const parsed = parseAssistantPayload(chatRes.rawText);
         reply = parsed.reply;
-        citations = parsed.citations;
+        citations = attachSourceAttribution(parsed.citations, {
+          includeGeneral,
+          usedWeb: false,
+        });
       }
 
       const { data: asstRow, error: asstErr } = await supabase
@@ -1196,13 +1209,40 @@ Deno.serve(async (req) => {
       chatId = created.id as string;
     }
 
-    const { count: priorUserCount, error: cntErr } = await supabase
-      .from("my_ai_messages")
-      .select("*", { count: "exact", head: true })
-      .eq("chat_id", chatId)
-      .eq("role", "user");
-    if (cntErr) return jsonResponse({ error: cntErr.message }, 502);
-    const isFirstUserMessage = (priorUserCount ?? 0) === 0;
+    const editUserId =
+      typeof body.edit_user_message_id === "string" && /^[0-9a-f-]{36}$/i.test(body.edit_user_message_id)
+        ? body.edit_user_message_id
+        : null;
+    if (editUserId && message) {
+      const { data: editRow, error: editErr } = await supabase
+        .from("my_ai_messages")
+        .select("id, role, created_at")
+        .eq("id", editUserId)
+        .eq("chat_id", chatId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (editErr) return jsonResponse({ error: editErr.message }, 502);
+      if (!editRow || editRow.role !== "user") {
+        return jsonResponse({ error: "edit_user_message_id must be a user message in this chat" }, 400);
+      }
+      const pivotAt = editRow.created_at as string;
+      const { data: laterRows } = await supabase
+        .from("my_ai_messages")
+        .select("id")
+        .eq("chat_id", chatId)
+        .eq("user_id", userId)
+        .gt("created_at", pivotAt);
+      const laterIds = (laterRows ?? []).map((r) => r.id as string);
+      if (laterIds.length) {
+        await supabase.from("my_ai_messages").delete().in("id", laterIds).eq("user_id", userId);
+      }
+      await supabase
+        .from("my_ai_messages")
+        .update({ content: message })
+        .eq("id", editUserId)
+        .eq("user_id", userId);
+      skipUserInsert = true;
+    }
 
     if (!skipUserInsert) {
       const { error: insUserErr } = await supabase.from("my_ai_messages").insert({
@@ -1224,29 +1264,13 @@ Deno.serve(async (req) => {
     const journalMode = !!linkedJournalId;
 
     const excludeJournal = journalMode && linkedJournalId ? linkedJournalId : null;
-    const contextPack = await buildFrameworkRetrievalContext(
-      supabase,
-      userId,
-      chatId!,
-      message,
-      excludeJournal,
-    );
-    const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
 
     const claimPackIdRaw = typeof body.artifact_claim_id === "string" ? body.artifact_claim_id.trim() : "";
     const claimPackId = /^[0-9a-f-]{36}$/i.test(claimPackIdRaw) ? claimPackIdRaw : "";
     const hqPackIdRaw = typeof body.hard_question_id === "string" ? body.hard_question_id.trim() : "";
     const hqPackId = /^[0-9a-f-]{36}$/i.test(hqPackIdRaw) ? hqPackIdRaw : "";
-    const researchPackBlock = claimPackId
-      ? await loadClaimResearchPackBlock(supabase, userId, claimPackId)
-      : hqPackId
-      ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
-      : "";
 
     const chatUseWeb = body.claim_research?.use_web === true;
-    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
-      ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
-      : "";
 
     let resolvedDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), message);
     if (chatUseWeb && claimPackId && resolvedDepth !== "deep") {
@@ -1256,6 +1280,40 @@ Deno.serve(async (req) => {
     const includeGeneral = journalMode
       ? body.include_general_knowledge === true
       : body.include_general_knowledge !== false;
+
+    const useStream = body.stream !== false && !chatUseWeb && !claimPackId;
+
+    if (useStream) {
+      return createStreamingChatResponse({
+        supabase,
+        userId,
+        chatId: chatId!,
+        journalMode,
+        includeGeneral,
+        message,
+        resolvedDepth,
+        skipUserInsert,
+        excludeJournal,
+        corsHeaders,
+      });
+    }
+
+    const contextPack = await buildFrameworkRetrievalContext(
+      supabase,
+      userId,
+      chatId!,
+      message,
+      excludeJournal,
+    );
+    const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
+    const researchPackBlock = claimPackId
+      ? await loadClaimResearchPackBlock(supabase, userId, claimPackId)
+      : hqPackId
+      ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
+      : "";
+    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
+      ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
+      : "";
 
     const generated = await generateClaimChatReply(
       journalMode,
@@ -1329,20 +1387,39 @@ Deno.serve(async (req) => {
     const patch: { updated_at: string; title?: string } = {
       updated_at: new Date().toISOString(),
     };
-    const isJournalLinked = !!chatRow?.journal_entry_id;
-    if (!isJournalLinked && isFirstUserMessage && !skipUserInsert) {
-      patch.title = titleFromFirstMessage(message);
-    } else if (!chatRow?.title?.trim() && !isJournalLinked) {
-      patch.title = titleFromFirstMessage(message);
+    let titleOut =
+      typeof chatRow?.title === "string" && chatRow.title.trim() ? chatRow.title.trim() : null;
+
+    if (!titleOut && !skipUserInsert) {
+      titleOut = titleFromFirstMessage(message);
+      patch.title = titleOut;
     }
 
     await supabase.from("my_ai_chats").update(patch).eq("id", chatId).eq("user_id", userId);
+
+    const journalEntryIdLinked = (chatRow?.journal_entry_id as string | null) ?? null;
+    if (titleOut && journalEntryIdLinked) {
+      const { data: journalEntry } = await supabase
+        .from("journal_entries")
+        .select("title")
+        .eq("id", journalEntryIdLinked)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!journalEntry?.title?.trim()) {
+        await supabase
+          .from("journal_entries")
+          .update({ title: titleOut, updated_at: new Date().toISOString() })
+          .eq("id", journalEntryIdLinked)
+          .eq("user_id", userId);
+      }
+    }
 
     return jsonResponse({
       chat_id: chatId,
       assistant_message_id: asstRow.id as string,
       content: reply,
       citations,
+      title: titleOut,
     });
   } catch (e) {
     return jsonResponse({ error: String(e) }, 500);

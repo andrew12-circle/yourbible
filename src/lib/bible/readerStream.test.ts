@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { PassageVerse } from "@/lib/bible/api";
 import {
   buildReaderStream,
+  ensureSpreadPageSplits,
   isStreamSplitsReady,
   sliceReaderPage,
+  sliceReaderStreamRange,
+  spreadPaneStreamRanges,
   spreadPageForChapterStart,
+  spreadStreamRange,
   streamPageCount,
+  verseGroupsFromStreamRange,
 } from "@/lib/bible/readerStream";
 
 const verses = (nums: number[]): PassageVerse[] =>
@@ -101,6 +106,128 @@ describe("readerStream", () => {
     expect(page0?.verseGroups[0]?.chapter).toBe(5);
     const page1 = sliceReaderPage(stream, splits, 1);
     expect(page1?.startsWithChapterHeader?.chapter).toBe(6);
+  });
+
+  it("ensureSpreadPageSplits adds a right-page boundary when splits are still [0] only", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 21,
+        verses: verses([1, 2, 3, 4, 5]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const normalized = ensureSpreadPageSplits([0], stream);
+    expect(normalized).toHaveLength(3);
+    expect(sliceReaderStreamRange(stream, normalized[1]!, normalized[2]!, 1)?.verseGroups.length).toBeGreaterThan(0);
+  });
+
+  it("spreadPaneStreamRanges maps left and right panes for a spread", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 21,
+        verses: verses([31, 32, 38]),
+        paragraphStarts: [31],
+        headings: [],
+      },
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 22,
+        verses: verses([1, 2, 3, 4, 8]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const splits = [0, 4, stream.length];
+    const ranges = spreadPaneStreamRanges(splits, 0, stream.length);
+    const right = sliceReaderStreamRange(stream, ranges.right.start, ranges.right.end, 1);
+    expect(right?.verseGroups.some((g) => g.chapter === 22)).toBe(true);
+  });
+
+  it("sliceReaderPage reads per-page boundaries before full split readiness", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Joh",
+        bookName: "John",
+        chapter: 2,
+        verses: verses([1, 2, 3, 4, 5, 6]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const splits = ensureSpreadPageSplits([0], stream);
+    const left = sliceReaderPage(stream, splits, 0);
+    const right = sliceReaderPage(stream, splits, 1);
+    expect(left?.verseGroups.length).toBeGreaterThan(0);
+    expect(right?.verseGroups.length).toBeGreaterThan(0);
+    expect(left?.verseGroups[0]?.verses[0]?.number).toBe(1);
+    expect(
+      right?.verseGroups.some((g) =>
+        g.verses.some((v) => v.number > (left?.verseGroups.at(-1)?.verses.at(-1)?.number ?? 0)),
+      ),
+    ).toBe(true);
+  });
+
+  it("ensureSpreadPageSplits adds a right-page boundary when only [0, N] exists", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 21,
+        verses: verses([31, 32, 38]),
+        paragraphStarts: [31],
+        headings: [],
+      },
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 22,
+        verses: verses([1, 2, 3, 4, 8]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const normalized = ensureSpreadPageSplits([0, stream.length], stream);
+    expect(normalized).toHaveLength(3);
+    expect(normalized[0]).toBe(0);
+    expect(normalized[2]).toBe(stream.length);
+    expect(normalized[1]).toBeGreaterThan(0);
+    expect(normalized[1]).toBeLessThan(stream.length);
+
+    const rightPage = sliceReaderPage(stream, normalized, 1);
+    expect(rightPage?.verseGroups.some((g) => g.chapter === 22)).toBe(true);
+  });
+
+  it("spreadStreamRange spans left and right page indices", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 21,
+        verses: verses([31, 32, 38]),
+        paragraphStarts: [31],
+        headings: [],
+      },
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 22,
+        verses: verses([1, 2, 3, 4, 8]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const splits = [0, 4, stream.length];
+    expect(spreadStreamRange(splits, 0, stream.length)).toEqual({ start: 0, end: stream.length });
+    const groups = verseGroupsFromStreamRange(stream, 0, stream.length);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]?.chapter).toBe(21);
+    expect(groups[1]?.chapter).toBe(22);
   });
 
   it("anchors chapter six on the prior spread when it starts on the right page", () => {

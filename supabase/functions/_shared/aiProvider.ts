@@ -563,3 +563,83 @@ export async function getEmbedding(text: string): Promise<number[] | null> {
   if (!apiKey) return null;
   return embedGeminiQuery(text, apiKey);
 }
+
+const GEMINI_OPENAI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/** OpenAI-compatible streaming chat (OpenAI or Gemini gateway). Returns upstream Response. */
+export async function fetchChatCompletionStream(
+  systemText: string,
+  userPayload: string,
+  temperature = 0.55,
+  maxOutputTokens = 4096,
+): Promise<Response> {
+  const started = Date.now();
+  const inputChars = systemText.length + userPayload.length;
+  const provider = resolveAiProvider();
+
+  if (provider === "openai") {
+    const apiKey = openAiApiKey();
+    if (apiKey) {
+      const model = getOpenAiChatModel();
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemText },
+            { role: "user", content: userPayload },
+          ],
+          temperature,
+          max_tokens: maxOutputTokens,
+          stream: true,
+        }),
+      });
+      logAiUsage({
+        operation: "chat_stream",
+        provider: "openai",
+        model,
+        status: res.ok ? "ok" : "error",
+        httpStatus: res.status,
+        inputChars,
+        durationMs: Date.now() - started,
+      });
+      return res;
+    }
+  }
+
+  const geminiKey = geminiApiKey();
+  if (!geminiKey) {
+    return new Response(JSON.stringify({ error: "No AI API key configured" }), { status: 502 });
+  }
+  const res = await fetch(GEMINI_OPENAI_GATEWAY, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${geminiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GEMINI_CHAT_MODEL,
+      messages: [
+        { role: "system", content: systemText },
+        { role: "user", content: userPayload },
+      ],
+      temperature,
+      max_tokens: maxOutputTokens,
+      stream: true,
+    }),
+  });
+  logAiUsage({
+    operation: "chat_stream",
+    provider: "gemini",
+    model: GEMINI_CHAT_MODEL,
+    status: res.ok ? "ok" : "error",
+    httpStatus: res.status,
+    inputChars,
+    durationMs: Date.now() - started,
+  });
+  return res;
+}

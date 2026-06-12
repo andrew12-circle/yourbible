@@ -7,6 +7,7 @@ import {
   NotebookPen,
   Plus,
   Sparkles,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,7 +42,10 @@ type Props = {
   input: string;
   onInputChange: Dispatch<SetStateAction<string>>;
   onSend: () => void;
+  onStop?: () => void;
   sending: boolean;
+  editingMessageId?: string | null;
+  onCancelEdit?: () => void;
   userId: string;
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   responseDepth: ResponseDepthSetting;
@@ -62,7 +66,10 @@ export default function MyAiComposer({
   input,
   onInputChange,
   onSend,
+  onStop,
   sending,
+  editingMessageId,
+  onCancelEdit,
   userId,
   textareaRef: externalTaRef,
   responseDepth,
@@ -84,6 +91,7 @@ export default function MyAiComposer({
   const [dictInterim, setDictInterim] = useState("");
 
   const canSend = Boolean(input.trim()) && !sending;
+  const showStop = sending && Boolean(onStop);
 
   useAutoGrowTextarea(taRef, input, { maxLines: 6, minLines: 1 });
 
@@ -108,6 +116,17 @@ export default function MyAiComposer({
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
     >
       <div className={cn("pointer-events-auto", myAiComposerColumn)}>
+        {editingMessageId ? (
+          <div className="mb-1 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+            <span>Editing message</span>
+            {onCancelEdit ? (
+              <button type="button" className="underline-offset-2 hover:underline" onClick={onCancelEdit}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className={myAiInputShell}>
           <Textarea
             ref={taRef}
@@ -122,7 +141,7 @@ export default function MyAiComposer({
             rows={1}
             spellCheck
             disabled={sending}
-            placeholder={sending ? "Thinking…" : "Ask anything"}
+            placeholder={sending ? "Thinking…" : editingMessageId ? "Edit message" : "Ask anything"}
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
               "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-1.5",
@@ -238,15 +257,19 @@ export default function MyAiComposer({
                 size="icon"
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full transition-colors",
-                  canSend
-                    ? "bg-emerald-600 text-white hover:bg-emerald-600/90"
-                    : "bg-transparent text-muted-foreground/40 hover:bg-black/[0.04] dark:hover:bg-white/10",
+                  showStop
+                    ? "bg-foreground text-background hover:bg-foreground/90"
+                    : canSend
+                      ? "bg-blue-600 text-white hover:bg-blue-600/90"
+                      : "bg-transparent text-muted-foreground/40 hover:bg-black/[0.04] dark:hover:bg-white/10",
                 )}
-                disabled={!canSend}
-                onClick={handleSend}
-                aria-label="Send message"
+                disabled={!showStop && !canSend}
+                onClick={showStop ? onStop : handleSend}
+                aria-label={showStop ? "Stop generating" : "Send message"}
               >
-                {sending ? (
+                {showStop ? (
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                ) : sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <ArrowUp className="h-4 w-4" strokeWidth={2.25} />

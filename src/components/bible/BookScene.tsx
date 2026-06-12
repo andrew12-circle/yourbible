@@ -1,6 +1,7 @@
-import { ReactNode, type CSSProperties } from "react";
+import { spreadPageStackWidths } from "@/lib/bible/readerPageMargins";
 import { PageStackEdge } from "@/components/bible/PageStackEdge";
 import { cn } from "@/lib/utils";
+import { type CSSProperties, type ReactNode } from "react";
 
 interface Props {
   /** 0 = first page of Genesis, 1 = last page of Revelation */
@@ -20,6 +21,8 @@ interface Props {
   coverClassName?: string;
   /** Page tone / reader theme classes on the paper surface. */
   pageClassName?: string;
+  /** Four-column scripture layer spanning both pages (open-book double-column mode). */
+  spreadOverlay?: ReactNode;
 }
 
 const LEATHER_BG = {
@@ -94,14 +97,20 @@ export function BookScene({
   coverStyle,
   coverClassName,
   pageClassName,
+  spreadOverlay,
 }: Props) {
   const showLeft = !singlePage || pageSide === "left";
   const showRight = !singlePage || pageSide === "right";
 
   const totalStack = singlePage ? 26 : 44;
   const minStack = singlePage ? 12 : 20;
-  const leftStack = Math.max(minStack, Math.round(totalStack * progress));
-  const rightStack = Math.max(minStack, Math.round(totalStack * (1 - progress)));
+  const stackWidths = spreadPageStackWidths(progress);
+  const leftStack = singlePage
+    ? Math.max(minStack, Math.round(totalStack * progress))
+    : stackWidths.left;
+  const rightStack = singlePage
+    ? Math.max(minStack, Math.round(totalStack * (1 - progress)))
+    : stackWidths.right;
 
   const coverPadX = singlePage ? (tabletPortrait ? 14 : 10) : 14;
   const coverPadTop = singlePage ? (tabletPortrait ? 14 : 12) : 16;
@@ -219,6 +228,8 @@ export function BookScene({
                       )}
                     </>
                   )}
+
+                  {spreadOverlay}
 
                   {ribbons && (
                     <div className="absolute inset-0 z-[8] pointer-events-none overflow-visible">

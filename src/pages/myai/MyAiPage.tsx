@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   Brain,
   Loader2,
   Menu,
-  MessageCircle,
   NotebookPen,
   PanelLeft,
-  PanelLeftClose,
   Plus,
   Settings2,
-  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -27,12 +24,15 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import MyAiComposer from "@/components/myai/MyAiComposer";
+import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
-import {
-  CHAT_ASSISTANT_PROSE_COMPACT,
-  prepareChatMarkdownForDisplay,
-} from "@/lib/journal/prepareChatMarkdownForDisplay";
+import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
+import ChatMessageActions from "@/components/journal/ChatMessageActions";
+import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
+import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
+import { chatTitleFromFirstMessage } from "@/lib/myai/chatTitle";
+import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
 import { MyAiMark } from "@/components/myai/MyAiMark";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
@@ -40,12 +40,21 @@ import {
   readResponseDepthSetting,
   type ResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
+import { loadMyAiChatsForSidebar } from "@/lib/myai/loadMyAiChats";
+import { resolveUntitledChats } from "@/lib/myai/resolveChatTitles";
+import type { MyAiChatListItem, MyAiProjectRow } from "@/lib/myai/chatSections";
+import {
+  createMyAiProject,
+  deleteMyAiProject,
+  listMyAiProjects,
+  moveChatToProject as persistChatProject,
+} from "@/lib/myai/chatProjects";
 
 /** Canonical framework-grounded AI chat. Journal inline/legacy chat journals use the same `my-ai-chat` backend. */
 const LS_INCLUDE_GENERAL = "my_ai.include_general";
 const LS_SIDEBAR = "my_ai.sidebar_open";
 
-type ChatRow = { id: string; title: string | null; updated_at: string };
+type ChatRow = MyAiChatListItem;
 
 type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
@@ -57,15 +66,14 @@ type MsgRow = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  citations: Json;
+  citations: Citation[] | Json;
 };
 
-type MyAiInvokeOk = {
-  chat_id: string;
-  assistant_message_id: string;
-  content: string;
-  citations: Citation[];
-};
+function citationsFromStream(raw: MyAiChatCitation[]): Citation[] {
+  return raw.map((c) =>
+    c.id ? { source_type: c.source_type, id: c.id, label: c.label } : { source_type: c.source_type, label: c.label },
+  );
+}
 
 const SUGGESTED_PROMPTS = [
   "Summarize what I believe about prayer.",
@@ -96,70 +104,6 @@ function displayChatTitle(title: string | null | undefined): string {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function parseCitationsJson(raw: Json): Citation[] {
-  if (!Array.isArray(raw)) return [];
-  const out: Citation[] = [];
-  for (const item of raw) {
-    if (!isRecord(item)) continue;
-    const st = item.source_type;
-    const label = item.label;
-    if (typeof st !== "string" || typeof label !== "string" || !label.trim()) continue;
-    if (
-      st !== "belief" && st !== "journal" && st !== "artifact" && st !== "entity" &&
-      st !== "identity" && st !== "general" && st !== "influence"
-    ) {
-      continue;
-    }
-    const id = typeof item.id === "string" && item.id.length >= 32 ? item.id : undefined;
-    out.push(id ? { source_type: st, id, label: label.trim() } : { source_type: st, label: label.trim() });
-  }
-  return out;
-}
-
-function citationHref(c: Citation): string | null {
-  if (c.id) {
-    if (c.source_type === "belief") return `/framework/beliefs/${c.id}`;
-    if (c.source_type === "journal") return `/journal/${c.id}`;
-    if (c.source_type === "artifact") return `/framework/artifacts/${c.id}`;
-  }
-  if (c.source_type === "identity") return "/settings";
-  if (c.source_type === "influence") return "/framework/influences";
-  return null;
-}
-
-function CitationChips({ citations }: { citations: Citation[] }) {
-  if (!citations.length) return null;
-  return (
-    <div className="mt-4 border-t border-border/30 pt-3">
-      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">Sources</p>
-      <div className="flex flex-wrap gap-1.5">
-        {citations.map((c, i) => {
-          const href = citationHref(c);
-          const chip = (
-            <span
-              className={cn(
-                "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-normal",
-                href
-                  ? "border-border/60 bg-background text-foreground/80 hover:bg-muted/50"
-                  : "border-border/50 bg-muted/30 text-muted-foreground",
-              )}
-            >
-              {c.label}
-            </span>
-          );
-          return href ? (
-            <Link key={`${c.source_type}-${c.id ?? "x"}-${i}`} to={href} className="no-underline">
-              {chip}
-            </Link>
-          ) : (
-            <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 type CognitiveState = {
@@ -355,6 +299,8 @@ export default function MyAiPage() {
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
 
   const [chats, setChats] = useState<ChatRow[]>([]);
+  const [projects, setProjects] = useState<MyAiProjectRow[]>([]);
+  const [activeProjectFilter, setActiveProjectFilter] = useState<string | null>(null);
   const [messages, setMessages] = useState<MsgRow[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -368,27 +314,37 @@ export default function MyAiPage() {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const [savingJournal, setSavingJournal] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const persistSidebar = (open: boolean) => {
     setSidebarOpen(open);
     localStorage.setItem(LS_SIDEBAR, open ? "1" : "0");
   };
 
+  const loadProjects = useCallback(async () => {
+    if (!user) return;
+    try {
+      const rows = await listMyAiProjects(supabase, user.id);
+      setProjects(rows);
+    } catch (e) {
+      toast({ title: "Could not load folders", description: String(e), variant: "destructive" });
+      setProjects([]);
+    }
+  }, [user]);
+
   const loadChats = useCallback(async () => {
     if (!user) return;
     setLoadingChats(true);
-    const { data, error } = await supabase
-      .from("my_ai_chats")
-      .select("id,title,updated_at")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+    const { rows, error } = await loadMyAiChatsForSidebar(supabase, user.id);
     if (error) {
-      toast({ title: "Could not load chats", description: error.message, variant: "destructive" });
+      toast({ title: "Could not load chats", description: error, variant: "destructive" });
       setChats([]);
     } else {
-      setChats((data as ChatRow[]) ?? []);
+      const resolved = await resolveUntitledChats(supabase, user.id, rows);
+      setChats(resolved);
     }
     setLoadingChats(false);
   }, [user]);
@@ -418,6 +374,10 @@ export default function MyAiPage() {
   }, [loadChats]);
 
   useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
     if (!routeChatId) {
       setMessages([]);
       return;
@@ -426,7 +386,7 @@ export default function MyAiPage() {
   }, [routeChatId, loadMessages]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: sending ? "auto" : "smooth" });
   }, [messages, sending]);
 
   useEffect(() => {
@@ -452,6 +412,32 @@ export default function MyAiPage() {
   const headerTitleFull = activeChat?.title?.trim() || "My AI";
   const showWelcome = !loadingMessages && messages.length === 0 && !sending;
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const lastAssistantId = [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id;
+  const streamingAssistantId = sending
+    ? [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id ?? null
+    : null;
+
+  const stopGeneration = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setSending(false);
+  };
+
+  const patchStreamingAssistant = (assistantTempId: string, content: string, citations?: Citation[]) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantTempId
+          ? { ...m, content, citations: citations ?? m.citations }
+          : m,
+      ),
+    );
+  };
+
+  const startEditMessage = (msgId: string, content: string) => {
+    setEditingMessageId(msgId);
+    setInput(content);
+    setTimeout(() => taRef.current?.focus(), 50);
+  };
 
   const openChat = (id: string) => {
     setMobileSheetOpen(false);
@@ -478,6 +464,46 @@ export default function MyAiPage() {
     else void loadChats();
   };
 
+  const createProject = async () => {
+    if (!user) return;
+    const name = window.prompt("Folder name");
+    if (!name?.trim()) return;
+    try {
+      const row = await createMyAiProject(supabase, user.id, name.trim(), projects.length);
+      setProjects((prev) => [...prev, row]);
+      setActiveProjectFilter(row.id);
+    } catch (e) {
+      toast({ title: "Could not create folder", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const deleteProject = async (projectId: string) => {
+    if (!user) return;
+    if (!confirm("Delete this folder? Chats will stay in your history.")) return;
+    try {
+      await deleteMyAiProject(supabase, user.id, projectId);
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      if (activeProjectFilter === projectId) setActiveProjectFilter(null);
+      setChats((prev) =>
+        prev.map((c) => (c.project_id === projectId ? { ...c, project_id: null } : c)),
+      );
+    } catch (e) {
+      toast({ title: "Could not delete folder", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const moveChatToProject = async (chatId: string, projectId: string | null) => {
+    if (!user) return;
+    try {
+      await persistChatProject(supabase, user.id, chatId, projectId);
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, project_id: projectId } : c)),
+      );
+    } catch (e) {
+      toast({ title: "Could not move chat", description: String(e), variant: "destructive" });
+    }
+  };
+
   const saveAsJournalEntry = async () => {
     if (!routeChatId || savingJournal) return;
     const hasDialogue = messages.some((m) => m.role === "user" || m.role === "assistant");
@@ -501,118 +527,166 @@ export default function MyAiPage() {
     const text = (textOverride ?? input).trim();
     if (!text || sending) return;
 
+    const editId =
+      editingMessageId && !editingMessageId.startsWith("pending-") ? editingMessageId : null;
     const optimisticId = `pending-${Date.now()}`;
-    setMessages((prev) => [
-      ...prev,
-      { id: optimisticId, role: "user", content: text, citations: [] },
-      { id: `${optimisticId}-assistant`, role: "assistant", content: "", citations: [] },
-    ]);
+    const assistantTempId = `${optimisticId}-assistant`;
+
+    if (editId) {
+      const idx = messages.findIndex((m) => m.id === editId);
+      const truncated =
+        idx >= 0
+          ? messages.slice(0, idx + 1).map((m) => (m.id === editId ? { ...m, content: text } : m))
+          : messages;
+      setMessages([
+        ...truncated,
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ]);
+      setEditingMessageId(null);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: optimisticId, role: "user", content: text, citations: [] },
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ]);
+    }
+
     setInput("");
     setSending(true);
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     try {
-      const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
+      const done = await streamMyAiChat({
+        signal: abortRef.current.signal,
         body: {
           chat_id: routeChatId ?? null,
           message: text,
           include_general_knowledge: includeGeneral,
           response_depth: responseDepth,
+          edit_user_message_id: editId,
         },
+        onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
       });
 
-      if (error) {
-        throw new Error(error.message);
+      patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+
+      const chatTitle = done.title?.trim() || chatTitleFromFirstMessage(text);
+      const chatId = done.chat_id;
+      const now = new Date().toISOString();
+      const targetProjectId = activeProjectFilter;
+
+      if (targetProjectId) {
+        await persistChatProject(supabase, user.id, chatId, targetProjectId);
       }
 
-      const payload = data as MyAiInvokeOk | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
-      if (!payload || typeof payload !== "object" || !("chat_id" in payload) || !payload.chat_id) {
-        throw new Error("Unexpected response from My AI");
-      }
+      setChats((prev) => {
+        const existing = prev.find((c) => c.id === chatId);
+        const nextRow: ChatRow = {
+          id: chatId,
+          title: chatTitle,
+          updated_at: now,
+          project_id: targetProjectId ?? existing?.project_id ?? null,
+          journal_entry_id: existing?.journal_entry_id ?? null,
+        };
+        if (existing) {
+          return prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  title: c.title?.trim() ? c.title : chatTitle,
+                  updated_at: now,
+                  project_id: targetProjectId ?? c.project_id,
+                }
+              : c,
+          );
+        }
+        return [nextRow, ...prev];
+      });
 
-      if (!routeChatId || routeChatId !== payload.chat_id) {
-        navigate(`/my-ai/${payload.chat_id}`, { replace: !routeChatId });
+      if (!routeChatId || routeChatId !== chatId) {
+        navigate(`/my-ai/${chatId}`, { replace: !routeChatId });
       }
-      await loadMessages(payload.chat_id);
+      await loadMessages(chatId);
       void loadChats();
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        if (routeChatId) await loadMessages(routeChatId);
+        return;
+      }
       toast({ title: "My AI failed", description: String(e), variant: "destructive" });
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("pending-")));
       setInput(text);
     } finally {
+      abortRef.current = null;
       setSending(false);
       setTimeout(() => taRef.current?.focus(), 50);
     }
   };
 
+  const retryLast = async () => {
+    if (!routeChatId || sending) return;
+    const assistantTempId = `pending-retry-${Date.now()}`;
+    setMessages((prev) => {
+      let lastAssistantIdx = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === "assistant") {
+          lastAssistantIdx = i;
+          break;
+        }
+      }
+      if (lastAssistantIdx < 0) return prev;
+      return [
+        ...prev.slice(0, lastAssistantIdx),
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ];
+    });
+    setSending(true);
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
+    try {
+      const done = await streamMyAiChat({
+        signal: abortRef.current.signal,
+        body: {
+          chat_id: routeChatId,
+          retry_last: true,
+          include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
+        },
+        onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
+      });
+      patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+      await loadMessages(routeChatId);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        await loadMessages(routeChatId);
+        return;
+      }
+      toast({ title: "Regenerate failed", description: String(e), variant: "destructive" });
+      await loadMessages(routeChatId);
+    } finally {
+      abortRef.current = null;
+      setSending(false);
+    }
+  };
+
   const sidebarContent = (
-    <div className="flex h-full min-h-0 flex-col bg-card">
-      <div className="flex items-center gap-1 border-b border-border px-2 py-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 flex-1 justify-start gap-1.5 rounded-md px-2 text-xs font-medium hover:bg-muted/70"
-          onClick={newChat}
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" />
-          New chat
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="hidden h-8 w-8 shrink-0 md:inline-flex"
-          onClick={() => persistSidebar(false)}
-          aria-label="Close sidebar"
-        >
-          <PanelLeftClose className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
-        {loadingChats ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : chats.length === 0 ? (
-          <p className="px-3 py-3 text-[11px] text-muted-foreground">No chats yet.</p>
-        ) : (
-          chats.map((c) => (
-            <div
-              key={c.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openChat(c.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openChat(c.id);
-                }
-              }}
-              className={cn(
-                "group mx-1.5 flex cursor-pointer items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-xs transition-colors",
-                routeChatId === c.id
-                  ? "border-emerald-500 bg-emerald-500/8 font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-              )}
-            >
-              <MessageCircle className="h-3 w-3 shrink-0 opacity-60" />
-              <span className="min-w-0 flex-1 truncate">{c.title?.trim() || "Untitled"}</span>
-              <button
-                type="button"
-                onClick={(e) => void deleteChat(c.id, e)}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive focus-visible:opacity-100"
-                aria-label="Delete chat"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    <MyAiChatSidebar
+      chats={chats}
+      projects={projects}
+      loading={loadingChats}
+      activeChatId={routeChatId}
+      activeProjectFilter={activeProjectFilter}
+      onSelectChat={openChat}
+      onNewChat={newChat}
+      onNewProject={() => void createProject()}
+      onDeleteChat={(id, e) => void deleteChat(id, e)}
+      onMoveChatToProject={(chatId, projectId) => void moveChatToProject(chatId, projectId)}
+      onSelectProjectFilter={setActiveProjectFilter}
+      onDeleteProject={(projectId) => void deleteProject(projectId)}
+      onCloseSidebar={() => persistSidebar(false)}
+    />
   );
 
   return (
@@ -750,6 +824,7 @@ export default function MyAiPage() {
             {showWelcome && (
               <div className="mx-auto flex max-w-md flex-col items-center justify-center px-2 py-8 text-center sm:py-12">
                 <MyAiMark size="lg" className="mb-3" />
+                <ChatOpeningBlessing variant="welcome" className="mb-6" />
                 <h2 className="text-base font-semibold tracking-tight text-foreground">How can I help?</h2>
                 <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
                   Grounded in your beliefs, journals, and framework — with citations back to your sources.
@@ -761,7 +836,7 @@ export default function MyAiPage() {
                       type="button"
                       disabled={sending}
                       onClick={() => void send(prompt)}
-                      className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-[11px] leading-snug text-muted-foreground transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-foreground disabled:opacity-50"
+                      className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-[11px] leading-snug text-muted-foreground transition-colors hover:border-blue-500/30 hover:bg-blue-500/5 hover:text-foreground disabled:opacity-50"
                     >
                       {prompt}
                     </button>
@@ -772,24 +847,48 @@ export default function MyAiPage() {
 
             {!loadingMessages && visibleMessages.length > 0 && (
               <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">
+                <ChatOpeningBlessing variant="transcript" />
                 {visibleMessages.map((m) => (
-                  <div key={m.id} className="w-full">
+                  <div key={m.id} className="group w-full">
                     {m.role === "user" ? (
-                      <div className="flex justify-end">
-                        <div className="max-w-[min(100%,36rem)] rounded-2xl bg-emerald-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-emerald-500/15 dark:bg-emerald-500/15">
+                      <div className="flex flex-col items-end">
+                        <div className="max-w-[min(100%,36rem)] rounded-2xl bg-blue-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-blue-500/15 dark:bg-blue-500/15">
                           <p className="whitespace-pre-wrap">{m.content}</p>
                         </div>
+                        {!m.id.startsWith("pending-") ? (
+                          <ChatMessageActions
+                            role="user"
+                            content={m.content}
+                            busy={sending}
+                            onEdit={() => startEditMessage(m.id, m.content)}
+                          />
+                        ) : null}
                       </div>
                     ) : (
                       <div className="max-w-none px-1 sm:px-2">
-                        <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
-                          {m.content ? (
-                            <ReactMarkdown>{prepareChatMarkdownForDisplay(m.content)}</ReactMarkdown>
-                          ) : (
-                            <TypingDots />
-                          )}
-                        </div>
-                        <CitationChips citations={parseCitationsJson(m.citations)} />
+                        {sending && m.id === streamingAssistantId ? (
+                          <ChatAssistantMarkdown content={m.content} streaming />
+                        ) : m.content ? (
+                          <ChatAssistantMarkdown content={m.content} />
+                        ) : (
+                          <TypingDots />
+                        )}
+                        {!(sending && m.id === streamingAssistantId) ? (
+                          <ChatSourceAttribution citations={m.citations} variant="myai" />
+                        ) : null}
+                        {!m.id.startsWith("pending-") || m.content ? (
+                          <ChatMessageActions
+                            role="assistant"
+                            content={m.content}
+                            busy={sending}
+                            isLastAssistant={m.id === lastAssistantId}
+                            onRegenerate={
+                              m.id === lastAssistantId && routeChatId
+                                ? () => void retryLast()
+                                : undefined
+                            }
+                          />
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -802,7 +901,13 @@ export default function MyAiPage() {
             input={input}
             onInputChange={setInput}
             onSend={() => void send()}
+            onStop={sending ? stopGeneration : undefined}
             sending={sending}
+            editingMessageId={editingMessageId}
+            onCancelEdit={() => {
+              setEditingMessageId(null);
+              setInput("");
+            }}
             userId={user.id}
             textareaRef={taRef}
             responseDepth={responseDepth}

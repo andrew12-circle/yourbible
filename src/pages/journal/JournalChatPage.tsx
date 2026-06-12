@@ -4,8 +4,7 @@
  * Same backend as My AI: `my-ai-chat` + `my_ai_messages`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Loader2,
@@ -44,11 +43,12 @@ import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
-import { CHAT_ASSISTANT_PROSE_COMPACT, prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
+import ChatMessageActions from "@/components/journal/ChatMessageActions";
+import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
+import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
+import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
 import {
-  journalChatCitationChipBaseClass,
-  journalChatCitationChipLinkedClass,
-  journalChatCitationChipMutedClass,
   journalChatUserBubbleClass,
 } from "@/lib/journal/journalChatUi";
 import {
@@ -78,8 +78,14 @@ type MsgRow = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  citations: Json;
+  citations: Citation[] | Json;
 };
+
+function citationsFromStream(raw: MyAiChatCitation[]): Citation[] {
+  return raw.map((c) =>
+    c.id ? { source_type: c.source_type, id: c.id, label: c.label } : { source_type: c.source_type, label: c.label },
+  );
+}
 
 type ClaimFocusSession = {
   claimId: string;
@@ -87,13 +93,6 @@ type ClaimFocusSession = {
   claimPreview: string;
   matchedBeliefId: string | null;
   artifactTitle: string | null;
-};
-
-type MyAiInvokeOk = {
-  chat_id: string;
-  assistant_message_id: string;
-  content: string;
-  citations: Citation[];
 };
 
 function readIncludeGeneralDefault(): boolean {
@@ -116,69 +115,6 @@ function stripMarkdownForTts(md: string): string {
   s = s.replace(/_([^_]+)_/g, "$1");
   s = s.replace(/\s+/g, " ");
   return s.trim();
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function parseCitationsJson(raw: Json): Citation[] {
-  if (!Array.isArray(raw)) return [];
-  const out: Citation[] = [];
-  for (const item of raw) {
-    if (!isRecord(item)) continue;
-    const st = item.source_type;
-    const label = item.label;
-    if (typeof st !== "string" || typeof label !== "string" || !label.trim()) continue;
-    if (
-      st !== "belief" && st !== "journal" && st !== "artifact" && st !== "entity" &&
-      st !== "identity" && st !== "general" && st !== "influence"
-    ) {
-      continue;
-    }
-    const id = typeof item.id === "string" && item.id.length >= 32 ? item.id : undefined;
-    out.push(id ? { source_type: st, id, label: label.trim() } : { source_type: st, label: label.trim() });
-  }
-  return out;
-}
-
-function citationHref(c: Citation): string | null {
-  if (c.id) {
-    if (c.source_type === "belief") return `/framework/beliefs/${c.id}`;
-    if (c.source_type === "journal") return `/journal/${c.id}`;
-    if (c.source_type === "artifact") return `/framework/artifacts/${c.id}`;
-  }
-  if (c.source_type === "identity") return "/settings";
-  if (c.source_type === "influence") return "/framework/influences";
-  return null;
-}
-
-function CitationChips({ citations }: { citations: Citation[] }) {
-  if (!citations.length) return null;
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {citations.map((c, i) => {
-        const href = citationHref(c);
-        const chip = (
-          <span
-            className={cn(
-              journalChatCitationChipBaseClass,
-              href ? journalChatCitationChipLinkedClass : journalChatCitationChipMutedClass,
-            )}
-          >
-            {c.label}
-          </span>
-        );
-        return href ? (
-          <Link key={`${c.source_type}-${c.id ?? "x"}-${i}`} to={href} className="no-underline">
-            {chip}
-          </Link>
-        ) : (
-          <span key={`${c.source_type}-${c.id ?? "x"}-${i}`}>{chip}</span>
-        );
-      })}
-    </div>
-  );
 }
 
 function TypingDots() {
@@ -245,6 +181,8 @@ export default function JournalChatPage() {
   const prevRouteEntryIdRef = useRef<string | undefined>(undefined);
   const [claimFocusSession, setClaimFocusSession] = useState<ClaimFocusSession | null>(null);
   const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   useLockBodyScrollWhenKeyboardActive(composerFocused && viewMode === "chat", composerLockScrollYRef);
 
   inputRef.current = input;
@@ -467,23 +405,22 @@ export default function JournalChatPage() {
             }
             return base;
           })();
-          const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
-            body: invokeBody,
+          const { data, error } = await supabase.functions.invoke("my-ai-chat", {
+            body: { ...invokeBody, stream: false },
           });
           if (cancelled) return;
           if (error) throw new Error(error.message);
-          const payload = data as MyAiInvokeOk | { error?: string } | null;
+          const payload = data as { content?: string; error?: string } | null;
           if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
             throw new Error(payload.error);
           }
           if (
             payload &&
             typeof payload === "object" &&
-            "content" in payload &&
-            typeof (payload as MyAiInvokeOk).content === "string" &&
-            (payload as MyAiInvokeOk).content.trim()
+            typeof payload.content === "string" &&
+            payload.content.trim()
           ) {
-            void playJournalAssistantTts((payload as MyAiInvokeOk).content);
+            void playJournalAssistantTts(payload.content);
           }
           if (!cancelled && handoff) {
             const [{ data: row }, { data: art }] = await Promise.all([
@@ -619,9 +556,26 @@ export default function JournalChatPage() {
 
   const stop = () => {
     ignoreResult.current = true;
+    abortRef.current?.abort();
+    abortRef.current = null;
     sendingRef.current = false;
     setSending(false);
     stopJournalTts();
+  };
+
+  const patchStreamingAssistant = (assistantTempId: string, content: string, citations?: Citation[]) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantTempId
+          ? { ...m, content, citations: citations ?? m.citations }
+          : m,
+      ),
+    );
+  };
+
+  const startEditMessage = (msgId: string, content: string) => {
+    setEditingMessageId(msgId);
+    setInput(content);
   };
 
   const send = async (textOverride?: string) => {
@@ -631,12 +585,40 @@ export default function JournalChatPage() {
     dictateRef.current?.stop();
     voiceHadFinalSinceMicOnRef.current = false;
     ignoreResult.current = false;
+
+    const editId =
+      editingMessageId && !editingMessageId.startsWith("pending-") ? editingMessageId : null;
+    const optimisticId = `pending-${Date.now()}`;
+    const assistantTempId = `${optimisticId}-assistant`;
+
+    if (editId) {
+      const idx = messages.findIndex((m) => m.id === editId);
+      const truncated =
+        idx >= 0
+          ? messages.slice(0, idx + 1).map((m) => (m.id === editId ? { ...m, content: text } : m))
+          : messages;
+      setMessages([
+        ...truncated,
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ]);
+      setEditingMessageId(null);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: optimisticId, role: "user", content: text, citations: [] },
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ]);
+    }
+
     setInput("");
     sendingRef.current = true;
     setSending(true);
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     try {
-      const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
+      const done = await streamMyAiChat({
+        signal: abortRef.current.signal,
         body: {
           chat_id: chatId,
           message: text,
@@ -644,33 +626,31 @@ export default function JournalChatPage() {
           journal_entry_id: routeEntryId,
           include_general_knowledge: includeGeneral,
           response_depth: responseDepth,
+          edit_user_message_id: editId,
+        },
+        onDelta: (acc) => {
+          if (!ignoreResult.current) patchStreamingAssistant(assistantTempId, acc);
         },
       });
 
       if (ignoreResult.current) return;
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const payload = data as MyAiInvokeOk | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
-      if (!payload || typeof payload !== "object" || !("chat_id" in payload) || !payload.chat_id) {
-        throw new Error("Unexpected response from chat");
-      }
-
-      await loadMessages(payload.chat_id);
+      patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+      await loadMessages(done.chat_id);
       void loadSessions();
-      const reply = typeof payload.content === "string" ? payload.content : "";
-      if (reply.trim()) void playJournalAssistantTts(reply);
+      if (done.content.trim()) void playJournalAssistantTts(done.content);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        if (chatId) await loadMessages(chatId);
+        return;
+      }
       if (!ignoreResult.current) {
         toast({ title: "Message failed", description: String(e), variant: "destructive" });
+        setMessages((prev) => prev.filter((m) => !m.id.startsWith("pending-")));
         setInput(text);
       }
     } finally {
+      abortRef.current = null;
       sendingRef.current = false;
       if (!ignoreResult.current) setSending(false);
       ignoreResult.current = false;
@@ -683,8 +663,27 @@ export default function JournalChatPage() {
     sendingRef.current = true;
     setSending(true);
     ignoreResult.current = false;
+    const assistantTempId = `pending-retry-${Date.now()}`;
+    setMessages((prev) => {
+      let lastAssistantIdx = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === "assistant") {
+          lastAssistantIdx = i;
+          break;
+        }
+      }
+      if (lastAssistantIdx < 0) return prev;
+      return [
+        ...prev.slice(0, lastAssistantIdx),
+        { id: assistantTempId, role: "assistant", content: "", citations: [] },
+      ];
+    });
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
     try {
-      const { data, error } = await supabase.functions.invoke<MyAiInvokeOk>("my-ai-chat", {
+      const done = await streamMyAiChat({
+        signal: abortRef.current.signal,
         body: {
           chat_id: chatId,
           retry_last: true,
@@ -693,21 +692,20 @@ export default function JournalChatPage() {
           include_general_knowledge: includeGeneral,
           response_depth: responseDepth,
         },
+        onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
       });
-      if (error) throw new Error(error.message);
-      const payload = data as MyAiInvokeOk | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
+      patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
       await loadMessages(chatId);
-      const reply =
-        payload && typeof payload === "object" && typeof (payload as MyAiInvokeOk).content === "string"
-          ? (payload as MyAiInvokeOk).content
-          : "";
-      if (reply.trim()) void playJournalAssistantTts(reply);
+      if (done.content.trim()) void playJournalAssistantTts(done.content);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        await loadMessages(chatId);
+        return;
+      }
       toast({ title: "Retry failed", description: String(e), variant: "destructive" });
+      await loadMessages(chatId);
     } finally {
+      abortRef.current = null;
       sendingRef.current = false;
       setSending(false);
     }
@@ -749,11 +747,17 @@ export default function JournalChatPage() {
       id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
-      citations: m.role === "assistant" ? parseCitationsJson(m.citations) : undefined,
+      citations: m.role === "assistant" ? m.citations : undefined,
     }));
 
   const showLoadingShell = !routeEntryId || !chatId;
   const showChatComposer = viewMode === "chat";
+  const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const lastAssistantId = [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id;
+  const streamingAssistantId = sending
+    ? [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id ?? null
+    : null;
+  const showTrailingTyping = bootstrapping && !visibleMessages.some((m) => m.role === "assistant");
 
   return (
     <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
@@ -999,29 +1003,51 @@ export default function JournalChatPage() {
             )}
 
             {!showLoadingShell && viewMode === "chat" && !loadingMessages && (
-              <div className="mx-auto max-w-2xl space-y-3 pb-4">
-                {messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => (
-                  <div key={m.id} className={cn(m.role === "user" && "flex justify-end")}>
+              <div className="mx-auto max-w-2xl space-y-6 pb-4">
+                <ChatOpeningBlessing variant="transcript" />
+                {visibleMessages.map((m) => (
+                  <div key={m.id} className={cn("group w-full", m.role === "user" && "flex flex-col items-end")}>
                     {m.role === "user" ? (
-                      <div className={journalChatUserBubbleClass}>
-                        {m.content}
-                      </div>
+                      <>
+                        <div className={journalChatUserBubbleClass}>{m.content}</div>
+                        {!m.id.startsWith("pending-") ? (
+                          <ChatMessageActions
+                            role="user"
+                            content={m.content}
+                            busy={sending || bootstrapping}
+                            onEdit={() => startEditMessage(m.id, m.content)}
+                          />
+                        ) : null}
+                      </>
                     ) : (
-                      <div className="max-w-full px-1 py-1 text-[13px]">
-                        <div className={CHAT_ASSISTANT_PROSE_COMPACT}>
-                          {m.content ? (
-                            <ReactMarkdown>{prepareChatMarkdownForDisplay(m.content)}</ReactMarkdown>
-                          ) : (
-                            <TypingDots />
-                          )}
-                        </div>
-                        <CitationChips citations={parseCitationsJson(m.citations)} />
+                      <div className="max-w-none px-1 py-1">
+                        {sending && m.id === streamingAssistantId ? (
+                          <ChatAssistantMarkdown content={m.content} streaming />
+                        ) : m.content ? (
+                          <ChatAssistantMarkdown content={m.content} />
+                        ) : (
+                          <TypingDots />
+                        )}
+                        {!(sending && m.id === streamingAssistantId) ? (
+                          <ChatSourceAttribution citations={m.citations} variant="journal" />
+                        ) : null}
+                        {!m.id.startsWith("pending-") || m.content ? (
+                          <ChatMessageActions
+                            role="assistant"
+                            content={m.content}
+                            busy={sending || bootstrapping}
+                            isLastAssistant={m.id === lastAssistantId}
+                            onRegenerate={
+                              m.id === lastAssistantId && chatId ? () => void retryLast() : undefined
+                            }
+                          />
+                        ) : null}
                       </div>
                     )}
                   </div>
                 ))}
 
-                {(sending || bootstrapping) && (
+                {showTrailingTyping && (
                   <div className="px-1 py-1 text-muted-foreground">
                     <TypingDots />
                   </div>

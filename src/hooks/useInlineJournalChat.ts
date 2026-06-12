@@ -5,7 +5,6 @@ import {
   composeChatTranscript,
   ensureInlineJournalChatSession,
   loadInlineChatTurns,
-  sendInlineJournalChatMessage,
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
 import {
@@ -15,6 +14,7 @@ import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   readResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
+import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
 
 type UseInlineJournalChatOpts = {
   userId: string | undefined;
@@ -38,23 +38,26 @@ export function useInlineJournalChat({
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = useCallback(() => {
     const el = chatScrollRef.current;
     if (!el) return;
     requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-      chatBottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+      el.scrollTo({ top: el.scrollHeight, behavior: aiBusy ? "auto" : "smooth" });
+      chatBottomRef.current?.scrollIntoView({ block: "end", behavior: aiBusy ? "auto" : "smooth" });
     });
-  }, []);
+  }, [aiBusy]);
 
   useEffect(() => {
     if (!userId || !entryId) {
       setChatId(null);
       setChatTurns([]);
       setAiBusy(false);
+      setStreamingAssistantId(null);
       return;
     }
     let cancelled = false;
@@ -73,7 +76,7 @@ export function useInlineJournalChat({
       }
       setChatId(chatRow.id);
       setChatTurns(await loadInlineChatTurns(chatRow.id));
-    })();
+   })();
     return () => {
       cancelled = true;
     };
@@ -82,7 +85,7 @@ export function useInlineJournalChat({
   useEffect(() => {
     if (!active) return;
     scrollToBottom();
-  }, [active, chatTurns.length, aiBusy, scrollToBottom]);
+  }, [active, chatTurns, aiBusy, scrollToBottom]);
 
   const persistTranscript = useCallback(
     (turns: InlineChatTurn[], trailingDraft?: string) => {
@@ -111,42 +114,69 @@ export function useInlineJournalChat({
       const trimmed = text.trim();
       if (!trimmed || aiBusy || !userId || !entryId) return false;
       setAiBusy(true);
-      const tempId = `tmp-${Date.now()}`;
-      setChatTurns((prev) => [...prev, { id: tempId, role: "user", content: trimmed }]);
+      const userTempId = `tmp-user-${Date.now()}`;
+      const assistantTempId = `tmp-asst-${Date.now()}`;
+      setStreamingAssistantId(assistantTempId);
+      setChatTurns((prev) => [
+        ...prev,
+        { id: userTempId, role: "user", content: trimmed },
+        { id: assistantTempId, role: "assistant", content: "" },
+      ]);
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
       try {
         const ensured = await ensureSession();
         if (!ensured) {
-          setChatTurns((prev) => prev.filter((t) => t.id !== tempId));
+          setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
           return false;
         }
-        await sendInlineJournalChatMessage({
-          chatId: ensured.chatId,
-          entryId: ensured.entryId,
-          message: trimmed,
-          responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
-          includeGeneralKnowledge,
+
+        await streamMyAiChat({
+          signal: abortRef.current.signal,
+          body: {
+            chat_id: ensured.chatId,
+            message: trimmed,
+            mode: "journal",
+            journal_entry_id: ensured.entryId,
+            include_general_knowledge: includeGeneralKnowledge,
+            response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          },
+          onDelta: (acc) => {
+            setChatTurns((prev) =>
+              prev.map((t) => (t.id === assistantTempId ? { ...t, content: acc } : t)),
+            );
+          },
         });
+
         const loaded = await loadInlineChatTurns(ensured.chatId);
         setChatTurns(loaded);
         persistTranscript(loaded);
         scrollToBottom();
         return true;
       } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") {
+          if (chatId) setChatTurns(await loadInlineChatTurns(chatId));
+          return false;
+        }
         const description = e instanceof Error ? e.message : String(e);
         toast({ title: "AI reply failed", description, variant: "destructive" });
         setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
         return false;
       } finally {
+        abortRef.current = null;
+        setStreamingAssistantId(null);
         setAiBusy(false);
       }
     },
-    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom, includeGeneralKnowledge],
+    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom, includeGeneralKnowledge, chatId],
   );
 
   return {
     chatId,
     chatTurns,
     aiBusy,
+    streamingAssistantId,
     chatScrollRef,
     chatBottomRef,
     ensureSession,

@@ -28,6 +28,7 @@ interface NewJournalEntryBodyEditorProps {
   chatBottomRef: RefObject<HTMLDivElement | null>;
   chatTurns: InlineChatTurn[];
   aiBusy: boolean;
+  streamingAssistantId?: string | null;
   dictInterim: string;
   existingSketches: PhotoItem[];
   existingAttachments: PhotoItem[];
@@ -55,6 +56,7 @@ export function NewJournalEntryBodyEditor({
   chatBottomRef,
   chatTurns,
   aiBusy,
+  streamingAssistantId = null,
   dictInterim,
   existingSketches,
   existingAttachments,
@@ -123,6 +125,7 @@ export function NewJournalEntryBodyEditor({
         bottomRef={chatBottomRef}
         turns={chatTurns}
         aiBusy={aiBusy}
+        streamingAssistantId={streamingAssistantId}
         seedUserText={body}
         dictInterim={dictInterim}
         className="flex-1 -mx-3 sm:-mx-5 px-3 sm:px-5 overflow-y-auto"

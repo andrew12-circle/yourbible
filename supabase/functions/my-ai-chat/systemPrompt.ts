@@ -57,9 +57,57 @@ const OUTPUT_CONTRACT = `# Layer 6 — Output contract (critical)
 Respond with a single JSON object ONLY (no markdown fences), shaped exactly:
 {"reply":"string (markdown allowed)","citations":[{"source_type":"belief|journal|artifact|entity|identity|general|influence","id":"optional uuid string","label":"short human label"}]}
 - "reply" is what the user reads — no raw [journal:uuid] tokens in reply text.
-- In "reply" markdown: put a blank line between paragraphs; use markdown bullet lists for multiple examples or steps.
+- In "reply" markdown: put a blank line between EVERY sentence or short thought (ChatGPT-style airy spacing). One sentence per paragraph is ideal. Use markdown blockquotes (> ) for prayers or quoted text. Use bullet lists for multiple examples or steps — never run long lists inline.
+- Never paste journal excerpts, "What I have learned" dumps, or --- AI: summaries into "reply". Paraphrase briefly in your own words.
 - "citations" lists the framework rows you relied on most; include id whenever you referenced a row from the context.
+- Citation "label" must be SHORT (≤ 6 words), e.g. "Journal entry", "Belief on prayer", "Artifact note" — never a paragraph or quote.
 - Use source_type "general" only when you actually used general knowledge under the allowed mode.`;
+
+const STREAM_MARKDOWN_CONTRACT = `# Output format (streaming)
+Return plain markdown only — NOT JSON, NOT code fences. The user reads your reply live in a chat UI.
+- Put a blank line between every sentence or short thought (ChatGPT-style). One sentence per paragraph is ideal.
+- Use a single markdown blockquote (> ...) for an entire prayer — one continuous written prayer, not separate quote blocks per sentence.
+- Use **bold labels** for sections when helpful (e.g. **Spiritual:**). Use bullet or numbered lists for multiple steps or examples.
+- Never paste raw journal excerpts or bracket UUID tokens in the reply. Paraphrase in plain language.
+- Bracket tags in your reasoning are NOT shown to the user — never include [journal:uuid] in visible text.`;
+
+/** Markdown streaming — My AI chat mode. */
+export function buildMyAiStreamSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+  depth: ResolvedResponseDepth = "reflect",
+): string {
+  const layers = [
+    LAYER_IDENTITY_CHAT,
+    LAYER_EVOLUTION,
+    LAYER_RETRIEVAL,
+    LAYER_ANTI_GENERIC_CHAT,
+    depth === "deep" ? LAYER_DEEP_WISDOM_CHAT : "",
+    partnerLayer(partnerDigestMarkdown, false),
+    outsideLayer(includeGeneralKnowledge, false, depth),
+    STREAM_MARKDOWN_CONTRACT,
+  ].filter(Boolean);
+  return layers.join("\n\n");
+}
+
+/** Markdown streaming — journal chat mode. */
+export function buildJournalChatStreamSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+  depth: ResolvedResponseDepth = "reflect",
+): string {
+  const layers = [
+    LAYER_IDENTITY_JOURNAL,
+    LAYER_EVOLUTION,
+    LAYER_RETRIEVAL,
+    LAYER_ANTI_GENERIC_JOURNAL,
+    depth === "deep" ? LAYER_DEEP_WISDOM_JOURNAL : "",
+    partnerLayer(partnerDigestMarkdown, true),
+    outsideLayer(includeGeneralKnowledge, true, depth),
+    STREAM_MARKDOWN_CONTRACT,
+  ].filter(Boolean);
+  return layers.join("\n\n");
+}
 
 function partnerLayer(partnerDigestMarkdown?: string, soft = false): string {
   const md = partnerDigestMarkdown?.trim();

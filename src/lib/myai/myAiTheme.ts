@@ -1,4 +1,4 @@
-/** My AI composer — Gemini-inspired pill, emerald accent. */
+/** My AI composer — Gemini-inspired pill, blue accent. */
 export const myAiInputShell =
   "flex flex-col rounded-[28px] border border-[#dde3ea] bg-[#f0f4f9] px-1.5 pt-1.5 pb-1 " +
   "shadow-[0_1px_3px_rgba(60,64,67,0.08),0_4px_16px_rgba(60,64,67,0.06)] " +

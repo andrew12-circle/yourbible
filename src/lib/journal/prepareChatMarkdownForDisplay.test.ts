@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest";
 import { prepareChatMarkdownForDisplay } from "./prepareChatMarkdownForDisplay";
 
 describe("prepareChatMarkdownForDisplay", () => {
-  it("splits wall-of-text into paragraph breaks", () => {
-    const raw =
-      "First sentence about weight. Second sentence about faith. Third adds context. Fourth asks what you think. Fifth closes the loop.";
+  it("splits short multi-sentence lines into one sentence per paragraph", () => {
+    const raw = "That's beautiful. I'm glad you felt peace.";
     const out = prepareChatMarkdownForDisplay(raw);
-    expect(out.split("\n\n").length).toBeGreaterThan(1);
+    expect(out).toBe("That's beautiful.\n\nI'm glad you felt peace.");
   });
 
   it("breaks inline list markers onto their own lines", () => {
@@ -42,5 +41,28 @@ describe("prepareChatMarkdownForDisplay", () => {
     const out = prepareChatMarkdownForDisplay(raw);
     expect(out).toContain("\n\nHowever");
     expect(out).toContain("\n\nSimilarly");
+  });
+
+  it("merges consecutive blockquote blocks into one prayer", () => {
+    const raw = "> God, I thank You for the peace.\n\n> Now, as Caroline arrives, guide me.\n\n> Amen.";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toMatch(/^> God, I thank You.*Amen\.\s*$/s);
+    expect(out.match(/^>\s/gm)?.length).toBe(1);
+  });
+
+  it("formats long quoted prayers as one blockquote", () => {
+    const raw =
+      'Try this: "Dear Jesus, I come before You with a heart that wants to honor You. Guide my steps today. Give me strength for what is ahead. Amen." What do you think?';
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toContain("> Dear Jesus");
+    expect(out).toContain("Amen.");
+    expect(out.match(/^>\s/gm)?.length).toBe(1);
+  });
+
+  it("breaks before reflective closing questions", () => {
+    const raw =
+      "That peace is a gift worth holding onto. As you think about what needs to get done, what feels like the next step?";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toContain("\n\nAs you think");
   });
 });

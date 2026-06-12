@@ -24,6 +24,9 @@ export function readerColumnClassName(layout: ReaderColumnLayout): string {
   return layout === "double" ? "scripture-columns-2" : "";
 }
 
+/** Four columns across an open-book spread (used for unified spread flow). */
+export const READER_SPREAD_COLUMNS_CLASS = "scripture-columns-spread";
+
 export function readerColumnLayoutLabel(layout: ReaderColumnLayout): string {
   return layout === "double" ? "Two columns per page" : "Single column";
 }

@@ -1,5 +1,15 @@
 import type { CSSProperties } from "react";
 
+/** Gap between facing pages when measuring a four-column spread. */
+export const SPREAD_MEASURE_GAP_PX = 28;
+
+export interface ScriptureColumnMeasureOptions {
+  /** Override column count (e.g. 4 for an open-book spread). */
+  columnCount?: number;
+  /** Fixed width for the column wrapper during measurement. */
+  measureWidthPx?: number;
+}
+
 /**
  * Pagination measurement helpers for CSS multi-column scripture layout.
  * Live pages must use the same fixed pixel height as the hidden paginator or
@@ -24,18 +34,27 @@ export function applyScriptureColumnMeasureHtml(
   bodyHtml: string,
   columnsClassName: string | undefined,
   contentHeightPx: number,
+  options?: ScriptureColumnMeasureOptions,
 ): void {
   if (!columnsClassName) {
     node.innerHTML = bodyHtml;
     return;
   }
   const h = Math.max(1, Math.round(contentHeightPx));
+  const columnCount = options?.columnCount ?? 2;
+  const width =
+    options?.measureWidthPx != null && options.measureWidthPx > 0
+      ? `width:${Math.round(options.measureWidthPx)}px;`
+      : "width:100%;";
   node.innerHTML =
-    `<div class="${columnsClassName}" style="height:${h}px;overflow:hidden;width:100%;min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto">` +
+    `<div class="${columnsClassName}" style="height:${h}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">` +
     `${bodyHtml}</div>`;
 }
 
-/** True when rendered content fits within the page text area (incl. two-column flow). */
+/**
+ * True when rendered content fits within the page text area (incl. multi-column flow).
+ * Detects clipped overflow columns via scrollWidth and natural column height.
+ */
 export function scriptureContentFitsPage(
   node: HTMLDivElement,
   contentHeightPx: number,
@@ -47,5 +66,24 @@ export function scriptureContentFitsPage(
   }
   const col = node.firstElementChild as HTMLElement | null;
   if (!col) return true;
-  return col.scrollHeight <= col.clientHeight + 1;
+
+  col.style.height = `${limit}px`;
+  col.style.maxHeight = `${limit}px`;
+  col.style.overflow = "hidden";
+
+  // Extra implicit columns widen the scroll box beyond the declared column count.
+  if (col.scrollWidth > col.clientWidth + 2) {
+    return false;
+  }
+  // Clipped vertical overflow (common when column-fill:auto exhausts column height).
+  if (col.scrollHeight > limit + 1) {
+    return false;
+  }
+
+  col.style.height = "auto";
+  col.style.maxHeight = "none";
+  col.style.overflow = "visible";
+  const naturalHeight = col.scrollHeight;
+
+  return naturalHeight <= limit + 1;
 }

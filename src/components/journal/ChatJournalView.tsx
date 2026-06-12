@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import ReactMarkdown from "react-markdown";
 import { ChevronDown } from "lucide-react";
 import {
   Collapsible,
@@ -12,6 +11,7 @@ import {
   type ChatJournalMessage,
 } from "@/lib/journal/chatJournalEntry";
 import { journalChatUserBubbleClass } from "@/lib/journal/journalChatUi";
+import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
 
 type Props = {
   body: string;
@@ -94,7 +94,7 @@ export default function ChatJournalView({
 
 function SavedChatTranscript({ messages }: { messages: ChatJournalMessage[] }) {
   return (
-    <div className="flex flex-col gap-3" aria-label="Conversation transcript">
+    <div className="flex flex-col gap-6" aria-label="Conversation transcript">
       {messages.map((t, i) => (
         <div
           key={`${t.role}-${i}`}
@@ -105,10 +105,8 @@ function SavedChatTranscript({ messages }: { messages: ChatJournalMessage[] }) {
               {t.content}
             </div>
           ) : (
-            <div className="max-w-[92%] rounded-2xl border border-border/70 bg-card px-3 py-2 text-[13px] shadow-sm">
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-p:text-[13px] prose-p:leading-relaxed">
-                <ReactMarkdown>{t.content}</ReactMarkdown>
-              </div>
+            <div className="max-w-none px-1 py-1">
+              <ChatAssistantMarkdown content={t.content} />
             </div>
           )}
         </div>

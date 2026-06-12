@@ -6,16 +6,75 @@ const ABBREV_DOT = "%%DOT%%";
 export function prepareChatMarkdownForDisplay(text: string): string {
   let out = sanitizeResearchChatContent(text);
   if (!out) return out;
+  out = normalizeSectionDividers(out);
+  out = normalizeQuotedPrayers(out);
+  out = mergeSplitBlockquotes(out);
   out = normalizeInlineLists(out);
   out = normalizeTransitionBreaks(out);
+  out = normalizeClosingQuestions(out);
   out = ensureParagraphBreaks(out);
   return out.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Split inline --- AI: / --- You: dumps onto their own blocks. */
+function normalizeSectionDividers(text: string): string {
+  return text
+    .replace(/\s+---\s+(?=(?:AI|You)\s*:)/gi, "\n\n--- ")
+    .replace(/\s+---\s+/g, "\n\n---\n\n");
+}
+
+/** Merge consecutive blockquote blocks into one written prayer (fixes split green boxes). */
+function mergeSplitBlockquotes(text: string): string {
+  const parts = text.split(/\n{2,}/);
+  const out: string[] = [];
+  let quoteLines: string[] = [];
+
+  const flushQuote = () => {
+    if (!quoteLines.length) return;
+    const body = quoteLines
+      .map((chunk) => chunk.replace(/^(?:>\s*)+/gm, "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body) out.push(`> ${body}`);
+    quoteLines = [];
+  };
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (/^>\s/m.test(trimmed)) {
+      quoteLines.push(trimmed);
+      continue;
+    }
+    flushQuote();
+    out.push(trimmed);
+  }
+  flushQuote();
+  return out.join("\n\n");
+}
+
+/** Turn quoted prayers into one continuous green blockquote (written prayer). */
+function normalizeQuotedPrayers(text: string): string {
+  return text.replace(/"([^"\n]{60,})"/g, (_match, inner: string) => {
+    const prayer = inner.trim().replace(/\s+/g, " ");
+    return `\n\n> ${prayer}\n\n`;
+  });
+}
+
+/** Break before reflective closing questions (common in My AI replies). */
+function normalizeClosingQuestions(text: string): string {
+  return text.replace(
+    /([.!?"\u201d])\s+(?=(?:As you (?:think|consider|reflect|prepare|move)|What (?:feels|would|is)|How (?:does|do|might|would)|When you |Where do you |Which ))/gi,
+    "$1\n\n",
+  );
 }
 
 /** Insert breaks before common section transitions mid-paragraph. */
 function normalizeTransitionBreaks(text: string): string {
   return text.replace(
-    /([.!?])\s+(?=(?:However|Similarly|In contrast|By contrast|Additionally|Furthermore|Moreover|Notably|Importantly|Historically|Biblically|The concept|This (?:idea|view|teaching|doctrine)|While many|Although|One (?:example|teacher|voice|scholar)|Another (?:example|teacher|voice|scholar)|First,|Second,|Third,|Finally,|In summary|To summarize|That said|On the other hand|In the charismatic|In Pentecostal|In the broader|Several (?:teachers|scholars|voices)|Many (?:teachers|scholars|voices)|Some (?:teachers|scholars|voices)))/gi,
+    /([.!?])\s+(?=(?:However|Similarly|In contrast|By contrast|Additionally|Furthermore|Moreover|Notably|Importantly|Historically|Biblically|Given (?:that|your)|It's (?:understandable|natural|common)|This (?:is|can be|may be)|The concept|This (?:idea|view|teaching|doctrine)|While many|Although|One (?:example|teacher|voice|scholar)|Another (?:example|teacher|voice|scholar)|First,|Second,|Third,|Finally,|In summary|To summarize|That said|On the other hand|In the charismatic|In Pentecostal|In the broader|Several (?:teachers|scholars|voices)|Many (?:teachers|scholars|voices)|Some (?:teachers|scholars|voices)|Here(?:'s| is)|You might|You could|Let's|Allow yourself|Take a moment|Before Caroline|As Caroline))/gi,
     "$1\n\n",
   );
 }
@@ -30,7 +89,6 @@ function normalizeInlineLists(text: string): string {
 }
 
 const WALL_CHAR_THRESHOLD = 240;
-const MIN_SPLIT_CHARS = 80;
 
 function ensureParagraphBreaks(text: string): string {
   if (text.includes("\n\n")) {
@@ -46,6 +104,7 @@ function ensureParagraphBreaks(text: string): string {
 function formatBlock(block: string): string {
   const trimmed = block.trim();
   if (!trimmed) return "";
+  if (isBlockquoteMarkdownBlock(trimmed)) return trimmed;
   if (trimmed.includes("\n")) {
     return trimmed
       .split("\n")
@@ -59,46 +118,28 @@ function formatBlock(block: string): string {
 
 function formatSingleLine(line: string): string {
   const sentences = splitSentences(line);
-  if (sentences.length >= 2 && line.length >= MIN_SPLIT_CHARS) {
-    return splitWallOfTextIntoParagraphs(line);
+  if (sentences.length >= 2) {
+    return oneSentencePerParagraph(line);
   }
   if (line.length > WALL_CHAR_THRESHOLD) {
-    return splitWallOfTextIntoParagraphs(line);
+    return oneSentencePerParagraph(line);
   }
   return line;
 }
 
-function splitWallOfTextIntoParagraphs(text: string): string {
+/** ChatGPT-style: one sentence per paragraph so each line breathes. */
+function oneSentencePerParagraph(text: string): string {
   const sentences = splitSentences(text);
   if (sentences.length <= 1) return text;
+  return sentences.join("\n\n");
+}
 
-  const paragraphs: string[] = [];
-  let buf: string[] = [];
+function splitWallOfTextIntoParagraphs(text: string): string {
+  return oneSentencePerParagraph(text);
+}
 
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i];
-    buf.push(sentence);
-    const next = sentences[i + 1];
-    const trimmed = sentence.trim();
-    const endsQuestion = trimmed.endsWith("?");
-    const endsTerminal = /[.!]$/.test(trimmed);
-    const nextStartsList = next ? /^[-*•]|\d+\./.test(next.trim()) : false;
-
-    const shouldBreak =
-      Boolean(next) &&
-      (buf.length >= 2 ||
-        nextStartsList ||
-        endsQuestion ||
-        (endsTerminal && buf.length >= 1));
-
-    if (shouldBreak) {
-      paragraphs.push(buf.join(" "));
-      buf = [];
-    }
-  }
-
-  if (buf.length) paragraphs.push(buf.join(" "));
-  return paragraphs.join("\n\n");
+function isBlockquoteMarkdownBlock(text: string): boolean {
+  return /^>\s/m.test(text);
 }
 
 function splitSentences(text: string): string[] {
@@ -115,10 +156,15 @@ function splitSentences(text: string): string[] {
 /** Shared Tailwind prose classes for assistant chat markdown (My AI). */
 export const CHAT_ASSISTANT_PROSE_CLASS =
   "prose prose-neutral max-w-none dark:prose-invert text-foreground " +
-  "prose-p:my-0 prose-p:mb-4 prose-p:text-[15px] prose-p:leading-[1.75] prose-p:last:mb-0 " +
-  "prose-li:my-1 prose-li:text-[15px] prose-li:leading-[1.75] " +
-  "prose-ul:my-3 prose-ol:my-3 prose-ul:pl-5 prose-ol:pl-5 " +
-  "prose-strong:font-semibold prose-headings:mb-2 prose-headings:mt-6 prose-headings:font-semibold prose-headings:first:mt-0";
+  "prose-p:my-0 prose-p:mb-6 prose-p:text-[15px] prose-p:leading-[1.85] prose-p:last:mb-0 " +
+  "prose-li:my-2 prose-li:text-[15px] prose-li:leading-[1.85] " +
+  "prose-ul:my-6 prose-ol:my-6 prose-ul:pl-5 prose-ol:pl-5 " +
+  "prose-strong:font-semibold prose-headings:mb-3 prose-headings:mt-8 prose-headings:font-semibold prose-headings:first:mt-0 " +
+  "prose-hr:my-8 prose-hr:border-border/60 " +
+  "prose-blockquote:my-6 prose-blockquote:border-l-[3px] prose-blockquote:border-blue-500/35 prose-blockquote:bg-blue-500/[0.04] " +
+  "prose-blockquote:py-2.5 prose-blockquote:pl-4 prose-blockquote:pr-2 prose-blockquote:not-italic prose-blockquote:text-[15px] prose-blockquote:leading-[1.85] " +
+  "prose-blockquote:text-foreground/90 prose-blockquote:rounded-r-lg " +
+  "[&_blockquote_p]:mb-4 [&_blockquote_p:last-child]:mb-0";
 
 /** Compact variant for journal inline / chat surfaces. */
 export const CHAT_ASSISTANT_PROSE_COMPACT =

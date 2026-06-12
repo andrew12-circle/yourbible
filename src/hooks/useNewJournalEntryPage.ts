@@ -51,7 +51,7 @@ import {
   loadInlineChatTurns,
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
-import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
+import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
 
 interface BeliefOpt {
   id: string;
@@ -105,6 +105,7 @@ export function useNewJournalEntryPage() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatTurns, setChatTurns] = useState<InlineChatTurn[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
@@ -580,13 +581,22 @@ export function useNewJournalEntryPage() {
     if (!text || aiBusy) return;
     dictateRef.current?.stop();
     setAiBusy(true);
+    const userTempId = `tmp-user-${Date.now()}`;
+    const assistantTempId = `tmp-asst-${Date.now()}`;
+    setStreamingAssistantId(assistantTempId);
+    setChatTurns((prev) => [
+      ...prev,
+      { id: userTempId, role: "user", content: text },
+      { id: assistantTempId, role: "assistant", content: "" },
+    ]);
+    setBody("");
     try {
       const ensured = await ensureChatEntry();
-      if (!ensured) return;
-      const tempId = `tmp-${Date.now()}`;
-      setChatTurns((prev) => [...prev, { id: tempId, role: "user", content: text }]);
-      setBody("");
-      const { data, error } = await supabase.functions.invoke("my-ai-chat", {
+      if (!ensured) {
+        setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
+        return;
+      }
+      await streamMyAiChat({
         body: {
           chat_id: ensured.chatId,
           message: text,
@@ -595,12 +605,12 @@ export function useNewJournalEntryPage() {
           include_general_knowledge: includeGeneral,
           response_depth: responseDepth,
         },
+        onDelta: (acc) => {
+          setChatTurns((prev) =>
+            prev.map((t) => (t.id === assistantTempId ? { ...t, content: acc } : t)),
+          );
+        },
       });
-      if (error) {
-        throw new Error(await edgeFunctionErrorMessage("my-ai-chat", error, data));
-      }
-      const payload = data as { error?: string; chat_id?: string } | null;
-      if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
       await loadChatTurns(ensured.chatId);
       setTimeout(() => {
         chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
@@ -610,6 +620,7 @@ export function useNewJournalEntryPage() {
       setBody((b) => (b ? b : text));
       setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
     } finally {
+      setStreamingAssistantId(null);
       setAiBusy(false);
     }
   }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth]);
@@ -973,6 +984,7 @@ export function useNewJournalEntryPage() {
     busy,
     chatTurns,
     aiBusy,
+    streamingAssistantId,
     dictInterim,
     setDictInterim,
     sketchOpen,

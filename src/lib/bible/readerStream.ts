@@ -96,6 +96,85 @@ export function streamPageCount(splits: number[], streamLength: number): number 
   return isStreamSplitsReady(splits, streamLength) ? splits.length - 1 : 1;
 }
 
+function synthesizeSpreadLeftBoundary(end: number, stream: ReaderStreamUnit[]): number {
+  const target = Math.max(1, Math.floor(end * 0.48));
+  let leftEnd = target;
+  for (let i = target; i < end; i++) {
+    if (stream[i]?.kind === "chapter-header") {
+      leftEnd = i;
+      break;
+    }
+  }
+  if (leftEnd <= 0 || leftEnd >= end) {
+    leftEnd = Math.max(1, Math.floor(end / 2));
+  }
+  return leftEnd;
+}
+
+/**
+ * When spread pagination has not yet produced a right-page boundary ([0, N] only),
+ * synthesize a left/right split at a verse boundary until measurement catches up.
+ */
+export function ensureSpreadPageSplits(
+  splits: number[],
+  stream: ReaderStreamUnit[],
+): number[] {
+  const streamLength = stream.length;
+  if (streamLength === 0) return splits;
+
+  if (splits.length >= 3 && splits[0] === 0) {
+    const mid = splits[1]!;
+    const last = splits[splits.length - 1]!;
+    if (mid > 0 && mid < last) return splits;
+  }
+
+  if (streamLength <= 2) {
+    return splits.length >= 2 && splits[0] === 0 ? splits : [0, streamLength];
+  }
+
+  const end =
+    splits.length >= 2 && splits[0] === 0 && (splits[splits.length - 1] ?? 0) > 0
+      ? splits[splits.length - 1]!
+      : streamLength;
+
+  return [0, synthesizeSpreadLeftBoundary(end, stream), end];
+}
+
+/** Left/right stream index ranges for one facing spread in double-column mode. */
+export function spreadPaneStreamRanges(
+  splits: number[],
+  spreadPageIdx: number,
+  streamLength: number,
+): { left: { start: number; end: number }; right: { start: number; end: number } } {
+  const leftStart = splits[spreadPageIdx] ?? 0;
+  const mid = splits[spreadPageIdx + 1];
+  const far = splits[spreadPageIdx + 2];
+
+  if (mid != null && far != null && mid > leftStart && far > mid) {
+    return {
+      left: { start: leftStart, end: mid },
+      right: { start: mid, end: far },
+    };
+  }
+
+  if (mid != null && mid > leftStart) {
+    const rightEnd = far != null && far > mid ? far : streamLength;
+    return {
+      left: { start: leftStart, end: mid },
+      right: { start: mid, end: rightEnd },
+    };
+  }
+
+  const provisionalMid = Math.max(
+    leftStart + 1,
+    Math.min(streamLength - 1, Math.floor(streamLength * 0.48)),
+  );
+  return {
+    left: { start: leftStart, end: provisionalMid },
+    right: { start: provisionalMid, end: streamLength },
+  };
+}
+
 export function findChapterHeaderStreamIndex(
   stream: ReaderStreamUnit[],
   bookAbbr: string,
@@ -185,15 +264,13 @@ export interface ReaderPageSlice {
   anchorVerse: number | null;
 }
 
-export function sliceReaderPage(
+export function sliceReaderStreamRange(
   stream: ReaderStreamUnit[],
-  splits: number[],
-  pageIdx: number,
+  start: number,
+  end: number,
+  pageIdx = 0,
 ): ReaderPageSlice | null {
-  if (!isStreamSplitsReady(splits, stream.length)) return null;
-  const start = splits[pageIdx];
-  const end = splits[pageIdx + 1];
-  if (start == null || end == null || start >= end) return null;
+  if (start < 0 || end > stream.length || start >= end) return null;
 
   const startsWithChapterHeader =
     stream[start]?.kind === "chapter-header"
@@ -261,6 +338,21 @@ export function sliceReaderPage(
   };
 }
 
+export function sliceReaderPage(
+  stream: ReaderStreamUnit[],
+  splits: number[],
+  pageIdx: number,
+): ReaderPageSlice | null {
+  if (stream.length === 0 || pageIdx < 0) return null;
+  const start = splits[pageIdx];
+  const end = splits[pageIdx + 1];
+  if (start != null && end != null && end > start) {
+    return sliceReaderStreamRange(stream, start, end, pageIdx);
+  }
+  if (!isStreamSplitsReady(splits, stream.length)) return null;
+  return null;
+}
+
 export function paragraphStartsForChapter(
   chapters: ReaderChapterPassage[],
   bookAbbr: string,
@@ -289,4 +381,46 @@ export function passageFromChapters(
   chapter: number,
 ): ReaderChapterPassage | undefined {
   return chapters.find((c) => c.bookAbbr === bookAbbr && c.chapter === chapter);
+}
+
+/** Stream index range for one open-book spread (left page + right page). */
+export function spreadStreamRange(
+  splits: number[],
+  spreadPageIdx: number,
+  streamLength: number,
+): { start: number; end: number } {
+  const start = splits[spreadPageIdx] ?? 0;
+  const mid = splits[spreadPageIdx + 1];
+  const far = splits[spreadPageIdx + 2];
+  if (mid == null) return { start, end: streamLength };
+  if (far == null) return { start, end: mid };
+  return { start, end: far };
+}
+
+export function verseGroupsFromStreamRange(
+  stream: ReaderStreamUnit[],
+  start: number,
+  end: number,
+): ReaderPageSlice["verseGroups"] {
+  const verseGroups: ReaderPageSlice["verseGroups"] = [];
+  let current: ReaderPageSlice["verseGroups"][number] | null = null;
+  for (let i = start; i < end; i++) {
+    const unit = stream[i];
+    if (!unit || unit.kind !== "verse") continue;
+    if (
+      !current ||
+      current.bookAbbr !== unit.bookAbbr ||
+      current.chapter !== unit.chapter
+    ) {
+      current = {
+        bookAbbr: unit.bookAbbr,
+        bookName: unit.bookName,
+        chapter: unit.chapter,
+        verses: [],
+      };
+      verseGroups.push(current);
+    }
+    current.verses.push(unit.verse);
+  }
+  return verseGroups;
 }
