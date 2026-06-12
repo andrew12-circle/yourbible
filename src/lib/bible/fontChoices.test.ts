@@ -37,5 +37,9 @@ describe("fontChoices", () => {
       fontSize: "1.1em",
       fontFamily: scriptureFontFamily("sans"),
     });
+    expect(readerScriptureTypographyStyle("sans", 1, { desktopSpread: true })).toEqual({
+      fontSize: "0.85em",
+      fontFamily: scriptureFontFamily("sans"),
+    });
   });
 });

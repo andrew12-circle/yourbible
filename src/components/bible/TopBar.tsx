@@ -6,6 +6,11 @@ import { ReaderIconButton } from "@/components/bible/ReaderIconButton";
 import { ReaderMobileMenu, type ReaderMenuPanel } from "@/components/bible/ReaderMobileMenu";
 import { fontChoiceLabel } from "@/lib/bible/fontChoices";
 import {
+  READER_FONT_SCALE_DEFAULT,
+  READER_FONT_SCALE_MAX,
+  READER_FONT_SCALE_MIN,
+} from "@/lib/bible/readerFontScale";
+import {
   readerChromeText,
   readerChromeTextMuted,
   readerFontScaleGroup,
@@ -470,17 +475,19 @@ export function TopBar({
               <div className={`${readerFontScaleGroup} mr-1`}>
                 <button
                   type="button"
-                  onClick={() => onFontScaleChange(Math.max(0.85, +(fontScale - 0.1).toFixed(2)))}
+                  onClick={() =>
+                    onFontScaleChange(Math.max(READER_FONT_SCALE_MIN, +(fontScale - 0.1).toFixed(2)))
+                  }
                   aria-label="Smaller text"
                   title="Smaller text"
                   className={`p-1 rounded-full ${readerChromeTextMuted} hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40`}
-                  disabled={fontScale <= 0.85 + 0.001}
+                  disabled={fontScale <= READER_FONT_SCALE_MIN + 0.001}
                 >
                   <Minus className="w-3 h-3" strokeWidth={2.5} />
                 </button>
                 <button
                   type="button"
-                  onClick={() => onFontScaleChange(1)}
+                  onClick={() => onFontScaleChange(READER_FONT_SCALE_DEFAULT)}
                   aria-label={`Reset text size (current: ${Math.round(fontScale * 100)}%)`}
                   title="Reset text size"
                   className={`px-1 text-[10px] font-mono tabular-nums ${readerChromeTextMuted} hover:text-zinc-800 transition-colors min-w-[2.6rem] text-center`}
@@ -489,11 +496,13 @@ export function TopBar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onFontScaleChange(Math.min(1.5, +(fontScale + 0.1).toFixed(2)))}
+                  onClick={() =>
+                    onFontScaleChange(Math.min(READER_FONT_SCALE_MAX, +(fontScale + 0.1).toFixed(2)))
+                  }
                   aria-label="Larger text"
                   title="Larger text"
                   className={`p-1 rounded-full ${readerChromeTextMuted} hover:text-zinc-800 hover:bg-white/50 transition-colors disabled:opacity-40`}
-                  disabled={fontScale >= 1.5 - 0.001}
+                  disabled={fontScale >= READER_FONT_SCALE_MAX - 0.001}
                 >
                   <Plus className="w-3 h-3" strokeWidth={2.5} />
                 </button>

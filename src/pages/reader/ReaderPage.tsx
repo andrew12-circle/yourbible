@@ -32,6 +32,12 @@ import {
   scriptureFontFamily,
   type FontChoiceId,
 } from "@/lib/bible/fontChoices";
+import {
+  clampReaderFontScale,
+  effectiveReaderFontScaleEm,
+  readStoredReaderFontScale,
+  writeStoredReaderFontScale,
+} from "@/lib/bible/readerFontScale";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
@@ -135,13 +141,11 @@ import {
   writeReaderColumnLayout,
   type ReaderColumnLayout,
 } from "@/lib/bible/readerColumnLayout";
+import { scriptureColumnWrapperStyle } from "@/lib/bible/readerColumnMeasure";
 
-const LS_FONT_SCALE_KEY = "yb.fontScale";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
-/** Matches `h-10` page footer — paginator must reserve this space. */
-const PAGE_FOOTER_HEIGHT_PX = 40;
 /** Extra slack so two-column pages do not clip the last line. */
 const PAGINATOR_OVERFLOW_GUARD_PX = 20;
 
@@ -165,11 +169,17 @@ function wrapScriptureColumns(
   layout: ReaderColumnLayout,
   scrollMode: boolean,
   children: ReactNode,
+  contentHeightPx?: number,
 ): ReactNode {
   const columnsClass = readerColumnClassName(layout);
   if (!columnsClass) return children;
   return (
-    <div className={cn(columnsClass, !scrollMode && "h-full w-full min-h-0")}>{children}</div>
+    <div
+      className={cn(columnsClass, !scrollMode && "w-full min-h-0")}
+      style={scrollMode ? undefined : scriptureColumnWrapperStyle(contentHeightPx)}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -292,14 +302,11 @@ export default function ReaderPage() {
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
   // Reading text-size scale (persisted). Clamp into a sane range.
-  const [fontScale, setFontScale] = useState<number>(() => {
-    const raw = parseFloat(localStorage.getItem(LS_FONT_SCALE_KEY) ?? "");
-    return Number.isFinite(raw) ? Math.min(1.5, Math.max(0.85, raw)) : 1;
-  });
+  const [fontScale, setFontScale] = useState<number>(() => readStoredReaderFontScale());
   const updateFontScale = (next: number) => {
-    const clamped = Math.min(1.5, Math.max(0.85, +next.toFixed(2)));
+    const clamped = clampReaderFontScale(next);
     setFontScale(clamped);
-    localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
+    writeStoredReaderFontScale(clamped);
   };
   const [fontChoice, setFontChoice] = useState<FontChoiceId>(() =>
     normalizeFontChoice(
@@ -510,7 +517,7 @@ export default function ReaderPage() {
     () =>
       computeReaderLayoutFingerprint({
         bibleId: bibleId || "default",
-        fontScale,
+        fontScale: effectiveReaderFontScaleEm(fontScale, readerSpread),
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
         singlePage: !readerSpread,
@@ -712,11 +719,11 @@ export default function ReaderPage() {
     : pageTypoClass(fontChoice);
   const paginatorFontStyle = useMemo(
     () => ({
-      ...readerScriptureTypographyStyle(fontChoice, fontScale),
+      ...readerScriptureTypographyStyle(fontChoice, fontScale, { desktopSpread: readerSpread }),
       fontFamily: scriptureFont,
       ["--reader-scripture-font-family" as string]: scriptureFont,
     }),
-    [fontChoice, fontScale, scriptureFont],
+    [fontChoice, fontScale, scriptureFont, readerSpread],
   );
   const paragraphStarts = useMemo(
     () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
@@ -742,7 +749,8 @@ export default function ReaderPage() {
   const streamSplitsReady = isStreamSplitsReady(streamSplits, readerStream.length);
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
-  const paginatorFooterHeight = PAGE_FOOTER_HEIGHT_PX + PAGINATOR_OVERFLOW_GUARD_PX;
+  /** Article measurement already excludes the page footer; only reserve clip slack. */
+  const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -1566,6 +1574,14 @@ export default function ReaderPage() {
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
+    const scriptureColumnHeightPx =
+      !scrollMode && columnClassName
+        ? measuresFirstPage && firstPageHeight > 0
+          ? firstPageHeight
+          : pageBox.h > 0
+            ? pageBox.h
+            : undefined
+        : undefined;
     return (
       <div
         className={cn(
@@ -1623,7 +1639,9 @@ export default function ReaderPage() {
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
-                ...readerScriptureTypographyStyle(fontChoice, fontScale),
+                ...readerScriptureTypographyStyle(fontChoice, fontScale, {
+                  desktopSpread: readerSpread,
+                }),
                 fontFamily: scriptureFont,
                 ["--reader-scripture-font-family" as string]: scriptureFont,
               }}
@@ -1728,6 +1746,7 @@ export default function ReaderPage() {
                     return nodes;
                   }))()
               ) : null,
+                scriptureColumnHeightPx,
               )}
             </article>
           </div>

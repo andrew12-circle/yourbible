@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   applyScriptureColumnMeasureHtml,
-  scriptureContentFitsPage,
+  scriptureColumnWrapperStyle,
 } from "./readerColumnMeasure";
 
 describe("readerColumnMeasure", () => {
@@ -15,6 +15,15 @@ describe("readerColumnMeasure", () => {
 
   afterEach(() => {
     node.remove();
+  });
+
+  it("scriptureColumnWrapperStyle sets pixel height for column-fill auto", () => {
+    expect(scriptureColumnWrapperStyle(240)).toMatchObject({
+      height: 240,
+      maxHeight: 240,
+      columnFill: "auto",
+      overflow: "hidden",
+    });
   });
 
   it("applies fixed height to the column wrapper for two-column measurement", () => {

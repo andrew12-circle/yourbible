@@ -22,7 +22,11 @@ import { BOOKS } from "@/data/books";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { cn } from "@/lib/utils";
 
-const LS_FONT_SCALE_KEY = "yb.fontScale";
+import {
+  clampReaderFontScale,
+  readStoredReaderFontScale,
+  writeStoredReaderFontScale,
+} from "@/lib/bible/readerFontScale";
 const defaultBook = BOOKS[0]!;
 
 export default function ContentsReaderPage() {
@@ -38,10 +42,7 @@ export default function ContentsReaderPage() {
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
-  const [fontScale, setFontScale] = useState(() => {
-    const raw = parseFloat(localStorage.getItem(LS_FONT_SCALE_KEY) ?? "");
-    return Number.isFinite(raw) ? Math.min(1.5, Math.max(0.85, raw)) : 1;
-  });
+  const [fontScale, setFontScale] = useState(() => readStoredReaderFontScale());
 
   useEffect(() => {
     if (bibles.length === 0) return;
@@ -142,9 +143,9 @@ export default function ContentsReaderPage() {
         onJumpTo={(b, c) => navigate(`/read/${b.abbr}/${c}`)}
         fontScale={fontScale}
         onFontScaleChange={(next) => {
-          const clamped = Math.min(1.5, Math.max(0.85, +next.toFixed(2)));
+          const clamped = clampReaderFontScale(next);
           setFontScale(clamped);
-          localStorage.setItem(LS_FONT_SCALE_KEY, String(clamped));
+          writeStoredReaderFontScale(clamped);
         }}
         singlePage={compactChrome}
         containedInHub={containedInHub}

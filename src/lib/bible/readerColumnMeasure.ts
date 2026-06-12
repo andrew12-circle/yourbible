@@ -1,8 +1,23 @@
+import type { CSSProperties } from "react";
+
 /**
  * Pagination measurement helpers for CSS multi-column scripture layout.
- * Live pages constrain `.scripture-columns-2` to the article height (`h-full`);
- * the hidden paginator must use the same fixed height or splits will not match.
+ * Live pages must use the same fixed pixel height as the hidden paginator or
+ * browsers fall back to balanced columns (top-half / bottom-half banding).
  */
+
+/** Inline styles for the live `.scripture-columns-2` wrapper (matches paginator). */
+export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProperties {
+  const base: CSSProperties = {
+    overflow: "hidden",
+    boxSizing: "border-box",
+    columnFill: "auto",
+    WebkitColumnFill: "auto",
+  };
+  if (!contentHeightPx || contentHeightPx <= 0) return base;
+  const h = Math.max(1, Math.round(contentHeightPx));
+  return { ...base, height: h, maxHeight: h };
+}
 
 export function applyScriptureColumnMeasureHtml(
   node: HTMLDivElement,

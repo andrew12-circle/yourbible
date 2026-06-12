@@ -570,26 +570,21 @@
     column-gap: clamp(1rem, 3.5vw, 1.65rem);
     column-fill: auto;
     -webkit-column-fill: auto;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
   }
   .reader-theme-dark .scripture-columns-2 {
     column-rule-color: hsl(var(--foreground) / 0.14);
   }
-  /* Section headings start at the top of the next column — never span both (that causes top/bottom banding). */
+  /* Headings flow with the column — forced column breaks cause top/bottom banding. */
   .scripture-columns-2 .scripture-heading {
     text-align: center;
-    break-before: column;
-    -webkit-column-break-before: always;
-    column-break-before: always;
-    break-after: avoid;
     break-inside: avoid;
   }
-  .scripture-columns-2 > .scripture-heading:first-child {
-    break-before: auto;
-    -webkit-column-break-before: auto;
-    column-break-before: auto;
-  }
-  /* New chapter drop-cap when no heading precedes it on this page. */
+  /* New chapter: start at the top of the next column when col 1 is full. */
   .scripture-columns-2 .scripture-paragraph:has(.scripture-verse-chapter-open) {
     break-before: column;
     -webkit-column-break-before: always;

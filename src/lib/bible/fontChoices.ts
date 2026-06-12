@@ -1,3 +1,5 @@
+import { effectiveReaderFontScaleEm } from "@/lib/bible/readerFontScale";
+
 export type FontChoiceId = "serif" | "sans" | "sf";
 
 export const LS_FONT_CHOICE_KEY = "yb.fontChoice";
@@ -51,9 +53,11 @@ export function pageTypoClass(choice: string | undefined | null): string {
 export function readerScriptureTypographyStyle(
   choice: string | undefined | null,
   fontScale: number,
+  options?: { desktopSpread?: boolean },
 ): { fontSize: string; fontFamily: string } {
+  const em = effectiveReaderFontScaleEm(fontScale, options?.desktopSpread ?? false);
   return {
-    fontSize: `${fontScale}em`,
+    fontSize: `${em}em`,
     fontFamily: scriptureFontFamily(choice),
   };
 }
