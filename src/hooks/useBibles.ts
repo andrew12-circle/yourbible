@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
+import { EOTC_BIBLE_ID, readCanon } from "@/lib/bible/canon";
 
 export const BIBLES_QUERY_KEY = ["bibles"] as const;
 export const LS_BIBLE_LANGUAGE_KEY = "yb.bibleLanguage";
@@ -22,6 +23,9 @@ export function useBibles(language = readBibleLanguage()) {
 }
 
 export function pickDefaultBibleId(list: BibleEntry[], storedId: string | null): string {
+  if (readCanon() === "ethiopian" && list.some((b) => b.id === EOTC_BIBLE_ID)) {
+    return EOTC_BIBLE_ID;
+  }
   if (storedId && list.some((b) => b.id === storedId)) return storedId;
 
   const pref = ["CSB", "KJV", "WEB", "ESV", "NIV", "NLT"];

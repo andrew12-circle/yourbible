@@ -1,7 +1,17 @@
-import { BOOKS, type BibleBook } from "@/data/books";
+import type { BibleBook } from "@/data/books";
+import { getBooks, readCanon } from "@/lib/bible/canon";
 
-/** Total chapters in the Protestant canon (pagination proxy). */
-export const CANON_CHAPTER_COUNT = BOOKS.reduce((s, b) => s + b.chapters, 0);
+function activeBooks(): BibleBook[] {
+  return getBooks(readCanon());
+}
+
+/** Total chapters in the active canon (pagination proxy). */
+export function canonChapterCount(): number {
+  return activeBooks().reduce((s, b) => s + b.chapters, 0);
+}
+
+/** @deprecated Use canonChapterCount() — Protestant-only constant kept for tests. */
+export const CANON_CHAPTER_COUNT = canonChapterCount();
 
 /** Scale chapter index to a printed-Bible-style page (~CSB length). */
 export const PRINT_PAGE_SCALE = 1577 / CANON_CHAPTER_COUNT;
@@ -17,9 +27,9 @@ export interface ContentsRow {
   clickable?: boolean;
 }
 
-export function chaptersBeforeBook(bookAbbr: string): number {
+export function chaptersBeforeBook(bookAbbr: string, books = activeBooks()): number {
   let before = 0;
-  for (const b of BOOKS) {
+  for (const b of books) {
     if (b.abbr === bookAbbr) return before;
     before += b.chapters;
   }
@@ -70,10 +80,14 @@ export const CONTENTS_BACK_MATTER: ContentsRow[] = [
   { id: "maps", label: "MAPS AND CHART", page: "", clickable: false },
 ];
 
-export function oldTestamentBooks(): BibleBook[] {
-  return BOOKS.filter((b) => b.testament === "OT");
+export function oldTestamentBooks(books = activeBooks()): BibleBook[] {
+  return books.filter((b) => b.testament === "OT");
 }
 
-export function newTestamentBooks(): BibleBook[] {
-  return BOOKS.filter((b) => b.testament === "NT");
+export function newTestamentBooks(books = activeBooks()): BibleBook[] {
+  return books.filter((b) => b.testament === "NT");
+}
+
+export function deuterocanonBooks(books = activeBooks()): BibleBook[] {
+  return books.filter((b) => b.section === "deuterocanon");
 }

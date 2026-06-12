@@ -22,6 +22,10 @@ export const SCRIPTURE_FONT_STACKS: Record<FontChoiceId, string> = {
   sf: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
 };
 
+/** Ethiopic script stack for Amharic / Ge'ez Bible text. */
+export const ETHIOPIC_SCRIPTURE_FONT =
+  "'Noto Sans Ethiopic', 'Abyssinica SIL', sans-serif";
+
 export function normalizeFontChoice(raw: string | undefined | null): FontChoiceId {
   if (raw === "sans" || raw === "sf") return raw;
   return "serif";

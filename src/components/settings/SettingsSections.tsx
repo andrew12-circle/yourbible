@@ -15,6 +15,8 @@ import { todayIso, useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
 import { SettingsOfflineBible } from "@/components/settings/SettingsOfflineBible";
 import { readBibleLanguage, LS_BIBLE_LANGUAGE_KEY } from "@/hooks/useBibles";
+import { EOTC_BIBLE_ID, readCanon, writeCanon, type CanonId } from "@/lib/bible/canon";
+import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 
 type SettingsState = ReturnType<typeof useSettingsPage>;
 
@@ -131,9 +133,40 @@ export function SettingsReaderSection({ state }: { state: SettingsState }) {
 
   const previewPalette = PALETTES.find((p) => p.id === profile.highlight_palette) ?? PALETTES[0];
   const bibleLanguage = readBibleLanguage();
+  const bibleCanon = readCanon();
 
   return (
     <div className="space-y-4">
+      <SettingsCard>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+            <Languages className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="settings-bible-canon">Bible canon</Label>
+            <p className="text-xs text-muted-foreground">
+              Ethiopian Orthodox includes 81 books (Enoch, Jubilees, Meqabyan, and more) in Amharic.
+            </p>
+            <select
+              id="settings-bible-canon"
+              value={bibleCanon}
+              onChange={(e) => {
+                const next = e.target.value as CanonId;
+                writeCanon(next);
+                if (next === "ethiopian") {
+                  localStorage.setItem(LS_BIBLE_KEY, EOTC_BIBLE_ID);
+                }
+                window.location.reload();
+              }}
+              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="protestant">Protestant (66 books)</option>
+              <option value="ethiopian">Ethiopian Orthodox (81 books, Amharic)</option>
+            </select>
+          </div>
+        </div>
+      </SettingsCard>
+
       <SettingsCard>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">

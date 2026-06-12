@@ -1,5 +1,8 @@
+import { EOTC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
 import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { supabase } from "@/integrations/supabase/client";
+
+export { EOTC_BIBLE_ID, isEotcBibleId } from "@/lib/bible/canon";
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -57,7 +60,11 @@ export async function listBibles(language = "eng"): Promise<BibleEntry[]> {
   });
   if (!r.ok) throw new Error(`bibles: ${r.status}`);
   const json = await r.json();
-  return (json?.data ?? []) as BibleEntry[];
+  const list = (json?.data ?? []) as BibleEntry[];
+  if (!list.some((b) => b.id === EOTC_BIBLE_ENTRY.id)) {
+    list.unshift({ ...EOTC_BIBLE_ENTRY });
+  }
+  return list;
 }
 
 export async function fetchPassage(

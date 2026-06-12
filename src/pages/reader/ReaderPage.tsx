@@ -12,14 +12,22 @@ import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
-import { BOOKS, findBookByAbbr } from "@/data/books";
+import {
+  EOTC_BIBLE_ID,
+  findBookByAbbr,
+  getBooks,
+  isEotcBibleId,
+  readCanon,
+} from "@/lib/bible/canon";
 import type { PassageVerse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import {
+  ETHIOPIC_SCRIPTURE_FONT,
   fontChoiceLabel,
   LS_FONT_CHOICE_KEY,
   normalizeFontChoice,
   pageTypoClass,
+  READER_SCRIPTURE_SIZE,
   readerScriptureTypographyStyle,
   scriptureFontFamily,
   type FontChoiceId,
@@ -196,12 +204,24 @@ export default function ReaderPage() {
   const params = useParams<{ book?: string; chapter?: string }>();
   const dailyToastShown = useRef(false);
 
+  const canonBooks = useMemo(() => getBooks(readCanon()), []);
+  const defaultBookAbbr = readCanon() === "ethiopian" ? "Gen" : "Jhn";
   const book = useMemo(
-    () => findBookByAbbr(params.book ?? "Jhn") ?? BOOKS.find(b => b.abbr === "Jhn")!,
-    [params.book],
+    () => findBookByAbbr(params.book ?? defaultBookAbbr) ?? canonBooks.find((b) => b.abbr === defaultBookAbbr)!,
+    [params.book, canonBooks, defaultBookAbbr],
   );
   const chapter = Math.max(1, Math.min(book.chapters, parseInt(params.chapter ?? "1", 10) || 1));
-  const reference = useMemo(() => `${book.name} ${chapter}`, [book.name, chapter]);
+  const reference = useMemo(
+    () => `${book.nameAm ?? book.name} ${chapter}`,
+    [book.name, book.nameAm, chapter],
+  );
+  const displayBibles = useMemo(
+    () =>
+      readCanon() === "ethiopian"
+        ? bibles.filter((b) => b.id === EOTC_BIBLE_ID)
+        : bibles.filter((b) => b.id !== EOTC_BIBLE_ID),
+    [bibles],
+  );
 
   const online = useOnlineStatus();
   const { data: bibles = [], isError: biblesError } = useBibles();
@@ -217,6 +237,13 @@ export default function ReaderPage() {
   useRecordReadingActivity(user?.id, book.abbr, chapter);
 
   useEffect(() => {
+    if (readCanon() === "ethiopian") {
+      if (bibleId !== EOTC_BIBLE_ID) {
+        setBibleId(EOTC_BIBLE_ID);
+        localStorage.setItem(LS_BIBLE_KEY, EOTC_BIBLE_ID);
+      }
+      return;
+    }
     if (bibles.length === 0) return;
     const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
     if (next && next !== bibleId) {
@@ -418,9 +445,9 @@ export default function ReaderPage() {
 
   // Total chapters across the canon → progress through the Bible
   const { progress, chaptersBefore, totalChapters: _totalChapters } = useMemo(() => {
-    const total = BOOKS.reduce((s, b) => s + b.chapters, 0);
+    const total = canonBooks.reduce((s, b) => s + b.chapters, 0);
     let before = 0;
-    for (const b of BOOKS) {
+    for (const b of canonBooks) {
       if (b.abbr === book.abbr) break;
       before += b.chapters;
     }
@@ -429,7 +456,7 @@ export default function ReaderPage() {
       chaptersBefore: before,
       totalChapters: total,
     };
-  }, [book.abbr, chapter]);
+  }, [book.abbr, chapter, canonBooks]);
 
   const { highlights, notes, setMark: _setMark, setMarks, setMarkRanges, upsertNote, deleteNote } =
     useChapterData(book.abbr, chapter);
@@ -678,12 +705,18 @@ export default function ReaderPage() {
     () => passage?.headings ?? [],
     [passage?.headings],
   );
+  const ethiopianText = isEotcBibleId(bibleId);
+  const scriptureFont = ethiopianText ? ETHIOPIC_SCRIPTURE_FONT : scriptureFontFamily(fontChoice);
+  const scriptureTypoClass = ethiopianText
+    ? `font-ethiopic ${READER_SCRIPTURE_SIZE} leading-[1.72] ink-text`
+    : pageTypoClass(fontChoice);
   const paginatorFontStyle = useMemo(
     () => ({
       ...readerScriptureTypographyStyle(fontChoice, fontScale),
-      ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
+      fontFamily: scriptureFont,
+      ["--reader-scripture-font-family" as string]: scriptureFont,
     }),
-    [fontChoice, fontScale],
+    [fontChoice, fontScale, scriptureFont],
   );
   const paragraphStarts = useMemo(
     () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
@@ -715,11 +748,15 @@ export default function ReaderPage() {
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
   // quotes (an opener in v.5, closer in v.8) carry red text across verses.
   const redSegments = useMemo<Map<number, JesusSegment[]>>(
-    () => splitJesusSpeechForChapter(book.abbr, chapter, verses),
-    [book.abbr, chapter, verses],
+    () =>
+      isEotcBibleId(bibleId)
+        ? new Map()
+        : splitJesusSpeechForChapter(book.abbr, chapter, verses),
+    [bibleId, book.abbr, chapter, verses],
   );
   const redSegmentsByChapter = useMemo(() => {
     const m = new Map<string, Map<number, JesusSegment[]>>();
+    if (isEotcBibleId(bibleId)) return m;
     const chaptersToMap = useStreamReader
       ? streamChapters
       : [{ bookAbbr: book.abbr, chapter, verses }];
@@ -731,7 +768,7 @@ export default function ReaderPage() {
       );
     }
     return m;
-  }, [useStreamReader, streamChapters, book.abbr, chapter, verses]);
+  }, [bibleId, useStreamReader, streamChapters, book.abbr, chapter, verses]);
 
   // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
@@ -747,6 +784,12 @@ export default function ReaderPage() {
     skipSpreadUrlSyncRef.current = true;
     lastSpreadAnchorKeyRef.current = "";
   }, [book.abbr, chapter, fontScale, columnLayout]);
+
+  useEffect(() => {
+    if (!scrollMode) return;
+    const el = document.querySelector<HTMLElement>("[data-ink-anchor]");
+    el?.scrollTo(0, 0);
+  }, [book.abbr, chapter, scrollMode]);
 
   // Pending verse-jump: after the user picks a verse from the TopBar picker,
   // remember it so once the chapter (re)loads and pagination splits are known,
@@ -1432,15 +1475,55 @@ export default function ReaderPage() {
 
   const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
 
+  const renderScriptureParagraphNodes = (
+    groups: { bookAbbr: string; chapter: number; verses: PassageVerse[] }[],
+    resolveParagraphStarts: (bookAbbr: string, chapter: number) => Set<number>,
+    resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
+  ) =>
+    groups.flatMap((verseGroup) => {
+      const paragraphStartSet = resolveParagraphStarts(verseGroup.bookAbbr, verseGroup.chapter);
+      const headingMap = resolveHeading(verseGroup.bookAbbr, verseGroup.chapter);
+      return groupVersesIntoParagraphs(verseGroup.verses, paragraphStartSet).flatMap((group) => {
+        const nodes: ReactNode[] = [];
+        const first = group.verses[0]?.number;
+        const heading = first != null ? headingMap.get(first) : undefined;
+        if (heading) {
+          nodes.push(
+            <p key={`h-${verseGroup.bookAbbr}-${verseGroup.chapter}-${first}`} className="scripture-heading">
+              {heading}
+            </p>,
+          );
+        }
+        nodes.push(
+          <p
+            key={`p-${verseGroup.bookAbbr}-${verseGroup.chapter}-${first}`}
+            className={scriptureParagraphClassName(group.isContinuation)}
+            style={{ orphans: 2, widows: 2 }}
+          >
+            {group.verses.map((v) =>
+              renderVerse(v, {
+                bookAbbr: verseGroup.bookAbbr,
+                chapter: verseGroup.chapter,
+                paragraphIsContinuation: group.isContinuation,
+              }),
+            )}
+          </p>,
+        );
+        return nodes;
+      });
+    });
+
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
     const streamSlice =
-      useStreamReader && !pageOutOfRange
+      useStreamReader && !scrollMode && !pageOutOfRange
         ? sliceReaderPage(readerStream, streamSplits, pageIdx)
         : null;
     const slice =
-      useStreamReader || pageOutOfRange ? null : pageVerseSlice(splits, pageIdx, verses);
+      scrollMode || useStreamReader || pageOutOfRange
+        ? null
+        : pageVerseSlice(splits, pageIdx, verses);
     const pageContentReady = pageOutOfRange
       ? false
       : useStreamReader
@@ -1516,7 +1599,11 @@ export default function ReaderPage() {
           <div
             ref={getInkAnchorRef(inkLayerId)}
             data-ink-anchor={inkLayerId}
-            className="relative flex flex-1 min-h-0 min-w-0"
+            className={cn(
+              "relative flex flex-1 min-h-0 min-w-0",
+              scrollMode &&
+                "overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]",
+            )}
           >
             {paginationPending && showPaginationFallback ? (
               <div
@@ -1531,73 +1618,63 @@ export default function ReaderPage() {
               data-reading-area
               aria-busy={!ready}
               className={cn(
-                "h-full min-h-0 w-full",
-                scrollMode ? "overflow-y-auto overscroll-contain" : "overflow-hidden",
-                pageTypoClass(fontChoice),
+                scrollMode ? "w-full min-h-0" : "h-full min-h-0 w-full overflow-hidden",
+                scriptureTypoClass,
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
                 ...readerScriptureTypographyStyle(fontChoice, fontScale),
-                ["--reader-scripture-font-family" as string]: scriptureFontFamily(fontChoice),
+                fontFamily: scriptureFont,
+                ["--reader-scripture-font-family" as string]: scriptureFont,
               }}
             >
               {wrapScriptureColumns(
                 columnLayout,
                 scrollMode,
-                streamSlice?.isPlatePage && ready ? (
+                scrollMode && useStreamReader && streamChapters.length > 0 ? (
+                  renderScriptureParagraphNodes(
+                    streamChapters.map((ch) => ({
+                      bookAbbr: ch.bookAbbr,
+                      chapter: ch.chapter,
+                      verses: ch.verses,
+                    })),
+                    (bookAbbr, ch) =>
+                      new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                    (bookAbbr, ch) =>
+                      new Map(
+                        headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
+                          h.beforeVerse,
+                          h.text,
+                        ]),
+                      ),
+                  )
+                ) : scrollMode && verses.length > 0 ? (
+                  renderScriptureParagraphNodes(
+                    [{ bookAbbr: book.abbr, chapter, verses }],
+                    () => paragraphStarts,
+                    () => headingByVerse,
+                  )
+                ) : streamSlice?.isPlatePage && ready ? (
                 streamSlice.plates.map((plate) => (
                   <ScripturePlate key={plate.id} plate={plate} />
                 ))
-              ) : useStreamReader && streamSlice && !scrollMode && pageContentReady ? (
-                (() => {
-                  return streamSlice.verseGroups.flatMap((verseGroup) => {
-                    const paragraphStarts = new Set(
-                      paragraphStartsForChapter(
-                        streamChapters,
-                        verseGroup.bookAbbr,
-                        verseGroup.chapter,
-                      ),
-                    );
-                    const headingByVerseLocal = new Map(
-                      headingsForChapter(
-                        streamChapters,
-                        verseGroup.bookAbbr,
-                        verseGroup.chapter,
-                      ).map((h) => [h.beforeVerse, h.text]),
-                    );
-                    return groupVersesIntoParagraphs(verseGroup.verses, paragraphStarts).flatMap(
-                      (group) => {
-                        const nodes: ReactNode[] = [];
-                        const first = group.verses[0]?.number;
-                        const heading =
-                          first != null ? headingByVerseLocal.get(first) : undefined;
-                        if (heading) {
-                          nodes.push(
-                            <p key={`h-${verseGroup.chapter}-${first}`} className="scripture-heading">
-                              {heading}
-                            </p>,
-                          );
-                        }
-                        nodes.push(
-                          <p
-                            key={`p-${verseGroup.chapter}-${first}`}
-                            className={scriptureParagraphClassName(group.isContinuation)}
-                            style={{ orphans: 2, widows: 2 }}
-                          >
-                            {group.verses.map((v) =>
-                              renderVerse(v, {
-                                bookAbbr: verseGroup.bookAbbr,
-                                chapter: verseGroup.chapter,
-                                paragraphIsContinuation: group.isContinuation,
-                              }),
-                            )}
-                          </p>,
-                        );
-                        return nodes;
-                      },
-                    );
-                  });
-                })()
+              ) : useStreamReader && streamSlice && pageContentReady ? (
+                renderScriptureParagraphNodes(
+                  streamSlice.verseGroups.map((verseGroup) => ({
+                    bookAbbr: verseGroup.bookAbbr,
+                    chapter: verseGroup.chapter,
+                    verses: verseGroup.verses,
+                  })),
+                  (bookAbbr, ch) =>
+                    new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                  (bookAbbr, ch) =>
+                    new Map(
+                      headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
+                        h.beforeVerse,
+                        h.text,
+                      ]),
+                    ),
+                )
               ) : slice && slice.length > 0 ? (
                 (() =>
                   groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
@@ -1675,7 +1752,7 @@ export default function ReaderPage() {
             onStrokeStart={handleInkStrokeStart}
           />
         ) : null}
-        {!focusMode ? (
+        {!focusMode && !scrollMode ? (
           <div
             data-page-footer
             className={cn(
@@ -1747,7 +1824,8 @@ export default function ReaderPage() {
         focusMode={focusMode}
         onToggleFocus={() => setFocusMode(f => !f)}
         bibleId={bibleId}
-        bibles={bibles}
+        bibles={displayBibles}
+        books={canonBooks}
         onChangeBible={(id) => { setBibleId(id); localStorage.setItem(LS_BIBLE_KEY, id); }}
         onSearch={() => setSearchOpen(true)}
         onToggleAudio={() => void readerAudio.toggle()}
@@ -1915,7 +1993,7 @@ export default function ReaderPage() {
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
-          className={pageTypoClass(fontChoice)}
+          className={scriptureTypoClass}
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
@@ -1932,7 +2010,7 @@ export default function ReaderPage() {
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
-          className={pageTypoClass(fontChoice)}
+          className={scriptureTypoClass}
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}

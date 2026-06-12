@@ -37,7 +37,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { BibleEntry } from "@/lib/bible/api";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
-import { BOOKS, BibleBook } from "@/data/books";
+import type { BibleBook } from "@/data/books";
+import { getBooks } from "@/lib/bible/canon";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -49,6 +50,8 @@ interface Props {
   bibles: BibleEntry[];
   onChangeBible: (id: string) => void;
   onBookmark: () => void;
+  /** Active canon book list */
+  books?: BibleBook[];
   /** Currently displayed book (for picker default) */
   currentBook: BibleBook;
   /** Currently displayed chapter (for picker default) */
@@ -94,7 +97,7 @@ type PickerStep = "book" | "chapter" | "verse";
 export function TopBar({
   reference, collapsed: _collapsed, focusMode, onToggleFocus,
   bibleId, bibles, onChangeBible, onBookmark,
-  currentBook, currentChapter, currentVerseCount, onJumpTo,
+  books: booksProp, currentBook, currentChapter, currentVerseCount, onJumpTo,
   fontScale, onFontScaleChange,
   fontChoice,
   onFontChoiceChange,
@@ -121,6 +124,7 @@ export function TopBar({
   onToggleHubFullscreen,
 }: Props) {
   const overlayPos = readerOverlayPosition(containedInHub);
+  const books = booksProp ?? getBooks();
   const current = bibles.find(b => b.id === bibleId);
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -146,7 +150,7 @@ export function TopBar({
   // Reference picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [step, setStep] = useState<PickerStep>("book");
-  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
+  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? books[0]!);
   const [pickedChapter, setPickedChapter] = useState<number>(currentChapter ?? 1);
 
   const onOpenPicker = (next: boolean) => {
@@ -220,6 +224,7 @@ export function TopBar({
           }}
           initialPanel={mobileMenuPanel}
           reference={reference}
+          books={books}
           currentBook={currentBook}
           currentChapter={currentChapter}
           currentVerseCount={currentVerseCount}
@@ -371,7 +376,7 @@ export function TopBar({
               {/* Body */}
               {step === "book" && (
                 <div className="p-3 max-h-[55vh] overflow-y-auto">
-                  <BookPickerStep currentBook={currentBook} onPickBook={pickBook} gridCols="responsive" />
+                  <BookPickerStep books={books} currentBook={currentBook} onPickBook={pickBook} gridCols="responsive" />
                 </div>
               )}
 

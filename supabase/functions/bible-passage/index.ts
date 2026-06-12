@@ -1,12 +1,15 @@
 // Edge function: fetch a chapter (or list of available bibles) from API.Bible.
 // Public read endpoint — no auth required to read scripture.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { fetchEotcPassage } from "../_shared/eotcPassage.ts";
 import {
   parseChapterText,
   parsePassageHtml,
   type PassageHeading,
   type PassageVerse,
 } from "../_shared/parsePassageHtml.ts";
+
+const EOTC_BIBLE_ID = "eotc-am-81";
 
 const API_BASE = "https://rest.api.bible/v1";
 
@@ -78,6 +81,27 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "bibleId, book, chapter are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const chapterNum = parseInt(chapter, 10);
+    if (!Number.isFinite(chapterNum) || chapterNum < 1) {
+      return new Response(JSON.stringify({ error: "Invalid chapter" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (bibleId === EOTC_BIBLE_ID) {
+      try {
+        const eotc = await fetchEotcPassage(bookAbbr, chapterNum);
+        return new Response(JSON.stringify(eotc), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const usfmBook = BOOK_ID_MAP[bookAbbr];

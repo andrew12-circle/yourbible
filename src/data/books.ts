@@ -1,7 +1,7 @@
 // Canonical Protestant 66-book ordering with section grouping and short codes.
 // abbr3 is what we render in the side tabs.
 export type BibleSection =
-  | "law" | "history" | "poetry" | "prophets"
+  | "law" | "history" | "poetry" | "prophets" | "deuterocanon"
   | "gospels" | "acts" | "epistles" | "revelation";
 
 export interface BibleBook {
@@ -15,6 +15,10 @@ export interface BibleBook {
   section: BibleSection;
   /** Testament */
   testament: "OT" | "NT";
+  /** Amharic title (Ethiopian canon) */
+  nameAm?: string;
+  /** EOTC JSON filename (Ethiopian canon) */
+  eotcFile?: string;
 }
 
 export const BOOKS: BibleBook[] = [
@@ -99,6 +103,7 @@ export const SECTION_LABELS: Record<BibleSection, string> = {
   history: "History",
   poetry: "Poetry",
   prophets: "Prophets",
+  deuterocanon: "Deuterocanon",
   gospels: "Gospels",
   acts: "Acts",
   epistles: "Epistles",

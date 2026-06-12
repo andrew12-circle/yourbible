@@ -1,7 +1,7 @@
 import { Search, List } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { BibleBook } from "@/data/books";
-import { BOOKS } from "@/data/books";
+import { getBooks } from "@/lib/bible/canon";
 import {
   readerPickerBookCard,
   readerPickerBookCardSelected,
@@ -25,6 +25,8 @@ const SEARCH_PLACEHOLDER = `Search books\u2026`;
 interface Props {
   currentBook: BibleBook;
   onPickBook: (book: BibleBook) => void;
+  /** Active canon book list (defaults from localStorage canon setting). */
+  books?: BibleBook[];
   /** 2 cols on narrow screens; 3 on wider (desktop popover). */
   gridCols?: "two" | "responsive";
   className?: string;
@@ -58,7 +60,10 @@ function BookGrid({
             b.abbr === currentBook.abbr && readerPickerBookCardSelected,
           )}
         >
-          <span className="block leading-snug">{b.name}</span>
+          <span className="block leading-snug">{b.nameAm ?? b.name}</span>
+          {b.nameAm ? (
+            <span className="block text-[10px] text-zinc-500 mt-0.5 leading-snug">{b.name}</span>
+          ) : null}
           <span
             className={cn(
               "block text-[10px] font-mono uppercase tracking-wider mt-0.5 transition-colors",
@@ -98,15 +103,27 @@ function TestamentSection({
   );
 }
 
-export function BookPickerStep({ currentBook, onPickBook, gridCols = "responsive", className }: Props) {
+export function BookPickerStep({
+  currentBook,
+  onPickBook,
+  books: booksProp,
+  gridCols = "responsive",
+  className,
+}: Props) {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<BookSortMode>(() => getStoredBookSortMode());
+  const allBooks = booksProp ?? getBooks();
 
   const filteredBooks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return BOOKS;
-    return BOOKS.filter(b => b.name.toLowerCase().includes(q) || b.abbr.toLowerCase().includes(q));
-  }, [search]);
+    if (!q) return allBooks;
+    return allBooks.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        b.abbr.toLowerCase().includes(q) ||
+        (b.nameAm?.toLowerCase().includes(q) ?? false),
+    );
+  }, [search, allBooks]);
 
   const otBooks = useMemo(
     () => sortBooksForDisplay(filteredBooks.filter(b => b.testament === "OT"), sortMode),

@@ -160,6 +160,11 @@
     font-family: 'Playfair Display', Georgia, serif;
     letter-spacing: -0.01em;
   }
+  .font-ethiopic {
+    font-family: 'Noto Sans Ethiopic', 'Abyssinica SIL', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
   .font-scripture {
     font-family: 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
     /* Printed-ink feel: deep warm near-black with the faintest bleed and a
@@ -559,21 +564,47 @@
     margin-top: 0;
   }
 
-  /* Traditional two-column Bible page — each page face splits like a printed Bible. */
+  /* Traditional two-column Bible page — fill column 1 top→bottom, then column 2 (printed order). */
   .scripture-columns-2 {
     columns: 2;
     column-gap: clamp(1rem, 3.5vw, 1.65rem);
     column-fill: auto;
+    -webkit-column-fill: auto;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
   }
   .reader-theme-dark .scripture-columns-2 {
     column-rule-color: hsl(var(--foreground) / 0.14);
   }
+  /* Section headings start at the top of the next column — never span both (that causes top/bottom banding). */
   .scripture-columns-2 .scripture-heading {
-    column-span: all;
     text-align: center;
+    break-before: column;
+    -webkit-column-break-before: always;
+    column-break-before: always;
+    break-after: avoid;
+    break-inside: avoid;
   }
-  /* Let paragraphs flow across columns like a printed Bible page. */
+  .scripture-columns-2 > .scripture-heading:first-child {
+    break-before: auto;
+    -webkit-column-break-before: auto;
+    column-break-before: auto;
+  }
+  /* New chapter drop-cap when no heading precedes it on this page. */
+  .scripture-columns-2 .scripture-paragraph:has(.scripture-verse-chapter-open) {
+    break-before: column;
+    -webkit-column-break-before: always;
+    column-break-before: always;
+  }
+  .scripture-columns-2 > .scripture-paragraph:first-child:has(.scripture-verse-chapter-open) {
+    break-before: auto;
+    -webkit-column-break-before: auto;
+    column-break-before: auto;
+  }
+  .scripture-columns-2 .scripture-heading + .scripture-paragraph:has(.scripture-verse-chapter-open) {
+    break-before: auto;
+    -webkit-column-break-before: auto;
+    column-break-before: auto;
+  }
   .scripture-columns-2 .scripture-paragraph {
     break-inside: auto;
   }

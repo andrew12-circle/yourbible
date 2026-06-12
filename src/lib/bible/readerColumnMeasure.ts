@@ -16,7 +16,7 @@ export function applyScriptureColumnMeasureHtml(
   }
   const h = Math.max(1, Math.round(contentHeightPx));
   node.innerHTML =
-    `<div class="${columnsClassName}" style="height:${h}px;overflow:hidden;width:100%;min-height:0;box-sizing:border-box">` +
+    `<div class="${columnsClassName}" style="height:${h}px;overflow:hidden;width:100%;min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto">` +
     `${bodyHtml}</div>`;
 }
 

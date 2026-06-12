@@ -32,7 +32,8 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { BibleEntry } from "@/lib/bible/api";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
-import { BOOKS, BibleBook } from "@/data/books";
+import type { BibleBook } from "@/data/books";
+import { getBooks } from "@/lib/bible/canon";
 import { useEffect, useState } from "react";
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -44,6 +45,7 @@ interface Props {
   /** When the sheet opens, start on this panel (e.g. footer book name → settings). */
   initialPanel?: ReaderMenuPanel;
   reference: string;
+  books?: BibleBook[];
   currentBook: BibleBook;
   currentChapter: number;
   currentVerseCount: number;
@@ -78,6 +80,7 @@ export function ReaderMobileMenu({
   open,
   onOpenChange,
   reference,
+  books: booksProp,
   currentBook,
   currentChapter,
   currentVerseCount,
@@ -108,9 +111,10 @@ export function ReaderMobileMenu({
   onToggleColumnLayout,
   initialPanel = "nav",
 }: Props) {
+  const books = booksProp ?? getBooks();
   const [panel, setPanel] = useState<ReaderMenuPanel>("nav");
   const [step, setStep] = useState<PickerStep>("book");
-  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? BOOKS[0]);
+  const [pickedBook, setPickedBook] = useState<BibleBook>(currentBook ?? books[0]!);
   const [pickedChapter, setPickedChapter] = useState(currentChapter ?? 1);
   const [verseInput, setVerseInput] = useState("");
 
@@ -316,7 +320,7 @@ export function ReaderMobileMenu({
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {step === "book" && (
                   <div className="p-4">
-                    <BookPickerStep currentBook={currentBook} onPickBook={pickBook} gridCols="two" />
+                    <BookPickerStep books={books} currentBook={currentBook} onPickBook={pickBook} gridCols="two" />
                   </div>
                 )}
 
