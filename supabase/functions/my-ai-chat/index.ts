@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import { buildClaimChatWebBlock } from "../_shared/researchPackCore.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
 import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
@@ -1328,7 +1328,11 @@ Deno.serve(async (req) => {
       claimPackId,
     );
     if ("error" in generated) return jsonResponse({ error: generated.error }, 502);
-    const { reply, citations, ranked } = generated;
+    const { reply, citations: modelCitations, ranked } = generated;
+    const citations = attachSourceAttribution(
+      mergeRetrievedCitations(modelCitations, contextPack.retrievedCitations),
+      { includeGeneral, usedWeb: chatUseWeb },
+    );
 
     const { data: asstRow, error: asstErr } = await supabase
       .from("my_ai_messages")

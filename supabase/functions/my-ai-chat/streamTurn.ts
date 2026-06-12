@@ -6,7 +6,7 @@ import {
   buildMyAiStreamSystemPrompt,
 } from "./systemPrompt.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
 import type { ResolvedResponseDepth } from "./responseDepth.ts";
 
 export type StreamCitation = {
@@ -172,10 +172,13 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         }
 
         const { reply, citations: rawCitations } = parseStreamedMarkdown(acc);
-        const citations = attachSourceAttribution(rawCitations, {
-          includeGeneral,
-          usedWeb: false,
-        });
+        const citations = attachSourceAttribution(
+          mergeRetrievedCitations(rawCitations, contextPack.retrievedCitations),
+          {
+            includeGeneral,
+            usedWeb: false,
+          },
+        );
         const { data: asstRow, error: asstErr } = await supabase
           .from("my_ai_messages")
           .insert({

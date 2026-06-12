@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { getEmbedding } from "../_shared/aiProvider.ts";
 
-const MAX_CONTEXT_CHARS = 14_000;
+const MAX_CONTEXT_CHARS = 18_000;
 const BODY_PREVIEW = 700;
 
 // Recency half-life in days for the recency boost component.
@@ -15,7 +15,17 @@ const STOPWORDS = new Set([
   "and","but","for","not","you","are","was","the","can","has","had","his","her","our","out","all","any",
 ]);
 
-export type RetrievedContextPack = { contextBlock: string };
+export type RetrievedCitation = {
+  source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
+  id?: string;
+  label: string;
+};
+
+export type RetrievedContextPack = {
+  contextBlock: string;
+  /** Rows actually injected into context — merged into assistant citations server-side. */
+  retrievedCitations: RetrievedCitation[];
+};
 
 function isRecord(v: unknown): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v); }
 
@@ -41,11 +51,71 @@ function recencyScore(ts: string | null | undefined): number {
 
 function vecLiteral(v: number[]): string { return `[${v.join(",")}]`; }
 
-function artifactMetaLine(meta: unknown): string {
+type ArtifactRow = {
+  id: string;
+  title?: string | null;
+  kind?: string | null;
+  status?: string | null;
+  metadata?: unknown;
+};
+
+function looksLikeViewCountTitle(title: string): boolean {
+  return /^\d[\d,.\s]*\s*views?$/i.test(title.trim());
+}
+
+function artifactTitleFromRow(row: ArtifactRow): string {
+  const stored = typeof row.title === "string" ? row.title.trim() : "";
+  if (stored && !looksLikeViewCountTitle(stored)) return truncate(stored, 120);
+  if (isRecord(row.metadata)) {
+    const metaTitle = typeof row.metadata.title === "string" ? row.metadata.title.trim() : "";
+    if (metaTitle) return truncate(metaTitle, 120);
+  }
+  if (row.kind === "youtube") return "YouTube video";
+  if (row.kind === "podcast") return "Podcast";
+  if (row.kind === "pdf") return "PDF document";
+  return "Untitled artifact";
+}
+
+function artifactChannelFromMeta(meta: unknown): string {
   if (!isRecord(meta)) return "";
-  const title = typeof meta.title === "string" ? meta.title.trim() : "";
-  const channel = [meta.channel, meta.channel_title, meta.channelTitle].find((x) => typeof x === "string" && x.trim()) as string | undefined;
-  return [title, channel?.trim() ?? ""].filter(Boolean).join(" · ");
+  const channel = [meta.channel_title, meta.channelTitle, meta.channel].find(
+    (x) => typeof x === "string" && x.trim(),
+  ) as string | undefined;
+  return channel?.trim() ?? "";
+}
+
+function artifactKindLabel(kind: string | null | undefined): string {
+  if (kind === "youtube") return "Video";
+  if (kind === "podcast") return "Podcast";
+  if (kind === "pdf") return "PDF";
+  if (kind === "text_file") return "Document";
+  return "Artifact";
+}
+
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function citationLabel(text: string, max = 48): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return "Source";
+  return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
+}
+
+export function mergeRetrievedCitations<T extends RetrievedCitation>(...groups: T[][]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const group of groups) {
+    for (const c of group) {
+      const key = `${c.source_type}|${c.id ?? ""}|${c.label}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(c);
+    }
+  }
+  return out;
 }
 
 function shrinkToLimit(parts: string[], max: number): string {
@@ -94,10 +164,10 @@ export async function buildFrameworkRetrievalContext(
   // Parallel fetch: profile + recent assistant chat history (always needed) + semantic hits + recent fallbacks.
   const semanticHits = qLit
     ? await Promise.all([
-        supabase.rpc("match_beliefs", { query_embedding: qLit, match_count: 14 }),
-        supabase.rpc("match_journals", { query_embedding: qLit, match_count: 10, exclude_id: excludeJournalEntryId ?? null }),
-        supabase.rpc("match_artifact_claims", { query_embedding: qLit, match_count: 6 }),
-        supabase.rpc("match_artifact_transcript", { query_embedding: qLit, match_count: 6, filter_artifact_id: null }),
+        supabase.rpc("match_beliefs", { query_embedding: qLit, match_count: 12 }),
+        supabase.rpc("match_journals", { query_embedding: qLit, match_count: 8, exclude_id: excludeJournalEntryId ?? null }),
+        supabase.rpc("match_artifact_claims", { query_embedding: qLit, match_count: 10 }),
+        supabase.rpc("match_artifact_transcript", { query_embedding: qLit, match_count: 10, filter_artifact_id: null }),
         supabase.rpc("match_entities", { query_embedding: qLit, match_count: 8 }),
         supabase.rpc("match_assistant_messages", { query_embedding: qLit, match_count: 4, exclude_chat_id: chatId }),
       ])
@@ -105,13 +175,14 @@ export async function buildFrameworkRetrievalContext(
 
   const [bRes, jRes, cRes, tRes, eRes, mRes] = semanticHits;
 
-  const [profileRes, historyRes, sourcesRes, tensionsRes, workbookRes, lhReviewRes] = await Promise.all([
+  const [profileRes, historyRes, sourcesRes, tensionsRes, workbookRes, lhReviewRes, recentArtifactsRes] = await Promise.all([
     supabase.from("profiles").select("identity_summary").eq("user_id", userId).maybeSingle(),
     supabase.from("my_ai_messages").select("role, content, created_at").eq("user_id", userId).eq("chat_id", chatId).order("created_at", { ascending: false }).limit(12),
     supabase.from("belief_sources").select("id, source_type, label, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabase.from("belief_tensions").select("id, a_id, b_id, summary, severity, status").eq("user_id", userId).eq("status", "open").order("severity", { ascending: false }).limit(20),
     supabase.from("living_hope_workbook").select("content").eq("user_id", userId).maybeSingle(),
     supabase.from("living_hope_reviews").select("review_date,vision_recall,surrender_note,goal_touches,completed_at").eq("user_id", userId).order("review_date", { ascending: false }).limit(3),
+    supabase.from("artifacts").select("id, title, kind, status, metadata, created_at").eq("user_id", userId).neq("status", "failed").order("created_at", { ascending: false }).limit(16),
   ]);
 
   const { data: cogState } = await supabase
@@ -195,6 +266,30 @@ export async function buildFrameworkRetrievalContext(
   const entityHits = ((eRes && !eRes.error) ? (eRes.data ?? []) : []) as EntityHit[];
   const asstHits = ((mRes && !mRes.error) ? (mRes.data ?? []) : []) as AsstHit[];
 
+  const recentArtifacts = (recentArtifactsRes.data ?? []) as ArtifactRow[];
+  const artifactIdsForMeta = new Set<string>([
+    ...claimHits.map((c) => c.artifact_id),
+    ...transcriptHits.map((t) => t.artifact_id),
+    ...recentArtifacts.map((a) => a.id),
+  ]);
+  const artifactById = new Map<string, ArtifactRow>();
+  for (const row of recentArtifacts) artifactById.set(row.id, row);
+
+  const missingArtifactIds = [...artifactIdsForMeta].filter((id) => !artifactById.has(id));
+  if (missingArtifactIds.length) {
+    const { data: extraArtifacts } = await supabase
+      .from("artifacts")
+      .select("id, title, kind, status, metadata, created_at")
+      .eq("user_id", userId)
+      .in("id", missingArtifactIds);
+    for (const row of (extraArtifacts ?? []) as ArtifactRow[]) artifactById.set(row.id, row);
+  }
+
+  const artifactLabel = (artifactId: string): string =>
+    artifactTitleFromRow(artifactById.get(artifactId) ?? { id: artifactId });
+
+  const retrievedCitations: RetrievedCitation[] = [];
+
   // Recent thread history (oldest → newest)
   const historyAsc = ((historyRes.data ?? []) as { role: string; content: string }[]).slice().reverse();
 
@@ -203,37 +298,64 @@ export async function buildFrameworkRetrievalContext(
     : "(none — identity summary not generated yet)";
 
   // Build sections
-  const beliefLines = scoredBeliefs.map((b) =>
-    `[belief:${b.id}] (${b.layer}${b.is_core ? "·core" : ""}, conf ${b.confidence}) ${b.topic}: ${truncate(b.statement, 480)} (updated ${b.updated_at.slice(0,10)}, sim ${b.similarity.toFixed(2)})`,
-  );
+  const beliefLines = scoredBeliefs.map((b) => {
+    retrievedCitations.push({
+      source_type: "belief",
+      id: b.id,
+      label: citationLabel(b.topic || b.statement),
+    });
+    return `[belief:${b.id}] (${b.layer}${b.is_core ? "·core" : ""}, conf ${b.confidence}) ${b.topic}: ${truncate(b.statement, 480)} (updated ${b.updated_at.slice(0,10)}, sim ${b.similarity.toFixed(2)})`;
+  });
 
   const journals = scoredJournals.length ? scoredJournals : fallbackJournals;
   const journalLines = journals.map((j) => {
     const title = j.title?.trim() || "(untitled)";
+    retrievedCitations.push({ source_type: "journal", id: j.id, label: citationLabel(title) });
     const day = j.entry_at_ts.slice(0, 10);
     const text = (j.summary?.trim() || j.body || "").replace(/\s+/g, " ").trim();
     const sim = "similarity" in j && j.similarity ? ` sim ${j.similarity.toFixed(2)}` : "";
     return `[journal:${j.id}] ${day} — ${title}:${sim} ${truncate(text, BODY_PREVIEW)}`;
   });
 
-  const claimLines = claimHits.slice(0, 5).map((c) => {
+  const claimLines = claimHits.slice(0, 8).map((c) => {
+    const art = artifactById.get(c.artifact_id);
+    const title = artifactLabel(c.artifact_id);
+    const channel = art ? artifactChannelFromMeta(art.metadata) : "";
+    retrievedCitations.push({ source_type: "artifact", id: c.artifact_id, label: citationLabel(title) });
     const verdictBit = c.verdict?.trim() ? ` (verdict: ${c.verdict})` : "";
-    return `[artifact:${c.artifact_id}] claim — ${truncate(c.claim, 320)}${verdictBit} (sim ${c.similarity.toFixed(2)})`;
+    const sourceBit = channel ? ` — ${title} (${channel})` : ` — ${title}`;
+    return `[artifact:${c.artifact_id}] claim${sourceBit}: ${truncate(c.claim, 320)}${verdictBit} (sim ${c.similarity.toFixed(2)})`;
   });
 
-  const transcriptLines = transcriptHits.slice(0, 5).map((t) => {
-    const end = t.end_seconds != null ? `${t.start_seconds}s–${t.end_seconds}s` : `${t.start_seconds}s`;
-    return `[artifact:${t.artifact_id}] transcript @ ${end} — ${truncate(t.text.replace(/\s+/g, " "), 400)} (sim ${t.similarity.toFixed(2)})`;
+  const transcriptLines = transcriptHits.slice(0, 8).map((t) => {
+    const art = artifactById.get(t.artifact_id);
+    const title = artifactLabel(t.artifact_id);
+    const channel = art ? artifactChannelFromMeta(art.metadata) : "";
+    retrievedCitations.push({ source_type: "artifact", id: t.artifact_id, label: citationLabel(title) });
+    const end = t.end_seconds != null ? `${formatTimestamp(t.start_seconds)}–${formatTimestamp(t.end_seconds)}` : formatTimestamp(t.start_seconds);
+    const sourceBit = channel ? `${title} (${channel})` : title;
+    return `[artifact:${t.artifact_id}] "${sourceBit}" @ ${end} — ${truncate(t.text.replace(/\s+/g, " "), 400)} (sim ${t.similarity.toFixed(2)})`;
+  });
+
+  const libraryLines = recentArtifacts.slice(0, 12).map((a) => {
+    const title = artifactTitleFromRow(a);
+    const channel = artifactChannelFromMeta(a.metadata);
+    const kind = artifactKindLabel(a.kind);
+    const status = typeof a.status === "string" && a.status !== "ready" ? ` · ${a.status}` : "";
+    const channelBit = channel ? ` · ${channel}` : "";
+    return `[artifact:${a.id}] ${kind}: "${title}"${channelBit}${status}`;
   });
 
   const entityLines = entityHits.slice(0, 6).map((e) => {
+    retrievedCitations.push({ source_type: "entity", id: e.id, label: citationLabel(e.title) });
     const sub = e.subtitle?.trim() ? ` — ${e.subtitle}` : "";
     return `[entity:${e.id}] (${e.kind}) ${e.title}${sub} (sim ${e.similarity.toFixed(2)})`;
   });
 
-  const tensionLines = tensions.map((t) =>
-    `[tension:${t.id}] (severity ${t.severity}) between [belief:${t.a_id}] and [belief:${t.b_id}] — ${truncate(t.summary, 360)}`,
-  );
+  const tensionLines = tensions.map((t) => {
+    retrievedCitations.push({ source_type: "belief", id: t.a_id, label: "Open tension" });
+    return `[tension:${t.id}] (severity ${t.severity}) between [belief:${t.a_id}] and [belief:${t.b_id}] — ${truncate(t.summary, 360)}`;
+  });
 
   const asstLines = asstHits.slice(0, 4).map((m) =>
     `[past-reply ${m.created_at.slice(0,10)}, sim ${m.similarity.toFixed(2)}] ${truncate(m.content.replace(/\s+/g, " "), 360)}`,
@@ -245,6 +367,7 @@ export async function buildFrameworkRetrievalContext(
     const key = `${s.source_type.toLowerCase()}::${s.label.trim().toLowerCase()}`;
     if (sourceSeen.has(key)) continue;
     sourceSeen.add(key);
+    retrievedCitations.push({ source_type: "influence", id: s.id, label: citationLabel(s.label) });
     sourceLines.push(`[influence:${s.id}] ${s.label} (${s.source_type})`);
     if (sourceLines.length >= 12) break;
   }
@@ -275,20 +398,24 @@ export async function buildFrameworkRetrievalContext(
         })()
       : "(not generated yet — speak from raw context below)"),
     "## Identity summary (profiles.identity_summary)\n" + identityJson,
+    "## Your saved library — videos, podcasts & documents (look inward here FIRST; name titles when you use them)\n" + (libraryLines.length ? libraryLines.join("\n") : "(none imported yet)"),
+    "## Transcript moments from your videos & artifacts (semantic — cite title + timestamp in prose when relevant)\n" + (transcriptLines.length ? transcriptLines.join("\n") : "(none — transcripts may still be processing)"),
+    "## Claims extracted from your videos & artifacts\n" + (claimLines.length ? claimLines.join("\n") : "(none — run analysis on artifacts to extract claims)"),
     "## Most-relevant beliefs (cite with [belief:uuid])\n" + (beliefLines.length ? beliefLines.join("\n") : "(none)"),
     "## Belief trajectories — EARLIER → LATER (use to name evolution; do not invent transitions not shown here)\n" + (temporalLines.length ? temporalLines.join("\n") : "(none recorded)"),
     "## Open tensions adjacent to this turn (surface them if relevant)\n" + (tensionLines.length ? tensionLines.join("\n") : "(none)"),
     "## Most-relevant journals\n" + (journalLines.length ? journalLines.join("\n") : "(none)"),
     "## Morning formula (Living Hope — vision workbook + recent reviews)\n" + livingHopeBlock,
-    "## Most-relevant artifact claims\n" + (claimLines.length ? claimLines.join("\n") : "(none)"),
-    "## Transcript moments (semantic — cite artifact + time when relevant)\n" + (transcriptLines.length ? transcriptLines.join("\n") : "(none)"),
     "## Most-relevant knowledge entities\n" + (entityLines.length ? entityLines.join("\n") : "(none)"),
     "## Influences / sources\n" + (sourceLines.length ? sourceLines.join("\n") : "(none)"),
     "## Echoes from past AI replies (other threads — for continuity, not to quote)\n" + (asstLines.length ? asstLines.join("\n") : "(none)"),
     "## This chat (most recent messages, oldest → newest)\n" + (historyBlock || "(empty)"),
   ];
 
-  return { contextBlock: shrinkToLimit(sections, MAX_CONTEXT_CHARS) };
+  return {
+    contextBlock: shrinkToLimit(sections, MAX_CONTEXT_CHARS),
+    retrievedCitations: mergeRetrievedCitations(retrievedCitations),
+  };
 }
 
 function formatLivingHopeContext(workbookRaw: unknown, reviews: unknown[]): string {
