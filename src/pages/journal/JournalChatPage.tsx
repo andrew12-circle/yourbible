@@ -42,7 +42,10 @@ import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
-import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import {
+  useLockBodyScrollWhenKeyboardActive,
+  useVisualViewportMetrics,
+} from "@/hooks/useKeyboardInset";
 import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
@@ -137,8 +140,9 @@ export default function JournalChatPage() {
   const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { entryId: routeEntryId } = useParams<{ entryId?: string }>();
-  const kbInset = useKeyboardInset();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
   const [composerFocused, setComposerFocused] = useState(false);
+  const [writeFocused, setWriteFocused] = useState(false);
 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string | null; entry_at_ts: string }[]>([]);
@@ -161,6 +165,7 @@ export default function JournalChatPage() {
   const [ending, setEnding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerLockScrollYRef = useRef<number | null>(null);
+  const writeLockScrollYRef = useRef<number | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
@@ -184,7 +189,11 @@ export default function JournalChatPage() {
   const [claimVerdictBusy, setClaimVerdictBusy] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  useLockBodyScrollWhenKeyboardActive(composerFocused && viewMode === "chat", composerLockScrollYRef);
+  const keyboardScrollLockRef = viewMode === "chat" ? composerLockScrollYRef : writeLockScrollYRef;
+  useLockBodyScrollWhenKeyboardActive(
+    (composerFocused && viewMode === "chat") || (writeFocused && viewMode === "write"),
+    keyboardScrollLockRef,
+  );
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
@@ -762,7 +771,10 @@ export default function JournalChatPage() {
 
   return (
     <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
-      <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/90 backdrop-blur-md pt-[calc(var(--safe-area-inset-top)+0.25rem)]">
+      <header
+        className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/90 backdrop-blur-md pt-[calc(var(--safe-area-inset-top)+0.25rem)]"
+        style={vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
+      >
         <div className="flex h-11 items-center gap-1 px-2 sm:gap-2 sm:px-3">
           <Button
             variant="ghost"
@@ -778,7 +790,7 @@ export default function JournalChatPage() {
             onChange={(e) => setEntryTitle(e.target.value)}
             onBlur={() => void persistTitle(entryTitle)}
             placeholder="Session title"
-            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold tracking-tight shadow-none focus-visible:ring-0"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-base font-semibold tracking-tight shadow-none focus-visible:ring-0 md:text-[15px]"
           />
           <div
             className="flex shrink-0 rounded-lg border border-border bg-muted/40 p-0.5"
@@ -974,6 +986,11 @@ export default function JournalChatPage() {
               "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-5",
               showChatComposer ? "pb-safe-40" : "pb-safe-8",
             )}
+            style={
+              writeFocused && viewMode === "write" && kbInset > 0
+                ? { paddingBottom: `calc(${kbInset}px + env(safe-area-inset-bottom) + 1rem)` }
+                : undefined
+            }
           >
             {showLoadingShell && (
               <div className="flex justify-center py-20">
@@ -987,7 +1004,14 @@ export default function JournalChatPage() {
                   polishResetKey={`${routeEntryId}-write`}
                   value={journalBody}
                   onChange={(e) => setJournalBody(e.target.value)}
-                  onBlur={() => void persistJournalBody(journalBody)}
+                  onPointerDown={() => {
+                    writeLockScrollYRef.current = window.scrollY;
+                  }}
+                  onFocus={() => setWriteFocused(true)}
+                  onBlur={() => {
+                    setWriteFocused(false);
+                    void persistJournalBody(journalBody);
+                  }}
                   placeholder="What happened today? What are you carrying?"
                   className="!block w-full !min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-0 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 [field-sizing:content] min-h-[40dvh]"
                 />

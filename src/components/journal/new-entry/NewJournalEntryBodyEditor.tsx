@@ -109,7 +109,7 @@ export function NewJournalEntryBodyEditor({
                 onBlur={onBodyBlur}
                 rows={section.rows}
                 placeholder={section.placeholder}
-                className="mt-2 font-sans text-[15px] leading-relaxed"
+                className="mt-2 font-sans text-base leading-relaxed md:text-[15px]"
               />
             </div>
           ))}

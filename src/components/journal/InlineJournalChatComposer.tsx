@@ -92,7 +92,7 @@ export default function InlineJournalChatComposer({
   useAutoGrowTextarea(taRef, value, { maxLines: 8, minLines: 1, ...JOURNAL_CHAT_TEXTAREA_HEIGHT });
 
   const textareaClassName =
-    "!min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent px-1 py-2 text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]";
+    "!min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent px-1 py-2 text-base leading-snug md:text-[13px] md:leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]";
 
   const {
     privacyBlurEnabled,

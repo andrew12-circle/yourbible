@@ -612,10 +612,13 @@ export default function ArtifactDetailPage() {
   const playClaimAtSource = useCallback(
     (claim: Claim, source: TranscriptSegment | null | undefined) => {
       const seconds = getClaimSeekSeconds(claim, source ?? null, claimSeekContext);
-      const needsTranscriptTab = !isDesktop && Boolean(source);
+      const willPlay = seconds != null || source?.startSeconds != null;
+      const needsTranscriptTab = !isDesktop && Boolean(source) && !willPlay;
 
       if (needsTranscriptTab) openTranscriptTab();
-      focusTranscriptSegment(source ?? null, needsTranscriptTab ? { deferMs: 100 } : undefined);
+      if (isDesktop || needsTranscriptTab) {
+        focusTranscriptSegment(source ?? null, needsTranscriptTab ? { deferMs: 100 } : undefined);
+      }
 
       if (seconds != null) {
         seekVideoToSeconds(seconds, { play: true });
