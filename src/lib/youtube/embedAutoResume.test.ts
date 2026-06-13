@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canSendEmbedAutoResume,
   EMBED_AUTO_RESUME_MIN_GAP_MS,
+  shouldAcceptEmbedPlayingTelemetry,
   shouldAutoResumeAfterEmbedPause,
 } from "./embedAutoResume";
 
@@ -31,5 +32,20 @@ describe("embedAutoResume", () => {
         recentPlayerPointer: false,
       }),
     ).toBe(true);
+  });
+
+  it("blocks auto-resume immediately after app pause", () => {
+    expect(
+      shouldAutoResumeAfterEmbedPause({
+        intendedPlaying: true,
+        msSinceAppPause: 100,
+        recentPlayerPointer: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("ignores stale PLAYING telemetry right after app pause", () => {
+    expect(shouldAcceptEmbedPlayingTelemetry(100)).toBe(false);
+    expect(shouldAcceptEmbedPlayingTelemetry(500)).toBe(true);
   });
 });

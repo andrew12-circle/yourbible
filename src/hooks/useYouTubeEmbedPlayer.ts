@@ -2,7 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { readPlaybackSecondsLocal, writePlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import {
   canSendEmbedAutoResume,
+  EMBED_APP_PAUSE_GRACE_MS,
   EMBED_PLAYER_POINTER_INTENT_MS,
+  shouldAcceptEmbedPlayingTelemetry,
   shouldAutoResumeAfterEmbedPause,
   shouldUseEmbedAutoResumeKeepalive,
 } from "@/lib/youtube/embedAutoResume";
@@ -183,6 +185,13 @@ export function useYouTubeEmbedPlayer(options: {
     }
   }, []);
 
+  const clearPlayIntentAfterUserPause = useCallback(() => {
+    const msSinceAppPause = Date.now() - lastAppPauseAtRef.current;
+    if (recentPlayerPointerRef.current || msSinceAppPause < EMBED_APP_PAUSE_GRACE_MS) {
+      intendedPlayingRef.current = false;
+    }
+  }, []);
+
   const scheduleResumeIfIntended = useCallback(() => {
     if (
       !shouldAutoResumeAfterEmbedPause({
@@ -192,7 +201,7 @@ export function useYouTubeEmbedPlayer(options: {
         documentHidden: document.hidden,
       })
     ) {
-      if (recentPlayerPointerRef.current) intendedPlayingRef.current = false;
+      clearPlayIntentAfterUserPause();
       clearResumeAfterPauseTimer();
       return;
     }
@@ -202,7 +211,7 @@ export function useYouTubeEmbedPlayer(options: {
       if (!intendedPlayingRef.current || document.hidden || playingRef.current) return;
       sendResumePlayCommand();
     }, 450);
-  }, [clearResumeAfterPauseTimer, sendResumePlayCommand]);
+  }, [clearPlayIntentAfterUserPause, clearResumeAfterPauseTimer, sendResumePlayCommand]);
 
   const markRecentPlayerPointer = useCallback(() => {
     recentPlayerPointerRef.current = true;
@@ -405,8 +414,9 @@ export function useYouTubeEmbedPlayer(options: {
             onStateChange: (e) => {
               const PS = window.YT?.PlayerState;
               if (!PS) return;
+              const msSinceAppPause = Date.now() - lastAppPauseAtRef.current;
               if (e.data === PS.PLAYING) {
-                intendedPlayingRef.current = true;
+                if (!shouldAcceptEmbedPlayingTelemetry(msSinceAppPause)) return;
                 playingRef.current = true;
                 setPlaying(true);
               } else if (e.data === PS.BUFFERING) {
@@ -537,7 +547,7 @@ export function useYouTubeEmbedPlayer(options: {
     const keepalive = window.setInterval(() => {
       if (!intendedPlayingRef.current || document.hidden || playingRef.current) return;
       if (recentPlayerPointerRef.current) return;
-      if (Date.now() - lastAppPauseAtRef.current < 500) return;
+      if (Date.now() - lastAppPauseAtRef.current < EMBED_APP_PAUSE_GRACE_MS) return;
       sendResumePlayCommand();
     }, 2500);
     return () => window.clearInterval(keepalive);
@@ -600,6 +610,7 @@ export function useYouTubeEmbedPlayer(options: {
 
   const pauseVideo = useCallback(() => {
     lastAppPauseAtRef.current = Date.now();
+    markRecentPlayerPointer();
     intendedPlayingRef.current = false;
     clearResumeAfterPauseTimer();
     playingRef.current = false;
@@ -609,12 +620,13 @@ export function useYouTubeEmbedPlayer(options: {
     } catch {
       /* player not ready */
     }
-  }, [clearResumeAfterPauseTimer]);
+  }, [clearResumeAfterPauseTimer, markRecentPlayerPointer]);
 
   const togglePlayback = useCallback(() => {
+    markRecentPlayerPointer();
     if (playingRef.current) pauseVideo();
     else playVideo();
-  }, [pauseVideo, playVideo]);
+  }, [markRecentPlayerPointer, pauseVideo, playVideo]);
 
   useEffect(() => {
     const onVisibility = () => {

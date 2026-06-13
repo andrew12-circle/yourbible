@@ -30,6 +30,7 @@ import {
   isTranscriptRowInFollowViewport,
   readMobileTranscriptFollowInsets,
   scrollTranscriptRowIntoFollowViewport,
+  TRANSCRIPT_FOLLOW_MOBILE_VISIBLE_BIAS,
 } from "@/lib/framework/transcriptFollowScroll";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -379,11 +380,25 @@ export default function TranscriptPanel({
     const el = container?.querySelector<HTMLElement>(`[data-transcript-row="${activeSegmentId}"]`);
     if (!container || !el) return;
 
-    const insets = useOuterScroll ? readMobileTranscriptFollowInsets(container) : { top: 0, bottom: 0 };
-    if (!segmentChanged && isTranscriptRowInFollowViewport(container, el, insets)) return;
+    const insets = youtubeMobile
+      ? readMobileTranscriptFollowInsets(container, useOuterScroll ? "outer" : "inner")
+      : { top: 0, bottom: 0 };
+    const followBias = youtubeMobile ? TRANSCRIPT_FOLLOW_MOBILE_VISIBLE_BIAS : 0.5;
+    if (
+      !segmentChanged &&
+      isTranscriptRowInFollowViewport(container, el, insets, undefined, followBias)
+    ) {
+      return;
+    }
 
     markProgrammaticScroll();
-    scrollTranscriptRowIntoFollowViewport(container, el, insets, "smooth");
+    scrollTranscriptRowIntoFollowViewport(
+      container,
+      el,
+      insets,
+      youtubeMobile && !useOuterScroll ? "auto" : "smooth",
+      followBias,
+    );
   }, [
     playerReady,
     searchActive,
@@ -396,6 +411,7 @@ export default function TranscriptPanel({
     outerScrollContainerRef,
     transcriptTabActive,
     autoScrollEnabled,
+    youtubeMobile,
   ]);
 
   useEffect(() => {

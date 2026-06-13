@@ -24,14 +24,28 @@ export const artifactMobileVideoOnlyPadding = "pt-[var(--artifact-mobile-video-h
 /** Bottom clearance for fixed mobile app dock on artifact detail. */
 export const artifactMobileDockPadding = "pb-[var(--artifact-mobile-dock-h,5.5rem)]";
 
+/** Collapsed header = video + sticky toolbar (meta scrolled away). */
+export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
+
+/** Study / transcript / notes tab body below pinned mobile video. */
+export const artifactMobileTabScrollPane = cn(
+  artifactMobilePinnedHeaderPadding,
+  artifactMobileDockPadding,
+  "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y",
+);
+
+/** Tab panel shell when inner content (e.g. transcript) owns its own scroll region. */
+export const artifactMobileTabPanelShell = cn(
+  artifactMobilePinnedHeaderPadding,
+  artifactMobileDockPadding,
+  "flex min-h-0 flex-1 flex-col overflow-hidden",
+);
+
 /** Default dock height (pill bar + safe area) — set on layout root when dock mounts. */
 export const ARTIFACT_MOBILE_DOCK_H = "6rem";
 
 /** Desktop / mobile study column that hosts the floating app dock. */
 export const ARTIFACT_STUDY_PANE_SELECTOR = "[data-artifact-study-pane]";
-
-/** Collapsed header = video + sticky toolbar (meta scrolled away). */
-export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinned-header-h,56.25vw)]";
 
 /**
  * Handwritten journal under the pinned video — same horizontal edge alignment as

@@ -23,7 +23,8 @@ export function shouldUseEmbedAutoResumeKeepalive(): boolean {
 /** How long after pointerdown on the player shell we treat PAUSE as user-initiated. */
 export const EMBED_PLAYER_POINTER_INTENT_MS = 1500;
 
-const APP_PAUSE_GRACE_MS = 500;
+/** Ignore stale PLAYING telemetry for this long after app pauseVideo / pause toggle. */
+export const EMBED_APP_PAUSE_GRACE_MS = 500;
 
 /** Whether an embed PAUSED event should trigger auto-resume (scroll/PiP stall), not user pause. */
 export function shouldAutoResumeAfterEmbedPause(options: {
@@ -33,7 +34,12 @@ export function shouldAutoResumeAfterEmbedPause(options: {
   documentHidden?: boolean;
 }): boolean {
   if (!options.intendedPlaying || options.documentHidden) return false;
-  if (options.msSinceAppPause < APP_PAUSE_GRACE_MS) return false;
+  if (options.msSinceAppPause < EMBED_APP_PAUSE_GRACE_MS) return false;
   if (options.recentPlayerPointer) return false;
   return true;
+}
+
+/** Stale jsapi PLAYING events often arrive after pauseVideo — do not flip UI/intent. */
+export function shouldAcceptEmbedPlayingTelemetry(msSinceAppPause: number): boolean {
+  return msSinceAppPause >= EMBED_APP_PAUSE_GRACE_MS;
 }

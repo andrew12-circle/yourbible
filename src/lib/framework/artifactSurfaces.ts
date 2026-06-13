@@ -28,6 +28,8 @@ export const artifactScrollMt = "scroll-mt-32";
 export {
   artifactMobileDockPadding,
   artifactMobilePinnedHeaderPadding,
+  artifactMobileTabPanelShell,
+  artifactMobileTabScrollPane,
   artifactMobileVideoOnlyPadding,
   artifactScrollMtMobilePane,
   artifactScrollMtStickyVideo as artifactScrollMtMobile,

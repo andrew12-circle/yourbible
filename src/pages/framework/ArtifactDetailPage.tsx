@@ -67,7 +67,7 @@ import {
   artifactDesktopBodySheet,
   artifactDesktopSplitPaneCard,
   artifactMobileDockPadding,
-  artifactMobilePinnedHeaderPadding,
+  artifactMobileTabScrollPane,
   artifactMobileStudyContentInset,
   artifactScrollMt,
   artifactTeachingsIntroCallout,
@@ -110,6 +110,7 @@ import {
   withYouTubeTimestamp,
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
+import { filterSubstantiveClaims } from "@/lib/framework/claimQuality";
 import { useArtifactFrameworkOverview } from "@/hooks/useArtifactFrameworkOverview";
 import { useArtifactCorpusStanding } from "@/hooks/useArtifactCorpusStanding";
 import { useArtifactYoutubeMetaRepair } from "@/hooks/useArtifactYoutubeMetaRepair";
@@ -276,25 +277,40 @@ export default function ArtifactDetailPage() {
 
   const frameworkOverview = useArtifactFrameworkOverview(a?.metadata);
 
+  const studyClaims = useMemo(() => {
+    const duration =
+      mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds ?? null;
+    const seekCtx = { transcriptSegments, videoDurationSeconds: duration };
+    const substantive = filterSubstantiveClaims(claims);
+    return [...substantive].sort((left, right) => {
+      const leftSeek = getClaimSeekSeconds(left, claimSources[left.id], seekCtx);
+      const rightSeek = getClaimSeekSeconds(right, claimSources[right.id], seekCtx);
+      const leftKey = leftSeek ?? left.chapter_start_seconds ?? Number.MAX_SAFE_INTEGER;
+      const rightKey = rightSeek ?? right.chapter_start_seconds ?? Number.MAX_SAFE_INTEGER;
+      if (leftKey !== rightKey) return leftKey - rightKey;
+      return left.claim.localeCompare(right.claim);
+    });
+  }, [claims, claimSources, transcriptSegments, mergedVideoMeta.duration_seconds, artifactMetadata.duration_seconds]);
+
   const claimBeliefCounts = useMemo(() => {
     let agree = 0;
     let disagree = 0;
     let newCount = 0;
-    for (const c of claims) {
+    for (const c of studyClaims) {
       if (c.match_relation === "agree") agree += 1;
       else if (c.match_relation === "disagree") disagree += 1;
       else newCount += 1;
     }
     return { agree, disagree, new: newCount };
-  }, [claims]);
+  }, [studyClaims]);
 
   const insightsVisible =
-    a?.status === "ready" || (a?.status === "analyzing" && claims.length > 0);
+    a?.status === "ready" || (a?.status === "analyzing" && studyClaims.length > 0);
 
   const corpusStandingQuery = useArtifactCorpusStanding(
     a?.id,
     a?.status,
-    claims.length,
+    studyClaims.length,
     user?.id,
     insightsVisible,
   );
@@ -330,8 +346,8 @@ export default function ArtifactDetailPage() {
   }, [youtubeChaptersSource]);
 
   const claimChapterLayout = useMemo(
-    () => groupClaimsUnderYoutubeChapters(claims, claimSources, youtubeChaptersList),
-    [claims, claimSources, youtubeChaptersList],
+    () => groupClaimsUnderYoutubeChapters(studyClaims, claimSources, youtubeChaptersList),
+    [studyClaims, claimSources, youtubeChaptersList],
   );
 
   const youTubeVideoId = useMemo(() => {
@@ -444,18 +460,18 @@ export default function ArtifactDetailPage() {
 
   const glossaryEntries: ClaimsGlossaryEntry[] = useMemo(
     () =>
-      claims.map((c, i) => ({
+      studyClaims.map((c, i) => ({
         id: c.id,
         claim: c.claim,
         verdict: c.verdict,
         number: i + 1,
       })),
-    [claims],
+    [studyClaims],
   );
 
   const deferredOnArtifact = useMemo(
-    () => claims.filter((c) => isDeferredVerdict(c.verdict)).length,
-    [claims],
+    () => studyClaims.filter((c) => isDeferredVerdict(c.verdict)).length,
+    [studyClaims],
   );
 
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
@@ -469,14 +485,14 @@ export default function ArtifactDetailPage() {
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
-    if (!hash || !claims.some((c) => c.id === hash)) return;
+    if (!hash || !studyClaims.some((c) => c.id === hash)) return;
     const t = window.setTimeout(() => {
       scrollArtifactClaimIntoView(document.getElementById(hash), {
         horizontalRail: claimsHorizontalRail,
       });
     }, 300);
     return () => window.clearTimeout(t);
-  }, [claims, a?.status, claimsHorizontalRail]);
+  }, [studyClaims, a?.status, claimsHorizontalRail]);
 
   const scrollToVideoSection = useCallback(() => {
     document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -515,7 +531,7 @@ export default function ArtifactDetailPage() {
     }
     const pinnedMobileYoutube =
       !isDesktop && isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
-    if (claims.length > 0) {
+    if (studyClaims.length > 0) {
       sections.push({ id: "claims", hash: "#claims", label: "Claims" });
       sections.push({ id: "claims-index", hash: "#claims-index", label: "Index", icon: "index" });
     }
@@ -537,7 +553,7 @@ export default function ArtifactDetailPage() {
     a?.url,
     youTubeVideoId,
     youtubeChaptersList.length,
-    claims.length,
+    studyClaims.length,
     desktopPremiumYoutube,
     isDesktop,
     layoutMode,
@@ -555,8 +571,8 @@ export default function ArtifactDetailPage() {
   const advanceMobileClaim = useCallback(
     (currentId: string) => {
       if (isDesktop) return;
-      const idx = claims.findIndex((c) => c.id === currentId);
-      const next = idx >= 0 ? claims[idx + 1] : undefined;
+      const idx = studyClaims.findIndex((c) => c.id === currentId);
+      const next = idx >= 0 ? studyClaims[idx + 1] : undefined;
       if (!next) {
         setMobileOpenClaimId(null);
         return;
@@ -566,16 +582,16 @@ export default function ArtifactDetailPage() {
         document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       });
     },
-    [claims, isDesktop],
+    [studyClaims, isDesktop],
   );
 
   useEffect(() => {
-    if (isDesktop || claims.length === 0) return;
+    if (isDesktop || studyClaims.length === 0) return;
     setMobileOpenClaimId((prev) => {
-      if (prev && claims.some((c) => c.id === prev)) return prev;
-      return claims[0]?.id ?? null;
+      if (prev && studyClaims.some((c) => c.id === prev)) return prev;
+      return studyClaims[0]?.id ?? null;
     });
-  }, [claims, isDesktop]);
+  }, [studyClaims, isDesktop]);
 
   const focusTranscriptSegment = useCallback(
     (segment: TranscriptSegment | null | undefined, opts?: { deferMs?: number }) => {
@@ -929,7 +945,7 @@ export default function ArtifactDetailPage() {
   };
 
   const jumpToClaim = (claimNumber: number) => {
-    const claim = claims[claimNumber - 1];
+    const claim = studyClaims[claimNumber - 1];
     if (!isDesktop && claim) {
       setMobileOpenClaimId(claim.id);
       window.requestAnimationFrame(() => {
@@ -956,7 +972,7 @@ export default function ArtifactDetailPage() {
           } as Json,
         }
       : null;
-  const claimsDigest = claims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
+  const claimsDigest = studyClaims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
   const canCaptureMoments = Boolean(youTubeVideoId);
 
   const copyTranscript = async () => {
@@ -1291,7 +1307,7 @@ export default function ArtifactDetailPage() {
     <ArtifactMobileInsightExploreSlot
       enabled={mobilePinnedPane && mobileTab === "study"}
       claimId={mobileInsightExploreClaimId}
-      claims={claims}
+      claims={studyClaims}
       claimCardContext={claimCardContext}
       onBack={closeMobileInsightExplore}
       onSelectClaim={openMobileInsightExplore}
@@ -1335,8 +1351,6 @@ export default function ArtifactDetailPage() {
         onNoteBodyChange: setNoteBody,
         artifactPolishKey: a.id,
         saveSegmentNote,
-        mobilePinnedPane,
-        mobileBodyScrollRef,
         mobileTab,
         moments,
       })
@@ -1453,6 +1467,7 @@ export default function ArtifactDetailPage() {
         <div
           className={cn(
             "min-w-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col",
+            mobilePinnedPane && "flex min-h-0 flex-1 flex-col",
             desktopPremiumYoutube && artifactDesktopSplitPaneCard,
           )}
         >
@@ -1463,8 +1478,8 @@ export default function ArtifactDetailPage() {
             desktopStudyDock && artifactMobileDockPadding,
             mobilePinnedPane
               ? cn(
-                  "relative h-full min-h-0 w-full min-w-0 max-w-none",
-                  mobileTab === "journal" && "flex min-h-0 flex-1 flex-col overflow-hidden",
+                  "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
+                  mobileTab === "journal" && "overflow-hidden",
                 )
               : desktopPremiumYoutube
                 ? "space-y-3"
@@ -1528,11 +1543,10 @@ export default function ArtifactDetailPage() {
           className={cn(
             mobilePinnedPane
               ? cn(
-                  artifactMobilePinnedHeaderPadding,
-                  artifactMobileDockPadding,
+                  mobileTab !== "study" && "hidden",
                   mobileTab === "journal" || mobileInsightExploreOpen
                     ? "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden"
-                    : "h-full min-h-0 w-full overflow-x-visible overflow-y-auto overscroll-contain",
+                    : artifactMobileTabScrollPane,
                 )
               : "contents",
           )}
@@ -1558,18 +1572,18 @@ export default function ArtifactDetailPage() {
         desktopInsightExploreClaimId ? (
           <ArtifactDesktopClaimFocus
             claimId={desktopInsightExploreClaimId}
-            claims={claims}
+            claims={studyClaims}
             claimCardContext={claimCardContext}
             onBack={closeDesktopInsightExplore}
             onSelectClaim={openDesktopInsightExplore}
           />
         ) : (
           <ArtifactDesktopOverview
-            claims={claims}
+            claims={studyClaims}
             artifactId={a.id}
             artifactStatus={a.status}
             artifactMetadata={mergedVideoMeta}
-            claimsCount={claims.length}
+            claimsCount={studyClaims.length}
             frameworkOverview={frameworkOverview}
             claimSources={claimSources}
             corpusStanding={corpusStanding}
@@ -1636,11 +1650,11 @@ export default function ArtifactDetailPage() {
       >
       {showMobileOverview ? (
         <ArtifactMobileOverview
-          claims={claims}
+          claims={studyClaims}
           artifactId={a.id}
           artifactStatus={a.status}
           artifactMetadata={mergedVideoMeta}
-          claimsCount={claims.length}
+          claimsCount={studyClaims.length}
           entitiesCount={entitiesCount}
           frameworkOverview={frameworkOverview}
           corpusStanding={corpusStanding}
@@ -1650,10 +1664,10 @@ export default function ArtifactDetailPage() {
           onSeeScripture={openMobileInsightExplore}
         />
       ) : null}
-      {showDesktopClaimsPane && desktopPremiumYoutube && insightsVisible && claims.length > 0 ? (
+      {showDesktopClaimsPane && desktopPremiumYoutube && insightsVisible && studyClaims.length > 0 ? (
         <ArtifactClaimsSection
           anchorId="claims"
-          claims={claims}
+          claims={studyClaims}
           claimChapterLayout={claimChapterLayout}
           glossaryEntries={glossaryEntries}
           youTubeVideoId={youTubeVideoId}
@@ -1814,7 +1828,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       )}
 
-      {a.status === "ready" && claims.length === 0 && !a.error && (
+      {a.status === "ready" && studyClaims.length === 0 && !a.error && (
         <div className="mb-4 rounded border border-border bg-muted/30 p-3 text-sm">
           The transcript came through but no clear claims were extracted. Try Re-analyze, or paste a different excerpt.
         </div>
@@ -1842,7 +1856,7 @@ export default function ArtifactDetailPage() {
       {insightsVisible && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactLibraryStanding
           artifactId={a.id}
-          claimsCount={claims.length}
+          claimsCount={studyClaims.length}
           agreeCount={corpusStanding.agreeCount}
           disagreeCount={corpusStanding.disagreeCount}
           newCount={corpusStanding.newCount}
@@ -1856,13 +1870,13 @@ export default function ArtifactDetailPage() {
         />
       ) : null}
 
-      {insightsVisible && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
+      {insightsVisible && studyClaims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
           title="Claims"
-          count={claims.length}
-          countLabel={`${claims.length} insights`}
+          count={studyClaims.length}
+          countLabel={`${studyClaims.length} insights`}
           description={
             isDesktop
               ? "One thesis per card from the transcript — open each to review source, scripture, and verdicts."
@@ -1901,7 +1915,7 @@ export default function ArtifactDetailPage() {
           ) : null}
           <ArtifactClaimsSection
             anchorId={undefined}
-            claims={claims}
+            claims={studyClaims}
             claimChapterLayout={claimChapterLayout}
             glossaryEntries={glossaryEntries}
             youTubeVideoId={youTubeVideoId}
@@ -1948,6 +1962,7 @@ export default function ArtifactDetailPage() {
         <ArtifactDetailMobileTabPanels
           isDesktop={isDesktop}
           mobilePinnedPane={mobilePinnedPane}
+          mobileTab={mobileTab}
           transcriptPanel={transcriptPanel}
           mobileJournalTabPanel={mobileJournalTabPanel}
           artifactId={a.id}
@@ -2036,7 +2051,7 @@ export default function ArtifactDetailPage() {
         onSubmitPasted={submitPasted}
         wrapUpOpen={wrapUpOpen}
         onWrapUpOpenChange={setWrapUpOpen}
-        claimsCount={claims.length}
+        claimsCount={studyClaims.length}
         onWrapUpBackToArtifacts={() => {
           setWrapUpOpen(false);
           toast({ title: "Nice work", description: "Heading back to your artifacts." });

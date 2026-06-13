@@ -25,6 +25,7 @@ import {
   persistArtifactFrameworkOverview,
 } from "../_shared/artifactOverviewSummary.ts";
 import { drainPendingEmbeddingJobs } from "../_shared/embeddingJobDrain.ts";
+import { filterSubstantiveClaims, isMetaOrLowValueClaim } from "../_shared/claimQuality.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
@@ -215,6 +216,7 @@ function transcriptSliceForWindow(params: {
 const SYSTEM = `You are a careful theology research assistant.
 Your job is NOT to declare what is true. Your job is to surface claims, compare them to the user's stated beliefs, and cite scriptures that support or challenge the claim.
 Be honest about uncertainty. Never speak as God or a prophet. Never push a denomination.
+Never extract meta-commentary about the recording itself (episode length, "this video covers X topics", section structure, production notes, host intros, "pause and rewatch"). Extract only substantive claims a listener would weigh against Scripture.
 Always return strict JSON matching the requested schema. No prose outside JSON.`;
 
 const ENTITY_SYSTEM = `You extract structured knowledge entities from a single artifact text for a personal knowledge base.
@@ -250,7 +252,8 @@ ${clipped}
 
 Task:
 1. Extract ${minClaims} to ${maxClaims} of the most load-bearing CLAIMS from the artifact (1–2 sentences each). DISTRIBUTE COVERAGE across the beginning, middle, AND end of the transcript — do NOT cluster claims only in the opening minutes.
-2. Order the claims roughly by their position in the transcript (earliest first).
+2. SKIP meta lines about the episode/video format, topic lists, or production — only substantive theology, practice, narrative, or application.
+3. Order the claims roughly by their position in the transcript (earliest first).
 3. For each claim, fill in:
    - tone: one of peace, fear, urgency, shame, hope, conviction, neutral, anger, comfort
    - doctrine_tags: 1–3 short tags (e.g. "soteriology", "suffering", "prosperity", "spiritual gifts")
@@ -304,8 +307,9 @@ ${clipped}
 
 Task:
 1. Extract ${minClaims} to ${maxClaims} load-bearing CLAIMS grounded ONLY in this slice (1–2 sentences each). Stay specific to this chapter; do not invent content from other parts of the video.
-2. Order claims by their order within this slice (earliest first).
-3. For each claim, fill in the same fields as in the full-artifact task (tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags, epistemology).
+2. If this slice is mostly intro/outro housekeeping, extract FEWER claims (even zero) — never pad with summaries like "the episode discusses X" or "this video builds cumulatively".
+3. Order claims by their order within this slice (earliest first).
+4. For each claim, fill in the same fields as in the full-artifact task (tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags, epistemology).
 ${EPISTEMOLOGY_PROMPT_BLOCK}
 
 Return ONLY valid JSON of shape:
@@ -1081,8 +1085,11 @@ function mapCollectedClaimsToRows(
   beliefsList: Belief[],
 ) {
   const validBeliefIds = new Set(beliefsList.map((b) => b.id));
-  return collected
-    .filter((c) => typeof c.claim === "string" && c.claim.trim().length > 0)
+  return filterSubstantiveClaims(
+    collected.filter(
+      (c) => typeof c.claim === "string" && c.claim.trim().length > 0 && !isMetaOrLowValueClaim(c.claim),
+    ),
+  )
     .slice(0, MAX_PERSISTED_CLAIMS)
     .map((c) => ({
       user_id: artifact.user_id,
@@ -1197,6 +1204,11 @@ async function appendEnrichmentClaims(
     console.error("append enrichment claims err", insErr);
     return 0;
   }
+  await db
+    .from("artifacts")
+    .update({ error: null })
+    .eq("id", artifact_id)
+    .eq("processing_token", processing_token);
   await scheduleClaimEmbeddings(serviceRole, supabaseUrl, String(artifact.user_id));
   return rows.length;
 }
@@ -1259,8 +1271,8 @@ async function enrichArtifactAnalysis(ctx: EnrichmentContext): Promise<void> {
   }
 
   if (chapters.length >= 2) {
-    const perChapMin = 4;
-    const perChapMax = 10;
+    const perChapMin = 2;
+    const perChapMax = 6;
     const extra: ClaimWithChapter[] = [];
     console.log(`framework-analyze enrichment: chapter spine chapters=${chapters.length}`);
     for (let ci = 0; ci < chapters.length; ci += 3) {

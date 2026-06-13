@@ -2,8 +2,10 @@ import { type ReactNode } from "react";
 import { TabsContent } from "@/components/ui/tabs";
 import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
 import MobileAppDock from "@/components/navigation/MobileAppDock";
-import { cn } from "@/lib/utils";
-import { artifactMobileDockPadding } from "@/lib/framework/artifactSurfaces";
+import {
+  artifactMobileTabPanelShell,
+  artifactMobileTabScrollPane,
+} from "@/lib/framework/artifactLayoutCss";
 import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";
 
 type MobileTab = "study" | "transcript" | "notes" | "journal";
@@ -43,6 +45,7 @@ type Props = {
 export default function ArtifactDetailMobileTabPanels({
   isDesktop,
   mobilePinnedPane,
+  mobileTab,
   transcriptPanel,
   mobileJournalTabPanel,
   artifactId,
@@ -65,23 +68,31 @@ export default function ArtifactDetailMobileTabPanels({
   onNoteSectionOpenChange,
 }: Omit<
   Props,
-  | "mobileTab"
   | "mobileInsightExploreOpen"
   | "onStudyClick"
   | "onTranscriptClick"
   | "onJournalClick"
   | "onMenuClick"
+  | "onHomeClick"
 >) {
   if (isDesktop) return null;
 
+  const showPinnedTabPanels = mobilePinnedPane && mobileTab !== "study";
+
   return (
-    <div className={cn(mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col")}>
+    <div
+      className={cn(
+        showPinnedTabPanels && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
+      )}
+    >
       <TabsContent
         value="transcript"
         id="transcript"
         className={cn(
           "mt-0 focus-visible:outline-none data-[state=inactive]:hidden",
-          mobilePinnedPane ? cn(artifactMobileDockPadding, "pb-8") : "flex min-h-0 flex-1 flex-col",
+          mobilePinnedPane
+            ? cn(artifactMobileTabPanelShell, "data-[state=active]:flex")
+            : "flex min-h-0 flex-1 flex-col",
         )}
       >
         {transcriptPanel}
@@ -99,7 +110,11 @@ export default function ArtifactDetailMobileTabPanels({
       {mobilePinnedPane ? (
         <TabsContent
           value="notes"
-          className="mt-0 focus-visible:outline-none data-[state=inactive]:hidden"
+          className={cn(
+            "mt-0 focus-visible:outline-none data-[state=inactive]:hidden",
+            artifactMobileTabScrollPane,
+            "data-[state=active]:flex",
+          )}
         >
           <ArtifactMobileNotesTab
             artifactId={artifactId}
@@ -120,6 +135,7 @@ export default function ArtifactDetailMobileTabPanels({
             onSeekMoment={onSeekMoment}
             noteSectionOpen={noteSectionOpen}
             onNoteSectionOpenChange={onNoteSectionOpenChange}
+            className="pb-0"
           />
         </TabsContent>
       ) : null}
