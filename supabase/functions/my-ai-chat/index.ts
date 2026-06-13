@@ -1027,18 +1027,32 @@ Deno.serve(async (req) => {
         const userPayload =
           `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nWrite the opening message.`;
         const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
-        if (!webRes.ok || !webRes.rawText.trim()) {
-          return jsonResponse({ error: webRes.err ?? "OpenAI web search failed" }, 502);
+        if (webRes.ok && webRes.rawText.trim()) {
+          const parsed = parseAssistantPayload(webRes.rawText);
+          reply = parsed.reply.trim() || webRes.rawText.trim();
+          citations = attachSourceAttribution(
+            dedupeCitations([
+              ...parsed.citations,
+              { source_type: "general", label: "Web search (OpenAI)" },
+            ]),
+            { includeGeneral, usedWeb: true },
+          );
+        } else {
+          const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
+          const fallbackSystem = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
+          const fallbackPayload =
+            `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${webBlock ? `${webBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
+          const chatRes = await callChatJson(fallbackSystem, fallbackPayload);
+          if (!chatRes.ok) {
+            return jsonResponse({ error: chatRes.err ?? webRes.err ?? "AI chat failed" }, 502);
+          }
+          const parsed = parseAssistantPayload(chatRes.rawText);
+          reply = parsed.reply;
+          citations = attachSourceAttribution(parsed.citations, {
+            includeGeneral,
+            usedWeb: false,
+          });
         }
-        const parsed = parseAssistantPayload(webRes.rawText);
-        reply = parsed.reply.trim() || webRes.rawText.trim();
-        citations = attachSourceAttribution(
-          dedupeCitations([
-            ...parsed.citations,
-            { source_type: "general", label: "Web search (OpenAI)" },
-          ]),
-          { includeGeneral, usedWeb: true },
-        );
       } else {
         const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
         const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);

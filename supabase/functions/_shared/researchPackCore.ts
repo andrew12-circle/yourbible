@@ -226,7 +226,11 @@ async function callGeminiJson(
     return { rawText: "", ok: false, err: `Gemini request failed (${geminiRes.status}): ${errText.slice(0, 500)}` };
   }
   const geminiJson: unknown = await geminiRes.json().catch(() => null);
-  return { rawText: extractGeminiText(geminiJson), ok: true };
+  const rawText = extractGeminiText(geminiJson);
+  if (!rawText.trim()) {
+    return { rawText: "", ok: false, err: "Gemini returned an empty response." };
+  }
+  return { rawText, ok: true };
 }
 
 type PassageVerse = { number: number; text: string };
@@ -249,6 +253,19 @@ async function fetchDefaultBibleId(
   if (isRecord(eng) && typeof eng.id === "string") return eng.id;
   const first = data[0];
   return isRecord(first) && typeof first.id === "string" ? first.id : null;
+}
+
+/** Prefer CLAIM_RESEARCH_DEFAULT_BIBLE_ID when it resolves; otherwise pick from bible-passage list. */
+async function resolveResearchBibleId(
+  supabaseUrl: string,
+  anonKey: string,
+): Promise<string | null> {
+  const envBible = Deno.env.get("CLAIM_RESEARCH_DEFAULT_BIBLE_ID")?.trim();
+  if (envBible && envBible.length > 4) {
+    const probe = await fetchChapterVerses(supabaseUrl, anonKey, envBible, "Jhn", 3);
+    if (!("error" in probe)) return envBible;
+  }
+  return fetchDefaultBibleId(supabaseUrl, anonKey);
 }
 
 async function fetchChapterVerses(
@@ -727,6 +744,76 @@ export type GenerateResearchPackInput = {
   webSearchQuery?: string;
 };
 
+type SectionOut = { body: string; epistemic: Epistemic; voices?: IndependentVoice[] };
+
+function buildFallbackResearchSections(
+  lensList: LensId[],
+  researchText: string,
+  scriptureBlock: string,
+  webSnippets: string,
+  usedWeb: boolean,
+): Record<string, SectionOut> {
+  const intro =
+    "The automated research model did not return a usable structured brief. Context gathered for this claim is below — continue in chat for a deeper pass.";
+  const out: Record<string, SectionOut> = {};
+  for (const lid of lensList) {
+    if (lid === "scripture_context" || lid === "bible_alignment") {
+      const hasScripture = scriptureBlock.includes("Fetched passage text");
+      out[lid] = {
+        epistemic: hasScripture ? "scripture_text" : "unknown",
+        body: hasScripture
+          ? `${intro}\n\n${scriptureBlock.slice(0, 6500)}`
+          : `${intro}\n\nNo passage text was retrieved for cited references.`,
+      };
+      continue;
+    }
+    if (lid === "synthesis") {
+      out[lid] = {
+        epistemic: "unknown",
+        body: `${intro}\n\n**Claim:** ${researchText.slice(0, 900)}\n\nUse chat to synthesize scripture, history, and opposing views.`,
+      };
+      continue;
+    }
+    out[lid] = {
+      epistemic: usedWeb && webSnippets.trim() ? "mixed" : "training_only",
+      body:
+        usedWeb && webSnippets.trim()
+          ? `${intro}\n\n**Claim:** ${researchText.slice(0, 500)}\n\n### Web snippets\n${webSnippets.slice(0, 2800)}`
+          : `${intro}\n\n**Claim:** ${researchText.slice(0, 900)}\n\nAsk in chat for ${lid.replace(/_/g, " ")}.`,
+    };
+  }
+  return out;
+}
+
+function parseResearchPackSections(
+  rawText: string,
+  lensList: LensId[],
+): Record<string, SectionOut> {
+  const sectionsOut: Record<string, SectionOut> = {};
+  try {
+    const parsed: unknown = JSON.parse(stripJsonFence(rawText));
+    if (isRecord(parsed) && isRecord(parsed.sections)) {
+      for (const lid of lensList) {
+        const cell = parsed.sections[lid];
+        if (!isRecord(cell)) continue;
+        const body = typeof cell.body === "string" ? cell.body.trim() : "";
+        const ep = typeof cell.epistemic === "string" ? cell.epistemic.trim() : "";
+        if (body && isEpistemic(ep)) {
+          const entry: SectionOut = { body, epistemic: ep };
+          if (lid === "independent_voices") {
+            const voices = parseIndependentVoices(cell);
+            if (voices?.length) entry.voices = voices;
+          }
+          sectionsOut[lid] = entry;
+        }
+      }
+    }
+  } catch {
+    /* fallthrough */
+  }
+  return sectionsOut;
+}
+
 export async function generateResearchPack(
   input: GenerateResearchPackInput,
 ): Promise<{ ok: true; data: ResearchPackResult } | { ok: false; error: string; status: number }> {
@@ -744,10 +831,7 @@ export async function generateResearchPack(
     webSearchQuery,
   } = input;
 
-  const envBible = Deno.env.get("CLAIM_RESEARCH_DEFAULT_BIBLE_ID")?.trim();
-  const bibleId = envBible && envBible.length > 4
-    ? envBible
-    : (await fetchDefaultBibleId(supabaseUrl, anonKey)) ?? "";
+  const bibleId = await resolveResearchBibleId(supabaseUrl, anonKey);
   if (!bibleId) {
     return { ok: false, error: "Could not resolve a Bible translation id (bibles list empty).", status: 502 };
   }
@@ -827,35 +911,15 @@ export async function generateResearchPack(
     webBlock,
   ].filter(Boolean).join("\n");
 
-  const gem = await callGeminiJson(systemText, userPayload, geminiApiKey);
+  let gem = await callGeminiJson(systemText, userPayload, geminiApiKey);
+  if (!gem.ok) {
+    gem = await callGeminiJson(systemText, userPayload, geminiApiKey);
+  }
   if (!gem.ok) return { ok: false, error: gem.err ?? "Gemini failed", status: 502 };
 
-  type SectionOut = { body: string; epistemic: Epistemic; voices?: IndependentVoice[] };
-  const sectionsOut: Record<string, SectionOut> = {};
-  try {
-    const parsed: unknown = JSON.parse(stripJsonFence(gem.rawText));
-    if (isRecord(parsed) && isRecord(parsed.sections)) {
-      for (const lid of lensList) {
-        const cell = parsed.sections[lid];
-        if (!isRecord(cell)) continue;
-        const body = typeof cell.body === "string" ? cell.body.trim() : "";
-        const ep = typeof cell.epistemic === "string" ? cell.epistemic.trim() : "";
-        if (body && isEpistemic(ep)) {
-          const entry: SectionOut = { body, epistemic: ep };
-          if (lid === "independent_voices") {
-            const voices = parseIndependentVoices(cell);
-            if (voices?.length) entry.voices = voices;
-          }
-          sectionsOut[lid] = entry;
-        }
-      }
-    }
-  } catch {
-    /* fallthrough */
-  }
-
+  let sectionsOut = parseResearchPackSections(gem.rawText, lensList);
   if (Object.keys(sectionsOut).length === 0) {
-    return { ok: false, error: "Model returned unusable JSON for sections.", status: 502 };
+    sectionsOut = buildFallbackResearchSections(lensList, researchText, scriptureBlock, webSnippets, usedWeb);
   }
 
   const hasScriptureText = scriptureEntries.some((e) => e.text && e.text.trim().length > 0);
@@ -993,10 +1057,7 @@ export async function discoverPassageSources(input: {
   const userQuestion = input.userQuestion?.trim().slice(0, 500) ?? "";
   const researchText = passageRef;
 
-  const envBible = Deno.env.get("CLAIM_RESEARCH_DEFAULT_BIBLE_ID")?.trim();
-  const bibleId = envBible && envBible.length > 4
-    ? envBible
-    : (await fetchDefaultBibleId(input.supabaseUrl, input.anonKey)) ?? "";
+  const bibleId = await resolveResearchBibleId(input.supabaseUrl, input.anonKey);
 
   let scripture: ScriptureEntry[] = [];
   if (bibleId) {

@@ -29,6 +29,7 @@ import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   readResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
+import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 
 type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
@@ -74,6 +75,20 @@ function claimResearchChatBodyExtras(packUseWeb: boolean) {
       ? ("deep" as const)
       : readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
   };
+}
+
+async function throwIfEdgeInvokeFailed(
+  functionName: string,
+  error: unknown,
+  data: unknown,
+): Promise<void> {
+  if (error) {
+    throw new Error(await edgeFunctionErrorMessage(functionName, error, data));
+  }
+  if (data && typeof data === "object" && "error" in data && typeof (data as { error?: unknown }).error === "string") {
+    const msg = (data as { error: string }).error.trim();
+    if (msg) throw new Error(msg);
+  }
 }
 
 const claimChatSessionPromises = new Map<string, Promise<{ entryId: string; chatId: string }>>();
@@ -164,11 +179,8 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           claim_research: { use_web: packUseWeb },
         },
       });
-      if (error) throw new Error(error.message);
-      const payload = data as ResearchPackResp | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
+      await throwIfEdgeInvokeFailed("claim-research-pack", error, data);
+      const payload = data as ResearchPackResp | null;
       if (!payload || typeof payload !== "object" || !("sections" in payload) || !payload.sections) {
         throw new Error("Unexpected response from research pack");
       }
@@ -250,11 +262,7 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           artifact_claim_id: research.claimId,
         },
       });
-      if (error) throw new Error(error.message);
-      const payload = data as MyAiInvokeOk | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
+      await throwIfEdgeInvokeFailed("my-ai-chat", error, data);
       await loadMessages(cId);
     },
     [research.claimId, research.transcriptExcerpt, includeGeneral, loadMessages, packUseWeb],
@@ -419,11 +427,8 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
         },
       });
       if (ignoreResult.current) return;
-      if (error) throw new Error(error.message);
-      const payload = data as MyAiInvokeOk | { error?: string } | null;
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        throw new Error(payload.error);
-      }
+      await throwIfEdgeInvokeFailed("my-ai-chat", error, data);
+      const payload = data as MyAiInvokeOk | null;
       if (latestRun?.id) void touchClaimResearchRunChat(supabase, latestRun.id, userId);
       void logClaimResearchEvent(supabase, {
         userId,
@@ -463,9 +468,8 @@ export function useClaimResearchWorkspace(userId: string, research: FloatingClai
           artifact_claim_id: research.claimId,
         },
       });
-      if (error) throw new Error(error.message);
+      await throwIfEdgeInvokeFailed("my-ai-chat", error, data);
       await loadMessages(cId);
-      void data;
     } catch (e) {
       toast({ title: "Retry failed", description: String(e), variant: "destructive" });
     } finally {
