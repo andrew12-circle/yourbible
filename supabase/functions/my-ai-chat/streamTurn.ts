@@ -96,6 +96,7 @@ export type StreamTurnParams = {
   resolvedDepth: ResolvedResponseDepth;
   skipUserInsert: boolean;
   excludeJournal: string | null;
+  librarySearch?: boolean;
   corsHeaders: Record<string, string>;
 };
 
@@ -111,6 +112,7 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
     resolvedDepth,
     skipUserInsert,
     excludeJournal,
+    librarySearch,
     corsHeaders,
   } = params;
 
@@ -127,7 +129,9 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         controller.enqueue(encoder.encode(": connected\n\n"));
 
         const [contextPack, partnerAppendix] = await Promise.all([
-          buildFrameworkRetrievalContext(supabase, userId, chatId, message, excludeJournal),
+          buildFrameworkRetrievalContext(supabase, userId, chatId, message, excludeJournal, {
+            librarySearch,
+          }),
           buildPartnerWalkingAppendixForAi(supabase, userId),
         ]);
 

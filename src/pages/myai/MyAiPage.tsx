@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
 import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
 import { chatTitleFromFirstMessage } from "@/lib/myai/chatTitle";
 import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
+import { myAiBodyForResearchScope, type MyAiResearchScope } from "@/lib/myai/researchScope";
 import { MyAiMark } from "@/components/myai/MyAiMark";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
@@ -297,6 +299,8 @@ export default function MyAiPage() {
   const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
+  const kbInset = useKeyboardInset();
+  const [composerFocused, setComposerFocused] = useState(false);
 
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [projects, setProjects] = useState<MyAiProjectRow[]>([]);
@@ -318,6 +322,9 @@ export default function MyAiPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const composerLockScrollYRef = useRef<number | null>(null);
+
+  useLockBodyScrollWhenKeyboardActive(composerFocused && !showHubShell, composerLockScrollYRef);
 
   const persistSidebar = (open: boolean) => {
     setSidebarOpen(open);
@@ -523,9 +530,11 @@ export default function MyAiPage() {
     }
   };
 
-  const send = async (textOverride?: string) => {
+  const send = async (textOverride?: string, scope?: MyAiResearchScope) => {
     const text = (textOverride ?? input).trim();
     if (!text || sending) return;
+
+    const scopeFlags = myAiBodyForResearchScope(scope, { includeGeneral, responseDepth });
 
     const editId =
       editingMessageId && !editingMessageId.startsWith("pending-") ? editingMessageId : null;
@@ -562,9 +571,8 @@ export default function MyAiPage() {
         body: {
           chat_id: routeChatId ?? null,
           message: text,
-          include_general_knowledge: includeGeneral,
-          response_depth: responseDepth,
           edit_user_message_id: editId,
+          ...scopeFlags,
         },
         onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
       });
@@ -624,8 +632,9 @@ export default function MyAiPage() {
     }
   };
 
-  const retryLast = async () => {
+  const retryWithScope = async (scope?: MyAiResearchScope) => {
     if (!routeChatId || sending) return;
+    const scopeFlags = myAiBodyForResearchScope(scope, { includeGeneral, responseDepth });
     const assistantTempId = `pending-retry-${Date.now()}`;
     setMessages((prev) => {
       let lastAssistantIdx = -1;
@@ -651,8 +660,7 @@ export default function MyAiPage() {
         body: {
           chat_id: routeChatId,
           retry_last: true,
-          include_general_knowledge: includeGeneral,
-          response_depth: responseDepth,
+          ...scopeFlags,
         },
         onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
       });
@@ -669,6 +677,24 @@ export default function MyAiPage() {
       abortRef.current = null;
       setSending(false);
     }
+  };
+
+  const retryLast = () => void retryWithScope();
+
+  const handleResearchScope = (scope: MyAiResearchScope) => {
+    const text = input.trim();
+    if (text) {
+      void send(text, scope);
+      return;
+    }
+    if (routeChatId && visibleMessages.some((m) => m.role === "user")) {
+      void retryWithScope(scope);
+      return;
+    }
+    toast({
+      title: "Ask something first",
+      description: "Type a question to send, or continue a chat before searching wider.",
+    });
   };
 
   const sidebarContent = (
@@ -814,7 +840,7 @@ export default function MyAiPage() {
             </Button>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pt-6 pb-40 sm:px-4">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4">
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
@@ -901,6 +927,7 @@ export default function MyAiPage() {
             input={input}
             onInputChange={setInput}
             onSend={() => void send()}
+            onResearchScope={handleResearchScope}
             onStop={sending ? stopGeneration : undefined}
             sending={sending}
             editingMessageId={editingMessageId}
@@ -921,6 +948,12 @@ export default function MyAiPage() {
             savingJournal={savingJournal}
             onNewChat={newChat}
             onOpenCognitiveState={() => setStateOpen(true)}
+            keyboardInset={kbInset}
+            onComposerPointerDown={() => {
+              composerLockScrollYRef.current = window.scrollY;
+            }}
+            onComposerFocus={() => setComposerFocused(true)}
+            onComposerBlur={() => setComposerFocused(false)}
           />
         </section>
       </div>

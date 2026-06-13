@@ -1465,7 +1465,7 @@ export default function ReaderPage() {
             className={cn(
               "relative flex flex-1 min-h-0 min-w-0",
               scrollMode &&
-                "overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]",
+                "overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide",
             )}
           >
             {paginationPending && showPaginationFallback ? (
@@ -1675,6 +1675,7 @@ export default function ReaderPage() {
 
   return (
     <div
+      data-bible-reader
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
         containedInHub && "flex h-full min-h-0 flex-col",
@@ -1845,12 +1846,12 @@ export default function ReaderPage() {
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className={`${overlayPos} top-20 bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={`${overlayPos} top-[calc(var(--safe-area-inset-top)+5rem)] bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className={`${overlayPos} top-20 bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={`${overlayPos} top-[calc(var(--safe-area-inset-top)+5rem)] bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
       />
         </>
       )}

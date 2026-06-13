@@ -150,24 +150,36 @@ type TranscriptChunkHit = {
 type EntityHit = { id: string; title: string; subtitle: string | null; kind: string; last_seen_at: string; similarity: number };
 type AsstHit = { id: string; chat_id: string; content: string; created_at: string; similarity: number };
 
+export type RetrievalOptions = {
+  /** Deep inward pass — more artifact matches + keyword scan of saved library. */
+  librarySearch?: boolean;
+};
+
 export async function buildFrameworkRetrievalContext(
   supabase: SupabaseClient,
   userId: string,
   chatId: string,
   userMessage: string,
   excludeJournalEntryId?: string | null,
+  options?: RetrievalOptions,
 ): Promise<RetrievedContextPack> {
+  const librarySearch = options?.librarySearch === true;
   const tokens = tokenize(userMessage);
   const queryVec = await getEmbedding(userMessage);
   const qLit = queryVec ? vecLiteral(queryVec) : null;
+  const beliefCount = librarySearch ? 14 : 12;
+  const journalCount = librarySearch ? 10 : 8;
+  const claimCount = librarySearch ? 20 : 10;
+  const transcriptCount = librarySearch ? 20 : 10;
+  const recentArtifactLimit = librarySearch ? 24 : 16;
 
   // Parallel fetch: profile + recent assistant chat history (always needed) + semantic hits + recent fallbacks.
   const semanticHits = qLit
     ? await Promise.all([
-        supabase.rpc("match_beliefs", { query_embedding: qLit, match_count: 12 }),
-        supabase.rpc("match_journals", { query_embedding: qLit, match_count: 8, exclude_id: excludeJournalEntryId ?? null }),
-        supabase.rpc("match_artifact_claims", { query_embedding: qLit, match_count: 10 }),
-        supabase.rpc("match_artifact_transcript", { query_embedding: qLit, match_count: 10, filter_artifact_id: null }),
+        supabase.rpc("match_beliefs", { query_embedding: qLit, match_count: beliefCount }),
+        supabase.rpc("match_journals", { query_embedding: qLit, match_count: journalCount, exclude_id: excludeJournalEntryId ?? null }),
+        supabase.rpc("match_artifact_claims", { query_embedding: qLit, match_count: claimCount }),
+        supabase.rpc("match_artifact_transcript", { query_embedding: qLit, match_count: transcriptCount, filter_artifact_id: null }),
         supabase.rpc("match_entities", { query_embedding: qLit, match_count: 8 }),
         supabase.rpc("match_assistant_messages", { query_embedding: qLit, match_count: 4, exclude_chat_id: chatId }),
       ])
@@ -182,7 +194,7 @@ export async function buildFrameworkRetrievalContext(
     supabase.from("belief_tensions").select("id, a_id, b_id, summary, severity, status").eq("user_id", userId).eq("status", "open").order("severity", { ascending: false }).limit(20),
     supabase.from("living_hope_workbook").select("content").eq("user_id", userId).maybeSingle(),
     supabase.from("living_hope_reviews").select("review_date,vision_recall,surrender_note,goal_touches,completed_at").eq("user_id", userId).order("review_date", { ascending: false }).limit(3),
-    supabase.from("artifacts").select("id, title, kind, status, metadata, created_at").eq("user_id", userId).neq("status", "failed").order("created_at", { ascending: false }).limit(16),
+    supabase.from("artifacts").select("id, title, kind, status, metadata, created_at").eq("user_id", userId).neq("status", "failed").order("created_at", { ascending: false }).limit(recentArtifactLimit),
   ]);
 
   const { data: cogState } = await supabase
@@ -262,7 +274,7 @@ export async function buildFrameworkRetrievalContext(
   }
 
   const claimHits = ((cRes && !cRes.error) ? (cRes.data ?? []) : []) as ClaimHit[];
-  const transcriptHits = ((tRes && !tRes.error) ? (tRes.data ?? []) : []) as TranscriptChunkHit[];
+  let transcriptHits = ((tRes && !tRes.error) ? (tRes.data ?? []) : []) as TranscriptChunkHit[];
   const entityHits = ((eRes && !eRes.error) ? (eRes.data ?? []) : []) as EntityHit[];
   const asstHits = ((mRes && !mRes.error) ? (mRes.data ?? []) : []) as AsstHit[];
 
@@ -283,6 +295,41 @@ export async function buildFrameworkRetrievalContext(
       .eq("user_id", userId)
       .in("id", missingArtifactIds);
     for (const row of (extraArtifacts ?? []) as ArtifactRow[]) artifactById.set(row.id, row);
+  }
+
+  if (librarySearch && tokens.length) {
+    const seenTranscriptKeys = new Set(transcriptHits.map((t) => `${t.artifact_id}:${t.start_seconds}`));
+    const { data: keywordArtifactRows } = await supabase
+      .from("artifacts")
+      .select("id, title, kind, status, metadata, raw_text")
+      .eq("user_id", userId)
+      .neq("status", "failed")
+      .order("created_at", { ascending: false })
+      .limit(36);
+    for (const row of (keywordArtifactRows ?? []) as (ArtifactRow & { raw_text?: string | null })[]) {
+      const title = artifactTitleFromRow(row);
+      const hay = `${title} ${row.raw_text ?? ""}`;
+      if (keywordHits(hay, tokens) < 1) continue;
+      artifactById.set(row.id, row);
+      if (seenTranscriptKeys.size >= 12) continue;
+      const excerpt = (row.raw_text ?? "").replace(/\s+/g, " ").trim();
+      if (!excerpt) continue;
+      const idx = hay.toLowerCase().indexOf(tokens[0] ?? "");
+      const start = Math.max(0, idx - 120);
+      const snippet = excerpt.slice(start, start + 420);
+      if (!snippet) continue;
+      seenTranscriptKeys.add(`${row.id}:kw`);
+      transcriptHits.push({
+        id: `kw-${row.id}`,
+        artifact_id: row.id,
+        start_seconds: 0,
+        end_seconds: null,
+        text: snippet,
+        metadata: { keyword_match: true },
+        similarity: 0.55,
+      });
+      if (transcriptHits.length >= 24) break;
+    }
   }
 
   const artifactLabel = (artifactId: string): string =>
@@ -337,7 +384,7 @@ export async function buildFrameworkRetrievalContext(
     return `[artifact:${t.artifact_id}] "${sourceBit}" @ ${end} — ${truncate(t.text.replace(/\s+/g, " "), 400)} (sim ${t.similarity.toFixed(2)})`;
   });
 
-  const libraryLines = recentArtifacts.slice(0, 12).map((a) => {
+  const libraryLines = recentArtifacts.slice(0, librarySearch ? 20 : 12).map((a) => {
     const title = artifactTitleFromRow(a);
     const channel = artifactChannelFromMeta(a.metadata);
     const kind = artifactKindLabel(a.kind);
@@ -398,7 +445,7 @@ export async function buildFrameworkRetrievalContext(
         })()
       : "(not generated yet — speak from raw context below)"),
     "## Identity summary (profiles.identity_summary)\n" + identityJson,
-    "## Your saved library — videos, podcasts & documents (look inward here FIRST; name titles when you use them)\n" + (libraryLines.length ? libraryLines.join("\n") : "(none imported yet)"),
+    "## Your saved library — videos, podcasts & documents (look inward here FIRST; name titles when you use them)\n" + (libraryLines.length ? libraryLines.join("\n") : "(none imported yet)") + (librarySearch ? "\n\n(Library deep-search mode — prioritize transcript moments and claims above.)" : ""),
     "## Transcript moments from your videos & artifacts (semantic — cite title + timestamp in prose when relevant)\n" + (transcriptLines.length ? transcriptLines.join("\n") : "(none — transcripts may still be processing)"),
     "## Claims extracted from your videos & artifacts\n" + (claimLines.length ? claimLines.join("\n") : "(none — run analysis on artifacts to extract claims)"),
     "## Most-relevant beliefs (cite with [belief:uuid])\n" + (beliefLines.length ? beliefLines.join("\n") : "(none)"),

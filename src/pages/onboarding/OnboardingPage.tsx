@@ -39,7 +39,7 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <motion.div className="min-h-screen app-mesh flex items-center justify-center">
+      <motion.div className="flex min-h-[100dvh] items-center justify-center pb-[max(1.5rem,var(--safe-area-inset-bottom))] pt-[max(1.5rem,var(--safe-area-inset-top))] app-mesh">
         <motion.div className="text-sm text-muted-foreground">Loading…</motion.div>
       </motion.div>
     );
@@ -76,7 +76,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen app-mesh flex flex-col items-center justify-center px-6 py-10">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-6 py-10 pb-[max(2.5rem,var(--safe-area-inset-bottom))] pt-[max(2.5rem,var(--safe-area-inset-top))] app-mesh">
       <motion.div className="w-full max-w-2xl" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         <motion.div className="flex items-center justify-center gap-2 mb-10">
           {Array.from({ length: STEPS }, (_, i) => (

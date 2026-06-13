@@ -1,3 +1,4 @@
+import { resolveYoutubeCaptionsViaEdge } from "@/lib/framework/youtubeEdgeCaptions";
 import { fetchYoutubeCaptionsViaInvidious } from "@/lib/framework/youtubeInvidiousCaptions";
 import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
 
@@ -6,13 +7,19 @@ export type ClientCaptionResolveResult = {
   attempts: string[];
 };
 
-/** Pull captions from the user's browser (residential IP) before hitting blocked edge servers. */
+/** Pull captions before the full transcript job runs (edge worker/race, then browser fallbacks). */
 export async function resolveClientYoutubeCaptions(videoId: string): Promise<ClientCaptionResolveResult> {
   const attempts: string[] = [];
 
+  const edge = await resolveYoutubeCaptionsViaEdge(videoId);
+  attempts.push(...edge.attempts);
+  if (edge.text?.trim()) {
+    return { text: edge.text.trim(), attempts };
+  }
+
   const browser = await fetchYoutubeCaptionsInBrowser(videoId);
   if (browser.text?.trim()) {
-    return { text: browser.text.trim(), attempts: ["browser: ok"] };
+    return { text: browser.text.trim(), attempts: [...attempts, "browser: ok"] };
   }
   attempts.push(`browser: ${browser.error?.trim() || "empty"}`);
 

@@ -65,14 +65,17 @@ export default function GlobalJournalLauncher() {
       {showChrome ? (
         <div
           className={cn(
-            "fixed right-0 z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
+            "fixed z-[45] flex -translate-y-1/2 flex-col items-stretch transition-[width] duration-200 ease-out",
             "top-1/2 rounded-l-xl border border-r-0 shadow-[-4px_0_14px_-4px_rgba(15,23,42,0.35)]",
             readerJournal
               ? "border-gold/25 bg-navy text-gold-bright"
               : "border-primary/20 bg-primary text-primary-foreground",
             launcherTucked ? "w-1 overflow-hidden" : readerJournal ? "w-8" : "w-11",
           )}
-          style={{ WebkitTapHighlightColor: "transparent" }}
+          style={{
+            right: "max(0px, env(safe-area-inset-right, 0px))",
+            WebkitTapHighlightColor: "transparent",
+          }}
         >
           {launcherTucked ? (
             <button

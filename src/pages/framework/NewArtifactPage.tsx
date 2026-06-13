@@ -518,16 +518,16 @@ export default function NewArtifactPage() {
             </div>
           )}
           {captionPrefetch.status === "loading" && youTubeVideoId ? (
-            <p className="text-xs text-muted-foreground mb-2">Checking for captions in your browser…</p>
+            <p className="text-xs text-muted-foreground mb-2">Checking for captions…</p>
           ) : null}
           {captionPrefetch.status === "ready" ? (
             <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
-              Captions found — submit will skip the slow server scrape and analyze immediately.
+              Captions found — submit will analyze immediately without waiting on slow fallbacks.
             </p>
           ) : null}
           {captionPrefetch.status === "unavailable" && youTubeVideoId ? (
             <p className="text-xs text-muted-foreground mb-2">
-              Browser caption check did not return text; the server will try parallel fetch + AssemblyAI if configured.
+              Caption auto-fetch did not return text yet; submit still tries the full server ladder (AssemblyAI when configured).
             </p>
           ) : null}
           <p className="text-xs text-muted-foreground mb-4">

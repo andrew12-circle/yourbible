@@ -52,7 +52,7 @@ const YT_WATCH_HEADERS = {
 };
 
 const TRANSCRIPT_JOB_DEADLINE_MS = Number(
-  Deno.env.get("TRANSCRIPT_JOB_DEADLINE_MS") ?? String(180 * 1000),
+  Deno.env.get("TRANSCRIPT_JOB_DEADLINE_MS") ?? String(9 * 60 * 1000),
 );
 
 function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -574,9 +574,8 @@ function serverCaptionsBlocked(tierAttempts: string[]): boolean {
 }
 
 function shouldSkipGeminiTranscribe(tierAttempts: string[]): boolean {
-  const captionSteps = tierAttempts.filter((s) => s.startsWith("Captions"));
-  if (captionSteps.length < 3) return false;
-  return !captionSteps.some((s) => /: ok/.test(s));
+  const joined = tierAttempts.join("; ").toLowerCase();
+  return joined.includes("transcripts are disabled") || joined.includes("transcript disabled");
 }
 
 function buildTranscriptFailureMessage(tierAttempts: string[], geminiError?: string): string {
@@ -777,8 +776,8 @@ async function transcribeYouTubeVideo(
     throw new Error(buildTranscriptFailureMessage(tierAttempts));
   }
 
-  if (shouldSkipGeminiTranscribe(tierAttempts) || serverCaptionsBlocked(tierAttempts)) {
-    tierAttempts.push("Gemini: skipped — use browser retry or paste (server caption fetch blocked)");
+  if (shouldSkipGeminiTranscribe(tierAttempts)) {
+    tierAttempts.push("Gemini: skipped — captions disabled on this video");
     throw new Error(buildTranscriptFailureMessage(tierAttempts));
   }
 

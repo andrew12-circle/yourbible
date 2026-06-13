@@ -12,7 +12,7 @@ function audioSecondsFromSegments(segments: TranscriptSegmentRow[]): number {
 
 const POLL_MS = 2500;
 /** Edge functions are killed before 15m; keep polling within server budget (override via env). */
-const MAX_WAIT_MS = Number(Deno.env.get("ASSEMBLYAI_MAX_WAIT_MS") ?? String(90 * 1000));
+const MAX_WAIT_MS = Number(Deno.env.get("ASSEMBLYAI_MAX_WAIT_MS") ?? String(8 * 60 * 1000));
 
 type AssemblyUtterance = {
   start?: number;

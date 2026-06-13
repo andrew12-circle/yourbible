@@ -214,6 +214,26 @@ const LAYER_WEB_RESEARCH = `# Web research mode (OpenAI web search enabled)
 const WEB_OUTPUT_CONTRACT = `# Output format
 Return plain markdown only — NOT JSON, NOT code fences. The user reads your reply directly in a chat UI.`;
 
+/** My AI + web search — inward framework first, live web second. */
+export function buildMyAiWebResearchSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+): string {
+  const layers = [
+    LAYER_IDENTITY_CHAT,
+    LAYER_INWARD_FIRST,
+    LAYER_EVOLUTION,
+    LAYER_RETRIEVAL,
+    LAYER_ANTI_GENERIC_CHAT,
+    LAYER_DEEP_WISDOM_CHAT,
+    LAYER_WEB_RESEARCH,
+    partnerLayer(partnerDigestMarkdown, false),
+    outsideLayer(includeGeneralKnowledge, false, "deep"),
+    WEB_OUTPUT_CONTRACT,
+  ].filter(Boolean);
+  return layers.join("\n\n");
+}
+
 /** Claim research chat with OpenAI web search — markdown replies, framework + web. */
 export function buildJournalChatWebResearchSystemPrompt(
   includeGeneralKnowledge: boolean,

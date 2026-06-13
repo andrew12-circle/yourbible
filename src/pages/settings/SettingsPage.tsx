@@ -65,7 +65,12 @@ export default function SettingsPage() {
         <div className="hidden md:block border-b px-4 py-4">
           <SettingsPageHeader showBack={false} activeSection={sectionMeta} />
         </div>
-        <div className="md:hidden border-b px-3 py-3">
+        <div
+          className={cn(
+            "md:hidden border-b px-3 py-3",
+            !showHubShell && "pt-[calc(var(--safe-area-inset-top)+0.75rem)]",
+          )}
+        >
           <SettingsPageHeader showBack={!showHubShell} activeSection={sectionMeta} />
         </div>
         <div className="hidden md:block">

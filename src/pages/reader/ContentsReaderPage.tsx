@@ -96,7 +96,7 @@ export default function ContentsReaderPage() {
           Contents
         </span>
       </div>
-      <div className="relative flex flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2">
+      <div className="relative flex flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide" data-bible-scroll>
         {testament === "all" ? (
           <BibleContentsPage onSelectBook={onSelectBook} />
         ) : testament === "ot" ? (
@@ -118,6 +118,7 @@ export default function ContentsReaderPage() {
 
   return (
     <div
+      data-bible-reader
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
         containedInHub && "flex h-full min-h-0 flex-col",

@@ -5,7 +5,7 @@ import { buildClaimChatWebBlock } from "../_shared/researchPackCore.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
-import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt } from "./systemPrompt.ts";
+import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt } from "./systemPrompt.ts";
 import { createStreamingChatResponse } from "./streamTurn.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
 
@@ -49,6 +49,8 @@ type RequestBody = {
   edit_user_message_id?: string | null;
   /** auto | reflect | deep — controls substantive vs reflective replies. */
   response_depth?: "auto" | "reflect" | "deep";
+  /** Per-turn inward/outward mode from My AI composer chips. */
+  research_scope?: "library" | "outside" | "web";
 };
 
 const BRACKET_CITATION_RE = /\[(?:artifact|journal|belief|entity|influence|tension):[0-9a-f-]{36}\]/i;
@@ -109,8 +111,8 @@ async function loadClaimChatWebBlock(
   return ws.usedWeb ? `${WEB_CHAT_TURN_INSTRUCTIONS}\n\n${ws.block}` : ws.block;
 }
 
-function shouldUseOpenAiWebResearch(chatUseWeb: boolean, claimPackId: string, chatCfg: ReturnType<typeof getChatConfig>): boolean {
-  return chatUseWeb && !!claimPackId && !("error" in chatCfg) && chatCfg.provider === "openai";
+function shouldUseOpenAiWebResearch(chatUseWeb: boolean, chatCfg: ReturnType<typeof getChatConfig>): boolean {
+  return chatUseWeb && !("error" in chatCfg) && chatCfg.provider === "openai";
 }
 
 function buildClaimChatUserPayload(
@@ -148,8 +150,10 @@ async function generateClaimChatReply(
   const chatCfg = getChatConfig();
   if ("error" in chatCfg) return { error: chatCfg.error };
 
-  if (shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)) {
-    const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
+  if (shouldUseOpenAiWebResearch(chatUseWeb, chatCfg)) {
+    const systemText = claimPackId || journalMode
+      ? buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix)
+      : buildMyAiWebResearchSystemPrompt(includeGeneral, partnerAppendix);
     const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, "", message, false);
     const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
     if (!webRes.ok || !webRes.rawText.trim()) {
@@ -1010,7 +1014,7 @@ Deno.serve(async (req) => {
 
       const bootstrapUseWeb = body.claim_research?.use_web === true;
       const bootstrapChatCfg = getChatConfig();
-      const webBlock = bootstrapUseWeb && packClaimId && !shouldUseOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)
+      const webBlock = bootstrapUseWeb && packClaimId && !shouldUseOpenAiWebResearch(bootstrapUseWeb, bootstrapChatCfg)
         ? await loadClaimChatWebBlock(supabase, userId, packClaimId, "")
         : "";
 
@@ -1018,7 +1022,7 @@ Deno.serve(async (req) => {
       let citations: Citation[] = [];
       const includeGeneral = body.include_general_knowledge === true;
 
-      if (shouldUseOpenAiWebResearch(bootstrapUseWeb, packClaimId, bootstrapChatCfg)) {
+      if (shouldUseOpenAiWebResearch(bootstrapUseWeb, bootstrapChatCfg)) {
         const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
         const userPayload =
           `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${openerSeed}\n\nWrite the opening message.`;
@@ -1270,16 +1274,27 @@ Deno.serve(async (req) => {
     const hqPackIdRaw = typeof body.hard_question_id === "string" ? body.hard_question_id.trim() : "";
     const hqPackId = /^[0-9a-f-]{36}$/i.test(hqPackIdRaw) ? hqPackIdRaw : "";
 
-    const chatUseWeb = body.claim_research?.use_web === true;
+    const researchScope =
+      body.research_scope === "library" || body.research_scope === "outside" || body.research_scope === "web"
+        ? body.research_scope
+        : null;
+    const librarySearch = researchScope === "library";
+
+    const chatUseWeb = body.claim_research?.use_web === true || researchScope === "web";
 
     let resolvedDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), message);
-    if (chatUseWeb && claimPackId && resolvedDepth !== "deep") {
+    if ((chatUseWeb && claimPackId && resolvedDepth !== "deep") || researchScope === "outside" || researchScope === "web") {
       resolvedDepth = "deep";
     }
 
-    const includeGeneral = journalMode
+    let includeGeneral = journalMode
       ? body.include_general_knowledge === true
       : body.include_general_knowledge !== false;
+    if (researchScope === "library") {
+      includeGeneral = false;
+    } else if (researchScope === "outside" || researchScope === "web") {
+      includeGeneral = true;
+    }
 
     const useStream = body.stream !== false && !chatUseWeb && !claimPackId;
 
@@ -1294,6 +1309,7 @@ Deno.serve(async (req) => {
         resolvedDepth,
         skipUserInsert,
         excludeJournal,
+        librarySearch,
         corsHeaders,
       });
     }
@@ -1304,6 +1320,7 @@ Deno.serve(async (req) => {
       chatId!,
       message,
       excludeJournal,
+      { librarySearch },
     );
     const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
     const researchPackBlock = claimPackId
@@ -1311,7 +1328,7 @@ Deno.serve(async (req) => {
       : hqPackId
       ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
       : "";
-    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, claimPackId, chatCfg)
+    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, chatCfg)
       ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
       : "";
 

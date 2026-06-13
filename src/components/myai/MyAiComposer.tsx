@@ -23,7 +23,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
+import MyAiResearchChips from "@/components/myai/MyAiResearchChips";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import type { MyAiResearchScope } from "@/lib/myai/researchScope";
 import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
 import { myAiComposerColumn, myAiInputShell } from "@/lib/myai/myAiTheme";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
@@ -41,7 +43,8 @@ const MAX_HEIGHT_PX = textareaHeightForLines(6);
 type Props = {
   input: string;
   onInputChange: Dispatch<SetStateAction<string>>;
-  onSend: () => void;
+  onSend: (textOverride?: string) => void;
+  onResearchScope?: (scope: MyAiResearchScope) => void;
   onStop?: () => void;
   sending: boolean;
   editingMessageId?: string | null;
@@ -59,6 +62,10 @@ type Props = {
   savingJournal: boolean;
   onNewChat: () => void;
   onOpenCognitiveState: () => void;
+  keyboardInset?: number;
+  onComposerPointerDown?: () => void;
+  onComposerFocus?: () => void;
+  onComposerBlur?: () => void;
   className?: string;
 };
 
@@ -66,6 +73,7 @@ export default function MyAiComposer({
   input,
   onInputChange,
   onSend,
+  onResearchScope,
   onStop,
   sending,
   editingMessageId,
@@ -83,6 +91,10 @@ export default function MyAiComposer({
   savingJournal,
   onNewChat,
   onOpenCognitiveState,
+  keyboardInset = 0,
+  onComposerPointerDown,
+  onComposerFocus,
+  onComposerBlur,
   className,
 }: Props) {
   const localTaRef = useRef<HTMLTextAreaElement>(null);
@@ -113,7 +125,11 @@ export default function MyAiComposer({
         "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4",
         className,
       )}
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+      style={{
+        paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
+        transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined,
+        transition: "transform 120ms ease-out",
+      }}
     >
       <div className={cn("pointer-events-auto", myAiComposerColumn)}>
         {editingMessageId ? (
@@ -138,6 +154,9 @@ export default function MyAiComposer({
                 handleSend();
               }
             }}
+            onPointerDown={onComposerPointerDown}
+            onFocus={onComposerFocus}
+            onBlur={onComposerBlur}
             rows={1}
             spellCheck
             disabled={sending}
@@ -145,7 +164,7 @@ export default function MyAiComposer({
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
               "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-1.5",
-              "text-sm leading-snug shadow-none placeholder:text-muted-foreground/70",
+              "text-base leading-snug shadow-none placeholder:text-muted-foreground/70 sm:text-sm",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
               "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
             )}
@@ -283,6 +302,14 @@ export default function MyAiComposer({
           <p className="mt-1.5 px-2 text-[11px] italic leading-relaxed text-muted-foreground" aria-live="polite">
             {dictInterim}
           </p>
+        ) : null}
+
+        {onResearchScope ? (
+          <MyAiResearchChips
+            disabled={sending}
+            onScope={onResearchScope}
+            className="mt-2 justify-center sm:justify-start"
+          />
         ) : null}
 
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground">

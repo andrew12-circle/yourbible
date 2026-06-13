@@ -12,6 +12,8 @@
   :root {
     --safe-area-inset-top: env(safe-area-inset-top, 0px);
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
     --safe-area-bottom-gutter: max(1rem, var(--safe-area-inset-bottom));
 
     /* Page surfaces */
@@ -1134,8 +1136,27 @@
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
-  .scrollbar-hide { scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  /* Bible reader — scripture scrolls, scrollbars never show */
+  [data-bible-reader] [data-ink-anchor],
+  [data-bible-reader] [data-bible-scroll],
+  [data-bible-reader] [data-reading-area] {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scrollbar-gutter: auto;
+  }
+  [data-bible-reader] [data-ink-anchor]::-webkit-scrollbar,
+  [data-bible-reader] [data-bible-scroll]::-webkit-scrollbar,
+  [data-bible-reader] [data-reading-area]::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 
   .ink-toolbar-scroll {
     scrollbar-width: thin;
@@ -1231,6 +1252,7 @@
 
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
+  .pt-safe { padding-top: max(1rem, var(--safe-area-inset-top)); }
   .pb-safe { padding-bottom: var(--safe-area-bottom-gutter); }
   .pb-safe-16 { padding-bottom: calc(4rem + var(--safe-area-inset-bottom)); }
   .pb-safe-20 { padding-bottom: calc(5rem + var(--safe-area-inset-bottom)); }

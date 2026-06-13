@@ -58,7 +58,11 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         ? { paddingBottom: "max(1.5rem, var(--safe-area-inset-bottom))" }
         : side === "top"
           ? { paddingTop: "max(1.5rem, var(--safe-area-inset-top))" }
-          : {};
+          : side === "left"
+            ? { paddingLeft: "max(1rem, var(--safe-area-inset-left))" }
+            : side === "right"
+              ? { paddingRight: "max(1rem, var(--safe-area-inset-right))" }
+              : {};
 
     return (
       <SheetPortal>

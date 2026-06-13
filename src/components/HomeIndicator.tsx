@@ -15,13 +15,19 @@ export default function HomeIndicator() {
     pathname !== "/framework/artifacts/new" &&
     pathname !== "/framework/artifacts/live";
 
+  const hasBottomComposer =
+    pathname.startsWith("/my-ai") ||
+    pathname.startsWith("/journal/chat") ||
+    pathname === "/framework/chat/legacy";
+
   const hidden =
     showHubShell ||
     pathname === "/" ||
     pathname === "/home" ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/onboarding") ||
-    isArtifactDetail;
+    isArtifactDetail ||
+    hasBottomComposer;
 
   if (hidden) return null;
 

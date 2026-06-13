@@ -99,7 +99,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 app-mesh relative overflow-hidden">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-6 pb-[max(1.5rem,var(--safe-area-inset-bottom))] pt-[max(1.5rem,var(--safe-area-inset-top))] app-mesh">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

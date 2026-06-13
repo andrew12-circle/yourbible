@@ -21,6 +21,8 @@ export type MyAiChatRequestBody = {
   journal_bootstrap_opener?: boolean;
   journal_bootstrap_artifact_claim_id?: string;
   journal_bootstrap_transcript_excerpt?: string | null;
+  /** Deep inward search — videos, claims, transcripts, library inventory. */
+  research_scope?: "library" | "outside" | "web";
 };
 
 export type MyAiChatDoneEvent = {

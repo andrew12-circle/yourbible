@@ -722,7 +722,7 @@ export default function FloatingJournalPanel({
         top: geom.y,
         width: geom.w,
         height: geom.h,
-        maxHeight: `calc(100vh - ${PANEL_MARGIN * 2}px)`,
+        maxHeight: `calc(100dvh - ${PANEL_MARGIN * 2}px)`,
       }}
     >
       <header
