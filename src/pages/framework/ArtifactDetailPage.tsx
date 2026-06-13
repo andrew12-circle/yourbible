@@ -612,19 +612,41 @@ export default function ArtifactDetailPage() {
   const playClaimAtSource = useCallback(
     (claim: Claim, source: TranscriptSegment | null | undefined) => {
       const seconds = getClaimSeekSeconds(claim, source ?? null, claimSeekContext);
-      const willPlay = seconds != null || source?.startSeconds != null;
-      const needsTranscriptTab = !isDesktop && Boolean(source) && !willPlay;
+      const canPlay = seconds != null || source?.startSeconds != null;
 
-      if (needsTranscriptTab) openTranscriptTab();
-      if (isDesktop || needsTranscriptTab) {
-        focusTranscriptSegment(source ?? null, needsTranscriptTab ? { deferMs: 100 } : undefined);
+      if (canPlay) {
+        const seekTo = seconds ?? Math.max(0, Math.floor(source!.startSeconds!));
+        seekVideoToSeconds(seekTo, { play: true, scrollTranscript: false });
+        return;
       }
 
+      // No timestamp — "Jump to transcript" fallback only.
+      if (!isDesktop) openTranscriptTab();
+      focusTranscriptSegment(source ?? null, !isDesktop ? { deferMs: 100 } : undefined);
+      scrollToClaimById(claim.id);
+    },
+    [
+      claimSeekContext,
+      focusTranscriptSegment,
+      isDesktop,
+      openTranscriptTab,
+      scrollToClaimById,
+      seekVideoToSeconds,
+    ],
+  );
+
+  const seeClaimInTranscript = useCallback(
+    (claimId: string) => {
+      const claim = claims.find((c) => c.id === claimId);
+      if (!claim) return;
+      const source = claimSources[claim.id];
+      if (!isDesktop) openTranscriptTab();
+      focusTranscriptSegment(source ?? null, !isDesktop ? { deferMs: 100 } : undefined);
+      const seconds = getClaimSeekSeconds(claim, source ?? null, claimSeekContext);
       if (seconds != null) {
         seekVideoToSeconds(seconds, { play: true });
         return;
       }
-
       scrollToClaimById(claim.id);
       if (source?.startSeconds != null) {
         seekVideoToSeconds(source.startSeconds, { play: true });
@@ -632,6 +654,8 @@ export default function ArtifactDetailPage() {
     },
     [
       claimSeekContext,
+      claimSources,
+      claims,
       focusTranscriptSegment,
       isDesktop,
       openTranscriptTab,
@@ -1594,10 +1618,7 @@ export default function ArtifactDetailPage() {
             onNavigate={navigateToArtifactHash}
             onSelectClaim={openDesktopInsightExplore}
             onSeeScripture={openDesktopInsightExplore}
-            onSeeInTranscript={(claimId) => {
-              const claim = claims.find((c) => c.id === claimId);
-              if (claim) void playClaimAtSource(claim, claimSources[claim.id]);
-            }}
+            onSeeInTranscript={seeClaimInTranscript}
           />
         )
       ) : null}

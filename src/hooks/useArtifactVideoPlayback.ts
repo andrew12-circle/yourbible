@@ -265,7 +265,7 @@ export function useArtifactVideoPlayback(options: {
   );
 
   const seekVideoToSeconds = useCallback(
-    (seconds: number, opts?: { play?: boolean }) => {
+    (seconds: number, opts?: { play?: boolean; scrollTranscript?: boolean }) => {
       const start = Math.max(0, Math.floor(seconds));
       playbackFallbackRef.current = start;
       persistSeconds(start);
@@ -281,7 +281,7 @@ export function useArtifactVideoPlayback(options: {
         if (opts?.play) activatePlayer({ autoplay: true });
         youtubePlayer.seekTo(start, { play: opts?.play });
       }
-      scrollTranscriptToSeconds(start);
+      if (opts?.scrollTranscript !== false) scrollTranscriptToSeconds(start);
     },
     [
       activatePlayer,
