@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
 import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
@@ -42,6 +43,7 @@ type Props = {
     embeddingPending?: boolean;
     onReload?: () => void;
   };
+  pinnedVideoPane?: boolean;
   className?: string;
 };
 
@@ -58,6 +60,7 @@ export default function ArtifactMobileOverview({
   activeClaimId,
   onSeeScripture,
   corpusStanding,
+  pinnedVideoPane = false,
   className,
 }: Props) {
   const [entitiesExpanded, setEntitiesExpanded] = useState(false);
@@ -68,28 +71,6 @@ export default function ArtifactMobileOverview({
       className={cn("space-y-10 md:space-y-12", className)}
       aria-label="Study overview"
     >
-      {frameworkOverview ? (
-        <ArtifactOverviewSummary overview={frameworkOverview} headerClassName={artifactMobileStudyContentInset} />
-      ) : null}
-
-      {corpusStanding ? (
-        <ArtifactLibraryStanding
-          artifactId={artifactId}
-          claimsCount={claimsCount}
-          agreeCount={corpusStanding.agreeCount}
-          disagreeCount={corpusStanding.disagreeCount}
-          newCount={corpusStanding.newCount}
-          peerLibraryCount={corpusStanding.peerLibraryCount}
-          peers={corpusStanding.peers}
-          echoClaimCount={corpusStanding.echoClaimCount}
-          loading={corpusStanding.loading}
-          error={corpusStanding.error}
-          embeddingPending={corpusStanding.embeddingPending}
-          onReload={corpusStanding.onReload}
-          headerClassName={artifactMobileStudyContentInset}
-        />
-      ) : null}
-
       {claimsCount > 0 ? (
         <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
           <ArtifactStudySectionHeader
@@ -105,6 +86,38 @@ export default function ArtifactMobileOverview({
             onSeeScripture={onSeeScripture}
           />
         </div>
+      ) : null}
+
+      {frameworkOverview ? (
+        <ArtifactOverviewSummary overview={frameworkOverview} headerClassName={artifactMobileStudyContentInset} />
+      ) : null}
+
+      {corpusStanding ? (
+        <ArtifactCollapsibleSection
+          id="library-standing"
+          title="In your library"
+          description="How this source compares to everything else you've fed in — and to your beliefs."
+          defaultOpenMobile={false}
+          defaultOpenDesktop
+          pinnedVideoPane={pinnedVideoPane}
+          storageKey={artifactId ? `artifact-library-standing:${artifactId}` : undefined}
+        >
+          <ArtifactLibraryStanding
+            artifactId={artifactId}
+            claimsCount={claimsCount}
+            agreeCount={corpusStanding.agreeCount}
+            disagreeCount={corpusStanding.disagreeCount}
+            newCount={corpusStanding.newCount}
+            peerLibraryCount={corpusStanding.peerLibraryCount}
+            peers={corpusStanding.peers}
+            echoClaimCount={corpusStanding.echoClaimCount}
+            loading={corpusStanding.loading}
+            error={corpusStanding.error}
+            embeddingPending={corpusStanding.embeddingPending}
+            onReload={corpusStanding.onReload}
+            hideHeader
+          />
+        </ArtifactCollapsibleSection>
       ) : null}
 
       <div id="people-themes" className="scroll-mt-4 space-y-4 md:space-y-5">

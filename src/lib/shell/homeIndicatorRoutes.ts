@@ -15,6 +15,11 @@ export function hasBottomComposerRoute(pathname: string): boolean {
   );
 }
 
+/** Bible reader with fixed bottom dock — hide the home-indicator pill. */
+export function hasReaderMobileDockRoute(pathname: string, showHubShell: boolean): boolean {
+  return !showHubShell && pathname.startsWith("/read/");
+}
+
 export function homeIndicatorHidden(pathname: string, showHubShell: boolean): boolean {
   return (
     showHubShell ||
@@ -23,6 +28,7 @@ export function homeIndicatorHidden(pathname: string, showHubShell: boolean): bo
     pathname.startsWith("/auth") ||
     pathname.startsWith("/onboarding") ||
     isArtifactDetailRoute(pathname) ||
-    hasBottomComposerRoute(pathname)
+    hasBottomComposerRoute(pathname) ||
+    hasReaderMobileDockRoute(pathname, showHubShell)
   );
 }

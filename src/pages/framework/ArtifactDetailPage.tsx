@@ -76,6 +76,7 @@ import {
 import { getClaimSeekSeconds } from "@/lib/framework/claimPlaybackSync";
 import { resolveDesktopPremiumStudyPane } from "@/lib/framework/artifactDesktopStudyPane";
 import { scrollMobileInsightPickerIntoView } from "@/lib/framework/scrollMobileInsightPickerIntoView";
+import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
 import { ARTIFACT_STUDY_PANE_SELECTOR } from "@/lib/framework/artifactLayoutCss";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
 import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
@@ -1658,6 +1659,7 @@ export default function ArtifactDetailPage() {
           entitiesCount={entitiesCount}
           frameworkOverview={frameworkOverview}
           corpusStanding={corpusStanding}
+          pinnedVideoPane={mobilePinnedPane}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}
@@ -1957,6 +1959,7 @@ export default function ArtifactDetailPage() {
       </ArtifactDetailStudyColumnWrapper>
         </div>
       ) : null}
+        </div>
 
       {!isDesktop ? (
         <ArtifactDetailMobileTabPanels
@@ -1985,7 +1988,6 @@ export default function ArtifactDetailPage() {
           onNoteSectionOpenChange={setMobileNoteSectionOpen}
         />
       ) : null}
-        </div>
         </div>
         </div>
 

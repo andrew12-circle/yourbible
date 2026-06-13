@@ -27,6 +27,8 @@ type Props = {
   onReload?: () => void;
   className?: string;
   headerClassName?: string;
+  /** When wrapped in an outer collapsible (mobile overview). */
+  hideHeader?: boolean;
 };
 
 function PeerRow({ peer, currentArtifactId }: { peer: CorpusPeerMatch; currentArtifactId: string }) {
@@ -80,6 +82,7 @@ export default function ArtifactLibraryStanding({
   onReload,
   className,
   headerClassName,
+  hideHeader = false,
 }: Props) {
   const navigate = useNavigate();
   const alignment = beliefAlignmentFromCounts(agreeCount, disagreeCount, newCount);
@@ -88,17 +91,23 @@ export default function ArtifactLibraryStanding({
 
   return (
     <section
-      id="library-standing"
-      className={cn(artifactScrollMt, "space-y-4 scroll-mt-28", className)}
+      id={hideHeader ? undefined : "library-standing"}
+      className={cn(
+        hideHeader ? "space-y-0" : cn(artifactScrollMt, "scroll-mt-28"),
+        "space-y-4",
+        className,
+      )}
       aria-label="Library standing"
     >
-      <ArtifactStudySectionHeader
-        title="In your library"
-        description="How this source compares to everything else you've fed in — and to your beliefs."
-        actionLabel={hasLibrary ? "Full library map" : undefined}
-        onAction={hasLibrary ? () => navigate("/framework/library-standing") : undefined}
-        className={headerClassName}
-      />
+      {!hideHeader ? (
+        <ArtifactStudySectionHeader
+          title="In your library"
+          description="How this source compares to everything else you've fed in — and to your beliefs."
+          actionLabel={hasLibrary ? "Full library map" : undefined}
+          onAction={hasLibrary ? () => navigate("/framework/library-standing") : undefined}
+          className={headerClassName}
+        />
+      ) : null}
 
       <div className={cn(artifactCard, "space-y-5 p-4 sm:p-5 md:p-6")}>
         {claimsCount > 0 ? (

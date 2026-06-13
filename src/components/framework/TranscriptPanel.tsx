@@ -369,9 +369,9 @@ export default function TranscriptPanel({
     if (!autoScrollEnabled) return;
     if (!playerReady || searchActive || !activeSegmentId || !highlightActive) return;
     if (Date.now() < userPausedFollowUntilRef.current) return;
-    if (!playbackMoving) return;
 
     const segmentChanged = prevActiveSegmentIdRef.current !== activeSegmentId;
+    if (!playbackMoving && !segmentChanged) return;
     prevActiveSegmentIdRef.current = activeSegmentId;
 
     const container = useOuterScroll

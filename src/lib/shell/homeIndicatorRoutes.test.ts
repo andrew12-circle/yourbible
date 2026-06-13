@@ -6,11 +6,12 @@ import {
 } from "@/lib/shell/homeIndicatorRoutes";
 
 describe("homeIndicatorRoutes", () => {
-  it("hides on home, auth, and composer routes", () => {
+  it("hides on home, auth, composer, and reader dock routes", () => {
     expect(homeIndicatorHidden("/home", false)).toBe(true);
     expect(homeIndicatorHidden("/auth", false)).toBe(true);
     expect(homeIndicatorHidden("/my-ai", false)).toBe(true);
     expect(homeIndicatorHidden("/journal/chat", false)).toBe(true);
+    expect(homeIndicatorHidden("/read/Jhn/1", false)).toBe(true);
     expect(homeIndicatorHidden("/settings", false)).toBe(false);
   });
 

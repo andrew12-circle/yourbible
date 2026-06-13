@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import ArtifactMobileNotesTab from "@/components/framework/artifact-detail/ArtifactMobileNotesTab";
 import MobileAppDock from "@/components/navigation/MobileAppDock";
 import {

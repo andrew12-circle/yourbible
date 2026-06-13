@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type MutableRefObject, type ReactNode } from "react";
 import TranscriptPanel from "@/components/framework/TranscriptPanel";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";

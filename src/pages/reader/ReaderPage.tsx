@@ -59,6 +59,7 @@ import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
+import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { BookPaginator } from "@/components/bible/BookPaginator";
@@ -1462,6 +1463,7 @@ export default function ReaderPage() {
           <div
             ref={getInkAnchorRef(inkLayerId)}
             data-ink-anchor={inkLayerId}
+            data-bible-scroll={scrollMode ? "" : undefined}
             className={cn(
               "relative flex flex-1 min-h-0 min-w-0",
               scrollMode &&
@@ -1673,14 +1675,16 @@ export default function ReaderPage() {
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
+  const showReaderDock = !showHubShell && compactChrome && !focusMode;
+
   return (
     <div
       data-bible-reader
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
-        containedInHub && "flex h-full min-h-0 flex-col",
+        (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
         showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
-        !showHubShell && "min-h-[100dvh]",
+        !showHubShell && "h-[100dvh]",
         focusMode && "saturate-[0.88] contrast-[0.97] bg-paper/98",
       )}
     >
@@ -1777,11 +1781,21 @@ export default function ReaderPage() {
         />
       ) : null}
 
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          overlayPos,
+          "inset-x-0 top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          showReaderDock
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
+            : "bottom-0",
+        )}
+      >
       <BookScene
         progress={progress}
         singlePage={!effectiveSpread}
         tabletPortrait={tabletPortrait}
-        fillContainer={containedInHub}
+        fillContainer
         pageSide="left"
         coverStyle={readerCoverStyle}
         coverClassName={readerCoverClass}
@@ -1839,6 +1853,7 @@ export default function ReaderPage() {
           )
         }
       />
+      </div>
 
       {/* Page-turn hot zones — narrow strips at the screen edge */}
       {!scrollMode && (
@@ -1846,12 +1861,26 @@ export default function ReaderPage() {
       <button
         onClick={() => goPage(-1)}
         aria-label="Previous page"
-        className={`${overlayPos} top-[calc(var(--safe-area-inset-top)+5rem)] bottom-safe-16 left-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={cn(
+          overlayPos,
+          "top-[calc(var(--safe-area-inset-top)+5rem)] left-0 w-8 z-[5] opacity-0",
+          showReaderDock
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+            : "bottom-safe-16",
+          inkMode && "pointer-events-none",
+        )}
       />
       <button
         onClick={() => goPage(1)}
         aria-label="Next page"
-        className={`${overlayPos} top-[calc(var(--safe-area-inset-top)+5rem)] bottom-safe-16 right-0 w-8 z-[5] opacity-0 ${inkMode ? "pointer-events-none" : ""}`}
+        className={cn(
+          overlayPos,
+          "top-[calc(var(--safe-area-inset-top)+5rem)] right-0 w-8 z-[5] opacity-0",
+          showReaderDock
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+            : "bottom-safe-16",
+          inkMode && "pointer-events-none",
+        )}
       />
         </>
       )}
@@ -2012,6 +2041,10 @@ export default function ReaderPage() {
       )}
 
       {!focusMode && <CompanionPane />}
+
+      {showReaderDock ? (
+        <ReaderFloatingTabBar bibleTo={`/read/${book.abbr}/${chapter}`} />
+      ) : null}
     </div>
   );
 }

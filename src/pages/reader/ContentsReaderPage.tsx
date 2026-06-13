@@ -5,6 +5,7 @@ import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BookScene } from "@/components/bible/BookScene";
 import { BibleContentsPage } from "@/components/bible/BibleContentsPage";
 import { TopBar } from "@/components/bible/TopBar";
+import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
 import { useReaderSpread, useReaderCompactChrome } from "@/hooks/use-reader-layout";
 import {
@@ -39,6 +40,7 @@ export default function ContentsReaderPage() {
   const readerSpread = useReaderSpread();
   const compactChrome = useReaderCompactChrome();
   const effectiveSpread = readerSpread && !compactChrome;
+  const showReaderDock = !showHubShell && compactChrome;
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
@@ -121,9 +123,9 @@ export default function ContentsReaderPage() {
       data-bible-reader
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
-        containedInHub && "flex h-full min-h-0 flex-col",
+        (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
         showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
-        !showHubShell && "min-h-[100dvh]",
+        !showHubShell && "h-[100dvh]",
       )}
     >
       <TopBar
@@ -156,16 +158,19 @@ export default function ContentsReaderPage() {
 
       <div
         className={cn(
-          containedInHub ? "flex flex-1 min-h-0 flex-col" : "",
+          "flex min-h-0 flex-1 flex-col",
           overlayPos,
-          "inset-x-0 bottom-0 top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          "inset-x-0 top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          showReaderDock
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
+            : "bottom-0",
         )}
       >
         <BookScene
           progress={0}
           singlePage={!effectiveSpread}
           tabletPortrait={false}
-          fillContainer={containedInHub}
+          fillContainer
           coverStyle={readerCoverStyle}
           coverClassName={readerCoverClass}
           pageClassName={readerPageClass}
@@ -177,6 +182,8 @@ export default function ContentsReaderPage() {
           }
         />
       </div>
+
+      {showReaderDock ? <ReaderFloatingTabBar bibleTo="/read/Jhn/1" /> : null}
     </div>
   );
 }
