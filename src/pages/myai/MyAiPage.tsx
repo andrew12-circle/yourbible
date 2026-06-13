@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
-import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import { useVisualViewportMetrics, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -300,7 +300,7 @@ export default function MyAiPage() {
   const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
-  const kbInset = useKeyboardInset();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
   const [composerFocused, setComposerFocused] = useState(false);
 
   const [chats, setChats] = useState<ChatRow[]>([]);
@@ -325,7 +325,7 @@ export default function MyAiPage() {
   const abortRef = useRef<AbortController | null>(null);
   const composerLockScrollYRef = useRef<number | null>(null);
 
-  useLockBodyScrollWhenKeyboardActive(composerFocused && !showHubShell, composerLockScrollYRef);
+  useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
   const persistSidebar = (open: boolean) => {
     setSidebarOpen(open);
@@ -726,10 +726,13 @@ export default function MyAiPage() {
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col bg-background">
-          <header className={cn(
-            "flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 pb-2 sm:px-3",
-            showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
-          )}>
+          <header
+            className={cn(
+              "sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-border bg-background/90 backdrop-blur-md px-2 pb-2 sm:px-3",
+              showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
+            )}
+            style={vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
+          >
             {!showHubShell && (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
               <ArrowLeft className="h-5 w-5" />

@@ -164,7 +164,7 @@ export default function MyAiComposer({
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
               "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-1.5",
-              "text-base leading-snug shadow-none placeholder:text-muted-foreground/70 sm:text-sm",
+              "text-base leading-snug shadow-none placeholder:text-muted-foreground/70 md:text-[13px]",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
               "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
             )}

@@ -181,7 +181,7 @@ export default function ClaimResearchWorkspacePage() {
   return (
     <FrameworkLayout title="Research" {...researchLayoutProps}>
       <div className="flex min-h-0 flex-1 flex-col max-lg:h-full">
-        <div className="shrink-0 px-3 pt-2 sm:px-4">
+        <div className="shrink-0 px-3 pt-[calc(var(--safe-area-inset-top)+0.5rem)] sm:px-4">
           <Button
             type="button"
             variant="ghost"
