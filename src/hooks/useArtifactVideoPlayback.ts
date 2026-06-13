@@ -5,7 +5,10 @@ import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeDocumentPip } from "@/hooks/useYouTubeDocumentPip";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
-import { readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
+import {
+  consumeArtifactInlineVideoResume,
+  readPlaybackSecondsLocal,
+} from "@/lib/framework/artifactPlaybackProgress";
 import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
@@ -161,16 +164,7 @@ export function useArtifactVideoPlayback(options: {
   useEffect(() => {
     if (apiPlayerWanted || !pipEnabled || document.hidden || documentPip.documentPipActive) return;
     if (!staticTelemetry.intendedPlayingRef.current) return;
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        staticTelemetry.playVideo();
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(raf1);
-      if (raf2) window.cancelAnimationFrame(raf2);
-    };
+    staticTelemetry.resumeAfterLayoutReposition();
   }, [apiPlayerWanted, documentPip.documentPipActive, pipEnabled, staticTelemetry, youtubePip.pipMode]);
 
   const restoreStaticEmbedProgress = useCallback(
@@ -212,13 +206,16 @@ export function useArtifactVideoPlayback(options: {
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
-    restoreStaticEmbedProgress();
-    if (!apiPlayerWanted && !embedPrimedRef.current) {
+    const shouldResumeInline = artifactId ? consumeArtifactInlineVideoResume(artifactId) : false;
+    restoreStaticEmbedProgress(shouldResumeInline ? { resume: true, forceSeek: true } : undefined);
+    if (shouldResumeInline) {
+      staticTelemetry.resumeAfterLayoutReposition();
+    } else if (!apiPlayerWanted && !embedPrimedRef.current) {
       embedPrimedRef.current = true;
       const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
       window.setTimeout(() => staticTelemetry.primeToPausedFrame(seconds), 80);
     }
-  }, [apiPlayerWanted, restoreStaticEmbedProgress, staticTelemetry]);
+  }, [apiPlayerWanted, artifactId, restoreStaticEmbedProgress, staticTelemetry]);
 
   const staticEmbedSrc = useMemo(() => {
     if (!youTubeVideoId) return null;
@@ -355,6 +352,11 @@ export function useArtifactVideoPlayback(options: {
     return staticTelemetry.getIsPlaying();
   }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getIsPlaying]);
 
+  const getWantsContinuousPlayback = useCallback(() => {
+    if (apiPlayerWanted) return youtubePlayer.getWantsContinuousPlayback();
+    return staticTelemetry.getWantsContinuousPlayback();
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getWantsContinuousPlayback]);
+
   const pauseVideo = useCallback(() => {
     if (apiPlayerWanted) youtubePlayer.pauseVideo();
     else staticTelemetry.pauseVideo();
@@ -386,6 +388,7 @@ export function useArtifactVideoPlayback(options: {
     togglePlayback,
     isPlaying,
     getIsPlaying,
+    getWantsContinuousPlayback,
     pauseVideo,
     playVideo,
     resyncPlaybackPosition,

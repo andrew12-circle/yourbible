@@ -176,6 +176,34 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     }, EMBED_PLAYER_POINTER_INTENT_MS);
   }, []);
 
+  const layoutRepositionTimersRef = useRef<number[]>([]);
+
+  const clearLayoutRepositionTimers = useCallback(() => {
+    for (const id of layoutRepositionTimersRef.current) window.clearTimeout(id);
+    layoutRepositionTimersRef.current = [];
+  }, []);
+
+  /** PiP / route handoff: YouTube often pauses after reposition — retry without treating UI clicks as user pause. */
+  const resumeAfterLayoutReposition = useCallback(() => {
+    recentPlayerPointerRef.current = false;
+    if (pointerIntentTimerRef.current != null) {
+      window.clearTimeout(pointerIntentTimerRef.current);
+      pointerIntentTimerRef.current = null;
+    }
+    clearLayoutRepositionTimers();
+    const attempt = () => {
+      if (document.hidden) return;
+      intendedPlayingRef.current = true;
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      runCommand("playVideo");
+    };
+    attempt();
+    for (const delay of [150, 400, 800, 1500]) {
+      layoutRepositionTimersRef.current.push(window.setTimeout(attempt, delay));
+    }
+  }, [clearLayoutRepositionTimers, runCommand]);
+
   const playVideo = useCallback(() => {
     intendedPlayingRef.current = true;
     isPlayingRef.current = true;
@@ -341,8 +369,9 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       window.removeEventListener("message", onMessage);
       window.clearInterval(listenInterval);
       window.clearInterval(pollInterval);
+      clearLayoutRepositionTimers();
     };
-  }, [enabled, requestCurrentTime, scheduleResumeIfIntended, videoSlotRef]);
+  }, [clearLayoutRepositionTimers, enabled, requestCurrentTime, scheduleResumeIfIntended, videoSlotRef]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -480,9 +509,15 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     seekTo,
   ]);
 
+  const getWantsContinuousPlayback = useCallback(
+    () => isPlayingRef.current || intendedPlayingRef.current,
+    [],
+  );
+
   return {
     getCurrentTime: () => currentTimeRef.current,
     getIsPlaying: () => isPlayingRef.current,
+    getWantsContinuousPlayback,
     isPlaying,
     playVideo,
     pauseVideo,
@@ -493,6 +528,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     primeToPausedFrame,
     requestCurrentTime,
     isTelemetryFresh,
+    resumeAfterLayoutReposition,
     currentTimeRef,
     isPlayingRef,
     intendedPlayingRef,

@@ -167,7 +167,9 @@ export function getOpenAiChatModel(): string {
 
 export function getOpenAiWebChatModel(): string {
   const m = Deno.env.get("OPENAI_WEB_CHAT_MODEL")?.trim();
-  return m || getOpenAiChatModel();
+  if (m) return m;
+  // Responses API web_search is most reliable on gpt-4o; chat model may not support browsing.
+  return "gpt-4o";
 }
 
 /** OpenAI Responses API with hosted web_search — ChatGPT-style browsing on your key. */

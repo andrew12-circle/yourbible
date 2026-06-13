@@ -56,7 +56,10 @@ import { useArtifactDetailProcessingActions } from "@/hooks/useArtifactDetailPro
 import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs";
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
-import { useArtifactGlobalVideoHandoff } from "@/hooks/useArtifactGlobalVideoHandoff";
+import {
+  startArtifactGlobalVideoHandoff,
+  useArtifactGlobalVideoHandoff,
+} from "@/hooks/useArtifactGlobalVideoHandoff";
 import {
   artifactJournalReturnPath,
   handoffArtifactVideoForJournal,
@@ -375,6 +378,7 @@ export default function ArtifactDetailPage() {
     seekVideoToSeconds,
     getPlaybackSeconds,
     getIsPlaying,
+    getWantsContinuousPlayback,
     persistSeconds,
     togglePlayback,
     resyncPlaybackPosition,
@@ -385,7 +389,7 @@ export default function ArtifactDetailPage() {
     youTubeVideoId,
     title: a?.title ?? null,
     getPlaybackSeconds,
-    getIsPlaying,
+    getWantsContinuousPlayback,
     persistSeconds,
     pipLayout: youtubePip.pipOverlayLayout,
   });
@@ -1108,6 +1112,17 @@ export default function ArtifactDetailPage() {
       artifactTitle: a.title,
     };
     if (!isDesktop) {
+      if (getWantsContinuousPlayback() && youTubeVideoId && id) {
+        const seconds = getPlaybackSeconds();
+        persistSeconds(seconds);
+        startArtifactGlobalVideoHandoff({
+          artifactId: id,
+          youTubeVideoId,
+          title: a.title,
+          startSeconds: seconds,
+          layout: youtubePip.pipOverlayLayout,
+        });
+      }
       useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
       navigate(`/framework/artifacts/${a.id}/research/${claim.id}`);
       return;
@@ -1115,6 +1130,9 @@ export default function ArtifactDetailPage() {
     useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
     useFloatingJournalStore.getState().setArtifactJournalMode("closed");
     useFloatingJournalStore.getState().setPanelOpen(true);
+    if (getWantsContinuousPlayback() && pipEnabled) {
+      youtubePip.enterPip();
+    }
   };
 
   const bookmarkAtSeconds = async (seconds: number, label?: string | null) => {

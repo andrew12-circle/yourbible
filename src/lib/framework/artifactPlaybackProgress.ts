@@ -68,3 +68,27 @@ export function readPlaybackSecondsLocal(artifactId: string): number | null {
 export function writePlaybackSecondsLocal(artifactId: string, seconds: number) {
   writePlaybackSecondsToSession(artifactId, seconds);
 }
+
+function inlineResumeStorageKey(artifactId: string): string {
+  return `artifact-inline-resume:${artifactId}`;
+}
+
+/** Set before returning from global PiP so inline embed resumes on the artifact page. */
+export function markArtifactInlineVideoResume(artifactId: string): void {
+  try {
+    sessionStorage.setItem(inlineResumeStorageKey(artifactId), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeArtifactInlineVideoResume(artifactId: string): boolean {
+  try {
+    const key = inlineResumeStorageKey(artifactId);
+    if (sessionStorage.getItem(key) !== "1") return false;
+    sessionStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}

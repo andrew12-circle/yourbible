@@ -10,6 +10,7 @@ import { isArtifactDetailPath } from "@/pages/framework/FrameworkLayout";
 import { pipTotalHeightPx } from "@/lib/framework/artifactYoutubePip";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
+import { markArtifactInlineVideoResume } from "@/lib/framework/artifactPlaybackProgress";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +77,7 @@ export default function GlobalArtifactVideoPip() {
 
   const onStaticEmbedLoad = useCallback(() => {
     if (startSeconds > 0) staticTelemetry.seekTo(startSeconds, true);
-    if (resumeOnLoadRef.current) staticTelemetry.playVideo();
+    if (resumeOnLoadRef.current) staticTelemetry.resumeAfterLayoutReposition();
     resumeOnLoadRef.current = false;
   }, [startSeconds, staticTelemetry]);
 
@@ -118,9 +119,13 @@ export default function GlobalArtifactVideoPip() {
 
   const restoreToArtifact = useCallback(() => {
     if (!session) return;
+    const seconds = staticTelemetry.getCurrentTime();
+    playbackFallbackRef.current = seconds;
+    persistSeconds(seconds);
+    markArtifactInlineVideoResume(session.artifactId);
     dismiss();
     navigate(`/framework/artifacts/${session.artifactId}#video`);
-  }, [dismiss, navigate, session]);
+  }, [dismiss, navigate, persistSeconds, session, staticTelemetry]);
 
   if (!session || typeof document === "undefined") return null;
   if (isArtifactDetailPath(pathname)) return null;

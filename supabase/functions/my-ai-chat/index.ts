@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
-import { buildClaimChatWebBlock } from "../_shared/researchPackCore.ts";
+import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_shared/researchPackCore.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
@@ -112,7 +112,9 @@ async function loadClaimChatWebBlock(
 }
 
 function shouldUseOpenAiWebResearch(chatUseWeb: boolean, chatCfg: ReturnType<typeof getChatConfig>): boolean {
-  return chatUseWeb && !("error" in chatCfg) && chatCfg.provider === "openai";
+  if (!chatUseWeb || "error" in chatCfg || chatCfg.provider !== "openai") return false;
+  if (isExternalWebSearchConfigured()) return false;
+  return true;
 }
 
 function buildClaimChatUserPayload(
@@ -156,22 +158,23 @@ async function generateClaimChatReply(
       : buildMyAiWebResearchSystemPrompt(includeGeneral, partnerAppendix);
     const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, "", message, false);
     const webRes = await callOpenAiWebResearchChat(systemText, userPayload);
-    if (!webRes.ok || !webRes.rawText.trim()) {
-      return { error: webRes.err ?? "OpenAI web search failed" };
+    if (webRes.ok && webRes.rawText.trim()) {
+      const parsed = parseAssistantPayload(webRes.rawText);
+      const reply = parsed.reply.trim() || webRes.rawText.trim();
+      const citations = dedupeCitations([
+        ...parsed.citations,
+        { source_type: "general", label: "Web search (OpenAI)" },
+      ]);
+      return {
+        reply,
+        citations: attachSourceAttribution(citations, { includeGeneral, usedWeb: true }),
+        ranked: null,
+      };
     }
-    const parsed = parseAssistantPayload(webRes.rawText);
-    const reply = parsed.reply.trim() || webRes.rawText.trim();
-    const citations = dedupeCitations([
-      ...parsed.citations,
-      { source_type: "general", label: "Web search (OpenAI)" },
-    ]);
-    return {
-      reply,
-      citations: attachSourceAttribution(citations, { includeGeneral, usedWeb: true }),
-      ranked: null,
-    };
+    console.warn("[my-ai-chat] OpenAI web search failed, falling back to chat:", webRes.err);
   }
 
+  const usedWebFromBlock = Boolean(webBlock.trim());
   const systemText = journalMode
     ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
     : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
@@ -180,7 +183,7 @@ async function generateClaimChatReply(
   if ("error" in ranked) return { error: ranked.error };
   return {
     reply: ranked.winner.reply,
-    citations: attachSourceAttribution(ranked.winner.citations, { includeGeneral, usedWeb: false }),
+    citations: attachSourceAttribution(ranked.winner.citations, { includeGeneral, usedWeb: usedWebFromBlock }),
     ranked,
   };
 }
@@ -1014,7 +1017,7 @@ Deno.serve(async (req) => {
 
       const bootstrapUseWeb = body.claim_research?.use_web === true;
       const bootstrapChatCfg = getChatConfig();
-      const webBlock = bootstrapUseWeb && packClaimId && !shouldUseOpenAiWebResearch(bootstrapUseWeb, bootstrapChatCfg)
+      const webBlock = bootstrapUseWeb && packClaimId
         ? await loadClaimChatWebBlock(supabase, userId, packClaimId, "")
         : "";
 
@@ -1050,7 +1053,7 @@ Deno.serve(async (req) => {
           reply = parsed.reply;
           citations = attachSourceAttribution(parsed.citations, {
             includeGeneral,
-            usedWeb: false,
+            usedWeb: Boolean(webBlock.trim()),
           });
         }
       } else {
@@ -1064,7 +1067,7 @@ Deno.serve(async (req) => {
         reply = parsed.reply;
         citations = attachSourceAttribution(parsed.citations, {
           includeGeneral,
-          usedWeb: false,
+          usedWeb: Boolean(webBlock.trim()),
         });
       }
 
@@ -1342,7 +1345,7 @@ Deno.serve(async (req) => {
       : hqPackId
       ? await loadHardQuestionResearchPackBlock(supabase, userId, hqPackId)
       : "";
-    const webBlock = chatUseWeb && claimPackId && !shouldUseOpenAiWebResearch(chatUseWeb, chatCfg)
+    const webBlock = chatUseWeb && claimPackId
       ? await loadClaimChatWebBlock(supabase, userId, claimPackId, message)
       : "";
 

@@ -148,14 +148,24 @@ export function useYouTubeEmbedPlayer(options: {
   }, []);
 
   const resumeIfWasPlaying = useCallback((wasPlaying: boolean) => {
-    if (!wasPlaying) return;
-    requestAnimationFrame(() => {
+    if (!wasPlaying && !intendedPlayingRef.current) return;
+    recentPlayerPointerRef.current = false;
+    if (pointerIntentTimerRef.current != null) {
+      window.clearTimeout(pointerIntentTimerRef.current);
+      pointerIntentTimerRef.current = null;
+    }
+    intendedPlayingRef.current = true;
+    const attempt = () => {
       try {
         playerRef.current?.playVideo();
       } catch {
         /* player not ready */
       }
-    });
+    };
+    attempt();
+    for (const delay of [150, 400, 800, 1500]) {
+      window.setTimeout(attempt, delay);
+    }
   }, []);
 
   const clearResumeAfterPauseTimer = useCallback(() => {
@@ -597,6 +607,11 @@ export function useYouTubeEmbedPlayer(options: {
 
   const getIsPlaying = useCallback(() => playingRef.current, []);
 
+  const getWantsContinuousPlayback = useCallback(
+    () => playingRef.current || intendedPlayingRef.current,
+    [],
+  );
+
   const playVideo = useCallback(() => {
     intendedPlayingRef.current = true;
     playingRef.current = true;
@@ -668,6 +683,7 @@ export function useYouTubeEmbedPlayer(options: {
       playerInitTimedOut: initTimedOut,
       isPlaying: playing,
       getIsPlaying,
+      getWantsContinuousPlayback,
       getCurrentTime,
       seekTo,
       playVideo,
@@ -679,6 +695,7 @@ export function useYouTubeEmbedPlayer(options: {
     [
       getCurrentTime,
       getIsPlaying,
+      getWantsContinuousPlayback,
       initTimedOut,
       loading,
       pauseVideo,

@@ -628,6 +628,19 @@ async function runValidationWebSearches(
   };
 }
 
+/** Brave/SerpAPI live search when WEB_SEARCH_PROVIDER and API keys are set. */
+export function isExternalWebSearchConfigured(): boolean {
+  const webProviderEnv = Deno.env.get("WEB_SEARCH_PROVIDER")?.trim().toLowerCase();
+  if (!webProviderEnv || webProviderEnv === "none" || webProviderEnv === "off") return false;
+  if (webProviderEnv === "brave") {
+    return Boolean(Deno.env.get("BRAVE_SEARCH_API_KEY")?.trim() || Deno.env.get("BRAVE_API_KEY")?.trim());
+  }
+  if (webProviderEnv === "serpapi") {
+    return Boolean(Deno.env.get("SERPAPI_API_KEY")?.trim());
+  }
+  return false;
+}
+
 /** Live web snippets for claim-research chat turns (my-ai-chat). */
 export async function buildClaimChatWebBlock(
   claimText: string,
