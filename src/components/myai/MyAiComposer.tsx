@@ -28,6 +28,7 @@ import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import type { MyAiResearchScope } from "@/lib/myai/researchScope";
 import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
 import { myAiComposerColumn, myAiInputShell } from "@/lib/myai/myAiTheme";
+import { mobileBottomDockPadding, mobileBottomDockTransform } from "@/lib/shell/mobileShellClasses";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
 import { cn } from "@/lib/utils";
 
@@ -126,9 +127,8 @@ export default function MyAiComposer({
         className,
       )}
       style={{
-        paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
-        transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined,
-        transition: "transform 120ms ease-out",
+        ...mobileBottomDockPadding("0.75rem"),
+        ...mobileBottomDockTransform(keyboardInset),
       }}
     >
       <div className={cn("pointer-events-auto", myAiComposerColumn)}>

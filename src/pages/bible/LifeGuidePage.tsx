@@ -13,11 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { toast } from "@/hooks/use-toast";
-import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import MobilePageShell from "@/components/shell/MobilePageShell";
+import { hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
 
 export default function LifeGuidePage() {
   const { user, loading: authLoading } = useAuth();
+  const { showHubShell } = useAppShellMode();
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) ?? "";
@@ -74,29 +77,31 @@ export default function LifeGuidePage() {
   };
 
   return (
-    <div className={hubShellPageRoot}>
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur-md px-4 pt-safe pb-3">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+    <MobilePageShell
+      showHubShell={showHubShell}
+      header={
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3">
           <Link
             to="/home"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
             aria-label="Back to home"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <BookMarked className="w-4 h-4 text-gold-deep shrink-0" aria-hidden />
-              <h1 className="font-display text-xl text-leather truncate">Life Manual</h1>
+              <BookMarked className="h-4 w-4 shrink-0 text-gold-deep" aria-hidden />
+              <h1 className="truncate font-display text-xl text-leather">Life Manual</h1>
             </div>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="truncate text-xs text-muted-foreground">
               Describe your issue — find what Scripture literally says to do
             </p>
           </div>
         </div>
-      </header>
-
-      <main className={cn(hubShellScrollMain, "max-w-2xl mx-auto px-4 py-5 pb-safe-28 space-y-6")}>
+      }
+      headerClassName="border-border/60 bg-background/90"
+      mainClassName={cn(hubShellScrollMain(showHubShell), "mx-auto max-w-2xl space-y-6 px-4 py-5")}
+    >
         <section className="rounded-2xl border border-border bg-card p-5">
           <label htmlFor="life-guide-issue" className="block text-sm font-medium mb-2">
             What are you facing?
@@ -209,7 +214,6 @@ export default function LifeGuidePage() {
             />
           </>
         )}
-      </main>
-    </div>
+    </MobilePageShell>
   );
 }

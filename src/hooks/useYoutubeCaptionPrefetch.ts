@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fetchYoutubeCaptionsViaLocalDevApi } from "@/lib/framework/youtubeLocalCaptions";
 import { resolveYoutubeCaptionsViaEdge } from "@/lib/framework/youtubeEdgeCaptions";
 import { fetchYoutubeCaptionsViaInvidious } from "@/lib/framework/youtubeInvidiousCaptions";
 import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
@@ -7,7 +8,7 @@ import { getYouTubeVideoId } from "@/lib/youtube";
 export type YoutubeCaptionPrefetchState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "ready"; rawText: string; source: "edge" | "browser" | "invidious" }
+  | { status: "ready"; rawText: string; source: "local-dev" | "edge" | "browser" | "invidious" }
   | { status: "unavailable"; detail?: string };
 
 export function useYoutubeCaptionPrefetch(url: string): YoutubeCaptionPrefetchState {
@@ -29,6 +30,13 @@ export function useYoutubeCaptionPrefetch(url: string): YoutubeCaptionPrefetchSt
 
     const timer = window.setTimeout(() => {
       void (async () => {
+        const local = await fetchYoutubeCaptionsViaLocalDevApi(videoId);
+        if (cancelled) return;
+        if (local.text?.trim()) {
+          setState({ status: "ready", rawText: local.text, source: "local-dev" });
+          return;
+        }
+
         const edge = await resolveYoutubeCaptionsViaEdge(videoId);
         if (cancelled) return;
         if (edge.text?.trim()) {
@@ -50,7 +58,10 @@ export function useYoutubeCaptionPrefetch(url: string): YoutubeCaptionPrefetchSt
           return;
         }
 
-        const detail = edge.attempts.join("; ") || browser.error || "No captions returned.";
+        const detail =
+          [local.error ? `local: ${local.error}` : null, ...edge.attempts, browser.error]
+            .filter(Boolean)
+            .join("; ") || "No captions returned.";
         setState({ status: "unavailable", detail });
       })();
     }, 400);

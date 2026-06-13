@@ -45,6 +45,7 @@ import {
 import { loadMyAiChatsForSidebar } from "@/lib/myai/loadMyAiChats";
 import { resolveUntitledChats } from "@/lib/myai/resolveChatTitles";
 import type { MyAiChatListItem, MyAiProjectRow } from "@/lib/myai/chatSections";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 import {
   createMyAiProject,
   deleteMyAiProject,
@@ -407,7 +408,7 @@ export default function MyAiPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className={mobileCenteredScreen("bg-background")}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );

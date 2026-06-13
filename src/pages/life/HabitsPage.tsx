@@ -232,7 +232,7 @@ export default function HabitsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );
@@ -249,7 +249,7 @@ export default function HabitsPage() {
           : null;
 
   return (
-    <div className={hubShellPageRoot(showHubShell, "min-h-screen bg-zinc-100 dark:bg-zinc-950 pb-safe-24")}>
+    <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] bg-zinc-100 dark:bg-zinc-950 pb-safe-24")}>
       <header className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
         {!showHubShell && (
         <Button variant="ghost" size="icon" asChild className="shrink-0">

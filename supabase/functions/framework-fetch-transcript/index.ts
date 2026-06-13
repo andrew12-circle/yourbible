@@ -17,6 +17,12 @@ import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts
 import type { TranscriptFetchResult } from "../_shared/transcriptTypes.ts";
 import { resolveYouTubeAudioUrl } from "../_shared/youtubeAudioUrl.ts";
 import { normalizeYouTubeWatchUrl } from "../_shared/youtubeTranscript.ts";
+import {
+  canonicalYouTubeWatchUrl,
+  extractYouTubeVideoId,
+  isYouTubeUrl,
+  resolveYouTubeVideoId,
+} from "../_shared/youtubeVideoId.ts";
 import { resolveYouTubeChannelThumbnail } from "../_shared/youtubeChannelAvatar.ts";
 import {
   getCachedYouTubeTranscript,
@@ -67,15 +73,6 @@ function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promis
   ]);
 }
 
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.hostname === "youtu.be" || u.hostname.endsWith("youtube.com");
-  } catch {
-    return false;
-  }
-}
-
 function decodeHtml(input: string): string {
   return input
     .replace(/&quot;/g, '"')
@@ -86,17 +83,6 @@ function decodeHtml(input: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .trim();
-}
-
-function extractYouTubeVideoId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "youtu.be") return u.pathname.split("/").filter(Boolean)[0] ?? null;
-    if (u.hostname.endsWith("youtube.com")) return u.searchParams.get("v") || u.pathname.match(/\/shorts\/([^/?#]+)/)?.[1] || null;
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 function parseJsonObjectFromHtml(html: string, marker: string): unknown | null {
@@ -604,11 +590,11 @@ type YoutubeTranscribeOutcome = {
 
 async function transcribeYouTubeVideo(
   url: string,
-  opts: { userId?: string; admin?: SupabaseClient | null } = {},
+  opts: { userId?: string; admin?: SupabaseClient | null; videoId?: string | null } = {},
 ): Promise<YoutubeTranscribeOutcome> {
   const metadata = await getYouTubeMetadata(url).catch(() => ({}));
-  const videoId = extractYouTubeVideoId(url);
-  const watchUrl = videoId ? normalizeYouTubeWatchUrl(url, videoId) : url;
+  const videoId = opts.videoId ?? extractYouTubeVideoId(url);
+  const watchUrl = videoId ? canonicalYouTubeWatchUrl(videoId, url) : url;
   const { userId, admin } = opts;
   const tierAttempts: string[] = [];
 
@@ -827,11 +813,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { artifact_id, url, processing_token, pre_fetched_captions } = (await req.json()) as {
+    const { artifact_id, url, processing_token, pre_fetched_captions, video_id: bodyVideoId } = (await req.json()) as {
       artifact_id?: string;
       url?: string;
       processing_token?: string;
       pre_fetched_captions?: string;
+      video_id?: string;
     };
     if (!artifact_id || !url || !processing_token) {
       return new Response(JSON.stringify({ error: "artifact_id, url, and processing_token required" }), {
@@ -856,7 +843,10 @@ Deno.serve(async (req) => {
       artifactId: artifact_id,
     });
 
-    if (!isYouTubeUrl(url)) {
+    const resolvedVideoId = resolveYouTubeVideoId(url, artifact.metadata, bodyVideoId);
+    const watchUrl = resolvedVideoId ? canonicalYouTubeWatchUrl(resolvedVideoId, url) : url;
+
+    if (!isYouTubeUrl(url) && !resolvedVideoId) {
       await supabase.from("artifacts").update({ status: "error", error: "Not a valid YouTube URL." }).eq("id", artifact_id);
       return new Response(JSON.stringify({ error: "Bad YouTube URL" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -873,9 +863,9 @@ Deno.serve(async (req) => {
         const prefetched = pre_fetched_captions?.trim();
         const result = prefetched
           ? await (async (): Promise<YoutubeTranscribeOutcome> => {
-            const metadata = await getYouTubeMetadata(url).catch(() => ({}));
+            const metadata = await getYouTubeMetadata(watchUrl).catch(() => ({}));
             const fetch = outcomeFromTimedText(prefetched, "caption", "browser_captions");
-            const vid = extractYouTubeVideoId(url);
+            const vid = resolvedVideoId ?? extractYouTubeVideoId(watchUrl);
             if (vid) {
               await saveCachedYouTubeTranscript(admin, vid, {
                 rawText: prefetched,
@@ -886,12 +876,12 @@ Deno.serve(async (req) => {
             return { fetch, metadata, chaptersBundle: null };
           })()
           : await withDeadline(
-            transcribeYouTubeVideo(url, { userId: u.user.id, admin }),
+            transcribeYouTubeVideo(watchUrl, { userId: u.user.id, admin, videoId: resolvedVideoId }),
             TRANSCRIPT_JOB_DEADLINE_MS,
             "Transcript fetch",
           );
         const uploaderName = result.metadata.channelTitle ?? null;
-        const vid = extractYouTubeVideoId(url);
+        const vid = resolvedVideoId ?? extractYouTubeVideoId(watchUrl);
         let desc = result.chaptersBundle?.description ?? "";
         let chaptersSource = result.chaptersBundle?.chapters_source ?? "none";
         if (!desc.trim() && vid) {
@@ -929,7 +919,7 @@ Deno.serve(async (req) => {
           thumbnail_url: result.metadata.thumbnailUrl ?? null,
           provider_name: result.metadata.providerName ?? "YouTube",
           duration_seconds: result.metadata.durationSeconds ?? null,
-          video_id: extractYouTubeVideoId(url),
+          video_id: resolvedVideoId ?? extractYouTubeVideoId(watchUrl),
           youtube_chapters,
           youtube_chapters_source: chaptersSource,
         };

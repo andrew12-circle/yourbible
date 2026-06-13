@@ -9,6 +9,8 @@ import {
 import { isIphoneWebKit } from "@/lib/youtube/platform";
 import {
   canSendEmbedAutoResume,
+  EMBED_PLAYER_POINTER_INTENT_MS,
+  shouldAutoResumeAfterEmbedPause,
   shouldUseEmbedAutoResumeKeepalive,
 } from "@/lib/youtube/embedAutoResume";
 import { youtubeDocumentPipActiveRef } from "@/lib/youtube/documentPictureInPicture";
@@ -70,6 +72,8 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   const autoResumeCountRef = useRef(0);
   const autoResumeWindowStartRef = useRef(0);
   const lastAutoResumeAtRef = useRef(0);
+  const recentPlayerPointerRef = useRef(false);
+  const pointerIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getSavedPlaybackSecondsRef = useRef(getSavedPlaybackSeconds);
   const onPersistPlaybackSecondsRef = useRef(onPersistPlaybackSeconds);
   getSavedPlaybackSecondsRef.current = getSavedPlaybackSeconds;
@@ -132,8 +136,18 @@ export function useStaticYouTubeEmbedTelemetry(options: {
 
   /** YouTube embeds often pause on PiP reposition, scroll, or buffer stalls — resume if user did not pause. */
   const scheduleResumeIfIntended = useCallback(() => {
-    if (!intendedPlayingRef.current || document.hidden) return;
-    if (Date.now() - lastAppPauseAtRef.current < 500) return;
+    if (
+      !shouldAutoResumeAfterEmbedPause({
+        intendedPlaying: intendedPlayingRef.current,
+        msSinceAppPause: Date.now() - lastAppPauseAtRef.current,
+        recentPlayerPointer: recentPlayerPointerRef.current,
+        documentHidden: document.hidden,
+      })
+    ) {
+      if (recentPlayerPointerRef.current) intendedPlayingRef.current = false;
+      clearResumeAfterPauseTimer();
+      return;
+    }
     clearResumeAfterPauseTimer();
     resumeAfterPauseTimerRef.current = window.setTimeout(() => {
       resumeAfterPauseTimerRef.current = null;
@@ -141,6 +155,17 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       sendResumePlayCommand();
     }, 450);
   }, [clearResumeAfterPauseTimer, sendResumePlayCommand]);
+
+  const markRecentPlayerPointer = useCallback(() => {
+    recentPlayerPointerRef.current = true;
+    if (pointerIntentTimerRef.current != null) {
+      window.clearTimeout(pointerIntentTimerRef.current);
+    }
+    pointerIntentTimerRef.current = window.setTimeout(() => {
+      recentPlayerPointerRef.current = false;
+      pointerIntentTimerRef.current = null;
+    }, EMBED_PLAYER_POINTER_INTENT_MS);
+  }, []);
 
   const playVideo = useCallback(() => {
     intendedPlayingRef.current = true;
@@ -166,6 +191,14 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     else playVideo();
   }, [pauseVideo, playVideo]);
 
+  const muteVideo = useCallback(() => {
+    runCommand("mute");
+  }, [runCommand]);
+
+  const unMuteVideo = useCallback(() => {
+    runCommand("unMute");
+  }, [runCommand]);
+
   const seekTo = useCallback(
     (seconds: number, allowSeekAhead = true) => {
       const s = Math.max(0, seconds);
@@ -174,6 +207,47 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       runCommand("seekTo", [Math.round(s), allowSeekAhead ? 1 : 0]);
     },
     [runCommand],
+  );
+
+  /** Muted play then pause so the embed shows a live frame (not the big play overlay). */
+  const primeToPausedFrame = useCallback(
+    (seconds: number) => {
+      const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
+      if (!iframe?.contentWindow) return;
+
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        window.removeEventListener("message", onMessage);
+        if (fallbackTimer != null) window.clearTimeout(fallbackTimer);
+        pauseVideo();
+        unMuteVideo();
+      };
+
+      const onMessage = (event: MessageEvent) => {
+        if (!isYouTubeEmbedMessageOrigin(event.origin)) return;
+        if (event.source !== iframe.contentWindow) return;
+        const msg = parseYouTubeEmbedMessage(event.data);
+        if (!msg?.event) return;
+        if (msg.event === "onStateChange" && typeof msg.info === "number") {
+          if (msg.info === YT_EMBED_STATE.PLAYING) finish();
+          return;
+        }
+        if (msg.event === "infoDelivery" && msg.info && typeof msg.info === "object") {
+          const state = msg.info.playerState;
+          if (typeof state === "number" && embedStateIsPlaying(state)) finish();
+        }
+      };
+
+      window.addEventListener("message", onMessage);
+      const fallbackTimer = window.setTimeout(finish, 1500);
+
+      muteVideo();
+      seekTo(seconds, true);
+      playVideo();
+    },
+    [muteVideo, pauseVideo, playVideo, seekTo, unMuteVideo, videoSlotRef],
   );
 
   useEffect(() => {
@@ -243,11 +317,20 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     };
   }, [enabled, requestCurrentTime, scheduleResumeIfIntended, videoSlotRef]);
 
+  useEffect(() => {
+    if (!enabled) return;
+    const host = videoSlotRef.current;
+    if (!host) return;
+    host.addEventListener("pointerdown", markRecentPlayerPointer, { capture: true });
+    return () => host.removeEventListener("pointerdown", markRecentPlayerPointer, { capture: true });
+  }, [enabled, markRecentPlayerPointer, videoSlotRef]);
+
   /** Catch embed pauses that never emit onStateChange (jsapi channel hiccups). Skip on iOS — flaky playerState. */
   useEffect(() => {
     if (!enabled || !shouldUseEmbedAutoResumeKeepalive()) return;
     const keepalive = window.setInterval(() => {
       if (!intendedPlayingRef.current || document.hidden || isPlayingRef.current) return;
+      if (recentPlayerPointerRef.current) return;
       if (Date.now() - lastAppPauseAtRef.current < 500) return;
       sendResumePlayCommand();
     }, 2500);
@@ -377,7 +460,10 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     playVideo,
     pauseVideo,
     togglePlayback,
+    muteVideo,
+    unMuteVideo,
     seekTo,
+    primeToPausedFrame,
     requestCurrentTime,
     isTelemetryFresh,
     currentTimeRef,

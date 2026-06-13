@@ -175,7 +175,7 @@ export function MiniPhoneDrawer() {
           background: "linear-gradient(145deg, #f5f5f7 0%, #b8b8bd 25%, #e8e8ec 50%, #8a8a90 75%, #d4d4d8 100%)",
         }}
         className={cn(
-          "fixed isolate z-[120] max-h-[calc(100vh-2rem)] overflow-hidden rounded-[36px] p-[3px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(255,255,255,0.4)]",
+          "fixed isolate z-[120] max-h-[calc(100dvh-2rem)] overflow-hidden rounded-[36px] p-[3px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(255,255,255,0.4)]",
           "animate-in slide-in-from-bottom-4 fade-in-0 duration-200",
         )}
       >

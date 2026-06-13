@@ -18,6 +18,7 @@ import {
 import {
   artifactDesktopHero,
   artifactDesktopInlineVideoShellExpanded,
+  artifactDesktopVideoCard,
   formatArtifactDate,
   formatArtifactDuration,
 } from "@/lib/framework/artifactSurfaces";
@@ -277,9 +278,7 @@ export default function ArtifactDesktopHero({
     return (
       <section
         ref={videoSlotRef}
-        className={cn(
-          "relative mb-3 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]",
-        )}
+        className={artifactDesktopVideoCard}
         aria-label="Video"
       >
         <h1 className="sr-only">{displayTitle}</h1>

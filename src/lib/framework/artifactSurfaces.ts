@@ -168,9 +168,14 @@ export const artifactDesktopHero = cn(
   "min-h-[280px] sm:min-h-[320px]",
 );
 
+/** Desktop split-pane video card — flush black hero at top of study column. */
+export const artifactDesktopVideoCard = cn(
+  "relative shrink-0 overflow-hidden rounded-t-2xl bg-black",
+);
+
 /** Desktop split-pane inline player — full width at scroll top (YouTube-like). */
 export const artifactDesktopInlineVideoShellExpanded = cn(
-  "relative aspect-video w-full overflow-hidden rounded-2xl bg-black",
+  "relative aspect-video w-full overflow-hidden bg-black",
 );
 
 /** Desktop sticky mini-player after scrolling the study column. */

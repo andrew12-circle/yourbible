@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 import { componentTagger } from "lovable-tagger";
+import { youtubeCaptionsDevPlugin } from "./scripts/vite-plugin-youtube-captions";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,6 +17,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    youtubeCaptionsDevPlugin(),
     VitePWA({
       registerType: "prompt",
       includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],

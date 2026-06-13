@@ -16,7 +16,7 @@ export function FrameworkLayoutSkeleton({
   mainClassName,
 }: Props) {
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div className="min-h-[100dvh] bg-background font-sans text-foreground">
       <header className="sticky top-0 z-30 shrink-0 border-b border-border/40 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/78">
         <div className="mx-auto flex max-w-none items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
           <FrameworkShimmerBlock className="h-9 w-9 shrink-0 rounded-lg" />

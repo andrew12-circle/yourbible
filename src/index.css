@@ -1253,6 +1253,10 @@
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
   .pt-safe { padding-top: max(1rem, var(--safe-area-inset-top)); }
+  .px-safe {
+    padding-left: max(1rem, var(--safe-area-inset-left));
+    padding-right: max(1rem, var(--safe-area-inset-right));
+  }
   .pb-safe { padding-bottom: var(--safe-area-bottom-gutter); }
   .pb-safe-16 { padding-bottom: calc(4rem + var(--safe-area-inset-bottom)); }
   .pb-safe-20 { padding-bottom: calc(5rem + var(--safe-area-inset-bottom)); }

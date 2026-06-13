@@ -123,7 +123,7 @@ export default function ContentsReaderPage() {
         "relative transition-all duration-700 overflow-hidden",
         containedInHub && "flex h-full min-h-0 flex-col",
         showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
-        !showHubShell && "min-h-screen",
+        !showHubShell && "min-h-[100dvh]",
       )}
     >
       <TopBar

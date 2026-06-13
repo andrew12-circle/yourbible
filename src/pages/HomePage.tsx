@@ -6,6 +6,7 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IosHomePage from "@/pages/home/IosHomePage";
 import HubHomePage from "@/pages/home/HubHomePage";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 
 export default function HomePage() {
   const { user, profile, loading } = useAuth();
@@ -14,7 +15,7 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className={mobileCenteredScreen()}>
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );

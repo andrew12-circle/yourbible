@@ -20,9 +20,8 @@ import {
   startYoutubeTranscriptFetchWithPrefetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { useYoutubeCaptionPrefetch } from "@/hooks/useYoutubeCaptionPrefetch";
-import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
 import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
-import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
+import { getYouTubeEmbedUrl, getYouTubeVideoId, resolveYouTubeVideoId, canonicalYouTubeWatchUrl, extractYouTubeUrlFromText } from "@/lib/youtube";
 
 const ONE_MB = 1024 * 1024;
 
@@ -53,6 +52,9 @@ export default function NewArtifactPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [busy, setBusy] = useState(false);
+  const [clipboardOffer, setClipboardOffer] = useState<string | null>(null);
+  const urlSeededRef = useRef(false);
+  const clipboardProbeRef = useRef(false);
 
   useEffect(() => {
     const requestedMode = params.get("mode");
@@ -66,6 +68,58 @@ export default function NewArtifactPage() {
       setMode(requestedMode);
     }
   }, [params]);
+
+  useEffect(() => {
+    const rawSeedUrl = params.get("url");
+    if (!rawSeedUrl || urlSeededRef.current) return;
+    let decoded = rawSeedUrl;
+    try {
+      decoded = decodeURIComponent(rawSeedUrl);
+    } catch {
+      /* keep raw value */
+    }
+    const seedUrl = extractYouTubeUrlFromText(decoded);
+    if (!seedUrl) return;
+    urlSeededRef.current = true;
+    setMode("youtube");
+    setUrl(seedUrl);
+    navigate("/framework/new?mode=youtube", { replace: true });
+  }, [params, navigate]);
+
+  useEffect(() => {
+    if (mode !== "youtube" || url.trim() || clipboardProbeRef.current) return;
+    clipboardProbeRef.current = true;
+    if (!navigator.clipboard?.readText) return;
+    void navigator.clipboard
+      .readText()
+      .then((text) => {
+        const seedUrl = extractYouTubeUrlFromText(text);
+        if (seedUrl) setClipboardOffer(seedUrl);
+      })
+      .catch(() => {
+        /* iOS often requires a tap — Paste from clipboard button handles that */
+      });
+  }, [mode, url]);
+
+  const pasteYoutubeFromClipboard = useCallback(async () => {
+    if (!navigator.clipboard?.readText) {
+      toast({ title: "Clipboard not available", variant: "destructive" });
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      const seedUrl = extractYouTubeUrlFromText(text);
+      if (!seedUrl) {
+        toast({ title: "No YouTube link on clipboard", variant: "destructive" });
+        return;
+      }
+      setUrl(seedUrl);
+      setClipboardOffer(null);
+      toast({ title: "YouTube link pasted" });
+    } catch {
+      toast({ title: "Could not read clipboard", description: "Tap Paste from clipboard after copying the video link.", variant: "destructive" });
+    }
+  }, []);
 
   useEffect(() => {
     const seedVerse = params.get("verse");
@@ -160,14 +214,18 @@ export default function NewArtifactPage() {
     }
     setBusy(true);
     const processingToken = createTranscriptProcessingToken();
+    const trimmedUrl = url.trim();
+    const videoId = resolveYouTubeVideoId(trimmedUrl);
+    const normalizedUrl = videoId ? canonicalYouTubeWatchUrl(videoId, trimmedUrl) : trimmedUrl;
     const { data, error } = await supabase.from("artifacts").insert({
       user_id: user.id,
       title: title.trim() || null,
       kind: "youtube",
-      url: url.trim(),
+      url: normalizedUrl,
       raw_text: "",
       status: "fetching",
       processing_token: processingToken,
+      ...(videoId ? { metadata: { source: "youtube", video_id: videoId } } : {}),
     }).select("id").maybeSingle();
     if (error || !data) {
       setBusy(false);
@@ -175,31 +233,24 @@ export default function NewArtifactPage() {
       return;
     }
     markManualYoutubeFetch(data.id);
-    let prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
-    if (!prefetchedRawText) {
-      const videoId = getYouTubeVideoId(url.trim());
-      if (videoId) {
-        const resolved = await resolveClientYoutubeCaptions(videoId);
-        prefetchedRawText = resolved.text;
-      }
-    }
-    const started = await startYoutubeTranscriptFetchWithPrefetch({
+    const prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
+    navigate(`/framework/artifacts/${data.id}`);
+    setBusy(false);
+    void startYoutubeTranscriptFetchWithPrefetch({
       artifactId: data.id,
-      url: url.trim(),
+      url: normalizedUrl,
       processingToken,
       prefetchedRawText,
+      videoId,
+    }).then((started) => {
+      if (!started.ok) {
+        toast({
+          title: "Could not start transcript fetch",
+          description: started.error ?? "Try again or paste the transcript manually.",
+          variant: "destructive",
+        });
+      }
     });
-    setBusy(false);
-    if (!started.ok) {
-      toast({
-        title: "Could not start transcript fetch",
-        description: started.error ?? "Try again or paste the transcript manually.",
-        variant: "destructive",
-      });
-      navigate(`/framework/artifacts/${data.id}`);
-      return;
-    }
-    navigate(`/framework/artifacts/${data.id}`);
   };
 
   const submitYoutubeWithPaste = async () => {
@@ -494,11 +545,42 @@ export default function NewArtifactPage() {
               <span className="font-medium">YouTube capture</span>
             </div>
             <p className="text-xs text-red-700/80">
-              Paste a video URL to analyze captions and optionally preview the video here first.
+              Paste a video URL, use a copied link, or open from an iOS Shortcut with{" "}
+              <code className="rounded bg-red-100/80 px-1">?mode=youtube&amp;url=…</code>.
             </p>
           </div>
+          {clipboardOffer && !url.trim() ? (
+            <div className="mb-3 flex flex-col gap-3 rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-emerald-900">YouTube link on your clipboard — import this video?</p>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setUrl(clipboardOffer);
+                    setClipboardOffer(null);
+                  }}
+                >
+                  Use link
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setClipboardOffer(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1.5">YouTube URL</label>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="mb-3" />
+          <div className="mb-3 flex gap-2">
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=…"
+              className="min-w-0 flex-1"
+            />
+            <Button type="button" variant="outline" className="shrink-0" onClick={() => void pasteYoutubeFromClipboard()}>
+              Paste link
+            </Button>
+          </div>
           {showPreviewSlot && (
             <div className="mb-4 rounded-lg overflow-hidden border border-border bg-card aspect-video">
               {embedUrl ? (

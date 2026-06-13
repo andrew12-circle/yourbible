@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useKnowledgeEntityAvatarEnrichment } from "@/hooks/useKnowledgeEntityAvatarEnrichment";
+import { useKnowledgeEntityAvatarEnrichment, useCastNameAvatarEnrichment } from "@/hooks/useKnowledgeEntityAvatarEnrichment";
 import {
   artifactHorizontalRail,
   artifactHorizontalRailBase,
@@ -83,6 +83,10 @@ type OtherMention = {
   artifacts: { title: string | null } | null;
 };
 
+function normalizeCastKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function CastMemberChip({
   member,
   entity,
@@ -90,6 +94,7 @@ function CastMemberChip({
   mentionCountInArtifact,
   currentArtifactId,
   variant = "personRail",
+  castAvatarByName,
 }: {
   member: CastMember;
   entity?: KnowledgeEntityRow;
@@ -97,12 +102,14 @@ function CastMemberChip({
   mentionCountInArtifact?: number;
   currentArtifactId: string;
   variant?: "personRail";
+  castAvatarByName?: Record<string, string>;
 }) {
   if (entity) {
+    const nameAvatar = castAvatarByName?.[normalizeCastKey(member.title)]?.trim() || null;
     return (
       <EntityChipPopover
         entity={entity}
-        avatarUrlOverride={member.avatarUrl}
+        avatarUrlOverride={member.avatarUrl || nameAvatar}
         mentionConfidence={mentionConfidence ?? null}
         currentArtifactId={currentArtifactId}
         mentionCountInArtifact={mentionCountInArtifact}
@@ -112,7 +119,10 @@ function CastMemberChip({
     );
   }
 
-  const avatarUrl = member.avatarUrl?.trim() || null;
+  const avatarUrl =
+    member.avatarUrl?.trim() ||
+    castAvatarByName?.[normalizeCastKey(member.title)]?.trim() ||
+    null;
   return (
     <div
       className="inline-flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-3 min-w-[108px] max-w-[132px] text-left font-medium text-foreground shadow-sm"
@@ -149,7 +159,7 @@ function EntityChipPopover({
   mentionConfidence: number | null;
   currentArtifactId: string;
   mentionCountInArtifact?: number;
-  variant?: "default" | "rail" | "personRail";
+  variant?: "default" | "rail" | "personRail" | "themeRail";
   roleLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -198,7 +208,7 @@ function EntityChipPopover({
           type="button"
           className={cn(
             "text-left font-medium text-foreground shadow-sm transition hover:bg-muted/60 active:scale-[0.99]",
-            variant === "personRail"
+            variant === "personRail" || variant === "themeRail"
               ? "inline-flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-3 min-w-[108px] max-w-[132px]"
               : variant === "rail"
                 ? "inline-flex shrink-0 snap-start flex-col gap-1 rounded-2xl border border-border/50 bg-card px-4 py-3 min-w-[140px] max-w-[200px]"
@@ -224,6 +234,29 @@ function EntityChipPopover({
               {roleLabel ? (
                 <span className="text-[10px] text-muted-foreground">{roleLabel}</span>
               ) : mentionCountInArtifact != null ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </>
+          ) : variant === "themeRail" ? (
+            <>
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl ring-1 ring-border/60 bg-muted/30">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-sm font-medium text-white tracking-tight"
+                    style={{ background: monogramGradient(entity.title) }}
+                  >
+                    {initialsFromName(entity.title)}
+                  </div>
+                )}
+              </div>
+              <span className="w-full truncate text-center text-sm font-display font-semibold leading-snug">
+                {entity.title}
+              </span>
+              {mentionCountInArtifact != null ? (
                 <span className="text-[10px] text-muted-foreground">
                   {mentionCountInArtifact} mention{mentionCountInArtifact === 1 ? "" : "s"}
                 </span>
@@ -261,18 +294,22 @@ function EntityChipPopover({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 space-y-3">
         <div className="flex gap-3">
-          {isPerson ? (
-            <Avatar className="h-12 w-12 shrink-0 rounded-full ring-1 ring-border/60">
-              {avatarSrc ? (
+          {avatarSrc ? (
+            isPerson ? (
+              <Avatar className="h-12 w-12 shrink-0 rounded-full ring-1 ring-border/60">
                 <AvatarImage src={avatarSrc} alt="" className="object-cover" />
-              ) : null}
-              <AvatarFallback
-                className="text-sm font-medium text-white tracking-tight border-0"
-                style={{ background: monogramGradient(entity.title) }}
-              >
-                {initialsFromName(entity.title)}
-              </AvatarFallback>
-            </Avatar>
+                <AvatarFallback
+                  className="text-sm font-medium text-white tracking-tight border-0"
+                  style={{ background: monogramGradient(entity.title) }}
+                >
+                  {initialsFromName(entity.title)}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-border/60 bg-muted/30">
+                <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+              </div>
+            )
           ) : null}
           <div className="min-w-0 flex-1">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -325,11 +362,13 @@ function CastRail({
   entityById,
   variant,
   artifactId,
+  castAvatarByName,
 }: {
   members: CastMember[];
   entityById: Map<string, KnowledgeEntityRow>;
   variant: "mobileRail" | "desktopRail";
   artifactId: string;
+  castAvatarByName: Record<string, string>;
 }) {
   return (
     <div
@@ -355,6 +394,7 @@ function CastRail({
             mentionCountInArtifact={member.mentionCount}
             currentArtifactId={artifactId}
             variant="personRail"
+            castAvatarByName={castAvatarByName}
           />
         );
       })}
@@ -393,7 +433,7 @@ function EntityRail({
           mentionConfidence={confidence}
           currentArtifactId={artifactId}
           mentionCountInArtifact={count}
-          variant={personLayout ? "personRail" : "rail"}
+          variant={personLayout ? "personRail" : "themeRail"}
         />
       ))}
     </div>
@@ -536,11 +576,11 @@ export default function ArtifactEntitiesPanel({
     );
   }, [castMembers, hostAvatarUrl]);
 
-  const personIdsNeedingAvatar = useMemo(() => {
+  const entityIdsNeedingAvatar = useMemo(() => {
     const byEntity = new Map<string, KnowledgeEntityRow>();
     for (const m of mentions) {
       const ent = m.knowledge_entities;
-      if (!ent || !isPersonEntityKind(ent.kind)) continue;
+      if (!ent) continue;
       byEntity.set(ent.id, ent);
     }
     const castPriority = new Set(
@@ -550,13 +590,29 @@ export default function ArtifactEntitiesPanel({
     missing.sort((a, b) => {
       const aCast = castPriority.has(a.id) ? 0 : 1;
       const bCast = castPriority.has(b.id) ? 0 : 1;
-      return aCast - bCast || a.title.localeCompare(b.title);
+      const aPerson = isPersonEntityKind(a.kind) ? 0 : 1;
+      const bPerson = isPersonEntityKind(b.kind) ? 0 : 1;
+      return aCast - bCast || aPerson - bPerson || a.title.localeCompare(b.title);
     });
     return missing.map((e) => e.id);
   }, [castPeopleMembers, mentions]);
 
-  useKnowledgeEntityAvatarEnrichment(personIdsNeedingAvatar, {
-    enabled: !loading && personIdsNeedingAvatar.length > 0,
+  const castNamesNeedingAvatar = useMemo(
+    () =>
+      castPeopleMembers
+        .filter((m) => !m.entityId && !m.avatarUrl?.trim())
+        .map((m) => m.title)
+        .filter(Boolean),
+    [castPeopleMembers],
+  );
+
+  const castAvatarByName = useCastNameAvatarEnrichment(castNamesNeedingAvatar, {
+    enabled: !loading && castNamesNeedingAvatar.length > 0,
+    artifactHint: artifactTitle ?? undefined,
+  });
+
+  useKnowledgeEntityAvatarEnrichment(entityIdsNeedingAvatar, {
+    enabled: !loading && entityIdsNeedingAvatar.length > 0,
     artifactHint: artifactTitle ?? undefined,
     onEnriched: load,
   });
@@ -587,6 +643,7 @@ export default function ArtifactEntitiesPanel({
               entityById={entityById}
               variant={variant === "mobileRail" ? "mobileRail" : "desktopRail"}
               artifactId={artifactId}
+              castAvatarByName={castAvatarByName}
             />
           </div>
         ) : peopleRailEntries.length > 0 ? (

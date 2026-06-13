@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { homeIndicatorHidden } from "@/lib/shell/homeIndicatorRoutes";
 
 /**
  * iOS-style home indicator pill, fixed to the bottom of the screen.
@@ -10,24 +11,7 @@ export default function HomeIndicator() {
   const { pathname } = useLocation();
   const { showHubShell } = useAppShellMode();
 
-  const isArtifactDetail =
-    /^\/framework\/artifacts\/[^/]+$/.test(pathname) &&
-    pathname !== "/framework/artifacts/new" &&
-    pathname !== "/framework/artifacts/live";
-
-  const hasBottomComposer =
-    pathname.startsWith("/my-ai") ||
-    pathname.startsWith("/journal/chat") ||
-    pathname === "/framework/chat/legacy";
-
-  const hidden =
-    showHubShell ||
-    pathname === "/" ||
-    pathname === "/home" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/onboarding") ||
-    isArtifactDetail ||
-    hasBottomComposer;
+  const hidden = homeIndicatorHidden(pathname, showHubShell);
 
   if (hidden) return null;
 

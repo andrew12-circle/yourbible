@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 
 function mapRpcError(msg: string): string {
   const m = msg.toLowerCase();
@@ -72,7 +72,7 @@ export default function PartnerAcceptPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen app-mesh flex items-center justify-center p-6">
+      <div className={mobileCenteredScreen("app-mesh p-6")}>
         <Card className="max-w-md w-full border-paper-edge bg-paper/80">
           <CardHeader>
             <CardTitle className="font-display text-leather">Missing invite</CardTitle>
@@ -93,7 +93,7 @@ export default function PartnerAcceptPage() {
   }
 
   return (
-    <div className="min-h-screen app-mesh flex items-center justify-center p-6">
+    <div className={mobileCenteredScreen("app-mesh p-6")}>
       <Card className="max-w-md w-full border-paper-edge bg-paper/80">
         <CardHeader>
           <CardTitle className="font-display text-leather">Connecting you</CardTitle>

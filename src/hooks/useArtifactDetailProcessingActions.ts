@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { ArtifactRow } from "@/lib/framework/artifactDetailCompare";
@@ -6,13 +6,11 @@ import {
   countTimedTranscriptLines,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
-import { getYouTubeVideoId } from "@/lib/youtube";
-import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
-import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   createTranscriptProcessingToken,
-  startYoutubeTranscriptFetchWithPrefetch,
+  restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
+import { resolveYouTubeVideoId } from "@/lib/youtube";
 import type { ArtifactDetailClaim } from "@/hooks/useArtifactDetailData";
 
 type Params = {
@@ -42,6 +40,8 @@ export function useArtifactDetailProcessingActions({
   setSyncingYoutubeChapters,
   setGeneratingChapters,
 }: Params) {
+  const [retryingFetch, setRetryingFetch] = useState(false);
+
   const reanalyze = useCallback(async () => {
     if (!a) return;
     const normalized = normalizePastedTranscript(a.raw_text);
@@ -140,27 +140,16 @@ export function useArtifactDetailProcessingActions({
   );
 
   const retryFetch = useCallback(async () => {
-    if (!a?.url) return;
-    markManualYoutubeFetch(a.id);
+    if (!a?.url || retryingFetch) return;
+    setRetryingFetch(true);
+    setA((prev) => (prev ? { ...prev, status: "fetching", error: null } : prev));
 
-    const videoId = getYouTubeVideoId(a.url);
-    const prefetchedRawText = videoId
-      ? (await resolveClientYoutubeCaptions(videoId).catch(() => ({ text: null, attempts: [] }))).text
-      : null;
-
-    const processingToken = createTranscriptProcessingToken();
-    await supabase
-      .from("artifacts")
-      .update({ status: "fetching", error: null, processing_token: processingToken })
-      .eq("id", a.id);
-    setA({ ...a, status: "fetching", error: null });
-
-    const result = await startYoutubeTranscriptFetchWithPrefetch({
-      artifactId: a.id,
-      url: a.url,
-      processingToken,
-      prefetchedRawText,
+    const result = await restartYoutubeTranscriptFetch(a.id, a.url, {
+      videoId: resolveYouTubeVideoId(a.url, a.metadata),
+      metadata: a.metadata,
     });
+    setRetryingFetch(false);
+
     if (!result.ok) {
       setA((prev) => (prev ? { ...prev, status: "error", error: result.error ?? prev.error } : prev));
       toast({
@@ -169,7 +158,7 @@ export function useArtifactDetailProcessingActions({
         variant: "destructive",
       });
     }
-  }, [a, setA]);
+  }, [a, retryingFetch, setA]);
 
   const submitPasted = useCallback(async () => {
     if (!a || !pasteText.trim()) return;
@@ -202,6 +191,7 @@ export function useArtifactDetailProcessingActions({
     syncYouTubeChapters,
     generateChaptersFromTranscript,
     retryFetch,
+    retryingFetch,
     submitPasted,
   };
 }

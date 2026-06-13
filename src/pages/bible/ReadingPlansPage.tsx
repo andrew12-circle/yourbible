@@ -79,7 +79,7 @@ export default function ReadingPlansPage() {
     <div
       className={hubShellPageRoot(
         showHubShell,
-        "min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]",
+        "min-h-[100dvh] bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]",
       )}
     >
       <header

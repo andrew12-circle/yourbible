@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "worker:dev": "powershell -ExecutionPolicy Bypass -File scripts/run-transcript-worker.ps1",
     "build": "node scripts/check-vite-env.mjs && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

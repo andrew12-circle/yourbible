@@ -9,7 +9,7 @@ const missing = [
 /** Shown when the app bundle was built without Supabase env vars (blank-screen guard). */
 export default function ConfigError() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 paper-texture">
+    <div className="flex min-h-[100dvh] items-center justify-center p-6 pb-[max(1.5rem,var(--safe-area-inset-bottom))] pt-[max(1.5rem,var(--safe-area-inset-top))] paper-texture">
       <div className="max-w-md rounded-xl border border-leather/20 bg-card/90 p-8 shadow-lg text-center space-y-4">
         <h1 className="font-display text-2xl text-leather">Configuration needed</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">

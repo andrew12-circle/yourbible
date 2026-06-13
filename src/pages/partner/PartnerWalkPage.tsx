@@ -101,7 +101,7 @@ export default function PartnerWalkPage() {
 
   if (loading || !ready) {
     return (
-      <div className="min-h-screen app-mesh flex items-center justify-center">
+      <div className="min-h-[100dvh] app-mesh flex items-center justify-center">
         <Loader2 className="w-7 h-7 animate-spin text-muted-foreground" />
       </div>
     );
@@ -109,7 +109,7 @@ export default function PartnerWalkPage() {
 
   if (conns.length === 0) {
     return (
-      <div className={hubShellPageRoot(showHubShell, "min-h-screen app-mesh pb-safe-16")}>
+      <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] app-mesh pb-safe-16")}>
         <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-10 space-y-6")}>
           <div className="text-center space-y-2">
             <HeartHandshake className="w-10 h-10 mx-auto text-rose-400" />
@@ -128,7 +128,7 @@ export default function PartnerWalkPage() {
   }
 
   return (
-    <div className={hubShellPageRoot(showHubShell, "min-h-screen app-mesh pb-safe-20")}>
+    <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] app-mesh pb-safe-20")}>
       <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-8 space-y-6")}>
         {conns.map((c) => {
           const peer = peerByConn.get(c.id);

@@ -27,14 +27,21 @@ export function useArtifactVideoPlayback(options: {
     transcriptRefs,
   } = options;
   const playbackPersistence = useArtifactPlaybackPersistence(artifactId);
-  const { resolvedSeconds: savedStart, loaded: playbackLoaded, persistSeconds } =
-    playbackPersistence;
+  const {
+    resolvedSeconds: savedStart,
+    loaded: playbackLoaded,
+    persistSeconds,
+    remoteFetchDone,
+  } = playbackPersistence;
   const playbackFallbackRef = useRef(savedStart);
   const playWhenReadyRef = useRef(false);
+  /** One-shot account/local merge seek — not on every 2s persist tick. */
+  const accountProgressSyncedRef = useRef(false);
   const layoutMode = useArtifactLayoutMode();
   const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
 
   const embedVisibleRef = useRef(false);
+  const embedPrimedRef = useRef(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
   /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
@@ -92,7 +99,9 @@ export function useArtifactVideoPlayback(options: {
 
   useEffect(() => {
     playWhenReadyRef.current = false;
+    accountProgressSyncedRef.current = false;
     embedVisibleRef.current = false;
+    embedPrimedRef.current = false;
     setEmbedLoaded(false);
     setApiPlayerWanted(false);
     documentPip.exitDocumentPip();
@@ -179,21 +188,37 @@ export function useArtifactVideoPlayback(options: {
     [apiPlayerWanted, staticTelemetry],
   );
 
-  /** Account-backed progress arrived — seek without changing iframe src. */
+  /** Account-backed progress arrived — seek once without changing iframe src. */
   useEffect(() => {
-    if (!playbackLoaded || !artifactId || !youTubeVideoId) return;
+    if (!playbackLoaded || !remoteFetchDone || !artifactId || !youTubeVideoId) return;
+    if (accountProgressSyncedRef.current) return;
+    accountProgressSyncedRef.current = true;
+
     const target = Math.max(0, Math.floor(savedStart));
     if (target <= lockedEmbedStartRef.current) return;
+    lockedEmbedStartRef.current = target;
     playbackFallbackRef.current = target;
     setApiStartSeconds(target);
     restoreStaticEmbedProgress({ forceSeek: true });
-  }, [artifactId, playbackLoaded, restoreStaticEmbedProgress, savedStart, youTubeVideoId]);
+  }, [
+    artifactId,
+    playbackLoaded,
+    remoteFetchDone,
+    restoreStaticEmbedProgress,
+    savedStart,
+    youTubeVideoId,
+  ]);
 
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
     restoreStaticEmbedProgress();
-  }, [restoreStaticEmbedProgress]);
+    if (!apiPlayerWanted && !embedPrimedRef.current) {
+      embedPrimedRef.current = true;
+      const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
+      window.setTimeout(() => staticTelemetry.primeToPausedFrame(seconds), 80);
+    }
+  }, [apiPlayerWanted, restoreStaticEmbedProgress, staticTelemetry]);
 
   const staticEmbedSrc = useMemo(() => {
     if (!youTubeVideoId) return null;

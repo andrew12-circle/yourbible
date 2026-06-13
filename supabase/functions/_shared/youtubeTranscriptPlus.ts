@@ -5,7 +5,9 @@
 
 import { fetchTranscript } from "npm:youtube-transcript-plus@1.1.2";
 
-type TranscriptSegment = { text?: string; offset?: number };
+import { mergeCaptionSegments } from "./mergeCaptionSegments.ts";
+
+type TranscriptSegment = { text?: string; offset?: number; duration?: number };
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -16,7 +18,7 @@ function formatTime(seconds: number): string {
 
 export function transcriptPlusToTimedText(segments: TranscriptSegment[]): string | null {
   const lines: string[] = [];
-  for (const seg of segments) {
+  for (const seg of mergeCaptionSegments(segments)) {
     const text = (seg.text ?? "").replace(/\s+/g, " ").trim();
     if (!text) continue;
     const startSeconds = Math.max(0, Math.floor(seg.offset ?? 0));

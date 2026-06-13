@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { MOBILE_MIN_HEIGHT } from "@/lib/shell/mobileShellClasses";
 
 /** Root wrapper for a page rendered inside the hub content card. */
 export function hubShellPageRoot(showHubShell: boolean, mobileClassName: string, hubClassName?: string) {
@@ -18,6 +19,9 @@ export function hubShellScrollMain(showHubShell: boolean, className?: string) {
 export function hubShellPageHeight(showHubShell: boolean) {
   return showHubShell ? "relative h-full min-h-0" : "h-[100dvh]";
 }
+
+/** Default mobile min-height for pages using `hubShellPageRoot`. */
+export { MOBILE_MIN_HEIGHT };
 
 /** Bottom dock: fixed to viewport on mobile; anchored to page pane in hub shell. */
 export function hubShellBottomDock(showHubShell: boolean, className?: string) {

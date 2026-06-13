@@ -1,3 +1,4 @@
+import { fetchYoutubeCaptionsViaLocalDevApi } from "@/lib/framework/youtubeLocalCaptions";
 import { resolveYoutubeCaptionsViaEdge } from "@/lib/framework/youtubeEdgeCaptions";
 import { fetchYoutubeCaptionsViaInvidious } from "@/lib/framework/youtubeInvidiousCaptions";
 import { fetchYoutubeCaptionsInBrowser } from "@/lib/framework/youtubeTranscriptPlusClient";
@@ -10,6 +11,12 @@ export type ClientCaptionResolveResult = {
 /** Pull captions before the full transcript job runs (edge worker/race, then browser fallbacks). */
 export async function resolveClientYoutubeCaptions(videoId: string): Promise<ClientCaptionResolveResult> {
   const attempts: string[] = [];
+
+  const local = await fetchYoutubeCaptionsViaLocalDevApi(videoId);
+  if (local.text?.trim()) {
+    return { text: local.text.trim(), attempts: [`local-dev: ${local.source ?? "ok"}`] };
+  }
+  if (local.error) attempts.push(`local-dev: ${local.error}`);
 
   const edge = await resolveYoutubeCaptionsViaEdge(videoId);
   attempts.push(...edge.attempts);

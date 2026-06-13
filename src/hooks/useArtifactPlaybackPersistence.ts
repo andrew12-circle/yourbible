@@ -18,6 +18,8 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
   const { user } = useAuth();
   const [remoteSeconds, setRemoteSeconds] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
+  /** True once the account fetch finished (or was skipped when signed out). */
+  const [remoteFetchDone, setRemoteFetchDone] = useState(false);
   const pendingSecondsRef = useRef<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userIdRef = useRef(user?.id);
@@ -31,16 +33,19 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
     if (!artifactId) {
       setRemoteSeconds(null);
       setLoaded(true);
+      setRemoteFetchDone(true);
       return;
     }
 
     if (!user?.id) {
       setRemoteSeconds(null);
       setLoaded(true);
+      setRemoteFetchDone(true);
       return;
     }
 
     let cancelled = false;
+    setRemoteFetchDone(false);
     // Local session cache is enough to start the embed; account sync runs in background.
     setLoaded(true);
 
@@ -50,6 +55,7 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
       setRemoteSeconds(remote);
       const merged = mergePlaybackSeconds(readPlaybackSecondsLocal(artifactId), remote);
       if (merged > 0) writePlaybackSecondsLocal(artifactId, merged);
+      setRemoteFetchDone(true);
     })();
 
     return () => {
@@ -71,7 +77,6 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
       if (!artifactId) return;
       const s = Math.max(0, Math.floor(seconds));
       writePlaybackSecondsLocal(artifactId, s);
-      setRemoteSeconds((prev) => (prev == null || s > prev ? s : prev));
 
       const uid = userIdRef.current;
       if (!uid) return;
@@ -101,5 +106,5 @@ export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
     };
   }, [flushToServer]);
 
-  return { resolvedSeconds, loaded, persistSeconds, remoteSeconds };
+  return { resolvedSeconds, loaded, persistSeconds, remoteSeconds, remoteFetchDone };
 }

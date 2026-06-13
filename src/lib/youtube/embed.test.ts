@@ -21,6 +21,11 @@ describe("buildYouTubeEmbedSrc", () => {
     expect(url).toContain("autoplay=1");
   });
 
+  it("supports mute option", () => {
+    const url = buildYouTubeEmbedSrc("dQw4w9WgXcQ", 0, { mute: true });
+    expect(url).toContain("mute=1");
+  });
+
   it("includes widget_referrer when provided", () => {
     const url = buildYouTubeEmbedSrc("dQw4w9WgXcQ", 0, {
       widgetReferrer: "https://example.com/artifacts/1",

@@ -168,7 +168,7 @@ export default function JournalShell({
   const fabColor = journal ? `hsl(${journal.color})` : "hsl(211 100% 50%)";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background">
       <div className="flex">
         <div className="hidden md:block w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto">
           <JournalsRail

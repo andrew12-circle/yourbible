@@ -47,7 +47,7 @@ export function SelectionPencilOverlay({ enabled = true }: Props) {
     <svg
       aria-hidden
       className="fixed inset-0 pointer-events-none z-[45]"
-      style={{ width: "100vw", height: "100vh" }}
+      style={{ width: "100vw", height: "100dvh" }}
     >
       {rects.map((r, i) => {
         // Draw a slightly wavy dashed line — mimics a pencil tracking the

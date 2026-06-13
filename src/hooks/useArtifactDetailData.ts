@@ -5,12 +5,13 @@ import { peekArtifactShellCache } from "@/lib/framework/artifactShellCache";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
-import { isManualYoutubeFetchActive, markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
+import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   markYoutubeTranscriptFetchError,
   resumeYoutubeTranscriptFetch,
   restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
+import { resolveYouTubeVideoId } from "@/lib/youtube";
 
 const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
@@ -18,6 +19,8 @@ const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
 const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
 const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
+const ANALYZE_STALE_SECONDS = 240;
+const ANALYZE_AUTO_RETRY_LIMIT = 1;
 
 function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false;
@@ -74,9 +77,9 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const startedRef = useRef<number | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
+  const analyzeRetryRef = useRef<Record<string, number>>({});
   const ensureFetchRef = useRef<string | null>(null);
   const clientTimeoutRef = useRef<string | null>(null);
-  const autoRecoveryRef = useRef<Set<string>>(new Set());
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
     setA((prev) => {
@@ -100,6 +103,42 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       : artWithMeta;
     return (artResult.data as ArtifactRow | null) ?? null;
   }, []);
+
+  const loadClaimsOnly = useCallback(async () => {
+    if (!artifactId) return;
+    const { data: cl } = await supabase
+      .from("artifact_claims")
+      .select("*")
+      .eq("artifact_id", artifactId)
+      .order("created_at");
+    const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => {
+      const normalized = normalizeArtifactClaimArrays(row);
+      return {
+        ...normalized,
+        epistemology: parseClaimEpistemology(
+          (row as ArtifactDetailClaim & { epistemology?: unknown }).epistemology,
+        ),
+      };
+    });
+    setClaims((prev) => {
+      if (prev.length === parsedClaims.length && prev.every((p, i) => p.id === parsedClaims[i]?.id)) {
+        return prev;
+      }
+      return parsedClaims;
+    });
+    const beliefIds = Array.from(
+      new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean)),
+    ) as string[];
+    if (beliefIds.length === 0) return;
+    const { data: beliefs } = await supabase
+      .from("belief_nodes")
+      .select("id,topic,statement,answer,confidence")
+      .in("id", beliefIds);
+    setMatchedBeliefs((beliefs ?? []).reduce((acc, belief) => {
+      acc[belief.id] = belief as MatchedBelief;
+      return acc;
+    }, {} as Record<string, MatchedBelief>));
+  }, [artifactId]);
 
   const loadArtifactDetails = useCallback(async () => {
     if (!artifactId) return;
@@ -183,6 +222,9 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     const prevStatus = prevStatusRef.current;
     applyArtifact(row);
     prevStatusRef.current = row.status;
+    if (row.status === "analyzing" || row.status === "ready") {
+      await loadClaimsOnly();
+    }
     const terminal = row.status === "ready" || row.status === "error";
     const transitioned =
       prevStatus != null &&
@@ -191,12 +233,12 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (transitioned || (terminal && prevStatus !== row.status)) {
       await loadFull();
     }
-  }, [applyArtifact, artifactId, loadFull]);
+  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull]);
 
   useEffect(() => {
     ensureFetchRef.current = null;
     clientTimeoutRef.current = null;
-    autoRecoveryRef.current.delete(artifactId ?? "");
+    analyzeRetryRef.current = {};
   }, [artifactId]);
 
   useEffect(() => {
@@ -231,7 +273,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     }
     setPolling(true);
     if (startedRef.current === null) startedRef.current = Date.now();
-    const poll = setInterval(() => void loadStatusOnly(), 2500);
+    const poll = setInterval(() => void loadStatusOnly(), a?.status === "analyzing" ? 1500 : 2500);
     const tick = setInterval(() => {
       if (startedRef.current) setElapsed(Math.floor((Date.now() - startedRef.current) / 1000));
     }, 1000);
@@ -239,19 +281,24 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       clearInterval(poll);
       clearInterval(tick);
     };
-  }, [inFlight, loadStatusOnly]);
+  }, [a?.status, inFlight, loadStatusOnly]);
 
   useEffect(() => {
-    if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "error" || !a.url?.trim()) return;
-    if (autoRecoveryRef.current.has(a.id)) return;
-    const recoverable = /could not fetch|blocks our servers|non-2xx|stale request|browser/i.test(a.error ?? "");
-    if (!recoverable) return;
-    autoRecoveryRef.current.add(a.id);
-    markManualYoutubeFetch(a.id);
-    void restartYoutubeTranscriptFetch(a.id, a.url.trim()).then((result) => {
-      if (!result.ok) void loadStatusOnly();
-    });
-  }, [artifactLoaded, a, loadStatusOnly]);
+    if (!a || a.status !== "analyzing") return;
+    const pollClaims = setInterval(() => void loadClaimsOnly(), 2000);
+    return () => clearInterval(pollClaims);
+  }, [a?.id, a?.status, loadClaimsOnly]);
+
+  /** Background analyze may append claims after status flips to ready. */
+  useEffect(() => {
+    if (!a || a.kind !== "youtube" || a.status !== "ready") return;
+    const pollClaims = setInterval(() => void loadClaimsOnly(), 3000);
+    const stop = window.setTimeout(() => clearInterval(pollClaims), 3 * 60 * 1000);
+    return () => {
+      clearInterval(pollClaims);
+      window.clearTimeout(stop);
+    };
+  }, [a?.id, a?.kind, a?.status, loadClaimsOnly]);
 
   useEffect(() => {
     if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "fetching" || !a.url?.trim()) return;
@@ -271,9 +318,10 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
           .maybeSingle();
         if (data?.status !== "fetching" || (data.raw_text ?? "").trim()) return;
         const stale = isStaleYoutubeFetch(a?.created_at);
+        const fetchOpts = { videoId: resolveYouTubeVideoId(artifactUrl, a?.metadata), metadata: a?.metadata };
         const result = stale
-          ? await restartYoutubeTranscriptFetch(artifactId, artifactUrl)
-          : await resumeYoutubeTranscriptFetch(artifactId, artifactUrl);
+          ? await restartYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts)
+          : await resumeYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts);
         if (!result.ok) await loadStatusOnly();
       })();
     }, YOUTUBE_FETCH_ENSURE_AFTER_MS);
@@ -303,9 +351,36 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (now - retry.lastAt < YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS) return;
 
     autoRetryRef.current[a.id] = { count: retry.count + 1, lastAt: now };
-    void restartYoutubeTranscriptFetch(a.id, a.url).then((result) => {
+    void restartYoutubeTranscriptFetch(a.id, a.url, {
+      videoId: resolveYouTubeVideoId(a.url, a.metadata),
+      metadata: a.metadata,
+    }).then((result) => {
       if (!result.ok) void loadStatusOnly();
     });
+  }, [a, elapsed, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
+    if (elapsed < ANALYZE_STALE_SECONDS) return;
+
+    const retries = analyzeRetryRef.current[a.id] ?? 0;
+    if (retries >= ANALYZE_AUTO_RETRY_LIMIT) return;
+
+    analyzeRetryRef.current[a.id] = retries + 1;
+    void (async () => {
+      const { data } = await supabase
+        .from("artifacts")
+        .select("status,processing_token")
+        .eq("id", a.id)
+        .maybeSingle();
+      if (data?.status !== "analyzing") return;
+      const token = data.processing_token;
+      if (typeof token !== "string" || !token.trim()) return;
+      await supabase.functions.invoke("framework-analyze", {
+        body: { artifact_id: a.id, processing_token: token },
+      });
+      await loadStatusOnly();
+    })();
   }, [a, elapsed, loadStatusOnly]);
 
   const patchArtifactMetadata = useCallback(async (targetId: string) => {

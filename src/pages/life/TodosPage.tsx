@@ -216,7 +216,7 @@ export default function TodosPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );
@@ -229,7 +229,7 @@ export default function TodosPage() {
     <div
       className={hubShellPageRoot(
         showHubShell,
-        "min-h-screen bg-background flex flex-col md:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]",
+        "min-h-[100dvh] bg-background flex flex-col md:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]",
         "bg-background flex flex-col md:flex-row min-h-0 h-full overflow-hidden",
       )}
     >

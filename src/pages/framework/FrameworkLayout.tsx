@@ -143,7 +143,7 @@ export default function FrameworkLayout({
         "bg-background font-sans text-foreground",
         workspace || showHubShell
           ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden"
-          : "min-h-screen",
+          : "min-h-[100dvh]",
         immersiveMobileMinimal &&
           (showHubShell
             ? "flex h-full min-h-0 flex-col overflow-hidden [--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]"

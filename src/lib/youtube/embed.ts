@@ -3,6 +3,7 @@ import { youtubeDocumentPipWindowRef } from "@/lib/youtube/documentPictureInPict
 export type YouTubeEmbedSrcOptions = {
   startSeconds?: number;
   autoplay?: boolean;
+  mute?: boolean;
   /** Embed origin — defaults to the opener page origin. */
   origin?: string;
   /** Page URL YouTube uses for embed referrer validation (fixes error 153). */
@@ -17,8 +18,10 @@ export function buildYouTubeEmbedSrc(
 ): string {
   const start = Math.max(0, Math.floor(options?.startSeconds ?? startSeconds));
   const autoplay = options?.autoplay ? "1" : "0";
+  const mute = options?.mute ? "1" : "0";
   const params = new URLSearchParams({
     autoplay,
+    mute,
     controls: "1",
     enablejsapi: "1",
     fs: "1",
@@ -39,7 +42,7 @@ export function buildYouTubeEmbedSrc(
   return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
 }
 
-export type YouTubeEmbedCommand = "playVideo" | "pauseVideo" | "seekTo";
+export type YouTubeEmbedCommand = "playVideo" | "pauseVideo" | "seekTo" | "mute" | "unMute";
 
 export function getStaticYouTubeEmbedIframe(
   videoSlot: HTMLElement | null,

@@ -288,12 +288,15 @@ export default function ArtifactDetailPage() {
     return { agree, disagree, new: newCount };
   }, [claims]);
 
+  const insightsVisible =
+    a?.status === "ready" || (a?.status === "analyzing" && claims.length > 0);
+
   const corpusStandingQuery = useArtifactCorpusStanding(
     a?.id,
     a?.status,
     claims.length,
     user?.id,
-    a?.status === "ready",
+    insightsVisible,
   );
 
   const corpusStanding = useMemo(
@@ -832,6 +835,7 @@ export default function ArtifactDetailPage() {
     syncYouTubeChapters,
     generateChaptersFromTranscript,
     retryFetch,
+    retryingFetch,
     submitPasted,
   } = useArtifactDetailProcessingActions({
     a,
@@ -1214,7 +1218,7 @@ export default function ArtifactDetailPage() {
     fetching:
       "Pulling captions from YouTube (or our transcript service). If nothing happens in ~20s, this page retries automatically.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
-    analyzing: "Comparing claims against your framework. Usually 10–30 seconds.",
+    analyzing: "Insight cards usually appear in 30–60 seconds. People, themes, and overview fill in shortly after.",
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
@@ -1467,9 +1471,7 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
-        {desktopPremiumVideoShell ? (
-          <div className="px-4 pt-4 sm:px-5">{desktopPremiumVideoShell}</div>
-        ) : null}
+        {desktopPremiumVideoShell}
         {youTubeVideoId && !desktopPremiumYoutube ? (
           <ArtifactYoutubeVideoBlock
             youTubeVideoId={youTubeVideoId}
@@ -1552,7 +1554,7 @@ export default function ArtifactDetailPage() {
           )}
         />
 
-      {showDesktopOverviewPane && desktopPremiumYoutube && a.status === "ready" ? (
+      {showDesktopOverviewPane && desktopPremiumYoutube && insightsVisible ? (
         desktopInsightExploreClaimId ? (
           <ArtifactDesktopClaimFocus
             claimId={desktopInsightExploreClaimId}
@@ -1610,9 +1612,15 @@ export default function ArtifactDetailPage() {
         <div className="mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           <div className="mb-2">{a.error}</div>
           <div className="flex flex-wrap gap-2">
+            {a.raw_text?.trim() && (
+              <Button size="sm" variant="outline" disabled={inFlight} onClick={() => void reanalyze()}>
+                <RefreshCw className="w-3.5 h-3.5 mr-1" /> Re-analyze
+              </Button>
+            )}
             {a.kind === "youtube" && a.url && (
-              <Button size="sm" variant="outline" onClick={retryFetch}>
-                <RefreshCw className="w-3.5 h-3.5 mr-1" /> Try fetch again
+              <Button size="sm" variant="outline" disabled={retryingFetch || inFlight} onClick={() => void retryFetch()}>
+                <RefreshCw className={cn("w-3.5 h-3.5 mr-1", retryingFetch && "animate-spin")} />{" "}
+                {retryingFetch ? "Fetching…" : "Try fetch again"}
               </Button>
             )}
             <Button size="sm" variant="outline" onClick={() => setPasteOpen(true)}>
@@ -1642,7 +1650,7 @@ export default function ArtifactDetailPage() {
           onSeeScripture={openMobileInsightExplore}
         />
       ) : null}
-      {showDesktopClaimsPane && desktopPremiumYoutube && a.status === "ready" && claims.length > 0 ? (
+      {showDesktopClaimsPane && desktopPremiumYoutube && insightsVisible && claims.length > 0 ? (
         <ArtifactClaimsSection
           anchorId="claims"
           claims={claims}
@@ -1788,7 +1796,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       )}
 
-      {a.status === "ready" && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
+      {insightsVisible && !(a.kind === "youtube" && youtubeChaptersList.length === 0) && (
         <ArtifactCollapsibleSection
           title="Teachings"
           pinnedVideoPane={mobilePinnedPane}
@@ -1831,7 +1839,7 @@ export default function ArtifactDetailPage() {
         skip={desktopPremiumYoutube || showMobileOverview}
       />
 
-      {a.status === "ready" && !desktopPremiumYoutube && !showMobileOverview ? (
+      {insightsVisible && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactLibraryStanding
           artifactId={a.id}
           claimsCount={claims.length}
@@ -1848,7 +1856,7 @@ export default function ArtifactDetailPage() {
         />
       ) : null}
 
-      {a.status === "ready" && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
+      {insightsVisible && claims.length > 0 && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="claims"
           pinnedVideoPane={mobilePinnedPane}
@@ -1914,7 +1922,7 @@ export default function ArtifactDetailPage() {
         </ArtifactCollapsibleSection>
       ) : null}
 
-      {a.status === "ready" && !desktopPremiumYoutube && !showMobileOverview ? (
+      {insightsVisible && !desktopPremiumYoutube && !showMobileOverview ? (
         <ArtifactCollapsibleSection
           id="entities"
           title="People & themes"

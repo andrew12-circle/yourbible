@@ -1,5 +1,6 @@
 import type { TranscriptSegmentRow } from "../transcriptTypes.ts";
 import { buildFetchResult } from "../transcriptNormalize.ts";
+import { mergeCaptionSegments } from "../mergeCaptionSegments.ts";
 
 type WorkerSegment = { start?: number; duration?: number; text?: string };
 type WorkerResponse = { video_id?: string; language?: string; segments?: WorkerSegment[] };
@@ -69,7 +70,7 @@ export async function fetchWorkerTranscript(
   }
 
   const json = (await res.json()) as WorkerResponse;
-  const rawSegments = json.segments ?? [];
+  const rawSegments = mergeCaptionSegments(json.segments ?? []);
   const segments: TranscriptSegmentRow[] = rawSegments
     .map((seg, idx) => {
       const text = (seg.text ?? "").trim();

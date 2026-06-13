@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/appBrand";
 import { captureException } from "@/lib/sentry";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 
 type Props = { children: ReactNode };
 
@@ -22,7 +23,7 @@ export default class AppErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 bg-background text-foreground">
+        <div className={mobileCenteredScreen("flex-col gap-4 bg-background text-foreground")}>
           <h1 className="text-lg font-semibold">Something went wrong</h1>
           <p className="text-sm text-muted-foreground text-center max-w-md">
             {APP_NAME} hit an unexpected error. Try reloading the page.

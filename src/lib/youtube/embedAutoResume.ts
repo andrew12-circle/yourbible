@@ -19,3 +19,21 @@ export function canSendEmbedAutoResume(lastSentAt: number, now = Date.now()): bo
 export function shouldUseEmbedAutoResumeKeepalive(): boolean {
   return !isIosWebKit();
 }
+
+/** How long after pointerdown on the player shell we treat PAUSE as user-initiated. */
+export const EMBED_PLAYER_POINTER_INTENT_MS = 1500;
+
+const APP_PAUSE_GRACE_MS = 500;
+
+/** Whether an embed PAUSED event should trigger auto-resume (scroll/PiP stall), not user pause. */
+export function shouldAutoResumeAfterEmbedPause(options: {
+  intendedPlaying: boolean;
+  msSinceAppPause: number;
+  recentPlayerPointer: boolean;
+  documentHidden?: boolean;
+}): boolean {
+  if (!options.intendedPlaying || options.documentHidden) return false;
+  if (options.msSinceAppPause < APP_PAUSE_GRACE_MS) return false;
+  if (options.recentPlayerPointer) return false;
+  return true;
+}

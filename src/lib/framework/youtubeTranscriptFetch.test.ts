@@ -14,6 +14,14 @@ vi.mock("@/lib/framework/youtubeTranscriptPlusClient", () => ({
   fetchYoutubeCaptionsInBrowser: vi.fn(() => Promise.resolve({ text: null })),
 }));
 
+vi.mock("@/lib/framework/youtubeLocalCaptions", () => ({
+  fetchYoutubeCaptionsViaLocalDevApi: vi.fn(() => Promise.resolve({ text: null, error: "mock" })),
+}));
+
+vi.mock("@/lib/framework/youtubeEdgeCaptions", () => ({
+  resolveYoutubeCaptionsViaEdge: vi.fn(() => Promise.resolve({ text: null, attempts: ["edge: mock"] })),
+}));
+
 vi.mock("@/integrations/supabase/client", () => {
   const maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
   const eqForSelect = vi.fn(() => ({ maybeSingle }));
@@ -69,6 +77,7 @@ describe("youtube transcript fetch helper", () => {
         artifact_id: "artifact-1",
         url: "https://www.youtube.com/watch?v=abc123def45",
         processing_token: "token-1",
+        video_id: "abc123def45",
       },
     });
     expect(mockedSupabase.__mocks.from).not.toHaveBeenCalled();
@@ -117,6 +126,7 @@ describe("youtube transcript fetch helper", () => {
         artifact_id: "artifact-1",
         url: "https://www.youtube.com/watch?v=abc123def45",
         processing_token: "existing-token",
+        video_id: "abc123def45",
       },
     });
     expect(mockedSupabase.__mocks.update).not.toHaveBeenCalled();
@@ -142,6 +152,7 @@ describe("youtube transcript fetch helper", () => {
         artifact_id: "artifact-1",
         url: "https://www.youtube.com/watch?v=abc123def45",
         processing_token: "retry-token",
+        video_id: "abc123def45",
       },
     });
   });

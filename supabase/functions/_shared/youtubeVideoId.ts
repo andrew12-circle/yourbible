@@ -1,154 +1,58 @@
-/**
-
- * Extract YouTube video id from common URL shapes (no network calls).
-
- */
-
-
+/** Robust YouTube video id extraction for edge functions (matches client `getYouTubeVideoId`). */
 
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
-
-
-/** Trim wrappers and ensure a parseable absolute URL. */
-
 export function normalizeYouTubeInputUrl(input: string): string | null {
-
   let s = input.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
-
   if (!s) return null;
-
   s = s.replace(/^[\s<[(]+|[\s>)\],;]+$/g, "");
-
   if (!s) return null;
-
   if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
-
   return s;
-
 }
-
-
 
 function sanitizeVideoId(raw: string | null | undefined): string | null {
-
   if (!raw) return null;
-
   const segment = raw.split("?")[0]?.split("#")[0]?.trim() ?? "";
-
   if (!segment) return null;
-
   if (YOUTUBE_ID_RE.test(segment)) return segment;
-
   const match = segment.match(/^([a-zA-Z0-9_-]{11})/);
-
   return match?.[1] ?? null;
-
 }
-
-
 
 function isYouTubeHost(hostname: string): boolean {
-
   const h = hostname.toLowerCase().replace(/^www\./, "");
-
   return h === "youtu.be" || h === "youtube.com" || h.endsWith(".youtube.com");
-
 }
 
-
-
-export function getYouTubeVideoId(url?: string | null): string | null {
-
+export function extractYouTubeVideoId(url?: string | null): string | null {
   const normalized = url ? normalizeYouTubeInputUrl(url) : null;
-
   if (!normalized) return null;
 
   try {
-
     const parsed = new URL(normalized);
-
     if (!isYouTubeHost(parsed.hostname)) return null;
 
-
-
-    if (parsed.hostname.replace(/^www\./, "").toLowerCase() === "youtu.be") {
-
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") {
       return sanitizeVideoId(parsed.pathname.split("/").filter(Boolean)[0]);
-
     }
-
-
 
     const v = parsed.searchParams.get("v");
-
     if (v) return sanitizeVideoId(v);
 
-
-
     const parts = parsed.pathname.split("/").filter(Boolean);
-
     for (const key of ["shorts", "embed", "live", "v"] as const) {
-
       const idx = parts.indexOf(key);
-
       if (idx !== -1 && parts[idx + 1]) {
-
         const id = sanitizeVideoId(parts[idx + 1]);
-
         if (id) return id;
-
       }
-
     }
-
   } catch {
-
     return null;
-
   }
-
   return null;
-
-}
-
-
-
-export function buildYouTubeEmbedUrl(videoId: string, startSeconds = 0): string {
-  const start = Math.max(0, Math.floor(startSeconds));
-  const params = new URLSearchParams({
-    autoplay: start > 0 ? "1" : "0",
-    rel: "0",
-    modestbranding: "1",
-  });
-  if (start > 0) params.set("start", String(start));
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
-}
-
-
-
-export function getYouTubeEmbedUrl(input?: string | null, startSeconds = 0): string | null {
-
-  const id = getYouTubeVideoId(input);
-
-  return id ? buildYouTubeEmbedUrl(id, startSeconds) : null;
-
-}
-
-
-
-export function youtubeMqThumbnail(videoId: string) {
-
-  return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
-
-}
-
-
-
-export function youtubeHqThumbnail(videoId: string) {
-
-  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
 }
 
 export function metadataYouTubeVideoId(metadata: unknown): string | null {
@@ -158,39 +62,30 @@ export function metadataYouTubeVideoId(metadata: unknown): string | null {
   return sanitizeVideoId(raw.trim());
 }
 
+/** URL first, then artifact metadata, then explicit override from client. */
 export function resolveYouTubeVideoId(
   url?: string | null,
   metadata?: unknown,
   explicitVideoId?: string | null,
 ): string | null {
-  return getYouTubeVideoId(url) ?? metadataYouTubeVideoId(metadata) ?? sanitizeVideoId(explicitVideoId);
+  return extractYouTubeVideoId(url) ?? metadataYouTubeVideoId(metadata) ?? sanitizeVideoId(explicitVideoId);
+}
+
+export function isYouTubeUrl(url: string): boolean {
+  const normalized = normalizeYouTubeInputUrl(url);
+  if (!normalized) return false;
+  try {
+    return isYouTubeHost(new URL(normalized).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function canonicalYouTubeWatchUrl(videoId: string, url?: string | null): string {
-  const fromUrl = getYouTubeVideoId(url);
+  const fromUrl = extractYouTubeVideoId(url);
   if (fromUrl === videoId) {
-    const normalized = url ? normalizeYouTubeInputUrl(url) : null;
+    const normalized = normalizeYouTubeInputUrl(url ?? "");
     if (normalized) return normalized.split("#")[0] ?? normalized;
   }
   return `https://www.youtube.com/watch?v=${videoId}`;
 }
-
-const YOUTUBE_URL_IN_TEXT_RE =
-  /https?:\/\/(?:www\.)?(?:youtube\.com\/[^\s<>"']+|youtu\.be\/[^\s<>"']+)/i;
-
-/** Pull a YouTube watch/shorts URL from plain text (clipboard, query params, share payloads). */
-export function extractYouTubeUrlFromText(text: string): string | null {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-
-  const direct = normalizeYouTubeInputUrl(trimmed);
-  if (direct && getYouTubeVideoId(direct)) return direct.split("#")[0] ?? direct;
-
-  const match = trimmed.match(YOUTUBE_URL_IN_TEXT_RE);
-  if (!match) return null;
-  const normalized = normalizeYouTubeInputUrl(match[0]);
-  if (!normalized || !getYouTubeVideoId(normalized)) return null;
-  return normalized.split("#")[0] ?? normalized;
-}
-
-

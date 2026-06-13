@@ -92,7 +92,7 @@ export default function LifePrioritiesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[100dvh] flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin opacity-50" />
       </div>
     );
@@ -100,7 +100,7 @@ export default function LifePrioritiesPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className={hubShellPageRoot(showHubShell, "min-h-screen bg-background pb-safe-24")}>
+    <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] bg-background pb-safe-24")}>
       <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3">
         {!showHubShell && (
         <Button variant="ghost" size="icon" asChild className="shrink-0">

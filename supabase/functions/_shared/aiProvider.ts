@@ -27,7 +27,7 @@ export function resolveAiProvider(): AiProvider {
 
 const GEMINI_TOOL_GATEWAY_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const GEMINI_TOOL_MODEL = "gemini-2.5-pro";
+const GEMINI_TOOL_MODEL = Deno.env.get("GEMINI_TOOL_MODEL")?.trim() || "gemini-2.5-flash";
 
 async function replayResponse(res: Response): Promise<{ res: Response; body: unknown }> {
   const text = await res.text();
@@ -82,7 +82,8 @@ export async function callChatWithTools(
         inputChars,
         durationMs: Date.now() - started,
       });
-      return replayed;
+      if (replayed.ok || !geminiApiKey()) return replayed;
+      console.warn(`OpenAI chat_tools HTTP ${replayed.status}; falling back to Gemini`);
     }
   }
 

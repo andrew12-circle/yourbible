@@ -1,6 +1,6 @@
 /**
- * Enriches knowledge_entities (person kind) from Wikipedia → DuckDuckGo → Gemini.
- * Persists avatar_url and metadata enrichment fields on the entity row.
+ * Enriches knowledge_entities from Wikipedia → DuckDuckGo → Gemini → AI image.
+ * Person rows get profile photos; book/theme rows get cover art when missing.
  */
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
@@ -9,6 +9,11 @@ import {
   getOrCreateBiblicalPortraitUrl,
   isBiblicalFigure,
 } from "../_shared/biblicalFigurePortrait.ts";
+import {
+  getOrCreatePublicFigurePortraitUrl,
+  getOrCreateTopicCoverUrl,
+  tryOpenLibraryCover,
+} from "../_shared/entityPortrait.ts";
 import {
   enrichPublicFigure,
   hasUsefulEnrichContent,
@@ -69,6 +74,102 @@ function normalizeIds(raw: unknown): string[] {
   return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
 }
 
+function normalizeNames(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((x) => x.trim());
+}
+
+const TOPIC_ENTITY_KINDS = new Set([
+  "book",
+  "scripture",
+  "dream_vision",
+  "fear",
+  "question",
+  "project",
+  "business",
+  "system",
+  "technology",
+]);
+
+async function enrichPersonAvatar(
+  admin: SupabaseClient | null,
+  supabaseUrl: string,
+  title: string,
+  hint: string | undefined,
+  payload: PublicFigureEnrichResult,
+): Promise<PublicFigureEnrichResult> {
+  if (trimStr(payload.avatar_url) || !admin) return payload;
+
+  if (isBiblicalFigure(title)) {
+    const portraitUrl = await getOrCreateBiblicalPortraitUrl(admin, supabaseUrl, title);
+    if (portraitUrl) {
+      return {
+        ...payload,
+        avatar_url: portraitUrl,
+        source: "ai_portrait",
+        bio: payload.bio ?? biblicalFigureBio(title),
+      };
+    }
+  }
+
+  const portraitUrl = await getOrCreatePublicFigurePortraitUrl(admin, supabaseUrl, title, hint);
+  if (!portraitUrl) return payload;
+  return { ...payload, avatar_url: portraitUrl, source: "ai_portrait" };
+}
+
+async function enrichTopicCover(
+  admin: SupabaseClient | null,
+  supabaseUrl: string,
+  title: string,
+  kind: string,
+  hint: string | undefined,
+  payload: PublicFigureEnrichResult,
+): Promise<PublicFigureEnrichResult> {
+  if (trimStr(payload.avatar_url)) return payload;
+
+  if (kind === "book") {
+    const cover = await tryOpenLibraryCover(title).catch(() => null);
+    if (cover) return { ...payload, avatar_url: cover, source: payload.source ?? "wikipedia" };
+  }
+
+  if (!admin) return payload;
+  const coverUrl = await getOrCreateTopicCoverUrl(admin, supabaseUrl, title, kind, hint);
+  if (!coverUrl) return payload;
+  return { ...payload, avatar_url: coverUrl, source: "ai_portrait" };
+}
+
+async function enrichByDisplayName(
+  admin: SupabaseClient | null,
+  supabaseUrl: string,
+  name: string,
+  artifactHint?: string,
+): Promise<{ name: string; ok: boolean; avatar_url?: string; source?: EnrichSource; detail?: string }> {
+  const title = name.trim();
+  if (!title) return { name, ok: false, detail: "Name is required." };
+
+  const hint = artifactHint?.trim() || undefined;
+  let payload: PublicFigureEnrichResult = {};
+  if (isBiblicalFigure(title) && admin) {
+    const portraitUrl = await getOrCreateBiblicalPortraitUrl(admin, supabaseUrl, title);
+    if (portraitUrl) {
+      payload = { avatar_url: portraitUrl, bio: biblicalFigureBio(title), source: "ai_portrait" };
+    }
+  }
+  if (!hasUsefulEnrichContent(payload)) {
+    const enriched = await enrichPublicFigure(title, "person", hint);
+    payload = enriched.result;
+    payload = await enrichPersonAvatar(admin, supabaseUrl, title, hint, payload);
+  }
+
+  const avatar = trimStr(payload.avatar_url);
+  if (!avatar) {
+    return { name: title, ok: true, detail: "No profile image found." };
+  }
+  return { name: title, ok: true, avatar_url: avatar, source: payload.source };
+}
+
 async function enrichOneEntity(
   supabase: SupabaseClient,
   admin: SupabaseClient | null,
@@ -115,10 +216,6 @@ async function enrichOneEntity(
     metadata: unknown;
   };
 
-  if (entity.kind !== "person") {
-    return { entity_id: id, ok: false, error: "Only person entities can be enriched with profile photos." };
-  }
-
   const existingAvatar = trimStr(entity.avatar_url);
   if (existingAvatar) {
     return {
@@ -131,32 +228,46 @@ async function enrichOneEntity(
   }
 
   const meta = parseEntityMeta(entity.metadata);
-  const scope = entity.subtitle?.trim() || meta.role || "person";
+  const scope = entity.subtitle?.trim() || meta.role || entity.kind;
   const hint = [artifactHint?.trim(), meta.summary?.trim()].filter(Boolean).join(" · ") || undefined;
 
   let payload: PublicFigureEnrichResult = {};
   let llmFault: string | undefined;
 
-  if (isBiblicalFigure(entity.title)) {
-    if (admin) {
-      const portraitUrl = await getOrCreateBiblicalPortraitUrl(admin, supabaseUrl, entity.title);
-      if (portraitUrl) {
-        payload = {
-          avatar_url: portraitUrl,
-          bio: biblicalFigureBio(entity.title),
-          source: "ai_portrait",
-        };
+  if (entity.kind === "person") {
+    if (isBiblicalFigure(entity.title)) {
+      if (admin) {
+        const portraitUrl = await getOrCreateBiblicalPortraitUrl(admin, supabaseUrl, entity.title);
+        if (portraitUrl) {
+          payload = {
+            avatar_url: portraitUrl,
+            bio: biblicalFigureBio(entity.title),
+            source: "ai_portrait",
+          };
+        }
       }
+      if (!hasUsefulEnrichContent(payload)) {
+        const fallback = await enrichPublicFigure(entity.title, scope, hint);
+        payload = fallback.result;
+        llmFault = fallback.llmFault;
+      }
+    } else {
+      const enriched = await enrichPublicFigure(entity.title, scope, hint);
+      payload = enriched.result;
+      llmFault = enriched.llmFault;
     }
-    if (!hasUsefulEnrichContent(payload)) {
-      const fallback = await enrichPublicFigure(entity.title, scope, hint);
-      payload = fallback.result;
-      llmFault = fallback.llmFault;
-    }
-  } else {
-    const enriched = await enrichPublicFigure(entity.title, scope, hint);
+    payload = await enrichPersonAvatar(admin, supabaseUrl, entity.title, hint, payload);
+  } else if (TOPIC_ENTITY_KINDS.has(entity.kind)) {
+    const enriched = await enrichPublicFigure(entity.title, entity.kind, hint);
     payload = enriched.result;
     llmFault = enriched.llmFault;
+    payload = await enrichTopicCover(admin, supabaseUrl, entity.title, entity.kind, hint, payload);
+  } else {
+    return {
+      entity_id: id,
+      ok: false,
+      error: `Entity kind "${entity.kind}" is not supported for image enrichment.`,
+    };
   }
 
   if (!hasUsefulEnrichContent(payload)) {
@@ -247,6 +358,16 @@ Deno.serve(async (req) => {
     if (ids.length === 0) ids = normalizeIds(body.ids);
     if (ids.length === 0 && typeof body.entity_id === "string" && body.entity_id.trim()) {
       ids = [body.entity_id.trim()];
+    }
+
+    const castNames = normalizeNames(body.cast_names);
+    if (castNames.length > 0) {
+      const nameResults: Awaited<ReturnType<typeof enrichByDisplayName>>[] = [];
+      for (let i = 0; i < castNames.length; i += 1) {
+        if (i > 0) await sleep(BETWEEN_ENTITY_MS);
+        nameResults.push(await enrichByDisplayName(admin, SUPABASE_URL, castNames[i], artifactHint));
+      }
+      return jsonResponse({ ok: true, name_results: nameResults });
     }
 
     if (ids.length > 0) {

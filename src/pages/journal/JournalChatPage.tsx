@@ -41,7 +41,9 @@ import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal
 import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useKeyboardInset, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
@@ -57,7 +59,6 @@ import {
   readResponseDepthSetting,
   type ResponseDepthSetting,
 } from "@/lib/journal/responseDepth";
-import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 
 import {
@@ -487,7 +488,7 @@ export default function JournalChatPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className={mobileCenteredScreen("bg-background")}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );

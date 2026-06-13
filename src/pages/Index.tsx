@@ -1,14 +1,15 @@
 import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
-import { Loader2 } from "lucide-react";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 
 const Index = () => {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center paper-texture">
+      <div className={mobileCenteredScreen("paper-texture")}>
         <Loader2 className="w-6 h-6 animate-spin text-leather/50" />
       </div>
     );

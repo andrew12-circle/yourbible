@@ -210,7 +210,7 @@ export default function IosHomePage() {
 
   return (
     <div
-      className={`min-h-screen relative overflow-hidden ${wallpaper ? "" : "ios-wallpaper"}`}
+      className={`min-h-[100dvh] relative overflow-hidden ${wallpaper ? "" : "ios-wallpaper"}`}
       style={wallpaperStyle}
     >
       {wallpaper && <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30 pointer-events-none" />}
