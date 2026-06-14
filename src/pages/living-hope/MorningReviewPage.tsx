@@ -11,7 +11,9 @@ import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { useMorningScripture } from "@/hooks/useMorningScripture";
 import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
+import { supabase } from "@/integrations/supabase/client";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
+import { extractWorshipNote } from "@/lib/livingHope/morningConversationJournal";
 import {
   defaultMorningReviewDate,
   syncMorningReviewToJournal,
@@ -55,6 +57,7 @@ export default function MorningReviewPage() {
     error: conversationError,
     ensureEntry: ensureConversationEntry,
     refreshPreview: refreshConversationPreview,
+    syncThanksgiving: syncThanksgivingToJournal,
   } = useMorningConversationEntry(user?.id);
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -62,7 +65,6 @@ export default function MorningReviewPage() {
   const [visionRecall, setVisionRecall] = useState("");
   const [storyRecall, setStoryRecall] = useState("");
   const [metricValues, setMetricValues] = useState<Record<string, string>>({});
-  const [worshipNote, setWorshipNote] = useState("");
   const [thanksgivingNow, setThanksgivingNow] = useState(() => emptyThanksgivingLists().now);
   const [thanksgivingNotYet, setThanksgivingNotYet] = useState(() => emptyThanksgivingLists().notYet);
   const [scriptureReflection, setScriptureReflection] = useState("");
@@ -123,23 +125,42 @@ export default function MorningReviewPage() {
     setStorySelectedIndex((prev) => (prev == null ? storySuggestedIndex : prev));
   }, [workbook?.stories.length, storySuggestedIndex]);
 
+  const thanksgivingSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (step.kind === "scripture") void ensureScripture();
   }, [step.kind, ensureScripture]);
 
   useEffect(() => {
-    if (step.kind === "prayer") void ensureConversationEntry();
+    if (step.kind === "worship" || step.kind === "thanksgiving" || step.kind === "prayer") {
+      void ensureConversationEntry();
+    }
   }, [step.kind, ensureConversationEntry]);
 
   useEffect(() => {
-    if (step.kind === "prayer" && conversationEntryId) void refreshConversationPreview(conversationEntryId);
+    if ((step.kind === "worship" || step.kind === "prayer") && conversationEntryId) {
+      void refreshConversationPreview(conversationEntryId);
+    }
   }, [step.kind, conversationEntryId, refreshConversationPreview]);
+
+  useEffect(() => {
+    if (step.kind !== "thanksgiving") return;
+    if (thanksgivingSaveTimer.current) clearTimeout(thanksgivingSaveTimer.current);
+    thanksgivingSaveTimer.current = setTimeout(() => {
+      thanksgivingSaveTimer.current = null;
+      void syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
+    }, 700);
+    return () => {
+      if (thanksgivingSaveTimer.current) clearTimeout(thanksgivingSaveTimer.current);
+    };
+  }, [step.kind, thanksgivingNow, thanksgivingNotYet, syncThanksgivingToJournal]);
 
   useEffect(() => {
     if (restoredFormulaStep.current || !steps.length) return;
     const stepParam = searchParams.get("step");
-    if (stepParam !== "scripture" && stepParam !== "conversation") return;
-    const kind = stepParam === "conversation" ? "prayer" : "scripture";
+    if (stepParam !== "scripture" && stepParam !== "conversation" && stepParam !== "worship") return;
+    const kind =
+      stepParam === "conversation" ? "prayer" : stepParam === "worship" ? "worship" : "scripture";
     const idx = steps.findIndex((s) => s.kind === kind);
     if (idx >= 0) {
       setStepIndex(idx);
@@ -174,7 +195,6 @@ export default function MorningReviewPage() {
     const thanksgiving = compactThanksgivingLists({ now: thanksgivingNow, notYet: thanksgivingNotYet });
     return {
       ...base,
-      worship_note: worshipNote.trim() || undefined,
       ...thanksgiving,
       conversation_entry_id: conversationEntryId ?? undefined,
       prayer_note: conversationPreview?.excerpt || undefined,
@@ -185,7 +205,6 @@ export default function MorningReviewPage() {
       daily_assignment: dailyAssignment,
     };
   }, [
-    worshipNote,
     thanksgivingNow,
     thanksgivingNotYet,
     conversationEntryId,
@@ -206,6 +225,23 @@ export default function MorningReviewPage() {
         vivid_recall: g.vivid_detail ?? "",
         obedience_step: "",
       });
+
+      let worshipNote: string | undefined;
+      if (conversationEntryId) {
+        const { data } = await supabase
+          .from("journal_entries")
+          .select("body")
+          .eq("id", conversationEntryId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        worshipNote = data?.body ? extractWorshipNote(String(data.body)) : undefined;
+      }
+
+      const finalConnectionNotes: MorningConnectionNotes = {
+        ...connectionNotes,
+        worship_note: worshipNote,
+      };
+
       const review = await saveMorningReview(user.id, {
         surrender_note: surrender,
         goal_touches,
@@ -215,7 +251,7 @@ export default function MorningReviewPage() {
         metric_values: Object.fromEntries(
           Object.entries(metricValues).map(([k, v]) => [k, Number.isNaN(Number(v)) ? v : Number(v)]),
         ),
-        connection_notes: connectionNotes,
+        connection_notes: finalConnectionNotes,
       });
       setTodayReview(review);
       try {
@@ -227,7 +263,7 @@ export default function MorningReviewPage() {
           manifestoIndex,
           storyIndex,
           metricValues,
-          connectionNotes,
+          connectionNotes: finalConnectionNotes,
           workbook: workbook ?? null,
           goals: activeGoals,
         });
@@ -261,6 +297,7 @@ export default function MorningReviewPage() {
     manifestoIndex,
     metricValues,
     connectionNotes,
+    conversationEntryId,
     setTodayReview,
     steps.length,
     workbook,
@@ -315,8 +352,6 @@ export default function MorningReviewPage() {
                 setVisionRecall={setVisionRecall}
                 metricValues={metricValues}
                 setMetricValues={setMetricValues}
-                worshipNote={worshipNote}
-                setWorshipNote={setWorshipNote}
                 thanksgivingNow={thanksgivingNow}
                 thanksgivingNotYet={thanksgivingNotYet}
                 onThanksgivingNowChange={setThanksgivingNowItem}
@@ -325,7 +360,6 @@ export default function MorningReviewPage() {
                 conversationPreview={conversationPreview}
                 conversationBusy={conversationBusy}
                 conversationError={conversationError}
-                onEnsureConversationEntry={ensureConversationEntry}
                 scriptureReflection={scriptureReflection}
                 setScriptureReflection={setScriptureReflection}
                 dailyAssignment={dailyAssignment}
@@ -357,7 +391,16 @@ export default function MorningReviewPage() {
                   const isLastBeforeDone =
                     stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done";
                   if (isLastBeforeDone) void finish();
-                  else setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+                  else {
+                    if (step.kind === "thanksgiving") {
+                      if (thanksgivingSaveTimer.current) {
+                        clearTimeout(thanksgivingSaveTimer.current);
+                        thanksgivingSaveTimer.current = null;
+                      }
+                      void syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
+                    }
+                    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+                  }
                 }}
               >
                 {saving ? (

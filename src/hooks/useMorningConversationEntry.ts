@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  extractWorshipNote,
   fetchConversationEntryPreview,
+  findMorningConversationEntry,
   getOrCreateMorningConversationEntry,
+  syncThanksgivingToConversationEntry,
 } from "@/lib/livingHope/morningConversationJournal";
+import type { ThanksgivingLists } from "@/lib/livingHope/morningRitual";
 import { localDateISO } from "@/lib/lifePriorities";
 
 export function useMorningConversationEntry(userId: string | undefined) {
@@ -28,17 +32,43 @@ export function useMorningConversationEntry(userId: string | undefined) {
       await refreshPreview(id);
       return id;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't open journal");
+      setError(e instanceof Error ? e.message : "Couldn't start today's journal");
       return null;
     } finally {
       setBusy(false);
     }
   }, [userId, reviewDate, refreshPreview]);
 
+  const syncThanksgiving = useCallback(
+    async (lists: ThanksgivingLists) => {
+      if (!userId) return null;
+      setError(null);
+      try {
+        let id = entryId;
+        if (!id) {
+          const { entryId: createdId } = await getOrCreateMorningConversationEntry(userId, reviewDate);
+          id = createdId;
+          setEntryId(id);
+        }
+        await syncThanksgivingToConversationEntry(userId, id, lists);
+        await refreshPreview(id);
+        return id;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn't save thanksgiving");
+        return null;
+      }
+    },
+    [userId, entryId, reviewDate, refreshPreview],
+  );
+
   useEffect(() => {
     if (!userId) return;
-    void ensureEntry();
-  }, [userId, ensureEntry]);
+    void findMorningConversationEntry(userId, reviewDate).then((id) => {
+      if (!id) return;
+      setEntryId(id);
+      void refreshPreview(id);
+    });
+  }, [userId, reviewDate, refreshPreview]);
 
   return {
     entryId,
@@ -47,5 +77,6 @@ export function useMorningConversationEntry(userId: string | undefined) {
     error,
     ensureEntry,
     refreshPreview,
+    syncThanksgiving,
   };
 }

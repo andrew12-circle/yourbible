@@ -8,6 +8,7 @@ export interface ReaderNavigationState {
 }
 
 export const MORNING_FORMULA_SCRIPTURE_RETURN = "/living-hope/review?step=scripture";
+export const MORNING_FORMULA_WORSHIP_RETURN = "/living-hope/review?step=worship";
 export const MORNING_FORMULA_CONVERSATION_RETURN = "/living-hope/review?step=conversation";
 
 const SESSION_KEY = "yb_reader_return";

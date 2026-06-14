@@ -21,6 +21,10 @@ import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
 import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 import { morningFormulaReaderState, persistReaderReturn } from "@/lib/bible/readerNavigation";
 import { WorshipMusicPlayer } from "@/components/living-hope/WorshipMusicPlayer";
+import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
+import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
+import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFormulaInlineJournal";
+import { MORNING_FORMULA_WORSHIP_RETURN } from "@/lib/bible/readerNavigation";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { lh } from "@/lib/livingHope/themeClasses";
@@ -54,8 +58,6 @@ type Props = {
   setVisionRecall: (v: string) => void;
   metricValues: Record<string, string>;
   setMetricValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  worshipNote: string;
-  setWorshipNote: (v: string) => void;
   thanksgivingNow: string[];
   thanksgivingNotYet: string[];
   onThanksgivingNowChange: (index: number, value: string) => void;
@@ -64,7 +66,6 @@ type Props = {
   conversationPreview: { title: string | null; excerpt: string } | null;
   conversationBusy: boolean;
   conversationError: string | null;
-  onEnsureConversationEntry: () => Promise<string | null>;
   scriptureReflection: string;
   setScriptureReflection: (v: string) => void;
   dailyAssignment: DailyAssignment;
@@ -101,8 +102,6 @@ export function MorningRitualStepPanels({
   setVisionRecall,
   metricValues,
   setMetricValues,
-  worshipNote,
-  setWorshipNote,
   thanksgivingNow,
   thanksgivingNotYet,
   onThanksgivingNowChange,
@@ -111,7 +110,6 @@ export function MorningRitualStepPanels({
   conversationPreview,
   conversationBusy,
   conversationError,
-  onEnsureConversationEntry,
   scriptureReflection,
   setScriptureReflection,
   dailyAssignment,
@@ -131,7 +129,7 @@ export function MorningRitualStepPanels({
 }: Props) {
   if (step.kind === "intro") {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)] lg:items-start gap-6 lg:gap-8 flex-1">
+      <div className="flex flex-1 flex-col gap-6">
         <div className="min-w-0">
           <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
           <p className={cn(lh.body, "mb-4")}>
@@ -145,11 +143,11 @@ export function MorningRitualStepPanels({
             <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…</blockquote>
           ) : null}
         </div>
-        <div className="min-w-0 lg:sticky lg:top-2">
+        <div className="min-w-0">
           <img
             src="/images/morning-formula-steps.png"
             alt="He leads. We follow. His will. Our mission — worship, thank, read, pray, align, surrender, cover, assign, execute."
-            className="w-full rounded-xl border border-border/50 shadow-sm"
+            className="mx-auto w-full max-w-[380px] rounded-xl border border-border/50 shadow-sm"
           />
         </div>
       </div>
@@ -159,23 +157,25 @@ export function MorningRitualStepPanels({
   if (step.kind === "worship") {
     return (
       <>
+        <h1 className={cn(lh.titleLg, "mb-3")}>Worship</h1>
+        <p className={cn(lh.bodySm, "mb-4")}>
+          Put on praise music and pray. Get your eyes off business, money, systems, and pressure — talk to Him.
+          You don&apos;t need to write anything down.
+        </p>
         <WorshipMusicPlayer
           playlistUrl={worshipPlaylistUrl}
           playlistHistory={worshipPlaylistHistory}
           onWorshipMusicChange={onWorshipMusicChange}
         />
-        <h1 className={cn(lh.titleLg, "mb-3")}>Worship</h1>
-        <p className={cn(lh.bodySm, "mb-3")}>
-          Put on praise music. Get your eyes off business, money, systems, and pressure. Focus on:
-        </p>
+        <p className={cn(lh.labelUpper, "mb-2 mt-1")}>Focus on</p>
         <PromptList items={WORSHIP_PROMPTS} />
-        <label className={cn(lh.label, "mb-1 block")}>Who are you with this morning? (optional)</label>
-        <Textarea
-          value={worshipNote}
-          onChange={(e) => setWorshipNote(e.target.value)}
-          rows={4}
-          className={lh.textarea}
-          placeholder="Father, You are good… sovereign… faithful…"
+        <MorningFormulaInlineJournal
+          entryId={conversationEntryId}
+          busy={conversationBusy}
+          error={conversationError}
+          section="worship"
+          returnTo={MORNING_FORMULA_WORSHIP_RETURN}
+          className="mt-2"
         />
       </>
     );
@@ -185,8 +185,11 @@ export function MorningRitualStepPanels({
     return (
       <>
         <h1 className={cn(lh.titleLg, "mb-3")}>Thanksgiving</h1>
-        <p className={cn(lh.bodySm, "mb-4")}>
+        <p className={cn(lh.bodySm, "mb-2")}>
           Ten thanks — five for what is, five for what is coming. Name them specifically.
+        </p>
+        <p className={cn(lh.footnote, "mb-4")}>
+          These build today&apos;s entry as you go — you&apos;ll add more in conversation later.
         </p>
         <ThanksgivingListsInput
           thanksgivingNow={thanksgivingNow}
@@ -300,7 +303,6 @@ export function MorningRitualStepPanels({
           preview={conversationPreview}
           busy={conversationBusy}
           error={conversationError}
-          onEnsureEntry={onEnsureConversationEntry}
         />
       </>
     );
@@ -517,7 +519,7 @@ export function MorningRitualStepPanels({
         </Link>
         {journalEntryId ? (
           <Link to={`/journal/${journalEntryId}`} className={cn("mt-2 text-[13px]", lh.accentLink)}>
-            Open journal entry →
+            Journal entry →
           </Link>
         ) : null}
         <Link to="/framework/graph" className={cn("mt-2 text-[13px]", lh.muted)}>

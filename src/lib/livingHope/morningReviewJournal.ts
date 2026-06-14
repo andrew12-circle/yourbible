@@ -128,7 +128,7 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
       [
         ctx.connectionNotes?.prayer_note,
         ctx.connectionNotes?.conversation_entry_id
-          ? `(Full journal entry saved separately.)`
+          ? `(Worship, thanksgiving, and conversation live together in today's entry.)`
           : null,
       ]
         .filter(Boolean)

@@ -87,8 +87,8 @@ export const ENTRY_KIND_META: Record<
     newTitleHint: "Morning formula",
   },
   morning_conversation: {
-    label: "Morning conversation",
-    shortHint: "Prayer and conversation with God — journal, voice, or video, then listen.",
+    label: "Today's formula",
+    shortHint: "One entry for the whole morning — worship, thanksgiving, conversation, and listening.",
     placeholder:
       "What's on your heart? Talk honestly. When you're ready, ask what God wants you to know — then listen.",
     newTitleHint: "Conversation",
