@@ -1698,4 +1698,17 @@
   .chat-assistant-markdown {
     @apply max-w-none text-foreground;
   }
+
+  /* Journal write body — strip native field chrome (rounded box + corner focus artifacts). */
+  .journal-plain-write-field {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+  }
+
+  .journal-plain-write-field:focus,
+  .journal-plain-write-field:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
 }

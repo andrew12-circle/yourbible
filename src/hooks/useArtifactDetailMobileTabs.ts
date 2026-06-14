@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type ArtifactMobileTab = "study" | "transcript" | "notes" | "journal";
+export type ArtifactMobileTab = "study" | "transcript" | "notes" | "journal" | "research";
 
 function replaceHashlessUrl() {
   history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -14,7 +14,8 @@ export function useArtifactDetailMobileTabs() {
     if (
       window.location.hash === "#transcript" ||
       window.location.hash === "#notes" ||
-      window.location.hash === "#journal"
+      window.location.hash === "#journal" ||
+      window.location.hash === "#research"
     ) {
       replaceHashlessUrl();
     }
@@ -31,6 +32,10 @@ export function useArtifactDetailMobileTabs() {
     setMobileTab("journal");
     window.location.hash = "journal";
   }, []);
+  const openResearchTab = useCallback(() => {
+    setMobileTab("research");
+    window.location.hash = "research";
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -38,6 +43,7 @@ export function useArtifactDetailMobileTabs() {
       if (hash === "#transcript") setMobileTab("transcript");
       else if (hash === "#notes" || hash === "#capture") setMobileTab("notes");
       else if (hash === "#journal") setMobileTab("journal");
+      else if (hash === "#research") setMobileTab("research");
       else setMobileTab("study");
     };
     sync();
@@ -51,10 +57,12 @@ export function useArtifactDetailMobileTabs() {
     if (tab === "transcript") window.location.hash = "transcript";
     else if (tab === "notes") window.location.hash = "notes";
     else if (tab === "journal") window.location.hash = "journal";
+    else if (tab === "research") window.location.hash = "research";
     else if (
       window.location.hash === "#transcript" ||
       window.location.hash === "#notes" ||
-      window.location.hash === "#journal"
+      window.location.hash === "#journal" ||
+      window.location.hash === "#research"
     ) {
       replaceHashlessUrl();
     }
@@ -68,5 +76,6 @@ export function useArtifactDetailMobileTabs() {
     openTranscriptTab,
     openNotesTab,
     openJournalTab,
+    openResearchTab,
   };
 }

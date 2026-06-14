@@ -243,6 +243,9 @@ function transcriptSliceForWindow(params: {
 
 const DOCUMENT_CHUNK_CHARS = 48_000;
 const DOCUMENT_CHUNK_OVERLAP = 2_000;
+/** Cap initial PDF/book chunk calls so edge functions finish before wall-clock timeout. */
+const DOCUMENT_MAX_INITIAL_CHUNKS = envInt("FRAMEWORK_ANALYZE_DOCUMENT_MAX_CHUNKS", 6);
+const DOCUMENT_MIN_INITIAL_CLAIMS = envInt("FRAMEWORK_ANALYZE_DOCUMENT_MIN_CLAIMS", 12);
 
 async function extractDocumentClaimsByChunks(
   rawText: string,
@@ -254,8 +257,11 @@ async function extractDocumentClaimsByChunks(
 
   const seen = new Set<string>();
   const collected: ClaimWithChapter[] = [];
+  let chunkIndex = 0;
 
   for (let start = 0; start < len && collected.length < MAX_PERSISTED_CLAIMS; start += DOCUMENT_CHUNK_CHARS - DOCUMENT_CHUNK_OVERLAP) {
+    if (chunkIndex >= DOCUMENT_MAX_INITIAL_CHUNKS) break;
+    chunkIndex += 1;
     const slice = rawText.slice(start, Math.min(len, start + DOCUMENT_CHUNK_CHARS));
     const prompt = buildDocumentChunkPrompt(slice, beliefsList, start, len);
     const gw = await geminiSubmitClaims(geminiApiKey, prompt);
@@ -266,6 +272,7 @@ async function extractDocumentClaimsByChunks(
       seen.add(key);
       collected.push({ ...c, chapter_start_seconds: null });
     }
+    if (collected.length >= DOCUMENT_MIN_INITIAL_CLAIMS) break;
   }
 
   return collected.slice(0, MAX_PERSISTED_CLAIMS);
@@ -1660,14 +1667,20 @@ Deno.serve(async (req) => {
       : "";
     const isDocument = artifactKind === "pdf" || artifactKind === "text_file" || artifactKind === "text";
 
-    console.log("framework-analyze: fast-first pass");
-    const fastPrompt = buildFullArtifactPrompt(rawText, beliefsList, 16, 28);
-    const fastGw = await geminiSubmitClaims(GEMINI_API_KEY, fastPrompt);
-    if (await abortClaimsIfBadGateway(db, artifact_id, fastGw)) return;
-    let fastClaims = parseSubmitClaimsFromResponse((fastGw as { kind: "ok"; json: unknown }).json);
-    if (fastClaims.length === 0 && rawText.trim().length >= 400) {
-      console.log("framework-analyze: fast-first empty — document chunk pass");
+    let fastClaims: ClaimOut[] = [];
+    if (isDocument && rawText.trim().length >= 400) {
+      console.log("framework-analyze: document chunk pass (skip 200k fast-first for books)");
       fastClaims = await extractDocumentClaimsByChunks(rawText, beliefsList, GEMINI_API_KEY);
+    } else {
+      console.log("framework-analyze: fast-first pass");
+      const fastPrompt = buildFullArtifactPrompt(rawText, beliefsList, 16, 28);
+      const fastGw = await geminiSubmitClaims(GEMINI_API_KEY, fastPrompt);
+      if (await abortClaimsIfBadGateway(db, artifact_id, fastGw)) return;
+      fastClaims = parseSubmitClaimsFromResponse((fastGw as { kind: "ok"; json: unknown }).json);
+      if (fastClaims.length === 0 && rawText.trim().length >= 400) {
+        console.log("framework-analyze: fast-first empty — document chunk pass");
+        fastClaims = await extractDocumentClaimsByChunks(rawText, beliefsList, GEMINI_API_KEY);
+      }
     }
     const collected: ClaimWithChapter[] = fastClaims.map((c) => ({
       ...c,

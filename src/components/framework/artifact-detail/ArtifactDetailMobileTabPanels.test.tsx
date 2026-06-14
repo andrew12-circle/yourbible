@@ -15,6 +15,7 @@ describe("ArtifactDetailMobileTabPanels", () => {
           mobileTab="transcript"
           transcriptPanel={<div data-testid="transcript-body">Transcript</div>}
           mobileJournalTabPanel={null}
+          mobileResearchTabPanel={null}
           artifactId="artifact-1"
           bookmarkLabel=""
           onBookmarkLabelChange={() => {}}

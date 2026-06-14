@@ -38,6 +38,7 @@ import ArtifactPipelineBanner from "@/components/framework/artifact-detail/Artif
 import {
   ArtifactDetailDockedJournalPanel,
   ArtifactDetailMobileJournalTabPanel,
+  ArtifactDetailMobileResearchTabPanel,
 } from "@/components/framework/artifact-detail/ArtifactDetailEmbeddedJournalPanels";
 import ArtifactDetailMobileTabPanels, {
   ArtifactDetailMobileAppDock,
@@ -68,7 +69,6 @@ import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
 import {
-  startArtifactGlobalVideoHandoff,
   useArtifactGlobalVideoHandoff,
 } from "@/hooks/useArtifactGlobalVideoHandoff";
 import {
@@ -236,7 +236,8 @@ export default function ArtifactDetailPage() {
   const artifactJournalMode = useFloatingJournalStore((s) => s.artifactJournalMode);
   const artifactJournalOpen = artifactJournalMode !== "closed";
   const artifactJournalExpanded = artifactJournalMode === "expanded";
-  const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab, openJournalTab } =
+  const floatingClaimResearch = useFloatingJournalStore((s) => s.floatingClaimResearch);
+  const { mobileTab, onTabChange, openStudyTab, openTranscriptTab, openNotesTab, openJournalTab, openResearchTab } =
     useArtifactDetailMobileTabs();
   const entitiesCount = useArtifactEntityCount(a?.id, a?.status);
   const [mobileOpenClaimId, setMobileOpenClaimId] = useState<string | null>(null);
@@ -794,6 +795,22 @@ export default function ArtifactDetailPage() {
     closeArtifactJournal();
   }, [closeArtifactJournal]);
 
+  const leaveMobileResearchTab = useCallback(() => {
+    useFloatingJournalStore.getState().setFloatingClaimResearch(null);
+  }, []);
+
+  const openMobileResearchTab = useCallback(() => {
+    useFloatingJournalStore.getState().setPanelOpen(false);
+    useFloatingJournalStore.getState().setArtifactJournalMode("closed");
+    closeArtifactJournal();
+    openResearchTab();
+  }, [closeArtifactJournal, openResearchTab]);
+
+  const leaveMobilePinnedOverlayTab = useCallback(() => {
+    if (mobileTab === "journal") leaveMobileJournalTab();
+    if (mobileTab === "research") leaveMobileResearchTab();
+  }, [leaveMobileJournalTab, leaveMobileResearchTab, mobileTab]);
+
   const expandArtifactJournal = useCallback(() => {
     openArtifactJournal("expanded");
   }, [openArtifactJournal]);
@@ -829,15 +846,18 @@ export default function ArtifactDetailPage() {
     else if (mobilePinnedPane) openMobileJournalTab();
   }, [id, isDesktop, mobilePinnedPane, openArtifactJournal, openMobileJournalTab]);
 
+  useEffect(() => {
+    if (mobileTab !== "research" || floatingClaimResearch) return;
+    openStudyTab();
+  }, [floatingClaimResearch, mobileTab, openStudyTab]);
+
   const switchToStudyTab = useCallback(() => {
-    if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
+    leaveMobilePinnedOverlayTab();
     if (desktopInsightExploreClaimId) setDesktopInsightExploreClaimId(null);
     openStudyTab();
   }, [
     desktopInsightExploreClaimId,
-    leaveMobileJournalTab,
-    mobilePinnedPane,
-    mobileTab,
+    leaveMobilePinnedOverlayTab,
     openStudyTab,
   ]);
 
@@ -851,22 +871,22 @@ export default function ArtifactDetailPage() {
   }, [desktopStudyDock, openArtifactJournal, openJournalTab, openMobileJournalTab]);
 
   const handleDockTranscriptClick = useCallback(() => {
-    if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
+    leaveMobilePinnedOverlayTab();
     openTranscriptTab();
     if (desktopStudyDock) {
       transcriptAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }, [desktopStudyDock, leaveMobileJournalTab, mobilePinnedPane, mobileTab, openTranscriptTab]);
+  }, [desktopStudyDock, leaveMobilePinnedOverlayTab, openTranscriptTab]);
 
   const switchToTranscriptTab = useCallback(() => {
-    if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
+    leaveMobilePinnedOverlayTab();
     openTranscriptTab();
-  }, [leaveMobileJournalTab, mobilePinnedPane, mobileTab, openTranscriptTab]);
+  }, [leaveMobilePinnedOverlayTab, openTranscriptTab]);
 
   const switchToNotesTab = useCallback(() => {
-    if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
+    leaveMobilePinnedOverlayTab();
     openNotesTab();
-  }, [leaveMobileJournalTab, mobilePinnedPane, mobileTab, openNotesTab]);
+  }, [leaveMobilePinnedOverlayTab, openNotesTab]);
 
   const openNotesTabWithNote = useCallback(() => {
     setMobileNoteSectionOpen(true);
@@ -887,10 +907,10 @@ export default function ArtifactDetailPage() {
         openMobileJournalTab();
         return;
       }
-      if (mobilePinnedPane && mobileTab === "journal") leaveMobileJournalTab();
+      leaveMobilePinnedOverlayTab();
       onTabChange(value);
     },
-    [leaveMobileJournalTab, mobilePinnedPane, mobileTab, onTabChange, openMobileJournalTab],
+    [leaveMobilePinnedOverlayTab, mobilePinnedPane, onTabChange, openMobileJournalTab],
   );
 
   const navigateToArtifactHash = useCallback(
@@ -1186,16 +1206,10 @@ export default function ArtifactDetailPage() {
       artifactTitle: a.title,
     };
     if (!isDesktop) {
-      if (getWantsContinuousPlayback() && youTubeVideoId && id) {
-        const seconds = getPlaybackSeconds();
-        persistSeconds(seconds);
-        startArtifactGlobalVideoHandoff({
-          artifactId: id,
-          youTubeVideoId,
-          title: a.title,
-          startSeconds: seconds,
-          layout: youtubePip.pipOverlayLayout,
-        });
+      if (mobilePinnedPane) {
+        useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
+        openMobileResearchTab();
+        return;
       }
       useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
       navigate(`/framework/artifacts/${a.id}/research/${claim.id}`);
@@ -1422,6 +1436,11 @@ export default function ArtifactDetailPage() {
   const mobileJournalTabPanel =
     journalPanelProps && mobilePinnedPane ? (
       <ArtifactDetailMobileJournalTabPanel {...journalPanelProps} onClose={switchToStudyTab} />
+    ) : null;
+
+  const mobileResearchTabPanel =
+    floatingClaimResearch && mobilePinnedPane && user?.id ? (
+      <ArtifactDetailMobileResearchTabPanel userId={user.id} research={floatingClaimResearch} />
     ) : null;
 
   const showMobileOverview = mobilePinnedPane && a.status === "ready";
@@ -1651,7 +1670,7 @@ export default function ArtifactDetailPage() {
             mobilePinnedPane
               ? cn(
                   "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
-                  mobileTab === "journal" && "overflow-hidden",
+                  mobileTab === "journal" || mobileTab === "research" ? "overflow-hidden" : undefined,
                 )
               : desktopPremiumSplitPane
                 ? "space-y-3"
@@ -1730,7 +1749,7 @@ export default function ArtifactDetailPage() {
             mobilePinnedPane
               ? cn(
                   mobileTab !== "study" && "hidden",
-                  mobileTab === "journal" || mobileInsightExploreOpen
+                  mobileTab === "journal" || mobileTab === "research" || mobileInsightExploreOpen
                     ? "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden"
                     : artifactMobileTabScrollPane,
                 )
@@ -1767,7 +1786,7 @@ export default function ArtifactDetailPage() {
       {!artifactJournalExpanded &&
       !(mobilePinnedPane && isReadableDocument && mobileInsightExploreOpen) &&
       (isDesktop ||
-        (mobileTab !== "transcript" && mobileTab !== "notes" && mobileTab !== "journal")) ? (
+        (mobileTab !== "transcript" && mobileTab !== "notes" && mobileTab !== "journal" && mobileTab !== "research")) ? (
         <div className={cn(desktopPremiumSplitPane && artifactDesktopBodySheet)}>
         <ArtifactSectionNav
           sections={navSections}
@@ -2196,6 +2215,7 @@ export default function ArtifactDetailPage() {
           mobileTab={mobileTab}
           transcriptPanel={secondaryStudyPanel}
           mobileJournalTabPanel={mobileJournalTabPanel}
+          mobileResearchTabPanel={mobileResearchTabPanel}
           artifactId={a.id}
           bookmarkLabel={bookmarkLabel}
           onBookmarkLabelChange={setBookmarkLabel}

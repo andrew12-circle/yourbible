@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ExternalLink, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ArtifactPdfPageViewer from "@/components/framework/artifact-detail/ArtifactPdfPageViewer";
 import { useArtifactPdfSignedUrl } from "@/hooks/useArtifactPdfSignedUrl";
 import { attachArtifactSourcePdf } from "@/lib/framework/attachArtifactSourcePdf";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ type Props = {
   onPdfAttached?: () => void | Promise<void>;
   /** When true, PDF loads only while the panel is visible (mobile tab). */
   active?: boolean;
+  /** Warm signed URLs before the reader opens (cover on detail page). */
+  prefetch?: boolean;
   className?: string;
   showOpenInTab?: boolean;
 };
@@ -24,6 +27,7 @@ export default function ArtifactPdfReaderContent({
   storagePaths,
   onPdfAttached,
   active = true,
+  prefetch = false,
   className,
   showOpenInTab = true,
 }: Props) {
@@ -33,7 +37,8 @@ export default function ArtifactPdfReaderContent({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const paths = [...new Set([...(attachedPath ? [attachedPath] : []), ...storagePaths.filter(Boolean)])];
-  const { url, error, loading } = useArtifactPdfSignedUrl(paths, active);
+  const shouldResolveUrl = prefetch || active;
+  const { url, error, loading } = useArtifactPdfSignedUrl(paths, shouldResolveUrl);
   const canUpload = Boolean(artifactId && userId);
 
   const handlePickPdf = () => {
@@ -60,12 +65,19 @@ export default function ArtifactPdfReaderContent({
   };
 
   const showMissing = !loading && !uploading && !url;
+  const showUrlSpinner = (loading || uploading) && !url;
 
   return (
-    <div className={cn("relative flex min-h-0 flex-1 flex-col bg-muted/30", className)}>
+    <div className={cn("relative flex min-h-0 flex-1 flex-col", className)}>
       {showOpenInTab && url ? (
-        <div className="absolute right-3 top-3 z-10">
-          <Button type="button" size="sm" variant="outline" asChild className="bg-background/95 shadow-sm">
+        <div className="absolute right-3 top-3 z-20">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            asChild
+            className="border-white/20 bg-black/50 text-white shadow-sm backdrop-blur-sm hover:bg-black/70 hover:text-white"
+          >
             <a href={url} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden />
               Open in tab
@@ -73,14 +85,16 @@ export default function ArtifactPdfReaderContent({
           </Button>
         </div>
       ) : null}
-      {loading || uploading ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+
+      {showUrlSpinner ? (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[#1c1c1e] text-sm text-white/80">
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-          {uploading ? "Uploading PDF…" : "Loading PDF…"}
+          {uploading ? "Uploading PDF…" : "Opening book…"}
         </div>
       ) : null}
+
       {showMissing ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted/30 px-6 text-center">
           <div className="max-w-md space-y-2">
             <p className="text-sm text-foreground">
               {error ?? "Original PDF not available for this book."}
@@ -108,13 +122,8 @@ export default function ArtifactPdfReaderContent({
           {uploadError ? <p className="max-w-md text-xs text-destructive">{uploadError}</p> : null}
         </div>
       ) : null}
-      {url ? (
-        <iframe
-          title={title}
-          src={url}
-          className="h-full min-h-0 w-full flex-1 border-0 bg-white"
-        />
-      ) : null}
+
+      {url && active ? <ArtifactPdfPageViewer pdfUrl={url} title={title} className="min-h-0 flex-1" /> : null}
     </div>
   );
 }

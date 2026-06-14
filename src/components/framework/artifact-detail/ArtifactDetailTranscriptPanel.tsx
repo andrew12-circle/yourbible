@@ -47,7 +47,7 @@ export type ArtifactDetailTranscriptPanelProps = {
   onNoteBodyChange: (value: string) => void;
   artifactPolishKey: string;
   saveSegmentNote: (seconds: number) => void;
-  mobileTab: "study" | "transcript" | "notes" | "journal";
+  mobileTab: "study" | "transcript" | "notes" | "journal" | "research";
   moments: ArtifactMoment[];
 };
 

@@ -38,6 +38,8 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
+import { resolveJournalChatSessionTitles } from "@/lib/journal/resolveJournalChatSessionTitles";
+import { normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
 import ClaimResearchBar from "@/components/journal/ClaimResearchBar";
 import type { ClaimVerdict } from "@/lib/framework/claimVerdict";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
@@ -46,6 +48,7 @@ import {
   useLockBodyScrollWhenKeyboardActive,
   useVisualViewportMetrics,
 } from "@/hooks/useKeyboardInset";
+import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
@@ -55,6 +58,7 @@ import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
 import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
 import {
   journalChatUserBubbleClass,
+  journalPlainWriteFieldClass,
 } from "@/lib/journal/journalChatUi";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
@@ -166,6 +170,7 @@ export default function JournalChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerLockScrollYRef = useRef<number | null>(null);
   const writeLockScrollYRef = useRef<number | null>(null);
+  const writeBodyRef = useRef<HTMLTextAreaElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
@@ -194,6 +199,7 @@ export default function JournalChatPage() {
     (composerFocused && viewMode === "chat") || (writeFocused && viewMode === "write"),
     keyboardScrollLockRef,
   );
+  useJournalEntryTextareaAutosize(writeBodyRef, journalBody);
 
   inputRef.current = input;
   dictInterimRef.current = dictInterim;
@@ -272,7 +278,9 @@ export default function JournalChatPage() {
       toast({ title: "Could not load sessions", description: error.message, variant: "destructive" });
       setSessions([]);
     } else {
-      setSessions((data as { id: string; title: string | null; entry_at_ts: string }[]) ?? []);
+      const rows = (data as { id: string; title: string | null; entry_at_ts: string }[]) ?? [];
+      const resolved = await resolveJournalChatSessionTitles(supabase, user.id, rows);
+      setSessions(resolved);
     }
     setLoadingSessions(false);
   }, [user]);
@@ -646,6 +654,15 @@ export default function JournalChatPage() {
       if (ignoreResult.current) return;
 
       patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+      if (done.title?.trim() && !entryTitle.trim()) {
+        const nextTitle = normalizeChatSessionTitle(done.title.trim());
+        setEntryTitle(nextTitle);
+        await supabase
+          .from("journal_entries")
+          .update({ title: nextTitle, updated_at: new Date().toISOString() })
+          .eq("id", routeEntryId)
+          .eq("user_id", user.id);
+      }
       await loadMessages(done.chat_id);
       void loadSessions();
       if (done.content.trim()) void playJournalAssistantTts(done.content);
@@ -1001,6 +1018,7 @@ export default function JournalChatPage() {
             {!showLoadingShell && viewMode === "write" && (
               <div className="mx-auto max-w-2xl space-y-4 pb-6">
                 <PolishedTextarea
+                  ref={writeBodyRef}
                   polishResetKey={`${routeEntryId}-write`}
                   value={journalBody}
                   onChange={(e) => setJournalBody(e.target.value)}
@@ -1013,7 +1031,7 @@ export default function JournalChatPage() {
                     void persistJournalBody(journalBody);
                   }}
                   placeholder="What happened today? What are you carrying?"
-                  className="!block w-full !min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-0 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 [field-sizing:content] min-h-[40dvh]"
+                  className={cn(journalPlainWriteFieldClass, "min-h-[40dvh]")}
                 />
                 {chatTurnsForCollapsible.length > 0 ? (
                   <JournalLiveChatCollapsible turns={chatTurnsForCollapsible} />

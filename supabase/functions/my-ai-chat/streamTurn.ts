@@ -220,6 +220,23 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         }
         await supabase.from("my_ai_chats").update(patch).eq("id", chatId).eq("user_id", userId);
 
+        const journalEntryIdLinked = (chatRow?.journal_entry_id as string | null) ?? null;
+        if (titleOut && journalEntryIdLinked) {
+          const { data: journalEntry } = await supabase
+            .from("journal_entries")
+            .select("title")
+            .eq("id", journalEntryIdLinked)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!journalEntry?.title?.trim()) {
+            await supabase
+              .from("journal_entries")
+              .update({ title: titleOut, updated_at: new Date().toISOString() })
+              .eq("id", journalEntryIdLinked)
+              .eq("user_id", userId);
+          }
+        }
+
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({

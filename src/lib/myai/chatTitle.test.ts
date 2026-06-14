@@ -3,7 +3,9 @@ import {
   AUTO_CHAT_TITLE_MAX_WORDS,
   chatTitleFromFirstMessage,
   claimResearchChatTitle,
+  formatChatSessionTitle,
   hardQuestionChatTitle,
+  normalizeChatSessionTitle,
   truncateToWordCount,
 } from "@/lib/myai/chatTitle";
 
@@ -12,18 +14,39 @@ describe("truncateToWordCount", () => {
     expect(truncateToWordCount("Good afternoon")).toBe("Good afternoon");
   });
 
-  it("limits to five words by default", () => {
-    expect(truncateToWordCount("one two three four five six seven")).toBe("one two three four five…");
+  it("limits to seven words by default", () => {
+    expect(truncateToWordCount("one two three four five six seven eight")).toBe(
+      "one two three four five six seven…",
+    );
+  });
+});
+
+describe("normalizeChatSessionTitle", () => {
+  it("caps legacy long claim research titles", () => {
+    const long =
+      'Claim research: Mankind did not invent civilization but inherited it, and humans were … (The Universe before Humanity (aliens, megaliths, & ancient empires) w/Tim Alberino)';
+    expect(normalizeChatSessionTitle(long)).toBe(
+      "Claim research: Mankind did not invent civilization…",
+    );
+    expect(normalizeChatSessionTitle(long).split(/\s+/).length).toBeLessThanOrEqual(
+      AUTO_CHAT_TITLE_MAX_WORDS,
+    );
+  });
+});
+
+describe("formatChatSessionTitle", () => {
+  it("falls back to Untitled", () => {
+    expect(formatChatSessionTitle(null)).toBe("Untitled");
   });
 });
 
 describe("chatTitleFromFirstMessage", () => {
-  it("uses the first sentence capped at five words", () => {
+  it("uses the first sentence capped at seven words", () => {
     expect(chatTitleFromFirstMessage("  Good afternoon. How are you?  ")).toBe("Good afternoon");
   });
 
-  it("truncates long opening sentences to five words", () => {
-    const long = "alpha beta gamma delta epsilon zeta eta theta";
+  it("truncates long opening sentences to seven words", () => {
+    const long = "alpha beta gamma delta epsilon zeta eta theta iota";
     expect(chatTitleFromFirstMessage(long)).toBe(
       truncateToWordCount(long.split(/[.!?]/)[0]!, AUTO_CHAT_TITLE_MAX_WORDS),
     );
@@ -40,7 +63,7 @@ describe("claimResearchChatTitle", () => {
       claimResearchChatTitle(
         "Mankind did not invent civilization but inherited it, and humans were never primitive",
       ),
-    ).toBe("Claim research: Mankind did not…");
+    ).toBe("Claim research: Mankind did not invent civilization…");
   });
 });
 
@@ -48,6 +71,6 @@ describe("hardQuestionChatTitle", () => {
   it("caps the question portion", () => {
     expect(
       hardQuestionChatTitle("Why doesn't the Bible mention dinosaurs, even though it mentions dragons?"),
-    ).toBe("Hard question — Why doesn't the…");
+    ).toBe("Hard question — Why doesn't the Bible…");
   });
 });

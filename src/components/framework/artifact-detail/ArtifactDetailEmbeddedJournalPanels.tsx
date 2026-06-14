@@ -1,5 +1,7 @@
 import ArtifactEmbeddedJournal from "@/components/framework/artifact-detail/ArtifactEmbeddedJournal";
+import ClaimResearchWorkspace from "@/components/journal/ClaimResearchWorkspace";
 import type { ArtifactJournalSourceMetaProps } from "@/components/framework/artifact-detail/ArtifactJournalSourceMeta";
+import type { FloatingClaimResearchHandoff } from "@/lib/journal/floatingJournalStore";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 
 type JournalPanelProps = {
@@ -47,6 +49,22 @@ export function ArtifactDetailMobileJournalTabPanel(props: JournalPanelProps) {
     <ArtifactEmbeddedJournal
       {...sharedJournalProps(props)}
       fillUnderVideo
+      className="h-full min-h-0 w-full max-w-none"
+    />
+  );
+}
+
+export function ArtifactDetailMobileResearchTabPanel({
+  userId,
+  research,
+}: {
+  userId: string;
+  research: FloatingClaimResearchHandoff;
+}) {
+  return (
+    <ClaimResearchWorkspace
+      userId={userId}
+      research={research}
       className="h-full min-h-0 w-full max-w-none"
     />
   );

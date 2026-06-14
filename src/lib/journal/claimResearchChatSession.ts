@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getCurrentContext } from "@/lib/journal/context";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import { normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
 
 export function claimResearchEntryTag(claimId: string): string {
   return `claim-research:${claimId}`;
@@ -57,13 +58,14 @@ export async function ensureClaimResearchChatSession(
   const ctx = await getCurrentContext().catch(() => ({} as Record<string, unknown>));
   const now = new Date();
   const tag = claimResearchEntryTag(claimId);
+  const sessionTitle = normalizeChatSessionTitle(title.trim()) || "Claim research";
 
   const { data: ent, error: eErr } = await supabase
     .from("journal_entries")
     .insert({
       user_id: userId,
       journal_id: jid,
-      title,
+      title: sessionTitle,
       body: "",
       tags: [tag],
       entry_kind: "chat",

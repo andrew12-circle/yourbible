@@ -24,12 +24,12 @@ describe("useArtifactDetailMobileTabs", () => {
     expect(result.current.mobileTab).toBe("study");
   });
 
-  it("clears transcript, notes, and journal hashes when the Study dock action is used", () => {
-    setPath("/framework/artifacts/artifact-1#journal");
+  it("clears transcript, notes, journal, and research hashes when the Study dock action is used", () => {
+    setPath("/framework/artifacts/artifact-1#research");
 
     const { result } = renderHook(() => useArtifactDetailMobileTabs());
 
-    expect(result.current.mobileTab).toBe("journal");
+    expect(result.current.mobileTab).toBe("research");
 
     act(() => result.current.openStudyTab());
 

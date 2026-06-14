@@ -1,4 +1,4 @@
-export const AUTO_CHAT_TITLE_MAX_WORDS = 5;
+export const AUTO_CHAT_TITLE_MAX_WORDS = 7;
 
 export function truncateToWordCount(text: string, maxWords = AUTO_CHAT_TITLE_MAX_WORDS): string {
   const words = text.replace(/\s+/g, " ").trim().split(/\s+/).filter(Boolean);
@@ -17,6 +17,6 @@ export function titleFromFirstMessage(message: string): string {
 }
 
 export function claimResearchTitleFromClaim(claimText: string): string {
-  const snippet = truncateToWordCount(claimText.trim(), 3);
+  const snippet = truncateToWordCount(claimText.trim(), 5);
   return snippet ? `Claim research: ${snippet}` : "Claim research";
 }

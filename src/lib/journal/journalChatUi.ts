@@ -2,6 +2,12 @@
 export const journalChatUserBubbleClass =
   "w-fit max-w-[min(100%,85%)] rounded-xl bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap break-words";
 
+/** Borderless journal body — no rounded box chrome or focus corner artifacts. */
+export const journalPlainWriteFieldClass =
+  "journal-plain-write-field !block w-full !min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-0 shadow-none " +
+  "rounded-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
+  "font-sans text-[16px] leading-relaxed [field-sizing:fixed]";
+
 /** Citation / source chips under assistant replies. */
 export const journalChatCitationChipBaseClass =
   "inline-flex max-w-full items-start rounded-lg border px-2.5 py-1 text-[11px] font-medium leading-snug tracking-tight";

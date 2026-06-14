@@ -16,6 +16,7 @@ import {
   isChatJournalExport,
   parseChatJournalEntry,
 } from "@/lib/journal/chatJournalEntry";
+import { journalPlainWriteFieldClass } from "@/lib/journal/journalChatUi";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
@@ -775,7 +776,7 @@ export default function EntryEditorPane({
                   value={bodyTextareaValue}
                   onChange={(e) => handleBodyChange(e.target.value)}
                   placeholder="What happened today? What are you carrying?"
-                  className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
+                  className={journalPlainWriteFieldClass}
                 />
                 <DictInterimPreview
                   text={dictInterim}
@@ -803,7 +804,7 @@ export default function EntryEditorPane({
                 value={entry.body}
                 onChange={(e) => handleBodyChange(e.target.value)}
                 placeholder="What happened today? What are you carrying?"
-                className="!block w-full !min-h-0 border-0 px-0 py-0 focus-visible:ring-0 shadow-none resize-none overflow-hidden font-sans text-[16px] leading-relaxed [field-sizing:content]"
+                className={journalPlainWriteFieldClass}
               />
               <DictInterimPreview
                 text={dictInterim}

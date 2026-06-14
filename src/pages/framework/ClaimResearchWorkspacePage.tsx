@@ -11,7 +11,7 @@ import {
   buildClaimResearchMarkdown,
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
-import { cn } from "@/lib/utils";
+import { isArtifactLayoutDesktop, useArtifactLayoutMode } from "@/hooks/useArtifactLayoutMode";
 
 type ClaimRow = {
   id: string;
@@ -43,6 +43,8 @@ type ArtifactRow = {
 export default function ClaimResearchWorkspacePage() {
   const { id: artifactId, claimId } = useParams<{ id: string; claimId: string }>();
   const navigate = useNavigate();
+  const layoutMode = useArtifactLayoutMode();
+  const inlineOnArtifact = !isArtifactLayoutDesktop(layoutMode);
   const { user, loading: authLoading } = useAuth();
   const [claim, setClaim] = useState<ClaimRow | null>(null);
   const [artifact, setArtifact] = useState<ArtifactRow | null>(null);
@@ -132,13 +134,20 @@ export default function ClaimResearchWorkspacePage() {
   }, [claim, artifact, belief, user]);
 
   useEffect(() => {
+    if (inlineOnArtifact) return;
     if (researchHandoff) {
       useFloatingJournalStore.getState().setFloatingClaimResearch(researchHandoff);
     }
     return () => {
       useFloatingJournalStore.getState().setFloatingClaimResearch(null);
     };
-  }, [researchHandoff]);
+  }, [researchHandoff, inlineOnArtifact]);
+
+  useEffect(() => {
+    if (!inlineOnArtifact || !researchHandoff || !artifactId || loading) return;
+    useFloatingJournalStore.getState().setFloatingClaimResearch(researchHandoff);
+    navigate(`/framework/artifacts/${artifactId}#research`, { replace: true });
+  }, [artifactId, inlineOnArtifact, loading, navigate, researchHandoff]);
 
   const researchLayoutProps = {
     immersive: true as const,
@@ -174,6 +183,16 @@ export default function ClaimResearchWorkspacePage() {
             Back to artifact
           </Link>
         </p>
+      </FrameworkLayout>
+    );
+  }
+
+  if (inlineOnArtifact) {
+    return (
+      <FrameworkLayout title="Research" {...researchLayoutProps}>
+        <div className="flex flex-1 justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
       </FrameworkLayout>
     );
   }

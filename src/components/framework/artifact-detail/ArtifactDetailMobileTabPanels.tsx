@@ -9,7 +9,7 @@ import {
 } from "@/lib/framework/artifactLayoutCss";
 import type { ArtifactMoment } from "@/hooks/useArtifactDetailData";
 
-type MobileTab = "study" | "transcript" | "notes" | "journal";
+type MobileTab = "study" | "transcript" | "notes" | "journal" | "research";
 
 type Props = {
   isDesktop: boolean;
@@ -18,6 +18,7 @@ type Props = {
   mobileInsightExploreOpen: boolean;
   transcriptPanel: ReactNode;
   mobileJournalTabPanel: ReactNode;
+  mobileResearchTabPanel: ReactNode;
   artifactId: string;
   bookmarkLabel: string;
   onBookmarkLabelChange: (value: string) => void;
@@ -49,6 +50,7 @@ export default function ArtifactDetailMobileTabPanels({
   mobileTab,
   transcriptPanel,
   mobileJournalTabPanel,
+  mobileResearchTabPanel,
   artifactId,
   bookmarkLabel,
   onBookmarkLabelChange,
@@ -105,6 +107,15 @@ export default function ArtifactDetailMobileTabPanels({
           className="mt-0 flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col self-stretch px-0 focus-visible:outline-none data-[state=inactive]:hidden [&>section]:min-h-0 [&>section]:flex-1"
         >
           {mobileJournalTabPanel}
+        </TabsContent>
+      ) : null}
+
+      {mobilePinnedPane ? (
+        <TabsContent
+          value="research"
+          className="mt-0 flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col self-stretch px-0 focus-visible:outline-none data-[state=inactive]:hidden"
+        >
+          {mobileResearchTabPanel}
         </TabsContent>
       ) : null}
 

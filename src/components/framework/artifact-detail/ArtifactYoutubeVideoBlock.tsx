@@ -256,7 +256,7 @@ function ArtifactYoutubeVideoBlock({
         backTo={backTo}
         insightExplorePanel={insightExplorePanel}
         insightExploreOpen={insightExploreOpen}
-        hideVideoMeta={mobileActiveTab === "journal"}
+        hideVideoMeta={mobileActiveTab === "journal" || mobileActiveTab === "research"}
       />
     ) : null;
 

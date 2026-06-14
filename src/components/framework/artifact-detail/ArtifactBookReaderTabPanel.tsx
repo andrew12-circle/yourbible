@@ -60,6 +60,7 @@ export default function ArtifactBookReaderTabPanel({
           storagePaths={storagePaths}
           onPdfAttached={onPdfAttached}
           active={readerTabActive}
+          prefetch={desktopAside}
           showOpenInTab={desktopAside}
           className="min-h-0 flex-1"
         />

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { chatTitleFromFirstMessage } from "@/lib/myai/chatTitle";
+import { chatTitleFromFirstMessage, normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
 
 export type ChatTitleRow = {
   id: string;
@@ -46,7 +46,7 @@ export async function resolveUntitledChats(
   for (const chat of untitled) {
     const content = firstMessageByChat.get(chat.id);
     if (!content?.trim()) continue;
-    const title = chatTitleFromFirstMessage(content);
+    const title = normalizeChatSessionTitle(chatTitleFromFirstMessage(content));
     derivedTitles.set(chat.id, title);
     updates.push(
       supabase.from("my_ai_chats").update({ title }).eq("id", chat.id).eq("user_id", userId),

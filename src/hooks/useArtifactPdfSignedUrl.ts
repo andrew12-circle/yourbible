@@ -1,37 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const VERIFY_TIMEOUT_MS = 15_000;
+const SIGNED_URL_TTL_MS = 60 * 60 * 1000;
+const CACHE_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
-/** Returns whether the object exists; on network ambiguity, assume ok and let the viewer try. */
-async function verifyPdfSignedUrl(signedUrl: string): Promise<"ok" | "missing" | "unknown"> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
-  try {
-    const res = await fetch(signedUrl, {
-      method: "GET",
-      headers: { Range: "bytes=0-0" },
-      signal: controller.signal,
-    });
-    if (res.status === 404 || res.status === 400) return "missing";
-    if (res.ok || res.status === 206) return "ok";
-    return "unknown";
-  } catch {
-    return "unknown";
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
+type CachedSignedUrl = { url: string; expiresAt: number };
+
+const signedUrlCache = new Map<string, CachedSignedUrl>();
 
 async function resolvePdfSignedUrl(storagePath: string): Promise<string | null> {
+  const cached = signedUrlCache.get(storagePath);
+  if (cached && Date.now() < cached.expiresAt - CACHE_REFRESH_BUFFER_MS) {
+    return cached.url;
+  }
+
   const { data, error: signErr } = await supabase.storage
     .from("artifact-uploads")
-    .createSignedUrl(storagePath, 60 * 60);
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_MS / 1000);
 
   if (signErr || !data?.signedUrl) return null;
 
-  const status = await verifyPdfSignedUrl(data.signedUrl);
-  if (status === "missing") return null;
+  signedUrlCache.set(storagePath, {
+    url: data.signedUrl,
+    expiresAt: Date.now() + SIGNED_URL_TTL_MS,
+  });
   return data.signedUrl;
 }
 
@@ -45,18 +37,39 @@ export function useArtifactPdfSignedUrl(
     return [...new Set(list.map((p) => p.trim()).filter(Boolean))];
   }, [storagePaths]);
 
-  const [url, setUrl] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(() => {
+    for (const path of paths) {
+      const cached = signedUrlCache.get(path);
+      if (cached && Date.now() < cached.expiresAt - CACHE_REFRESH_BUFFER_MS) {
+        return cached.url;
+      }
+    }
+    return null;
+  });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resolvedPath, setResolvedPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled || paths.length === 0) {
-      setUrl(null);
-      setError(null);
-      setLoading(false);
-      setResolvedPath(null);
+      if (!enabled) {
+        setUrl(null);
+        setError(null);
+        setLoading(false);
+        setResolvedPath(null);
+      }
       return;
+    }
+
+    for (const path of paths) {
+      const cached = signedUrlCache.get(path);
+      if (cached && Date.now() < cached.expiresAt - CACHE_REFRESH_BUFFER_MS) {
+        setUrl(cached.url);
+        setResolvedPath(path);
+        setError(null);
+        setLoading(false);
+        return;
+      }
     }
 
     let cancelled = false;

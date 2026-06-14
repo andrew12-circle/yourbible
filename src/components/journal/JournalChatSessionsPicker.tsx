@@ -1,6 +1,7 @@
 import { Loader2, MessageCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { formatChatSessionTitle } from "@/lib/myai/chatTitle";
 import { cn } from "@/lib/utils";
 
 export type ChatSessionItem = {
@@ -57,7 +58,7 @@ function SessionsList({
           <ul className="py-1">
             {sessions.map((s) => {
               const active = activeId === s.id;
-              const title = s.title?.trim() || "Untitled";
+              const title = formatChatSessionTitle(s.title);
               return (
                 <li key={s.id}>
                   <button
