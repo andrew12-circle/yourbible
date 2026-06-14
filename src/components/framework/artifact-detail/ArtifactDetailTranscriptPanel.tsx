@@ -34,6 +34,8 @@ export type ArtifactDetailTranscriptPanelProps = {
   formatTranscript: () => void;
   isDesktop: boolean;
   desktopPremiumYoutube: boolean;
+  isReadableDocument?: boolean;
+  desktopPremiumSplitPane?: boolean;
   setPlaybackRate: (rate: number) => void;
   getIsPlaying: () => boolean;
   pauseVideo: () => void;
@@ -74,6 +76,8 @@ export function buildArtifactDetailTranscriptPanel({
   formatTranscript,
   isDesktop,
   desktopPremiumYoutube,
+  isReadableDocument = false,
+  desktopPremiumSplitPane = false,
   setPlaybackRate,
   getIsPlaying,
   pauseVideo,
@@ -96,15 +100,15 @@ export function buildArtifactDetailTranscriptPanel({
     <TranscriptPanel
       artifactId={artifactId}
       segments={segments}
-      timed={timed}
-      coarseTimestampsOnly={coarseTimestampsOnly}
+      timed={isReadableDocument ? false : timed}
+      coarseTimestampsOnly={isReadableDocument ? false : coarseTimestampsOnly}
       embedAvailable={Boolean(youTubeVideoId)}
       playerReady={playerReady}
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       getPlaybackSeconds={getCurrentPlaybackSeconds}
       onSeek={(seconds) => seekVideoToSeconds(seconds, { play: true })}
-      canBookmark={canCaptureMoments}
+      canBookmark={isReadableDocument ? false : canCaptureMoments}
       bookmarking={savingMoment}
       onCopy={copyTranscript}
       onJournal={() => openJournalFromArtifact()}
@@ -114,23 +118,29 @@ export function buildArtifactDetailTranscriptPanel({
       setSegmentRef={(id, el) => {
         transcriptRefs.current[id] = el;
       }}
-      showFormatButton={transcriptNeedsFormatting}
+      showFormatButton={!isReadableDocument && transcriptNeedsFormatting}
       formattingTranscript={formattingTranscript}
       onFormatTranscript={formatTranscript}
       embeddedInMobileTab={!isDesktop}
       variant={
-        desktopPremiumYoutube
+        desktopPremiumYoutube || (isReadableDocument && desktopPremiumSplitPane)
           ? "desktopStudy"
           : !isDesktop && artifactKind === "youtube"
             ? "youtubeMobile"
             : "default"
+      }
+      panelTitle={isReadableDocument ? "Book text" : undefined}
+      panelSubtitle={
+        isReadableDocument
+          ? "Plain text extracted from your book — searchable and used for claims analysis."
+          : undefined
       }
       setPlaybackRate={setPlaybackRate}
       getIsPlaying={getIsPlaying}
       onPauseVideo={pauseVideo}
       onResumePlayback={playVideo}
       segmentBookmarkActions={
-        canCaptureMoments
+        !isReadableDocument && canCaptureMoments
           ? ({
               onSaveBookmark: (seconds, snippet) => void bookmarkAtSeconds(seconds, snippet),
               onJournal: journalTranscriptSegment,

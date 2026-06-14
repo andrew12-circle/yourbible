@@ -52,6 +52,8 @@ type Props<T extends ClaimLike> = {
   hideInsightPreview?: boolean;
   /** Mobile overview shows hero insights — hide duplicate carousel on non-rail mobile. */
   hideMobileInsightPreview?: boolean;
+  /** Horizontal swipe claim cards under pinned book cover (same as pinned YouTube). */
+  mobileClaimsRail?: boolean;
   /** Override section header when parent owns the title (e.g. mobile overview). */
   sectionTitle?: string;
   hideStudySectionHeader?: boolean;
@@ -80,6 +82,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
   onMarkReviewed,
   hideInsightPreview = false,
   hideMobileInsightPreview = false,
+  mobileClaimsRail = false,
   sectionTitle,
   hideStudySectionHeader = false,
 }: Props<T>) {
@@ -98,7 +101,7 @@ export default function ArtifactClaimsSection<T extends ClaimLike>({
 
   const showFollowControl = Boolean(youTubeVideoId && playerReady && getClaimSeekSeconds && timedClaimsCount > 0);
   const showPlaybackControl = Boolean(youTubeVideoId && playerReady && onTogglePlayback);
-  const useMobileClaimsRail = !isDesktop && Boolean(youTubeVideoId);
+  const useMobileClaimsRail = !isDesktop && (Boolean(youTubeVideoId) || mobileClaimsRail);
   const useClaimsRail = (isDesktop && hideInsightPreview) || useMobileClaimsRail;
   const useMobileAccordion = Boolean(onMobileOpenClaimIdChange) && !useMobileClaimsRail;
 

@@ -32,14 +32,17 @@ export default function ArtifactClaimActionBar({
   const toolbar = (
     <FloatingTabBarShell
       tone="surface"
-      className={cn("h-auto", floating ? "pointer-events-auto" : "w-full max-w-none")}
+      className={cn(
+        "h-auto",
+        floating ? "pointer-events-auto w-full max-w-none" : "w-full max-w-none",
+      )}
     >
       <div
         role="toolbar"
         aria-label="Claim actions"
         className={cn(
-          "flex w-full min-w-0 flex-nowrap items-center gap-0.5 overflow-x-auto scrollbar-hide",
-          "touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]",
+          "flex w-full min-w-0 items-center",
+          floating ? "justify-between gap-0.5" : "flex-nowrap gap-0.5 overflow-x-auto scrollbar-hide touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]",
         )}
       >
         {renderArtifactDetailClaimEngageActions(claim, context, {
@@ -58,7 +61,7 @@ export default function ArtifactClaimActionBar({
     return (
       <nav
         className={cn(
-          "absolute inset-x-0 bottom-0 z-[45] flex shrink-0 justify-center px-4",
+          "absolute inset-x-0 bottom-0 z-[45] flex shrink-0 justify-center px-2",
           "pointer-events-none pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2",
           className,
         )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { hardQuestionChatTitle } from "@/lib/myai/chatTitle";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { toast } from "@/hooks/use-toast";
@@ -109,7 +109,7 @@ async function ensureHardQuestionChatSession(
       .insert({
         user_id: userId,
         journal_id: jid,
-        title: `Hard question — ${title.slice(0, 80)}`,
+        title: hardQuestionChatTitle(title),
         body: "",
         tags: [`hard-question:${questionId}`],
         entry_kind: "chat",
@@ -126,7 +126,7 @@ async function ensureHardQuestionChatSession(
       .from("my_ai_chats")
       .insert({
         user_id: userId,
-        title: `Hard question — ${title.slice(0, 60)}`,
+        title: hardQuestionChatTitle(title),
         journal_entry_id: ent.id,
       })
       .select("id")

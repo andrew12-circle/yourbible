@@ -1,6 +1,7 @@
 import { cleanTranscriptQuoteForDisplay } from "@/lib/normalizePastedTranscript";
 import type { ClaimEpistemology } from "@/lib/framework/epistemology";
 import { formatClaimSourceClock, type TranscriptSegment } from "@/lib/transcriptSplit";
+import { claimResearchChatTitle } from "@/lib/myai/chatTitle";
 
 export function formatArtifactKind(kind: string): string {
   if (kind === "youtube") return "YouTube";
@@ -184,11 +185,8 @@ export function buildClaimResearchMarkdown(
 }
 
 export function buildClaimResearchJournalTitle(
-  artifactTitle: string | null,
+  _artifactTitle: string | null,
   claim: Pick<ArtifactDetailClaimSource, "claim">,
 ): string {
-  const clip = claim.claim.trim().slice(0, 70);
-  const suffix = claim.claim.trim().length > 70 ? "…" : "";
-  const base = artifactTitle?.trim() || "Artifact";
-  return `Claim research: ${clip}${suffix} (${base})`;
+  return claimResearchChatTitle(claim.claim);
 }

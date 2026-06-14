@@ -12,6 +12,7 @@ import {
   restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { resolveYouTubeVideoId } from "@/lib/youtube";
+import { isReadableDocumentKind } from "@/lib/framework/documentArtifact";
 
 const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
@@ -291,7 +292,8 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
 
   /** Background analyze may append claims after status flips to ready. */
   useEffect(() => {
-    if (!a || a.kind !== "youtube" || a.status !== "ready") return;
+    if (!a || a.status !== "ready" || a.kind === "youtube") return;
+    if (!isReadableDocumentKind(a.kind)) return;
     const pollClaims = setInterval(() => void loadClaimsOnly(), 3000);
     const stop = window.setTimeout(() => clearInterval(pollClaims), 3 * 60 * 1000);
     return () => {

@@ -40,8 +40,10 @@ type Props = {
   formattingTranscript?: boolean;
   onFormatTranscript?: () => void;
   showFormatButton?: boolean;
-  /** Overrides default subtitle under "Working transcript". */
+  /** Overrides default subtitle under the panel title. */
   subtitle?: string;
+  /** Overrides default "Working transcript" heading. */
+  title?: string;
   /** Mobile transcript tab: search + follow only. */
   compact?: boolean;
   hideTitle?: boolean;
@@ -74,6 +76,7 @@ export default function TranscriptToolbar({
   onFormatTranscript,
   showFormatButton,
   subtitle = "Click a line to jump. Timestamps marked ~ are approximate.",
+  title = "Working transcript",
   compact = false,
   hideTitle = false,
   hideSecondaryActions = false,
@@ -103,7 +106,7 @@ export default function TranscriptToolbar({
               inverted ? "text-primary-foreground" : "text-foreground",
             )}
           >
-            Working transcript
+            {title}
           </h2>
           <p
             className={cn(

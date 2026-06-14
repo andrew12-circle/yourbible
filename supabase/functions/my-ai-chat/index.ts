@@ -4,7 +4,7 @@ import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts
 import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_shared/researchPackCore.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
-import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
+import { titleFromFirstMessage, claimResearchTitleFromClaim } from "../_shared/chatTitle.ts";
 import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt } from "./systemPrompt.ts";
 import { createStreamingChatResponse } from "./streamTurn.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
@@ -1110,7 +1110,7 @@ Deno.serve(async (req) => {
             .eq("id", claimBootstrap)
             .maybeSingle();
           const ct = typeof claimTitleRow?.claim === "string" ? claimTitleRow.claim.trim() : "";
-          const titleSlice = ct ? ct.slice(0, 100) : "Artifact claim — chat";
+          const titleSlice = ct ? claimResearchTitleFromClaim(ct) : "Artifact claim — chat";
           await supabase
             .from("journal_entries")
             .update({

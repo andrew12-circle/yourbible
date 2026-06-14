@@ -3,7 +3,7 @@ import { createConnection } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PORT = 8081;
+const PORT = 8083;
 const URL = `http://localhost:${PORT}`;
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const STARTUP_TIMEOUT_MS = 45_000;

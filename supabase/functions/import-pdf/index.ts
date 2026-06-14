@@ -14,6 +14,36 @@ function basename(path: string): string {
   return p || "document.pdf";
 }
 
+/** Render PDF page 1 to JPEG bytes (Deno / edge). */
+async function renderPdfCoverJpeg(pdfBytes: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const { createIsomorphicCanvasFactory, renderPageAsImage } = await import("npm:unpdf@0.12.1");
+    const canvasFactory = createIsomorphicCanvasFactory();
+    const ab = await renderPageAsImage(pdfBytes, 1, { canvasFactory, scale: 1.25 });
+    return new Uint8Array(ab);
+  } catch (e) {
+    console.error("import-pdf: cover render failed", e);
+    return null;
+  }
+}
+
+async function triggerFrameworkAnalyze(
+  supabaseUrl: string,
+  auth: string,
+  artifactId: string,
+  processingToken: string,
+): Promise<void> {
+  const res = await fetch(`${supabaseUrl}/functions/v1/framework-analyze`, {
+    method: "POST",
+    headers: { Authorization: auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ artifact_id: artifactId, processing_token: processingToken }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`import-pdf: framework-analyze failed ${res.status}`, body.slice(0, 500));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -150,13 +180,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    fetch(`${SUPABASE_URL}/functions/v1/framework-analyze`, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ artifact_id: row.id, processing_token }),
-    }).catch((e) => console.error(e));
+    const storedPdfPath = `${u.user.id}/artifacts/${row.id}.pdf`;
+    const { error: storeErr } = await admin.storage.from("artifact-uploads").upload(storedPdfPath, fileBlob, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+    if (storeErr) {
+      await userClient.from("artifacts").delete().eq("id", row.id);
+      return new Response(JSON.stringify({ error: `Could not store PDF: ${storeErr.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    await admin.storage.from("artifact-uploads").remove([storage_path]).catch((e) => console.error(e));
+    meta.pdf_storage_path = storedPdfPath;
+
+    const coverPath = `${u.user.id}/artifacts/${row.id}-cover.jpg`;
+    const coverBytes = await renderPdfCoverJpeg(buf);
+    if (coverBytes) {
+      const { error: coverErr } = await admin.storage.from("artifact-uploads").upload(coverPath, coverBytes, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+      if (!coverErr) meta.cover_storage_path = coverPath;
+      else console.error("import-pdf: cover upload failed", coverErr.message);
+    }
+
+    await userClient.from("artifacts").update({ metadata: meta }).eq("id", row.id);
+
+    await triggerFrameworkAnalyze(SUPABASE_URL, auth, row.id, processing_token);
+
+    if (storage_path !== storedPdfPath) {
+      await admin.storage.from("artifact-uploads").remove([storage_path]).catch((e) => console.error(e));
+    }
 
     return new Response(JSON.stringify({ ok: true, artifact_id: row.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

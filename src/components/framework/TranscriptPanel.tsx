@@ -116,6 +116,9 @@ export interface TranscriptPanelProps {
   embeddedInMobileTab?: boolean;
   /** Mobile YouTube transcript tab or desktop study rail layout. */
   variant?: "default" | "youtubeMobile" | "desktopStudy";
+  /** Book / PDF sidebar copy (replaces "Working transcript"). */
+  panelTitle?: string;
+  panelSubtitle?: string;
   setPlaybackRate?: (rate: number) => void;
   getIsPlaying?: () => boolean;
   onPauseVideo?: () => void;
@@ -167,6 +170,8 @@ export default function TranscriptPanel({
   onFormatTranscript,
   embeddedInMobileTab = false,
   variant = "default",
+  panelTitle,
+  panelSubtitle,
   getIsPlaying,
   onPauseVideo,
   onResumePlayback,
@@ -188,13 +193,15 @@ export default function TranscriptPanel({
   const panelRef = useRef<HTMLElement | null>(null);
   const useOuterScroll = youtubeMobile && Boolean(outerScrollContainerRef);
   const segmentBookmarkMenu = Boolean(segmentBookmarkActions);
-  const toolbarSubtitle = studyTranscript
-    ? segmentBookmarkMenu
-      ? "Tap a line to jump. Use the bookmark on a line for notes, journal, or research later."
-      : "Tap a line to jump and follow along. Bookmark important moments."
-    : canBookmark && onBookmarkSegment
-      ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
-      : "Click a line to jump. Timestamps marked ~ are approximate.";
+  const toolbarSubtitle =
+    panelSubtitle ??
+    (studyTranscript
+      ? segmentBookmarkMenu
+        ? "Tap a line to jump. Use the bookmark on a line for notes, journal, or research later."
+        : "Tap a line to jump and follow along. Bookmark important moments."
+      : canBookmark && onBookmarkSegment
+        ? "Tap a line to jump and follow along. Bookmark a line to save that moment while you watch."
+        : "Click a line to jump. Timestamps marked ~ are approximate.");
   const [search, setSearch] = useState("");
   const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
   const [semanticLoading, setSemanticLoading] = useState(false);
@@ -547,6 +554,7 @@ export default function TranscriptPanel({
           formattingTranscript={formattingTranscript}
           onFormatTranscript={onFormatTranscript}
           subtitle={youtubeMobile ? "Tap a line to jump. Bookmark any line while the video plays." : toolbarSubtitle}
+          title={panelTitle}
           compact={youtubeMobile}
           hideTitle={youtubeMobile}
           hideSecondaryActions={youtubeMobile}

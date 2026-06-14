@@ -356,6 +356,11 @@ export default function NewArtifactPage() {
         original_filename: file.name,
       });
       if (!res?.ok || !res.artifact_id) throw new Error("Import did not complete");
+      void supabase.functions
+        .invoke("framework-analyze", {
+          body: { artifact_id: res.artifact_id, processing_token: processingToken },
+        })
+        .catch((err) => console.error(err));
       toast({ title: "PDF imported", description: "Analysis running in the background." });
       navigate(`/framework/artifacts/${res.artifact_id}`);
     } catch (e) {

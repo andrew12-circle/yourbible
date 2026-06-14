@@ -9,7 +9,7 @@ import { youtubeCaptionsDevPlugin } from "./scripts/vite-plugin-youtube-captions
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8081,
+    port: 8083,
     strictPort: true,
     hmr: {
       overlay: false,
@@ -45,6 +45,7 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
+          if (id.includes("pdfjs-dist")) return "vendor-pdfjs";
           if (id.includes("@supabase")) return "vendor-supabase";
           if (id.includes("@radix-ui")) return "vendor-radix";
           if (id.includes("@sentry")) return "vendor-sentry";

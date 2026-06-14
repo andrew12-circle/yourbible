@@ -28,7 +28,7 @@ export default function ClaimDockActionButton({
     <button
       type="button"
       className={cn(
-        "flex min-w-[4.25rem] shrink-0 flex-col items-center gap-0.5 rounded-full px-2 py-1.5",
+        "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-1.5 py-1.5",
         "text-[10px] font-medium leading-none transition-colors",
         active
           ? "bg-muted text-foreground shadow-sm"
@@ -41,7 +41,7 @@ export default function ClaimDockActionButton({
       aria-pressed={active}
     >
       <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={1.85} aria-hidden />
-      <span className="max-w-[4.5rem] truncate whitespace-nowrap">{shortLabel}</span>
+      <span className="w-full truncate text-center">{shortLabel}</span>
     </button>
   );
 }
