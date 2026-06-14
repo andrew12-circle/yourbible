@@ -5,14 +5,16 @@ import {
   buildJournalChatStreamSystemPrompt,
   buildMyAiStreamSystemPrompt,
 } from "./systemPrompt.ts";
-import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import type { ResolvedResponseDepth } from "./responseDepth.ts";
+import { finalizeChatCitations } from "./enrichCitations.ts";
 
 export type StreamCitation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
   id?: string;
   label: string;
+  url?: string;
+  start_seconds?: number;
 };
 
 const BRACKET_PATTERNS: { re: RegExp; source_type: StreamCitation["source_type"]; label: string }[] = [
@@ -176,12 +178,15 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         }
 
         const { reply, citations: rawCitations } = parseStreamedMarkdown(acc);
-        const citations = attachSourceAttribution(
-          mergeRetrievedCitations(rawCitations, contextPack.retrievedCitations),
+        const citations = await finalizeChatCitations(
+          supabase,
+          userId,
+          rawCitations,
           {
             includeGeneral,
             usedWeb: false,
           },
+          contextPack.retrievedCitations,
         );
         const { data: asstRow, error: asstErr } = await supabase
           .from("my_ai_messages")

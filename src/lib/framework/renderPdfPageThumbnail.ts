@@ -1,15 +1,12 @@
 import { loadPdfJs } from "@/lib/framework/pdfJsLoader";
 
-/** Render a PDF page to a JPEG object URL (browser only). Caller should revoke when done. */
-export async function renderPdfPageToObjectUrl(
-  pdfUrl: string,
+/** Render from PDF bytes already loaded via storage download. */
+export async function renderPdfBytesPageToObjectUrl(
+  data: Uint8Array,
   pageNumber = 1,
   scale = 1.35,
 ): Promise<string> {
   const pdfjs = await loadPdfJs();
-  const res = await fetch(pdfUrl);
-  if (!res.ok) throw new Error(`Could not download PDF (${res.status}).`);
-  const data = new Uint8Array(await res.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
   try {
     const page = await doc.getPage(Math.min(Math.max(1, pageNumber), doc.numPages));
@@ -33,6 +30,33 @@ export async function renderPdfPageToObjectUrl(
     return URL.createObjectURL(blob);
   } finally {
     await doc.destroy();
+  }
+}
+
+/** Render a PDF page to a JPEG object URL (browser only). Caller should revoke when done. */
+export async function renderPdfPageToObjectUrl(
+  pdfUrl: string,
+  pageNumber = 1,
+  scale = 1.35,
+): Promise<string> {
+  const res = await fetch(pdfUrl);
+  if (!res.ok) throw new Error(`Could not download PDF (${res.status}).`);
+  const data = new Uint8Array(await res.arrayBuffer());
+  return renderPdfBytesPageToObjectUrl(data, pageNumber, scale);
+}
+
+/** Render from PDF bytes already loaded via storage download. */
+export async function renderPdfBytesPageToBlob(
+  data: Uint8Array,
+  pageNumber = 1,
+  scale = 1.35,
+): Promise<Blob> {
+  const objectUrl = await renderPdfBytesPageToObjectUrl(data, pageNumber, scale);
+  try {
+    const res = await fetch(objectUrl);
+    return await res.blob();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
   }
 }
 

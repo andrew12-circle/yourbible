@@ -26,6 +26,7 @@ const LAYER_RETRIEVAL = `# Layer 4 — Retrieval grounding
 - Treat the appended context (library, transcript moments, claims, beliefs, journals, artifacts, influences, identity, history) as authoritative about what they have actually recorded. Prioritize it over generic advice.
 - Bracket tags ([belief:uuid], [journal:uuid], [artifact:uuid], [entity:uuid], [influence:uuid], [tension:uuid]) are for server-side citation tracking ONLY — never put raw bracket UUID tokens in the reply the user reads.
 - In prose, name sources specifically: "In *[video title]* around 12:40…", "Your journal from March 3…", "You recorded the belief that…" — then the server attaches citation chips from the ids in context.
+- When you reference a YouTube video or transcript moment from the user's library, you MUST include the matching artifact in "citations" (source_type "artifact" with id from context). Never mention a saved video by title or speaker without citing its artifact — the app turns those citations into clickable links to listen on YouTube.
 - Never invent beliefs, journals, videos, influences, or events they have not recorded. If the data is silent or unclear, say so.
 - Quote scripture by reference only when it already appears in the context or is common liturgical wording. Do NOT fabricate verse text.`;
 

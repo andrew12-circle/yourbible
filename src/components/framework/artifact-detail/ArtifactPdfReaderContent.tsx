@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ExternalLink, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ArtifactPdfPageViewer from "@/components/framework/artifact-detail/ArtifactPdfPageViewer";
+import { useArtifactPdfBytes } from "@/hooks/useArtifactPdfBytes";
 import { useArtifactPdfSignedUrl } from "@/hooks/useArtifactPdfSignedUrl";
 import { attachArtifactSourcePdf } from "@/lib/framework/attachArtifactSourcePdf";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ type Props = {
   onPdfAttached?: () => void | Promise<void>;
   /** When true, PDF loads only while the panel is visible (mobile tab). */
   active?: boolean;
-  /** Warm signed URLs before the reader opens (cover on detail page). */
+  /** Warm PDF download before the reader opens (cover on detail page). */
   prefetch?: boolean;
   className?: string;
   showOpenInTab?: boolean;
@@ -37,8 +38,12 @@ export default function ArtifactPdfReaderContent({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const paths = [...new Set([...(attachedPath ? [attachedPath] : []), ...storagePaths.filter(Boolean)])];
-  const shouldResolveUrl = prefetch || active;
-  const { url, error, loading } = useArtifactPdfSignedUrl(paths, shouldResolveUrl);
+  const shouldLoadPdf = prefetch || active;
+  const { bytes, resolvedPath, loading, error } = useArtifactPdfBytes(paths, shouldLoadPdf);
+  const { url: openInTabUrl } = useArtifactPdfSignedUrl(
+    resolvedPath ?? paths,
+    showOpenInTab && Boolean(resolvedPath),
+  );
   const canUpload = Boolean(artifactId && userId);
 
   const handlePickPdf = () => {
@@ -64,12 +69,12 @@ export default function ArtifactPdfReaderContent({
     }
   };
 
-  const showMissing = !loading && !uploading && !url;
-  const showUrlSpinner = (loading || uploading) && !url;
+  const showMissing = !loading && !uploading && !bytes;
+  const showSpinner = (loading || uploading) && !bytes;
 
   return (
     <div className={cn("relative flex min-h-0 flex-1 flex-col", className)}>
-      {showOpenInTab && url ? (
+      {showOpenInTab && openInTabUrl ? (
         <div className="absolute right-3 top-3 z-20">
           <Button
             type="button"
@@ -78,7 +83,7 @@ export default function ArtifactPdfReaderContent({
             asChild
             className="border-white/20 bg-black/50 text-white shadow-sm backdrop-blur-sm hover:bg-black/70 hover:text-white"
           >
-            <a href={url} target="_blank" rel="noreferrer">
+            <a href={openInTabUrl} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden />
               Open in tab
             </a>
@@ -86,7 +91,7 @@ export default function ArtifactPdfReaderContent({
         </div>
       ) : null}
 
-      {showUrlSpinner ? (
+      {showSpinner ? (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[#1c1c1e] text-sm text-white/80">
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
           {uploading ? "Uploading PDF…" : "Opening book…"}
@@ -123,7 +128,7 @@ export default function ArtifactPdfReaderContent({
         </div>
       ) : null}
 
-      {url && active ? <ArtifactPdfPageViewer pdfUrl={url} title={title} className="min-h-0 flex-1" /> : null}
+      {bytes && active ? <ArtifactPdfPageViewer pdfBytes={bytes} title={title} className="min-h-0 flex-1" /> : null}
     </div>
   );
 }

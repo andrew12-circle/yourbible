@@ -37,7 +37,7 @@ export default function ArtifactBookCoverStage({
   const hero = variant === "hero";
   const pinned = variant === "mobilePinned";
 
-  const { coverUrl, loading, fromPdf } = useArtifactDocumentCover({
+  const { coverUrl, loading, fromPdf, onCoverImageError } = useArtifactDocumentCover({
     artifactId,
     metadata: {
       ...(artifactMetadata ?? {}),
@@ -54,7 +54,13 @@ export default function ArtifactBookCoverStage({
       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
     </div>
   ) : hasRealCover ? (
-    <img src={coverUrl!} alt="" className="h-full w-full object-cover" draggable={false} />
+    <img
+      src={coverUrl!}
+      alt=""
+      className="h-full w-full object-cover"
+      draggable={false}
+      onError={onCoverImageError}
+    />
   ) : (
     <GeneratedCover artifactId={artifactId} title={title} variant="document" className="rounded-[inherit]" />
   );

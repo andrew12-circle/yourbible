@@ -20,6 +20,13 @@ async function resolvePdfSignedUrl(storagePath: string): Promise<string | null> 
 
   if (signErr || !data?.signedUrl) return null;
 
+  try {
+    const probe = await fetch(data.signedUrl, { method: "HEAD" });
+    if (!probe.ok) return null;
+  } catch {
+    return null;
+  }
+
   signedUrlCache.set(storagePath, {
     url: data.signedUrl,
     expiresAt: Date.now() + SIGNED_URL_TTL_MS,

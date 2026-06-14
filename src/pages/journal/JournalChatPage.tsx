@@ -90,9 +90,15 @@ type MsgRow = {
 };
 
 function citationsFromStream(raw: MyAiChatCitation[]): Citation[] {
-  return raw.map((c) =>
-    c.id ? { source_type: c.source_type, id: c.id, label: c.label } : { source_type: c.source_type, label: c.label },
-  );
+  return raw.map((c) => {
+    const base = {
+      source_type: c.source_type,
+      label: c.label,
+      ...(c.url ? { url: c.url } : {}),
+      ...(c.start_seconds != null ? { start_seconds: c.start_seconds } : {}),
+    };
+    return c.id ? { ...base, id: c.id } : base;
+  });
 }
 
 type ClaimFocusSession = {

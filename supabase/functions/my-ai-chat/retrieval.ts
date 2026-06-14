@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { getEmbedding } from "../_shared/aiProvider.ts";
+import { youtubeWatchUrlFromArtifact } from "./enrichCitations.ts";
 
 const MAX_CONTEXT_CHARS = 18_000;
 const BODY_PREVIEW = 700;
@@ -19,6 +20,10 @@ export type RetrievedCitation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
   id?: string;
   label: string;
+  /** YouTube watch URL when source_type is artifact and kind is youtube. */
+  url?: string;
+  /** Transcript moment start — appended as &t= on YouTube links. */
+  start_seconds?: number;
 };
 
 export type RetrievedContextPack = {
@@ -56,6 +61,7 @@ type ArtifactRow = {
   title?: string | null;
   kind?: string | null;
   status?: string | null;
+  url?: string | null;
   metadata?: unknown;
 };
 
@@ -104,18 +110,45 @@ function citationLabel(text: string, max = 48): string {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
+function artifactCitation(
+  artifactId: string,
+  label: string,
+  artifactById: Map<string, ArtifactRow>,
+  startSeconds?: number,
+): RetrievedCitation {
+  const art = artifactById.get(artifactId);
+  const entry: RetrievedCitation = {
+    source_type: "artifact",
+    id: artifactId,
+    label: citationLabel(label),
+  };
+  if (art) {
+    const watch = youtubeWatchUrlFromArtifact(art);
+    if (watch) entry.url = watch;
+  }
+  if (startSeconds != null && startSeconds > 0) entry.start_seconds = startSeconds;
+  return entry;
+}
+
 export function mergeRetrievedCitations<T extends RetrievedCitation>(...groups: T[][]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
+  const byKey = new Map<string, T>();
   for (const group of groups) {
     for (const c of group) {
       const key = `${c.source_type}|${c.id ?? ""}|${c.label}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(c);
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, c);
+        continue;
+      }
+      byKey.set(key, {
+        ...prev,
+        ...c,
+        url: c.url ?? prev.url,
+        start_seconds: c.start_seconds ?? prev.start_seconds,
+      } as T);
     }
   }
-  return out;
+  return [...byKey.values()];
 }
 
 function shrinkToLimit(parts: string[], max: number): string {
@@ -194,7 +227,7 @@ export async function buildFrameworkRetrievalContext(
     supabase.from("belief_tensions").select("id, a_id, b_id, summary, severity, status").eq("user_id", userId).eq("status", "open").order("severity", { ascending: false }).limit(20),
     supabase.from("living_hope_workbook").select("content").eq("user_id", userId).maybeSingle(),
     supabase.from("living_hope_reviews").select("review_date,vision_recall,surrender_note,goal_touches,completed_at").eq("user_id", userId).order("review_date", { ascending: false }).limit(3),
-    supabase.from("artifacts").select("id, title, kind, status, metadata, created_at").eq("user_id", userId).neq("status", "failed").order("created_at", { ascending: false }).limit(recentArtifactLimit),
+    supabase.from("artifacts").select("id, title, kind, status, url, metadata, created_at").eq("user_id", userId).neq("status", "failed").order("created_at", { ascending: false }).limit(recentArtifactLimit),
   ]);
 
   const { data: cogState } = await supabase
@@ -274,7 +307,7 @@ export async function buildFrameworkRetrievalContext(
   }
 
   const claimHits = ((cRes && !cRes.error) ? (cRes.data ?? []) : []) as ClaimHit[];
-  let transcriptHits = ((tRes && !tRes.error) ? (tRes.data ?? []) : []) as TranscriptChunkHit[];
+  const transcriptHits = ((tRes && !tRes.error) ? (tRes.data ?? []) : []) as TranscriptChunkHit[];
   const entityHits = ((eRes && !eRes.error) ? (eRes.data ?? []) : []) as EntityHit[];
   const asstHits = ((mRes && !mRes.error) ? (mRes.data ?? []) : []) as AsstHit[];
 
@@ -291,7 +324,7 @@ export async function buildFrameworkRetrievalContext(
   if (missingArtifactIds.length) {
     const { data: extraArtifacts } = await supabase
       .from("artifacts")
-      .select("id, title, kind, status, metadata, created_at")
+      .select("id, title, kind, status, url, metadata, created_at")
       .eq("user_id", userId)
       .in("id", missingArtifactIds);
     for (const row of (extraArtifacts ?? []) as ArtifactRow[]) artifactById.set(row.id, row);
@@ -301,7 +334,7 @@ export async function buildFrameworkRetrievalContext(
     const seenTranscriptKeys = new Set(transcriptHits.map((t) => `${t.artifact_id}:${t.start_seconds}`));
     const { data: keywordArtifactRows } = await supabase
       .from("artifacts")
-      .select("id, title, kind, status, metadata, raw_text")
+      .select("id, title, kind, status, url, metadata, raw_text")
       .eq("user_id", userId)
       .neq("status", "failed")
       .order("created_at", { ascending: false })
@@ -368,7 +401,7 @@ export async function buildFrameworkRetrievalContext(
     const art = artifactById.get(c.artifact_id);
     const title = artifactLabel(c.artifact_id);
     const channel = art ? artifactChannelFromMeta(art.metadata) : "";
-    retrievedCitations.push({ source_type: "artifact", id: c.artifact_id, label: citationLabel(title) });
+    retrievedCitations.push(artifactCitation(c.artifact_id, title, artifactById));
     const verdictBit = c.verdict?.trim() ? ` (verdict: ${c.verdict})` : "";
     const sourceBit = channel ? ` — ${title} (${channel})` : ` — ${title}`;
     return `[artifact:${c.artifact_id}] claim${sourceBit}: ${truncate(c.claim, 320)}${verdictBit} (sim ${c.similarity.toFixed(2)})`;
@@ -378,7 +411,7 @@ export async function buildFrameworkRetrievalContext(
     const art = artifactById.get(t.artifact_id);
     const title = artifactLabel(t.artifact_id);
     const channel = art ? artifactChannelFromMeta(art.metadata) : "";
-    retrievedCitations.push({ source_type: "artifact", id: t.artifact_id, label: citationLabel(title) });
+    retrievedCitations.push(artifactCitation(t.artifact_id, title, artifactById, t.start_seconds));
     const end = t.end_seconds != null ? `${formatTimestamp(t.start_seconds)}–${formatTimestamp(t.end_seconds)}` : formatTimestamp(t.start_seconds);
     const sourceBit = channel ? `${title} (${channel})` : title;
     return `[artifact:${t.artifact_id}] "${sourceBit}" @ ${end} — ${truncate(t.text.replace(/\s+/g, " "), 400)} (sim ${t.similarity.toFixed(2)})`;

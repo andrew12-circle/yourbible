@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useArtifactPdfSignedUrl } from "@/hooks/useArtifactPdfSignedUrl";
+import { downloadArtifactUploadBytes } from "@/lib/framework/artifactStorageDownload";
 import { coverStoragePath, documentCoverUrl } from "@/lib/framework/documentArtifact";
-import { renderPdfPageToObjectUrl } from "@/lib/framework/renderPdfPageThumbnail";
+import { renderPdfBytesPageToObjectUrl } from "@/lib/framework/renderPdfPageThumbnail";
 
 type Options = {
   artifactId: string;
@@ -13,6 +13,7 @@ type Options = {
 };
 
 const coverRenderCache = new Map<string, string>();
+const storedCoverCache = new Map<string, string>();
 
 /**
  * Resolves a document cover: stored thumbnail URL, persisted JPEG from page 1,
@@ -33,55 +34,130 @@ export function useArtifactDocumentCover({
       : pdfStoragePath
         ? [pdfStoragePath]
         : [];
-  const { url: pdfUrl } = useArtifactPdfSignedUrl(pdfPaths, enabled && !staticUrl && !storedCoverPath);
-  const { url: storedCoverUrl } = useArtifactPdfSignedUrl(storedCoverPath, enabled && !staticUrl && Boolean(storedCoverPath));
+
+  const [storedCoverUrl, setStoredCoverUrl] = useState<string | null>(() =>
+    storedCoverPath ? storedCoverCache.get(storedCoverPath) ?? null : null,
+  );
+  const [storedCoverLoading, setStoredCoverLoading] = useState(false);
+  const [storedCoverRejected, setStoredCoverRejected] = useState(false);
+
+  const hasWorkingStoredCover = Boolean(storedCoverPath && storedCoverUrl && !storedCoverRejected);
+  const shouldRenderFromPdf = enabled && !staticUrl && !hasWorkingStoredCover;
 
   const [renderedUrl, setRenderedUrl] = useState<string | null>(() => coverRenderCache.get(artifactId) ?? null);
-  const [loading, setLoading] = useState(false);
+  const [renderLoading, setRenderLoading] = useState(false);
   const persistStartedRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || staticUrl || storedCoverUrl) {
-      setRenderedUrl(null);
-      setLoading(false);
+    setStoredCoverRejected(false);
+  }, [artifactId, storedCoverPath]);
+
+  useEffect(() => {
+    if (!enabled || staticUrl || !storedCoverPath || storedCoverRejected) {
+      if (!storedCoverPath || storedCoverRejected) {
+        setStoredCoverUrl(null);
+        setStoredCoverLoading(false);
+      }
+      return;
+    }
+
+    const cached = storedCoverCache.get(storedCoverPath);
+    if (cached) {
+      setStoredCoverUrl(cached);
+      setStoredCoverLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setStoredCoverLoading(true);
+
+    void (async () => {
+      try {
+        const bytes = await downloadArtifactUploadBytes(storedCoverPath);
+        if (cancelled) return;
+        if (!bytes) {
+          setStoredCoverUrl(null);
+          return;
+        }
+        objectUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+        storedCoverCache.set(storedCoverPath, objectUrl);
+        setStoredCoverUrl(objectUrl);
+      } catch {
+        if (!cancelled) setStoredCoverUrl(null);
+      } finally {
+        if (!cancelled) setStoredCoverLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl && storedCoverCache.get(storedCoverPath) !== objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [enabled, staticUrl, storedCoverPath, storedCoverRejected]);
+
+  useEffect(() => {
+    if (!shouldRenderFromPdf) {
+      if (!coverRenderCache.get(artifactId)) setRenderedUrl(null);
+      setRenderLoading(false);
       return;
     }
 
     const cached = coverRenderCache.get(artifactId);
     if (cached) {
       setRenderedUrl(cached);
-      setLoading(false);
+      setRenderLoading(false);
       return;
     }
 
-    if (!pdfUrl) return;
+    if (pdfPaths.length === 0) {
+      setRenderedUrl(null);
+      setRenderLoading(false);
+      return;
+    }
 
     let cancelled = false;
     let objectUrl: string | null = null;
-    setLoading(true);
+    setRenderLoading(true);
 
-    void renderPdfPageToObjectUrl(pdfUrl, 1)
-      .then((url) => {
-        if (cancelled) {
-          URL.revokeObjectURL(url);
+    void (async () => {
+      try {
+        for (const path of pdfPaths) {
+          const bytes = await downloadArtifactUploadBytes(path);
+          if (cancelled) return;
+          if (!bytes) continue;
+
+          const url = await renderPdfBytesPageToObjectUrl(bytes, 1);
+          if (cancelled) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+
+          objectUrl = url;
+          coverRenderCache.set(artifactId, url);
+          setRenderedUrl(url);
+          setRenderLoading(false);
+
+          if (!persistStartedRef.current) {
+            persistStartedRef.current = true;
+            void persistRenderedCover(artifactId, path, url).catch(() => undefined);
+          }
           return;
         }
-        objectUrl = url;
-        coverRenderCache.set(artifactId, url);
-        setRenderedUrl(url);
-        setLoading(false);
 
-        if (persistStartedRef.current || pdfPaths.length === 0) return;
-        persistStartedRef.current = true;
-        const pathForPersist = pdfPaths[0]!;
-        void persistRenderedCover(artifactId, pathForPersist, url).catch(() => undefined);
-      })
-      .catch(() => {
         if (!cancelled) {
           setRenderedUrl(null);
-          setLoading(false);
+          setRenderLoading(false);
         }
-      });
+      } catch {
+        if (!cancelled) {
+          setRenderedUrl(null);
+          setRenderLoading(false);
+        }
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -89,12 +165,21 @@ export function useArtifactDocumentCover({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [artifactId, enabled, pdfPaths, pdfUrl, staticUrl, storedCoverUrl]);
+  }, [artifactId, pdfPaths, shouldRenderFromPdf]);
 
-  const coverUrl = staticUrl ?? storedCoverUrl ?? renderedUrl;
+  const coverUrl = staticUrl ?? (hasWorkingStoredCover ? storedCoverUrl : null) ?? renderedUrl;
   const fromPdf = Boolean(coverUrl && !staticUrl);
+  const coverSource = staticUrl ? "external" : hasWorkingStoredCover ? "stored" : renderedUrl ? "rendered" : null;
 
-  return { coverUrl, loading: loading && !coverUrl, fromPdf };
+  const onCoverImageError = () => {
+    if (coverSource === "stored") setStoredCoverRejected(true);
+  };
+
+  const coverLoading =
+    (storedCoverPath && storedCoverLoading && !storedCoverRejected) ||
+    (renderLoading && !coverUrl);
+
+  return { coverUrl, loading: coverLoading, fromPdf, onCoverImageError };
 }
 
 async function persistRenderedCover(artifactId: string, pdfStoragePath: string, objectUrl: string) {

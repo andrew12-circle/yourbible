@@ -20,4 +20,18 @@ describe("parseChatCitations", () => {
     expect(parsed.provenance).toBe("web_openai");
     expect(resolveSourceAttributionDisplay(parsed)?.kind).toBe("web_openai");
   });
+
+  it("parses YouTube artifact url and timestamp", () => {
+    const parsed = parseChatCitations([
+      {
+        source_type: "artifact",
+        id: "abcabcab-1234-5678-9abc-abcabcabcabc",
+        label: "Francis Myles — Four Winds",
+        url: "https://www.youtube.com/watch?v=abc123def45",
+        start_seconds: 120,
+      },
+    ]);
+    expect(parsed.internalSources[0]?.url).toContain("youtube.com");
+    expect(parsed.internalSources[0]?.start_seconds).toBe(120);
+  });
 });

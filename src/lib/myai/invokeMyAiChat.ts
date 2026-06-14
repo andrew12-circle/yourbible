@@ -6,6 +6,8 @@ export type MyAiChatCitation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
   id?: string;
   label: string;
+  url?: string;
+  start_seconds?: number;
 };
 
 export type MyAiChatRequestBody = {

@@ -2,11 +2,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_shared/researchPackCore.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, mergeRetrievedCitations } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage, claimResearchTitleFromClaim } from "../_shared/chatTitle.ts";
 import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt } from "./systemPrompt.ts";
 import { createStreamingChatResponse } from "./streamTurn.ts";
+import { finalizeChatCitations } from "./enrichCitations.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
 
 const corsHeaders = {
@@ -18,6 +19,8 @@ type Citation = {
   source_type: "belief" | "journal" | "artifact" | "entity" | "identity" | "general" | "influence";
   id?: string;
   label: string;
+  url?: string;
+  start_seconds?: number;
 };
 
 type RequestBody = {
@@ -1033,12 +1036,15 @@ Deno.serve(async (req) => {
         if (webRes.ok && webRes.rawText.trim()) {
           const parsed = parseAssistantPayload(webRes.rawText);
           reply = parsed.reply.trim() || webRes.rawText.trim();
-          citations = attachSourceAttribution(
+          citations = await finalizeChatCitations(
+            supabase,
+            userId,
             dedupeCitations([
               ...parsed.citations,
               { source_type: "general", label: "Web search (OpenAI)" },
             ]),
             { includeGeneral, usedWeb: true },
+            contextPack.retrievedCitations,
           );
         } else {
           const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
@@ -1051,10 +1057,16 @@ Deno.serve(async (req) => {
           }
           const parsed = parseAssistantPayload(chatRes.rawText);
           reply = parsed.reply;
-          citations = attachSourceAttribution(parsed.citations, {
-            includeGeneral,
-            usedWeb: Boolean(webBlock.trim()),
-          });
+          citations = await finalizeChatCitations(
+            supabase,
+            userId,
+            parsed.citations,
+            {
+              includeGeneral,
+              usedWeb: Boolean(webBlock.trim()),
+            },
+            contextPack.retrievedCitations,
+          );
         }
       } else {
         const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
@@ -1065,10 +1077,16 @@ Deno.serve(async (req) => {
         if (!chatRes.ok) return jsonResponse({ error: chatRes.err ?? "AI chat failed" }, 502);
         const parsed = parseAssistantPayload(chatRes.rawText);
         reply = parsed.reply;
-        citations = attachSourceAttribution(parsed.citations, {
-          includeGeneral,
-          usedWeb: Boolean(webBlock.trim()),
-        });
+        citations = await finalizeChatCitations(
+          supabase,
+          userId,
+          parsed.citations,
+          {
+            includeGeneral,
+            usedWeb: Boolean(webBlock.trim()),
+          },
+          contextPack.retrievedCitations,
+        );
       }
 
       const { data: asstRow, error: asstErr } = await supabase
@@ -1363,9 +1381,12 @@ Deno.serve(async (req) => {
     );
     if ("error" in generated) return jsonResponse({ error: generated.error }, 502);
     const { reply, citations: modelCitations, ranked } = generated;
-    const citations = attachSourceAttribution(
-      mergeRetrievedCitations(modelCitations, contextPack.retrievedCitations),
+    const citations = await finalizeChatCitations(
+      supabase,
+      userId,
+      modelCitations,
       { includeGeneral, usedWeb: chatUseWeb },
+      contextPack.retrievedCitations,
     );
 
     const { data: asstRow, error: asstErr } = await supabase

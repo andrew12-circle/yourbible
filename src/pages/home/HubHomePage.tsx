@@ -71,8 +71,6 @@ export default function HubHomePage() {
       mainClassName="overflow-y-auto scrollbar-hide"
     >
       <div className="space-y-3 md:space-y-6">
-        <LifeWeeksPanel embedded />
-
         <div className="rounded-xl border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">{dateStr}</p>
           <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
@@ -81,6 +79,8 @@ export default function HubHomePage() {
         </div>
 
         <HubStatusStrip counts={counts} />
+
+        <LifeWeeksPanel embedded />
 
         <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
           <StatCard

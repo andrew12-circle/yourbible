@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { loadPdfJs } from "@/lib/framework/pdfJsLoader";
 
-export function useArtifactPdfDocument(pdfUrl: string | null, enabled: boolean) {
+export function useArtifactPdfDocument(
+  pdfBytes: Uint8Array | null,
+  enabled: boolean,
+) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [page, setPage] = useState(1);
@@ -10,7 +13,7 @@ export function useArtifactPdfDocument(pdfUrl: string | null, enabled: boolean) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !pdfUrl) {
+    if (!enabled || !pdfBytes) {
       setDoc(null);
       setNumPages(0);
       setPage(1);
@@ -31,7 +34,7 @@ export function useArtifactPdfDocument(pdfUrl: string | null, enabled: boolean) 
       try {
         const pdfjs = await loadPdfJs();
         if (cancelled) return;
-        const nextDoc = await pdfjs.getDocument({ url: pdfUrl, withCredentials: false }).promise;
+        const nextDoc = await pdfjs.getDocument({ data: pdfBytes }).promise;
         if (cancelled) {
           void nextDoc.destroy();
           return;
@@ -53,7 +56,7 @@ export function useArtifactPdfDocument(pdfUrl: string | null, enabled: boolean) 
       cancelled = true;
       if (activeDoc) void activeDoc.destroy();
     };
-  }, [enabled, pdfUrl]);
+  }, [enabled, pdfBytes]);
 
   const goPrev = useCallback(() => {
     setPage((p) => Math.max(1, p - 1));

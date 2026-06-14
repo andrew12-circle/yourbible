@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import { parseHomeLayoutMedia, resolveHomeMediaUrl } from "@/lib/profile/homeMedia";
 import { buildHomeApps, type HomeDashboardCounts } from "@/lib/home/homeApps";
+import { resolveProfileDisplayName } from "@/lib/profile/displayName";
 
 const WALLPAPER_KEY = "yb_home_wallpaper";
 
@@ -127,11 +128,7 @@ export function useHomeDashboardData() {
 
   const apps = useMemo(() => buildHomeApps(counts), [counts]);
 
-  const displayName =
-    (profile as { display_name?: string; full_name?: string } | null)?.display_name
-    ?? (profile as { full_name?: string } | null)?.full_name
-    ?? user?.email?.split("@")[0]
-    ?? "";
+  const displayName = resolveProfileDisplayName(profile, user);
 
   return {
     todayPrompt,

@@ -14,6 +14,10 @@ export type ChatCitation = {
   source_type: ChatCitationSourceType;
   id?: string;
   label: string;
+  /** YouTube watch URL when the source is a saved video artifact. */
+  url?: string;
+  /** Transcript timestamp — opens YouTube at this moment. */
+  start_seconds?: number;
 };
 
 export type AnswerProvenance = "framework_only" | "framework_and_openai" | "web_openai";
@@ -54,9 +58,14 @@ function parseOne(item: unknown): ChatCitation | null {
   if (typeof st !== "string" || typeof label !== "string" || !label.trim()) return null;
   if (!SOURCE_TYPES.has(st as ChatCitationSourceType)) return null;
   const id = typeof item.id === "string" && item.id.length >= 32 ? item.id : undefined;
-  return id
-    ? { source_type: st as ChatCitationSourceType, id, label: label.trim() }
-    : { source_type: st as ChatCitationSourceType, label: label.trim() };
+  const url = typeof item.url === "string" && item.url.trim() ? item.url.trim() : undefined;
+  const startRaw = item.start_seconds;
+  const start_seconds =
+    typeof startRaw === "number" && Number.isFinite(startRaw) && startRaw > 0
+      ? Math.floor(startRaw)
+      : undefined;
+  const base = { source_type: st as ChatCitationSourceType, label: label.trim(), ...(url ? { url } : {}), ...(start_seconds != null ? { start_seconds } : {}) };
+  return id ? { ...base, id } : base;
 }
 
 export function parseChatCitations(raw: JSONValue | ChatCitation[] | unknown): ParsedChatCitations {

@@ -6,18 +6,18 @@ import { useArtifactPdfDocument } from "@/hooks/useArtifactPdfDocument";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  pdfUrl: string;
+  pdfBytes: Uint8Array | null;
   title: string;
   className?: string;
 };
 
-export default function ArtifactPdfPageViewer({ pdfUrl, title, className }: Props) {
+export default function ArtifactPdfPageViewer({ pdfBytes, title, className }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [turnDirection, setTurnDirection] = useState<"forward" | "back">("forward");
-  const { doc, numPages, page, setPage, goPrev, goNext, loading, error } = useArtifactPdfDocument(pdfUrl, true);
+  const { doc, numPages, page, setPage, goPrev, goNext, loading, error } = useArtifactPdfDocument(pdfBytes, true);
 
   const renderCurrentPage = useCallback(async () => {
     const container = containerRef.current;

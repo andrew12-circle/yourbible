@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
-import { BookOpen, ShieldCheck } from "lucide-react";
+import { BookOpen, ExternalLink, ShieldCheck } from "lucide-react";
 import type { JSONValue } from "@/integrations/supabase/types";
 import { OpenAiMark } from "@/components/myai/OpenAiMark";
+import { useChatCitationArtifactUrls } from "@/hooks/useChatCitationArtifactUrls";
 import { formatCitationLabel } from "@/lib/myai/citationLabel";
+import { resolveCitationLink } from "@/lib/myai/citationLink";
 import {
   parseChatCitations,
   resolveSourceAttributionDisplay,
@@ -10,45 +12,54 @@ import {
 } from "@/lib/myai/parseChatCitations";
 import { cn } from "@/lib/utils";
 
-function citationHref(c: ChatCitation): string | null {
-  if (c.id) {
-    if (c.source_type === "belief") return `/framework/beliefs/${c.id}`;
-    if (c.source_type === "journal") return `/journal/${c.id}`;
-    if (c.source_type === "artifact") return `/framework/artifacts/${c.id}`;
-  }
-  if (c.source_type === "identity") return "/settings";
-  if (c.source_type === "influence") return "/framework/influences";
-  return null;
-}
-
 function SourceChip({
   citation,
+  artifactUrlById,
   chipClassName,
   linkedClassName,
   mutedClassName,
 }: {
   citation: ChatCitation;
+  artifactUrlById: Record<string, string>;
   chipClassName: string;
   linkedClassName: string;
   mutedClassName: string;
 }) {
-  const href = citationHref(citation);
+  const link = resolveCitationLink(citation, artifactUrlById);
   const chip = (
     <span
       className={cn(
         chipClassName,
-        href ? linkedClassName : mutedClassName,
+        link ? linkedClassName : mutedClassName,
       )}
     >
       {formatCitationLabel(citation)}
+      {link?.external ? (
+        <ExternalLink className="ml-1 inline h-3 w-3 shrink-0 opacity-60" aria-hidden />
+      ) : null}
     </span>
   );
-  return href ? (
-    <Link to={href} className="no-underline">
+
+  if (!link) return chip;
+
+  if (link.external) {
+    return (
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="no-underline"
+        title="Open on YouTube"
+      >
+        {chip}
+      </a>
+    );
+  }
+
+  return (
+    <Link to={link.href} className="no-underline">
       {chip}
     </Link>
-  ) : (
-    chip
   );
 }
 
@@ -62,6 +73,7 @@ type Props = {
 export default function ChatSourceAttribution({ citations, variant = "myai", className }: Props) {
   const parsed = parseChatCitations(citations);
   const display = resolveSourceAttributionDisplay(parsed);
+  const artifactUrlById = useChatCitationArtifactUrls(parsed.internalSources);
   if (!display) return null;
 
   const chipClassName =
@@ -141,6 +153,7 @@ export default function ChatSourceAttribution({ citations, variant = "myai", cla
               <SourceChip
                 key={`${c.source_type}-${c.id ?? "x"}-${i}`}
                 citation={c}
+                artifactUrlById={artifactUrlById}
                 chipClassName={chipClassName}
                 linkedClassName={linkedClassName}
                 mutedClassName={mutedClassName}
