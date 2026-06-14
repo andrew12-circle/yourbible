@@ -10,22 +10,73 @@ export interface DailyAssignment {
 
 export interface MorningConnectionNotes {
   worship_note?: string;
+  /** @deprecated Legacy single field — use thanksgiving_now / thanksgiving_not_yet */
   thanksgiving_note?: string;
+  thanksgiving_now?: string[];
+  thanksgiving_not_yet?: string[];
+  /** Journal entry for the Conversation (prayer) step. */
+  conversation_entry_id?: string;
   prayer_note?: string;
   scripture_ref?: string;
   scripture_reflection?: string;
+  /** Embodied playthrough for today's chosen story scene. */
+  story_recall?: string;
+  /** Covering / warfare prayer prayed aloud after surrender. */
+  covering_note?: string;
   daily_assignment?: DailyAssignment;
 }
 
-export const DEFAULT_SURRENDER_PRAYER = `Father, my business is Yours.
+export const THANKSGIVING_ITEM_COUNT = 5;
 
-My family is Yours.
+export interface ThanksgivingLists {
+  now: string[];
+  notYet: string[];
+}
 
-My systems are Yours.
+export const DEFAULT_SURRENDER_PRAYER = `Father,
 
-My clients are Yours.
+I come before You with open hands — not clenched fists.
 
-Direct my steps today.`;
+Everything I just held in my spirit — the vision, the numbers, the rooms, the hopes for my family and my work — I do not clutch it. I offer it back to You. It was never mine to guarantee. It was Yours to steward through me.
+
+You are sovereign over outcomes I cannot control.
+You are good when the path is unclear.
+You are Father when I am afraid.
+
+I surrender my business — revenue, systems, clients, reputation, pace, and every plan I think I have figured out. Use it. Redirect it. Break it if You must, and rebuild something that glorifies You.
+
+I surrender my family — their hearts, their safety, their futures, and my leadership in our home. I cannot write their story. I can only love them, tell them the truth, and obey You today.
+
+I surrender my body — its energy, its limits, its sleep, its strength. Heal what needs healing. Rest what needs resting. Use what You give me without worshiping it.
+
+I surrender my mind — the anxiety of what might not happen, the pride of what I think I have earned, the shame of what I have failed. Wash me clean. Reset my gaze on Christ.
+
+I surrender today's schedule, today's conversations, today's wins and today's losses. Not my will — Yours.
+
+If You give abundance, I will receive it with gratitude and give it away.
+If You withhold or redirect, I will trust that You see what I cannot.
+If You ask hard things, I will not run.
+
+Jesus, in Gethsemane You prayed, "Not my will, but Yours be done."
+Let that be my prayer over every hope I carry.
+
+Holy Spirit, direct my steps today. Show me one faithful thing. I will do it as worship.
+
+I release control. I receive Your peace.
+
+Amen.`;
+
+/** Framing copy for the surrender step — after vision/story, before assignment. */
+export const SURRENDER_STEP_INTRO =
+  "You have seen the life. Now release the grip. Like Jesus in Gethsemane — hold every hope open-handed. Pray slowly. Mean every line. Edit what is yours to say.";
+
+export const SURRENDER_PRAYER_PROMPTS = [
+  "What you are afraid will not happen",
+  "What you are afraid will happen",
+  "Outcomes, timing, and control",
+  "Family, business, body, and mind",
+  "Thy will — not mine",
+] as const;
 
 export const WORSHIP_PROMPTS = [
   "Who God is",
@@ -34,12 +85,24 @@ export const WORSHIP_PROMPTS = [
   "His sovereignty",
 ] as const;
 
-export const THANKSGIVING_PROMPTS = [
+export const THANKSGIVING_NOW_PROMPTS = [
   "Salvation",
   "Family — Tish, Lilly, the new baby",
   "Your business and provision",
   "Lessons from yesterday",
+  "Health, home, or peace today",
 ] as const;
+
+export const THANKSGIVING_NOT_YET_PROMPTS = [
+  "Income or business milestones ahead",
+  "Family dreams not yet realized",
+  "Systems or team you're building toward",
+  "Debt-free or abundance you're walking into",
+  "Legacy and leadership you're growing into",
+] as const;
+
+/** @deprecated Use THANKSGIVING_NOW_PROMPTS */
+export const THANKSGIVING_PROMPTS = THANKSGIVING_NOW_PROMPTS;
 
 export const SCRIPTURE_QUESTIONS = [
   "What does this teach me about God?",
@@ -52,8 +115,11 @@ export const PRAYER_PROMPTS = [
   "Family leadership",
   "Finances",
   "Building the systems",
-  "Hearing His voice",
+  "What you're afraid of",
+  "What you need to surrender",
 ] as const;
+
+export const CONVERSATION_LISTEN_PROMPT = "God, what do you want me to know today?";
 
 export const RITUAL_STEP_LABELS = [
   { key: "worship", label: "Worship" },
@@ -64,6 +130,7 @@ export const RITUAL_STEP_LABELS = [
   { key: "vision", label: "Vision" },
   { key: "story", label: "Story" },
   { key: "surrender", label: "Surrender" },
+  { key: "covering", label: "Covering" },
   { key: "assignment", label: "Today" },
   { key: "goals", label: "Goals" },
 ] as const;
@@ -81,10 +148,78 @@ export type RitualStep =
   | { kind: "goal"; goalId: string }
   | { kind: "metrics" }
   | { kind: "surrender" }
+  | { kind: "covering" }
   | { kind: "done" };
 
 export function emptyDailyAssignment(): DailyAssignment {
   return { spiritual: "", family: "", business: "" };
+}
+
+export function emptyThanksgivingLists(): ThanksgivingLists {
+  return {
+    now: Array(THANKSGIVING_ITEM_COUNT).fill(""),
+    notYet: Array(THANKSGIVING_ITEM_COUNT).fill(""),
+  };
+}
+
+function normalizeThanksgivingList(raw: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(raw)) return [...fallback];
+  const items = raw.map((x) => String(x ?? ""));
+  while (items.length < THANKSGIVING_ITEM_COUNT) items.push("");
+  return items.slice(0, THANKSGIVING_ITEM_COUNT);
+}
+
+export function parseThanksgivingLists(raw: unknown): ThanksgivingLists {
+  const empty = emptyThanksgivingLists();
+  if (!raw || typeof raw !== "object") return empty;
+  const o = raw as Record<string, unknown>;
+  const now = normalizeThanksgivingList(o.thanksgiving_now, empty.now);
+  const notYet = normalizeThanksgivingList(o.thanksgiving_not_yet, empty.notYet);
+  const legacy = o.thanksgiving_note ? String(o.thanksgiving_note).trim() : "";
+  if (legacy && !now.some((s) => s.trim()) && !notYet.some((s) => s.trim())) {
+    now[0] = legacy;
+  }
+  return { now, notYet };
+}
+
+export function formatThanksgivingJournalBody(lists: ThanksgivingLists): string | undefined {
+  const nowLines = lists.now.map((s) => s.trim()).filter(Boolean);
+  const notYetLines = lists.notYet.map((s) => s.trim()).filter(Boolean);
+  if (!nowLines.length && !notYetLines.length) return undefined;
+
+  const parts: string[] = [];
+  if (nowLines.length) {
+    parts.push(
+      "### Thankful now\n\n" + nowLines.map((line, i) => `${i + 1}. ${line}`).join("\n"),
+    );
+  }
+  if (notYetLines.length) {
+    parts.push(
+      "### Thankful for what has not yet come\n\n" +
+        notYetLines.map((line, i) => `${i + 1}. ${line}`).join("\n"),
+    );
+  }
+  return parts.join("\n\n");
+}
+
+export function thanksgivingListsFromNotes(notes: MorningConnectionNotes): ThanksgivingLists {
+  return parseThanksgivingLists(notes);
+}
+
+export function compactThanksgivingLists(lists: ThanksgivingLists): {
+  thanksgiving_now?: string[];
+  thanksgiving_not_yet?: string[];
+  thanksgiving_note?: string;
+} {
+  const now = lists.now.map((s) => s.trim());
+  const notYet = lists.notYet.map((s) => s.trim());
+  const hasNow = now.some(Boolean);
+  const hasNotYet = notYet.some(Boolean);
+  return {
+    thanksgiving_now: hasNow ? now : undefined,
+    thanksgiving_not_yet: hasNotYet ? notYet : undefined,
+    thanksgiving_note: formatThanksgivingJournalBody(lists),
+  };
 }
 
 export function emptyConnectionNotes(): MorningConnectionNotes {
@@ -106,10 +241,14 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
   }
   return {
     worship_note: o.worship_note ? String(o.worship_note) : undefined,
+    ...compactThanksgivingLists(parseThanksgivingLists(o)),
     thanksgiving_note: o.thanksgiving_note ? String(o.thanksgiving_note) : undefined,
+    conversation_entry_id: o.conversation_entry_id ? String(o.conversation_entry_id) : undefined,
     prayer_note: o.prayer_note ? String(o.prayer_note) : undefined,
     scripture_ref: o.scripture_ref ? String(o.scripture_ref) : undefined,
     scripture_reflection: o.scripture_reflection ? String(o.scripture_reflection) : undefined,
+    story_recall: o.story_recall ? String(o.story_recall) : undefined,
+    covering_note: o.covering_note ? String(o.covering_note) : undefined,
     daily_assignment,
   };
 }
@@ -127,8 +266,8 @@ export function buildRitualSteps(
   );
   if (workbook?.manifesto.length) steps.push({ kind: "manifesto" });
   if (workbook?.vision_headline || workbook?.income_lines.length) steps.push({ kind: "vision" });
-  if (workbook?.stories.length) steps.push({ kind: "story" });
-  steps.push({ kind: "surrender" }, { kind: "assignment" });
+  if (workbook) steps.push({ kind: "story" });
+  steps.push({ kind: "surrender" }, { kind: "covering" }, { kind: "assignment" });
   for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
   if (workbook?.metrics.length) steps.push({ kind: "metrics" });
   steps.push({ kind: "done" });
@@ -150,9 +289,9 @@ export function ritualStepSubtitle(step: RitualStep, goalIndex?: number, goalTot
     case "manifesto":
       return "Manifesto";
     case "vision":
-      return "Income vision";
+      return "Embodied vision";
     case "story":
-      return "Daily story";
+      return "Play a scene";
     case "assignment":
       return "Today's assignment";
     case "goal":
@@ -160,7 +299,9 @@ export function ritualStepSubtitle(step: RitualStep, goalIndex?: number, goalTot
     case "metrics":
       return "Metrics";
     case "surrender":
-      return "Surrender";
+      return "Prayer of release";
+    case "covering":
+      return "Blood & warfare";
     case "done":
       return "Execute";
     default:

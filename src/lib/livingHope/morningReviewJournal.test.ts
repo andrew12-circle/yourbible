@@ -15,9 +15,12 @@ describe("buildMorningReviewJournalContent", () => {
       surrenderNote: "Father, not my will but Yours.",
       connectionNotes: {
         worship_note: "You are sovereign.",
-        thanksgiving_note: "Family and provision.",
+        thanksgiving_now: ["Salvation", "Family", "", "", ""],
+        thanksgiving_not_yet: ["Seven figures", "", "", "", ""],
         prayer_note: "Guide my business today.",
+        conversation_entry_id: "conv-entry-1",
         scripture_ref: "James 1:5",
+        story_recall: "**Story:** Walking into the office with peace.\n\n**Scene:** I'm at the door.",
         daily_assignment: {
           spiritual: "Read James 1 at lunch",
           family: "Finish closet",
@@ -54,10 +57,14 @@ describe("buildMorningReviewJournalContent", () => {
 
     expect(title).toContain("Morning formula");
     expect(body).toContain("You are sovereign.");
+    expect(body).toContain("Thankful now");
+    expect(body).toContain("Salvation");
+    expect(body).toContain("Seven figures");
     expect(body).toContain("Today's assignment");
     expect(body).toContain("Fix outage");
     expect(body).toContain("I am submitted to God.");
-    expect(body).toContain("Seven figures");
+    expect(body).toContain("Walking into the office");
+    expect(body).toContain("I'm at the door.");
     expect(body).toContain("Launch product");
     expect(body).toContain("Obedience step");
     expect(body).toContain("Revenue");

@@ -1,29 +1,36 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
+import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
-import { useMorningDailyReading } from "@/hooks/useMorningDailyReading";
+import { useMorningScripture } from "@/hooks/useMorningScripture";
+import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
 import {
   defaultMorningReviewDate,
   syncMorningReviewToJournal,
 } from "@/lib/livingHope/morningReviewJournal";
+import { DEFAULT_COVERING_PRAYER } from "@/lib/livingHope/coveringPrayer";
 import {
   DEFAULT_SURRENDER_PRAYER,
   buildRitualSteps,
+  compactThanksgivingLists,
   emptyConnectionNotes,
   emptyDailyAssignment,
+  emptyThanksgivingLists,
   ritualStepSubtitle,
   type DailyAssignment,
   type MorningConnectionNotes,
 } from "@/lib/livingHope/morningRitual";
 import { livingHopeDaySeed } from "@/lib/livingHope/workbookProgress";
+import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
+import { formatSupabaseError } from "@/lib/supabase/errors";
 import { toast } from "@/hooks/use-toast";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
@@ -32,36 +39,52 @@ export default function MorningReviewPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { busy, goals, letter, load, setTodayReview } = useLivingHope(user?.id);
-  const { busy: wbBusy, workbook } = useLivingHopeWorkbook(user?.id);
+  const { busy: wbBusy, workbook, update: updateWorkbook } = useLivingHopeWorkbook(user?.id);
+  const [searchParams] = useSearchParams();
   const {
-    reading,
-    busy: readingBusy,
-    error: readingError,
-    generate,
-    ensureReading,
-  } = useMorningDailyReading(user?.id);
+    scripture,
+    busy: scriptureBusy,
+    error: scriptureError,
+    generateDaily,
+    ensureScripture,
+  } = useMorningScripture(user?.id);
+  const {
+    entryId: conversationEntryId,
+    preview: conversationPreview,
+    busy: conversationBusy,
+    error: conversationError,
+    ensureEntry: ensureConversationEntry,
+    refreshPreview: refreshConversationPreview,
+  } = useMorningConversationEntry(user?.id);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [touches, setTouches] = useState<Record<string, GoalTouch>>({});
   const [visionRecall, setVisionRecall] = useState("");
+  const [storyRecall, setStoryRecall] = useState("");
   const [metricValues, setMetricValues] = useState<Record<string, string>>({});
   const [worshipNote, setWorshipNote] = useState("");
-  const [thanksgivingNote, setThanksgivingNote] = useState("");
-  const [prayerNote, setPrayerNote] = useState("");
+  const [thanksgivingNow, setThanksgivingNow] = useState(() => emptyThanksgivingLists().now);
+  const [thanksgivingNotYet, setThanksgivingNotYet] = useState(() => emptyThanksgivingLists().notYet);
   const [scriptureReflection, setScriptureReflection] = useState("");
   const [dailyAssignment, setDailyAssignmentState] = useState<DailyAssignment>(emptyDailyAssignment());
   const [surrender, setSurrender] = useState(
     letter?.surrender_prayer?.trim() || DEFAULT_SURRENDER_PRAYER,
   );
+  const [covering, setCovering] = useState(DEFAULT_COVERING_PRAYER);
   const [saving, setSaving] = useState(false);
   const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
+  const restoredFormulaStep = useRef(false);
 
   const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
   const seed = livingHopeDaySeed();
   const manifestoItem = workbook?.manifesto[seed % Math.max(1, workbook?.manifesto.length ?? 1)];
-  const storyItem = workbook?.stories[seed % Math.max(1, workbook?.stories.length ?? 1)];
   const manifestoIndex = workbook?.manifesto.length ? seed % workbook.manifesto.length : 0;
-  const storyIndex = workbook?.stories.length ? seed % workbook.stories.length : 0;
+  const storySuggestedIndex = workbook?.stories.length ? seed % workbook.stories.length : 0;
+
+  const [storySelectedIndex, setStorySelectedIndex] = useState<number | null>(null);
+  const storyIndex =
+    storySelectedIndex ??
+    (workbook?.stories.length ? storySuggestedIndex : null);
 
   const steps = useMemo(() => buildRitualSteps(workbook, activeGoals), [workbook, activeGoals]);
   const step = steps[stepIndex] ?? { kind: "done" as const };
@@ -71,6 +94,17 @@ export default function MorningReviewPage() {
   const setDailyAssignment = useCallback((patch: Partial<DailyAssignment>) => {
     setDailyAssignmentState((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const handleAddStory = useCallback(
+    (text: string) => {
+      if (!workbook) return;
+      const { stories, newIndex } = appendWorkbookStory(workbook.stories, text);
+      updateWorkbook({ stories });
+      setStorySelectedIndex(newIndex);
+      setStoryRecall("");
+    },
+    [workbook, updateWorkbook],
+  );
 
   const setTouch = useCallback((goalId: string, patch: Partial<GoalTouch>) => {
     setTouches((prev) => ({
@@ -85,8 +119,49 @@ export default function MorningReviewPage() {
   }, []);
 
   useEffect(() => {
-    if (step.kind === "scripture") void ensureReading();
-  }, [step.kind, ensureReading]);
+    if (!workbook?.stories.length) return;
+    setStorySelectedIndex((prev) => (prev == null ? storySuggestedIndex : prev));
+  }, [workbook?.stories.length, storySuggestedIndex]);
+
+  useEffect(() => {
+    if (step.kind === "scripture") void ensureScripture();
+  }, [step.kind, ensureScripture]);
+
+  useEffect(() => {
+    if (step.kind === "prayer") void ensureConversationEntry();
+  }, [step.kind, ensureConversationEntry]);
+
+  useEffect(() => {
+    if (step.kind === "prayer" && conversationEntryId) void refreshConversationPreview(conversationEntryId);
+  }, [step.kind, conversationEntryId, refreshConversationPreview]);
+
+  useEffect(() => {
+    if (restoredFormulaStep.current || !steps.length) return;
+    const stepParam = searchParams.get("step");
+    if (stepParam !== "scripture" && stepParam !== "conversation") return;
+    const kind = stepParam === "conversation" ? "prayer" : "scripture";
+    const idx = steps.findIndex((s) => s.kind === kind);
+    if (idx >= 0) {
+      setStepIndex(idx);
+      restoredFormulaStep.current = true;
+    }
+  }, [searchParams, steps]);
+
+  const setThanksgivingNowItem = useCallback((index: number, value: string) => {
+    setThanksgivingNow((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }, []);
+
+  const setThanksgivingNotYetItem = useCallback((index: number, value: string) => {
+    setThanksgivingNotYet((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (letter?.surrender_prayer?.trim() && surrender === DEFAULT_SURRENDER_PRAYER) {
@@ -96,16 +171,31 @@ export default function MorningReviewPage() {
 
   const connectionNotes = useMemo((): MorningConnectionNotes => {
     const base = emptyConnectionNotes();
+    const thanksgiving = compactThanksgivingLists({ now: thanksgivingNow, notYet: thanksgivingNotYet });
     return {
       ...base,
       worship_note: worshipNote.trim() || undefined,
-      thanksgiving_note: thanksgivingNote.trim() || undefined,
-      prayer_note: prayerNote.trim() || undefined,
-      scripture_ref: reading?.reference,
+      ...thanksgiving,
+      conversation_entry_id: conversationEntryId ?? undefined,
+      prayer_note: conversationPreview?.excerpt || undefined,
+      scripture_ref: scripture?.reference,
       scripture_reflection: scriptureReflection.trim() || undefined,
+      story_recall: storyRecall.trim() || undefined,
+      covering_note: covering.trim() || undefined,
       daily_assignment: dailyAssignment,
     };
-  }, [worshipNote, thanksgivingNote, prayerNote, reading?.reference, scriptureReflection, dailyAssignment]);
+  }, [
+    worshipNote,
+    thanksgivingNow,
+    thanksgivingNotYet,
+    conversationEntryId,
+    conversationPreview?.excerpt,
+    scripture?.reference,
+    scriptureReflection,
+    dailyAssignment,
+    storyRecall,
+    covering,
+  ]);
 
   const finish = useCallback(async () => {
     if (!user?.id) return;
@@ -120,7 +210,7 @@ export default function MorningReviewPage() {
         surrender_note: surrender,
         goal_touches,
         vision_recall: visionRecall,
-        story_index: storyIndex,
+        story_index: storyIndex ?? undefined,
         manifesto_index: manifestoIndex,
         metric_values: Object.fromEntries(
           Object.entries(metricValues).map(([k, v]) => [k, Number.isNaN(Number(v)) ? v : Number(v)]),
@@ -145,12 +235,17 @@ export default function MorningReviewPage() {
       } catch {
         // Review saved; journal sync is best-effort (offline / local-only).
       }
-      toast({ title: "Morning review complete", description: "Saved to your journal and mind map." });
+      toast({
+        title: "Morning review complete",
+        description: isLocalModeNotified()
+          ? "Saved on this device. Apply Living Hope migrations to sync to the cloud."
+          : "Saved to your journal and mind map.",
+      });
       setStepIndex(steps.length - 1);
     } catch (e) {
       toast({
         title: "Couldn't save review",
-        description: e instanceof Error ? e.message : "Try again.",
+        description: formatSupabaseError(e),
         variant: "destructive",
       });
     } finally {
@@ -207,7 +302,12 @@ export default function MorningReviewPage() {
                 letter={letter}
                 workbook={workbook}
                 manifestoItem={manifestoItem}
-                storyItem={storyItem}
+                storySuggestedIndex={storySuggestedIndex}
+                storySelectedIndex={storySelectedIndex}
+                onStorySelectedIndexChange={setStorySelectedIndex}
+                onAddStory={handleAddStory}
+                storyRecall={storyRecall}
+                setStoryRecall={setStoryRecall}
                 currentGoal={currentGoal}
                 touches={touches}
                 setTouch={setTouch}
@@ -217,21 +317,33 @@ export default function MorningReviewPage() {
                 setMetricValues={setMetricValues}
                 worshipNote={worshipNote}
                 setWorshipNote={setWorshipNote}
-                thanksgivingNote={thanksgivingNote}
-                setThanksgivingNote={setThanksgivingNote}
-                prayerNote={prayerNote}
-                setPrayerNote={setPrayerNote}
+                thanksgivingNow={thanksgivingNow}
+                thanksgivingNotYet={thanksgivingNotYet}
+                onThanksgivingNowChange={setThanksgivingNowItem}
+                onThanksgivingNotYetChange={setThanksgivingNotYetItem}
+                conversationEntryId={conversationEntryId}
+                conversationPreview={conversationPreview}
+                conversationBusy={conversationBusy}
+                conversationError={conversationError}
+                onEnsureConversationEntry={ensureConversationEntry}
                 scriptureReflection={scriptureReflection}
                 setScriptureReflection={setScriptureReflection}
                 dailyAssignment={dailyAssignment}
                 setDailyAssignment={setDailyAssignment}
                 surrender={surrender}
                 setSurrender={setSurrender}
-                reading={reading}
-                readingBusy={readingBusy}
-                readingError={readingError}
-                onGenerateReading={() => void generate()}
+                covering={covering}
+                setCovering={setCovering}
+                scripture={scripture}
+                scriptureBusy={scriptureBusy}
+                scriptureError={scriptureError}
+                onGenerateScripture={() => void generateDaily()}
                 journalEntryId={journalEntryId}
+                worshipPlaylistUrl={workbook?.worship_playlist_url ?? ""}
+                worshipPlaylistHistory={workbook?.worship_music_history ?? []}
+                onWorshipMusicChange={({ url, history }) =>
+                  updateWorkbook({ worship_playlist_url: url, worship_music_history: history })
+                }
               />
             </motion.div>
           </AnimatePresence>

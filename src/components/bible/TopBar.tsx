@@ -95,6 +95,10 @@ interface Props {
   containedInHub?: boolean;
   hubFullscreen?: boolean;
   onToggleHubFullscreen?: () => void;
+  /** When set, shows a back control to return to the calling flow (e.g. Morning formula). */
+  returnTo?: string;
+  returnLabel?: string;
+  onReturn?: () => void;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -127,10 +131,31 @@ export function TopBar({
   containedInHub = false,
   hubFullscreen = false,
   onToggleHubFullscreen,
+  returnTo,
+  returnLabel = "Back",
+  onReturn,
 }: Props) {
   const overlayPos = readerOverlayPosition(containedInHub);
   const books = booksProp ?? getBooks();
   const current = bibles.find(b => b.id === bibleId);
+
+  const homeControl = returnTo ? (
+    <ReaderIconButton asChild title={returnLabel}>
+      <Link
+        to={returnTo}
+        aria-label={returnLabel}
+        onClick={() => onReturn?.()}
+      >
+        <ChevronLeft className="w-[18px] h-[18px]" strokeWidth={2.25} />
+      </Link>
+    </ReaderIconButton>
+  ) : (
+    <ReaderIconButton asChild title="Home">
+      <Link to="/home" aria-label="Back to home">
+        <Home className="w-[18px] h-[18px]" strokeWidth={2} />
+      </Link>
+    </ReaderIconButton>
+  );
   const [open, setOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuPanel, setMobileMenuPanel] = useState<ReaderMenuPanel>("nav");
@@ -269,11 +294,7 @@ export function TopBar({
         {singlePage && !focusMode ? (
         <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-2 rounded-2xl px-3 py-2 ${readerGlassBar}`}>
           <div className="flex items-center gap-1 min-w-0">
-            <ReaderIconButton asChild title="Home">
-              <Link to="/home" aria-label="Back to home">
-                <Home className="w-[18px] h-[18px]" strokeWidth={2} />
-              </Link>
-            </ReaderIconButton>
+            {homeControl}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
@@ -321,11 +342,7 @@ export function TopBar({
         ) : singlePage && focusMode ? null : (
         <div className={`mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 ${readerGlassBar}`}>
         <div className="flex items-center gap-2 min-w-0 pl-2">
-          <ReaderIconButton asChild title="Home">
-            <Link to="/home" aria-label="Back to home">
-              <Home className="w-[18px] h-[18px]" strokeWidth={2} />
-            </Link>
-          </ReaderIconButton>
+          {homeControl}
           {/* Reference picker — book / chapter / verse */}
           <Popover open={pickerOpen} onOpenChange={onOpenPicker}>
             <PopoverTrigger asChild>

@@ -7,7 +7,7 @@ import {
   type LivingHopeWorkbookContent,
   type WorkbookSection,
 } from "@/lib/livingHope/workbookTypes";
-import { lh } from "@/lib/livingHope/themeClasses";
+import { WORSHIP_MUSIC_HINT } from "@/lib/livingHope/worshipMusic";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -157,6 +157,19 @@ export function WorkbookSectionEditor({
   if (section === "routine") {
     return (
       <div className="space-y-3">
+        <div className={cn(lh.cardFlat, "p-3 space-y-2")}>
+          <label className={cn(lh.label, "block")} htmlFor="workbook-worship-playlist">
+            Worship playlist
+          </label>
+          <Input
+            id="workbook-worship-playlist"
+            value={workbook.worship_playlist_url}
+            onChange={(e) => set({ worship_playlist_url: e.target.value })}
+            className="field-input"
+            placeholder="https://open.spotify.com/playlist/…"
+          />
+          <p className={cn(lh.footnote, "leading-snug")}>{WORSHIP_MUSIC_HINT}</p>
+        </div>
         {workbook.routine.map((item, i) => (
           <div key={item.id} className={cn(lh.cardFlat, "p-3 space-y-2")}>
             <div className="flex gap-2">

@@ -16,7 +16,7 @@ import {
 } from "@/lib/livingHope/livingHopeLocalStore";
 import { localDateISO } from "@/lib/lifePriorities";
 import type { MorningConnectionNotes } from "@/lib/livingHope/morningRitual";
-import { isSupabaseMissingTable } from "@/lib/supabase/errors";
+import { isPostgrestError, isSupabaseMissingTable, throwSupabaseError } from "@/lib/supabase/errors";
 
 export type LivingHopeLetterRow = Tables<"living_hope_letters">;
 export type LivingHopeGoalRow = Tables<"living_hope_goals">;
@@ -204,35 +204,59 @@ export interface MorningReviewPayload {
   connection_notes?: MorningConnectionNotes;
 }
 
+function connectionNotesJson(notes: MorningConnectionNotes | undefined): TablesInsert<"living_hope_reviews">["connection_notes"] {
+  return JSON.parse(JSON.stringify(notes ?? {})) as TablesInsert<"living_hope_reviews">["connection_notes"];
+}
+
+function isReviewSchemaDrift(error: unknown): boolean {
+  return isSupabaseMissingTable(error);
+}
+
 export async function saveMorningReview(
   userId: string,
   input: MorningReviewPayload,
 ): Promise<LivingHopeReviewRow> {
   const today = localDateISO();
+  const row: TablesInsert<"living_hope_reviews"> = {
+    user_id: userId,
+    review_date: today,
+    surrender_note: input.surrender_note,
+    goal_touches: input.goal_touches,
+    vision_recall: input.vision_recall ?? null,
+    story_index: input.story_index ?? null,
+    manifesto_index: input.manifesto_index ?? null,
+    routine_checks: input.routine_checks ?? {},
+    metric_values: input.metric_values ?? {},
+    connection_notes: connectionNotesJson(input.connection_notes),
+    completed_at: new Date().toISOString(),
+  };
+
   try {
-    const row: TablesInsert<"living_hope_reviews"> = {
-      user_id: userId,
-      review_date: today,
-      surrender_note: input.surrender_note,
-      goal_touches: input.goal_touches,
-      vision_recall: input.vision_recall ?? null,
-      story_index: input.story_index ?? null,
-      manifesto_index: input.manifesto_index ?? null,
-      routine_checks: input.routine_checks ?? {},
-      metric_values: input.metric_values ?? {},
-      connection_notes: (input.connection_notes ?? {}) as TablesInsert<"living_hope_reviews">["connection_notes"],
-      completed_at: new Date().toISOString(),
-    };
     const { data, error } = await supabase
       .from("living_hope_reviews")
       .upsert(row, { onConflict: "user_id,review_date" })
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
-    return data;
+    if (data) return data;
+
+    const { data: fallback, error: readErr } = await supabase
+      .from("living_hope_reviews")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("review_date", today)
+      .maybeSingle();
+    if (readErr) throw readErr;
+    if (fallback) return fallback;
+
+    throw new Error("Review saved but could not be loaded. Try refreshing.");
   } catch (e) {
-    if (!isSupabaseMissingTable(e)) throw e;
-    return localSaveMorningReview(userId, input);
+    if (isReviewSchemaDrift(e)) {
+      notifyLocalModeOnce();
+      return localSaveMorningReview(userId, input);
+    }
+    if (isPostgrestError(e)) throwSupabaseError(e);
+    throw e instanceof Error ? e : new Error("Try again.");
   }
 }
 

@@ -1,3 +1,5 @@
+import { normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
+
 export type MyAiChatListItem = {
   id: string;
   title: string | null;
@@ -146,5 +148,7 @@ export function buildChatSidebarSections(
 }
 
 export function sidebarChatTitle(title: string | null | undefined): string {
-  return title?.trim() || "New chat";
+  const trimmed = title?.trim();
+  if (!trimmed) return "New chat";
+  return normalizeChatSessionTitle(trimmed);
 }

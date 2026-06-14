@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { chatTitleFromFirstMessage, normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
+import {
+  AUTO_CHAT_TITLE_MAX_WORDS,
+  chatTitleFromFirstMessage,
+  normalizeChatSessionTitle,
+} from "@/lib/myai/chatTitle";
 
 export type ChatTitleRow = {
   id: string;
@@ -10,58 +14,75 @@ export type ChatTitleRow = {
   journal_entry_id?: string | null;
 };
 
+function countWords(text: string): number {
+  return text.replace(/\s+/g, " ").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function chatTitleNeedsResolve(title: string | null | undefined): boolean {
+  const t = title?.trim();
+  if (!t) return true;
+  return countWords(t) > AUTO_CHAT_TITLE_MAX_WORDS;
+}
+
 /**
- * Backfill missing `my_ai_chats.title` values from each thread's first user message.
- * Persists titles so the sidebar stays labeled after reload.
+ * Backfill missing or overlong `my_ai_chats.title` values.
+ * Untitled chats derive from the first user message; long titles are word-capped.
  */
 export async function resolveUntitledChats(
   supabase: SupabaseClient<Database>,
   userId: string,
   chats: ChatTitleRow[],
 ): Promise<ChatTitleRow[]> {
-  const untitled = chats.filter((c) => !c.title?.trim());
-  if (!untitled.length) return chats;
+  const needs = chats.filter((c) => chatTitleNeedsResolve(c.title));
+  if (!needs.length) return chats;
 
-  const chatIds = untitled.map((c) => c.id);
-  const { data: msgs, error } = await supabase
-    .from("my_ai_messages")
-    .select("chat_id, content, created_at")
-    .eq("user_id", userId)
-    .in("chat_id", chatIds)
-    .eq("role", "user")
-    .order("created_at", { ascending: true });
+  const derivedTitles = new Map<string, string>();
 
-  if (error || !msgs?.length) return chats;
-
-  const firstMessageByChat = new Map<string, string>();
-  for (const row of msgs) {
-    if (!firstMessageByChat.has(row.chat_id)) {
-      firstMessageByChat.set(row.chat_id, row.content);
+  for (const chat of needs) {
+    const raw = chat.title?.trim();
+    if (raw) {
+      const next = normalizeChatSessionTitle(raw);
+      if (next && next !== raw) derivedTitles.set(chat.id, next);
     }
   }
 
-  const derivedTitles = new Map<string, string>();
-  const updates: Promise<unknown>[] = [];
+  const untitled = needs.filter((c) => !c.title?.trim());
+  if (untitled.length) {
+    const chatIds = untitled.map((c) => c.id);
+    const { data: msgs, error } = await supabase
+      .from("my_ai_messages")
+      .select("chat_id, content, created_at")
+      .eq("user_id", userId)
+      .in("chat_id", chatIds)
+      .eq("role", "user")
+      .order("created_at", { ascending: true });
 
-  for (const chat of untitled) {
-    const content = firstMessageByChat.get(chat.id);
-    if (!content?.trim()) continue;
-    const title = normalizeChatSessionTitle(chatTitleFromFirstMessage(content));
-    derivedTitles.set(chat.id, title);
-    updates.push(
-      supabase.from("my_ai_chats").update({ title }).eq("id", chat.id).eq("user_id", userId),
-    );
-  }
+    if (!error && msgs?.length) {
+      const firstMessageByChat = new Map<string, string>();
+      for (const row of msgs) {
+        if (!firstMessageByChat.has(row.chat_id)) {
+          firstMessageByChat.set(row.chat_id, row.content);
+        }
+      }
 
-  if (updates.length) {
-    await Promise.all(updates);
+      for (const chat of untitled) {
+        const content = firstMessageByChat.get(chat.id);
+        if (!content?.trim()) continue;
+        derivedTitles.set(chat.id, normalizeChatSessionTitle(chatTitleFromFirstMessage(content)));
+      }
+    }
   }
 
   if (!derivedTitles.size) return chats;
 
+  await Promise.all(
+    [...derivedTitles.entries()].map(([id, title]) =>
+      supabase.from("my_ai_chats").update({ title }).eq("id", id).eq("user_id", userId),
+    ),
+  );
+
   return chats.map((chat) => {
-    const derived = derivedTitles.get(chat.id);
-    if (!derived || chat.title?.trim()) return chat;
-    return { ...chat, title: derived };
+    const title = derivedTitles.get(chat.id);
+    return title ? { ...chat, title } : chat;
   });
 }

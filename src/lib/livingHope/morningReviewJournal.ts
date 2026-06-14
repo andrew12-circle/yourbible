@@ -4,6 +4,7 @@ import { setEntryLinks, type EntryLinkInput } from "@/lib/journal/links";
 import { localDateISO } from "@/lib/lifePriorities";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { MorningConnectionNotes } from "@/lib/livingHope/morningRitual";
+import { formatThanksgivingJournalBody, thanksgivingListsFromNotes } from "@/lib/livingHope/morningRitual";
 import { WORKBOOK_PHASES, type LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
 export const MORNING_REVIEW_ENTRY_KIND = "morning_review";
@@ -60,6 +61,10 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
     ctx.workbook?.stories.length && ctx.storyIndex != null
       ? ctx.workbook.stories[ctx.storyIndex % ctx.workbook.stories.length]?.text
       : null;
+  const storyBody =
+    ctx.connectionNotes?.story_recall?.trim() ||
+    story ||
+    undefined;
 
   const visionParts: string[] = [];
   if (ctx.workbook?.vision_headline?.trim()) {
@@ -102,7 +107,11 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
 
   const body = [
     section("Worship", ctx.connectionNotes?.worship_note),
-    section("Thanksgiving", ctx.connectionNotes?.thanksgiving_note),
+    section(
+      "Thanksgiving",
+      formatThanksgivingJournalBody(thanksgivingListsFromNotes(ctx.connectionNotes ?? {})) ??
+        ctx.connectionNotes?.thanksgiving_note,
+    ),
     ctx.connectionNotes?.scripture_ref
       ? section(
           "Scripture",
@@ -114,14 +123,25 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
             .join("\n\n"),
         )
       : section("Scripture", ctx.connectionNotes?.scripture_reflection),
-    section("Prayer", ctx.connectionNotes?.prayer_note),
+    section(
+      "Conversation",
+      [
+        ctx.connectionNotes?.prayer_note,
+        ctx.connectionNotes?.conversation_entry_id
+          ? `(Full journal entry saved separately.)`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n") || undefined,
+    ),
     section("Manifesto", manifesto),
     visionParts.length ? section("Vision", visionParts.join("\n\n")) : "",
-    section("Story", story),
+    section("Story", storyBody || undefined),
     assignmentLines.length ? `## Today's assignment\n\n${assignmentLines.join("\n")}\n` : "",
     goalBlocks.length ? `## Goals\n\n${goalBlocks.join("\n\n")}\n` : "",
     metricLines.length ? `## Metrics\n\n${metricLines.join("\n")}\n` : "",
     section("Surrender", ctx.surrenderNote),
+    section("Covering", ctx.connectionNotes?.covering_note),
   ]
     .filter(Boolean)
     .join("\n")

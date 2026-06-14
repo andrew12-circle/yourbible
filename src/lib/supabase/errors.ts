@@ -16,7 +16,7 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   living_hope_weekly_reviews: "20260610130000_living_hope_workbook.sql",
 };
 
-function isPostgrestError(error: unknown): error is PostgrestError {
+export function isPostgrestError(error: unknown): error is PostgrestError {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -39,13 +39,18 @@ function migrationFileForMessage(message: string): string | null {
 function isMissingSchemaError(code: string, message: string): boolean {
   return (
     code === "42P01" ||
+    code === "42703" ||
     code === "42883" ||
     code === "PGRST205" ||
     code === "PGRST202" ||
+    code === "PGRST204" ||
     /relation .+ does not exist/i.test(message) ||
+    /column .+ does not exist/i.test(message) ||
     /function .+ does not exist/i.test(message) ||
     /Could not find the table/i.test(message) ||
-    /Could not find the function/i.test(message)
+    /Could not find the function/i.test(message) ||
+    /Could not find the '.+' column/i.test(message) ||
+    /schema cache/i.test(message)
   );
 }
 

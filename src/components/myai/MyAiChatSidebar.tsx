@@ -75,7 +75,7 @@ export default function MyAiChatSidebar({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-card">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-card">
       <div className="flex items-center gap-1 border-b border-border px-2 py-2">
         <Button
           type="button"
@@ -219,14 +219,19 @@ export default function MyAiChatSidebar({
                           }
                         }}
                         className={cn(
-                          "group mx-1.5 flex cursor-pointer items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-xs transition-colors",
+                          "group mx-1.5 flex min-w-0 cursor-pointer items-start gap-2 overflow-hidden rounded-md border-l-2 px-2 py-1.5 text-xs transition-colors",
                           activeChatId === c.id
                             ? "border-blue-500 bg-blue-500/8 font-medium text-foreground"
                             : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                         )}
                       >
-                        <MessageCircle className="h-3 w-3 shrink-0 opacity-60" />
-                        <span className="min-w-0 flex-1 truncate">{sidebarChatTitle(c.title)}</span>
+                        <MessageCircle className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />
+                        <span
+                          className="min-w-0 flex-1 break-words leading-snug line-clamp-2"
+                          title={c.title?.trim() || undefined}
+                        >
+                          {sidebarChatTitle(c.title)}
+                        </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button

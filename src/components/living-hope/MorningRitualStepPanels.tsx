@@ -4,18 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
-import type { MorningDailyReading } from "@/hooks/useMorningDailyReading";
+import type { MorningScripture } from "@/hooks/useMorningScripture";
 import {
-  PRAYER_PROMPTS,
+  COVERING_PRAYER_PROMPTS,
+  COVERING_STEP_INTRO,
+} from "@/lib/livingHope/coveringPrayer";
+import {
   SCRIPTURE_QUESTIONS,
-  THANKSGIVING_PROMPTS,
+  SURRENDER_PRAYER_PROMPTS,
+  SURRENDER_STEP_INTRO,
   WORSHIP_PROMPTS,
   type DailyAssignment,
   type RitualStep,
 } from "@/lib/livingHope/morningRitual";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
-import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
-import { readerPath } from "@/lib/bible/reference";
+import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
+import { morningFormulaReaderState, persistReaderReturn } from "@/lib/bible/readerNavigation";
+import { WorshipMusicPlayer } from "@/components/living-hope/WorshipMusicPlayer";
+import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
+import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +41,12 @@ type Props = {
   letter: LivingHopeLetterRow | null;
   workbook: LivingHopeWorkbookContent | null;
   manifestoItem: { text: string } | null | undefined;
-  storyItem: { text: string } | null | undefined;
+  storySuggestedIndex: number;
+  storySelectedIndex: number | null;
+  onStorySelectedIndexChange: (index: number) => void;
+  onAddStory: (text: string) => void;
+  storyRecall: string;
+  setStoryRecall: (v: string) => void;
   currentGoal: LivingHopeGoalRow | null | undefined;
   touches: Record<string, GoalTouch>;
   setTouch: (goalId: string, patch: Partial<GoalTouch>) => void;
@@ -44,21 +56,31 @@ type Props = {
   setMetricValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   worshipNote: string;
   setWorshipNote: (v: string) => void;
-  thanksgivingNote: string;
-  setThanksgivingNote: (v: string) => void;
-  prayerNote: string;
-  setPrayerNote: (v: string) => void;
+  thanksgivingNow: string[];
+  thanksgivingNotYet: string[];
+  onThanksgivingNowChange: (index: number, value: string) => void;
+  onThanksgivingNotYetChange: (index: number, value: string) => void;
+  conversationEntryId: string | null;
+  conversationPreview: { title: string | null; excerpt: string } | null;
+  conversationBusy: boolean;
+  conversationError: string | null;
+  onEnsureConversationEntry: () => Promise<string | null>;
   scriptureReflection: string;
   setScriptureReflection: (v: string) => void;
   dailyAssignment: DailyAssignment;
   setDailyAssignment: (patch: Partial<DailyAssignment>) => void;
   surrender: string;
   setSurrender: (v: string) => void;
-  reading: MorningDailyReading | null;
-  readingBusy: boolean;
-  readingError: string | null;
-  onGenerateReading: () => void;
+  covering: string;
+  setCovering: (v: string) => void;
+  scripture: MorningScripture | null;
+  scriptureBusy: boolean;
+  scriptureError: string | null;
+  onGenerateScripture: () => void;
   journalEntryId: string | null;
+  worshipPlaylistUrl: string;
+  worshipPlaylistHistory: WorshipMusicHistoryItem[];
+  onWorshipMusicChange: (next: { url: string; history: WorshipMusicHistoryItem[] }) => void;
 };
 
 export function MorningRitualStepPanels({
@@ -66,7 +88,12 @@ export function MorningRitualStepPanels({
   letter,
   workbook,
   manifestoItem,
-  storyItem,
+  storySuggestedIndex,
+  storySelectedIndex,
+  onStorySelectedIndexChange,
+  onAddStory,
+  storyRecall,
+  setStoryRecall,
   currentGoal,
   touches,
   setTouch,
@@ -76,46 +103,70 @@ export function MorningRitualStepPanels({
   setMetricValues,
   worshipNote,
   setWorshipNote,
-  thanksgivingNote,
-  setThanksgivingNote,
-  prayerNote,
-  setPrayerNote,
+  thanksgivingNow,
+  thanksgivingNotYet,
+  onThanksgivingNowChange,
+  onThanksgivingNotYetChange,
+  conversationEntryId,
+  conversationPreview,
+  conversationBusy,
+  conversationError,
+  onEnsureConversationEntry,
   scriptureReflection,
   setScriptureReflection,
   dailyAssignment,
   setDailyAssignment,
   surrender,
   setSurrender,
-  reading,
-  readingBusy,
-  readingError,
-  onGenerateReading,
+  covering,
+  setCovering,
+  scripture,
+  scriptureBusy,
+  scriptureError,
+  onGenerateScripture,
   journalEntryId,
+  worshipPlaylistUrl,
+  worshipPlaylistHistory,
+  onWorshipMusicChange,
 }: Props) {
   if (step.kind === "intro") {
     return (
-      <>
-        <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
-        <p className={cn(lh.body, "mb-4")}>
-          Worship → thank → read → pray → align → assign → surrender → execute.
-        </p>
-        <p className={cn("text-[13px] mb-4", lh.muted)}>
-          Shift from &ldquo;What do I need to do?&rdquo; to &ldquo;Who am I with?&rdquo; — then receive today&apos;s
-          direction.
-        </p>
-        {(letter?.full_letter ?? letter?.outlook) ? (
-          <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…</blockquote>
-        ) : null}
-      </>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)] lg:items-start gap-6 lg:gap-8 flex-1">
+        <div className="min-w-0">
+          <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
+          <p className={cn(lh.body, "mb-4")}>
+            Worship → thank → read → pray → align → surrender → cover → assign → execute.
+          </p>
+          <p className={cn("text-[13px] mb-4", lh.muted)}>
+            Shift from &ldquo;What do I need to do?&rdquo; to &ldquo;Who am I with?&rdquo; — then receive today&apos;s
+            direction.
+          </p>
+          {(letter?.full_letter ?? letter?.outlook) ? (
+            <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…</blockquote>
+          ) : null}
+        </div>
+        <div className="min-w-0 lg:sticky lg:top-2">
+          <img
+            src="/images/morning-formula-steps.png"
+            alt="He leads. We follow. His will. Our mission — worship, thank, read, pray, align, surrender, cover, assign, execute."
+            className="w-full rounded-xl border border-border/50 shadow-sm"
+          />
+        </div>
+      </div>
     );
   }
 
   if (step.kind === "worship") {
     return (
       <>
+        <WorshipMusicPlayer
+          playlistUrl={worshipPlaylistUrl}
+          playlistHistory={worshipPlaylistHistory}
+          onWorshipMusicChange={onWorshipMusicChange}
+        />
         <h1 className={cn(lh.titleLg, "mb-3")}>Worship</h1>
         <p className={cn(lh.bodySm, "mb-3")}>
-          Get your eyes off business, money, systems, and pressure. Focus on:
+          Put on praise music. Get your eyes off business, money, systems, and pressure. Focus on:
         </p>
         <PromptList items={WORSHIP_PROMPTS} />
         <label className={cn(lh.label, "mb-1 block")}>Who are you with this morning? (optional)</label>
@@ -134,53 +185,80 @@ export function MorningRitualStepPanels({
     return (
       <>
         <h1 className={cn(lh.titleLg, "mb-3")}>Thanksgiving</h1>
-        <p className={cn(lh.bodySm, "mb-3")}>Thank Him for specific mercies — break anxiety and scarcity thinking.</p>
-        <PromptList items={THANKSGIVING_PROMPTS} />
-        <label className={cn(lh.label, "mb-1 block")}>What are you thankful for?</label>
-        <Textarea
-          value={thanksgivingNote}
-          onChange={(e) => setThanksgivingNote(e.target.value)}
-          rows={5}
-          className={lh.textarea}
-          placeholder="Salvation… family… provision…"
+        <p className={cn(lh.bodySm, "mb-4")}>
+          Ten thanks — five for what is, five for what is coming. Name them specifically.
+        </p>
+        <ThanksgivingListsInput
+          thanksgivingNow={thanksgivingNow}
+          thanksgivingNotYet={thanksgivingNotYet}
+          onThanksgivingNowChange={onThanksgivingNowChange}
+          onThanksgivingNotYetChange={onThanksgivingNotYetChange}
         />
       </>
     );
   }
 
   if (step.kind === "scripture") {
+    const readerState = morningFormulaReaderState({
+      prompt: scripture?.prompt,
+      reason: scripture?.reason,
+    });
+
     return (
       <>
         <h1 className={cn(lh.titleLg, "mb-3")}>Scripture</h1>
-        <p className={cn(lh.bodySm, "mb-4")}>Read slowly. Let the text speak first.</p>
-        {readingBusy && !reading ? (
+        <p className={cn(lh.bodySm, "mb-4")}>
+          {scripture?.source === "reading-plan"
+            ? "Continue your reading plan — read slowly and let the text speak first."
+            : "Read slowly. Let the text speak first."}
+        </p>
+        {scriptureBusy && !scripture ? (
           <div className="flex items-center gap-2 py-6 justify-center text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-sm">Loading today&apos;s passage…</span>
           </div>
-        ) : reading ? (
+        ) : scripture ? (
           <div className="space-y-3 mb-4">
-            <h2 className="text-[17px] font-semibold">{reading.reference}</h2>
-            <blockquote className="border-l-2 border-amber-400/70 pl-3 italic text-[14px] leading-relaxed whitespace-pre-wrap">
-              {reading.passage}
-            </blockquote>
-            {reading.reason ? (
+            {scripture.source === "reading-plan" ? (
+              <span className={cn(lh.pillActive, "inline-flex mb-1")}>Reading plan</span>
+            ) : (
+              <span className="inline-flex mb-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground">
+                Today&apos;s passage
+              </span>
+            )}
+            <h2 className="text-[17px] font-semibold">{scripture.reference}</h2>
+            {scripture.planDayLabel && scripture.source === "reading-plan" ? (
+              <p className={cn("text-[14px] font-medium", lh.accentMuted)}>{scripture.planDayLabel}</p>
+            ) : null}
+            {scripture.passage ? (
+              <blockquote className="border-l-2 border-amber-400/70 pl-3 italic text-[14px] leading-relaxed whitespace-pre-wrap">
+                {scripture.passage}
+              </blockquote>
+            ) : scripture.source === "reading-plan" ? (
+              <p className={cn(lh.bodySm, "rounded-xl border border-border/60 bg-muted/25 px-3 py-2.5")}>
+                Open the Bible to read {scripture.planDayLabel ?? scripture.reference} for today&apos;s plan.
+              </p>
+            ) : null}
+            {scripture.reason ? (
               <p className={cn("text-[13px]", lh.muted)}>
-                <span className="font-medium text-foreground">Why this, today: </span>
-                {reading.reason}
+                <span className="font-medium text-foreground">
+                  {scripture.source === "reading-plan" ? "Your plan: " : "Why this, today: "}
+                </span>
+                {scripture.reason}
               </p>
             ) : null}
             <PromptList items={SCRIPTURE_QUESTIONS} />
-            {reading.prompt ? (
+            {scripture.prompt ? (
               <p className={cn("text-[13px]", lh.bodySm)}>
                 <span className="font-medium">Reflection: </span>
-                {reading.prompt}
+                {scripture.prompt}
               </p>
             ) : null}
             <Button variant="outline" size="sm" className="mt-1" asChild>
               <Link
-                to={readerPath(reading.reference)}
-                state={{ dailyPrompt: reading.prompt, dailyReason: reading.reason }}
+                to={scripture.readerHref}
+                state={readerState}
+                onClick={() => persistReaderReturn(readerState)}
               >
                 <BookOpen className="w-4 h-4 mr-2" />
                 Read in Bible
@@ -189,13 +267,15 @@ export function MorningRitualStepPanels({
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-stone-300 p-4 text-center mb-4">
-            <p className={cn("text-[13px] mb-3", lh.muted)}>No reading yet for today.</p>
-            <Button variant="outline" size="sm" onClick={onGenerateReading} disabled={readingBusy}>
-              {readingBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate today's passage"}
+            <p className={cn("text-[13px] mb-3", lh.muted)}>
+              No reading plan in progress — we&apos;ll pick a passage for today.
+            </p>
+            <Button variant="outline" size="sm" onClick={onGenerateScripture} disabled={scriptureBusy}>
+              {scriptureBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Get today's passage"}
             </Button>
           </div>
         )}
-        {readingError ? <p className="text-[12px] text-destructive mb-2">{readingError}</p> : null}
+        {scriptureError ? <p className="text-[12px] text-destructive mb-2">{scriptureError}</p> : null}
         <label className={cn(lh.label, "mb-1 block")}>What stood out? (optional)</label>
         <Textarea
           value={scriptureReflection}
@@ -212,17 +292,16 @@ export function MorningRitualStepPanels({
     return (
       <>
         <h1 className={cn(lh.titleLg, "mb-3")}>Conversation</h1>
-        <p className={cn(lh.bodySm, "mb-3")}>Talk honestly — relationship, not just instructions. Then pause and listen.</p>
-        <PromptList items={PRAYER_PROMPTS} />
-        <label className={cn(lh.label, "mb-1 block")}>Prayer</label>
-        <Textarea
-          value={prayerNote}
-          onChange={(e) => setPrayerNote(e.target.value)}
-          rows={6}
-          className={lh.textarea}
-          placeholder="Father, I bring…"
+        <p className={cn(lh.bodySm, "mb-4")}>
+          Relationship, not instructions — get it out honestly, then ask and listen.
+        </p>
+        <MorningConversationPanel
+          entryId={conversationEntryId}
+          preview={conversationPreview}
+          busy={conversationBusy}
+          error={conversationError}
+          onEnsureEntry={onEnsureConversationEntry}
         />
-        <p className={cn("text-[12px] mt-3 italic", lh.muted)}>Pause. Listen before you move on.</p>
       </>
     );
   }
@@ -240,38 +319,32 @@ export function MorningRitualStepPanels({
   if (step.kind === "vision" && workbook) {
     return (
       <>
-        <h1 className={cn(lh.titleLg, "mb-3")}>Vision</h1>
-        {workbook.vision_headline ? (
-          <p className="text-[15px] text-stone-700 mb-4">{workbook.vision_headline}</p>
-        ) : null}
-        <ul className={cn("space-y-1 mb-4 text-[13px]", lh.muted)}>
-          {workbook.income_lines.map((l) => (
-            <li key={l.id}>
-              {l.label}: <span className={lh.accentMuted}>{l.amount}</span>
-            </li>
-          ))}
-        </ul>
-        {workbook.income_total_label ? (
-          <p className={cn("text-[14px] font-medium mb-4", lh.accent)}>{workbook.income_total_label}</p>
-        ) : null}
-        <label className={cn(lh.label, "mb-1 block")}>See it vividly — present tense</label>
-        <Textarea
-          value={visionRecall}
-          onChange={(e) => setVisionRecall(e.target.value)}
-          rows={5}
-          className={lh.textarea}
-          placeholder="I walk into the office knowing revenue is automated…"
+        <h1 className={cn(lh.titleLg, "mb-2")}>Vision</h1>
+        <p className={cn(lh.bodySm, "mb-4")}>
+          Don&apos;t read the numbers — inhabit the life. Present tense. You already have it.
+        </p>
+        <VisionEmbodimentWalkthrough
+          workbook={workbook}
+          visionRecall={visionRecall}
+          onVisionRecallChange={setVisionRecall}
         />
       </>
     );
   }
 
-  if (step.kind === "story" && storyItem) {
+  if (step.kind === "story" && workbook) {
     return (
       <>
-        <h1 className={cn(lh.titleLg, "mb-4")}>Story</h1>
-        <p className={lh.bodyLg}>{storyItem.text}</p>
-        <p className={cn("text-[13px] mt-6", lh.muted)}>Picture it. Feel it. Thank God before you see it.</p>
+        <h1 className={cn(lh.titleLg, "mb-2")}>Story</h1>
+        <MorningStoryPanel
+          stories={workbook.stories}
+          suggestedIndex={storySuggestedIndex}
+          selectedIndex={storySelectedIndex}
+          onSelectedIndexChange={onStorySelectedIndexChange}
+          onAddStory={onAddStory}
+          storyRecall={storyRecall}
+          onStoryRecallChange={setStoryRecall}
+        />
       </>
     );
   }
@@ -364,9 +437,42 @@ export function MorningRitualStepPanels({
   if (step.kind === "surrender") {
     return (
       <>
-        <h1 className={cn(lh.titleLg, "mb-3")}>Surrender</h1>
-        <p className={cn("text-[14px] mb-4", lh.bodySm)}>Release control. Not my will, but Yours.</p>
-        <Textarea value={surrender} onChange={(e) => setSurrender(e.target.value)} rows={6} className={lh.textarea} />
+        <h1 className={cn(lh.titleLg, "mb-2")}>Surrender</h1>
+        <p className={cn(lh.bodySm, "mb-3 leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
+        <PromptList items={SURRENDER_PRAYER_PROMPTS} />
+        <label className={cn(lh.label, "mb-1 block")}>Prayer of release</label>
+        <Textarea
+          value={surrender}
+          onChange={(e) => setSurrender(e.target.value)}
+          rows={18}
+          className={lh.textarea}
+          aria-label="Surrender prayer"
+        />
+        <p className={cn(lh.footnote, "mt-3 italic")}>
+          Speak it slowly. When you finish, let your shoulders drop. Then continue.
+        </p>
+      </>
+    );
+  }
+
+  if (step.kind === "covering") {
+    return (
+      <>
+        <h1 className={cn(lh.titleLg, "mb-2")}>Covering</h1>
+        <p className={cn(lh.bodySm, "mb-3 leading-relaxed")}>{COVERING_STEP_INTRO}</p>
+        <p className={cn(lh.labelUpper, lh.accent, "mb-3")}>Pray aloud</p>
+        <PromptList items={COVERING_PRAYER_PROMPTS} />
+        <label className={cn(lh.label, "mb-1 block")}>Blood, warfare &amp; angels</label>
+        <Textarea
+          value={covering}
+          onChange={(e) => setCovering(e.target.value)}
+          rows={20}
+          className={lh.textarea}
+          aria-label="Covering prayer"
+        />
+        <p className={cn(lh.footnote, "mt-3 italic")}>
+          Declare it with your voice. Command angels. Seal the day. Then continue.
+        </p>
       </>
     );
   }

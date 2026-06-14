@@ -6,7 +6,8 @@ export type JournalEntryKind =
   | "vent"
   | "chat"
   | "listening"
-  | "morning_review";
+  | "morning_review"
+  | "morning_conversation";
 
 /** Faith-journal kinds (shown under /journal/life). */
 export type FaithJournalKind = "dream" | "praise_report" | "testimony";
@@ -85,6 +86,13 @@ export const ENTRY_KIND_META: Record<
     placeholder: "",
     newTitleHint: "Morning formula",
   },
+  morning_conversation: {
+    label: "Morning conversation",
+    shortHint: "Prayer and conversation with God — journal, voice, or video, then listen.",
+    placeholder:
+      "What's on your heart? Talk honestly. When you're ready, ask what God wants you to know — then listen.",
+    newTitleHint: "Conversation",
+  },
 };
 
 /** `?kind=` on `/journal/new` */
@@ -97,13 +105,15 @@ export function parseJournalEntryKindParam(raw: string | null): JournalEntryKind
   if (v === "vent") return "vent";
   if (v === "chat") return "chat";
   if (v === "listening" || v === "heard" || v === "discernment") return "listening";
+  if (v === "morning_conversation" || v === "conversation") return "morning_conversation";
   return null;
 }
 
 export function coerceJournalEntryKind(raw: string | null | undefined): JournalEntryKind | null {
   if (
     raw === "dream" || raw === "praise_report" || raw === "testimony" || raw === "vent" ||
-    raw === "chat" || raw === "listening" || raw === "morning_review"
+    raw === "chat" || raw === "listening" || raw === "morning_review" ||
+    raw === "morning_conversation"
   ) {
     return raw;
   }

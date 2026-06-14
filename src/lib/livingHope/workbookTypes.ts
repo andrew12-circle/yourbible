@@ -40,6 +40,16 @@ export interface WorkbookMetric {
   unit?: string;
 }
 
+/** Saved worship / praise music link for quick replay in the morning ritual. */
+export interface WorshipMusicHistoryItem {
+  id: string;
+  url: string;
+  title?: string;
+  thumbnail_url?: string;
+  provider?: "spotify" | "apple" | "youtube";
+  added_at?: string;
+}
+
 export interface LivingHopeWorkbookContent {
   vision_headline: string;
   vision_tagline: string;
@@ -56,6 +66,10 @@ export interface LivingHopeWorkbookContent {
   rules_of_operation: string[];
   weekly_questions: string[];
   metrics: WorkbookMetric[];
+  /** Spotify / Apple Music / YouTube playlist for the worship step. */
+  worship_playlist_url: string;
+  /** Previously saved worship links — pick or replay during the ritual. */
+  worship_music_history: WorshipMusicHistoryItem[];
 }
 
 export type WorkbookSection =
@@ -133,6 +147,8 @@ export function emptyWorkbook(): LivingHopeWorkbookContent {
       "What is the single highest leverage move next week?",
     ],
     metrics: [],
+    worship_playlist_url: "",
+    worship_music_history: [],
   };
 }
 
@@ -159,7 +175,35 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
       ? parseStringList(o.weekly_questions)
       : base.weekly_questions,
     metrics: parseMetrics(o.metrics),
+    worship_playlist_url: String(o.worship_playlist_url ?? base.worship_playlist_url),
+    worship_music_history: parseWorshipMusicHistory(o.worship_music_history, String(o.worship_playlist_url ?? "")),
   };
+}
+
+function parseWorshipMusicHistory(raw: unknown, currentUrl: string): WorshipMusicHistoryItem[] {
+  const parsed = parseWorshipHistoryItems(raw);
+  if (parsed.length) return parsed;
+  const trimmed = currentUrl.trim();
+  if (!trimmed) return [];
+  return [{ id: newId(), url: trimmed, added_at: new Date().toISOString() }];
+}
+
+function parseWorshipHistoryItems(raw: unknown): WorshipMusicHistoryItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
+    .map((x) => ({
+      id: String(x.id ?? newId()),
+      url: String(x.url ?? ""),
+      title: x.title ? String(x.title) : undefined,
+      thumbnail_url: x.thumbnail_url ? String(x.thumbnail_url) : undefined,
+      provider:
+        x.provider === "spotify" || x.provider === "apple" || x.provider === "youtube"
+          ? x.provider
+          : undefined,
+      added_at: x.added_at ? String(x.added_at) : undefined,
+    }))
+    .filter((item) => item.url.trim().length > 0);
 }
 
 function parseIncomeLines(raw: unknown): IncomeLine[] {

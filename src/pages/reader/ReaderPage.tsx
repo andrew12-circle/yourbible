@@ -79,6 +79,13 @@ import { useReaderSpread, useReaderCompactChrome, useIsTabletPortrait, useCompac
 import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import {
+  clearReaderReturn,
+  persistReaderReturn,
+  readReaderReturn,
+  readerReturnFromState,
+  type ReaderNavigationState,
+} from "@/lib/bible/readerNavigation";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -170,6 +177,17 @@ export default function ReaderPage() {
   const [searchParams] = useSearchParams();
   const params = useParams<{ book?: string; chapter?: string }>();
   const dailyToastShown = useRef(false);
+  const [readerReturn, setReaderReturn] = useState<{ to: string; label: string } | null>(null);
+
+  useEffect(() => {
+    const fromState = readerReturnFromState(location.state);
+    if (fromState) {
+      setReaderReturn(fromState);
+      persistReaderReturn({ returnTo: fromState.to, returnLabel: fromState.label });
+      return;
+    }
+    setReaderReturn(readReaderReturn());
+  }, [location.state]);
 
   const canonBooks = useMemo(() => getBooks(readCanon()), []);
   const defaultBookAbbr = readCanon() === "ethiopian" ? "Gen" : "Jhn";
@@ -790,14 +808,19 @@ export default function ReaderPage() {
 
   useEffect(() => {
     if (dailyToastShown.current) return;
-    const state = location.state as { dailyPrompt?: string; dailyReason?: string } | null;
+    const state = location.state as ReaderNavigationState | null;
     if (!state?.dailyPrompt) return;
     dailyToastShown.current = true;
     const desc = state.dailyReason
       ? `${state.dailyReason}\n\n${state.dailyPrompt}`
       : state.dailyPrompt;
     toast({ title: "Today's reflection", description: desc });
-    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: {} });
+    const preserved: ReaderNavigationState = {};
+    if (state.returnTo) {
+      preserved.returnTo = state.returnTo;
+      preserved.returnLabel = state.returnLabel;
+    }
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: preserved });
   }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
@@ -1749,6 +1772,12 @@ export default function ReaderPage() {
         containedInHub={containedInHub}
         hubFullscreen={hubFullscreen}
         onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
+        returnTo={readerReturn?.to}
+        returnLabel={readerReturn?.label}
+        onReturn={() => {
+          clearReaderReturn();
+          setReaderReturn(null);
+        }}
       />
 
       {staleLayoutInk && inkMode ? (

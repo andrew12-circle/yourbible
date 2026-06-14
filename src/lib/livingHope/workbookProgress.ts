@@ -16,6 +16,7 @@ export const RITUAL_STEPS = [
   { key: "vision", label: "Vision" },
   { key: "story", label: "Story" },
   { key: "surrender", label: "Surrender" },
+  { key: "covering", label: "Covering" },
   { key: "assignment", label: "Today" },
 ] as const;
 
