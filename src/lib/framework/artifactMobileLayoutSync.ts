@@ -46,6 +46,11 @@ export function measureArtifactMobileVideoBlockHeight(container: HTMLElement): n
   return Math.round(container.getBoundingClientRect().height);
 }
 
+/** Height of the fixed pinned book cover shell (portrait cover + safe area). */
+export function measureArtifactMobileBookBlockHeight(container: HTMLElement): number {
+  return Math.round(container.getBoundingClientRect().height);
+}
+
 export function syncArtifactMobilePinnedHeaderHeight(
   root: HTMLElement,
   videoHeightPx: number,

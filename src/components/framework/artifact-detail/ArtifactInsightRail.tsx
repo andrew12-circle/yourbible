@@ -29,6 +29,8 @@ type Props<T extends ClaimLike> = {
   onSelectClaim: (claimId: string) => void;
   onSeeInTranscript?: (claimId: string) => void;
   onSeeScripture?: (claimId: string) => void;
+  /** e.g. "See in reader" for books vs default "See in transcript". */
+  seeInSourceLabel?: string;
   showScrollNav?: boolean;
   className?: string;
 };
@@ -40,6 +42,7 @@ export default function ArtifactInsightRail<T extends ClaimLike>({
   onSelectClaim,
   onSeeInTranscript,
   onSeeScripture,
+  seeInSourceLabel = "See in transcript",
   showScrollNav = true,
   className,
 }: Props<T>) {
@@ -148,7 +151,7 @@ export default function ArtifactInsightRail<T extends ClaimLike>({
                           }
                         }}
                       >
-                        See in transcript
+                        {seeInSourceLabel}
                       </span>
                     ) : null}
                     {onSeeScripture ? (

@@ -1,5 +1,9 @@
 import { cleanTranscriptQuoteForDisplay } from "@/lib/normalizePastedTranscript";
-import type { ClaimEpistemology } from "@/lib/framework/epistemology";
+import {
+  formatEpistemologyMarkdownSections,
+  parseClaimEpistemology,
+  type ClaimEpistemology,
+} from "@/lib/framework/epistemology";
 import { formatClaimSourceClock, type TranscriptSegment } from "@/lib/transcriptSplit";
 import { claimResearchChatTitle } from "@/lib/myai/chatTitle";
 
@@ -177,6 +181,12 @@ export function buildClaimResearchMarkdown(
       lines.push("");
     }
   }
+
+  const epistemology = parseClaimEpistemology(claim.epistemology);
+  if (epistemology) {
+    lines.push(...formatEpistemologyMarkdownSections(epistemology));
+  }
+
   lines.push("---");
   lines.push("");
   lines.push("_Add your notes below._");

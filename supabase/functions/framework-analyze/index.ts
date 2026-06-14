@@ -1,7 +1,7 @@
 // Framework Analyze — extracts claims from an artifact and compares them
 // against the user's existing belief framework using Gemini (OpenAI-compat API).
 // Also extracts grounded knowledge entities and actionable teachings (with service role).
-// Epistemology v1: per-claim layers in artifact_claims.epistemology (see docs/EPistemology.md for v2 roadmap).
+// Epistemology v1+v2: per-claim layers in artifact_claims.epistemology (see docs/EPistemology.md).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
@@ -185,6 +185,30 @@ function parseDurationSeconds(metadata: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
 }
 
+/** Reading-time estimate for books/PDFs so untimed chapter windows can slice text. */
+function inferArtifactDurationSeconds(
+  metadata: unknown,
+  chapters: YoutubeChapter[],
+  rawTextLength: number,
+): number {
+  const fromMeta = parseDurationSeconds(metadata);
+  if (fromMeta) return fromMeta;
+
+  if (metadata && typeof metadata === "object") {
+    const pageCount = (metadata as Record<string, unknown>).page_count;
+    if (typeof pageCount === "number" && Number.isFinite(pageCount) && pageCount > 0) {
+      return Math.floor(pageCount * 90);
+    }
+  }
+
+  if (chapters.length >= 2) {
+    const last = chapters[chapters.length - 1]!.start_seconds;
+    return Math.max(last + 900, 3600);
+  }
+
+  return Math.max(3600, Math.floor(rawTextLength / 20));
+}
+
 function transcriptSliceForWindow(params: {
   rawText: string;
   segments: TranscriptSegment[];
@@ -193,7 +217,8 @@ function transcriptSliceForWindow(params: {
   windowEndExclusiveSec: number | null;
   durationSeconds: number | null;
 }): string {
-  const { rawText, segments, timed, windowStartSec, windowEndExclusiveSec, durationSeconds } = params;
+  const { rawText, segments, timed, windowStartSec, windowEndExclusiveSec } = params;
+  let durationSeconds = params.durationSeconds;
   let body = "";
   if (timed) {
     body = collectTranscriptTextsStartingInHalfOpenRange(
@@ -202,7 +227,10 @@ function transcriptSliceForWindow(params: {
       windowEndExclusiveSec,
     ).join("\n").trim();
   }
-  if (!body && durationSeconds != null && durationSeconds > 0) {
+  if (!body) {
+    if (durationSeconds == null || durationSeconds <= 0) {
+      durationSeconds = inferArtifactDurationSeconds(null, [], rawText.length);
+    }
     body = sliceTextByDurationFraction(
       rawText,
       windowStartSec,
@@ -211,6 +239,36 @@ function transcriptSliceForWindow(params: {
     );
   }
   return body.slice(0, ANALYSIS_TEXT_CAP);
+}
+
+const DOCUMENT_CHUNK_CHARS = 48_000;
+const DOCUMENT_CHUNK_OVERLAP = 2_000;
+
+async function extractDocumentClaimsByChunks(
+  rawText: string,
+  beliefsList: Belief[],
+  geminiApiKey: string,
+): Promise<ClaimWithChapter[]> {
+  const len = rawText.length;
+  if (len < 400) return [];
+
+  const seen = new Set<string>();
+  const collected: ClaimWithChapter[] = [];
+
+  for (let start = 0; start < len && collected.length < MAX_PERSISTED_CLAIMS; start += DOCUMENT_CHUNK_CHARS - DOCUMENT_CHUNK_OVERLAP) {
+    const slice = rawText.slice(start, Math.min(len, start + DOCUMENT_CHUNK_CHARS));
+    const prompt = buildDocumentChunkPrompt(slice, beliefsList, start, len);
+    const gw = await geminiSubmitClaims(geminiApiKey, prompt);
+    if (gw.kind !== "ok") continue;
+    for (const c of parseSubmitClaimsFromResponse(gw.json)) {
+      const key = normalizeClaimDedupeKey(c.claim);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      collected.push({ ...c, chapter_start_seconds: null });
+    }
+  }
+
+  return collected.slice(0, MAX_PERSISTED_CLAIMS);
 }
 
 const SYSTEM = `You are a careful theology research assistant.
@@ -245,7 +303,7 @@ function buildFullArtifactPrompt(text: string, beliefs: Belief[], minClaims: num
   return `USER'S CURRENT BELIEFS:
 ${beliefSummary}
 
-ARTIFACT TEXT (sermon / podcast / lyrics / journal):
+ARTIFACT TEXT (sermon / podcast / book chapter / article / PDF extract / journal):
 """
 ${clipped}
 """${wasClipped ? "\n\n(Note: the artifact text was very long and was truncated to fit context. Cover the supplied text as fully as possible.)" : ""}
@@ -266,6 +324,43 @@ ${EPISTEMOLOGY_PROMPT_BLOCK}
 
 Return ONLY valid JSON of shape:
 { "claims": ClaimOut[] } (each claim may include an "epistemology" object with the fields above).`;
+}
+
+function buildDocumentChunkPrompt(
+  sliceText: string,
+  beliefs: Belief[],
+  sliceStartChar: number,
+  totalChars: number,
+) {
+  const beliefSummary = beliefs.length
+    ? beliefs
+        .map(
+          (b) =>
+            `- id=${b.id} | layer=${b.layer} | topic=${b.topic} | statement="${b.statement}" | answer="${(b.answer ?? "").slice(0, 280)}" | confidence=${b.confidence}`,
+        )
+        .join("\n")
+    : "(none yet — every claim should be marked match_relation:'new', matched_belief_id:null)";
+
+  const clipped = sliceText.slice(0, ANALYSIS_TEXT_CAP);
+  const progressPct = totalChars > 0 ? Math.round((sliceStartChar / totalChars) * 100) : 0;
+
+  return `USER'S CURRENT BELIEFS:
+${beliefSummary}
+
+BOOK / DOCUMENT EXCERPT (characters ${sliceStartChar}–${sliceStartChar + clipped.length} of ~${totalChars}; ~${progressPct}% through the work):
+"""
+${clipped}
+"""
+
+Task:
+1. Extract 6 to 12 load-bearing CLAIMS grounded ONLY in this excerpt (1–2 sentences each).
+2. Focus on theology, cosmology, prophecy, spiritual practice, and explicit arguments — not publishing meta or chapter headings alone.
+3. Order claims by their order within this excerpt.
+4. For each claim, fill in tone, doctrine_tags, scripture_supports/challenges, matched_belief_id, match_relation, bias_flags, and epistemology.
+${EPISTEMOLOGY_PROMPT_BLOCK}
+
+Return ONLY valid JSON of shape:
+{ "claims": ClaimOut[] }`;
 }
 
 function buildChapterSlicePrompt(
@@ -1249,10 +1344,12 @@ async function enrichArtifactAnalysis(ctx: EnrichmentContext): Promise<void> {
   let metadata = ctx.metadata;
 
   if (chapters.length === 0 && rawText.trim().length >= 400) {
+    const chapterDuration =
+      durationSeconds ?? inferArtifactDurationSeconds(metadata, [], rawText.length);
     const generated = await generateChaptersFromTranscript({
       apiKey: geminiApiKey,
       rawText,
-      durationSeconds,
+      durationSeconds: chapterDuration,
       title: (artifact.title as string | null | undefined) ?? null,
     });
     if (generated.chapters.length) {
@@ -1525,7 +1622,7 @@ Deno.serve(async (req) => {
 
     const { data: artifact, error: aErr } = await supabase
       .from("artifacts")
-      .select("id,user_id,title,raw_text,processing_token,metadata")
+      .select("id,user_id,title,kind,raw_text,processing_token,metadata")
       .eq("id", artifact_id)
       .maybeSingle();
     if (aErr || !artifact) throw new Error("Artifact not found");
@@ -1556,18 +1653,29 @@ Deno.serve(async (req) => {
     const metadata = (artifact as { metadata?: unknown }).metadata;
     const chapters = parseYoutubeChaptersFromMetadata(metadata);
     const durationSeconds = parseDurationSeconds(metadata);
+    const effectiveDuration = inferArtifactDurationSeconds(metadata, chapters, rawText.length);
     const { segments, timed } = splitTranscript(rawText);
+    const artifactKind = typeof (artifact as { kind?: unknown }).kind === "string"
+      ? (artifact as { kind: string }).kind
+      : "";
+    const isDocument = artifactKind === "pdf" || artifactKind === "text_file" || artifactKind === "text";
 
     console.log("framework-analyze: fast-first pass");
     const fastPrompt = buildFullArtifactPrompt(rawText, beliefsList, 16, 28);
     const fastGw = await geminiSubmitClaims(GEMINI_API_KEY, fastPrompt);
     if (await abortClaimsIfBadGateway(db, artifact_id, fastGw)) return;
-    const fastClaims = parseSubmitClaimsFromResponse((fastGw as { kind: "ok"; json: unknown }).json);
+    let fastClaims = parseSubmitClaimsFromResponse((fastGw as { kind: "ok"; json: unknown }).json);
+    if (fastClaims.length === 0 && rawText.trim().length >= 400) {
+      console.log("framework-analyze: fast-first empty — document chunk pass");
+      fastClaims = await extractDocumentClaimsByChunks(rawText, beliefsList, GEMINI_API_KEY);
+    }
     const collected: ClaimWithChapter[] = fastClaims.map((c) => ({
       ...c,
       chapter_start_seconds: null,
     }));
-    console.log(`framework-analyze: fast-first claims=${collected.length}`);
+    console.log(
+      `framework-analyze: fast-first claims=${collected.length} document=${isDocument} timed=${timed} effectiveDuration=${effectiveDuration}`,
+    );
 
     const rows = mapCollectedClaimsToRows(collected, artifact, artifact_id, beliefsList);
     console.log(
@@ -1594,7 +1702,7 @@ Deno.serve(async (req) => {
       rawText,
       segments,
       timed,
-      durationSeconds,
+      durationSeconds: durationSeconds ?? effectiveDuration,
       chapters,
       metadata,
       geminiApiKey: GEMINI_API_KEY,

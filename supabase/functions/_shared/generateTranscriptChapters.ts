@@ -110,6 +110,32 @@ export function normalizeGeneratedChapters(
   return bounded;
 }
 
+export function heuristicChaptersFromUntimed(
+  segments: TranscriptSegment[],
+  rawTextLength: number,
+): YoutubeChapter[] {
+  const paras = segments.filter((s) => !s.isParagraphBreak && s.text.trim());
+  if (paras.length < 8) return [];
+
+  const pseudoDuration = Math.max(3600, Math.floor(rawTextLength / 20));
+  const target = Math.min(
+    MAX_CHAPTERS,
+    Math.max(MIN_CHAPTERS, Math.round(paras.length / 12)),
+  );
+  const step = Math.max(1, Math.floor(paras.length / target));
+
+  const chapters: YoutubeChapter[] = [{ title: "Opening", start_seconds: 0 }];
+  for (let i = step; i < paras.length - step * 0.5; i += step) {
+    let title = paras[i]!.text.replace(/\s+/g, " ").trim();
+    if (title.length > 72) title = `${title.slice(0, 69)}…`;
+    if (!title) title = `Section ${chapters.length + 1}`;
+    const start_seconds = Math.floor((i / paras.length) * pseudoDuration);
+    chapters.push({ title, start_seconds });
+  }
+
+  return normalizeGeneratedChapters(chapters, pseudoDuration);
+}
+
 export function heuristicChaptersFromTimed(
   segments: TranscriptSegment[],
   durationSeconds: number | null,
@@ -252,6 +278,13 @@ export async function generateChaptersFromTranscript(params: {
 
   if (timed && outline) {
     const heuristic = heuristicChaptersFromTimed(segments, params.durationSeconds);
+    if (heuristic.length >= MIN_CHAPTERS) {
+      return { chapters: heuristic, source: "transcript_heuristic" };
+    }
+  }
+
+  if (!timed && trimmed.length >= 800) {
+    const heuristic = heuristicChaptersFromUntimed(segments, trimmed.length);
     if (heuristic.length >= MIN_CHAPTERS) {
       return { chapters: heuristic, source: "transcript_heuristic" };
     }

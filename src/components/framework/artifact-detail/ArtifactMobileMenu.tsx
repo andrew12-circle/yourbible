@@ -28,6 +28,8 @@ type Props = {
   showWrapUp: boolean;
   showReanalyze: boolean;
   hasTranscript: boolean;
+  /** When set, replaces "Transcript" in the View menu (e.g. "Reader" for books). */
+  secondaryViewLabel?: string;
   onNavigateSection: (hash: string) => void;
   onOpenTranscript: () => void;
   onPaste: () => void;
@@ -117,6 +119,7 @@ export default function ArtifactMobileMenu({
   showWrapUp,
   showReanalyze,
   hasTranscript,
+  secondaryViewLabel = "Transcript",
   onNavigateSection,
   onOpenTranscript,
   onPaste,
@@ -165,7 +168,11 @@ export default function ArtifactMobileMenu({
         <div className="flex-1 overflow-y-auto px-2 py-4">
           {hasTranscript ? (
             <MenuSection title="View">
-              <MenuItem icon={ScrollText} label="Transcript" onClick={() => run(onOpenTranscript)} />
+              <MenuItem
+                icon={ScrollText}
+                label={secondaryViewLabel}
+                onClick={() => run(onOpenTranscript)}
+              />
             </MenuSection>
           ) : null}
 

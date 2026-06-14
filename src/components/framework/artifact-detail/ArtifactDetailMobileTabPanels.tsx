@@ -158,6 +158,8 @@ type AppDockProps = Pick<
   journalActive?: boolean;
   anchor?: "viewport" | "pane";
   layoutRootSelector?: string;
+  secondaryTabLabel?: string;
+  secondaryTabIcon?: import("lucide-react").LucideIcon;
 };
 
 export function ArtifactDetailMobileAppDock({
@@ -167,6 +169,8 @@ export function ArtifactDetailMobileAppDock({
   journalActive,
   anchor = "viewport",
   layoutRootSelector,
+  secondaryTabLabel,
+  secondaryTabIcon,
   onStudyClick,
   onTranscriptClick,
   onJournalClick,
@@ -181,6 +185,8 @@ export function ArtifactDetailMobileAppDock({
       layoutRootSelector={layoutRootSelector}
       activeTab={mobileTab}
       journalActive={journalActive}
+      secondaryTabLabel={secondaryTabLabel}
+      secondaryTabIcon={secondaryTabIcon}
       onStudyClick={onStudyClick}
       onTranscriptClick={onTranscriptClick}
       onJournalClick={onJournalClick}

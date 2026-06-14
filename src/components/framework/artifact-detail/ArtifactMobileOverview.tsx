@@ -45,6 +45,8 @@ type Props = {
   };
   pinnedVideoPane?: boolean;
   className?: string;
+  /** Parent renders a swipeable claims rail — skip duplicate hero carousel. */
+  hideKeyInsightsRail?: boolean;
 };
 
 export default function ArtifactMobileOverview({
@@ -61,6 +63,7 @@ export default function ArtifactMobileOverview({
   onSeeScripture,
   corpusStanding,
   pinnedVideoPane = false,
+  hideKeyInsightsRail = false,
   className,
 }: Props) {
   const [entitiesExpanded, setEntitiesExpanded] = useState(false);
@@ -71,7 +74,7 @@ export default function ArtifactMobileOverview({
       className={cn("space-y-10 md:space-y-12", className)}
       aria-label="Study overview"
     >
-      {claimsCount > 0 ? (
+      {claimsCount > 0 && !hideKeyInsightsRail ? (
         <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
           <ArtifactStudySectionHeader
             title="Key insights"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw, FileText, Clock } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Clock, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
@@ -45,6 +45,7 @@ import ArtifactDetailMobileTabPanels, {
 import ArtifactDetailStudyColumnWrapper from "@/components/framework/artifact-detail/ArtifactDetailStudyColumnWrapper";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import { buildArtifactDetailTranscriptPanel } from "@/components/framework/artifact-detail/ArtifactDetailTranscriptPanel";
+import ArtifactBookReaderTabPanel from "@/components/framework/artifact-detail/ArtifactBookReaderTabPanel";
 import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
 import ArtifactDocumentDetailBlock, {
   chapterIndexForStartSeconds,
@@ -320,6 +321,10 @@ export default function ArtifactDetailPage() {
     return { agree, disagree, new: newCount };
   }, [studyClaims]);
 
+  const isReadableDocument = Boolean(
+    a?.raw_text?.trim() && isReadableDocumentKind(a.kind),
+  );
+
   const insightsVisible =
     a?.status === "ready" ||
     (a?.status === "analyzing" && (studyClaims.length > 0 || isReadableDocument));
@@ -493,9 +498,6 @@ export default function ArtifactDetailPage() {
   );
 
   const desktopPremiumYoutube = isDesktop && a?.kind === "youtube" && Boolean(youTubeVideoId);
-  const isReadableDocument = Boolean(
-    a?.raw_text?.trim() && isReadableDocumentKind(a.kind),
-  );
   const desktopPremiumDocument = isDesktop && isReadableDocument;
   const desktopPremiumSplitPane = desktopPremiumYoutube || desktopPremiumDocument;
   const documentAuthor = documentAuthorLine(artifactMetadata as Record<string, unknown>);
@@ -711,6 +713,11 @@ export default function ArtifactDetailPage() {
     (claimId: string) => {
       const claim = claims.find((c) => c.id === claimId);
       if (!claim) return;
+      if (isReadableDocument) {
+        if (!isDesktop) openTranscriptTab();
+        scrollToClaimById(claim.id);
+        return;
+      }
       const source = claimSources[claim.id];
       if (!isDesktop) openTranscriptTab();
       focusTranscriptSegment(source ?? null, !isDesktop ? { deferMs: 100 } : undefined);
@@ -730,6 +737,7 @@ export default function ArtifactDetailPage() {
       claims,
       focusTranscriptSegment,
       isDesktop,
+      isReadableDocument,
       openTranscriptTab,
       scrollToClaimById,
       seekVideoToSeconds,
@@ -810,7 +818,7 @@ export default function ArtifactDetailPage() {
     }
   }, [artifactJournalMode, pipEnabled, youtubePip]);
 
-  const desktopStudyDock = Boolean(isDesktop && desktopPremiumYoutube);
+  const desktopStudyDock = Boolean(isDesktop && (desktopPremiumYoutube || desktopPremiumDocument));
   const showArtifactAppDock = mobilePinnedPane || desktopStudyDock;
   const artifactInsightExploreOpen =
     Boolean(mobilePinnedPane && mobileInsightExploreClaimId) || Boolean(desktopInsightExploreClaimId);
@@ -1429,8 +1437,27 @@ export default function ArtifactDetailPage() {
     />
   );
 
-  const transcriptPanel = a.raw_text
-    ? buildArtifactDetailTranscriptPanel({
+  const documentDetailBlockProps = a && isReadableDocument
+    ? {
+        artifactId: a.id,
+        kind: a.kind,
+        title: displayTitle,
+        author: documentAuthor,
+        pageCount: documentPages,
+        thumbnailUrl: mergedVideoMeta.thumbnail_url ?? null,
+        pdfStoragePath: documentPdfPath,
+        pdfStoragePaths: documentPdfPaths,
+        artifactMetadata: artifactMetadata as Record<string, unknown>,
+        userId: user?.id ?? null,
+        onPdfAttached: handlePdfAttached,
+        rawText: displayTranscriptText,
+        chapters: youtubeChaptersList,
+      }
+    : null;
+
+  const transcriptPanel =
+    a.raw_text && !isReadableDocument
+      ? buildArtifactDetailTranscriptPanel({
         artifactId: a.id,
         segments: transcriptSegments,
         timed: transcriptTimedLayout,
@@ -1472,6 +1499,25 @@ export default function ArtifactDetailPage() {
         moments,
       })
     : null;
+
+  const readerPanel =
+    isReadableDocument && documentDetailBlockProps ? (
+      <ArtifactBookReaderTabPanel
+        kind={documentDetailBlockProps.kind}
+        title={documentDetailBlockProps.title}
+        author={documentDetailBlockProps.author}
+        artifactId={documentDetailBlockProps.artifactId}
+        userId={documentDetailBlockProps.userId}
+        storagePaths={documentDetailBlockProps.pdfStoragePaths}
+        onPdfAttached={documentDetailBlockProps.onPdfAttached}
+        rawText={documentDetailBlockProps.rawText}
+        chapters={documentDetailBlockProps.chapters}
+        readerTabActive={!isDesktop ? mobileTab === "transcript" : true}
+        variant={isDesktop ? "desktopAside" : "mobileTab"}
+      />
+    ) : null;
+
+  const secondaryStudyPanel = isReadableDocument ? readerPanel : transcriptPanel;
 
   const desktopPremiumVideoShell =
     desktopPremiumYoutube && youTubeVideoId ? (
@@ -1532,22 +1578,6 @@ export default function ArtifactDetailPage() {
       />
     ) : null;
 
-  const documentDetailBlockProps = a && isReadableDocument ? {
-    artifactId: a.id,
-    kind: a.kind,
-    title: displayTitle,
-    author: documentAuthor,
-    pageCount: documentPages,
-    thumbnailUrl: mergedVideoMeta.thumbnail_url ?? null,
-    pdfStoragePath: documentPdfPath,
-    pdfStoragePaths: documentPdfPaths,
-    artifactMetadata: artifactMetadata as Record<string, unknown>,
-    userId: user?.id ?? null,
-    onPdfAttached: handlePdfAttached,
-    rawText: displayTranscriptText,
-    chapters: youtubeChaptersList,
-  } : null;
-
   const desktopPremiumDocumentShell =
     desktopPremiumDocument && documentDetailBlockProps ? (
       <section className={artifactDesktopVideoCard} id="video" aria-label="Book">
@@ -1559,14 +1589,16 @@ export default function ArtifactDetailPage() {
     <FrameworkLayout
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
       headerLeading={youtubeHeaderLeading}
-      immersiveMobileMinimal={a.kind === "youtube" && Boolean(youTubeVideoId)}
+      immersiveMobileMinimal={
+        (a.kind === "youtube" && Boolean(youTubeVideoId)) || (!isDesktop && isReadableDocument)
+      }
       immersiveDesktopMinimal={desktopPremiumYoutube || desktopPremiumDocument}
       back="/framework/artifacts"
       contentClassName="max-w-none"
       headerContentClassName="max-w-none"
       headerActions={artifactHeaderActions}
     >
-      {a.kind !== "youtube" ? (
+      {a.kind !== "youtube" && !(mobilePinnedPane && isReadableDocument) ? (
         <div
           className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-2.5 text-sm shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.03]"
           role="status"
@@ -1681,7 +1713,13 @@ export default function ArtifactDetailPage() {
         {isReadableDocument && !desktopPremiumDocument && documentDetailBlockProps ? (
           <ArtifactDocumentDetailBlock
             ref={documentBlockRef}
-            stickyMode={!isDesktop}
+            stickyMode={!isDesktop && !mobilePinnedPane}
+            mobilePinnedLayout={mobilePinnedPane && isReadableDocument}
+            mobileActiveTab={mobileTab}
+            mobileChromeHost={mobileChromeHost}
+            backTo="/framework/artifacts"
+            insightExplorePanel={mobileInsightExplorePanel}
+            insightExploreOpen={mobileInsightExploreOpen}
             {...documentDetailBlockProps}
           />
         ) : null}
@@ -1700,6 +1738,31 @@ export default function ArtifactDetailPage() {
           )}
         >
           {mobilePinnedPane ? <div ref={setMobileChromeHost} className="shrink-0" /> : null}
+          {mobilePinnedPane &&
+          isReadableDocument &&
+          insightsVisible &&
+          studyClaims.length > 0 &&
+          !mobileInsightExploreOpen &&
+          mobileTab === "study" ? (
+            <ArtifactClaimsSection
+              claims={studyClaims}
+              claimChapterLayout={claimChapterLayout}
+              glossaryEntries={glossaryEntries}
+              youTubeVideoId={null}
+              onJumpToClaim={jumpToClaim}
+              onSeekChapter={handleChapterNavigate}
+              claimCardContext={{ ...claimCardContext, mobileRailTheme: "dark" }}
+              mobileClaimsRail
+              hideMobileInsightPreview
+              pinnedVideoPane={mobilePinnedPane}
+              scrollContainerRef={mobileBodyScrollRef}
+              onSeeScripture={scrollToClaimById}
+              onMarkReviewed={(claimId) => {
+                scrollToClaimById(claimId);
+                void applyClaimVerdict(claimId, "keep");
+              }}
+            />
+          ) : null}
           {mobilePinnedPane && isReadableDocument && mobileInsightExploreOpen ? mobileInsightExplorePanel : null}
       {!artifactJournalExpanded &&
       !(mobilePinnedPane && isReadableDocument && mobileInsightExploreOpen) &&
@@ -1734,9 +1797,13 @@ export default function ArtifactDetailPage() {
             artifactStatus={a.status}
             artifactMetadata={mergedVideoMeta}
             claimsCount={studyClaims.length}
+            entitiesCount={entitiesCount}
             frameworkOverview={frameworkOverview}
             claimSources={claimSources}
             corpusStanding={corpusStanding}
+            isReadableDocument={isReadableDocument}
+            onReanalyze={() => void reanalyze()}
+            reanalyzeDisabled={inFlight}
             onNavigate={navigateToArtifactHash}
             onSelectClaim={openDesktopInsightExplore}
             onSeeScripture={openDesktopInsightExplore}
@@ -1806,6 +1873,7 @@ export default function ArtifactDetailPage() {
           frameworkOverview={frameworkOverview}
           corpusStanding={corpusStanding}
           pinnedVideoPane={mobilePinnedPane}
+          hideKeyInsightsRail={isReadableDocument && studyClaims.length > 0}
           onNavigate={navigateToArtifactHash}
           onSelectClaim={openMobileInsightExplore}
           activeClaimId={mobileInsightExploreClaimId}
@@ -2126,7 +2194,7 @@ export default function ArtifactDetailPage() {
           isDesktop={isDesktop}
           mobilePinnedPane={mobilePinnedPane}
           mobileTab={mobileTab}
-          transcriptPanel={transcriptPanel}
+          transcriptPanel={secondaryStudyPanel}
           mobileJournalTabPanel={mobileJournalTabPanel}
           artifactId={a.id}
           bookmarkLabel={bookmarkLabel}
@@ -2158,6 +2226,8 @@ export default function ArtifactDetailPage() {
           journalActive={artifactJournalOpen}
           anchor={desktopStudyDock ? "pane" : "viewport"}
           layoutRootSelector={ARTIFACT_STUDY_PANE_SELECTOR}
+          secondaryTabLabel={isReadableDocument ? "Reader" : undefined}
+          secondaryTabIcon={isReadableDocument ? ScrollText : undefined}
           onStudyClick={switchToStudyTab}
           onTranscriptClick={handleDockTranscriptClick}
           onJournalClick={handleDockJournalClick}
@@ -2169,13 +2239,13 @@ export default function ArtifactDetailPage() {
         <aside
           ref={transcriptAsideRef}
           className="relative z-0 hidden min-w-0 lg:col-span-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden"
-          aria-label={isReadableDocument ? "Book text" : "Transcript"}
+          aria-label={isReadableDocument ? "Reader" : "Transcript"}
         >
-          {transcriptPanel}
+          {secondaryStudyPanel}
         </aside>
       </div>
 
-      {desktopStudyDock ? (
+      {desktopStudyDock || (mobilePinnedPane && isReadableDocument) ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}
           onOpenChange={setMobileMenuOpen}
@@ -2185,7 +2255,8 @@ export default function ArtifactDetailPage() {
           showPaste={a.kind === "youtube"}
           showWrapUp={a.kind === "youtube" && a.status === "ready"}
           showReanalyze={!inFlight && a.status !== "error"}
-          hasTranscript={Boolean(a.raw_text?.trim())}
+          hasTranscript={isReadableDocument ? true : Boolean(a.raw_text?.trim())}
+          secondaryViewLabel={isReadableDocument ? "Reader" : "Transcript"}
           onNavigateSection={navigateToArtifactHash}
           onOpenTranscript={switchToTranscriptTab}
           onPaste={() => setPasteOpen(true)}

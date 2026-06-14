@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Home, Menu, NotebookPen } from "lucide-react";
+import { BookOpen, FileText, Home, Menu, NotebookPen, type LucideIcon } from "lucide-react";
 import { ARTIFACT_MOBILE_DOCK_H } from "@/lib/framework/artifactLayoutCss";
 import FloatingTabBar, { type FloatingTabItem } from "@/components/navigation/FloatingTabBar";
 
@@ -9,6 +9,9 @@ type Props = {
   activeTab?: "study" | "transcript" | "notes" | "journal";
   onStudyClick?: () => void;
   onTranscriptClick?: () => void;
+  /** Defaults to Transcript / FileText (video). Use Reader / ScrollText for books. */
+  secondaryTabLabel?: string;
+  secondaryTabIcon?: LucideIcon;
   journalActive?: boolean;
   onJournalClick?: () => void;
   onMenuClick?: () => void;
@@ -22,6 +25,8 @@ export default function MobileAppDock({
   activeTab = "study",
   onStudyClick,
   onTranscriptClick,
+  secondaryTabLabel = "Transcript",
+  secondaryTabIcon: SecondaryTabIcon = FileText,
   journalActive = false,
   onJournalClick,
   onMenuClick,
@@ -29,7 +34,13 @@ export default function MobileAppDock({
 }: Props) {
   const items: FloatingTabItem[] = [
     { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },
-    { id: "transcript", label: "Transcript", icon: FileText, active: activeTab === "transcript", onClick: onTranscriptClick },
+    {
+      id: "transcript",
+      label: secondaryTabLabel,
+      icon: SecondaryTabIcon,
+      active: activeTab === "transcript",
+      onClick: onTranscriptClick,
+    },
     {
       id: "journal",
       label: "Journal",

@@ -1,7 +1,17 @@
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import ArtifactBookCoverStage from "@/components/framework/artifact-detail/ArtifactBookCoverStage";
 import ArtifactBookReaderDialog from "@/components/framework/artifact-detail/ArtifactBookReaderDialog";
+import ArtifactMobileBookPinnedScrollChrome from "@/components/framework/artifact-detail/ArtifactMobileBookPinnedScrollChrome";
 import ArtifactPdfReaderDialog from "@/components/framework/artifact-detail/ArtifactPdfReaderDialog";
+import {
+  createCoalescedLayoutSync,
+  measureArtifactMobileBookBlockHeight,
+  readArtifactLayoutPxVar,
+  setArtifactLayoutPxVar,
+  syncArtifactMobilePinnedHeaderHeight,
+} from "@/lib/framework/artifactMobileLayoutSync";
+import { artifactMobileJournalEdgePad } from "@/lib/framework/artifactLayoutCss";
 import {
   artifactCard,
   artifactDesktopVideoCard,
@@ -32,6 +42,13 @@ type Props = {
   chapters?: YoutubeChapter[];
   stickyMode?: boolean;
   heroEmbed?: boolean;
+  /** Phone/tablet pinned layout — cover fixed at top like YouTube video. */
+  mobilePinnedLayout?: boolean;
+  mobileActiveTab?: "study" | "transcript" | "notes" | "journal";
+  mobileChromeHost?: HTMLElement | null;
+  backTo?: string;
+  insightExplorePanel?: ReactNode;
+  insightExploreOpen?: boolean;
 };
 
 const ArtifactDocumentDetailBlock = forwardRef<ArtifactDocumentDetailBlockHandle, Props>(
@@ -52,12 +69,19 @@ const ArtifactDocumentDetailBlock = forwardRef<ArtifactDocumentDetailBlockHandle
       chapters = [],
       stickyMode = false,
       heroEmbed = false,
+      mobilePinnedLayout = false,
+      mobileActiveTab = "study",
+      mobileChromeHost = null,
+      backTo = "/framework/artifacts",
+      insightExplorePanel,
+      insightExploreOpen = false,
     },
     ref,
   ) {
     const [readerOpen, setReaderOpen] = useState(false);
     const [initialChapterIndex, setInitialChapterIndex] = useState<number | null>(null);
     const usePdfReader = isPdfArtifactKind(kind);
+    const mobileCoverRef = useRef<HTMLDivElement | null>(null);
 
     const openReader = useCallback((chapterIndex?: number) => {
       setInitialChapterIndex(chapterIndex ?? null);
@@ -72,6 +96,33 @@ const ArtifactDocumentDetailBlock = forwardRef<ArtifactDocumentDetailBlockHandle
       return resolvePdfStoragePaths(userId, artifactId, artifactMetadata);
     }, [artifactId, artifactMetadata, pdfStoragePath, pdfStoragePaths, userId]);
 
+    useLayoutEffect(() => {
+      if (!mobilePinnedLayout) return;
+      const cover = mobileCoverRef.current;
+      const root = cover?.closest("[data-artifact-youtube-mobile]") as HTMLElement | null;
+      if (!cover || !root) return;
+      const sync = () => {
+        const coverH = measureArtifactMobileBookBlockHeight(cover);
+        setArtifactLayoutPxVar(root, "--artifact-mobile-video-h", coverH);
+        const stickyChromeH = readArtifactLayoutPxVar(root, "--artifact-mobile-sticky-chrome-h");
+        syncArtifactMobilePinnedHeaderHeight(root, coverH, stickyChromeH);
+      };
+      const scheduleSync = createCoalescedLayoutSync(sync);
+      sync();
+      const ro = new ResizeObserver(scheduleSync);
+      ro.observe(cover);
+      const onViewportChange = () => scheduleSync();
+      window.addEventListener("resize", onViewportChange);
+      window.addEventListener("orientationchange", onViewportChange);
+      window.visualViewport?.addEventListener("resize", onViewportChange);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener("resize", onViewportChange);
+        window.removeEventListener("orientationchange", onViewportChange);
+        window.visualViewport?.removeEventListener("resize", onViewportChange);
+      };
+    }, [mobilePinnedLayout]);
+
     const cover = (
       <ArtifactBookCoverStage
         artifactId={artifactId}
@@ -85,7 +136,7 @@ const ArtifactDocumentDetailBlock = forwardRef<ArtifactDocumentDetailBlockHandle
         onOpenReader={() => openReader()}
         readLabel={usePdfReader ? "Read PDF" : "Read book"}
         openHint={usePdfReader ? "Tap the cover to open the PDF" : undefined}
-        variant={heroEmbed ? "hero" : stickyMode ? "mobilePinned" : "default"}
+        variant={heroEmbed ? "hero" : mobilePinnedLayout || stickyMode ? "mobilePinned" : "default"}
       />
     );
 
@@ -112,10 +163,46 @@ const ArtifactDocumentDetailBlock = forwardRef<ArtifactDocumentDetailBlockHandle
       />
     );
 
+    const mobileScrollChrome =
+      mobilePinnedLayout && mobileChromeHost ? (
+        <ArtifactMobileBookPinnedScrollChrome
+          displayTitle={title}
+          author={author}
+          pageCount={pageCount}
+          backTo={backTo}
+          insightExplorePanel={insightExplorePanel}
+          insightExploreOpen={insightExploreOpen}
+          hideBookMeta={mobileActiveTab === "journal"}
+        />
+      ) : null;
+
     if (heroEmbed) {
       return (
         <>
           {cover}
+          {reader}
+        </>
+      );
+    }
+
+    if (mobilePinnedLayout) {
+      return (
+        <>
+          <div
+            ref={mobileCoverRef}
+            id="video"
+            className={cn(
+              "fixed top-0 left-0 right-0 z-[39] w-full max-w-[100vw] bg-background",
+              "pt-[env(safe-area-inset-top,0px)]",
+              artifactMobileJournalEdgePad,
+              "pb-2",
+            )}
+          >
+            {cover}
+          </div>
+          {mobileScrollChrome && mobileChromeHost
+            ? createPortal(mobileScrollChrome, mobileChromeHost)
+            : null}
           {reader}
         </>
       );

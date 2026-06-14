@@ -1,21 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-async function loadPdfBlobUrl(storagePath: string): Promise<string | null> {
+const VERIFY_TIMEOUT_MS = 15_000;
+
+/** Returns whether the object exists; on network ambiguity, assume ok and let the viewer try. */
+async function verifyPdfSignedUrl(signedUrl: string): Promise<"ok" | "missing" | "unknown"> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
+  try {
+    const res = await fetch(signedUrl, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+      signal: controller.signal,
+    });
+    if (res.status === 404 || res.status === 400) return "missing";
+    if (res.ok || res.status === 206) return "ok";
+    return "unknown";
+  } catch {
+    return "unknown";
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function resolvePdfSignedUrl(storagePath: string): Promise<string | null> {
   const { data, error: signErr } = await supabase.storage
     .from("artifact-uploads")
     .createSignedUrl(storagePath, 60 * 60);
 
   if (signErr || !data?.signedUrl) return null;
 
-  const res = await fetch(data.signedUrl);
-  if (!res.ok) return null;
-
-  const blob = new Blob([await res.arrayBuffer()], { type: "application/pdf" });
-  return URL.createObjectURL(blob);
+  const status = await verifyPdfSignedUrl(data.signedUrl);
+  if (status === "missing") return null;
+  return data.signedUrl;
 }
 
-/** Signed blob URL for stored PDF(s) in artifact-uploads (tries paths in order). */
+/** Signed URL for stored PDF(s) in artifact-uploads (tries paths in order). */
 export function useArtifactPdfSignedUrl(
   storagePaths: string | string[] | null | undefined,
   enabled: boolean,
@@ -40,41 +60,37 @@ export function useArtifactPdfSignedUrl(
     }
 
     let cancelled = false;
-    let objectUrl: string | null = null;
     setLoading(true);
     setError(null);
     setResolvedPath(null);
+    setUrl(null);
 
     void (async () => {
-      for (const path of paths) {
-        try {
-          const nextUrl = await loadPdfBlobUrl(path);
-          if (cancelled) {
-            if (nextUrl) URL.revokeObjectURL(nextUrl);
-            return;
-          }
-          if (nextUrl) {
-            objectUrl = nextUrl;
-            setUrl(nextUrl);
+      try {
+        for (const path of paths) {
+          const signedUrl = await resolvePdfSignedUrl(path);
+          if (cancelled) return;
+          if (signedUrl) {
+            setUrl(signedUrl);
             setResolvedPath(path);
-            setLoading(false);
             return;
           }
-        } catch {
-          /* try next path */
         }
-      }
 
-      if (!cancelled) {
-        setUrl(null);
-        setError("Could not open the PDF file.");
-        setLoading(false);
+        if (!cancelled) {
+          setError("Could not open the PDF file.");
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Could not open the PDF file.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [enabled, paths]);
 

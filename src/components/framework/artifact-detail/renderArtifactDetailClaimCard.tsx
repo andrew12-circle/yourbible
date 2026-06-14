@@ -89,6 +89,8 @@ export type RenderClaimCardContext = {
   applyClaimVerdict: (cid: string, verdict: ClaimVerdict | null) => void | Promise<void>;
   /** Fixed-width card in a horizontal rail (desktop or mobile). */
   layout?: "stack" | "desktopRail" | "mobileRail" | "insightExplore";
+  /** Mobile rail card chrome — dark matches pinned-video insight cards. */
+  mobileRailTheme?: "light" | "dark";
   activeClaimId?: string | null;
   followPlaybackActive?: boolean;
   /** Enables claim follow-scroll when the user starts playback from a claim card. */
@@ -365,6 +367,8 @@ export function renderArtifactDetailClaimCard(
   const insightExplore = ctx.layout === "insightExplore";
   const desktopRail = ctx.layout === "desktopRail";
   const mobileRail = ctx.layout === "mobileRail";
+  const darkMobileRail = mobileRail && ctx.mobileRailTheme === "dark";
+  const darkInsightSurface = insightExplore || darkMobileRail;
   const railLayout = desktopRail || mobileRail;
   const playbackActive = railLayout && ctx.followPlaybackActive && ctx.activeClaimId === c.id;
   const verdictAccent =
@@ -384,7 +388,7 @@ export function renderArtifactDetailClaimCard(
   const sourceSection = (
     <div
       className={cn(
-        insightExplore
+        darkInsightSurface
           ? "mt-3 space-y-3 border-t border-white/10 pt-3"
           : cn(
               "rounded-[1.65rem] border border-white/70 bg-white/85 p-4 text-xs shadow-[0_18px_50px_rgba(15,23,42,0.10)] ring-1 ring-black/[0.03] sm:p-5",
@@ -395,12 +399,12 @@ export function renderArtifactDetailClaimCard(
     >
       <div
         className={cn(
-          insightExplore
+          darkInsightSurface
             ? artifactMobileInsightHeroFooter
             : "mb-4 flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground",
         )}
       >
-        {insightExplore ? (
+        {darkInsightSurface ? (
           "Source in transcript"
         ) : (
           <>
@@ -412,10 +416,10 @@ export function renderArtifactDetailClaimCard(
         )}
       </div>
       {source ? (
-        <div className={cn("space-y-3", !insightExplore && "space-y-4")}>
-          <div className={cn("w-full text-left", insightExplore ? "space-y-2" : "space-y-3.5 rounded-2xl")}>
+        <div className={cn("space-y-3", !darkInsightSurface && "space-y-4")}>
+          <div className={cn("w-full text-left", darkInsightSurface ? "space-y-2" : "space-y-3.5 rounded-2xl")}>
             {sourceClock ? (
-              insightExplore ? (
+              darkInsightSurface ? (
                 <span className={artifactStudyTranscriptActiveTime}>{sourceClock}</span>
               ) : (
                 <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-foreground">
@@ -426,7 +430,7 @@ export function renderArtifactDetailClaimCard(
             {sourceQuote ? (
               <p
                 className={cn(
-                  insightExplore
+                  darkInsightSurface
                     ? cn(artifactMobileInsightHeroSourceQuote, "line-clamp-6")
                     : cn(
                         "font-sans text-[15px] leading-8 text-foreground sm:text-base",
@@ -440,14 +444,14 @@ export function renderArtifactDetailClaimCard(
               <p
                 className={cn(
                   "font-sans text-sm leading-relaxed italic",
-                  insightExplore ? "text-white/55" : "text-muted-foreground",
+                  darkInsightSurface ? "text-white/55" : "text-muted-foreground",
                 )}
               >
                 Transcript excerpt unavailable.
               </p>
             )}
           </div>
-          {insightExplore ? (
+          {darkInsightSurface ? (
             <button
               type="button"
               className={artifactInsightExplorePlayButton}
@@ -483,12 +487,12 @@ export function renderArtifactDetailClaimCard(
           <p
             className={cn(
               "font-sans text-sm leading-relaxed",
-              insightExplore ? "text-white/55" : "text-muted-foreground",
+              darkInsightSurface ? "text-white/55" : "text-muted-foreground",
             )}
           >
             No linked transcript line — playback uses the chapter time for this claim.
           </p>
-          {insightExplore ? (
+          {darkInsightSurface ? (
             <button
               type="button"
               className={artifactInsightExplorePlayButton}
@@ -684,7 +688,14 @@ export function renderArtifactDetailClaimCard(
         data-claim-number={claimNumber}
         data-claim-playback-active={playbackActive ? "" : undefined}
         className={cn(
-          mobileRail ? artifactMobileClaimCard : artifactDesktopClaimCard,
+          darkMobileRail
+            ? cn(
+                artifactMobileInsightHeroCard,
+                "min-h-[min(65vh,640px)] w-[min(92vw,420px)] max-w-[420px] shrink-0 flex-col overflow-hidden",
+              )
+            : mobileRail
+              ? artifactMobileClaimCard
+              : artifactDesktopClaimCard,
           mobileRail && "touch-pan-x",
           playbackActive && "ring-2 ring-violet-500/35 ring-offset-2 ring-offset-background",
           isDeferredVerdict(c.verdict) && !playbackActive && "ring-1 ring-amber-300/50",
@@ -692,21 +703,27 @@ export function renderArtifactDetailClaimCard(
       >
         <header
           className={cn(
-            "shrink-0 space-y-2.5 border-b border-border/50 pb-4 pt-5",
+            "shrink-0 space-y-2.5 border-b pb-4 pt-5",
+            darkMobileRail ? "border-white/10" : "border-border/50",
             railPadX,
             mobileRail && "touch-pan-x",
           )}
         >
           <span
-            className="font-mono text-sm font-medium tabular-nums text-muted-foreground"
+            className={cn(
+              darkMobileRail
+                ? cn(artifactMobileInsightHeroNumber, artifactInsightClaimNumberColor)
+                : "font-mono text-sm font-medium tabular-nums text-muted-foreground",
+            )}
             aria-label={`Claim ${claimNumber}`}
           >
-            #{claimNumber}
+            {darkMobileRail ? claimNumber : `#${claimNumber}`}
           </span>
           <p
             className={cn(
-              "font-semibold leading-snug text-foreground",
-              mobileRail ? "text-base" : "text-[15px]",
+              darkMobileRail
+                ? cn(artifactMobileInsightHeroQuote, "line-clamp-5")
+                : cn("font-semibold leading-snug text-foreground", mobileRail ? "text-base" : "text-[15px]"),
             )}
           >
             {c.claim}
@@ -716,8 +733,12 @@ export function renderArtifactDetailClaimCard(
               className={cn(
                 "inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
                 isDeferredVerdict(c.verdict)
-                  ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200/80"
-                  : "bg-muted text-foreground",
+                  ? darkMobileRail
+                    ? "bg-amber-400/15 text-amber-100 ring-1 ring-amber-300/40"
+                    : "bg-amber-50 text-amber-900 ring-1 ring-amber-200/80"
+                  : darkMobileRail
+                    ? "bg-white/10 text-white/90"
+                    : "bg-muted text-foreground",
               )}
             >
               {formatClaimVerdict(c.verdict)}
@@ -739,7 +760,8 @@ export function renderArtifactDetailClaimCard(
         </div>
         <footer
           className={cn(
-            "shrink-0 border-t border-border/50 bg-white",
+            "shrink-0 border-t",
+            darkMobileRail ? "border-white/10 bg-black/20" : "border-border/50 bg-white",
             mobileRail && "touch-pan-x",
             !mobileRail && railPadX,
             mobileRail && "py-0",

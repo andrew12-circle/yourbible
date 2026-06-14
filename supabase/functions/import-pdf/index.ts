@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
       source: "pdf",
       original_filename: name,
       page_count: totalPages,
+      duration_seconds: Math.max(3600, Math.floor(totalPages * 90)),
     };
 
     let raw_text = extracted.trim();

@@ -10,6 +10,7 @@ import {
   createTranscriptProcessingToken,
   restartYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
+import { documentPageCount, isReadableDocumentKind } from "@/lib/framework/documentArtifact";
 import { resolveYouTubeVideoId } from "@/lib/youtube";
 import type { ArtifactDetailClaim } from "@/hooks/useArtifactDetailData";
 
@@ -47,10 +48,28 @@ export function useArtifactDetailProcessingActions({
     const normalized = normalizePastedTranscript(a.raw_text);
     const persistNormalized = normalized !== a.raw_text.trim();
     const processingToken = createTranscriptProcessingToken();
+
+    let metadataPatch: Record<string, unknown> | undefined;
+    if (isReadableDocumentKind(a.kind)) {
+      const pages = documentPageCount(a.metadata);
+      const existingDuration =
+        a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
+          ? (a.metadata as Record<string, unknown>).duration_seconds
+          : null;
+      if (pages != null && pages > 0 && (existingDuration == null || Number(existingDuration) <= 0)) {
+        const base =
+          a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
+            ? { ...(a.metadata as Record<string, unknown>) }
+            : {};
+        metadataPatch = { ...base, duration_seconds: Math.max(3600, Math.floor(pages * 90)) };
+      }
+    }
+
     await supabase
       .from("artifacts")
       .update({
         ...(persistNormalized ? { raw_text: normalized } : {}),
+        ...(metadataPatch ? { metadata: metadataPatch as never } : {}),
         status: "analyzing",
         error: null,
         processing_token: processingToken,
@@ -60,17 +79,35 @@ export function useArtifactDetailProcessingActions({
     await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
     await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
     setClaims([]);
-    setA({ ...a, ...(persistNormalized ? { raw_text: normalized } : {}), status: "analyzing", error: null });
+    setA({
+      ...a,
+      ...(persistNormalized ? { raw_text: normalized } : {}),
+      ...(metadataPatch ? { metadata: metadataPatch } : {}),
+      status: "analyzing",
+      error: null,
+    });
     if (persistNormalized) {
       toast({
         title: "Transcript timestamps normalized",
         description: "Re-analysis uses the fixed [M:SS] lines.",
       });
     }
-    supabase.functions.invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } }).catch((e) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("framework-analyze", {
+        body: { artifact_id: a.id, processing_token: processingToken },
+      });
+      if (error) throw error;
+      if (data && typeof data === "object" && "error" in data && data.error) {
+        throw new Error(String(data.error));
+      }
+    } catch (e) {
       console.error(e);
-      toast({ title: "Could not start analysis", variant: "destructive" });
-    });
+      toast({
+        title: "Could not start analysis",
+        description: e instanceof Error ? e.message : "Try again in a moment.",
+        variant: "destructive",
+      });
+    }
   }, [a, setA, setClaims]);
 
   const formatTranscript = useCallback(async () => {

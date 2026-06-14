@@ -1,9 +1,11 @@
+import { RefreshCw } from "lucide-react";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import ArtifactInsightRail from "@/components/framework/artifact-detail/ArtifactInsightRail";
 import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactOverviewSummary from "@/components/framework/artifact-detail/ArtifactOverviewSummary";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
-import { artifactScrollMt } from "@/lib/framework/artifactSurfaces";
+import { Button } from "@/components/ui/button";
+import { artifactCard, artifactScrollMt } from "@/lib/framework/artifactSurfaces";
 import type { ArtifactFrameworkOverview } from "@/lib/framework/artifactOverviewSummary";
 import type { CorpusPeerMatch } from "@/lib/framework/artifactCorpusStanding";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -29,6 +31,9 @@ type Props = {
   claimSources?: Record<string, TranscriptSegment | null>;
   onSeeScripture?: (claimId: string) => void;
   onSeeInTranscript?: (claimId: string) => void;
+  isReadableDocument?: boolean;
+  onReanalyze?: () => void;
+  reanalyzeDisabled?: boolean;
   corpusStanding?: {
     agreeCount: number;
     disagreeCount: number;
@@ -57,9 +62,16 @@ export default function ArtifactDesktopOverview({
   claimSources,
   onSeeScripture,
   onSeeInTranscript,
+  isReadableDocument = false,
+  onReanalyze,
+  reanalyzeDisabled = false,
   corpusStanding,
   className,
 }: Props) {
+  const seeInSourceLabel = isReadableDocument ? "See in reader" : "See in transcript";
+  const claimsDescription = isReadableDocument
+    ? "Tap a card to open the full review — reader, scripture, and verdicts."
+    : "Tap a card to open the full review — transcript, scripture, and verdicts.";
   return (
     <section
       id="overview"
@@ -85,25 +97,40 @@ export default function ArtifactDesktopOverview({
         />
       ) : null}
 
-      {claimsCount > 0 ? (
-        <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
-          <ArtifactStudySectionHeader
-            title="Key claims"
-            count={claimsCount}
-            countLabel={`${claimsCount} claims extracted`}
-            description="Tap a card to open the full review — transcript, scripture, and verdicts."
-            actionLabel="View all"
-            onAction={() => onNavigate("#claims")}
-          />
+      <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
+        <ArtifactStudySectionHeader
+          title="Key claims"
+          count={claimsCount > 0 ? claimsCount : undefined}
+          countLabel={claimsCount > 0 ? `${claimsCount} claims extracted` : undefined}
+          description={claimsDescription}
+          actionLabel={claimsCount > 0 ? "View all" : undefined}
+          onAction={claimsCount > 0 ? () => onNavigate("#claims") : undefined}
+        />
+        {claimsCount > 0 ? (
           <ArtifactInsightRail
             claims={claims}
             claimSources={claimSources}
             onSelectClaim={onSelectClaim}
             onSeeInTranscript={onSeeInTranscript}
             onSeeScripture={onSeeScripture}
+            seeInSourceLabel={seeInSourceLabel}
           />
-        </div>
-      ) : null}
+        ) : (
+          <div className={cn(artifactCard, "space-y-3 p-4 sm:p-5")}>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {isReadableDocument
+                ? "The book text is in, but individual claims have not been extracted yet. Re-analyze to pull out teachings you can review, keep, or reject — same as video study."
+                : "No claims extracted yet. Re-analyze to pull teachings from the transcript."}
+            </p>
+            {onReanalyze ? (
+              <Button type="button" size="sm" variant="outline" disabled={reanalyzeDisabled} onClick={onReanalyze}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Re-analyze
+              </Button>
+            ) : null}
+          </div>
+        )}
+      </div>
 
       <div id="people-themes" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
         <ArtifactStudySectionHeader

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
 import { peekArtifactShellCache } from "@/lib/framework/artifactShellCache";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
@@ -231,6 +232,13 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       prevStatus != null &&
       ["fetching", "transcribing", "analyzing"].includes(prevStatus) &&
       terminal;
+    if (transitioned && row.status === "ready" && row.error?.trim()) {
+      toast({
+        title: "Analysis finished with a note",
+        description: row.error,
+        variant: "destructive",
+      });
+    }
     if (transitioned || (terminal && prevStatus !== row.status)) {
       await loadFull();
     }
