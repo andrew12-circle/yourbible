@@ -1112,11 +1112,11 @@
     pointer-events: none !important;
   }
 
-  /* Portal ink overlay + disable scroll stealing while drawing on Bible pages. */
+  /* Portal ink overlay — only capture input while drawing; pass events through otherwise. */
   body.reader-ink-mode {
     overscroll-behavior: none;
   }
-  [data-reader-ink-layer] {
+  body.reader-ink-mode [data-reader-ink-layer] {
     pointer-events: auto !important;
     touch-action: none !important;
     user-select: none !important;

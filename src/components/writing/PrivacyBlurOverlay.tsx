@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { applyTextareaMirrorStyles } from "@/lib/journal/textareaMirrorStyles";
 import { splitTextForPrivacyBlur } from "@/lib/journal/privacyBlurTextSplit";
 
 type PrivacyBlurOverlayProps = {
@@ -8,6 +9,7 @@ type PrivacyBlurOverlayProps = {
   scrollTop: number;
   className?: string;
   mirrorRef?: React.RefObject<HTMLDivElement | null>;
+  fieldRef?: React.RefObject<HTMLTextAreaElement | HTMLInputElement | null>;
 };
 
 const BLUR_CLASS = "blur-[6px] select-none";
@@ -18,11 +20,19 @@ export function PrivacyBlurOverlay({
   scrollTop,
   className,
   mirrorRef,
+  fieldRef,
 }: PrivacyBlurOverlayProps) {
   const { blurred, visible, blurredAfter } = useMemo(
     () => splitTextForPrivacyBlur(text, caretIndex),
     [text, caretIndex],
   );
+
+  useLayoutEffect(() => {
+    const field = fieldRef?.current;
+    const mirror = mirrorRef?.current;
+    if (!field || !mirror) return;
+    applyTextareaMirrorStyles(field, mirror);
+  }, [text, caretIndex, scrollTop, fieldRef, mirrorRef]);
 
   return (
     <div
@@ -43,4 +53,4 @@ export function PrivacyBlurOverlay({
 }
 
 export const PRIVACY_BLUR_FIELD_CLASS =
-  "text-transparent caret-foreground selection:bg-primary/20 selection:text-transparent [-webkit-text-fill-color:transparent]";
+  "privacy-blur-field journal-plain-write-field text-transparent caret-foreground selection:bg-primary/20 selection:text-transparent [-webkit-text-fill-color:transparent]";

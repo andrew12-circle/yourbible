@@ -22,6 +22,7 @@ import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { BOOKS } from "@/data/books";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { cn } from "@/lib/utils";
+import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
 import {
   clampReaderFontScale,
@@ -77,6 +78,8 @@ export default function ContentsReaderPage() {
     });
   }, []);
 
+  useBibleScrollWheel(true, "contents");
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
@@ -98,7 +101,7 @@ export default function ContentsReaderPage() {
           Contents
         </span>
       </div>
-      <div className="relative flex flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide" data-bible-scroll>
+      <div className="relative block flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide" data-bible-scroll>
         {testament === "all" ? (
           <BibleContentsPage onSelectBook={onSelectBook} />
         ) : testament === "ot" ? (

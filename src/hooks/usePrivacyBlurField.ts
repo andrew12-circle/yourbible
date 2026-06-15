@@ -1,16 +1,21 @@
 import {
   useCallback,
+  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
+  type CompositionEvent,
   type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
   type UIEvent,
 } from "react";
 import { PRIVACY_BLUR_FIELD_CLASS } from "@/components/writing/PrivacyBlurOverlay";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
+import { isIosWebKit } from "@/lib/youtube/platform";
 import { cn } from "@/lib/utils";
 
 type TextFieldElement = HTMLTextAreaElement | HTMLInputElement;
@@ -50,17 +55,57 @@ export function usePrivacyBlurField({
 
   const scheduleCaretSync = useCallback(
     (el: TextFieldElement) => {
-      syncCaretFromField(el);
+      const sync = () => syncCaretFromField(el);
+
+      sync();
       if (caretRafRef.current != null) {
         cancelAnimationFrame(caretRafRef.current);
       }
+
+      // iOS WebKit often updates selectionStart after input/click — double-rAF helps.
+      if (isIosWebKit()) {
+        caretRafRef.current = requestAnimationFrame(() => {
+          sync();
+          caretRafRef.current = requestAnimationFrame(() => {
+            caretRafRef.current = null;
+            sync();
+          });
+        });
+        return;
+      }
+
       caretRafRef.current = requestAnimationFrame(() => {
         caretRafRef.current = null;
-        syncCaretFromField(el);
+        sync();
       });
     },
     [syncCaretFromField],
   );
+
+  useLayoutEffect(() => {
+    if (!privacyBlurEnabled) return;
+    const el = fieldRef.current;
+    if (el) scheduleCaretSync(el);
+  }, [value, privacyBlurEnabled, scheduleCaretSync]);
+
+  useEffect(() => {
+    if (!privacyBlurEnabled) return;
+
+    const onSelectionChange = () => {
+      const el = fieldRef.current;
+      if (el && document.activeElement === el) {
+        scheduleCaretSync(el);
+      }
+    };
+
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+      if (caretRafRef.current != null) {
+        cancelAnimationFrame(caretRafRef.current);
+      }
+    };
+  }, [privacyBlurEnabled, scheduleCaretSync]);
 
   const bindPrivacyBlurHandlers = useCallback(
     (handlers: PrivacyBlurHandlers = {}) => {
@@ -89,6 +134,12 @@ export function usePrivacyBlurField({
         onClick: chain((e: MouseEvent<TextFieldElement>) => {
           scheduleCaretSync(e.currentTarget);
         }, handlers.onClick),
+        onPointerUp: chain((e: PointerEvent<TextFieldElement>) => {
+          scheduleCaretSync(e.currentTarget);
+        }, undefined),
+        onCompositionEnd: chain((e: CompositionEvent<TextFieldElement>) => {
+          scheduleCaretSync(e.currentTarget);
+        }, undefined),
         onScroll: chain((e: UIEvent<TextFieldElement>) => {
           setScrollTop(e.currentTarget.scrollTop);
         }, handlers.onScroll),
@@ -121,6 +172,7 @@ export function usePrivacyBlurField({
           scrollTop,
           className: mirrorClassName,
           mirrorRef,
+          fieldRef,
         }
       : null;
 

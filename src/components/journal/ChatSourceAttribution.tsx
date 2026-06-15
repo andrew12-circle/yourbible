@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
 import { BookOpen, ExternalLink, ShieldCheck } from "lucide-react";
 import type { JSONValue } from "@/integrations/supabase/types";
+import { CitationSourceIcon } from "@/components/journal/CitationSourceIcon";
 import { OpenAiMark } from "@/components/myai/OpenAiMark";
 import { useChatCitationArtifactUrls } from "@/hooks/useChatCitationArtifactUrls";
 import { formatCitationLabel } from "@/lib/myai/citationLabel";
 import { resolveCitationLink } from "@/lib/myai/citationLink";
+import {
+  citationChipTone,
+  resolveCitationSourceKind,
+} from "@/lib/myai/citationSourceStyle";
 import {
   parseChatCitations,
   resolveSourceAttributionDisplay,
@@ -15,27 +20,34 @@ import { cn } from "@/lib/utils";
 function SourceChip({
   citation,
   artifactUrlById,
-  chipClassName,
-  linkedClassName,
-  mutedClassName,
 }: {
   citation: ChatCitation;
   artifactUrlById: Record<string, string>;
-  chipClassName: string;
-  linkedClassName: string;
-  mutedClassName: string;
 }) {
   const link = resolveCitationLink(citation, artifactUrlById);
+  const kind = resolveCitationSourceKind(citation, artifactUrlById);
+  const tone = citationChipTone(kind, Boolean(link));
+  const label = formatCitationLabel(citation);
+  const showExternal = link?.external && kind !== "youtube";
+
   const chip = (
     <span
       className={cn(
-        chipClassName,
-        link ? linkedClassName : mutedClassName,
+        "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-normal transition-colors",
+        tone.chip,
       )}
     >
-      {formatCitationLabel(citation)}
-      {link?.external ? (
-        <ExternalLink className="ml-1 inline h-3 w-3 shrink-0 opacity-60" aria-hidden />
+      <span
+        className={cn(
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
+          tone.iconRing,
+        )}
+      >
+        <CitationSourceIcon kind={kind} iconClassName={tone.iconColor} />
+      </span>
+      <span className="min-w-0 truncate">{label}</span>
+      {showExternal ? (
+        <ExternalLink className="ml-0.5 inline h-3 w-3 shrink-0 opacity-55" aria-hidden />
       ) : null}
     </span>
   );
@@ -49,7 +61,7 @@ function SourceChip({
         target="_blank"
         rel="noopener noreferrer"
         className="no-underline"
-        title="Open on YouTube"
+        title={kind === "youtube" ? "Open on YouTube" : "Open source"}
       >
         {chip}
       </a>
@@ -75,21 +87,6 @@ export default function ChatSourceAttribution({ citations, variant = "myai", cla
   const display = resolveSourceAttributionDisplay(parsed);
   const artifactUrlById = useChatCitationArtifactUrls(parsed.internalSources);
   if (!display) return null;
-
-  const chipClassName =
-    variant === "journal"
-      ? "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-normal"
-      : "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-normal";
-
-  const linkedClassName =
-    variant === "journal"
-      ? "border-border/60 bg-background text-foreground/80 hover:bg-muted/50"
-      : "border-border/60 bg-background text-foreground/80 hover:bg-muted/50";
-
-  const mutedClassName =
-    variant === "journal"
-      ? "border-border/50 bg-muted/30 text-muted-foreground"
-      : "border-border/50 bg-muted/30 text-muted-foreground";
 
   const internal = display.internalSources;
 
@@ -148,15 +145,12 @@ export default function ChatSourceAttribution({ citations, variant = "myai", cla
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
             From your records
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className={cn("flex flex-wrap gap-1.5", variant === "journal" ? "" : "")}>
             {internal.map((c, i) => (
               <SourceChip
                 key={`${c.source_type}-${c.id ?? "x"}-${i}`}
                 citation={c}
                 artifactUrlById={artifactUrlById}
-                chipClassName={chipClassName}
-                linkedClassName={linkedClassName}
-                mutedClassName={mutedClassName}
               />
             ))}
           </div>

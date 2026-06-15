@@ -152,6 +152,7 @@ import {
   wrapScriptureColumns,
 } from "@/lib/bible/readerScriptureRender";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
+import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
@@ -788,6 +789,8 @@ export default function ReaderPage() {
     const el = document.querySelector<HTMLElement>("[data-ink-anchor]");
     el?.scrollTo(0, 0);
   }, [book.abbr, chapter, scrollMode]);
+
+  useBibleScrollWheel(scrollMode, `${book.abbr}-${chapter}`);
 
   // Pending verse-jump: after the user picks a verse from the TopBar picker,
   // remember it so once the chapter (re)loads and pagination splits are known,
@@ -1488,9 +1491,10 @@ export default function ReaderPage() {
             data-ink-anchor={inkLayerId}
             data-bible-scroll={scrollMode ? "" : undefined}
             className={cn(
-              "relative flex flex-1 min-h-0 min-w-0",
-              scrollMode &&
-                "overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide",
+              "relative flex-1 min-h-0 min-w-0",
+              scrollMode
+                ? "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide"
+                : "flex",
             )}
           >
             {paginationPending && showPaginationFallback ? (
@@ -1506,7 +1510,7 @@ export default function ReaderPage() {
               data-reading-area
               aria-busy={!ready}
               className={cn(
-                scrollMode ? "w-full min-h-0" : "h-full min-h-0 w-full overflow-hidden",
+                scrollMode ? "w-full" : "h-full min-h-0 w-full overflow-hidden",
                 scriptureTypoClass,
                 inkMode ? "!select-none" : "selectable-text",
               )}

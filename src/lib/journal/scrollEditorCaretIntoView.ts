@@ -1,31 +1,11 @@
-const MIRROR_STYLE_PROPS = [
-  "fontFamily",
-  "fontSize",
-  "fontWeight",
-  "fontStyle",
-  "lineHeight",
-  "letterSpacing",
-  "textTransform",
-  "wordSpacing",
-  "paddingTop",
-  "paddingRight",
-  "paddingBottom",
-  "paddingLeft",
-  "borderTopWidth",
-  "borderRightWidth",
-  "borderBottomWidth",
-  "borderLeftWidth",
-  "boxSizing",
-] as const;
+import { applyTextareaMirrorStyles } from "@/lib/journal/textareaMirrorStyles";
 
 /** Mirror-div caret offset from the top of the textarea content box. */
 export function measureTextareaCaretTop(textarea: HTMLTextAreaElement): number {
   const pos = textarea.selectionStart ?? textarea.value.length;
   const cs = getComputedStyle(textarea);
   const mirror = document.createElement("div");
-  for (const prop of MIRROR_STYLE_PROPS) {
-    mirror.style[prop] = cs[prop];
-  }
+  applyTextareaMirrorStyles(textarea, mirror);
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
   mirror.style.whiteSpace = "pre-wrap";

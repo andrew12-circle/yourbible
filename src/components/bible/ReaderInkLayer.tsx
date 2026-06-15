@@ -685,7 +685,7 @@ export default function ReaderInkLayer({
         width: overlayLayout.width,
         height: overlayLayout.height,
         zIndex: interactive ? 40 : 15,
-        touchAction: "none",
+        touchAction: interactive ? "none" : "auto",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
       }}
