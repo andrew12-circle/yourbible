@@ -3,6 +3,7 @@ import {
   BookOpen, Sun, Sunrise, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
+  Grid3X3, BookMarked,
 } from "lucide-react";
 import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,8 @@ import {
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
   Bible: "text-amber-600",
+  "Code Lab": "text-amber-800",
+  "Life Manual": "text-yellow-600",
   "Morning formula": "text-amber-500",
   Daily: "text-orange-500",
   Journal: "text-violet-500",
@@ -57,6 +60,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
+      { title: "Life Manual", icon: BookMarked, to: "/bible/life-guide" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
       { title: "Mind map", icon: Share2, to: "/framework/graph" },
       { title: "Framework", icon: Brain, to: "/framework" },
@@ -90,6 +94,7 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "More",
     items: [
+      { title: "Code Lab", icon: Grid3X3, to: "/bible/code-lab" },
       { title: "My AI", icon: MessageCircleHeart, to: "/my-ai" },
       { title: "Partner", icon: HeartHandshake, to: "/partner" },
       { title: "Settings", icon: Settings, to: "/settings" },

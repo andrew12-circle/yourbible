@@ -167,6 +167,7 @@ export default function NewJournalEntryPage() {
           bodyPlaceholder={p.bodyPlaceholder}
           listeningSections={p.listeningSections}
           setListeningSection={p.setListeningSection}
+          onUseSpiritQuestion={p.isListening ? p.useSpiritQuestion : undefined}
           chatScrollRef={p.chatScrollRef}
           chatBottomRef={p.chatBottomRef}
           chatTurns={p.chatTurns}

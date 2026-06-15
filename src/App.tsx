@@ -72,6 +72,7 @@ const LifePrioritiesPage = lazy(() => import("./pages/life/LifePrioritiesPage"))
 const HabitsPage = lazy(() => import("./pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("./pages/life/TodosPage"));
 const ReadingPlansPage = lazy(() => import("./pages/bible/ReadingPlansPage"));
+const CodeLabPage = lazy(() => import("./pages/bible/CodeLabPage"));
 const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPage"));
 const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage"));
 const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
@@ -97,6 +98,7 @@ const App = () => (
                   <Route path="/read/contents" element={<ContentsReaderPage />} />
                   <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                   <Route path="/bible/life-guide" element={<LifeGuidePage />} />
+                  <Route path="/bible/code-lab" element={<CodeLabPage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/my-ai" element={<MyAiPage />} />
                   <Route path="/my-ai/:chatId" element={<MyAiPage />} />

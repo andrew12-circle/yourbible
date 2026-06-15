@@ -6,6 +6,7 @@ import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import { SpiritListeningQuestionBank } from "@/components/journal/SpiritListeningQuestionBank";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import { useRef, type MutableRefObject, type RefObject } from "react";
@@ -24,6 +25,7 @@ interface NewJournalEntryBodyEditorProps {
   bodyPlaceholder: string;
   listeningSections: ListeningSections;
   setListeningSection: (key: ListeningSectionKey, value: string) => void;
+  onUseSpiritQuestion?: (question: string) => void;
   chatScrollRef: RefObject<HTMLDivElement | null>;
   chatBottomRef: RefObject<HTMLDivElement | null>;
   chatTurns: InlineChatTurn[];
@@ -52,6 +54,7 @@ export function NewJournalEntryBodyEditor({
   bodyPlaceholder,
   listeningSections,
   setListeningSection,
+  onUseSpiritQuestion,
   chatScrollRef,
   chatBottomRef,
   chatTurns,
@@ -90,6 +93,9 @@ export function NewJournalEntryBodyEditor({
             </p>
           </div>
         </div>
+        {onUseSpiritQuestion ? (
+          <SpiritListeningQuestionBank onUseQuestion={onUseSpiritQuestion} className="mb-4" />
+        ) : null}
         <div className="space-y-4">
           {LISTENING_SECTIONS.map((section) => (
             <div key={section.key} className="rounded-lg border border-border bg-background/80 p-3">

@@ -10,6 +10,8 @@ import {
   COVERING_STEP_INTRO,
 } from "@/lib/livingHope/coveringPrayer";
 import {
+  ASSIGNMENT_VS_GOALS_HINT,
+  MORNING_FORMULA_INTRO_FLOW,
   SCRIPTURE_QUESTIONS,
   SURRENDER_PRAYER_PROMPTS,
   SURRENDER_STEP_INTRO,
@@ -82,6 +84,8 @@ type Props = {
   worshipPlaylistUrl: string;
   worshipPlaylistHistory: WorshipMusicHistoryItem[];
   onWorshipMusicChange: (next: { url: string; history: WorshipMusicHistoryItem[] }) => void;
+  expressMode: boolean;
+  onExpressModeChange: (next: boolean) => void;
 };
 
 export function MorningRitualStepPanels({
@@ -126,15 +130,15 @@ export function MorningRitualStepPanels({
   worshipPlaylistUrl,
   worshipPlaylistHistory,
   onWorshipMusicChange,
+  expressMode,
+  onExpressModeChange,
 }: Props) {
   if (step.kind === "intro") {
     return (
       <div className="flex flex-1 flex-col gap-6">
         <div className="min-w-0">
           <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
-          <p className={cn(lh.body, "mb-4")}>
-            Worship → thank → read → pray → align → surrender → cover → assign → execute.
-          </p>
+          <p className={cn(lh.body, "mb-4")}>{MORNING_FORMULA_INTRO_FLOW}.</p>
           <p className={cn("text-[13px] mb-4", lh.muted)}>
             Shift from &ldquo;What do I need to do?&rdquo; to &ldquo;Who am I with?&rdquo; — then receive today&apos;s
             direction.
@@ -143,6 +147,23 @@ export function MorningRitualStepPanels({
             <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…</blockquote>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={() => onExpressModeChange(!expressMode)}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left transition-colors",
+            expressMode
+              ? "border-amber-500/40 bg-amber-500/10"
+              : "border-border/60 bg-muted/25 hover:bg-muted/40",
+          )}
+        >
+          <p className="text-[14px] font-semibold text-foreground">Express mode</p>
+          <p className="text-[13px] text-muted-foreground mt-1 leading-snug">
+            {expressMode
+              ? "On — worship, thanks, scripture, pray, and today&apos;s assignment only."
+              : "Off — full alignment with vision, surrender, goals, and metrics."}
+          </p>
+        </button>
         <div className="min-w-0">
           <img
             src="/images/morning-formula-steps.png"
@@ -355,9 +376,10 @@ export function MorningRitualStepPanels({
     return (
       <>
         <h1 className={cn(lh.titleLg, "mb-3")}>Today&apos;s assignment</h1>
-        <p className={cn(lh.bodySm, "mb-4")}>
+        <p className={cn(lh.bodySm, "mb-2")}>
           Not destiny or the five-year plan — just: what does God want you to do today?
         </p>
+        <p className={cn(lh.footnote, "mb-4")}>{ASSIGNMENT_VS_GOALS_HINT}</p>
         <div className="space-y-4">
           <div>
             <label className={cn(lh.label, "mb-1 block")}>Top 1 spiritual priority</label>
@@ -395,7 +417,10 @@ export function MorningRitualStepPanels({
     return (
       <>
         <p className={cn(lh.labelUpper, "mb-1 capitalize", lh.accentMuted)}>{currentGoal.domain}</p>
-        <h1 className={cn(lh.titleLg, "mb-4")}>{currentGoal.title}</h1>
+        <h1 className={cn(lh.titleLg, "mb-2")}>{currentGoal.title}</h1>
+        <p className={cn(lh.footnote, "mb-4")}>
+          Long-term aim — one vivid picture and one obedience step for this goal today.
+        </p>
         {currentGoal.target_metric ? (
           <p className={cn("text-[13px] mb-4", lh.muted)}>Target: {currentGoal.target_metric}</p>
         ) : null}

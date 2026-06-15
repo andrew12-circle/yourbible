@@ -121,6 +121,16 @@ export const PRAYER_PROMPTS = [
 
 export const CONVERSATION_LISTEN_PROMPT = "God, what do you want me to know today?";
 
+/** Unified marketing copy — matches the full ritual arc (abbreviated on small surfaces). */
+export const MORNING_FORMULA_TAGLINE =
+  "Worship · thanks · scripture · pray · align · surrender · assign · execute";
+
+export const MORNING_FORMULA_INTRO_FLOW =
+  "Worship → thank → read → pray → align → surrender → cover → assign → execute";
+
+export const ASSIGNMENT_VS_GOALS_HINT =
+  "Today's assignment is what God wants today. Goal steps align each long-term aim with one obedience step.";
+
 export const RITUAL_STEP_LABELS = [
   { key: "worship", label: "Worship" },
   { key: "thanks", label: "Thanks" },
@@ -253,10 +263,25 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
   };
 }
 
+export function buildExpressRitualSteps(): RitualStep[] {
+  return [
+    { kind: "intro" },
+    { kind: "worship" },
+    { kind: "thanksgiving" },
+    { kind: "scripture" },
+    { kind: "prayer" },
+    { kind: "assignment" },
+    { kind: "done" },
+  ];
+}
+
 export function buildRitualSteps(
   workbook: LivingHopeWorkbookContent | null,
   activeGoals: LivingHopeGoalRow[],
+  expressMode = false,
 ): RitualStep[] {
+  if (expressMode) return buildExpressRitualSteps();
+
   const steps: RitualStep[] = [{ kind: "intro" }];
   steps.push(
     { kind: "worship" },
@@ -272,6 +297,60 @@ export function buildRitualSteps(
   if (workbook?.metrics.length) steps.push({ kind: "metrics" });
   steps.push({ kind: "done" });
   return steps;
+}
+
+export function ritualStepKey(step: RitualStep): string {
+  if (step.kind === "goal") return `goal:${step.goalId}`;
+  return step.kind;
+}
+
+export function ritualStepLabel(
+  step: RitualStep,
+  goalIndex?: number,
+  goalTotal?: number,
+): string {
+  switch (step.kind) {
+    case "intro":
+      return "Intro";
+    case "worship":
+      return "Worship";
+    case "thanksgiving":
+      return "Thanks";
+    case "scripture":
+      return "Scripture";
+    case "prayer":
+      return "Pray";
+    case "manifesto":
+      return "Manifesto";
+    case "vision":
+      return "Vision";
+    case "story":
+      return "Story";
+    case "assignment":
+      return "Today";
+    case "goal":
+      return goalTotal && goalTotal > 1 ? `Goal ${(goalIndex ?? 0) + 1}` : "Goal";
+    case "metrics":
+      return "Metrics";
+    case "surrender":
+      return "Surrender";
+    case "covering":
+      return "Covering";
+    case "done":
+      return "Done";
+    default:
+      return "Step";
+  }
+}
+
+export function clampRitualStepIndex(stepIndex: number, steps: RitualStep[]): number {
+  if (!steps.length) return 0;
+  return Math.max(0, Math.min(stepIndex, steps.length - 1));
+}
+
+export function ritualProgressRatio(stepIndex: number, steps: RitualStep[]): number {
+  if (steps.length <= 1) return 0;
+  return clampRitualStepIndex(stepIndex, steps) / (steps.length - 1);
 }
 
 export function ritualStepSubtitle(step: RitualStep, goalIndex?: number, goalTotal?: number): string {

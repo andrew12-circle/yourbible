@@ -75,7 +75,7 @@ export const ENTRY_KIND_META: Record<
   listening: {
     label: "Listening",
     shortHint:
-      "Catch a thought from the Spirit, then take it from thought → words → plan → interpretation.",
+      "Pick a question to ask, listen, then capture it — thought → words → plan → interpretation.",
     placeholder:
       "What did you hear, see, or sense? Catch it before it leaves — a word, a picture, a phrase.",
     newTitleHint: "Heard",

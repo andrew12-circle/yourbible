@@ -1,4 +1,4 @@
-import { EOTC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
+import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
 import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -61,6 +61,9 @@ export async function listBibles(language = "eng"): Promise<BibleEntry[]> {
   if (!r.ok) throw new Error(`bibles: ${r.status}`);
   const json = await r.json();
   const list = (json?.data ?? []) as BibleEntry[];
+  if (!list.some((b) => b.id === WLC_BIBLE_ENTRY.id)) {
+    list.unshift({ ...WLC_BIBLE_ENTRY });
+  }
   if (!list.some((b) => b.id === EOTC_BIBLE_ENTRY.id)) {
     list.unshift({ ...EOTC_BIBLE_ENTRY });
   }

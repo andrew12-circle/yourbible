@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
+import { MorningRitualStepNav } from "@/components/living-hope/MorningRitualStepNav";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
 import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { useMorningScripture } from "@/hooks/useMorningScripture";
 import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
+import {
+  clearMorningRitualDraftForUser,
+  resolveDraftStepIndex,
+  useMorningRitualDraftPersistence,
+} from "@/hooks/useMorningRitualDraft";
 import { supabase } from "@/integrations/supabase/client";
 import { saveMorningReview, type GoalTouch } from "@/lib/livingHope/api";
 import { extractWorshipNote } from "@/lib/livingHope/morningConversationJournal";
@@ -22,14 +28,17 @@ import { DEFAULT_COVERING_PRAYER } from "@/lib/livingHope/coveringPrayer";
 import {
   DEFAULT_SURRENDER_PRAYER,
   buildRitualSteps,
+  clampRitualStepIndex,
   compactThanksgivingLists,
   emptyConnectionNotes,
   emptyDailyAssignment,
   emptyThanksgivingLists,
   ritualStepSubtitle,
+  ritualProgressRatio,
   type DailyAssignment,
   type MorningConnectionNotes,
 } from "@/lib/livingHope/morningRitual";
+import type { MorningRitualDraft } from "@/lib/livingHope/morningRitualDraft";
 import { livingHopeDaySeed } from "@/lib/livingHope/workbookProgress";
 import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
 import { formatSupabaseError } from "@/lib/supabase/errors";
@@ -60,6 +69,7 @@ export default function MorningReviewPage() {
     syncThanksgiving: syncThanksgivingToJournal,
   } = useMorningConversationEntry(user?.id);
 
+  const [expressMode, setExpressMode] = useState(() => searchParams.get("mode") === "express");
   const [stepIndex, setStepIndex] = useState(0);
   const [touches, setTouches] = useState<Record<string, GoalTouch>>({});
   const [visionRecall, setVisionRecall] = useState("");
@@ -76,6 +86,8 @@ export default function MorningReviewPage() {
   const [saving, setSaving] = useState(false);
   const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
   const restoredFormulaStep = useRef(false);
+  const pendingDraftRestore = useRef<MorningRitualDraft | null>(null);
+  const draftRestored = useRef(false);
 
   const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
   const seed = livingHopeDaySeed();
@@ -88,13 +100,94 @@ export default function MorningReviewPage() {
     storySelectedIndex ??
     (workbook?.stories.length ? storySuggestedIndex : null);
 
-  const steps = useMemo(() => buildRitualSteps(workbook, activeGoals), [workbook, activeGoals]);
+  const steps = useMemo(
+    () => buildRitualSteps(workbook, activeGoals, expressMode),
+    [workbook, activeGoals, expressMode],
+  );
   const step = steps[stepIndex] ?? { kind: "done" as const };
   const currentGoal = step.kind === "goal" ? activeGoals.find((g) => g.id === step.goalId) : null;
   const goalIndex = step.kind === "goal" ? activeGoals.findIndex((g) => g.id === step.goalId) : 0;
 
+  const applyDraftRestore = useCallback((draft: MorningRitualDraft) => {
+    pendingDraftRestore.current = draft;
+    setExpressMode(draft.expressMode);
+    setTouches(draft.touches);
+    setVisionRecall(draft.visionRecall);
+    setStoryRecall(draft.storyRecall);
+    setMetricValues(draft.metricValues);
+    setThanksgivingNow(draft.thanksgivingNow);
+    setThanksgivingNotYet(draft.thanksgivingNotYet);
+    setScriptureReflection(draft.scriptureReflection);
+    setDailyAssignmentState(draft.dailyAssignment);
+    if (draft.surrender.trim()) setSurrender(draft.surrender);
+    if (draft.covering.trim()) setCovering(draft.covering);
+    setStorySelectedIndex(draft.storySelectedIndex);
+  }, []);
+
+  const draftInput = useMemo(
+    () => ({
+      expressMode,
+      stepIndex,
+      steps,
+      goalIndex,
+      goalTotal: activeGoals.length,
+      touches,
+      visionRecall,
+      storyRecall,
+      metricValues,
+      thanksgivingNow,
+      thanksgivingNotYet,
+      scriptureReflection,
+      dailyAssignment,
+      surrender,
+      covering,
+      storySelectedIndex,
+    }),
+    [
+      expressMode,
+      stepIndex,
+      steps,
+      goalIndex,
+      activeGoals.length,
+      touches,
+      visionRecall,
+      storyRecall,
+      metricValues,
+      thanksgivingNow,
+      thanksgivingNotYet,
+      scriptureReflection,
+      dailyAssignment,
+      surrender,
+      covering,
+      storySelectedIndex,
+    ],
+  );
+
+  useMorningRitualDraftPersistence(user?.id, draftInput, {
+    enabled: step.kind !== "done" && !saving,
+    onRestore: applyDraftRestore,
+  });
+
+  useEffect(() => {
+    if (draftRestored.current || !pendingDraftRestore.current || !steps.length) return;
+    if (restoredFormulaStep.current) {
+      pendingDraftRestore.current = null;
+      draftRestored.current = true;
+      return;
+    }
+    const idx = resolveDraftStepIndex(pendingDraftRestore.current, steps);
+    setStepIndex(idx);
+    pendingDraftRestore.current = null;
+    draftRestored.current = true;
+  }, [steps]);
+
   const setDailyAssignment = useCallback((patch: Partial<DailyAssignment>) => {
     setDailyAssignmentState((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const handleExpressModeChange = useCallback((next: boolean) => {
+    setExpressMode(next);
+    setStepIndex(0);
   }, []);
 
   const handleAddStory = useCallback(
@@ -124,6 +217,10 @@ export default function MorningReviewPage() {
     if (!workbook?.stories.length) return;
     setStorySelectedIndex((prev) => (prev == null ? storySuggestedIndex : prev));
   }, [workbook?.stories.length, storySuggestedIndex]);
+
+  useEffect(() => {
+    setStepIndex((i) => clampRitualStepIndex(i, steps));
+  }, [steps]);
 
   const thanksgivingSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -254,6 +351,7 @@ export default function MorningReviewPage() {
         connection_notes: finalConnectionNotes,
       });
       setTodayReview(review);
+      clearMorningRitualDraftForUser(user.id);
       try {
         const synced = await syncMorningReviewToJournal(user.id, {
           reviewDate: defaultMorningReviewDate(),
@@ -303,11 +401,36 @@ export default function MorningReviewPage() {
     workbook,
   ]);
 
+  const goToNextStep = useCallback(() => {
+    const isLastBeforeDone =
+      stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done";
+    if (isLastBeforeDone) void finish();
+    else {
+      if (step.kind === "thanksgiving") {
+        if (thanksgivingSaveTimer.current) {
+          clearTimeout(thanksgivingSaveTimer.current);
+          thanksgivingSaveTimer.current = null;
+        }
+        void syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
+      }
+      setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+    }
+  }, [
+    stepIndex,
+    steps,
+    finish,
+    step.kind,
+    syncThanksgivingToJournal,
+    thanksgivingNow,
+    thanksgivingNotYet,
+  ]);
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const progress = steps.length > 1 ? stepIndex / (steps.length - 1) : 0;
+  const progress = ritualProgressRatio(stepIndex, steps);
   const loadingAll = busy || wbBusy;
+  const canGoBack = step.kind !== "done" && stepIndex > 0;
 
   return (
     <LivingHopeChrome title="Today's formula" subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}>
@@ -325,9 +448,18 @@ export default function MorningReviewPage() {
             />
           </div>
 
+          {step.kind !== "done" && step.kind !== "intro" ? (
+            <MorningRitualStepNav
+              steps={steps}
+              stepIndex={stepIndex}
+              goalTotal={activeGoals.length}
+              onStepIndexChange={setStepIndex}
+            />
+          ) : null}
+
           <AnimatePresence mode="wait">
             <motion.div
-              key={stepIndex}
+              key={`${expressMode}-${stepIndex}`}
               initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
@@ -378,30 +510,30 @@ export default function MorningReviewPage() {
                 onWorshipMusicChange={({ url, history }) =>
                   updateWorkbook({ worship_playlist_url: url, worship_music_history: history })
                 }
+                expressMode={expressMode}
+                onExpressModeChange={handleExpressModeChange}
               />
             </motion.div>
           </AnimatePresence>
 
           {step.kind !== "done" ? (
-            <div className="mt-6 pt-2">
+            <div className="mt-6 pt-2 flex gap-2">
+              {canGoBack ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(lh.btnSecondary, "h-12 px-4 shrink-0")}
+                  disabled={saving}
+                  onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-0.5" />
+                  Back
+                </Button>
+              ) : null}
               <Button
-                className={lh.btnPrimary}
+                className={cn(lh.btnPrimary, canGoBack ? "flex-1" : "w-full")}
                 disabled={saving}
-                onClick={() => {
-                  const isLastBeforeDone =
-                    stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done";
-                  if (isLastBeforeDone) void finish();
-                  else {
-                    if (step.kind === "thanksgiving") {
-                      if (thanksgivingSaveTimer.current) {
-                        clearTimeout(thanksgivingSaveTimer.current);
-                        thanksgivingSaveTimer.current = null;
-                      }
-                      void syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
-                    }
-                    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
-                  }
-                }}
+                onClick={goToNextStep}
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

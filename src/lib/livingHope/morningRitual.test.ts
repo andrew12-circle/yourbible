@@ -55,6 +55,13 @@ describe("buildRitualSteps", () => {
     const kinds = buildRitualSteps(wb, []).map((s) => s.kind);
     expect(kinds).toContain("story");
   });
+
+  it("express mode returns a short connection path", () => {
+    const kinds = buildRitualSteps(emptyWorkbook(), [{ id: "g1" } as never], true).map((s) => s.kind);
+    expect(kinds).not.toContain("surrender");
+    expect(kinds).not.toContain("goal");
+    expect(kinds).toContain("assignment");
+  });
 });
 
 describe("thanksgiving lists", () => {

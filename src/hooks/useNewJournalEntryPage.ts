@@ -45,6 +45,7 @@ import {
   type ListeningSectionKey,
   type ListeningSections,
 } from "@/lib/journal/listeningEntry";
+import { mergeAskedQuestionIntoThought } from "@/lib/journal/spiritListeningQuestions";
 import { parseChatJournalEntry } from "@/lib/journal/chatJournalEntry";
 import {
   composeChatTranscript,
@@ -447,6 +448,16 @@ export function useNewJournalEntryPage() {
   const setListeningSection = useCallback((key: ListeningSectionKey, value: string) => {
     setListeningSections((prev) => ({ ...prev, [key]: value }));
   }, []);
+
+  const useSpiritQuestion = useCallback(
+    (question: string) => {
+      setListeningSections((prev) => ({
+        ...prev,
+        thought: mergeAskedQuestionIntoThought(prev.thought, question),
+      }));
+    },
+    [],
+  );
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -998,6 +1009,7 @@ export function useNewJournalEntryPage() {
     setComposerFocused,
     listeningSections,
     setListeningSection,
+    useSpiritQuestion,
     chatScrollRef,
     chatBottomRef,
     dictateRef,

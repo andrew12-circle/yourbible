@@ -6,6 +6,8 @@ export type CanonId = "protestant" | "ethiopian";
 export const LS_CANON_KEY = "yb.bibleCanon";
 /** Virtual bible id for EOTC Amharic 81-book text (proxied via bible-passage edge). */
 export const EOTC_BIBLE_ID = "eotc-am-81";
+/** Westminster Leningrad Codex — Open Scriptures morphhb (Tanakh, 39 OT books). */
+export const WLC_BIBLE_ID = "wlc-hebrew";
 
 export const EOTC_BIBLE_ENTRY = {
   id: EOTC_BIBLE_ID,
@@ -13,6 +15,14 @@ export const EOTC_BIBLE_ENTRY = {
   name: "Ethiopian Orthodox Bible (Amharic, 81 books)",
   language: { id: "amh", name: "Amharic" },
   description: "EOTCOpenSource / 80-weahadu",
+} as const;
+
+export const WLC_BIBLE_ENTRY = {
+  id: WLC_BIBLE_ID,
+  abbreviation: "WLC",
+  name: "Westminster Leningrad Codex (Hebrew Tanakh)",
+  language: { id: "heb", name: "Hebrew" },
+  description: "Open Scriptures morphhb — documentary Leningrad source",
 } as const;
 
 export function readCanon(): CanonId {
@@ -30,6 +40,10 @@ export function writeCanon(canon: CanonId): void {
 
 export function isEotcBibleId(bibleId: string): boolean {
   return bibleId === EOTC_BIBLE_ID;
+}
+
+export function isWlcBibleId(bibleId: string): boolean {
+  return bibleId === WLC_BIBLE_ID;
 }
 
 export function getBooks(canon: CanonId = readCanon()): BibleBook[] {

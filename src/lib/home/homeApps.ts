@@ -2,7 +2,7 @@ import {
   BookOpen, BookMarked, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
-  Sunrise,
+  Sunrise, Grid3X3,
   type LucideIcon,
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
@@ -48,6 +48,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
       icon: BookMarked,
       color: IOS_APP_BG.lifeGuide,
       ariaLabel: "Life Manual — find biblical instruction for your issues",
+    },
+    {
+      label: "Code Lab",
+      to: "/bible/code-lab",
+      icon: Grid3X3,
+      color: IOS_APP_BG.codeLab,
+      ariaLabel: "Bible Code Lab — skip-code pattern research",
     },
     {
       label: "Morning formula",

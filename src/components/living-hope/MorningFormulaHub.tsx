@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Calendar,
@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import type { LivingHopeGoalRow, LivingHopeLetterRow, LivingHopeReviewRow } from "@/lib/livingHope/api";
 import { findMorningReviewJournalEntry } from "@/lib/livingHope/morningReviewJournal";
+import { getMorningFormulaEntryTarget } from "@/lib/livingHope/morningFormulaEntry";
+import { getMorningRitualDraftSummary } from "@/lib/livingHope/morningRitualDraft";
+import { MORNING_FORMULA_TAGLINE } from "@/lib/livingHope/morningRitual";
 import { localDateISO } from "@/lib/lifePriorities";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatUnlockLabel, isLetterUnlockable } from "@/lib/livingHope/letterSections";
@@ -51,6 +54,16 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
 
   const { percent, ritualReady, nextStep } = getWorkbookReadiness(workbook, goals, letter);
   const preview = workbook ? getTodayPreview(workbook) : null;
+  const draftSummary = useMemo(() => getMorningRitualDraftSummary(user?.id), [user?.id]);
+  const entry = useMemo(
+    () =>
+      getMorningFormulaEntryTarget({
+        ritualReady,
+        reviewedToday,
+        draft: draftSummary,
+      }),
+    [ritualReady, reviewedToday, draftSummary],
+  );
 
   const dateStr = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -225,7 +238,7 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
         )}
       >
         <Link
-          to="/living-hope/review"
+          to={entry.href}
           className={cn(lh.heroCard, "block h-full min-h-[148px] lg:min-h-[180px]")}
         >
           <div className="flex items-start gap-3">
@@ -237,10 +250,10 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
                 Today&apos;s formula
               </p>
               <p className="text-[17px] font-semibold leading-snug mt-0.5 lg:text-[20px]">
-                {reviewedToday ? "Review again" : "Enter today's formula"}
+                {entry.headline}
               </p>
               <p className="text-[13px] text-white/75 mt-1 leading-snug lg:text-[14px]">
-                Worship · scripture · pray · vision · today&apos;s assignment
+                {draftSummary?.inProgress ? entry.subline : MORNING_FORMULA_TAGLINE}
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-white/60 shrink-0 mt-2" aria-hidden />
