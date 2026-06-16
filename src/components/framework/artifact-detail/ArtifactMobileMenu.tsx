@@ -4,6 +4,7 @@ import {
   BookOpen,
   Clock,
   FileText,
+  Home,
   LayoutList,
   ListOrdered,
   Menu,
@@ -30,6 +31,11 @@ type Props = {
   hasTranscript: boolean;
   /** When set, replaces "Transcript" in the View menu (e.g. "Reader" for books). */
   secondaryViewLabel?: string;
+  mobileTab?: "study" | "transcript" | "notes" | "journal" | "research";
+  journalActive?: boolean;
+  onOpenStudy?: () => void;
+  onOpenJournal?: () => void;
+  onGoHome?: () => void;
   onNavigateSection: (hash: string) => void;
   onOpenTranscript: () => void;
   onPaste: () => void;
@@ -120,6 +126,11 @@ export default function ArtifactMobileMenu({
   showReanalyze,
   hasTranscript,
   secondaryViewLabel = "Transcript",
+  mobileTab = "study",
+  journalActive = false,
+  onOpenStudy,
+  onOpenJournal,
+  onGoHome,
   onNavigateSection,
   onOpenTranscript,
   onPaste,
@@ -166,13 +177,35 @@ export default function ArtifactMobileMenu({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-2 py-4">
-          {hasTranscript ? (
-            <MenuSection title="View">
-              <MenuItem
-                icon={ScrollText}
-                label={secondaryViewLabel}
-                onClick={() => run(onOpenTranscript)}
-              />
+          {onOpenStudy || onOpenJournal || onGoHome || hasTranscript ? (
+            <MenuSection title="Navigate">
+              {onOpenStudy ? (
+                <MenuItem
+                  icon={BookOpen}
+                  label="Study"
+                  active={mobileTab === "study" && !journalActive}
+                  onClick={() => run(onOpenStudy)}
+                />
+              ) : null}
+              {hasTranscript ? (
+                <MenuItem
+                  icon={ScrollText}
+                  label={secondaryViewLabel}
+                  active={mobileTab === "transcript"}
+                  onClick={() => run(onOpenTranscript)}
+                />
+              ) : null}
+              {onOpenJournal ? (
+                <MenuItem
+                  icon={NotebookPen}
+                  label="Journal"
+                  active={journalActive || mobileTab === "journal"}
+                  onClick={() => run(onOpenJournal)}
+                />
+              ) : null}
+              {onGoHome ? (
+                <MenuItem icon={Home} label="Home" onClick={() => run(onGoHome)} />
+              ) : null}
             </MenuSection>
           ) : null}
 

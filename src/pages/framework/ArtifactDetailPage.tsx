@@ -1613,7 +1613,7 @@ export default function ArtifactDetailPage() {
       }
       immersiveDesktopMinimal={desktopPremiumYoutube || desktopPremiumDocument}
       back="/framework/artifacts"
-      contentClassName="max-w-none"
+      contentClassName="max-w-none flex min-h-0 flex-1 flex-col"
       headerContentClassName="max-w-none"
       headerActions={artifactHeaderActions}
     >
@@ -1642,7 +1642,7 @@ export default function ArtifactDetailPage() {
           desktopPremiumSplitPane && "lg:p-4",
           "lg:grid lg:min-h-0 lg:grid-cols-12 lg:items-stretch lg:gap-4",
           artifactSplitPaneHeightClass,
-          mobilePinnedPane && "flex min-h-0 flex-1 flex-col space-y-0 overflow-x-visible overflow-y-hidden",
+          mobilePinnedPane && "flex h-0 min-h-0 flex-1 flex-col space-y-0 overflow-x-visible overflow-y-hidden",
         )}
       >
         <Tabs
@@ -1652,13 +1652,13 @@ export default function ArtifactDetailPage() {
           className={cn(
             "min-w-0 lg:col-span-8 lg:flex lg:h-full lg:min-h-0 lg:flex-col",
             showArtifactAppDock && "relative",
-            mobilePinnedPane && "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
+            mobilePinnedPane && "flex h-0 min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-x-visible overflow-y-hidden",
           )}
         >
         <div
           className={cn(
             "min-w-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col",
-            mobilePinnedPane && "flex min-h-0 flex-1 flex-col",
+            mobilePinnedPane && "flex h-0 min-h-0 flex-1 flex-col",
             desktopPremiumSplitPane && artifactDesktopSplitPaneCard,
           )}
         >
@@ -1669,7 +1669,7 @@ export default function ArtifactDetailPage() {
             desktopStudyDock && artifactMobileDockPadding,
             mobilePinnedPane
               ? cn(
-                  "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
+                  "flex h-0 min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden",
                   mobileTab === "journal" || mobileTab === "research" ? "overflow-hidden" : undefined,
                 )
               : desktopPremiumSplitPane
@@ -1718,6 +1718,12 @@ export default function ArtifactDetailPage() {
             menuShowReanalyze={!inFlight && a.status !== "error"}
             onMenuNavigateSection={navigateToArtifactHash}
             onMenuOpenTranscript={switchToTranscriptTab}
+            onMenuOpenStudy={switchToStudyTab}
+            onMenuOpenJournal={handleDockJournalClick}
+            onMenuGoHome={() => navigate("/home")}
+            menuMobileTab={mobileTab}
+            menuJournalActive={artifactJournalOpen}
+            menuSecondaryViewLabel="Transcript"
             onOpenNotesTab={openNotesTabWithNote}
             insightExplorePanel={mobileInsightExplorePanel}
             insightExploreOpen={mobileInsightExploreOpen}
@@ -1750,7 +1756,7 @@ export default function ArtifactDetailPage() {
               ? cn(
                   mobileTab !== "study" && "hidden",
                   mobileTab === "journal" || mobileTab === "research" || mobileInsightExploreOpen
-                    ? "flex min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden"
+                    ? "flex h-0 min-h-0 w-full min-w-0 max-w-none flex-1 flex-col overflow-hidden"
                     : artifactMobileTabScrollPane,
                 )
               : "contents",
@@ -2265,7 +2271,7 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {desktopStudyDock || (mobilePinnedPane && isReadableDocument) ? (
+      {(desktopStudyDock || (mobilePinnedPane && isReadableDocument)) && !youTubeVideoId ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}
           onOpenChange={setMobileMenuOpen}
@@ -2277,6 +2283,11 @@ export default function ArtifactDetailPage() {
           showReanalyze={!inFlight && a.status !== "error"}
           hasTranscript={isReadableDocument ? true : Boolean(a.raw_text?.trim())}
           secondaryViewLabel={isReadableDocument ? "Reader" : "Transcript"}
+          mobileTab={mobileTab}
+          journalActive={artifactJournalOpen}
+          onOpenStudy={switchToStudyTab}
+          onOpenJournal={handleDockJournalClick}
+          onGoHome={() => navigate("/home")}
           onNavigateSection={navigateToArtifactHash}
           onOpenTranscript={switchToTranscriptTab}
           onPaste={() => setPasteOpen(true)}

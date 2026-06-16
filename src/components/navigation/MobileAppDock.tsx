@@ -6,6 +6,8 @@ type Props = {
   className?: string;
   anchor?: "viewport" | "pane";
   layoutRootSelector?: string;
+  /** `minimal` — Study + More only; other views live in the menu sheet. */
+  variant?: "full" | "minimal";
   activeTab?: "study" | "transcript" | "notes" | "journal";
   onStudyClick?: () => void;
   onTranscriptClick?: () => void;
@@ -22,6 +24,7 @@ export default function MobileAppDock({
   className,
   anchor = "viewport",
   layoutRootSelector = "[data-artifact-youtube-mobile]",
+  variant = "full",
   activeTab = "study",
   onStudyClick,
   onTranscriptClick,
@@ -32,25 +35,31 @@ export default function MobileAppDock({
   onMenuClick,
   onHomeClick,
 }: Props) {
-  const items: FloatingTabItem[] = [
-    { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },
-    {
-      id: "transcript",
-      label: secondaryTabLabel,
-      icon: SecondaryTabIcon,
-      active: activeTab === "transcript",
-      onClick: onTranscriptClick,
-    },
-    {
-      id: "journal",
-      label: "Journal",
-      icon: NotebookPen,
-      active: journalActive ?? activeTab === "journal",
-      onClick: onJournalClick,
-    },
-    { id: "more", label: "More", icon: Menu, onClick: onMenuClick },
-    { id: "home", label: "Home", icon: Home, onClick: onHomeClick },
-  ];
+  const items: FloatingTabItem[] =
+    variant === "minimal"
+      ? [
+          { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },
+          { id: "more", label: "More", icon: Menu, onClick: onMenuClick },
+        ]
+      : [
+          { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },
+          {
+            id: "transcript",
+            label: secondaryTabLabel,
+            icon: SecondaryTabIcon,
+            active: activeTab === "transcript",
+            onClick: onTranscriptClick,
+          },
+          {
+            id: "journal",
+            label: "Journal",
+            icon: NotebookPen,
+            active: journalActive ?? activeTab === "journal",
+            onClick: onJournalClick,
+          },
+          { id: "more", label: "More", icon: Menu, onClick: onMenuClick },
+          { id: "home", label: "Home", icon: Home, onClick: onHomeClick },
+        ];
 
   return (
     <FloatingTabBar

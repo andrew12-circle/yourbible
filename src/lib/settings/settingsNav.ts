@@ -32,7 +32,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "profile",
     label: "Profile",
-    description: "Name, photo, and life timeline",
+    description: "Name, photo, writing assist, and life timeline",
     icon: User,
     accent: "text-blue-500",
   },

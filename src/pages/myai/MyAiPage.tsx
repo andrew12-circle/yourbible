@@ -49,6 +49,7 @@ import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
 import {
   createMyAiProject,
   deleteMyAiProject,
+  isMyAiProjectsTableMissing,
   listMyAiProjects,
   moveChatToProject as persistChatProject,
 } from "@/lib/myai/chatProjects";
@@ -344,7 +345,10 @@ export default function MyAiPage() {
       const rows = await listMyAiProjects(supabase, user.id);
       setProjects(rows);
     } catch (e) {
-      toast({ title: "Could not load folders", description: String(e), variant: "destructive" });
+      const message = String(e);
+      if (!isMyAiProjectsTableMissing(message)) {
+        toast({ title: "Could not load folders", description: message, variant: "destructive" });
+      }
       setProjects([]);
     }
   }, [user]);

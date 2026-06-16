@@ -85,6 +85,12 @@ type Props = {
   onMenuPaste?: () => void;
   onMenuWrapUp?: () => void;
   onMenuReanalyze?: () => void;
+  menuMobileTab?: "study" | "transcript" | "notes" | "journal";
+  menuJournalActive?: boolean;
+  onMenuOpenStudy?: () => void;
+  onMenuOpenJournal?: () => void;
+  onMenuGoHome?: () => void;
+  menuSecondaryViewLabel?: string;
   /** Mobile scroll chrome back link (framework header hidden on YouTube). */
   backTo?: string;
   /** Host element inside the scroll pane (title scrolls away; toolbar sticks under video). */
@@ -141,6 +147,12 @@ function ArtifactYoutubeVideoBlock({
   onMenuPaste,
   onMenuWrapUp,
   onMenuReanalyze,
+  menuMobileTab = mobileActiveTab,
+  menuJournalActive = false,
+  onMenuOpenStudy,
+  onMenuOpenJournal,
+  onMenuGoHome,
+  menuSecondaryViewLabel = "Transcript",
   backTo = "/framework/artifacts",
   mobileChromeHost = null,
   onOpenNotesTab,
@@ -320,6 +332,12 @@ function ArtifactYoutubeVideoBlock({
           showWrapUp={menuShowWrapUp}
           showReanalyze={menuShowReanalyze}
           hasTranscript={hasTranscript}
+          secondaryViewLabel={menuSecondaryViewLabel}
+          mobileTab={menuMobileTab}
+          journalActive={menuJournalActive}
+          onOpenStudy={onMenuOpenStudy}
+          onOpenJournal={onMenuOpenJournal}
+          onGoHome={onMenuGoHome}
           onNavigateSection={onMenuNavigateSection ?? (() => {})}
           onOpenTranscript={onMenuOpenTranscript ?? (() => {})}
           onPaste={onMenuPaste ?? (() => {})}

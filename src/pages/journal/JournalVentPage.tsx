@@ -3,7 +3,6 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Flame, Lock, Loader2, Trash2 } from "lucide-react";
-import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { Button } from "@/components/ui/button";
@@ -118,7 +117,7 @@ export default function JournalVentPage() {
       coverTitle="Vent space"
       backTo="/journal"
       hideComposeFab
-      headerRight={<><JournalPrivacyBlurToggle tone="onCover" /><AiWritingAssistToggle compact tone="onCover" /></>}
+      headerRight={<JournalPrivacyBlurToggle tone="onCover" />}
     >
       <div className="px-5 pt-3 pb-safe-28">
       <div className="-mt-2 mb-5 flex items-start gap-3 rounded-2xl border border-zinc-800/15 bg-zinc-900/[0.04] p-4 text-[14px] leading-relaxed text-foreground/85 dark:border-white/10 dark:bg-white/[0.04]">

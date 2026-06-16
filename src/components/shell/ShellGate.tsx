@@ -7,7 +7,7 @@ const HubShell = lazy(() =>
   import("@/components/shell/HubShell").then((mod) => ({ default: mod.HubShell })),
 );
 
-/** Layout route: hub shell on desktop when homeMode is hub; otherwise passthrough. */
+/** Layout route: hub shell when homeMode is hub; otherwise passthrough. */
 export function ShellGate() {
   const { showHubShell } = useAppShellMode();
 

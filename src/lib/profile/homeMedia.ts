@@ -13,13 +13,13 @@ export type HomeLayoutMedia = {
   homeWallpaperTint?: number;
   homeWallpaperBlur?: number;
   homeProfilePhoto?: HomeMediaRef;
-  /** Desktop home experience: iOS launcher vs command-center hub shell. */
+  /** Home experience: iOS launcher vs command-center hub shell. */
   homeMode?: HomeMode;
 };
 
 export function parseHomeMode(layout: string | null | undefined): HomeMode {
   const mode = parseHomeLayoutMedia(layout).homeMode;
-  return mode === "hub" ? "hub" : "ios";
+  return mode === "ios" ? "ios" : "hub";
 }
 
 export function isInlineOrRemoteMediaRef(ref: string): boolean {

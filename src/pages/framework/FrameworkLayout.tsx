@@ -8,7 +8,6 @@ import { ARTIFACT_STICKY_VIDEO_H } from "@/lib/framework/artifactLayoutCss";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 
 interface Props {
@@ -271,13 +270,7 @@ export default function FrameworkLayout({
             </div>
           ) : null}
           {!immersive && (
-            <div
-              className={cn(
-                "flex shrink-0 items-center gap-1 sm:gap-1.5",
-                studioLibrary && "hidden md:flex",
-              )}
-            >
-              <AiWritingAssistToggle compact />
+            <div className="hidden shrink-0 items-center gap-1 sm:gap-1.5 md:flex">
               <Link
                 to="/read/Jhn/1"
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3"

@@ -31,14 +31,14 @@ export const artifactMobilePinnedHeaderPadding = "pt-[var(--artifact-mobile-pinn
 export const artifactMobileTabScrollPane = cn(
   artifactMobilePinnedHeaderPadding,
   artifactMobileDockPadding,
-  "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y",
+  "flex h-0 min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch]",
 );
 
 /** Tab panel shell when inner content (e.g. transcript) owns its own scroll region. */
 export const artifactMobileTabPanelShell = cn(
   artifactMobilePinnedHeaderPadding,
   artifactMobileDockPadding,
-  "flex min-h-0 flex-1 flex-col overflow-hidden",
+  "flex h-0 min-h-0 flex-1 flex-col overflow-hidden",
 );
 
 /** Default dock height (pill bar + safe area) — set on layout root when dock mounts. */

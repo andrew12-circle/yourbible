@@ -30,7 +30,6 @@ import { parseChatJournalEntry } from "@/lib/journal/chatJournalEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import { Switch } from "@/components/ui/switch";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
-import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { toast } from "@/hooks/use-toast";
@@ -897,10 +896,6 @@ export default function JournalChatPage() {
             <div className="flex items-center justify-between gap-3 sm:hidden">
               <span className="text-sm">Privacy blur</span>
               <JournalPrivacyBlurToggle />
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:hidden">
-              <span className="text-sm">AI writing assist</span>
-              <AiWritingAssistToggle compact />
             </div>
             <ResponseDepthControl
               idPrefix="jc-depth"

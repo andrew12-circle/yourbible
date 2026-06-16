@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import { Loader2, Network } from "lucide-react";
@@ -8,24 +8,15 @@ import {
   buildUnifiedMindGraph,
   DEFAULT_MIND_GRAPH_FILTERS,
   MIND_GRAPH_PALETTE,
-  MIND_NODE_COLORS,
   mindNodeRoute,
   pruneMindGraphToEntryRoots,
   type MindGraphFilters,
   type MindGraphNode,
 } from "@/lib/graph/unifiedMindGraph";
+import { MIND_GRAPH_FILTER_LABELS, MindGraphFiltersMenu } from "@/components/graph/MindGraphFiltersMenu";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-const FILTER_LABELS: { key: keyof MindGraphFilters; label: string; color: string }[] = [
-  { key: "entry", label: "Journal", color: MIND_NODE_COLORS.entry },
-  { key: "belief", label: "Beliefs", color: MIND_NODE_COLORS.belief },
-  { key: "artifact", label: "Videos & books", color: MIND_NODE_COLORS.artifact },
-  { key: "entity", label: "People", color: MIND_NODE_COLORS.entity },
-  { key: "verse", label: "Scripture", color: MIND_NODE_COLORS.verse },
-  { key: "claim", label: "Claims", color: MIND_NODE_COLORS.claim },
-];
 
 interface Props {
   journalId?: string | null;
@@ -34,6 +25,8 @@ interface Props {
   heightClassName?: string;
   /** Grow the canvas to fill the parent flex column. */
   fill?: boolean;
+  /** Extra rows in the mobile options sheet (e.g. belief graph tools). */
+  menuExtra?: ReactNode;
 }
 
 export default function MindGraphView({
@@ -41,6 +34,7 @@ export default function MindGraphView({
   className,
   heightClassName = "calc(100svh - 18rem)",
   fill = false,
+  menuExtra,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -124,25 +118,36 @@ export default function MindGraphView({
       )}
     >
       {!fill ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
-          {FILTER_LABELS.map(({ key, label, color }) => (
-            <div key={key} className="flex items-center gap-2">
-              <Switch
-                id={`mind-filter-${key}`}
-                checked={filters[key]}
-                onCheckedChange={() => toggle(key)}
-              />
-              <Label htmlFor={`mind-filter-${key}`} className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <span
-                  className="inline-block h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: color }}
-                  aria-hidden
+        <>
+          <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 px-1 md:flex">
+            {MIND_GRAPH_FILTER_LABELS.map(({ key, label, color }) => (
+              <div key={key} className="flex items-center gap-2">
+                <Switch
+                  id={`mind-filter-${key}`}
+                  checked={filters[key]}
+                  onCheckedChange={() => toggle(key)}
                 />
-                {label}
-              </Label>
-            </div>
-          ))}
-        </div>
+                <Label htmlFor={`mind-filter-${key}`} className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: color }}
+                    aria-hidden
+                  />
+                  {label}
+                </Label>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 px-1 md:hidden">
+            <p className="min-w-0 truncate text-[11px] text-muted-foreground">{statsLine}</p>
+            <MindGraphFiltersMenu
+              filters={filters}
+              onToggle={toggle}
+              statsLine={statsLine}
+              menuExtra={menuExtra}
+            />
+          </div>
+        </>
       ) : null}
 
       {busy ? (
@@ -168,29 +173,40 @@ export default function MindGraphView({
           style={fill ? undefined : { height: heightClassName }}
         >
           {fill ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 bg-muted/30 px-3 py-2">
-              {FILTER_LABELS.map(({ key, label, color }) => (
-                <div key={key} className="flex items-center gap-1.5">
-                  <Switch
-                    id={`mind-filter-${key}`}
-                    checked={filters[key]}
-                    onCheckedChange={() => toggle(key)}
-                  />
-                  <Label
-                    htmlFor={`mind-filter-${key}`}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground"
-                  >
-                    <span
-                      className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: color }}
-                      aria-hidden
+            <>
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-3 py-2 md:hidden">
+                <p className="min-w-0 truncate text-[11px] text-muted-foreground">{statsLine}</p>
+                <MindGraphFiltersMenu
+                  filters={filters}
+                  onToggle={toggle}
+                  statsLine={statsLine}
+                  menuExtra={menuExtra}
+                />
+              </div>
+              <div className="hidden shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 bg-muted/30 px-3 py-2 md:flex">
+                {MIND_GRAPH_FILTER_LABELS.map(({ key, label, color }) => (
+                  <div key={key} className="flex items-center gap-1.5">
+                    <Switch
+                      id={`mind-filter-${key}`}
+                      checked={filters[key]}
+                      onCheckedChange={() => toggle(key)}
                     />
-                    {label}
-                  </Label>
-                </div>
-              ))}
-              <p className="ml-auto text-[11px] text-muted-foreground">{statsLine}</p>
-            </div>
+                    <Label
+                      htmlFor={`mind-filter-${key}`}
+                      className="flex items-center gap-1 text-[11px] text-muted-foreground"
+                    >
+                      <span
+                        className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: color }}
+                        aria-hidden
+                      />
+                      {label}
+                    </Label>
+                  </div>
+                ))}
+                <p className="ml-auto text-[11px] text-muted-foreground">{statsLine}</p>
+              </div>
+            </>
           ) : (
             <p className="shrink-0 px-3 pt-2 text-[12px] text-muted-foreground">{statsLine}</p>
           )}

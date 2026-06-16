@@ -2,18 +2,22 @@ import { describe, expect, it } from "vitest";
 import { parseHomeLayoutMedia, parseHomeMode } from "@/lib/profile/homeMedia";
 
 describe("parseHomeMode", () => {
-  it("defaults to ios when layout is empty", () => {
-    expect(parseHomeMode(null)).toBe("ios");
-    expect(parseHomeMode("")).toBe("ios");
-    expect(parseHomeMode("{}")).toBe("ios");
+  it("defaults to hub when layout is empty", () => {
+    expect(parseHomeMode(null)).toBe("hub");
+    expect(parseHomeMode("")).toBe("hub");
+    expect(parseHomeMode("{}")).toBe("hub");
   });
 
   it("returns hub when homeMode is hub", () => {
     expect(parseHomeMode(JSON.stringify({ homeMode: "hub" }))).toBe("hub");
   });
 
-  it("falls back to ios for unknown values", () => {
-    expect(parseHomeMode(JSON.stringify({ homeMode: "other" }))).toBe("ios");
+  it("returns ios when homeMode is ios", () => {
+    expect(parseHomeMode(JSON.stringify({ homeMode: "ios" }))).toBe("ios");
+  });
+
+  it("falls back to hub for unknown values", () => {
+    expect(parseHomeMode(JSON.stringify({ homeMode: "other" }))).toBe("hub");
   });
 });
 

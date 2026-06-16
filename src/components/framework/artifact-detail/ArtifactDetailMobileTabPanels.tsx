@@ -171,6 +171,7 @@ type AppDockProps = Pick<
   layoutRootSelector?: string;
   secondaryTabLabel?: string;
   secondaryTabIcon?: import("lucide-react").LucideIcon;
+  dockVariant?: "full" | "minimal";
 };
 
 export function ArtifactDetailMobileAppDock({
@@ -182,6 +183,7 @@ export function ArtifactDetailMobileAppDock({
   layoutRootSelector,
   secondaryTabLabel,
   secondaryTabIcon,
+  dockVariant = "minimal",
   onStudyClick,
   onTranscriptClick,
   onJournalClick,
@@ -194,6 +196,7 @@ export function ArtifactDetailMobileAppDock({
     <MobileAppDock
       anchor={anchor}
       layoutRootSelector={layoutRootSelector}
+      variant={dockVariant}
       activeTab={mobileTab}
       journalActive={journalActive}
       secondaryTabLabel={secondaryTabLabel}

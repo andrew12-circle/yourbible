@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ImagePlus, Languages, LogOut, SlidersHorizontal, User } from "lucide-react";
+import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,16 @@ export function SettingsProfileSection({
             </Link>
           </div>
         </div>
+      </SettingsCard>
+
+      <SettingsCard className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">AI writing assist</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Lightly correct spelling and grammar after you pause or leave a field. Your meaning stays yours.
+          </p>
+        </div>
+        <AiWritingAssistToggle />
       </SettingsCard>
 
       <SettingsCard className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -380,12 +391,12 @@ export function SettingsHomeSection({ state }: { state: SettingsState }) {
         <div>
           <Label>Home style</Label>
           <p className="text-xs text-muted-foreground mt-1 mb-3">
-            App screen uses the iOS launcher. Command center adds a desktop sidebar and mini phone.
+            Command center is the default. App screen uses the iOS launcher instead.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {([
+              { id: "hub" as const, label: "Command center", hint: "Sidebar overview and mini phone (default)" },
               { id: "ios" as const, label: "App screen", hint: "iOS home launcher" },
-              { id: "hub" as const, label: "Command center", hint: "Desktop hub with sidebar" },
             ]).map((opt) => (
               <button
                 key={opt.id}

@@ -11,6 +11,12 @@ export default function MindGraphPage() {
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
+  const mobileMenuExtra = (
+    <Button variant="outline" className="w-full justify-start text-sm" asChild>
+      <Link to="/framework/graph/beliefs">Belief graph tools</Link>
+    </Button>
+  );
+
   return (
     <FrameworkLayout
       title="Mind map"
@@ -18,12 +24,12 @@ export default function MindGraphPage() {
       contentClassName="max-w-none w-full min-w-0 flex min-h-0 flex-1 flex-col px-0 pb-0 pt-2 sm:pt-3"
       headerContentClassName="max-w-none"
       headerActions={
-        <Button variant="ghost" size="sm" className="text-[12px]" asChild>
+        <Button variant="ghost" size="sm" className="hidden text-[12px] md:inline-flex" asChild>
           <Link to="/framework/graph/beliefs">Belief graph tools</Link>
         </Button>
       }
     >
-      <MindGraphView fill className="min-h-0 flex-1" />
+      <MindGraphView fill className="min-h-0 flex-1" menuExtra={mobileMenuExtra} />
     </FrameworkLayout>
   );
 }

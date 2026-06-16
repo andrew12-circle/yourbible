@@ -2,6 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { MyAiProjectRow } from "@/lib/myai/chatSections";
 
+/** PostgREST when a table is missing from the remote schema (migration not applied yet). */
+export function isMyAiProjectsTableMissing(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("my_ai_projects") && (m.includes("schema cache") || m.includes("does not exist"));
+}
+
 export async function listMyAiProjects(
   supabase: SupabaseClient<Database>,
   userId: string,

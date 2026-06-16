@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { cn } from "@/lib/utils";
 import type { LibraryCategoryId, LibrarySortKey, LibraryViewMode } from "./artifactLibraryModel";
 import { LIBRARY_CATEGORY_CHIPS } from "./artifactLibraryModel";
@@ -216,7 +215,6 @@ export function ArtifactsLibraryMobileMenu({
             Tools
           </p>
           <div className="space-y-3 px-1">
-            <AiWritingAssistToggle />
             <Link
               to="/read/Jhn/1"
               onClick={close}
