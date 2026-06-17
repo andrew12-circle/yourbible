@@ -147,6 +147,7 @@ import {
   type ReaderColumnLayout,
 } from "@/lib/bible/readerColumnLayout";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
+import { readerColumnContentHeightPx } from "@/lib/bible/readerColumnMeasure";
 import {
   renderScriptureParagraphNodes,
   wrapScriptureColumns,
@@ -622,11 +623,13 @@ export default function ReaderPage() {
   const handleStreamSplitsChange = useCallback((next: number[]) => {
     setStreamSplits((prev) => (areSameStreamSplits(prev, next) ? prev : next));
   }, []);
-  // Reset splits when chapter / typography changes; keep measured page box so
-  // Paginator stays mounted and the article shell does not unmount/remount.
+  // Reset splits when chapter / typography changes; clear stale measurements so
+  // the paginator does not run against the previous chapter's page box.
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
+    setPageBox({ w: 0, h: 0 });
+    setFirstPageHeight(0);
   }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
@@ -1431,14 +1434,15 @@ export default function ReaderPage() {
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
-    const scriptureColumnHeightPx =
-      !scrollMode && columnClassName
-        ? measuresFirstPage && firstPageHeight > 0
-          ? firstPageHeight
-          : pageBox.h > 0
-            ? pageBox.h
-            : undefined
-        : undefined;
+    const scriptureColumnHeightPx = readerColumnContentHeightPx({
+      columnLayoutActive: !scrollMode && Boolean(columnClassName),
+      measuresFirstPage,
+      startsWithChapterHeader: streamSlice?.startsWithChapterHeader != null,
+      firstPageHeight,
+      pageHeight: pageBox.h,
+      footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
+      chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
+    });
     return (
       <div
         className={cn(
@@ -1690,14 +1694,11 @@ export default function ReaderPage() {
   const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
   const leftIdx = activePageIdx;
   const rightIdx = effectiveSpread ? activePageIdx + 1 : activePageIdx;
-  const subsequentPageHeight =
-    pageBox.h > 0
-      ? pageBox.h
-      : firstPageHeight > 0
-        ? firstPageHeight + CHAPTER_HEADER_RESERVE_PX
-        : 0;
+  const subsequentPageHeight = pageBox.h > 0 ? pageBox.h : 0;
   const paginatorFirstPageHeight =
     firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
+  const paginatorReady =
+    pageBox.w > 0 && (subsequentPageHeight > 0 || paginatorFirstPageHeight > 0);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
@@ -1919,12 +1920,12 @@ export default function ReaderPage() {
       )}
 
       {/* Headless paginator — measures and reports splits (page mode only) */}
-      {!scrollMode && useStreamReader && streamChapters.length > 0 && !!passage ? (
+      {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
           chapters={streamChapters}
-          pageWidth={Math.max(180, pageBox.w)}
-          pageHeight={Math.max(180, subsequentPageHeight || firstPageHeight || 480)}
-          firstPageHeight={Math.max(180, paginatorFirstPageHeight || subsequentPageHeight || 480)}
+          pageWidth={pageBox.w}
+          pageHeight={Math.max(180, subsequentPageHeight || paginatorFirstPageHeight)}
+          firstPageHeight={Math.max(180, paginatorFirstPageHeight || subsequentPageHeight)}
           className={scriptureTypoClass}
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
@@ -1933,14 +1934,14 @@ export default function ReaderPage() {
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
-      {!scrollMode && pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useStreamReader ? (
+      {!scrollMode && paginatorReady && pageBox.w > 0 && subsequentPageHeight > 0 && verses.length > 0 && !useStreamReader ? (
         <Paginator
           verses={verses}
           paragraphStarts={paginatorParagraphStarts}
           headings={paginatorHeadings}
           bookAbbr={book.abbr}
           chapter={chapter}
-          pageWidth={Math.max(180, pageBox.w)}
+          pageWidth={pageBox.w}
           pageHeight={Math.max(180, subsequentPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight)}
           className={scriptureTypoClass}

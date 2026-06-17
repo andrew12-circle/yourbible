@@ -16,6 +16,47 @@ export interface ScriptureColumnMeasureOptions {
  * browsers fall back to balanced columns (top-half / bottom-half banding).
  */
 
+/** Default slack reserved in paginator fit tests (must match ReaderPage). */
+export const READER_COLUMN_FOOTER_GUARD_PX = 20;
+
+/** Chapter title block reserved above the text area on non-opening pages. */
+export const READER_CHAPTER_HEADER_RESERVE_PX = 96;
+
+export interface ReaderColumnContentHeightOptions {
+  columnLayoutActive: boolean;
+  /** Opening spread page whose article was measured as the chapter-start surface. */
+  measuresFirstPage: boolean;
+  /** Slice begins with a chapter-header stream unit. */
+  startsWithChapterHeader: boolean;
+  firstPageHeight: number;
+  pageHeight: number;
+  footerGuardPx?: number;
+  chapterHeaderReservePx?: number;
+}
+
+/**
+ * Pixel height for live column wrappers — must match BookPaginator / Paginator
+ * `pageContentLimit` or column-fill:auto leaves an empty second column.
+ */
+export function readerColumnContentHeightPx(
+  options: ReaderColumnContentHeightOptions,
+): number | undefined {
+  if (!options.columnLayoutActive) return undefined;
+  const footer = options.footerGuardPx ?? READER_COLUMN_FOOTER_GUARD_PX;
+  const headerReserve =
+    options.chapterHeaderReservePx ?? READER_CHAPTER_HEADER_RESERVE_PX;
+  const { firstPageHeight, pageHeight } = options;
+
+  if (options.measuresFirstPage && firstPageHeight > 0) {
+    return Math.max(1, firstPageHeight - footer);
+  }
+  if (pageHeight <= 0) return undefined;
+  if (options.startsWithChapterHeader) {
+    return Math.max(1, pageHeight - headerReserve - footer);
+  }
+  return Math.max(1, pageHeight - footer);
+}
+
 /** Inline styles for the live `.scripture-columns-2` wrapper (matches paginator). */
 export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProperties {
   const base: CSSProperties = {

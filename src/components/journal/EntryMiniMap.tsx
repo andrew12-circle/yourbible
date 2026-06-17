@@ -12,7 +12,7 @@ interface Props {
   className?: string;
 }
 
-const OsmMiniMap = memo(function OsmMiniMap({ lat, lng, height, className }: Props) {
+const OsmMiniMap = memo(function OsmMiniMap({ lat, lng, height = 240, className }: Props) {
   const d = 0.012;
   const src = useMemo(() => {
     const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`;
@@ -25,7 +25,7 @@ const OsmMiniMap = memo(function OsmMiniMap({ lat, lng, height, className }: Pro
   );
 });
 
-const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height, className }: Props) {
+const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height = 240, className }: Props) {
   const apiKey = getGoogleMapsApiKey()!;
   const center = { lat, lng };
 

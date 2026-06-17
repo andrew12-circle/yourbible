@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   applyScriptureColumnMeasureHtml,
+  readerColumnContentHeightPx,
   scriptureColumnWrapperStyle,
   scriptureContentFitsPage,
 } from "./readerColumnMeasure";
@@ -16,6 +17,45 @@ describe("readerColumnMeasure", () => {
 
   afterEach(() => {
     node.remove();
+  });
+
+  it("readerColumnContentHeightPx matches paginator content limits", () => {
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        measuresFirstPage: true,
+        startsWithChapterHeader: true,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(500);
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        measuresFirstPage: false,
+        startsWithChapterHeader: true,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(484);
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        measuresFirstPage: false,
+        startsWithChapterHeader: false,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(580);
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: false,
+        measuresFirstPage: false,
+        startsWithChapterHeader: false,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBeUndefined();
   });
 
   it("scriptureColumnWrapperStyle sets pixel height for column-fill auto", () => {
