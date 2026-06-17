@@ -23,6 +23,7 @@ import JournalRow from "@/components/journal/overview/JournalRow";
 import OverviewHeader from "@/components/journal/overview/OverviewHeader";
 import StatsRow from "@/components/journal/overview/StatsRow";
 import { ALL_ENTRIES_ACCENT } from "@/components/journal/overview/overviewConstants";
+import CurrentLocationMap from "@/components/journal/CurrentLocationMap";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
@@ -307,7 +308,7 @@ export default function AllEntriesOverviewPane({
         )}
       </div>
 
-      <div className="px-8 pb-10 max-w-2xl">
+      <div className="max-w-2xl flex-shrink-0 px-8 pb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
           Journals
         </p>
@@ -326,6 +327,13 @@ export default function AllEntriesOverviewPane({
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="flex min-h-[280px] flex-1 flex-col px-8 pb-10">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
+          Where you are
+        </p>
+        <CurrentLocationMap className="min-h-[240px] flex-1" />
       </div>
 
       <input
