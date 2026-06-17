@@ -29,6 +29,8 @@ export function useJournalEditorCaretScroll({
 }: Options) {
   const [bottomChromePx, setBottomChromePx] = useState(fixedBottomInsetPx ?? 152);
   const rafRef = useRef<number | null>(null);
+  const userScrolledRef = useRef(false);
+  const programmaticScrollRef = useRef(false);
 
   useLayoutEffect(() => {
     if (fixedBottomInsetPx != null) {
@@ -57,16 +59,22 @@ export function useJournalEditorCaretScroll({
     const scrollEl = scrollRef.current;
     const textarea = resolveActiveTextarea(scrollEl);
     if (!scrollEl || !textarea || !enabled) return;
+    if (userScrolledRef.current) return;
 
+    programmaticScrollRef.current = true;
     scrollEditorCaretIntoView({
       scrollEl,
       textarea,
       bottomInsetPx: bottomChromePx + kbInset,
       topInsetPx,
     });
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
   }, [scrollRef, bottomChromePx, kbInset, topInsetPx, enabled]);
 
   const scheduleScroll = useCallback(() => {
+    if (userScrolledRef.current) return;
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
@@ -74,24 +82,34 @@ export function useJournalEditorCaretScroll({
     });
   }, [scrollCaretIntoView]);
 
+  const resumeCaretFollow = useCallback(() => {
+    userScrolledRef.current = false;
+    scrollCaretIntoView();
+  }, [scrollCaretIntoView]);
+
   useEffect(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl || !enabled) return;
 
+    const onUserScroll = () => {
+      if (programmaticScrollRef.current) return;
+      userScrolledRef.current = true;
+    };
+
     const onFocusIn = (e: FocusEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) scheduleScroll();
+      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
     };
 
     const onInput = (e: Event) => {
-      if (e.target instanceof HTMLTextAreaElement) scheduleScroll();
+      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
     };
 
     const onClick = (e: MouseEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) scheduleScroll();
+      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) scheduleScroll();
+      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
     };
 
     const onSelectionChange = () => {
@@ -103,6 +121,8 @@ export function useJournalEditorCaretScroll({
 
     const onViewportChange = () => scheduleScroll();
 
+    scrollEl.addEventListener("scroll", onUserScroll, { passive: true });
+    scrollEl.addEventListener("wheel", onUserScroll, { passive: true });
     scrollEl.addEventListener("focusin", onFocusIn);
     scrollEl.addEventListener("input", onInput);
     scrollEl.addEventListener("click", onClick);
@@ -112,6 +132,8 @@ export function useJournalEditorCaretScroll({
     window.visualViewport?.addEventListener("scroll", onViewportChange);
 
     return () => {
+      scrollEl.removeEventListener("scroll", onUserScroll);
+      scrollEl.removeEventListener("wheel", onUserScroll);
       scrollEl.removeEventListener("focusin", onFocusIn);
       scrollEl.removeEventListener("input", onInput);
       scrollEl.removeEventListener("click", onClick);
@@ -121,12 +143,13 @@ export function useJournalEditorCaretScroll({
       window.visualViewport?.removeEventListener("scroll", onViewportChange);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [enabled, scrollRef, scheduleScroll]);
+  }, [enabled, resumeCaretFollow, scheduleScroll, scrollRef]);
 
   useEffect(() => {
     if (!enabled) return;
+    userScrolledRef.current = false;
     scheduleScroll();
   }, [enabled, kbInset, bottomChromePx, scheduleScroll]);
 
-  return { scrollCaretIntoView: scheduleScroll };
+  return { scrollCaretIntoView: resumeCaretFollow };
 }

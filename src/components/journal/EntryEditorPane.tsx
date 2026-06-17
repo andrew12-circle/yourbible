@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
+import { useJournalEditorScrollWheel } from "@/hooks/useJournalEditorScrollWheel";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
 import {
@@ -420,6 +421,11 @@ export default function EntryEditorPane({
     enabled: !!entry && !inlineChatMode && (bodyFocused || (showSavedChatView && bodyEditing)),
     topInsetPx: 16,
   });
+
+  useJournalEditorScrollWheel(
+    paneScrollRef,
+    !!entry && !inlineChatMode && plainWriteLayout,
+  );
 
   const focusBodyEditor = useCallback(() => {
     const el = bodyRef.current;
@@ -862,7 +868,7 @@ export default function EntryEditorPane({
       <div
         className={cn(
           "mx-auto flex w-full max-w-2xl flex-col px-8 pb-4 pt-6",
-          plainWriteLayout ? "min-h-full flex-1" : "min-h-full",
+          plainWriteLayout ? "flex-1" : "min-h-full",
         )}
       >
           <PrivacyBlurInput

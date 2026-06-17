@@ -26,6 +26,7 @@ import {
 } from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
+import { useJournalEditorScrollWheel } from "@/hooks/useJournalEditorScrollWheel";
 import {
   useLockBodyScrollWhenKeyboardActive,
   useVisualViewportMetrics,
@@ -161,6 +162,8 @@ export function useNewJournalEntryPage() {
     fixedBottomInsetPx: bodyFocused ? kbInset + 16 : undefined,
     topInsetPx: vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
+
+  useJournalEditorScrollWheel(mainScrollRef, !inlineChatMode);
 
   useEffect(() => {
     const el = chatScrollRef.current;
