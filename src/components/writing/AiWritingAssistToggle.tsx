@@ -64,7 +64,7 @@ export default function AiWritingAssistToggle({ compact, tone = "default", class
       </div>
       {!compact && (
         <p className={cn("text-[10px] leading-snug", hintClass, tone === "onCover" && "max-w-[14rem]")}>
-          When on, spelling and grammar are lightly corrected after you pause or leave a field. Your meaning stays
+          When on, spelling and grammar are lightly corrected as you finish each word and when you pause. Your meaning stays
           yours.
         </p>
       )}
@@ -77,5 +77,31 @@ export default function AiWritingAssistToggle({ compact, tone = "default", class
         </p>
       )}
     </div>
+  );
+}
+
+export function AiWritingAssistToolbarButton({ className }: { className?: string }) {
+  const enabled = useAiWritingAssistStore((s) => s.aiWritingAssistEnabled);
+  const setEnabled = useAiWritingAssistStore((s) => s.setAiWritingAssistEnabled);
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEnabled(!enabled)}
+      className={cn(
+        "p-1.5 rounded-md hover:bg-muted",
+        enabled ? "text-primary bg-primary/10" : "text-muted-foreground",
+        className,
+      )}
+      aria-label={enabled ? "Auto-fix spelling on" : "Auto-fix spelling off"}
+      aria-pressed={enabled}
+      title={
+        enabled
+          ? "Auto-fix spelling on — typos are corrected as you write"
+          : "Turn on auto-fix spelling"
+      }
+    >
+      <Sparkles className="w-4 h-4" />
+    </button>
   );
 }

@@ -27,6 +27,7 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { useEffect } from "react";
 
@@ -82,6 +83,7 @@ export default function NewJournalEntryPage() {
           >
             {p.dateLabel}
           </button>
+          <AiWritingAssistToolbarButton className="h-9 w-9 inline-flex items-center justify-center rounded-full" />
           <JournalPrivacyBlurToggle />
           <button
             type="button"

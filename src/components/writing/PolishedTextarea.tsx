@@ -5,11 +5,14 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { polishText } from "@/lib/ai/polishText";
 import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
+import { mapCursorAfterEdit } from "@/lib/editor/mapCursorAfterEdit";
 import { privacyBlurMirrorClass, usePrivacyBlurField } from "@/hooks/usePrivacyBlurField";
 import { PrivacyBlurOverlay } from "@/components/writing/PrivacyBlurOverlay";
 
 const MIN_POLISH_CHARS = 12;
 const DEFAULT_IDLE_MS = 2000;
+const WORD_POLISH_MS = 500;
+const WORD_BOUNDARY = /[\s.,!?;:'")\]\n]/;
 
 export type PolishedTextareaProps = Omit<TextareaProps, "value" | "onChange" | "spellCheck"> & {
   value: string;
@@ -19,6 +22,8 @@ export type PolishedTextareaProps = Omit<TextareaProps, "value" | "onChange" | "
   /** When AI assist is on, also polish after this many ms with no edits (default 2000). */
   idleDebounceMs?: number;
   enableIdlePolish?: boolean;
+  /** When AI assist is on, polish shortly after a word boundary (space, punctuation). */
+  enableWordPolish?: boolean;
   /** When this changes (e.g. new interview question), skip-guards reset so polish can run again. */
   polishResetKey?: string | number;
   /** When false, never calls the polish API (native spellcheck only). Use for privacy-sensitive surfaces (e.g. vents). */
@@ -34,6 +39,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       onChange,
       idleDebounceMs = DEFAULT_IDLE_MS,
       enableIdlePolish = true,
+      enableWordPolish = true,
       polishResetKey,
       className,
       wrapperClassName,
@@ -49,12 +55,44 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     const valueRef = React.useRef(value);
     valueRef.current = value;
 
+    const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
     const lastPolishedRef = React.useRef<string | null>(null);
+    const wordPolishTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const [polishing, setPolishing] = React.useState(false);
 
     React.useEffect(() => {
       lastPolishedRef.current = null;
     }, [polishResetKey]);
+
+    React.useEffect(() => {
+      return () => {
+        if (wordPolishTimerRef.current) clearTimeout(wordPolishTimerRef.current);
+      };
+    }, []);
+
+    const applyPolishedValue = React.useCallback(
+      (snapshot: string, out: string) => {
+        const el = textareaRef.current;
+        const cursor = el?.selectionStart ?? snapshot.length;
+        const selectionEnd = el?.selectionEnd ?? cursor;
+
+        onChange({
+          target: { value: out },
+          currentTarget: { value: out },
+        } as React.ChangeEvent<HTMLTextAreaElement>);
+        valueRef.current = out;
+
+        if (!el) return;
+        const nextStart = mapCursorAfterEdit(snapshot, out, cursor);
+        const nextEnd = mapCursorAfterEdit(snapshot, out, selectionEnd);
+        requestAnimationFrame(() => {
+          if (document.activeElement === el) {
+            el.setSelectionRange(nextStart, nextEnd);
+          }
+        });
+      },
+      [onChange],
+    );
 
     const runPolish = React.useCallback(
       async (snapshot: string) => {
@@ -69,16 +107,12 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
           if (valueRef.current !== snapshot) return;
           lastPolishedRef.current = out;
           if (out !== snapshot) {
-            onChange({
-              target: { value: out },
-              currentTarget: { value: out },
-            } as React.ChangeEvent<HTMLTextAreaElement>);
-            valueRef.current = out;
+            applyPolishedValue(snapshot, out);
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           toast({
-            title: "Could not polish text",
+            title: "Could not fix spelling",
             description: msg,
             variant: "destructive",
           });
@@ -86,8 +120,21 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
           setPolishing(false);
         }
       },
-      [allowAiPolish, disabled, onChange],
+      [allowAiPolish, applyPolishedValue, disabled],
     );
+
+    const scheduleWordPolish = React.useCallback(() => {
+      if (!allowAiPolish || !enableWordPolish || disabled) return;
+      if (!useAiWritingAssistStore.getState().aiWritingAssistEnabled) return;
+      if (wordPolishTimerRef.current) clearTimeout(wordPolishTimerRef.current);
+      wordPolishTimerRef.current = setTimeout(() => {
+        wordPolishTimerRef.current = null;
+        const v = valueRef.current;
+        if (v.trim().length < MIN_POLISH_CHARS) return;
+        if (v === lastPolishedRef.current) return;
+        void runPolish(v);
+      }, WORD_POLISH_MS);
+    }, [allowAiPolish, disabled, enableWordPolish, runPolish]);
 
     React.useEffect(() => {
       if (!allowAiPolish || !useAiWritingAssistStore.getState().aiWritingAssistEnabled || !enableIdlePolish || disabled) return;
@@ -102,6 +149,10 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     }, [value, allowAiPolish, aiWritingAssistEnabled, enableIdlePolish, disabled, idleDebounceMs, runPolish]);
 
     const handleBlur: React.FocusEventHandler<HTMLTextAreaElement> = async (e) => {
+      if (wordPolishTimerRef.current) {
+        clearTimeout(wordPolishTimerRef.current);
+        wordPolishTimerRef.current = null;
+      }
       if (allowAiPolish && useAiWritingAssistStore.getState().aiWritingAssistEnabled && !disabled) {
         await runPolish(valueRef.current);
       }
@@ -121,11 +172,21 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     });
 
     const privacyHandlers = bindPrivacyBlurHandlers({
-      onChange,
+      onChange: (e) => {
+        onChange(e);
+        const next = e.target.value;
+        valueRef.current = next;
+        const pos = e.target.selectionStart ?? next.length;
+        const charBefore = pos > 0 ? next[pos - 1] : "";
+        if (next.trim().length >= MIN_POLISH_CHARS && WORD_BOUNDARY.test(charBefore)) {
+          scheduleWordPolish();
+        }
+      },
       onBlur: handleBlur,
     });
 
     const setRefs = (el: HTMLTextAreaElement | null) => {
+      textareaRef.current = el;
       setCombinedRef(el);
       if (typeof ref === "function") ref(el);
       else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
@@ -140,6 +201,8 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
           ref={setRefs}
           value={value}
           spellCheck
+          autoCorrect="on"
+          autoCapitalize="sentences"
           disabled={disabled}
           className={cn(
             className,
@@ -154,7 +217,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
             aria-live="polite"
           >
             <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-            Polishing…
+            Fixing spelling…
           </div>
         )}
       </div>

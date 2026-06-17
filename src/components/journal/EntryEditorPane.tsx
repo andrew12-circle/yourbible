@@ -64,6 +64,7 @@ import {
   tagsWithoutInline,
 } from "@/lib/journal/inlineMarkers";
 import { JournalPrivacyBlurToolbarButton } from "@/components/journal/JournalPrivacyBlurToggle";
+import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { cn } from "@/lib/utils";
@@ -827,6 +828,7 @@ export default function EntryEditorPane({
           <MessageCircle className="w-4 h-4" />
         </TBtn>
         {!inlineChatMode ? dictateButton : null}
+        <AiWritingAssistToolbarButton />
         <JournalPrivacyBlurToolbarButton />
         <TBtn title="AI score" onClick={scoreNow}>
           {scoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}

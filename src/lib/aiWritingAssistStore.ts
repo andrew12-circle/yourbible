@@ -3,13 +3,13 @@ import { create } from "zustand";
 export const AI_WRITING_ASSIST_STORAGE_KEY = "yb_ai_writing_assist_v1";
 
 function readPersisted(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
   try {
     const raw = localStorage.getItem(AI_WRITING_ASSIST_STORAGE_KEY);
-    if (raw === null) return false;
+    if (raw === null) return true;
     return JSON.parse(raw) === true;
   } catch {
-    return false;
+    return true;
   }
 }
 
