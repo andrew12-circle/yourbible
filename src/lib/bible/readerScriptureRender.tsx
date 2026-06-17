@@ -19,7 +19,7 @@ export function wrapScriptureColumns(
   if (!columnsClass) return children;
   return (
     <div
-      className={cn(columnsClass, !scrollMode && "w-full min-h-0")}
+      className={cn(columnsClass, !scrollMode && "h-full w-full min-h-0")}
       style={scrollMode ? undefined : scriptureColumnWrapperStyle(contentHeightPx)}
     >
       {children}

@@ -11,6 +11,7 @@ import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
+import type { JournalMarkerSuggestion } from "@/hooks/useJournalBodyMarkers";
 import { useRef, type MutableRefObject, type RefObject } from "react";
 import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 import { cn } from "@/lib/utils";
@@ -29,12 +30,12 @@ interface NewJournalEntryBodyEditorProps {
   bodyPlaceholder: string;
   markerMenu?: {
     marker: ActiveInlineMarker | null;
-    suggestions: { id: string; label: string; kind: "journal" | "hashtag" }[];
+    suggestions: JournalMarkerSuggestion[];
     activeIndex: number;
     setActiveIndex: (index: number) => void;
     dismiss: () => void;
   };
-  onMarkerPick?: (label: string) => void;
+  onMarkerPick?: (suggestion: JournalMarkerSuggestion) => void;
   listeningSections: ListeningSections;
   setListeningSection: (key: ListeningSectionKey, value: string) => void;
   onUseSpiritQuestion?: (question: string) => void;
@@ -184,7 +185,7 @@ export function NewJournalEntryBodyEditor({
             marker={markerMenu.marker}
             suggestions={markerMenu.suggestions}
             activeIndex={markerMenu.activeIndex}
-            onPick={(label) => onMarkerPick?.(label)}
+            onPick={(suggestion) => onMarkerPick?.(suggestion)}
             onHover={markerMenu.setActiveIndex}
             className="absolute left-0 top-full mt-1 w-full max-w-sm"
           />

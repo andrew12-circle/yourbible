@@ -80,7 +80,19 @@ describe("getActiveInlineMarker", () => {
     expect(marker).toMatchObject({ kind: "journal", query: "quest" });
   });
 
-  it("detects active hashtag", () => {
+  it("detects active hashtag with empty query", () => {
+    const text = "Hello #";
+    const marker = getActiveInlineMarker(text, text.length);
+    expect(marker).toMatchObject({ kind: "hashtag", query: "" });
+  });
+
+  it("detects active journal mention with empty query", () => {
+    const text = "Hello @";
+    const marker = getActiveInlineMarker(text, text.length);
+    expect(marker).toMatchObject({ kind: "journal", query: "" });
+  });
+
+  it("detects partial hashtag query", () => {
     const text = "Hello #grat";
     const marker = getActiveInlineMarker(text, text.length);
     expect(marker).toMatchObject({ kind: "hashtag", query: "grat" });

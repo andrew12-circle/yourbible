@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
-
-type Suggestion = { id: string; label: string; kind: "journal" | "hashtag" };
+import type { JournalMarkerSuggestion } from "@/hooks/useJournalBodyMarkers";
 
 export function JournalMarkerMenu({
   marker,
@@ -12,15 +11,15 @@ export function JournalMarkerMenu({
   className,
 }: {
   marker: ActiveInlineMarker | null;
-  suggestions: Suggestion[];
+  suggestions: JournalMarkerSuggestion[];
   activeIndex: number;
-  onPick: (label: string) => void;
+  onPick: (suggestion: JournalMarkerSuggestion) => void;
   onHover: (index: number) => void;
   className?: string;
 }) {
   if (!marker || suggestions.length === 0) return null;
 
-  const heading = marker.kind === "journal" ? "Journals" : "Tags";
+  const heading = marker.kind === "journal" ? "Journals & sections" : "Tags";
 
   return (
     <div
@@ -42,17 +41,22 @@ export function JournalMarkerMenu({
               role="option"
               aria-selected={i === activeIndex}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition",
+                "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition",
                 i === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted/70",
               )}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onPick(s.label);
+                onPick(s);
               }}
               onMouseEnter={() => onHover(i)}
             >
-              <span className="text-muted-foreground">{s.kind === "journal" ? "@" : "#"}</span>
-              <span className="truncate">{s.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="text-muted-foreground">{s.kind === "journal" ? "@" : "#"}</span>
+                <span className="truncate font-medium">{s.label}</span>
+              </span>
+              {s.hint ? (
+                <span className="pl-5 text-[11px] leading-snug text-muted-foreground">{s.hint}</span>
+              ) : null}
             </button>
           </li>
         ))}

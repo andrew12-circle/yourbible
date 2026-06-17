@@ -26,7 +26,6 @@ import {
 } from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
-import { useJournalEditorScrollWheel } from "@/hooks/useJournalEditorScrollWheel";
 import {
   useLockBodyScrollWhenKeyboardActive,
   useVisualViewportMetrics,
@@ -154,16 +153,15 @@ export function useNewJournalEntryPage() {
     persistResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
   }, [responseDepth]);
 
-  const { scrollCaretIntoView } = useJournalEditorCaretScroll({
+  const { scrollToCaretEnd } = useJournalEditorCaretScroll({
     scrollRef: mainScrollRef,
     bottomDockRef: bodyFocused ? undefined : bottomDockRef,
     kbInset,
     enabled: !inlineChatMode,
+    resetKey: editId ?? "journal-new",
     fixedBottomInsetPx: bodyFocused ? kbInset + 16 : undefined,
     topInsetPx: vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
-
-  useJournalEditorScrollWheel(mainScrollRef, !inlineChatMode);
 
   useEffect(() => {
     const el = chatScrollRef.current;
@@ -413,6 +411,7 @@ export function useNewJournalEntryPage() {
     journalId,
     onJournalIdChange: setJournalId,
     enabled: !isListening && !inlineChatMode,
+    onEntryKindChange: (kind) => setEntryKind(kind),
   });
 
   const handleBodyChange = useCallback(
@@ -444,8 +443,8 @@ export function useNewJournalEntryPage() {
   );
 
   const handleMarkerPick = useCallback(
-    (label: string) => {
-      const next = bodyMarkers.pickSuggestion(label);
+    (suggestion: Parameters<typeof bodyMarkers.pickSuggestion>[0]) => {
+      const next = bodyMarkers.pickSuggestion(suggestion);
       if (next) handleBodyChange(next.text, next.cursor);
     },
     [bodyMarkers, handleBodyChange],
@@ -921,8 +920,8 @@ export function useNewJournalEntryPage() {
       });
       return next;
     });
-    requestAnimationFrame(() => scrollCaretIntoView());
-  }, [bodyMarkers, scrollCaretIntoView]);
+    requestAnimationFrame(() => scrollToCaretEnd());
+  }, [bodyMarkers, scrollToCaretEnd]);
 
   const handlePhotoInputChange = useCallback((files: FileList | null) => {
     setPendingFiles((arr) => [...arr, ...Array.from(files ?? [])]);

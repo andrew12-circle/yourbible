@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { listJournals, type Journal } from "@/lib/journal/journals";
 import {
-  filterJournalSuggestions,
-  filterTagSuggestions,
   getActiveInlineMarker,
   mergeInlineTags,
   replaceInlineMarkerToken,
@@ -12,6 +10,13 @@ import {
   type ActiveInlineMarker,
   type JournalNameRow,
 } from "@/lib/journal/inlineMarkers";
+import {
+  entryKindForHashtag,
+  entryKindForJournalMention,
+  filterHashtagMarkerSuggestions,
+  filterJournalMarkerSuggestions,
+} from "@/lib/journal/markerSuggestions";
+import type { JournalEntryKind } from "@/lib/journal/entryKinds";
 import { toast } from "@/hooks/use-toast";
 
 type UseJournalBodyMarkersOptions = {
@@ -25,6 +30,15 @@ type UseJournalBodyMarkersOptions = {
   enabled?: boolean;
   /** When false, only powers autocomplete — caller syncs tags/journal on save. */
   syncMetadata?: boolean;
+  onEntryKindChange?: (kind: JournalEntryKind) => void;
+};
+
+export type JournalMarkerSuggestion = {
+  id: string;
+  label: string;
+  kind: "journal" | "hashtag";
+  hint?: string;
+  entryKind?: JournalEntryKind;
 };
 
 export function useJournalBodyMarkers({
@@ -37,6 +51,7 @@ export function useJournalBodyMarkers({
   journals: journalsProp,
   enabled = true,
   syncMetadata = true,
+  onEntryKindChange,
 }: UseJournalBodyMarkersOptions) {
   const [loadedJournals, setLoadedJournals] = useState<JournalNameRow[]>([]);
   const [knownTags, setKnownTags] = useState<string[]>([]);
@@ -104,19 +119,23 @@ export function useJournalBodyMarkers({
     [enabled, journals, onJournalIdChange, onTagsChange, syncMetadata, tags],
   );
 
-  const suggestions = useMemo(() => {
-    if (!activeMarker) return [] as { id: string; label: string; kind: "journal" | "hashtag" }[];
+  const suggestions = useMemo((): JournalMarkerSuggestion[] => {
+    if (!activeMarker) return [];
     if (activeMarker.kind === "journal") {
-      return filterJournalSuggestions(activeMarker.query, journals).map((j) => ({
+      return filterJournalMarkerSuggestions(activeMarker.query, journals).map((j) => ({
         id: j.id,
         label: j.name,
         kind: "journal" as const,
+        hint: j.hint,
+        entryKind: j.entryKind,
       }));
     }
-    return filterTagSuggestions(activeMarker.query, knownTags).map((t) => ({
-      id: t,
-      label: t,
+    return filterHashtagMarkerSuggestions(activeMarker.query, knownTags).map((t) => ({
+      id: t.tag,
+      label: t.label,
       kind: "hashtag" as const,
+      hint: t.hint,
+      entryKind: t.entryKind,
     }));
   }, [activeMarker, journals, knownTags]);
 
@@ -136,22 +155,37 @@ export function useJournalBodyMarkers({
   );
 
   const applySuggestion = useCallback(
-    (label: string) => {
+    (suggestion: JournalMarkerSuggestion) => {
       if (!activeMarker) return null;
-      return replaceInlineMarkerToken(body, activeMarker, label);
+      const replacement =
+        activeMarker.kind === "hashtag" ? suggestion.id : suggestion.label;
+      return replaceInlineMarkerToken(body, activeMarker, replacement);
     },
     [activeMarker, body],
   );
 
+  const applyEntryKindSideEffect = useCallback(
+    (suggestion: JournalMarkerSuggestion) => {
+      const kind =
+        suggestion.entryKind ??
+        (suggestion.kind === "hashtag"
+          ? entryKindForHashtag(suggestion.id)
+          : entryKindForJournalMention(suggestion.label));
+      if (kind) onEntryKindChange?.(kind);
+    },
+    [onEntryKindChange],
+  );
+
   const pickSuggestion = useCallback(
-    (label: string) => {
-      const next = applySuggestion(label);
+    (suggestion: JournalMarkerSuggestion) => {
+      const next = applySuggestion(suggestion);
       if (!next) return null;
+      applyEntryKindSideEffect(suggestion);
       syncMarkersFromBody(next.text);
       setActiveMarker(null);
       return next;
     },
-    [applySuggestion, syncMarkersFromBody],
+    [applyEntryKindSideEffect, applySuggestion, syncMarkersFromBody],
   );
 
   const handleTagsManualChange = useCallback(
@@ -178,8 +212,8 @@ export function useJournalBodyMarkers({
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         const pick = suggestions[menuIndex] ?? suggestions[0];
-        if (pick?.label) {
-          const next = pickSuggestion(pick.label);
+        if (pick) {
+          const next = pickSuggestion(pick);
           if (next) {
             (e.currentTarget as HTMLTextAreaElement).value = next.text;
             (e.currentTarget as HTMLTextAreaElement).setSelectionRange(next.cursor, next.cursor);

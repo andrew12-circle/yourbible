@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
-import { useJournalEditorScrollWheel } from "@/hooks/useJournalEditorScrollWheel";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
 import {
@@ -338,6 +337,12 @@ export default function EntryEditorPane({
     journals,
     enabled: !!entry && !inlineChatMode && (!showSavedChatView || bodyEditing),
     syncMetadata: false,
+    onEntryKindChange: (kind) => {
+      const cur = entryRef.current;
+      if (!cur || cur.entry_kind === kind) return;
+      queueSaveRef.current({ entry_kind: kind });
+      toast({ title: `Marked as ${ENTRY_KIND_META[kind].label}` });
+    },
   });
 
   const handleBodyChange = useCallback(
@@ -388,8 +393,8 @@ export default function EntryEditorPane({
   );
 
   const handleMarkerPick = useCallback(
-    (label: string) => {
-      const next = bodyMarkers.pickSuggestion(label);
+    (suggestion: Parameters<typeof bodyMarkers.pickSuggestion>[0]) => {
+      const next = bodyMarkers.pickSuggestion(suggestion);
       if (next) handleBodyChange(next.text, next.cursor);
     },
     [bodyMarkers, handleBodyChange],
@@ -414,18 +419,14 @@ export default function EntryEditorPane({
 
   useJournalEntryTextareaAutosize(bodyRef, textareaAutosizeValue, textareaAutosizeEnabled);
 
-  const { scrollCaretIntoView } = useJournalEditorCaretScroll({
+  const { scrollToCaretEnd } = useJournalEditorCaretScroll({
     scrollRef: paneScrollRef,
     bottomDockRef: plainWriteLayout ? bottomDockRef : undefined,
     kbInset: 0,
     enabled: !!entry && !inlineChatMode && (bodyFocused || (showSavedChatView && bodyEditing)),
+    resetKey: entryId,
     topInsetPx: 16,
   });
-
-  useJournalEditorScrollWheel(
-    paneScrollRef,
-    !!entry && !inlineChatMode && plainWriteLayout,
-  );
 
   const focusBodyEditor = useCallback(() => {
     const el = bodyRef.current;
@@ -436,17 +437,9 @@ export default function EntryEditorPane({
       el.focus();
       const pos = el.value.length;
       el.setSelectionRange(pos, pos);
-      scrollCaretIntoView();
+      scrollToCaretEnd();
     });
-  }, [plainWriteLayout, scrollCaretIntoView]);
-
-  useLayoutEffect(() => {
-    if (!plainWriteLayout || !bodyFocused) return;
-    const el = bodyRef.current;
-    if (!el) return;
-    resizeJournalTextarea(el);
-    scrollCaretIntoView();
-  }, [plainWriteLayout, bodyFocused, entry?.id, scrollCaretIntoView]);
+  }, [plainWriteLayout, scrollToCaretEnd]);
 
   useEffect(() => {
     if (loadingEntry || !entry || !plainWriteLayout) return;
@@ -967,7 +960,6 @@ export default function EntryEditorPane({
                     requestAnimationFrame(() => {
                       const el = bodyRef.current;
                       if (el) resizeJournalTextarea(el);
-                      scrollCaretIntoView();
                     });
                   }}
                   onBlur={() => {

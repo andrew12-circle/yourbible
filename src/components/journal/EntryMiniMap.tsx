@@ -1,7 +1,8 @@
 import { memo, useMemo } from "react";
-import { APIProvider, ControlPosition, Map, Marker } from "@vis.gl/react-google-maps";
+import { ControlPosition, Map, Marker } from "@vis.gl/react-google-maps";
 import { ExternalLink, MapPin, Mountain } from "lucide-react";
-import { getGoogleMapsApiKey, openInGoogleMapsUrl, streetViewMapsUrl } from "@/lib/maps/googleMaps";
+import GoogleMapsShell, { GoogleMapErrorDetector, useJournalGoogleMapsKey } from "@/components/journal/GoogleMapsShell";
+import { getGoogleMapsApiKey, JOURNAL_DEFAULT_MAP_TYPE, openInGoogleMapsUrl, streetViewMapsUrl } from "@/lib/maps/googleMaps";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -26,15 +27,20 @@ const OsmMiniMap = memo(function OsmMiniMap({ lat, lng, height = 240, className 
 });
 
 const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height = 240, className }: Props) {
-  const apiKey = getGoogleMapsApiKey()!;
+  const apiKey = useJournalGoogleMapsKey()!;
   const center = { lat, lng };
 
   return (
-    <div className={cn("relative overflow-hidden rounded-xl border border-border", className)} style={{ height }}>
-      <APIProvider apiKey={apiKey}>
+    <div className={cn("relative", className)} style={{ height }}>
+      <GoogleMapsShell
+        apiKey={apiKey}
+        className="h-full rounded-xl border border-border"
+        fallback={<OsmMiniMap lat={lat} lng={lng} height={height} />}
+      >
         <Map
           defaultCenter={center}
           defaultZoom={zoom}
+          mapTypeId={JOURNAL_DEFAULT_MAP_TYPE}
           gestureHandling="cooperative"
           disableDefaultUI
           mapTypeControl
@@ -45,9 +51,10 @@ const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height 
           streetViewControlOptions={{ position: ControlPosition.RIGHT_BOTTOM }}
           className="h-full w-full"
         >
+          <GoogleMapErrorDetector />
           <Marker position={center} />
         </Map>
-      </APIProvider>
+      </GoogleMapsShell>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-end gap-1 p-2">
         <a
           href={streetViewMapsUrl(lat, lng)}
@@ -79,7 +86,7 @@ const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height 
  * `VITE_GOOGLE_MAPS_API_KEY` is set; otherwise OpenStreetMap embed.
  */
 function EntryMiniMap(props: Props) {
-  if (getGoogleMapsApiKey()) return <GoogleMiniMap {...props} />;
+  if (useJournalGoogleMapsKey()) return <GoogleMiniMap {...props} />;
   return <OsmMiniMap {...props} />;
 }
 

@@ -6,6 +6,8 @@ type Options = {
   bottomDockRef?: RefObject<HTMLElement | null>;
   kbInset?: number;
   enabled: boolean;
+  /** When this changes (e.g. new entry), scroll to the writing end once. */
+  resetKey?: string | number | null;
   /** When set, skips measuring a fixed bottom dock (e.g. desktop editor pane). */
   fixedBottomInsetPx?: number;
   /** Sticky header/toolbar inside the scroll pane (desktop desk editor). */
@@ -19,16 +21,54 @@ function resolveActiveTextarea(scrollEl: HTMLElement | null): HTMLTextAreaElemen
   return scrollEl.querySelector("textarea");
 }
 
+function forwardWheelToScrollPane(scrollEl: HTMLElement, event: WheelEvent) {
+  const target = event.target;
+  if (!(target instanceof Element) || !scrollEl.contains(target)) return false;
+  if (target === scrollEl) return false;
+
+  const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+  if (maxScroll <= 0) return false;
+
+  const textarea = target.closest("textarea");
+  if (textarea instanceof HTMLTextAreaElement) {
+    const overflowY = getComputedStyle(textarea).overflowY;
+    const scrollsInternally =
+      (overflowY === "auto" || overflowY === "scroll") &&
+      textarea.scrollHeight > textarea.clientHeight + 1;
+    if (scrollsInternally) {
+      const goingUp = event.deltaY < 0;
+      const goingDown = event.deltaY > 0;
+      if (goingUp && textarea.scrollTop > 0) return false;
+      if (goingDown && textarea.scrollTop < textarea.scrollHeight - textarea.clientHeight - 1) {
+        return false;
+      }
+    }
+  }
+
+  const next = scrollEl.scrollTop + event.deltaY;
+  const goingDown = event.deltaY > 0;
+  const goingUp = event.deltaY < 0;
+  const canScrollDown = scrollEl.scrollTop < maxScroll - 1;
+  const canScrollUp = scrollEl.scrollTop > 0;
+
+  if ((goingDown && canScrollDown) || (goingUp && canScrollUp)) {
+    event.preventDefault();
+    scrollEl.scrollTop = Math.max(0, Math.min(maxScroll, next));
+    return true;
+  }
+  return false;
+}
+
 export function useJournalEditorCaretScroll({
   scrollRef,
   bottomDockRef,
   kbInset = 0,
   enabled,
+  resetKey = null,
   fixedBottomInsetPx,
   topInsetPx = 0,
 }: Options) {
   const [bottomChromePx, setBottomChromePx] = useState(fixedBottomInsetPx ?? 152);
-  const rafRef = useRef<number | null>(null);
   const userScrolledRef = useRef(false);
   const programmaticScrollRef = useRef(false);
 
@@ -55,101 +95,81 @@ export function useJournalEditorCaretScroll({
     };
   }, [bottomDockRef, scrollRef, fixedBottomInsetPx]);
 
-  const scrollCaretIntoView = useCallback(() => {
-    const scrollEl = scrollRef.current;
-    const textarea = resolveActiveTextarea(scrollEl);
-    if (!scrollEl || !textarea || !enabled) return;
-    if (userScrolledRef.current) return;
+  const applyCaretScroll = useCallback(
+    (force = false) => {
+      const scrollEl = scrollRef.current;
+      const textarea = resolveActiveTextarea(scrollEl);
+      if (!scrollEl || !textarea || !enabled) return;
+      if (!force && userScrolledRef.current) return;
 
-    programmaticScrollRef.current = true;
-    scrollEditorCaretIntoView({
-      scrollEl,
-      textarea,
-      bottomInsetPx: bottomChromePx + kbInset,
-      topInsetPx,
-    });
-    requestAnimationFrame(() => {
-      programmaticScrollRef.current = false;
-    });
-  }, [scrollRef, bottomChromePx, kbInset, topInsetPx, enabled]);
+      programmaticScrollRef.current = true;
+      scrollEditorCaretIntoView({
+        scrollEl,
+        textarea,
+        bottomInsetPx: bottomChromePx + kbInset,
+        topInsetPx,
+      });
+      requestAnimationFrame(() => {
+        programmaticScrollRef.current = false;
+      });
+    },
+    [scrollRef, bottomChromePx, kbInset, topInsetPx, enabled],
+  );
 
-  const scheduleScroll = useCallback(() => {
-    if (userScrolledRef.current) return;
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      scrollCaretIntoView();
-    });
-  }, [scrollCaretIntoView]);
+  const markUserScrolled = useCallback(() => {
+    if (!programmaticScrollRef.current) userScrolledRef.current = true;
+  }, []);
 
-  const resumeCaretFollow = useCallback(() => {
+  const scrollToCaretEnd = useCallback(() => {
     userScrolledRef.current = false;
-    scrollCaretIntoView();
-  }, [scrollCaretIntoView]);
+    applyCaretScroll(true);
+  }, [applyCaretScroll]);
+
+  const applyCaretScrollRef = useRef(applyCaretScroll);
+  applyCaretScrollRef.current = applyCaretScroll;
+  const lastResetKeyRef = useRef<string | number | null | undefined>(undefined);
 
   useEffect(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl || !enabled) return;
 
-    const onUserScroll = () => {
-      if (programmaticScrollRef.current) return;
-      userScrolledRef.current = true;
-    };
+    const onUserScroll = () => markUserScrolled();
 
-    const onFocusIn = (e: FocusEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
-    };
-
-    const onInput = (e: Event) => {
-      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
-    };
-
-    const onClick = (e: MouseEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) resumeCaretFollow();
-    };
-
-    const onSelectionChange = () => {
-      const active = document.activeElement;
-      if (active instanceof HTMLTextAreaElement && scrollEl.contains(active)) {
-        scheduleScroll();
+    const onWheel = (event: WheelEvent) => {
+      if (!scrollEl.contains(event.target instanceof Element ? event.target : null)) return;
+      if (forwardWheelToScrollPane(scrollEl, event)) {
+        markUserScrolled();
+      } else if (event.target === scrollEl) {
+        markUserScrolled();
       }
     };
 
-    const onViewportChange = () => scheduleScroll();
+    const onInput = (e: Event) => {
+      if (!(e.target instanceof HTMLTextAreaElement)) return;
+      userScrolledRef.current = false;
+      applyCaretScrollRef.current(false);
+    };
 
     scrollEl.addEventListener("scroll", onUserScroll, { passive: true });
-    scrollEl.addEventListener("wheel", onUserScroll, { passive: true });
-    scrollEl.addEventListener("focusin", onFocusIn);
+    scrollEl.addEventListener("touchmove", onUserScroll, { passive: true });
     scrollEl.addEventListener("input", onInput);
-    scrollEl.addEventListener("click", onClick);
-    scrollEl.addEventListener("keyup", onKeyUp);
-    document.addEventListener("selectionchange", onSelectionChange);
-    window.visualViewport?.addEventListener("resize", onViewportChange);
-    window.visualViewport?.addEventListener("scroll", onViewportChange);
+    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
 
     return () => {
       scrollEl.removeEventListener("scroll", onUserScroll);
-      scrollEl.removeEventListener("wheel", onUserScroll);
-      scrollEl.removeEventListener("focusin", onFocusIn);
+      scrollEl.removeEventListener("touchmove", onUserScroll);
       scrollEl.removeEventListener("input", onInput);
-      scrollEl.removeEventListener("click", onClick);
-      scrollEl.removeEventListener("keyup", onKeyUp);
-      document.removeEventListener("selectionchange", onSelectionChange);
-      window.visualViewport?.removeEventListener("resize", onViewportChange);
-      window.visualViewport?.removeEventListener("scroll", onViewportChange);
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      document.removeEventListener("wheel", onWheel, { capture: true });
     };
-  }, [enabled, resumeCaretFollow, scheduleScroll, scrollRef]);
+  }, [enabled, markUserScrolled, scrollRef]);
 
   useEffect(() => {
     if (!enabled) return;
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
     userScrolledRef.current = false;
-    scheduleScroll();
-  }, [enabled, kbInset, bottomChromePx, scheduleScroll]);
+    requestAnimationFrame(() => applyCaretScrollRef.current(true));
+  }, [enabled, resetKey]);
 
-  return { scrollCaretIntoView: resumeCaretFollow };
+  return { scrollToCaretEnd };
 }

@@ -8,6 +8,18 @@ export function googleMapsConfigured(): boolean {
   return Boolean(getGoogleMapsApiKey());
 }
 
+/** Default map style for journal Map tab (satellite + roads/labels). */
+export const JOURNAL_DEFAULT_MAP_TYPE = "hybrid" as const;
+
+/** Road map for the All Entries places overview. */
+export const JOURNAL_OVERVIEW_MAP_TYPE = "roadmap" as const;
+
+export type JournalMapTypeId =
+  | typeof JOURNAL_DEFAULT_MAP_TYPE
+  | typeof JOURNAL_OVERVIEW_MAP_TYPE
+  | "satellite"
+  | "terrain";
+
 /** Open Google Maps Street View at a coordinate (works without embedding panorama). */
 export function streetViewMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;

@@ -23,7 +23,7 @@ import JournalRow from "@/components/journal/overview/JournalRow";
 import OverviewHeader from "@/components/journal/overview/OverviewHeader";
 import StatsRow from "@/components/journal/overview/StatsRow";
 import { ALL_ENTRIES_ACCENT } from "@/components/journal/overview/overviewConstants";
-import CurrentLocationMap from "@/components/journal/CurrentLocationMap";
+import JournalPlacesMap, { JOURNAL_OVERVIEW_MAP_TYPE } from "@/components/journal/JournalPlacesMap";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
@@ -219,7 +219,8 @@ export default function AllEntriesOverviewPane({
   };
 
   return (
-    <div className="journal-pane-scroll flex h-full min-h-0 flex-col overflow-y-auto bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      <div className="journal-pane-scroll min-h-0 flex-shrink-0 overflow-y-auto">
       {hasCoverBanner ? (
         coverUrl ? (
           <div className="relative flex-shrink-0">
@@ -328,12 +329,18 @@ export default function AllEntriesOverviewPane({
           </ul>
         )}
       </div>
+      </div>
 
-      <div className="px-8 pb-10">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
-          Where you are
+      <div className="flex min-h-0 flex-1 flex-col border-t border-border/40 px-8 pb-6 pt-4">
+        <p className="mb-3 flex-shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Places you&apos;ve journaled
         </p>
-        <CurrentLocationMap />
+        <JournalPlacesMap
+          fillHeight
+          mapTypeId={JOURNAL_OVERVIEW_MAP_TYPE}
+          viewAllHref="/journal/map"
+          className="min-h-[320px]"
+        />
       </div>
 
       <input

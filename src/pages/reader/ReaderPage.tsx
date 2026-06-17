@@ -623,19 +623,19 @@ export default function ReaderPage() {
   const handleStreamSplitsChange = useCallback((next: number[]) => {
     setStreamSplits((prev) => (areSameStreamSplits(prev, next) ? prev : next));
   }, []);
-  // Reset splits when chapter / typography changes; clear stale measurements so
-  // the paginator does not run against the previous chapter's page box.
+  // Reset splits when chapter / typography changes.
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
-    setPageBox({ w: 0, h: 0 });
-    setFirstPageHeight(0);
   }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
     articleRoRef.current?.disconnect();
     articleRoRef.current = null;
   }, [book.abbr, chapter]);
+  useEffect(() => {
+    scheduleSyncPageMeasurements();
+  }, [book.abbr, chapter, scheduleSyncPageMeasurements]);
   const verses = passage?.verses ?? [];
   const chapterPlates = useMemo(
     () => platesForChapter(book.abbr, chapter),
@@ -1375,21 +1375,27 @@ export default function ReaderPage() {
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
-    const splitsForPage = useSpreadDoubleColumn ? displayStreamSplits : streamSplits;
+    const splitsForPage =
+      useStreamReader && streamSplitsReady
+        ? streamSplits
+        : !useStreamReader && splitsReady
+          ? splits
+          : null;
     const streamSlice =
-      useStreamReader && !scrollMode && !pageOutOfRange
+      useStreamReader && !scrollMode && !pageOutOfRange && splitsForPage
         ? sliceReaderPage(readerStream, splitsForPage, pageIdx)
         : null;
     const slice =
-      scrollMode || useStreamReader || pageOutOfRange
+      scrollMode || useStreamReader || pageOutOfRange || !splitsForPage
         ? null
-        : pageVerseSlice(splits, pageIdx, verses);
+        : pageVerseSlice(splitsForPage, pageIdx, verses);
     const pageContentReady = pageOutOfRange
       ? false
       : useStreamReader
-        ? streamSlice != null &&
+        ? streamSplitsReady &&
+          streamSlice != null &&
           (streamSlice.isPlatePage || streamSlice.verseGroups.length > 0)
-        : slice != null;
+        : splitsReady && slice != null && slice.length > 0;
     const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
     const pagePrimary = streamSlice?.primaryChapter;
     const pageBookAbbr = pagePrimary?.bookAbbr ?? book.abbr;
@@ -1418,8 +1424,13 @@ export default function ReaderPage() {
       !pageOutOfRange &&
       !pageContentReady &&
       verses.length > 0;
-    const showPaginationFallback =
-      paginationPending && pageIdx === (useBookSpread ? spreadPageIdx : chapterPage);
+    const showPaginationSpinner =
+      paginationPending &&
+      (scrollMode
+        ? pageIdx === chapterPage
+        : useBookSpread
+          ? pageIdx === spreadPageIdx || pageIdx === spreadPageIdx + 1
+          : pageIdx === chapterPage);
     const attachMeasureRef = effectiveSpread
       ? side === "left" && pageIdx === spreadPageIdx
         ? measuresFirstPage
@@ -1434,15 +1445,17 @@ export default function ReaderPage() {
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
-    const scriptureColumnHeightPx = readerColumnContentHeightPx({
-      columnLayoutActive: !scrollMode && Boolean(columnClassName),
-      measuresFirstPage,
-      startsWithChapterHeader: streamSlice?.startsWithChapterHeader != null,
-      firstPageHeight,
-      pageHeight: pageBox.h,
-      footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
-      chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
-    });
+    const scriptureColumnHeightPx = pageContentReady
+      ? readerColumnContentHeightPx({
+          columnLayoutActive: !scrollMode && Boolean(columnClassName),
+          measuresFirstPage,
+          startsWithChapterHeader: streamSlice?.startsWithChapterHeader != null,
+          firstPageHeight,
+          pageHeight: pageBox.h,
+          footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
+          chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
+        })
+      : undefined;
     return (
       <div
         className={cn(
@@ -1498,10 +1511,10 @@ export default function ReaderPage() {
               "relative flex-1 min-h-0 min-w-0",
               scrollMode
                 ? "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide"
-                : "flex",
+                : "flex flex-col",
             )}
           >
-            {paginationPending && showPaginationFallback ? (
+            {showPaginationSpinner ? (
               <div
                 className="absolute inset-0 z-[2] flex items-center justify-center bg-paper/40 pointer-events-none"
                 aria-hidden
@@ -1510,6 +1523,11 @@ export default function ReaderPage() {
               </div>
             ) : null}
             <article
+              key={
+                attachMeasureRef
+                  ? `${book.abbr}-${chapter}-measure-${side}`
+                  : `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`
+              }
               ref={attachMeasureRef}
               data-reading-area
               aria-busy={!ready}
@@ -1576,32 +1594,6 @@ export default function ReaderPage() {
               ) : slice && slice.length > 0 ? (
                 (() =>
                   groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
-                    const nodes: ReactNode[] = [];
-                    const first = group.verses[0]?.number;
-                    const heading = first != null ? headingByVerse.get(first) : undefined;
-                    if (heading) {
-                      nodes.push(
-                        <p key={`h-${first}`} className="scripture-heading">
-                          {heading}
-                        </p>,
-                      );
-                    }
-                    nodes.push(
-                      <p
-                        key={`p-${first}`}
-                        className={scriptureParagraphClassName(group.isContinuation)}
-                        style={{ orphans: 2, widows: 2 }}
-                      >
-                        {group.verses.map((v) =>
-                          renderVerse(v, { paragraphIsContinuation: group.isContinuation }),
-                        )}
-                      </p>,
-                    );
-                    return nodes;
-                  }))()
-              ) : showPaginationFallback ? (
-                (() =>
-                  groupVersesIntoParagraphs(verses, paragraphStarts).flatMap((group) => {
                     const nodes: ReactNode[] = [];
                     const first = group.verses[0]?.number;
                     const heading = first != null ? headingByVerse.get(first) : undefined;

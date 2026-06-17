@@ -141,7 +141,7 @@ export function getActiveInlineMarker(text: string, cursor: number): ActiveInlin
   if (text[queryStart] === " ") queryStart++;
 
   const query = text.slice(queryStart, cursor);
-  if (!query || /[\n@#]/.test(query)) return null;
+  if (/[\n@#]/.test(query)) return null;
 
   return {
     kind: markerChar === "@" ? "journal" : "hashtag",
