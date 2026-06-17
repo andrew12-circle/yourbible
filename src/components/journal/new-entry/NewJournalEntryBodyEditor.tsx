@@ -7,8 +7,10 @@ import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { SpiritListeningQuestionBank } from "@/components/journal/SpiritListeningQuestionBank";
+import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
+import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
 import { useRef, type MutableRefObject, type RefObject } from "react";
 import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 import { cn } from "@/lib/utils";
@@ -21,8 +23,18 @@ interface NewJournalEntryBodyEditorProps {
   inlineChatMode: boolean;
   bodyFocused?: boolean;
   body: string;
-  setBody: (value: string) => void;
+  onBodyChange: (value: string, cursor?: number) => void;
+  onBodyKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onBodySelect?: (e: React.SyntheticEvent<HTMLTextAreaElement>) => void;
   bodyPlaceholder: string;
+  markerMenu?: {
+    marker: ActiveInlineMarker | null;
+    suggestions: { id: string; label: string; kind: "journal" | "hashtag" }[];
+    activeIndex: number;
+    setActiveIndex: (index: number) => void;
+    dismiss: () => void;
+  };
+  onMarkerPick?: (label: string) => void;
   listeningSections: ListeningSections;
   setListeningSection: (key: ListeningSectionKey, value: string) => void;
   onUseSpiritQuestion?: (question: string) => void;
@@ -50,8 +62,12 @@ export function NewJournalEntryBodyEditor({
   inlineChatMode,
   bodyFocused = false,
   body,
-  setBody,
+  onBodyChange,
+  onBodyKeyDown,
+  onBodySelect,
   bodyPlaceholder,
+  markerMenu,
+  onMarkerPick,
   listeningSections,
   setListeningSection,
   onUseSpiritQuestion,
@@ -141,20 +157,39 @@ export function NewJournalEntryBodyEditor({
 
   return (
     <>
-      <PolishedTextarea
-        ref={bodyRef}
-        polishResetKey={editId ?? "journal-new"}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onFocus={onBodyFocus}
-        onBlur={onBodyBlur}
-        placeholder={bodyPlaceholder}
-        wrapperClassName={bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined}
-        className={cn(
-          "mt-1 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50",
-          bodyFocused ? "min-h-0 flex-1" : "min-h-[40dvh]",
-        )}
-      />
+      <div className="relative">
+        <PolishedTextarea
+          ref={bodyRef}
+          polishResetKey={editId ?? "journal-new"}
+          value={body}
+          onChange={(e) =>
+            onBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
+          }
+          onKeyDown={onBodyKeyDown}
+          onSelect={onBodySelect}
+          onFocus={onBodyFocus}
+          onBlur={() => {
+            markerMenu?.dismiss();
+            onBodyBlur?.();
+          }}
+          placeholder={bodyPlaceholder}
+          wrapperClassName={bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined}
+          className={cn(
+            "mt-1 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50",
+            bodyFocused ? "min-h-0 flex-1" : "min-h-[40dvh]",
+          )}
+        />
+        {markerMenu ? (
+          <JournalMarkerMenu
+            marker={markerMenu.marker}
+            suggestions={markerMenu.suggestions}
+            activeIndex={markerMenu.activeIndex}
+            onPick={(label) => onMarkerPick?.(label)}
+            onHover={markerMenu.setActiveIndex}
+            className="absolute left-0 top-full mt-1 w-full max-w-sm"
+          />
+        ) : null}
+      </div>
       <DictInterimPreview
         text={dictInterim}
         className="text-sm italic leading-relaxed text-muted-foreground/80"

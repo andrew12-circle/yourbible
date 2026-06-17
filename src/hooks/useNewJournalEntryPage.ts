@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type SyntheticEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
 import { partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
@@ -13,6 +13,7 @@ import {
   upsertSketchAndTranscribe,
 } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import { mergeInlineTags } from "@/lib/journal/inlineMarkers";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -53,6 +54,7 @@ import {
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
 import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
+import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
 
 interface BeliefOpt {
   id: string;
@@ -400,6 +402,52 @@ export function useNewJournalEntryPage() {
       });
   }, [journalId]);
 
+  const bodyMarkers = useJournalBodyMarkers({
+    userId: user?.id,
+    body,
+    tags,
+    onTagsChange: setTags,
+    journalId,
+    onJournalIdChange: setJournalId,
+    enabled: !isListening && !inlineChatMode,
+  });
+
+  const handleBodyChange = useCallback(
+    (value: string, cursor?: number) => {
+      setBody(value);
+      bodyMarkers.syncMarkersFromBody(value);
+      const pos = cursor ?? value.length;
+      bodyMarkers.updateActiveMarker(value, pos);
+    },
+    [bodyMarkers],
+  );
+
+  const handleBodyKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (bodyMarkers.handleMarkerKeyDown(e)) {
+        const el = e.currentTarget;
+        handleBodyChange(el.value, el.selectionStart ?? el.value.length);
+      }
+    },
+    [bodyMarkers, handleBodyChange],
+  );
+
+  const handleBodySelect = useCallback(
+    (e: SyntheticEvent<HTMLTextAreaElement>) => {
+      const el = e.currentTarget;
+      bodyMarkers.updateActiveMarker(el.value, el.selectionStart ?? el.value.length);
+    },
+    [bodyMarkers],
+  );
+
+  const handleMarkerPick = useCallback(
+    (label: string) => {
+      const next = bodyMarkers.pickSuggestion(label);
+      if (next) handleBodyChange(next.text, next.cursor);
+    },
+    [bodyMarkers, handleBodyChange],
+  );
+
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
   const dateLabel = useMemo(() => {
@@ -431,7 +479,7 @@ export function useNewJournalEntryPage() {
   const layoutTitle = editId ? "Edit entry" : entryKind ? `New ${ENTRY_KIND_META[entryKind].label}` : "New entry";
   const bodyPlaceholder = entryKind
     ? ENTRY_KIND_META[entryKind].placeholder
-    : "What happened today? What are you carrying?";
+    : "What happened today? Type #tag or @journal name to organize.";
 
   const { sketches: existingSketches, attachments: existingAttachments } =
     partitionJournalPhotos(existingPhotos);
@@ -658,7 +706,7 @@ export function useNewJournalEntryPage() {
       title: title.trim() || null,
       body: composedBody,
       mood,
-      tags,
+      tags: mergeInlineTags(composedBody, tags),
       verse_ref: verseRef.trim() || null,
       belief_id: beliefId || null,
       prompt_id: promptId,
@@ -862,9 +910,16 @@ export function useNewJournalEntryPage() {
   }, []);
 
   const appendDictatedText = useCallback((chunk: string) => {
-    setBody((b) => mergeDictatedText(b, chunk));
+    setBody((b) => {
+      const next = mergeDictatedText(b, chunk);
+      requestAnimationFrame(() => {
+        bodyMarkers.syncMarkersFromBody(next);
+        bodyMarkers.updateActiveMarker(next, next.length);
+      });
+      return next;
+    });
     requestAnimationFrame(() => scrollCaretIntoView());
-  }, [scrollCaretIntoView]);
+  }, [bodyMarkers, scrollCaretIntoView]);
 
   const handlePhotoInputChange = useCallback((files: FileList | null) => {
     setPendingFiles((arr) => [...arr, ...Array.from(files ?? [])]);
@@ -1046,5 +1101,17 @@ export function useNewJournalEntryPage() {
     handleSketchAutosave,
     handleSketchSave,
     handleSketchUnsavedExit,
+    handleBodyChange,
+    handleBodyKeyDown,
+    handleBodySelect,
+    handleMarkerPick,
+    handleTagsManualChange: bodyMarkers.handleTagsManualChange,
+    markerMenu: {
+      marker: bodyMarkers.activeMarker,
+      suggestions: bodyMarkers.suggestions,
+      activeIndex: bodyMarkers.menuIndex,
+      setActiveIndex: bodyMarkers.setMenuIndex,
+      dismiss: bodyMarkers.dismissMarkerMenu,
+    },
   };
 }

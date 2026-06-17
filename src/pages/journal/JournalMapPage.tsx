@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalShell from "@/components/journal/JournalShell";
 import { journalEntryHref } from "@/lib/journal/entryNavigation";
+import { getGoogleMapsApiKey } from "@/lib/maps/googleMaps";
 
 interface Row {
   id: string;
@@ -18,6 +19,32 @@ interface Row {
 }
 
 const MAX_MAP_MARKERS = 25;
+
+function buildGoogleStaticMapUrl(rows: Row[], apiKey: string): string | null {
+  if (!rows.length) return null;
+  const lats = rows.map((r) => r.lat);
+  const lngs = rows.map((r) => r.lng);
+  const pad = 0.05;
+  const minLat = Math.min(...lats) - pad;
+  const maxLat = Math.max(...lats) + pad;
+  const minLng = Math.min(...lngs) - pad;
+  const maxLng = Math.max(...lngs) + pad;
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
+  const span = Math.max(maxLat - minLat, maxLng - minLng);
+  const zoom = span > 8 ? 4 : span > 2 ? 6 : span > 0.5 ? 8 : span > 0.1 ? 10 : 12;
+  const params = new URLSearchParams({
+    center: `${centerLat},${centerLng}`,
+    zoom: String(zoom),
+    size: "640x360",
+    maptype: "roadmap",
+    key: apiKey,
+  });
+  for (const r of rows.slice(0, MAX_MAP_MARKERS)) {
+    params.append("markers", `color:red|${r.lat},${r.lng}`);
+  }
+  return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+}
 
 function buildStaticMapUrl(rows: Row[]): string | null {
   if (!rows.length) return null;
@@ -68,7 +95,11 @@ export default function JournalMapPage() {
     })();
   }, [user, journalId]);
 
-  const mapUrl = useMemo(() => buildStaticMapUrl(rows), [rows]);
+  const mapUrl = useMemo(() => {
+    const googleKey = getGoogleMapsApiKey();
+    if (googleKey) return buildGoogleStaticMapUrl(rows, googleKey);
+    return buildStaticMapUrl(rows);
+  }, [rows]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;

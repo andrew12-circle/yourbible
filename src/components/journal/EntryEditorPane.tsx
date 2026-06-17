@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
-import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
+import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
@@ -56,9 +56,17 @@ import {
 } from "@/lib/journal/responseDepth";
 import { syncEntryWikilinks } from "@/lib/journal/links";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
+import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
+import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
+import {
+  mergeInlineTags,
+  resolveJournalIdFromBody,
+  tagsWithoutInline,
+} from "@/lib/journal/inlineMarkers";
 import { JournalPrivacyBlurToolbarButton } from "@/components/journal/JournalPrivacyBlurToggle";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
+import { cn } from "@/lib/utils";
 
 interface EntryRow {
   id: string;
@@ -120,7 +128,9 @@ export default function EntryEditorPane({
   const [entryNotFound, setEntryNotFound] = useState(false);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
   const [bodyEditing, setBodyEditing] = useState(false);
+  const [bodyFocused, setBodyFocused] = useState(false);
   const paneScrollRef = useRef<HTMLElement | null>(null);
+  const bottomDockRef = useRef<HTMLElement | null>(null);
   const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
 
   useEffect(() => {
@@ -183,6 +193,7 @@ export default function EntryEditorPane({
     setEntry(null);
     setPhotos([]);
     setBodyEditing(false);
+    setBodyFocused(false);
     (async () => {
       const { data, error } = await supabase
         .from("journal_entries")
@@ -230,6 +241,7 @@ export default function EntryEditorPane({
     setDictInterim("");
     setChatDraft("");
     setBodyEditing(false);
+    setBodyFocused(false);
   }, [entryId]);
 
   const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
@@ -299,22 +311,136 @@ export default function EntryEditorPane({
     ? parseChatJournalEntry(entry.body, entry.summary)
     : null;
   const editingChatSummary = showSavedChatView && bodyEditing;
+  const plainWriteLayout = !!entry && !inlineChatMode && !showSavedChatView;
   const bodyTextareaValue = editingChatSummary
     ? (entry?.summary ?? chatParsed?.summary ?? "")
     : (entry?.body ?? "");
 
-  useJournalEntryTextareaAutosize(
-    bodyRef,
-    inlineChatMode || (showSavedChatView && !bodyEditing) ? "" : bodyTextareaValue,
+  const bodyMarkers = useJournalBodyMarkers({
+    userId: user?.id,
+    body: bodyTextareaValue,
+    tags: entry?.tags ?? [],
+    onTagsChange: () => {},
+    journalId: entry?.journal_id ?? null,
+    journals,
+    enabled: !!entry && !inlineChatMode && (!showSavedChatView || bodyEditing),
+    syncMetadata: false,
+  });
+
+  const handleBodyChange = useCallback(
+    (nextText: string, cursor?: number) => {
+      const cur = entryRef.current;
+      if (!cur) return;
+      bodyMarkers.updateActiveMarker(nextText, cursor ?? nextText.length);
+      if (editingChatSummary && chatParsed && chatParsed.kind !== "plain") {
+        const newBody = composeSavedChatJournalBody(nextText, chatParsed.messages);
+        queueSaveRef.current({ body: newBody, summary: nextText || null });
+        return;
+      }
+      const manualTags = tagsWithoutInline(cur.body, cur.tags);
+      const patch: Partial<EntryRow> = {
+        body: nextText,
+        tags: mergeInlineTags(nextText, manualTags),
+      };
+      const resolvedJournal = resolveJournalIdFromBody(
+        nextText,
+        journals.map((j) => ({ id: j.id, name: j.name })),
+      );
+      if (resolvedJournal && resolvedJournal !== cur.journal_id) {
+        patch.journal_id = resolvedJournal;
+        const name = journals.find((j) => j.id === resolvedJournal)?.name;
+        if (name) toast({ title: `Filed under ${name}` });
+      }
+      queueSaveRef.current(patch);
+    },
+    [bodyMarkers, chatParsed, editingChatSummary, journals],
   );
 
-  useJournalEditorCaretScroll({
+  const handleBodyKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (bodyMarkers.handleMarkerKeyDown(e)) {
+        const el = e.currentTarget;
+        handleBodyChange(el.value, el.selectionStart ?? el.value.length);
+      }
+    },
+    [bodyMarkers, handleBodyChange],
+  );
+
+  const handleBodySelect = useCallback(
+    (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      const el = e.currentTarget;
+      bodyMarkers.updateActiveMarker(el.value, el.selectionStart ?? el.value.length);
+    },
+    [bodyMarkers],
+  );
+
+  const handleMarkerPick = useCallback(
+    (label: string) => {
+      const next = bodyMarkers.pickSuggestion(label);
+      if (next) handleBodyChange(next.text, next.cursor);
+    },
+    [bodyMarkers, handleBodyChange],
+  );
+
+  const handleTagsManualChange = useCallback(
+    (nextTags: string[]) => {
+      const cur = entryRef.current;
+      if (!cur) return;
+      queueSaveRef.current({
+        tags: mergeInlineTags(cur.body, tagsWithoutInline(cur.body, nextTags)),
+      });
+    },
+    [],
+  );
+
+  const textareaAutosizeValue =
+    inlineChatMode || (showSavedChatView && !bodyEditing) ? "" : bodyTextareaValue;
+
+  const textareaAutosizeEnabled =
+    !inlineChatMode && !(showSavedChatView && !bodyEditing);
+
+  useJournalEntryTextareaAutosize(bodyRef, textareaAutosizeValue, textareaAutosizeEnabled);
+
+  const { scrollCaretIntoView } = useJournalEditorCaretScroll({
     scrollRef: paneScrollRef,
+    bottomDockRef: plainWriteLayout ? bottomDockRef : undefined,
     kbInset: 0,
-    enabled: !!entry && !inlineChatMode && (!showSavedChatView || bodyEditing),
-    fixedBottomInsetPx: 24,
+    enabled: !!entry && !inlineChatMode && (bodyFocused || (showSavedChatView && bodyEditing)),
     topInsetPx: 16,
   });
+
+  const focusBodyEditor = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el || !plainWriteLayout) return;
+    setBodyFocused(true);
+    requestAnimationFrame(() => {
+      resizeJournalTextarea(el);
+      el.focus();
+      const pos = el.value.length;
+      el.setSelectionRange(pos, pos);
+      scrollCaretIntoView();
+    });
+  }, [plainWriteLayout, scrollCaretIntoView]);
+
+  useLayoutEffect(() => {
+    if (!plainWriteLayout || !bodyFocused) return;
+    const el = bodyRef.current;
+    if (!el) return;
+    resizeJournalTextarea(el);
+    scrollCaretIntoView();
+  }, [plainWriteLayout, bodyFocused, entry?.id, scrollCaretIntoView]);
+
+  useEffect(() => {
+    if (loadingEntry || !entry || !plainWriteLayout) return;
+    requestAnimationFrame(() => focusBodyEditor());
+  }, [entryId, loadingEntry, entry?.id, plainWriteLayout, focusBodyEditor]);
+
+  useLayoutEffect(() => {
+    if (!plainWriteLayout || bodyFocused) return;
+    const el = bodyRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [plainWriteLayout, bodyFocused, entry?.id, entry?.body]);
 
   const handleDictateAppend = useCallback(
     (chunk: string) => {
@@ -324,9 +450,9 @@ export default function EntryEditorPane({
       }
       const cur = entryRef.current;
       if (!cur) return;
-      queueSaveRef.current({ body: mergeDictatedText(cur.body, chunk) });
+      handleBodyChange(mergeDictatedText(cur.body, chunk));
     },
-    [inlineChatMode],
+    [handleBodyChange, inlineChatMode],
   );
 
   const dictateButton = (
@@ -595,17 +721,6 @@ export default function EntryEditorPane({
     });
   };
 
-  const handleBodyChange = (nextText: string) => {
-    const cur = entryRef.current;
-    if (!cur) return;
-    if (editingChatSummary && chatParsed && chatParsed.kind !== "plain") {
-      const newBody = composeSavedChatJournalBody(nextText, chatParsed.messages);
-      queueSave({ body: newBody, summary: nextText || null });
-      return;
-    }
-    queueSave({ body: nextText });
-  };
-
   const dt = new Date(entry.entry_at_ts);
   const dateLabel = dt.toLocaleString(undefined, {
     month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
@@ -716,12 +831,27 @@ export default function EntryEditorPane({
       </div>
 
       {/* Body scrolls inside the card; header/toolbar stay fixed like the list pane. */}
+      <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", !plainWriteLayout && "min-h-0")}>
       <div
         ref={paneScrollRef}
         data-journal-editor-scroll
-        className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        className={cn(
+          "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          plainWriteLayout && "flex flex-col",
+        )}
+        onPointerDown={(e) => {
+          if (!plainWriteLayout || bodyFocused) return;
+          const target = e.target as HTMLElement;
+          if (target.closest("textarea, input, button, a, label, [role='button']")) return;
+          focusBodyEditor();
+        }}
       >
-      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-8 pb-4 pt-6">
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-2xl flex-col px-8 pb-4 pt-6",
+          plainWriteLayout ? "min-h-full flex-1" : "min-h-full",
+        )}
+      >
           <PrivacyBlurInput
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
@@ -774,7 +904,7 @@ export default function EntryEditorPane({
                   ref={bodyRef}
                   polishResetKey={entry.id}
                   value={bodyTextareaValue}
-                  onChange={(e) => handleBodyChange(e.target.value)}
+                  onChange={(e) => handleBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
                   placeholder="What happened today? What are you carrying?"
                   className={journalPlainWriteFieldClass}
                 />
@@ -798,14 +928,54 @@ export default function EntryEditorPane({
             )
           ) : (
             <>
-              <PolishedTextarea
-                ref={bodyRef}
-                polishResetKey={entry.id}
-                value={entry.body}
-                onChange={(e) => handleBodyChange(e.target.value)}
-                placeholder="What happened today? What are you carrying?"
-                className={journalPlainWriteFieldClass}
-              />
+              <div
+                className={cn(
+                  "relative",
+                  plainWriteLayout && !bodyFocused && "flex min-h-0 flex-1 flex-col",
+                )}
+              >
+                <PolishedTextarea
+                  ref={bodyRef}
+                  polishResetKey={entry.id}
+                  value={entry.body}
+                  onChange={(e) =>
+                    handleBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
+                  }
+                  onKeyDown={handleBodyKeyDown}
+                  onSelect={handleBodySelect}
+                  onFocus={() => {
+                    setBodyFocused(true);
+                    requestAnimationFrame(() => {
+                      const el = bodyRef.current;
+                      if (el) resizeJournalTextarea(el);
+                      scrollCaretIntoView();
+                    });
+                  }}
+                  onBlur={() => {
+                    bodyMarkers.dismissMarkerMenu();
+                    setBodyFocused(false);
+                  }}
+                  placeholder="What happened today? Type #tag or @journal name to organize."
+                  wrapperClassName={
+                    plainWriteLayout && !bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined
+                  }
+                  className={cn(
+                    journalPlainWriteFieldClass,
+                    plainWriteLayout &&
+                      (bodyFocused
+                        ? "min-h-0"
+                        : "max-h-full min-h-0 flex-1 overflow-y-auto"),
+                  )}
+                />
+                <JournalMarkerMenu
+                  marker={bodyMarkers.activeMarker}
+                  suggestions={bodyMarkers.suggestions}
+                  activeIndex={bodyMarkers.menuIndex}
+                  onPick={handleMarkerPick}
+                  onHover={bodyMarkers.setMenuIndex}
+                  className="absolute left-0 top-full z-20 mt-1 w-full max-w-sm"
+                />
+              </div>
               <DictInterimPreview
                 text={dictInterim}
                 className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
@@ -816,7 +986,7 @@ export default function EntryEditorPane({
             </>
           )}
 
-          {!inlineChatMode && entry.id ? (
+          {!inlineChatMode && entry.id && (!plainWriteLayout || bodyFocused) ? (
             <EntryLinksPanel
               entryId={entry.id}
               reloadKey={linksReloadKey}
@@ -824,11 +994,7 @@ export default function EntryEditorPane({
             />
           ) : null}
 
-          {!inlineChatMode && entry.lat != null && entry.lng != null ? (
-            <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mt-6" height={200} />
-          ) : null}
-
-          {!inlineChatMode && (entry.tags?.length > 0 || mood) ? (
+          {!inlineChatMode && (entry.tags?.length > 0 || mood) && (!plainWriteLayout || bodyFocused) ? (
             <div className="mt-6 flex flex-wrap items-center gap-2">
               {mood ? (
                 <span className={`text-xs font-medium ${mood.color}`}>{mood.label}</span>
@@ -844,7 +1010,7 @@ export default function EntryEditorPane({
             </div>
           ) : null}
 
-          {showMeta && !inlineChatMode && (
+          {showMeta && !inlineChatMode && (!plainWriteLayout || bodyFocused) && (
             <div className="mt-6 space-y-4 pt-4 border-t border-border/40">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entry type</label>
@@ -879,11 +1045,12 @@ export default function EntryEditorPane({
               </div>
               <div>
                 <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Tags</label>
-                <div className="mt-2"><TagInput tags={entry.tags ?? []} onChange={(t) => queueSave({ tags: t })} /></div>
+                <div className="mt-2"><TagInput tags={entry.tags ?? []} onChange={handleTagsManualChange} /></div>
               </div>
             </div>
           )}
 
+          {(!plainWriteLayout || bodyFocused) && (
           <footer className="mt-auto flex flex-wrap items-center gap-3 border-t border-border/40 pt-4 pb-1 text-[12px] text-muted-foreground">
             {journal && (
               <span className="inline-flex items-center gap-1.5">
@@ -902,7 +1069,47 @@ export default function EntryEditorPane({
               </span>
             )}
           </footer>
+          )}
       </div>
+      </div>
+
+      {plainWriteLayout ? (
+        <div
+          ref={bottomDockRef}
+          className="shrink-0 border-t border-border/40 bg-background px-8 py-3"
+        >
+          <div className="mx-auto w-full max-w-2xl">
+            {entry.lat != null && entry.lng != null ? (
+              <EntryMiniMap
+                key={`${entry.lat},${entry.lng}`}
+                lat={entry.lat}
+                lng={entry.lng}
+                height={200}
+              />
+            ) : null}
+            {!bodyFocused ? (
+            <footer className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
+              {journal && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: `hsl(${journal.color})` }} />
+                  {journal.name}
+                </span>
+              )}
+              {entry.weather_temp_c != null && (
+                <span className="inline-flex items-center gap-1">
+                  {entry.weather_icon} {formatTemp(entry.weather_temp_c)} {entry.weather}
+                </span>
+              )}
+              {entry.location_name && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {entry.location_name}
+                </span>
+              )}
+            </footer>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       </div>
 
       {inlineChatMode && (

@@ -163,8 +163,12 @@ export default function NewJournalEntryPage() {
           inlineChatMode={p.inlineChatMode}
           bodyFocused={p.bodyFocused}
           body={p.body}
-          setBody={p.setBody}
+          onBodyChange={p.handleBodyChange}
+          onBodyKeyDown={p.handleBodyKeyDown}
+          onBodySelect={p.handleBodySelect}
           bodyPlaceholder={p.bodyPlaceholder}
+          markerMenu={p.markerMenu}
+          onMarkerPick={p.handleMarkerPick}
           listeningSections={p.listeningSections}
           setListeningSection={p.setListeningSection}
           onUseSpiritQuestion={p.isListening ? p.useSpiritQuestion : undefined}
@@ -305,7 +309,7 @@ export default function NewJournalEntryPage() {
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tags</Label>
               <div className="mt-2">
-                <TagInput tags={p.tags} onChange={p.setTags} />
+                <TagInput tags={p.tags} onChange={p.handleTagsManualChange} />
               </div>
             </section>
 
