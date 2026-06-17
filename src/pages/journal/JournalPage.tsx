@@ -57,7 +57,12 @@ export default function JournalPage() {
   useEffect(() => {
     if (!user) return;
     ensureDefaultJournal(user.id).then(setJournals);
-  }, [user, reloadKey]);
+  }, [user]);
+
+  const refreshJournals = useCallback(async () => {
+    if (!user) return;
+    setJournals(await ensureDefaultJournal(user.id));
+  }, [user]);
 
   const createNew = async () => {
     if (!user || creating) return;
@@ -121,7 +126,10 @@ export default function JournalPage() {
             inDesk
             journals={journals}
             activeJournalId={journalId}
-            onChange={() => setReloadKey((k) => k + 1)}
+            onChange={() => {
+              void refreshJournals();
+              setReloadKey((k) => k + 1);
+            }}
             onImportDayOne={() => setDayOneImportOpen(true)}
           />
         }

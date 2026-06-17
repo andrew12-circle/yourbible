@@ -245,12 +245,22 @@ export default function EntryEditorPane({
   }, [entryId]);
 
   const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
+  const linksReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (titleSuggestTimer.current) clearTimeout(titleSuggestTimer.current);
+      if (linksReloadTimer.current) clearTimeout(linksReloadTimer.current);
     };
+  }, []);
+
+  const scheduleLinksReload = useCallback(() => {
+    if (linksReloadTimer.current) clearTimeout(linksReloadTimer.current);
+    linksReloadTimer.current = setTimeout(() => {
+      linksReloadTimer.current = null;
+      setLinksReloadKey((k) => k + 1);
+    }, 2500);
   }, []);
 
   const scheduleTitleSuggestion = (row: EntryRow) => {
@@ -286,11 +296,12 @@ export default function EntryEditorPane({
       if (generation !== saveGenerationRef.current) return;
       if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
       else {
-        onChanged();
+        const listKeys = Object.keys(patch).filter((k) => k !== "body" && k !== "tags");
+        if (listKeys.length > 0) onChanged();
         if ("body" in patch) {
           if (user?.id) {
             void syncEntryWikilinks(user.id, merged.id, merged.body).then(() => {
-              setLinksReloadKey((k) => k + 1);
+              scheduleLinksReload();
             });
           }
           if (!("title" in patch)) scheduleTitleSuggestion(merged);

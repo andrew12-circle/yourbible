@@ -101,7 +101,7 @@ export default function EntryListPane({
   const load = async (append = false) => {
     if (!user) return;
     if (append) setLoadingMore(true);
-    else setLoading(true);
+    else if (entries.length === 0) setLoading(true);
     setLoadError(null);
     try {
       const offset = append ? entries.length : 0;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeftRight, Link2, Loader2 } from "lucide-react";
 import {
@@ -155,10 +155,19 @@ export default function EntryLinksPanel({ entryId, reloadKey = 0, className }: P
   const [outgoing, setOutgoing] = useState<EntryLink[]>([]);
   const [backlinks, setBacklinks] = useState<EntryBacklink[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    hasLoadedRef.current = false;
+    setLoading(true);
+    setOutgoing([]);
+    setBacklinks([]);
+  }, [entryId]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const showSpinner = !hasLoadedRef.current;
+    if (showSpinner) setLoading(true);
     (async () => {
       const [out, back] = await Promise.all([
         listEntryLinks(entryId),
@@ -168,6 +177,7 @@ export default function EntryLinksPanel({ entryId, reloadKey = 0, className }: P
       setOutgoing(out);
       setBacklinks(back);
       setLoading(false);
+      hasLoadedRef.current = true;
     })();
     return () => {
       cancelled = true;
