@@ -75,3 +75,47 @@ export function buildOsmStaticMapUrl(points: LatLng[], options?: { worldView?: b
   });
   return `https://staticmap.openstreetmap.de/staticmap.php?${params.toString()}`;
 }
+
+/** OSM embed iframe — reliable fallback when static image hosts are down. */
+export function buildOsmEmbedMapUrl(points: LatLng[], options?: { worldView?: boolean }): string | null {
+  const viewport = computeMapViewport(points, options);
+  if (!viewport) return null;
+  const { west, south, east, north } = viewport.bounds;
+  const params = new URLSearchParams({
+    bbox: `${west},${south},${east},${north}`,
+    layer: "mapnik",
+  });
+  if (points.length === 1) {
+    params.set("marker", `${points[0].lat},${points[0].lng}`);
+  }
+  return `https://www.openstreetmap.org/export/embed.html?${params.toString()}`;
+}
+
+export type StaticMapTypeId = "roadmap" | "satellite" | "hybrid" | "terrain";
+
+/** Google Static Maps — used when the JS API cannot load (e.g. referrer restrictions). */
+export function buildGoogleStaticMapUrl(
+  points: LatLng[],
+  apiKey: string,
+  options?: { worldView?: boolean; mapType?: StaticMapTypeId; width?: number; height?: number },
+): string | null {
+  const viewport = computeMapViewport(points, options);
+  if (!viewport || !apiKey.trim()) return null;
+
+  const width = options?.width ?? 640;
+  const height = options?.height ?? 360;
+  const params = new URLSearchParams({
+    center: `${viewport.center.lat},${viewport.center.lng}`,
+    zoom: String(viewport.zoom),
+    size: `${width}x${height}`,
+    scale: "2",
+    maptype: options?.mapType ?? "roadmap",
+    key: apiKey.trim(),
+  });
+
+  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+  for (const point of points) {
+    url += `&markers=color:red%7C${point.lat},${point.lng}`;
+  }
+  return url;
+}

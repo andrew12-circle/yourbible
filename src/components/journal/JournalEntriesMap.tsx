@@ -1,11 +1,16 @@
-import { memo, useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ControlPosition, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import GoogleMapsShell, {
   GoogleMapErrorDetector,
   useJournalGoogleMapsKey,
 } from "@/components/journal/GoogleMapsShell";
-import { buildOsmStaticMapUrl, computeMapViewport, type LatLng } from "@/lib/maps/mapViewport";
+import {
+  buildGoogleStaticMapUrl,
+  buildOsmEmbedMapUrl,
+  computeMapViewport,
+  type LatLng,
+} from "@/lib/maps/mapViewport";
 import { journalEntryHref } from "@/lib/journal/entryNavigation";
 import { JOURNAL_DEFAULT_MAP_TYPE, type JournalMapTypeId } from "@/lib/maps/googleMaps";
 import { cn } from "@/lib/utils";
@@ -78,11 +83,12 @@ const GoogleJournalEntriesMap = memo(function GoogleJournalEntriesMap({
       className={cn("rounded-2xl border border-border", fillHeight && "h-full min-h-0", className)}
       height={fillHeight ? undefined : height}
       fallback={
-        <OsmJournalEntriesMap
+        <FallbackJournalEntriesMap
           markers={markers}
           height={height}
           className={className}
           worldView={worldView}
+          mapTypeId={mapTypeId}
           fillHeight={fillHeight}
         />
       }
@@ -115,28 +121,55 @@ const GoogleJournalEntriesMap = memo(function GoogleJournalEntriesMap({
   );
 });
 
-const OsmJournalEntriesMap = memo(function OsmJournalEntriesMap({
+const FallbackJournalEntriesMap = memo(function FallbackJournalEntriesMap({
   markers,
   height = 360,
   className,
   worldView,
+  mapTypeId = JOURNAL_DEFAULT_MAP_TYPE,
   fillHeight,
 }: Props) {
-  const mapUrl = useMemo(
-    () => buildOsmStaticMapUrl(markers, { worldView }),
-    [markers, worldView],
+  const apiKey = useJournalGoogleMapsKey();
+  const [staticFailed, setStaticFailed] = useState(false);
+  const googleStaticUrl = useMemo(
+    () =>
+      apiKey && !staticFailed
+        ? buildGoogleStaticMapUrl(markers, apiKey, { worldView, mapType: mapTypeId })
+        : null,
+    [apiKey, markers, mapTypeId, staticFailed, worldView],
   );
-  if (!mapUrl) return null;
+  const osmEmbedUrl = useMemo(() => buildOsmEmbedMapUrl(markers, { worldView }), [markers, worldView]);
+
+  const shellClass = cn(
+    "overflow-hidden rounded-2xl border border-border",
+    fillHeight && "h-full min-h-0",
+    className,
+  );
+  const shellStyle = fillHeight ? undefined : { height };
+
+  if (googleStaticUrl) {
+    return (
+      <div className={shellClass} style={shellStyle}>
+        <img
+          src={googleStaticUrl}
+          alt="Map of journal entry locations"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setStaticFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  if (!osmEmbedUrl) return null;
 
   return (
-    <div
-      className={cn("overflow-hidden rounded-2xl border border-border", fillHeight && "h-full min-h-0", className)}
-      style={fillHeight ? undefined : { height }}
-    >
-      <img
-        src={mapUrl}
-        alt="Map of journal entry locations"
-        className="h-full w-full object-cover"
+    <div className={shellClass} style={shellStyle}>
+      <iframe
+        title="Map of journal entry locations"
+        src={osmEmbedUrl}
+        className="h-full w-full"
+        style={{ border: 0 }}
         loading="lazy"
       />
     </div>
@@ -145,7 +178,7 @@ const OsmJournalEntriesMap = memo(function OsmJournalEntriesMap({
 
 /**
  * Journal map tab — interactive Google Maps when `VITE_GOOGLE_MAPS_API_KEY` is set;
- * otherwise OpenStreetMap static image.
+ * otherwise Google Static Maps or an OpenStreetMap embed fallback.
  */
 function JournalEntriesMap(props: Props) {
   const { maxMarkers, markers, worldView, ...rest } = props;
@@ -156,7 +189,7 @@ function JournalEntriesMap(props: Props) {
   if (googleMapsKey) {
     return <GoogleJournalEntriesMap markers={visible} worldView={worldView} {...rest} />;
   }
-  return <OsmJournalEntriesMap markers={visible} worldView={worldView} {...rest} />;
+  return <FallbackJournalEntriesMap markers={visible} worldView={worldView} {...rest} />;
 }
 
 export default memo(JournalEntriesMap);

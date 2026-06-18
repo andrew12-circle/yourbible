@@ -74,8 +74,9 @@ function GoogleMapsSetupBanner() {
         >
           Google Cloud Console
         </a>
-        , enable <strong>Maps JavaScript API</strong> for this project, turn on billing, and allow{" "}
-        <code className="text-[10px]">localhost:8083</code> on the API key.
+        , enable <strong>Maps JavaScript API</strong> and <strong>Maps Static API</strong> for
+        this project, turn on billing, and allow your site origin (and{" "}
+        <code className="text-[10px]">localhost:8083</code> for dev) on the API key.
       </p>
     </div>
   );
