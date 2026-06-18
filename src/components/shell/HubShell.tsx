@@ -39,7 +39,7 @@ export function HubShell({ children }: { children: ReactNode }) {
       <HomeDashboardProvider>
         <SidebarProvider
           ref={layoutRootRef}
-          className="hub-shell h-svh max-h-svh min-h-0 overflow-hidden bg-muted/40 bg-fabric"
+          className="hub-shell h-svh max-h-svh min-h-0 overflow-hidden"
         >
           <HubSidebar />
           <SidebarPeekTab />

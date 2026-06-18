@@ -111,6 +111,7 @@ import {
   areSameStreamSplits,
   buildReaderStream,
   ensureSpreadPageSplits,
+  isSpreadDoubleColumnSplitsReady,
   headingsForChapter,
   isStreamSplitsReady,
   paragraphStartsForChapter,
@@ -140,12 +141,11 @@ import {
 import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
 import {
   readReaderColumnLayout,
-  effectiveReaderColumnLayout,
-  readerColumnClassName,
   readerColumnLayoutLabel,
   writeReaderColumnLayout,
   type ReaderColumnLayout,
 } from "@/lib/bible/readerColumnLayout";
+import { deriveReaderLayout } from "@/lib/bible/readerLayout";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
 import { readerColumnContentHeightPx } from "@/lib/bible/readerColumnMeasure";
 import {
@@ -348,13 +348,19 @@ export default function ReaderPage() {
     }
   }, [compactChrome]);
 
-  const scrollMode = displayMode === "scroll";
-  const effectiveSpread = readerSpread && !scrollMode;
-  const spreadColumnLayout = effectiveReaderColumnLayout({
-    spread: effectiveSpread,
-    stored: columnLayout,
-  });
-  const columnClassName = readerColumnClassName(spreadColumnLayout);
+  const readerLayout = useMemo(
+    () =>
+      deriveReaderLayout({
+        displayMode,
+        spread: readerSpread,
+        columnPreference: columnLayout,
+      }),
+    [displayMode, readerSpread, columnLayout],
+  );
+  const scrollMode = readerLayout.scrollMode;
+  const effectiveSpread = readerLayout.spread;
+  const spreadColumnLayout = readerLayout.columnLayout;
+  const columnClassName = readerLayout.columnsClassName;
   const readerPageClass = cn(
     pageToneClass(profile?.page_tone),
     readerDark && "reader-theme-dark",
@@ -731,8 +737,7 @@ export default function ReaderPage() {
   const splitsReady = isPageSplitsReady(splits, verses.length);
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
-  const useSpreadDoubleColumn =
-    effectiveSpread && useStreamReader && !scrollMode;
+  const useSpreadDoubleColumn = readerLayout.useSpreadPaginatorMeasure && useStreamReader;
   const displayStreamSplits = useMemo(() => {
     if (!useSpreadDoubleColumn || readerStream.length === 0) return streamSplits;
     return ensureSpreadPageSplits(streamSplits, readerStream);
@@ -742,7 +747,9 @@ export default function ReaderPage() {
     useSpreadDoubleColumn && readerStream.length > 2
       ? Math.max(2, streamPageCount(navStreamSplits, readerStream.length))
       : streamPageCount(navStreamSplits, readerStream.length);
-  const streamSplitsReady = isStreamSplitsReady(streamSplits, readerStream.length);
+  const streamSplitsReady = useSpreadDoubleColumn
+    ? isSpreadDoubleColumnSplitsReady(streamSplits, readerStream.length)
+    : isStreamSplitsReady(streamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
@@ -834,8 +841,8 @@ export default function ReaderPage() {
     if (useStreamReader) {
       if (!streamSplitsReady) return;
       let target = 0;
-      for (let p = 0; p < streamSplits.length - 1; p++) {
-        const slice = sliceReaderPage(readerStream, streamSplits, p);
+      for (let p = 0; p < navStreamSplits.length - 1; p++) {
+        const slice = sliceReaderPage(readerStream, navStreamSplits, p);
         const containsVerse = slice?.verseGroups.some(
           (g) =>
             g.bookAbbr === book.abbr &&
@@ -862,7 +869,7 @@ export default function ReaderPage() {
     pendingVerse,
     splits,
     splitsReady,
-    streamSplits,
+    navStreamSplits,
     streamSplitsReady,
     readerStream,
     useStreamReader,
@@ -879,14 +886,14 @@ export default function ReaderPage() {
     lastSpreadAnchorKeyRef.current = anchorKey;
     if (useBookSpread && pendingSpreadEnd) {
       setSpreadPageIdx(
-        spreadPageForChapterEnd(readerStream, streamSplits, book.abbr, chapter),
+        spreadPageForChapterEnd(readerStream, navStreamSplits, book.abbr, chapter),
       );
       setPendingSpreadEnd(false);
       return;
     }
     const startPage = spreadPageForChapterStart(
       readerStream,
-      streamSplits,
+      navStreamSplits,
       book.abbr,
       chapter,
     );
@@ -896,7 +903,7 @@ export default function ReaderPage() {
     useStreamReader,
     useBookSpread,
     streamSplitsReady,
-    streamSplits,
+    navStreamSplits,
     readerStream,
     book.abbr,
     chapter,
@@ -1377,7 +1384,7 @@ export default function ReaderPage() {
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
     const splitsForPage =
       useStreamReader && streamSplitsReady
-        ? streamSplits
+        ? navStreamSplits
         : !useStreamReader && splitsReady
           ? splits
           : null;
@@ -1508,7 +1515,7 @@ export default function ReaderPage() {
             data-ink-anchor={inkLayerId}
             data-bible-scroll={scrollMode ? "" : undefined}
             className={cn(
-              "relative flex-1 min-h-0 min-w-0",
+              "relative flex-1 min-h-0 min-w-0 w-full",
               scrollMode
                 ? "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide"
                 : "flex flex-col",
@@ -1733,8 +1740,8 @@ export default function ReaderPage() {
         onToggleDisplayMode={toggleDisplayMode}
         readerDark={readerDark}
         onToggleReaderDark={toggleReaderDark}
-        columnLayout={spreadColumnLayout}
-        onToggleColumnLayout={readerSpread ? toggleColumnLayout : undefined}
+        columnLayout={columnLayout}
+        onToggleColumnLayout={!scrollMode ? toggleColumnLayout : undefined}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
@@ -1922,7 +1929,7 @@ export default function ReaderPage() {
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
-          spreadMode={effectiveSpread && useStreamReader}
+          spreadMode={readerLayout.useSpreadPaginatorMeasure && useStreamReader}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}

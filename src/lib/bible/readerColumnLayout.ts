@@ -12,13 +12,16 @@ export function readReaderColumnLayout(): ReaderColumnLayout {
   return "single";
 }
 
-/** Open-book spread uses two columns; phones and single-page layouts stay single. */
+/**
+ * Column layout for page mode. Scroll mode is always single (no CSS columns).
+ * User preference from settings applies whenever pages mode is active.
+ */
 export function effectiveReaderColumnLayout(options: {
-  spread: boolean;
   stored?: ReaderColumnLayout;
+  scrollMode?: boolean;
 }): ReaderColumnLayout {
-  if (options.spread) return "double";
-  return "single";
+  if (options.scrollMode) return "single";
+  return options.stored ?? "single";
 }
 
 export function writeReaderColumnLayout(layout: ReaderColumnLayout): void {
@@ -33,7 +36,7 @@ export function readerColumnClassName(layout: ReaderColumnLayout): string {
   return layout === "double" ? "scripture-columns-2" : "";
 }
 
-/** Four columns across an open-book spread (used for unified spread flow). */
+/** Four columns across an open-book spread (paginator measurement only). */
 export const READER_SPREAD_COLUMNS_CLASS = "scripture-columns-spread";
 
 export function readerColumnLayoutLabel(layout: ReaderColumnLayout): string {

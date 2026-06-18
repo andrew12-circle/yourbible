@@ -5,16 +5,14 @@ import {
 } from "@/lib/bible/readerColumnLayout";
 
 describe("readerColumnLayout", () => {
-  it("uses two columns only on open-book spread", () => {
-    expect(effectiveReaderColumnLayout({ spread: true })).toBe("double");
-    expect(effectiveReaderColumnLayout({ spread: true, stored: "single" })).toBe(
-      "double",
-    );
+  it("honors stored preference in page mode", () => {
+    expect(effectiveReaderColumnLayout({ stored: "double" })).toBe("double");
+    expect(effectiveReaderColumnLayout({ stored: "single" })).toBe("single");
+    expect(effectiveReaderColumnLayout({})).toBe("single");
   });
 
-  it("forces single column on phones and single-page layouts", () => {
-    expect(effectiveReaderColumnLayout({ spread: false })).toBe("single");
-    expect(effectiveReaderColumnLayout({ spread: false, stored: "double" })).toBe(
+  it("forces single column in scroll mode regardless of stored preference", () => {
+    expect(effectiveReaderColumnLayout({ stored: "double", scrollMode: true })).toBe(
       "single",
     );
   });

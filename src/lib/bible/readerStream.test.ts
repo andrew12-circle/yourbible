@@ -3,6 +3,7 @@ import type { PassageVerse } from "@/lib/bible/api";
 import {
   buildReaderStream,
   ensureSpreadPageSplits,
+  isSpreadDoubleColumnSplitsReady,
   isStreamSplitsReady,
   sliceReaderPage,
   sliceReaderStreamRange,
@@ -106,6 +107,23 @@ describe("readerStream", () => {
     expect(page0?.verseGroups[0]?.chapter).toBe(5);
     const page1 = sliceReaderPage(stream, splits, 1);
     expect(page1?.startsWithChapterHeader?.chapter).toBe(6);
+  });
+
+  it("isSpreadDoubleColumnSplitsReady requires a left-page boundary", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 24,
+        verses: verses([1, 2, 3, 4, 5, 6]),
+        paragraphStarts: [1],
+        headings: [],
+      },
+    ]);
+    const n = stream.length;
+    expect(isSpreadDoubleColumnSplitsReady([0], n)).toBe(false);
+    expect(isSpreadDoubleColumnSplitsReady([0, n], n)).toBe(false);
+    expect(isSpreadDoubleColumnSplitsReady([0, 3, n], n)).toBe(true);
   });
 
   it("ensureSpreadPageSplits adds a right-page boundary when splits are still [0] only", () => {

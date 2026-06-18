@@ -93,11 +93,10 @@ export function BookPaginator({
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || stream.length === 0) {
-      const useSpreadColumns = Boolean(spreadMode && columnsClassName);
-      const next =
-        useSpreadColumns && stream.length > 2
-          ? [0, Math.max(1, Math.floor(stream.length / 2)), stream.length]
-          : [0, stream.length];
+      // Spread double-column must wait for real column measurement — verse-count
+      // halves ([0, N/2, N]) render as one filled column per page (two total).
+      if (spreadMode && columnsClassName) return;
+      const next = [0, stream.length];
       const key = next.join(",");
       if (lastSplitsRef.current !== key) {
         lastSplitsRef.current = key;

@@ -91,6 +91,20 @@ export function isStreamSplitsReady(splits: number[], streamLength: number): boo
   return true;
 }
 
+/**
+ * Spread + two columns per page needs a measured left/right boundary ([0, left, …, end]),
+ * not a provisional [0, end] slice that dumps half the chapter per page.
+ */
+export function isSpreadDoubleColumnSplitsReady(
+  splits: number[],
+  streamLength: number,
+): boolean {
+  if (!isStreamSplitsReady(splits, streamLength)) return false;
+  if (streamLength <= 2) return true;
+  const leftEnd = splits[1] ?? 0;
+  return splits.length >= 3 && leftEnd > 0 && leftEnd < streamLength;
+}
+
 export function streamPageCount(splits: number[], streamLength: number): number {
   if (streamLength === 0) return 1;
   return isStreamSplitsReady(splits, streamLength) ? splits.length - 1 : 1;

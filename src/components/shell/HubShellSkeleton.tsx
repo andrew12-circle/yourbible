@@ -4,7 +4,7 @@ import { HubContentSkeleton } from "@/components/shell/HubContentSkeleton";
 
 export function HubShellSkeleton({ children }: { children?: ReactNode }) {
   return (
-    <div className="hub-shell flex min-h-svh bg-muted/40 bg-fabric">
+    <div className="hub-shell flex min-h-svh">
       <aside
         className="hidden shrink-0 md:block"
         style={{ width: "calc(var(--sidebar-width, 16rem) + var(--hub-edge, 0.75rem))" }}

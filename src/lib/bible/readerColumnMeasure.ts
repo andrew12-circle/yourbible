@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
-/** Gap between facing pages when measuring a four-column spread. */
-export const SPREAD_MEASURE_GAP_PX = 28;
+/** Gap between facing page text areas when measuring a four-column spread (~2× spine gutter). */
+export const SPREAD_MEASURE_GAP_PX = 112;
 
 export interface ScriptureColumnMeasureOptions {
   /** Override column count (e.g. 4 for an open-book spread). */
@@ -64,6 +64,7 @@ export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProper
     boxSizing: "border-box",
     columnFill: "auto",
     WebkitColumnFill: "auto",
+    width: "100%",
   };
   if (!contentHeightPx || contentHeightPx <= 0) return base;
   const h = Math.max(1, Math.round(contentHeightPx));

@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, Sun, Sunrise, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
-  Grid3X3, BookMarked,
+  Grid3X3, BookMarked, ChevronRight,
 } from "lucide-react";
 import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import {
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
@@ -53,34 +55,22 @@ interface SidebarItem {
   badge?: number;
 }
 
-const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
+interface SidebarGroupConfig {
+  label: string;
+  items: SidebarItem[];
+  defaultCollapsed?: boolean;
+}
+
+const sidebarGroups: SidebarGroupConfig[] = [
   {
     label: "",
     items: [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
-      { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
-      { title: "Life Manual", icon: BookMarked, to: "/bible/life-guide" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
+      { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Mind map", icon: Share2, to: "/framework/graph" },
-      { title: "Framework", icon: Brain, to: "/framework" },
-      { title: "Beliefs", icon: Network, to: "/framework/beliefs" },
       { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
-      { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
-    ],
-  },
-  {
-    label: "Framework",
-    items: [
-      { title: "Daily", icon: Sun, to: "/framework/daily" },
-      { title: "Journey", icon: Sprout, to: "/framework/journey" },
-      { title: "Influences", icon: Users, to: "/framework/influences" },
-      { title: "Library standing", icon: Layers, to: "/framework/library-standing" },
-      { title: "Tensions", icon: Sparkles, to: "/framework/tensions" },
-      { title: "Study", icon: GraduationCap, to: "/framework/study" },
-      { title: "Digest", icon: Mail, to: "/framework/digest" },
-      { title: "Research later", icon: Clock, to: "/framework/research-later" },
-      { title: "Hard questions", icon: CircleHelp, to: "/framework/hard-questions" },
     ],
   },
   {
@@ -89,6 +79,25 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
       { title: "Tasks", icon: ListTodo, to: "/life/todos" },
       { title: "Habits", icon: CheckSquare, to: "/life/habits" },
       { title: "Sleep", icon: Moon, to: "/sleep" },
+      { title: "Daily", icon: Sun, to: "/framework/daily" },
+    ],
+  },
+  {
+    label: "Framework",
+    defaultCollapsed: true,
+    items: [
+      { title: "Framework", icon: Brain, to: "/framework" },
+      { title: "Beliefs", icon: Network, to: "/framework/beliefs" },
+      { title: "Life Manual", icon: BookMarked, to: "/bible/life-guide" },
+      { title: "Journey", icon: Sprout, to: "/framework/journey" },
+      { title: "Influences", icon: Users, to: "/framework/influences" },
+      { title: "Library standing", icon: Layers, to: "/framework/library-standing" },
+      { title: "Tensions", icon: Sparkles, to: "/framework/tensions" },
+      { title: "Study", icon: GraduationCap, to: "/framework/study" },
+      { title: "Digest", icon: Mail, to: "/framework/digest" },
+      { title: "Research later", icon: Clock, to: "/framework/research-later" },
+      { title: "Hard questions", icon: CircleHelp, to: "/framework/hard-questions" },
+      { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
     ],
   },
   {
@@ -101,6 +110,92 @@ const sidebarGroups: { label: string; items: SidebarItem[] }[] = [
     ],
   },
 ];
+
+
+function resolveItemPath(item: SidebarItem, bibleTo: string): string {
+  return item.to === "__bible__" ? bibleTo : item.to;
+}
+
+function isItemActive(item: SidebarItem, to: string, pathname: string): boolean {
+  if (item.title === "Bible") return pathname.startsWith("/read/");
+  if (to === "/home") return pathname === "/home";
+  return pathname === to || (to !== "/home" && pathname.startsWith(to + "/"));
+}
+
+function isGroupActive(group: SidebarGroupConfig, pathname: string, bibleTo: string): boolean {
+  return group.items.some((item) => isItemActive(item, resolveItemPath(item, bibleTo), pathname));
+}
+
+function SidebarGroupItems({
+  group,
+  pathname,
+  bibleTo,
+  badgeMap,
+}: {
+  group: SidebarGroupConfig;
+  pathname: string;
+  bibleTo: string;
+  badgeMap: Record<string, number | undefined>;
+}) {
+  return (
+    <SidebarMenu>
+      {group.items.map((item) => {
+        const to = resolveItemPath(item, bibleTo);
+        const navItem = { ...item, to };
+        const isActive = isItemActive(item, to, pathname);
+        const withBadge = { ...navItem, badge: badgeMap[item.title] };
+        return <NavItem key={item.title} item={withBadge} isActive={isActive} />;
+      })}
+    </SidebarMenu>
+  );
+}
+
+function CollapsibleSidebarGroup({
+  group,
+  pathname,
+  bibleTo,
+  badgeMap,
+}: {
+  group: SidebarGroupConfig;
+  pathname: string;
+  bibleTo: string;
+  badgeMap: Record<string, number | undefined>;
+}) {
+  const activeInGroup = useMemo(
+    () => isGroupActive(group, pathname, bibleTo),
+    [group, pathname, bibleTo],
+  );
+  const [open, setOpen] = useState(() => !group.defaultCollapsed || activeInGroup);
+
+  useEffect(() => {
+    if (activeInGroup) setOpen(true);
+  }, [activeInGroup]);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarGroup>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex h-8 w-full shrink-0 items-center gap-1.5 rounded-md px-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/40 outline-none ring-sidebar-ring transition-colors hover:text-sidebar-foreground/60 focus-visible:ring-2"
+            aria-expanded={open}
+          >
+            <ChevronRight
+              className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", open && "rotate-90")}
+              aria-hidden
+            />
+            <span>{group.label}</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarGroupItems group={group} pathname={pathname} bibleTo={bibleTo} badgeMap={badgeMap} />
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+}
 
 function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
   const Icon = item.icon;
@@ -196,30 +291,33 @@ export function HubSidebar() {
       </SidebarHeader>
       <SidebarContent className="sidebar-scroll">
         {sidebarGroups.map((group, gi) => (
-          <SidebarGroup key={gi}>
-            {group.label && (
-              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/40">
-                {group.label}
-              </SidebarGroupLabel>
+          <div key={group.label || "main"}>
+            {group.defaultCollapsed && group.label ? (
+              <CollapsibleSidebarGroup
+                group={group}
+                pathname={pathname}
+                bibleTo={bibleTo}
+                badgeMap={badgeMap}
+              />
+            ) : (
+              <SidebarGroup>
+                {group.label && (
+                  <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/40">
+                    {group.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarGroupContent>
+                  <SidebarGroupItems
+                    group={group}
+                    pathname={pathname}
+                    bibleTo={bibleTo}
+                    badgeMap={badgeMap}
+                  />
+                </SidebarGroupContent>
+              </SidebarGroup>
             )}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const to = item.to === "__bible__" ? bibleTo : item.to;
-                  const navItem = { ...item, to };
-                  const isActive =
-                    item.title === "Bible"
-                      ? pathname.startsWith("/read/")
-                      : to === "/home"
-                        ? pathname === "/home"
-                        : pathname === to || (to !== "/home" && pathname.startsWith(to + "/"));
-                  const withBadge = { ...navItem, badge: badgeMap[item.title] };
-                  return <NavItem key={item.title} item={withBadge} isActive={isActive} />;
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
             {gi < sidebarGroups.length - 1 && <SidebarSeparator className="my-1" />}
-          </SidebarGroup>
+          </div>
         ))}
       </SidebarContent>
       <SidebarFooter className="mt-auto shrink-0 border-t border-border/40 px-2 py-3">

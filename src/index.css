@@ -604,13 +604,6 @@
     break-inside: auto;
   }
 
-  /* Open-book spread — enforce two columns per page. */
-  [data-reader-spread-overlay] .scripture-columns-2 {
-    columns: 2;
-    column-count: 2;
-    column-gap: clamp(1.25rem, 4vw, 2rem);
-  }
-
   /* Traditional two-column Bible page — fill column 1 top→bottom, then column 2 (printed order). */
   .scripture-columns-2 {
     columns: 2;
@@ -1390,11 +1383,27 @@
 
 /* Hub shell — two equal-height cards: nav (left) + content (right) */
 .hub-shell {
+  position: relative;
+  isolation: isolate;
   --hub-safe-top: max(0.5rem, var(--safe-area-inset-top));
   --hub-edge: 0.75rem;
   --hub-card-gap: 0.75rem;
   --hub-viewport-h: 100svh;
   --hub-card-height: calc(var(--hub-viewport-h) - var(--hub-safe-top) - var(--hub-edge));
+}
+
+/* Full-viewport fabric — fixed layer so the weave covers the left gutter and entire screen */
+.hub-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: hsl(var(--muted) / 0.4);
+  background-image: url("/images/fabric-light-herringbone.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  background-position: top left;
 }
 
 @supports (-webkit-touch-callout: none) {

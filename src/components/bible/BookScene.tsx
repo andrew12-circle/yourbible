@@ -21,8 +21,6 @@ interface Props {
   coverClassName?: string;
   /** Page tone / reader theme classes on the paper surface. */
   pageClassName?: string;
-  /** Four-column scripture layer spanning both pages (open-book double-column mode). */
-  spreadOverlay?: ReactNode;
 }
 
 const LEATHER_BG = {
@@ -97,7 +95,6 @@ export function BookScene({
   coverStyle,
   coverClassName,
   pageClassName,
-  spreadOverlay,
 }: Props) {
   const showLeft = !singlePage || pageSide === "left";
   const showRight = !singlePage || pageSide === "right";
@@ -228,8 +225,6 @@ export function BookScene({
                       )}
                     </>
                   )}
-
-                  {spreadOverlay}
 
                   {ribbons && (
                     <div className="absolute inset-0 z-[8] pointer-events-none overflow-visible">

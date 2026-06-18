@@ -20,11 +20,6 @@ export function spreadPageStackWidths(progress: number): { left: number; right: 
   return { left, right };
 }
 
-/** Average fore-edge stack so overlay text blocks look centered on the spread. */
-export function spreadOverlayForeEdgeStackPx(leftStackPx: number, rightStackPx: number): number {
-  return Math.round((Math.max(0, leftStackPx) + Math.max(0, rightStackPx)) / 2);
-}
-
 /** Comfortable horizontal inset on phones / compact reader chrome. */
 export const MOBILE_PAGE_MARGIN_H = "clamp(1rem, 4.5vw, 1.375rem)";
 
@@ -47,26 +42,4 @@ export function pageHorizontalPadding(
   return side === "left"
     ? { paddingLeft: outer, paddingRight: gutter }
     : { paddingLeft: gutter, paddingRight: outer };
-}
-
-/**
- * Spread scripture overlay sits over the full paper width; add stack inset on the
- * outer fore-edge so text aligns with the inset page surfaces below.
- */
-export function spreadOverlayPanePadding(
-  side: "left" | "right",
-  pageStackPx: number,
-): CSSProperties {
-  const outer = SPREAD_PAGE_MARGIN_OUTER;
-  const gutter = SPREAD_PAGE_MARGIN_GUTTER;
-  const stack = Math.max(0, Math.round(pageStackPx));
-  return side === "left"
-    ? {
-        paddingLeft: `calc(${outer} + ${stack}px)`,
-        paddingRight: gutter,
-      }
-    : {
-        paddingLeft: gutter,
-        paddingRight: `calc(${outer} + ${stack}px)`,
-      };
 }
