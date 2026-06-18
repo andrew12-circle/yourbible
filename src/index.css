@@ -1390,6 +1390,12 @@
   --hub-card-gap: 0.75rem;
   --hub-viewport-h: 100svh;
   --hub-card-height: calc(var(--hub-viewport-h) - var(--hub-safe-top) - var(--hub-edge));
+  background-color: hsl(var(--muted) / 0.4);
+  background-image: url("/images/fabric-light-herringbone.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  background-position: top left;
+  background-attachment: fixed;
 }
 
 /* Full-viewport fabric — fixed layer so the weave covers the left gutter and entire screen */
@@ -1422,11 +1428,22 @@
   width: calc(var(--sidebar-width) + var(--hub-edge));
 }
 
+/* app-theme paints white on the fixed slot; show fabric in the gutter only */
+.hub-shell .peer[data-variant="floating"] > .fixed.app-theme {
+  background-color: hsl(var(--muted) / 0.4) !important;
+  background-image: url("/images/fabric-light-herringbone.png") !important;
+  background-repeat: repeat !important;
+  background-size: 512px 512px !important;
+  background-position: top left !important;
+  background-attachment: fixed !important;
+}
+
 .hub-shell .peer[data-variant="floating"] > .fixed > [data-sidebar="sidebar"] {
   height: 100%;
   border-radius: 0.75rem;
   border: 1px solid hsl(var(--border) / 0.3);
-  background: hsl(var(--sidebar-background));
+  background: hsl(var(--sidebar-background)) !important;
+  background-image: none !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
