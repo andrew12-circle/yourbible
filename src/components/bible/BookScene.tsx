@@ -139,7 +139,7 @@ export function BookScene({
           className={cn(
             "flex flex-col flex-1 min-h-0 w-full",
             hubEmbedded
-              ? "pt-0 pb-0"
+              ? "pt-0 pb-[env(safe-area-inset-bottom,0px)]"
               : cn(
                   "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
                   flushMobile ? "pt-1" : "pt-[max(0.5rem,env(safe-area-inset-top))]",
@@ -177,10 +177,7 @@ export function BookScene({
             />
 
             <div
-              className={cn(
-                "relative flex flex-col flex-1 min-h-0 overflow-visible",
-                hubEmbedded && "pb-[env(safe-area-inset-bottom,0px)]",
-              )}
+              className="relative flex flex-col flex-1 min-h-0 overflow-visible"
               style={{
                 padding: `${coverPadTop}px ${coverPadX}px ${coverPadBottom}px`,
               }}

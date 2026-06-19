@@ -1472,7 +1472,22 @@
   .hub-shell:has([data-bible-reader]) {
     --hub-edge: 0px;
     --hub-card-gap: 0px;
-    --hub-card-height: calc(var(--hub-viewport-h) - var(--hub-safe-top));
+    height: var(--hub-viewport-h, 100dvh) !important;
+    max-height: var(--hub-viewport-h, 100dvh) !important;
+    min-height: var(--hub-viewport-h, 100dvh) !important;
+    --hub-card-height: calc(var(--hub-viewport-h, 100dvh) - var(--hub-safe-top));
+  }
+
+  /* iOS — body cream peeks below svh hub; paint fabric on the full viewport. */
+  html:has(.hub-shell [data-bible-reader]),
+  body:has(.hub-shell [data-bible-reader]),
+  #root:has(.hub-shell [data-bible-reader]) {
+    background-color: hsl(var(--muted) / 0.4);
+    background-image: url("/images/fabric-light-herringbone.png");
+    background-repeat: repeat;
+    background-size: 512px 512px;
+    background-position: top left;
+    background-attachment: fixed;
   }
 
   .hub-shell .hub-content-card:has([data-bible-reader]) {
