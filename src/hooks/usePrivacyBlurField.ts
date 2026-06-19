@@ -1,22 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type CompositionEvent,
-  type FocusEvent,
-  type FormEvent,
-  type KeyboardEvent,
-  type MouseEvent,
-  type PointerEvent,
-  type UIEvent,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type CompositionEvent, type FocusEvent, type FormEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type UIEvent } from "react";
 import { PRIVACY_BLUR_FIELD_CLASS } from "@/components/writing/PrivacyBlurOverlay";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { isIosWebKit } from "@/lib/youtube/platform";
-import { cn } from "@/lib/utils";
 
 type TextFieldElement = HTMLTextAreaElement | HTMLInputElement;
 
@@ -44,6 +29,7 @@ export function usePrivacyBlurField({
   const privacyBlurEnabled = useJournalPrivacyBlurStore((s) => s.journalPrivacyBlurEnabled);
   const [caretIndex, setCaretIndex] = useState(value.length);
   const [scrollTop, setScrollTop] = useState(0);
+  const [fieldFocused, setFieldFocused] = useState(false);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<TextFieldElement | null>(null);
   const caretRafRef = useRef<number | null>(null);
@@ -145,9 +131,12 @@ export function usePrivacyBlurField({
         }, handlers.onScroll),
         onFocus: chain((e: FocusEvent<TextFieldElement>) => {
           fieldRef.current = e.currentTarget;
+          setFieldFocused(true);
           scheduleCaretSync(e.currentTarget);
         }, handlers.onFocus),
-        onBlur: handlers.onBlur,
+        onBlur: chain((e: FocusEvent<TextFieldElement>) => {
+          setFieldFocused(false);
+        }, handlers.onBlur),
       };
     },
     [scheduleCaretSync],
@@ -165,11 +154,12 @@ export function usePrivacyBlurField({
   );
 
   const overlayProps =
-    privacyBlurEnabled && value
+    privacyBlurEnabled
       ? {
           text: value,
           caretIndex,
           scrollTop,
+          fieldFocused,
           className: mirrorClassName,
           mirrorRef,
           fieldRef,
@@ -197,7 +187,7 @@ export function mergeFieldRefs<T extends TextFieldElement>(
   };
 }
 
-/** Mirror must match the field typography exactly — pass through the field className. */
-export function privacyBlurMirrorClass(className?: string) {
-  return cn(className);
+/** Typography is copied from the field via syncTextareaMirrorLayout — avoid layout classes here. */
+export function privacyBlurMirrorClass(_className?: string) {
+  return undefined;
 }

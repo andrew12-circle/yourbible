@@ -4,6 +4,8 @@ import type { DictateButtonHandle } from "@/components/journal/DictateButton";
 import { partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
@@ -26,6 +28,7 @@ import {
 } from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
+import { resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import {
   useLockBodyScrollWhenKeyboardActive,
   useVisualViewportMetrics,
@@ -55,6 +58,11 @@ import {
 } from "@/lib/journal/inlineJournalChat";
 import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
 import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
+import {
+  useJournalComposePersistence,
+  type ComposePersistenceSnapshot,
+} from "@/hooks/useJournalComposePersistence";
+import { hasMeaningfulComposeContent } from "@/lib/journal/composeEntryDraft";
 
 interface BeliefOpt {
   id: string;
@@ -69,6 +77,8 @@ export function useNewJournalEntryPage() {
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
+  const inMiniPhone = useMiniPhoneEmbed();
+  const isMobile = useIsMobile();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -140,8 +150,72 @@ export function useNewJournalEntryPage() {
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
 
+  const getComposeSnapshot = useCallback(
+    (): ComposePersistenceSnapshot => ({
+      title,
+      body,
+      tags,
+      mood,
+      entryKind,
+      journalId,
+      verseRef,
+      beliefId,
+      promptId,
+      locationName,
+      lat,
+      lng,
+      weather,
+      weatherTempC,
+      weatherIcon,
+      analyzeForMirror,
+      entryAt,
+      listeningSections: isListening ? listeningSections : undefined,
+    }),
+    [
+      title,
+      body,
+      tags,
+      mood,
+      entryKind,
+      journalId,
+      verseRef,
+      beliefId,
+      promptId,
+      locationName,
+      lat,
+      lng,
+      weather,
+      weatherTempC,
+      weatherIcon,
+      analyzeForMirror,
+      entryAt,
+      isListening,
+      listeningSections,
+    ],
+  );
+
+  const composePersistence = useJournalComposePersistence({
+    userId: user?.id,
+    editId,
+    inlineEntryId,
+    setInlineEntryId,
+    entryKind,
+    isListening,
+    getSnapshot: getComposeSnapshot,
+    skipLocalRestore: Boolean(editId),
+  });
+
+  const {
+    schedulePersist: scheduleComposePersist,
+    flushServerSave: flushComposeSave,
+    restoreLocalDraft,
+    clearDraft: clearComposeDraft,
+  } = composePersistence;
+
   useLockBodyScrollWhenKeyboardActive(
-    (inlineChatMode && composerFocused) || bodyFocused,
+    !inMiniPhone &&
+      !isMobile &&
+      ((inlineChatMode && composerFocused) || bodyFocused),
     composerLockScrollYRef,
   );
 
@@ -159,9 +233,26 @@ export function useNewJournalEntryPage() {
     kbInset,
     enabled: !inlineChatMode,
     resetKey: editId ?? "journal-new",
-    fixedBottomInsetPx: bodyFocused ? kbInset + 16 : undefined,
-    topInsetPx: vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
+    fixedBottomInsetPx: bodyFocused ? (inMiniPhone ? 16 : kbInset + 16) : undefined,
+    topInsetPx: inMiniPhone ? 12 : vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
+
+  useEffect(() => {
+    if (!bodyFocused || inlineChatMode) return;
+    const vv = window.visualViewport;
+    if (!vv) {
+      requestAnimationFrame(() => scrollToCaretEnd());
+      return;
+    }
+    const sync = () => requestAnimationFrame(() => scrollToCaretEnd());
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, [bodyFocused, inlineChatMode, kbInset, scrollToCaretEnd]);
 
   useEffect(() => {
     const el = chatScrollRef.current;
@@ -363,6 +454,54 @@ export function useNewJournalEntryPage() {
   }, [editId, user, loadChatTurns]);
 
   useEffect(() => {
+    if (editId || !user) return;
+    const draft = restoreLocalDraft();
+    if (!draft) return;
+
+    setTitle((t) => (t.trim() ? t : draft.title));
+    setBody((b) => {
+      if (b.trim()) return b;
+      return draft.body;
+    });
+    if (draft.tags.length) setTags((ts) => (ts.length ? ts : draft.tags));
+    if (draft.entryKind && !entryKind) setEntryKind(draft.entryKind);
+    if (draft.listeningSections && !isListeningEmpty(draft.listeningSections)) {
+      setListeningSections(draft.listeningSections);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, user?.id]);
+
+  useEffect(() => {
+    if (!user || inlineChatMode) return;
+    if (!body.trim() && !title.trim() && !editId && !inlineEntryId) return;
+    if (!hasMeaningfulComposeContent({ title, body, entryKind, listeningSections })) return;
+    scheduleComposePersist();
+  }, [
+    user,
+    inlineChatMode,
+    body,
+    title,
+    tags,
+    mood,
+    entryKind,
+    journalId,
+    verseRef,
+    beliefId,
+    locationName,
+    lat,
+    lng,
+    weather,
+    weatherTempC,
+    weatherIcon,
+    analyzeForMirror,
+    entryAt,
+    listeningSections,
+    editId,
+    inlineEntryId,
+    scheduleComposePersist,
+  ]);
+
+  useEffect(() => {
     if (!user) return;
     supabase
       .from("belief_nodes")
@@ -481,7 +620,7 @@ export function useNewJournalEntryPage() {
   const layoutTitle = editId ? "Edit entry" : entryKind ? `New ${ENTRY_KIND_META[entryKind].label}` : "New entry";
   const bodyPlaceholder = entryKind
     ? ENTRY_KIND_META[entryKind].placeholder
-    : "What happened today? Type #tag or @journal name to organize.";
+    : "Write something…";
 
   const { sketches: existingSketches, attachments: existingAttachments } =
     partitionJournalPhotos(existingPhotos);
@@ -696,6 +835,7 @@ export function useNewJournalEntryPage() {
     }
     setBusy(true);
     setBusyLabel("Saving");
+    await flushComposeSave({ silent: true });
     const ts = new Date(entryAt);
 
     const isInlineChat = !!inlineEntryId && hasChat;
@@ -815,6 +955,8 @@ export function useNewJournalEntryPage() {
         .catch((e) => console.error("score err", e));
     }
 
+    clearComposeDraft();
+
     if (isInlineChat) {
       navigate(`/journal/${entryId}`);
       return;
@@ -874,6 +1016,8 @@ export function useNewJournalEntryPage() {
     replyWithAi,
     canReplyWithAi,
     navigate,
+    flushComposeSave,
+    clearComposeDraft,
   ]);
 
   const openChatMode = useCallback(async () => {
@@ -906,10 +1050,12 @@ export function useNewJournalEntryPage() {
     composerLockScrollYRef.current = window.scrollY;
     const el = bodyTextareaRef.current;
     if (!el) return;
+    resizeJournalTextarea(el);
     el.focus();
     const pos = el.value.length;
     el.setSelectionRange(pos, pos);
-  }, []);
+    requestAnimationFrame(() => scrollToCaretEnd());
+  }, [scrollToCaretEnd]);
 
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => {
@@ -1017,6 +1163,8 @@ export function useNewJournalEntryPage() {
     navigate,
     kbInset,
     vvOffsetTop,
+    inMiniPhone,
+    isMobile,
     bodyFocused,
     setBodyFocused,
     bodyTextareaRef,

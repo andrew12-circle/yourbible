@@ -1,28 +1,8 @@
-import { applyTextareaMirrorStyles } from "@/lib/journal/textareaMirrorStyles";
+import { measureTextareaCaretRect } from "@/lib/journal/textareaMirrorStyles";
 
 /** Mirror-div caret offset from the top of the textarea content box. */
 export function measureTextareaCaretTop(textarea: HTMLTextAreaElement): number {
-  const pos = textarea.selectionStart ?? textarea.value.length;
-  const cs = getComputedStyle(textarea);
-  const mirror = document.createElement("div");
-  applyTextareaMirrorStyles(textarea, mirror);
-  mirror.style.position = "absolute";
-  mirror.style.visibility = "hidden";
-  mirror.style.whiteSpace = "pre-wrap";
-  mirror.style.wordWrap = "break-word";
-  mirror.style.overflow = "hidden";
-  mirror.style.width = `${textarea.clientWidth}px`;
-  mirror.textContent = textarea.value.slice(0, pos);
-  const marker = document.createElement("span");
-  marker.textContent = textarea.value.slice(pos) || ".";
-  mirror.appendChild(marker);
-  document.body.appendChild(mirror);
-  const top =
-    marker.offsetTop +
-    Number.parseFloat(cs.paddingTop || "0") +
-    Number.parseFloat(cs.borderTopWidth || "0");
-  document.body.removeChild(mirror);
-  return top;
+  return measureTextareaCaretRect(textarea).top;
 }
 
 export type ScrollEditorCaretOptions = {

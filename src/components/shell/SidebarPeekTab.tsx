@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useMiniPhone } from "@/contexts/MiniPhoneContext";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "hub-sidebar-peek-y-pct";
@@ -8,6 +9,7 @@ const DEFAULT_Y_PCT = 88;
 const DRAG_THRESHOLD = 5;
 
 export function SidebarPeekTab() {
+  const { isOpen: phoneOpen } = useMiniPhone();
   const { open, toggleSidebar } = useSidebar();
   const Icon = open ? PanelLeftClose : PanelLeftOpen;
 
@@ -60,9 +62,12 @@ export function SidebarPeekTab() {
     }
   }, [toggleSidebar]);
 
+  if (phoneOpen) return null;
+
   return (
     <button
       type="button"
+      data-sidebar-peek
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

@@ -59,6 +59,8 @@ export function FloatingPhoneBubble() {
     }
   }, [toggle]);
 
+  if (isOpen) return null;
+
   return (
     <button
       type="button"

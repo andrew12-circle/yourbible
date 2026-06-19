@@ -406,9 +406,16 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
       {!loading && filtered.length === 0 && !loadError && (
         <div className="text-center py-20 px-6">
           <p className="text-lg font-semibold tracking-tight">No entries yet</p>
-          <p className="text-[15px] text-muted-foreground mt-1">
-            Tap the compose button to write your first.
+          <p className="text-[15px] text-muted-foreground mt-1 mb-4">
+            Write your first entry or tap the compose button.
           </p>
+          <Button
+            onClick={() =>
+              navigate(`/journal/new${journalId ? `?journalId=${journalId}` : ""}`)
+            }
+          >
+            Start journaling
+          </Button>
         </div>
       )}
 

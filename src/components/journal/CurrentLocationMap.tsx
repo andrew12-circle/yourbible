@@ -8,6 +8,10 @@ const MAP_HEIGHT = 320;
 
 interface Props {
   className?: string;
+  /** Map height in px (default 320). */
+  height?: number;
+  /** Show city name above the map (default true). */
+  showLocationLabel?: boolean;
 }
 
 function isValidLatLng(lat: unknown, lng: unknown): lat is number {
@@ -45,7 +49,11 @@ class MapErrorBoundary extends Component<{ children: ReactNode }, { error: Error
   }
 }
 
-export default function CurrentLocationMap({ className }: Props) {
+export default function CurrentLocationMap({
+  className,
+  height = MAP_HEIGHT,
+  showLocationLabel = true,
+}: Props) {
   const [ctx, setCtx] = useState<EntryContext | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +81,7 @@ export default function CurrentLocationMap({ className }: Props) {
           "flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted/30 text-muted-foreground",
           className,
         )}
-        style={{ height: MAP_HEIGHT }}
+        style={{ height }}
       >
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         <span className="text-sm">Finding your location…</span>
@@ -88,7 +96,7 @@ export default function CurrentLocationMap({ className }: Props) {
           "flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground",
           className,
         )}
-        style={{ height: MAP_HEIGHT }}
+        style={{ height }}
       >
         <MapPin className="h-4 w-4 shrink-0" aria-hidden />
         <span>Enable location access to see where you are</span>
@@ -98,14 +106,14 @@ export default function CurrentLocationMap({ className }: Props) {
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {ctx.location_name ? (
+      {showLocationLabel && ctx.location_name ? (
         <p className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {ctx.location_name}
         </p>
       ) : null}
       <MapErrorBoundary>
-        <EntryMiniMap lat={ctx.lat} lng={ctx.lng} height={MAP_HEIGHT} />
+        <EntryMiniMap lat={ctx.lat} lng={ctx.lng} height={height} />
       </MapErrorBoundary>
     </div>
   );

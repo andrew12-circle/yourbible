@@ -1588,11 +1588,25 @@
 [data-mini-phone-app] {
   container-type: inline-size;
   max-width: 100%;
+  --safe-area-inset-top: 12px;
+  --safe-area-inset-bottom: 8px;
 }
 
 [data-mini-phone-app] .hub-shell,
 [data-mini-phone-app] .hub-content-card {
   max-width: 100%;
+}
+
+[data-mini-phone-app] .journal-entry-page,
+[data-mini-phone-app] [data-journal-entry-page] {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Hub edge tabs must not overlap the open mini-phone drawer. */
+body:has([data-mini-phone-drawer]) [data-phone-bubble],
+body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
+  display: none !important;
 }
 
 /* Compatibility shims — when app-theme is active, neutralize the
@@ -1736,5 +1750,12 @@
   .journal-plain-write-field:focus-visible {
     outline: none;
     box-shadow: none;
+  }
+
+  /* Keep empty-state hints visible when privacy blur makes typed text transparent. */
+  .privacy-blur-field::placeholder {
+    -webkit-text-fill-color: hsl(var(--muted-foreground) / 0.55);
+    color: hsl(var(--muted-foreground) / 0.55);
+    opacity: 1;
   }
 }

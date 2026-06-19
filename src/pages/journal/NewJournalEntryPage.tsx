@@ -1,6 +1,7 @@
 import { DictateButton } from "@/components/journal/DictateButton";
 import { NewJournalEntryToolbar } from "@/components/journal/new-entry/NewJournalEntryToolbar";
 import { NewJournalEntryBodyEditor } from "@/components/journal/new-entry/NewJournalEntryBodyEditor";
+import { NewJournalEntryLocationMap } from "@/components/journal/new-entry/NewJournalEntryLocationMap";
 import SketchPad from "@/components/journal/SketchPad";
 import { Navigate } from "react-router-dom";
 import {
@@ -10,7 +11,6 @@ import {
   Sparkles,
   PenLine,
   ChevronLeft,
-  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,10 @@ import InlineJournalChatComposer from "@/components/journal/InlineJournalChatCom
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
-import { hubShellBottomDock, hubShellPageHeight } from "@/lib/shell/hubShellClasses";
+import { journalEntryPageRoot, hubShellBottomDock } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
-import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
+import AiWritingAssistToggle, { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { useEffect } from "react";
 
@@ -61,11 +61,17 @@ export default function NewJournalEntryPage() {
     />
   );
 
+  const typing = (p.bodyFocused && !p.inlineChatMode) || (p.inlineChatMode && p.composerFocused);
+  const dockHidden = p.bodyFocused && !p.inlineChatMode;
+  const showComposeMap = !typing && !p.inlineChatMode && !p.isListening;
+
   return (
-    <div className={cn("flex flex-col overflow-hidden bg-background", hubShellPageHeight(showHubShell))}>
+    <div className={journalEntryPageRoot(showHubShell, p.inMiniPhone)} data-journal-entry-page>
       <header
-        className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]"
-        style={p.vvOffsetTop > 0 ? { top: p.vvOffsetTop } : undefined}
+        className="sticky top-0 z-20 shrink-0 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]"
+        style={
+          !p.inMiniPhone && !p.isMobile && p.vvOffsetTop > 0 ? { top: p.vvOffsetTop } : undefined
+        }
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-5 h-12 flex items-center gap-2">
           <button
@@ -83,24 +89,10 @@ export default function NewJournalEntryPage() {
           >
             {p.dateLabel}
           </button>
-          <AiWritingAssistToolbarButton className="h-9 w-9 inline-flex items-center justify-center rounded-full" />
+          {!p.isMobile && !p.inMiniPhone ? (
+            <AiWritingAssistToolbarButton className="h-9 w-9 inline-flex items-center justify-center rounded-full" />
+          ) : null}
           <JournalPrivacyBlurToggle />
-          <button
-            type="button"
-            onClick={p.triggerHandwritten}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-muted"
-            aria-label="Handwritten"
-          >
-            <PenLine className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => p.setMoreOpen(true)}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-muted"
-            aria-label="More options"
-          >
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
           <Button
             onClick={() => void p.save()}
             disabled={p.busy}
@@ -136,34 +128,48 @@ export default function NewJournalEntryPage() {
 
       <main
         ref={p.mainScrollRef}
-        className={cn(
-          "flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain",
-          p.bodyFocused && !p.inlineChatMode && "flex flex-col",
-        )}
+        className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
         style={{
-          paddingBottom: p.bodyFocused && !p.inlineChatMode
-            ? `calc(${p.kbInset}px + env(safe-area-inset-bottom) + 1rem)`
+          paddingBottom: dockHidden || typing
+            ? "max(env(safe-area-inset-bottom), 0.75rem)"
             : "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)",
         }}
         onPointerDown={(e) => {
           if (p.inlineChatMode) return;
           const target = e.target as HTMLElement;
-          if (target.closest("textarea, input, button, a, label, [role='button']")) return;
+          if (
+            target.closest(
+              "textarea, input, button, a, label, [role='button'], [data-journal-compose-map]",
+            )
+          ) {
+            return;
+          }
           p.focusBodyEditor();
         }}
       >
-        <PrivacyBlurInput
-          value={p.title}
-          onChange={(e) => p.setTitle(e.target.value)}
-          placeholder="Title"
-          className="border-0 bg-transparent px-0 text-[22px] leading-tight font-display font-semibold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/40"
-        />
+        <div className="relative">
+          {!p.title.trim() ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 z-0 text-[26px] leading-tight font-display font-semibold tracking-tight text-muted-foreground/55"
+            >
+              Title
+            </span>
+          ) : null}
+          <PrivacyBlurInput
+            value={p.title}
+            onChange={(e) => p.setTitle(e.target.value)}
+            aria-label="Title"
+            className="relative z-[1] border-0 bg-transparent px-0 text-[26px] leading-tight font-display font-semibold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        </div>
 
         <NewJournalEntryBodyEditor
           editId={p.editId}
           isListening={p.isListening}
           inlineChatMode={p.inlineChatMode}
           bodyFocused={p.bodyFocused}
+          showLocationMap={showComposeMap}
           body={p.body}
           onBodyChange={p.handleBodyChange}
           onBodyKeyDown={p.handleBodyKeyDown}
@@ -213,22 +219,32 @@ export default function NewJournalEntryPage() {
         </div>
       ) : null}
 
-      <nav
+      <div
         ref={p.bottomDockRef}
-        aria-label="Journal tools"
         className={hubShellBottomDock(
           showHubShell,
-          cn(
-            "z-30 flex justify-center px-3 sm:px-5 pt-2",
-            p.bodyFocused && !p.inlineChatMode && "hidden",
-          ),
+          cn("z-30 flex flex-col justify-end px-3 sm:px-5", dockHidden && "hidden"),
+          p.inMiniPhone,
         )}
         style={{
           paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
-          transform: p.kbInset ? `translateY(-${p.kbInset}px)` : undefined,
-          transition: "transform 120ms ease-out",
         }}
       >
+        {showComposeMap ? (
+          <div className="pointer-events-auto w-full max-w-3xl mx-auto mb-2">
+            <NewJournalEntryLocationMap
+              lat={p.lat}
+              lng={p.lng}
+              inMiniPhone={p.inMiniPhone}
+              isMobile={p.isMobile}
+              docked
+            />
+          </div>
+        ) : null}
+        <nav
+          aria-label="Journal tools"
+          className="pointer-events-none flex justify-center w-full pt-2"
+        >
         <div className="pointer-events-auto w-full max-w-3xl">
           {p.inlineChatMode ? (
             <InlineJournalChatComposer
@@ -264,6 +280,7 @@ export default function NewJournalEntryPage() {
           )}
         </div>
       </nav>
+      </div>
 
       <Sheet open={p.dateOpen} onOpenChange={p.setDateOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">
@@ -359,8 +376,12 @@ export default function NewJournalEntryPage() {
             </section>
 
             <section className="rounded-lg border border-border bg-card p-4">
+              <AiWritingAssistToggle compact />
+            </section>
+
+            <section className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-amber-500 mt-0.5" />
+                <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-3">
                     <Label htmlFor="analyze" className="font-medium">

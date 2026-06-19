@@ -5,6 +5,8 @@ export type VisualViewportMetrics = {
   keyboardInset: number;
   /** Visual viewport offset from layout top — non-zero when iOS shifts content for the keyboard. */
   offsetTop: number;
+  /** Visible viewport height (px) — shrinks when the keyboard is open. */
+  viewportHeight: number;
 };
 
 export function readVisualViewportMetricsForTest(layout: {
@@ -17,12 +19,16 @@ export function readVisualViewportMetricsForTest(layout: {
   return {
     keyboardInset: keyboardOpen ? diff : 0,
     offsetTop: keyboardOpen ? Math.max(0, layout.vvOffsetTop) : 0,
+    viewportHeight: layout.vvHeight,
   };
 }
 
 function readVisualViewportMetrics(): VisualViewportMetrics {
   const vv = typeof window !== "undefined" ? window.visualViewport : null;
-  if (!vv) return { keyboardInset: 0, offsetTop: 0 };
+  if (!vv) {
+    const h = typeof window !== "undefined" ? window.innerHeight : 0;
+    return { keyboardInset: 0, offsetTop: 0, viewportHeight: h };
+  }
   return readVisualViewportMetricsForTest({
     innerHeight: window.innerHeight,
     vvHeight: vv.height,

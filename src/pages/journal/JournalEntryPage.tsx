@@ -18,7 +18,9 @@ import {
   transcribeEntrySketchPaths,
 } from "@/lib/journal/sketchTranscription";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
+import CurrentLocationMap from "@/components/journal/CurrentLocationMap";
 import { syncEntryWikilinks } from "@/lib/journal/links";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
 import {
   LISTENING_SECTIONS,
@@ -67,6 +69,7 @@ export default function JournalEntryPage() {
   const [entryNotFound, setEntryNotFound] = useState(false);
   const autoTranscribeAttempted = useRef(false);
   const titleSuggestAttempted = useRef(false);
+  const inMiniPhone = useMiniPhoneEmbed();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -287,6 +290,20 @@ export default function JournalEntryPage() {
   const isChatEntry = entry.entry_kind === "chat";
   const showChatJournalView = isChatJournalExport(entry.body, entry.summary);
   const entryHeading = entry.title?.trim() || null;
+  const mapHeight = inMiniPhone ? 160 : 200;
+  const openEdit = () => navigate(`/journal/${entry.id}/edit`);
+  const bodyEmpty = !entry.body?.trim() && !transcribingSketch;
+  const canWrite = entry.entry_kind !== "chat" && entry.entry_kind !== "vent";
+
+  const mapFooter = (
+    <div className="px-5 py-3">
+      {entry.lat != null && entry.lng != null ? (
+        <EntryMiniMap lat={entry.lat} lng={entry.lng} height={mapHeight} />
+      ) : (
+        <CurrentLocationMap height={mapHeight} />
+      )}
+    </div>
+  );
 
   return (
     <JournalShell
@@ -296,6 +313,7 @@ export default function JournalEntryPage() {
       coverTitle={entryHeading ?? "Entry"}
       backTo="/journal"
       hideComposeFab
+      footer={mapFooter}
       headerRight={
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="text-white hover:bg-white/15" onClick={() => navigate(`/journal/${entry.id}/edit`)}>
@@ -307,7 +325,18 @@ export default function JournalEntryPage() {
         </div>
       }
     >
-      <div className="px-5 pt-3 pb-safe-28">
+      <div className="px-5 pt-3 pb-4">
+      {canWrite && bodyEmpty && (
+        <button
+          type="button"
+          onClick={openEdit}
+          className="mb-4 w-full rounded-xl border border-dashed border-primary/35 bg-primary/5 px-4 py-6 text-left transition-colors hover:bg-primary/10 active:bg-primary/15"
+        >
+          <p className="text-[15px] font-semibold text-foreground">Tap to start writing</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add your thoughts, photos, or location to this entry.</p>
+        </button>
+      )}
+
       {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
         <Button
           variant="outline"
@@ -407,7 +436,11 @@ export default function JournalEntryPage() {
         <div className="font-sans text-[16px] leading-relaxed mb-6 prose prose-sm dark:prose-invert max-w-none prose-hr:my-4 prose-p:my-2">
           {entry.body
             ? <ReactMarkdown>{entry.body}</ReactMarkdown>
-            : <span className="italic text-muted-foreground">No body</span>}
+            : (
+              <button type="button" onClick={openEdit} className="italic text-muted-foreground hover:text-foreground">
+                Tap to start writing
+              </button>
+            )}
         </div>
       ) : (
         <div className="mb-6 space-y-4">
@@ -436,15 +469,17 @@ export default function JournalEntryPage() {
               ) : entry.body ? (
                 entry.body
               ) : (
-                <span className="italic text-muted-foreground">No body</span>
+                <button
+                  type="button"
+                  onClick={openEdit}
+                  className="italic text-muted-foreground hover:text-foreground"
+                >
+                  Tap to start writing
+                </button>
               )}
             </div>
           </section>
         </div>
-      )}
-
-      {entry.lat != null && entry.lng != null && (
-        <EntryMiniMap lat={entry.lat} lng={entry.lng} className="mb-6" />
       )}
 
       {id ? (

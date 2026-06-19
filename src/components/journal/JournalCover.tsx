@@ -4,6 +4,8 @@ import { ChevronLeft, Menu } from "lucide-react";
 import { Journal } from "@/lib/journal/journals";
 import { journalCoverObjectPosition } from "@/lib/journal/covers";
 import { useJournalCoverBanner } from "@/hooks/useJournalCoverBanner";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
+import { cn } from "@/lib/utils";
 
 interface Props {
   journal: Journal | null; // null = aggregate "All Entries"
@@ -29,9 +31,11 @@ export default function JournalCover({
   onOpenRail,
   backTo = "/home",
 }: Props) {
+  const inMiniPhone = useMiniPhoneEmbed();
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
   const title = titleOverride ?? journal?.name ?? "All Entries";
   const { coverUrl, focal, hasPhoto } = useJournalCoverBanner(journal);
+  const hasTabs = Boolean(tabs && tabs.length > 0);
 
   const colorGradient = journal
     ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
@@ -39,7 +43,14 @@ export default function JournalCover({
 
   return (
     <header className="relative">
-      <div className="relative pt-[calc(var(--safe-area-inset-top)+0.75rem)] pb-12 px-5 overflow-hidden">
+      <div
+        className={cn(
+          "relative overflow-hidden px-5",
+          inMiniPhone
+            ? "pt-[calc(var(--safe-area-inset-top)+1.25rem)] pb-8"
+            : "pt-[calc(var(--safe-area-inset-top)+0.75rem)] pb-12",
+        )}
+      >
         {hasPhoto && coverUrl ? (
           <>
             <img
@@ -105,19 +116,31 @@ export default function JournalCover({
           <div className="flex items-center gap-1 text-white">{right}</div>
         </div>
 
-        <div className="relative mt-8">
+        <div className={cn("relative", inMiniPhone ? "mt-5" : "mt-8")}>
           {subtitle && (
             <p className="text-[12px] uppercase tracking-[0.16em] text-white/75 font-semibold mb-2">
               {subtitle}
             </p>
           )}
-          <h1 className="text-[44px] leading-[1.02] font-bold tracking-tight text-white drop-shadow-sm">
+          <h1
+            className={cn(
+              "font-bold tracking-tight text-white drop-shadow-sm",
+              inMiniPhone
+                ? "text-[28px] leading-[1.08]"
+                : "text-[44px] leading-[1.02]",
+            )}
+          >
             {title}
           </h1>
         </div>
       </div>
 
-      <div className="relative -mt-5 bg-background rounded-t-[22px] shadow-[0_-10px_30px_-18px_hsl(0_0%_0%/0.25)]">
+      <div
+        className={cn(
+          "relative -mt-5 bg-background rounded-t-[22px] shadow-[0_-10px_30px_-18px_hsl(0_0%_0%/0.25)]",
+          !hasTabs && "pt-5",
+        )}
+      >
         {tabs && tabs.length > 0 && (
           <div className="flex items-center gap-6 px-5 pt-3.5 pb-0.5 overflow-x-auto scrollbar-hide">
             {tabs.map((t) => (

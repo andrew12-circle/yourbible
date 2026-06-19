@@ -67,6 +67,10 @@ import { JournalPrivacyBlurToolbarButton } from "@/components/journal/JournalPri
 import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
+import {
+  buildFlushPayload,
+  mergePendingPatches,
+} from "@/lib/journal/journalEntryAutosave";
 import { cn } from "@/lib/utils";
 
 interface EntryRow {
@@ -113,6 +117,7 @@ export default function EntryEditorPane({
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<Partial<EntryRow>>({});
   const titleSuggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveGenerationRef = useRef(0);
   const entryRef = useRef<EntryRow | null>(null);
@@ -278,39 +283,106 @@ export default function EntryEditorPane({
     }, 2500);
   };
 
-  // Autosave on entry mutation
+  const flushSave = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+
+      const cur = entryRef.current;
+      if (!cur) return;
+
+      const pending = pendingSaveRef.current;
+      if (Object.keys(pending).length === 0) return;
+
+      pendingSaveRef.current = {};
+      saveGenerationRef.current += 1;
+
+      const payload = buildFlushPayload(pending, cur);
+      const { error } = await supabase
+        .from("journal_entries")
+        .update(payload)
+        .eq("id", cur.id)
+        .eq("user_id", user.id);
+
+      if (error && !opts?.silent) {
+        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
+        toast({ title: "Save failed", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      const listKeys = Object.keys(payload).filter((k) => k !== "body" && k !== "tags");
+      if (listKeys.length > 0) onChanged();
+      if ("body" in payload && user.id) {
+        void syncEntryWikilinks(user.id, cur.id, cur.body).then(() => {
+          scheduleLinksReload();
+        });
+        if (!("title" in payload)) scheduleTitleSuggestion(cur);
+      }
+    },
+    [user?.id, onChanged, scheduleLinksReload],
+  );
+
+  // Autosave on entry mutation — accumulate patches so rapid edits never drop fields.
   const queueSave = (patch: Partial<EntryRow>) => {
     const cur = entryRef.current;
     if (!cur) return;
     const merged = { ...cur, ...patch };
     entryRef.current = merged;
     setEntry(merged);
+    pendingSaveRef.current = { ...pendingSaveRef.current, ...patch };
     if (saveTimer.current) clearTimeout(saveTimer.current);
     const generation = ++saveGenerationRef.current;
     saveTimer.current = setTimeout(async () => {
       if (generation !== saveGenerationRef.current) return;
+
+      const latest = entryRef.current;
+      if (!latest) return;
+
+      const pending = { ...pendingSaveRef.current };
+      pendingSaveRef.current = {};
+      const payload = buildFlushPayload(pending, latest);
+
       const { error } = await supabase
         .from("journal_entries")
-        .update(patch)
-        .eq("id", merged.id)
+        .update(payload)
+        .eq("id", latest.id)
         .eq("user_id", user.id);
       if (generation !== saveGenerationRef.current) return;
-      if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
-      else {
-        const listKeys = Object.keys(patch).filter((k) => k !== "body" && k !== "tags");
+      if (error) {
+        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
+        toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      } else {
+        const listKeys = Object.keys(payload).filter((k) => k !== "body" && k !== "tags");
         if (listKeys.length > 0) onChanged();
-        if ("body" in patch) {
+        if ("body" in payload) {
           if (user?.id) {
-            void syncEntryWikilinks(user.id, merged.id, merged.body).then(() => {
+            void syncEntryWikilinks(user.id, latest.id, latest.body).then(() => {
               scheduleLinksReload();
             });
           }
-          if (!("title" in patch)) scheduleTitleSuggestion(merged);
+          if (!("title" in payload)) scheduleTitleSuggestion(latest);
         }
       }
     }, 400);
   };
   queueSaveRef.current = queueSave;
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden") void flushSave({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, [flushSave]);
+
+  useEffect(() => {
+    return () => {
+      void flushSave({ silent: true });
+    };
+  }, [flushSave]);
 
   const canReplyWithAi =
     !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
@@ -631,29 +703,16 @@ export default function EntryEditorPane({
     queueSave({ pinned: !entry.pinned });
   };
 
+  const handleClose = async () => {
+    dictateRef.current?.stop();
+    await flushSave({ silent: true });
+    onClose();
+  };
+
   const openFocusedEntry = async () => {
     if (!entry || !user?.id) return;
     dictateRef.current?.stop();
-    if (saveTimer.current) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-      const cur = entryRef.current;
-      if (cur) {
-        await supabase
-          .from("journal_entries")
-          .update({
-            title: cur.title,
-            body: cur.body,
-            mood: cur.mood,
-            tags: cur.tags,
-            entry_kind: cur.entry_kind,
-            pinned: cur.pinned,
-            analyze_for_mirror: cur.analyze_for_mirror,
-          })
-          .eq("id", cur.id)
-          .eq("user_id", user.id);
-      }
-    }
+    await flushSave({ silent: true });
     if (inlineChatMode || entry.entry_kind === "chat") {
       if (inlineChatMode && chatTurns.length > 0) {
         persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
@@ -743,7 +802,7 @@ export default function EntryEditorPane({
       {/* Header */}
       <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/90 px-3 backdrop-blur-md">
         <button
-          onClick={onClose}
+          onClick={() => void handleClose()}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
           title="Close editor"
         >
@@ -1185,6 +1244,7 @@ export default function EntryEditorPane({
         onSave={async (file) => {
           if (!user || !entry) return;
           toast({ title: "Reading your handwritten note…", description: "AI is transcribing your handwriting." });
+          pendingSaveRef.current = {};
           if (saveTimer.current) {
             clearTimeout(saveTimer.current);
             saveTimer.current = null;

@@ -16,6 +16,8 @@ import {
 import { exportJournalAsZip } from "@/lib/journal/export";
 import { toast } from "@/hooks/use-toast";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
+import { cn } from "@/lib/utils";
 
 interface Props {
   /** Currently scoped journal (null = aggregate). */
@@ -39,6 +41,8 @@ interface Props {
   hideComposeFab?: boolean;
   /** Override cover header actions (export menu, etc.). */
   headerRight?: ReactNode;
+  /** Pinned footer below scrollable main (e.g. entry map dock). */
+  footer?: ReactNode;
 }
 
 export default function JournalShell({
@@ -53,7 +57,9 @@ export default function JournalShell({
   showTabs = true,
   hideComposeFab = false,
   headerRight,
+  footer,
 }: Props) {
+  const inMiniPhone = useMiniPhoneEmbed();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -166,8 +172,13 @@ export default function JournalShell({
   const fabColor = journal ? `hsl(${journal.color})` : "hsl(211 100% 50%)";
 
   return (
-    <div className="min-h-[100dvh] bg-background">
-      <div className="flex">
+    <div
+      className={cn(
+        "bg-background",
+        inMiniPhone ? "relative flex h-full min-h-0 flex-col overflow-hidden" : "min-h-[100dvh]",
+      )}
+    >
+      <div className={cn("flex", inMiniPhone && "min-h-0 flex-1 flex-col overflow-hidden")}>
         <div className="hidden md:block w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto">
           <JournalsRail
             journals={journals}
@@ -187,7 +198,7 @@ export default function JournalShell({
           </SheetContent>
         </Sheet>
 
-        <div className="flex-1 min-w-0">
+        <div className={cn("flex-1 min-w-0", inMiniPhone && "flex min-h-0 flex-col overflow-hidden")}>
           <JournalCover
             journal={journal}
             titleOverride={coverTitle}
@@ -197,7 +208,30 @@ export default function JournalShell({
             backTo={backTo}
             right={headerRight ?? defaultHeaderRight}
           />
-          <main className="pb-[calc(8rem+var(--safe-area-inset-bottom))]">{children}</main>
+          <main
+            className={cn(
+              inMiniPhone
+                ? cn(
+                    "min-h-0 flex-1 overflow-y-auto",
+                    footer
+                      ? "pb-3"
+                      : "pb-[calc(4.5rem+var(--safe-area-inset-bottom))]",
+                  )
+                : "pb-[calc(8rem+var(--safe-area-inset-bottom))]",
+            )}
+          >
+            {children}
+          </main>
+          {footer ? (
+            <div
+              className={cn(
+                "shrink-0 border-t border-border/50 bg-background",
+                inMiniPhone && "pb-[calc(2.75rem+var(--safe-area-inset-bottom))]",
+              )}
+            >
+              {footer}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -210,7 +244,12 @@ export default function JournalShell({
               `/journal/new${journalId ? `?journalId=${journalId}` : ""}`,
           )
         }
-        className="fixed bottom-[calc(var(--safe-area-inset-bottom)+1.75rem)] right-7 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40"
+        className={cn(
+          "w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40",
+          inMiniPhone
+            ? "absolute bottom-[calc(var(--safe-area-inset-bottom)+3.25rem)] right-5"
+            : "fixed bottom-[calc(var(--safe-area-inset-bottom)+1.75rem)] right-7",
+        )}
         style={{ background: fabColor, boxShadow: `0 12px 28px -8px ${fabColor}` }}
         aria-label="New entry"
       >

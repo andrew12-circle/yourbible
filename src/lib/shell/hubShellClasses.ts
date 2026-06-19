@@ -15,19 +15,28 @@ export function hubShellScrollMain(showHubShell: boolean, className?: string) {
   return cn(showHubShell && "flex-1 min-h-0 overflow-y-auto overflow-x-hidden", className);
 }
 
-/** Full-height page root: fill hub content card or use viewport height on mobile. */
-export function hubShellPageHeight(showHubShell: boolean) {
-  return showHubShell ? "relative h-full min-h-0" : "h-[100dvh]";
+/** Full-height page root: fill hub content card, mini-phone pane, or mobile viewport. */
+export function hubShellPageHeight(showHubShell: boolean, inMiniPhone = false) {
+  if (showHubShell || inMiniPhone) return "relative h-full min-h-0";
+  return "h-[100dvh]";
+}
+
+/** Journal compose: flex column that shrinks naturally when iOS resizes the viewport for the keyboard. */
+export function journalEntryPageRoot(showHubShell: boolean, inMiniPhone = false) {
+  return cn(
+    "flex min-h-0 flex-col overflow-hidden bg-background",
+    hubShellPageHeight(showHubShell, inMiniPhone),
+  );
 }
 
 /** Default mobile min-height for pages using `hubShellPageRoot`. */
 export { MOBILE_MIN_HEIGHT };
 
-/** Bottom dock: fixed to viewport on mobile; anchored to page pane in hub shell. */
-export function hubShellBottomDock(showHubShell: boolean, className?: string) {
+/** Bottom dock: fixed to viewport on mobile; anchored to page pane in hub shell / mini-phone. */
+export function hubShellBottomDock(showHubShell: boolean, className?: string, inMiniPhone = false) {
   return cn(
-    "pointer-events-none inset-x-0 bottom-0",
-    showHubShell ? "absolute" : "fixed",
+    "pointer-events-none inset-x-0 bottom-0 shrink-0",
+    showHubShell || inMiniPhone ? "absolute" : "fixed",
     className,
   );
 }

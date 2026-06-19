@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { polishText } from "@/lib/ai/polishText";
 import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
@@ -96,7 +95,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
 
     const runPolish = React.useCallback(
       async (snapshot: string) => {
-        if (!allowAiPolish) return;
+        if (!allowAiPolish || useAiWritingAssistStore.getState().polishUnavailable) return;
         if (!useAiWritingAssistStore.getState().aiWritingAssistEnabled || disabled) return;
         const t = snapshot.trim();
         if (t.length < MIN_POLISH_CHARS) return;
@@ -109,13 +108,9 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
           if (out !== snapshot) {
             applyPolishedValue(snapshot, out);
           }
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          toast({
-            title: "Could not fix spelling",
-            description: msg,
-            variant: "destructive",
-          });
+        } catch {
+          // Background polish is optional — fail quietly and stop retrying.
+          useAiWritingAssistStore.getState().markPolishUnavailable();
         } finally {
           setPolishing(false);
         }

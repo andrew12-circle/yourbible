@@ -32,6 +32,12 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
 ) {
   const onListeningChangeRef = useRef(onListeningChange);
   onListeningChangeRef.current = onListeningChange;
+  const interimRef = useRef("");
+
+  const handleInterim = (text: string) => {
+    interimRef.current = text;
+    onInterim?.(text);
+  };
 
   const [preferMedia, setPreferMedia] = useState(() => {
     try {
@@ -41,8 +47,8 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     }
   });
 
-  const speech = useSpeechDictation({ onAppend, onInterim, language });
-  const media = useMediaRecorderDictation({ userId, onAppend, onInterim });
+  const speech = useSpeechDictation({ onAppend, onInterim: handleInterim, language });
+  const media = useMediaRecorderDictation({ userId, onAppend, onInterim: handleInterim });
 
   const useMedia = preferMedia || !speech.supported;
 
@@ -51,11 +57,27 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   const transcribing = useMedia && media.transcribing;
   const supported = useMedia ? media.supported : speech.supported;
 
+  const prevListeningRef = useRef(false);
+
   useImperativeHandle(ref, () => ({ stop, toggle }), [stop, toggle]);
 
   useEffect(() => {
     onListeningChangeRef.current?.(listening || transcribing);
   }, [listening, transcribing]);
+
+  useEffect(() => {
+    const activeNow = listening || transcribing;
+    const wasActive = prevListeningRef.current;
+    prevListeningRef.current = activeNow;
+    if (wasActive && !activeNow) {
+      const interim = interimRef.current.trim();
+      if (interim) {
+        onAppend(`${interim} `);
+        interimRef.current = "";
+        onInterim?.("");
+      }
+    }
+  }, [listening, transcribing, onAppend, onInterim]);
 
   const lastToasted = useRef<string | null>(null);
   const switchingRef = useRef(false);

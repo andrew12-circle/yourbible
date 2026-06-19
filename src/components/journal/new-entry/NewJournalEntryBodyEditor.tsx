@@ -12,8 +12,9 @@ import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } 
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
 import type { JournalMarkerSuggestion } from "@/hooks/useJournalBodyMarkers";
-import { useRef, type MutableRefObject, type RefObject } from "react";
-import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
+import { useRef, useLayoutEffect, type MutableRefObject, type RefObject } from "react";
+import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
+import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { cn } from "@/lib/utils";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };
@@ -23,6 +24,7 @@ interface NewJournalEntryBodyEditorProps {
   isListening: boolean;
   inlineChatMode: boolean;
   bodyFocused?: boolean;
+  showLocationMap?: boolean;
   body: string;
   onBodyChange: (value: string, cursor?: number) => void;
   onBodyKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -62,6 +64,7 @@ export function NewJournalEntryBodyEditor({
   isListening,
   inlineChatMode,
   bodyFocused = false,
+  showLocationMap = false,
   body,
   onBodyChange,
   onBodyKeyDown,
@@ -91,7 +94,13 @@ export function NewJournalEntryBodyEditor({
 }: NewJournalEntryBodyEditorProps) {
   const localBodyRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = bodyTextareaRef ?? localBodyRef;
+  const privacyBlurEnabled = useJournalPrivacyBlurStore((s) => s.journalPrivacyBlurEnabled);
   useJournalEntryTextareaAutosize(bodyRef, body);
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (el) resizeJournalTextarea(el);
+  }, [body, bodyFocused, privacyBlurEnabled, bodyRef]);
 
   if (isListening) {
     return (
@@ -158,7 +167,20 @@ export function NewJournalEntryBodyEditor({
 
   return (
     <>
-      <div className="relative">
+      <div
+        className={cn(
+          "relative",
+          !body.trim() && !bodyFocused && !showLocationMap && "min-h-[32dvh]",
+        )}
+      >
+        {!body.trim() ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-3 z-0 text-[16px] leading-relaxed text-muted-foreground/55"
+          >
+            {bodyPlaceholder}
+          </span>
+        ) : null}
         <PolishedTextarea
           ref={bodyRef}
           polishResetKey={editId ?? "journal-new"}
@@ -168,16 +190,20 @@ export function NewJournalEntryBodyEditor({
           }
           onKeyDown={onBodyKeyDown}
           onSelect={onBodySelect}
-          onFocus={onBodyFocus}
+          onFocus={() => {
+            requestAnimationFrame(() => {
+              const el = bodyRef.current;
+              if (el) resizeJournalTextarea(el);
+            });
+            onBodyFocus?.();
+          }}
           onBlur={() => {
             markerMenu?.dismiss();
             onBodyBlur?.();
           }}
-          placeholder={bodyPlaceholder}
-          wrapperClassName={bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined}
+          aria-label="Journal entry"
           className={cn(
-            "mt-1 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50",
-            bodyFocused ? "min-h-0 flex-1" : "min-h-[40dvh]",
+            "relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0",
           )}
         />
         {markerMenu ? (
