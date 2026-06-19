@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { mobileSheetSafeTop, mobileVisualViewportPageStyle } from "./mobileShellClasses";
 
 describe("mobileSheetSafeTop", () => {
-  it("adds safe-area inset plus extra rem padding", () => {
-    expect(mobileSheetSafeTop(0.5)).toBe("pt-[calc(var(--safe-area-inset-top)+0.5rem)]");
-    expect(mobileSheetSafeTop()).toBe("pt-[calc(var(--safe-area-inset-top)+0.5rem)]");
+  it("adds safe-area inset with a minimum top gutter", () => {
+    expect(mobileSheetSafeTop()).toBe(
+      "pt-[calc(max(1rem,var(--safe-area-inset-top))+0.75rem)]",
+    );
+    expect(mobileSheetSafeTop(0.5)).toBe(
+      "pt-[calc(max(1rem,var(--safe-area-inset-top))+0.5rem)]",
+    );
   });
 });
 

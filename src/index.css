@@ -1467,6 +1467,15 @@
   margin-left: var(--hub-edge);
 }
 
+/* Mobile hub Bible — drop the white card so the book sits on the fabric. */
+@media (max-width: 767px) {
+  .hub-shell .hub-content-card:has([data-bible-reader]) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
   background-color: hsl(0 0% 100%);
@@ -1590,6 +1599,13 @@
   max-width: 100%;
   --safe-area-inset-top: 12px;
   --safe-area-inset-bottom: 8px;
+}
+
+/* Mobile hub/journal slide-out menus — keep logo and top chrome below status bar / Dynamic Island. */
+@supports (-webkit-touch-callout: none) {
+  [data-mobile="true"][data-sidebar="sidebar"] [data-sidebar="header"] {
+    padding-top: calc(max(1.25rem, var(--safe-area-inset-top)) + 0.75rem);
+  }
 }
 
 [data-mini-phone-app] .hub-shell,

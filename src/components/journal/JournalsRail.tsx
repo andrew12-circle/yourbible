@@ -69,7 +69,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
             ? "flex h-12 shrink-0 items-center justify-between border-b border-border/60 px-3"
             : cn(
                 "flex items-center justify-between px-3 pb-2",
-                inSheet ? mobileSheetSafeTop(0.5) : "pt-3",
+                inSheet ? mobileSheetSafeTop() : "pt-3",
               )
         }
       >

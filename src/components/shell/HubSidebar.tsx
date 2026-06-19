@@ -9,6 +9,7 @@ import {
 import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
+import { mobileSheetSafeTop } from "@/lib/shell/mobileShellClasses";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
 import {
@@ -264,7 +265,12 @@ export function HubSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas" variant="floating" className="app-theme">
-      <SidebarHeader className={cn("px-3 pb-5", isMobile ? "pt-2" : "py-5")}>
+      <SidebarHeader
+        className={cn(
+          "gap-2 p-0 px-3 pb-5",
+          isMobile ? mobileSheetSafeTop() : "py-5",
+        )}
+      >
         <Link
           to="/home"
           className="flex items-center gap-3.5 rounded-lg px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -321,7 +327,12 @@ export function HubSidebar() {
           </div>
         ))}
       </SidebarContent>
-      <SidebarFooter className="mt-auto shrink-0 border-t border-border/40 px-2 py-3">
+      <SidebarFooter
+        className={cn(
+          "mt-auto shrink-0 border-t border-border/40 p-0 px-2 py-3",
+          isMobile && "pb-safe",
+        )}
+      >
         <HubSidebarProfile />
       </SidebarFooter>
     </Sidebar>

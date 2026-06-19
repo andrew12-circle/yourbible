@@ -14,6 +14,8 @@ interface Props {
   tabletPortrait?: boolean;
   /** Fill parent height (hub workspace) instead of viewport height. */
   fillContainer?: boolean;
+  /** Mobile hub embed — flush to card top, transparent surround, fabric shows through. */
+  hubEmbedded?: boolean;
   pageSide?: "left" | "right";
   ribbons?: ReactNode;
   /** User-selected leather cover (CSS variables). */
@@ -90,6 +92,7 @@ export function BookScene({
   singlePage = false,
   tabletPortrait = false,
   fillContainer = false,
+  hubEmbedded = false,
   pageSide = "left",
   ribbons,
   coverStyle,
@@ -109,9 +112,10 @@ export function BookScene({
     ? Math.max(minStack, Math.round(totalStack * (1 - progress)))
     : stackWidths.right;
 
-  const coverPadX = singlePage ? (tabletPortrait ? 14 : 10) : 14;
-  const coverPadTop = singlePage ? (tabletPortrait ? 14 : 12) : 16;
-  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : 10) : 14;
+  const coverPadX = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 8 : 10) : 14;
+  const coverPadTop = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 12) : 16;
+  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : hubEmbedded ? 8 : 10) : 14;
+  const flushMobile = hubEmbedded || (fillContainer && singlePage);
 
   return (
     <div
@@ -119,7 +123,7 @@ export function BookScene({
         "relative w-full flex flex-col items-center " +
         (fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]")
       }
-      style={{ background: "hsl(0 0% 100%)" }}
+      style={{ background: hubEmbedded ? "transparent" : "hsl(0 0% 100%)" }}
     >
       <div
         className="relative z-10 w-full flex flex-col flex-1 min-h-0"
@@ -132,10 +136,13 @@ export function BookScene({
         }}
       >
         <div
-          className={
-            "flex flex-col flex-1 min-h-0 w-full pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] " +
-            (tabletPortrait ? "px-4" : "px-2 sm:px-3")
-          }
+          className={cn(
+            "flex flex-col flex-1 min-h-0 w-full pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+            flushMobile
+              ? "pt-1"
+              : "pt-[max(0.5rem,env(safe-area-inset-top))]",
+            tabletPortrait ? "px-4" : hubEmbedded ? "px-1" : "px-2 sm:px-3",
+          )}
         >
           {/* Leather cover — visible on top, left, right, and bottom */}
           <div

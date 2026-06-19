@@ -27,7 +27,7 @@ import {
   readerPickerSectionLabel,
 } from "@/lib/bible/readerChromeClasses";
 import type { FontChoiceId } from "@/lib/bible/fontChoices";
-import { readerOverlayPosition } from "@/lib/bible/readerHubLayout";
+import { readerOverlayPosition, readerChromeTopClass, readerHeaderSafePaddingClass } from "@/lib/bible/readerHubLayout";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -227,7 +227,7 @@ export function TopBar({
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show header"
-          className={`${overlayPos} left-1/2 top-[calc(var(--safe-area-inset-top)+0.35rem)] -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
+          className={`${overlayPos} left-1/2 ${readerChromeTopClass(containedInHub)} -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
         >
           <ChevronDown className="w-3.5 h-3.5" strokeWidth={2.25} />
         </button>
@@ -287,7 +287,7 @@ export function TopBar({
       )}
 
       <header
-        className={`${overlayPos} top-0 inset-x-0 z-30 pt-[var(--safe-area-inset-top)] transition-[transform,opacity] duration-300 ease-out ${
+        className={`${overlayPos} top-0 inset-x-0 z-30 ${readerHeaderSafePaddingClass(containedInHub)} transition-[transform,opacity] duration-300 ease-out ${
           open && !(singlePage && focusMode) ? "translate-y-0 opacity-100" : "-translate-y-[calc(100%+0.75rem)] opacity-0 pointer-events-none"
         }`}
       >

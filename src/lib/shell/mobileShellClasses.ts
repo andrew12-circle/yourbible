@@ -13,8 +13,8 @@ export function mobileSafeHeaderPad(showHubShell: boolean, extraRem = 0.5): stri
 }
 
 /** Top padding for chrome inside a full-screen mobile sheet (status bar / Dynamic Island). */
-export function mobileSheetSafeTop(extraRem = 0.5): string {
-  return `pt-[calc(var(--safe-area-inset-top)+${extraRem}rem)]`;
+export function mobileSheetSafeTop(extraRem = 0.75): string {
+  return `pt-[calc(max(1rem,var(--safe-area-inset-top))+${extraRem}rem)]`;
 }
 
 export function mobilePageRoot(

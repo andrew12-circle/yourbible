@@ -125,6 +125,8 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import {
   readReaderHubFullscreen,
   readerOverlayPosition,
+  readerPageTurnTopOffsetClass,
+  readerSceneTopOffsetClass,
   writeReaderHubFullscreen,
 } from "@/lib/bible/readerHubLayout";
 import {
@@ -1703,6 +1705,7 @@ export default function ReaderPage() {
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
   const showReaderDock = !showHubShell && compactChrome && !focusMode;
+  const hubEmbedded = containedInHub && compactChrome;
 
   return (
     <div
@@ -1818,7 +1821,8 @@ export default function ReaderPage() {
         className={cn(
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
-          "inset-x-0 top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          "inset-x-0",
+          readerSceneTopOffsetClass(compactChrome, containedInHub),
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
             : "bottom-0",
@@ -1829,6 +1833,7 @@ export default function ReaderPage() {
         singlePage={!effectiveSpread}
         tabletPortrait={tabletPortrait}
         fillContainer
+        hubEmbedded={hubEmbedded}
         pageSide="left"
         coverStyle={readerCoverStyle}
         coverClassName={readerCoverClass}
@@ -1896,7 +1901,8 @@ export default function ReaderPage() {
         aria-label="Previous page"
         className={cn(
           overlayPos,
-          "top-[calc(var(--safe-area-inset-top)+5rem)] left-0 w-8 z-[5] opacity-0",
+          readerPageTurnTopOffsetClass(compactChrome, containedInHub),
+          "left-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
             : "bottom-safe-16",
@@ -1908,7 +1914,8 @@ export default function ReaderPage() {
         aria-label="Next page"
         className={cn(
           overlayPos,
-          "top-[calc(var(--safe-area-inset-top)+5rem)] right-0 w-8 z-[5] opacity-0",
+          readerPageTurnTopOffsetClass(compactChrome, containedInHub),
+          "right-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
             : "bottom-safe-16",

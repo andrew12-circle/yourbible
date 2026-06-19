@@ -11,6 +11,8 @@ import { useReaderSpread, useReaderCompactChrome } from "@/hooks/use-reader-layo
 import {
   readReaderHubFullscreen,
   readerOverlayPosition,
+  readerPageTurnTopOffsetClass,
+  readerSceneTopOffsetClass,
   writeReaderHubFullscreen,
 } from "@/lib/bible/readerHubLayout";
 import {
@@ -42,6 +44,7 @@ export default function ContentsReaderPage() {
   const compactChrome = useReaderCompactChrome();
   const effectiveSpread = readerSpread && !compactChrome;
   const showReaderDock = !showHubShell && compactChrome;
+  const hubEmbedded = containedInHub && compactChrome;
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
@@ -163,7 +166,8 @@ export default function ContentsReaderPage() {
         className={cn(
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
-          "inset-x-0 top-[calc(var(--safe-area-inset-top)+3.25rem)]",
+          "inset-x-0",
+          readerSceneTopOffsetClass(compactChrome, containedInHub),
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
             : "bottom-0",
@@ -174,6 +178,7 @@ export default function ContentsReaderPage() {
           singlePage={!effectiveSpread}
           tabletPortrait={false}
           fillContainer
+          hubEmbedded={hubEmbedded}
           coverStyle={readerCoverStyle}
           coverClassName={readerCoverClass}
           pageClassName={readerPageClass}
