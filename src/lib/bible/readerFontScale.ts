@@ -12,6 +12,16 @@ export const READER_FONT_SCALE_DEFAULT = 1;
  */
 export const READER_DESKTOP_FONT_BASE = 0.85;
 
+/**
+ * Phones / tablet portrait — 100% display renders smaller (closer to YouVersion density).
+ */
+export const READER_MOBILE_FONT_BASE = 0.9;
+
+export type ReaderFontScaleLayout = {
+  desktopSpread?: boolean;
+  compactChrome?: boolean;
+};
+
 export function clampReaderFontScale(scale: number): number {
   return Math.min(READER_FONT_SCALE_MAX, Math.max(READER_FONT_SCALE_MIN, +scale.toFixed(2)));
 }
@@ -19,10 +29,14 @@ export function clampReaderFontScale(scale: number): number {
 /** Effective em multiplier for scripture typography (paginator + live page). */
 export function effectiveReaderFontScaleEm(
   displayScale: number,
-  desktopSpread: boolean,
+  layout: boolean | ReaderFontScaleLayout = {},
 ): number {
+  const opts: ReaderFontScaleLayout =
+    typeof layout === "boolean" ? { desktopSpread: layout } : layout;
   const clamped = clampReaderFontScale(displayScale);
-  return clamped * (desktopSpread ? READER_DESKTOP_FONT_BASE : 1);
+  if (opts.desktopSpread) return clamped * READER_DESKTOP_FONT_BASE;
+  if (opts.compactChrome) return clamped * READER_MOBILE_FONT_BASE;
+  return clamped;
 }
 
 export function readStoredReaderFontScale(): number {

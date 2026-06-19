@@ -507,13 +507,16 @@ export default function ReaderPage() {
     () =>
       computeReaderLayoutFingerprint({
         bibleId: bibleId || "default",
-        fontScale: effectiveReaderFontScaleEm(fontScale, readerSpread),
+        fontScale: effectiveReaderFontScaleEm(fontScale, {
+          desktopSpread: readerSpread,
+          compactChrome,
+        }),
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
         singlePage: !readerSpread,
         columnLayout: spreadColumnLayout,
       }),
-    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, spreadColumnLayout],
+    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, spreadColumnLayout, compactChrome],
   );
 
   useEffect(() => {
@@ -707,15 +710,18 @@ export default function ReaderPage() {
   const ethiopianText = isEotcBibleId(bibleId);
   const scriptureFont = ethiopianText ? ETHIOPIC_SCRIPTURE_FONT : scriptureFontFamily(fontChoice);
   const scriptureTypoClass = ethiopianText
-    ? `font-ethiopic ${READER_SCRIPTURE_SIZE} leading-[1.72] ink-text`
+    ? `font-ethiopic ${READER_SCRIPTURE_SIZE} leading-[1.68] ink-text`
     : pageTypoClass(fontChoice);
   const paginatorFontStyle = useMemo(
     () => ({
-      ...readerScriptureTypographyStyle(fontChoice, fontScale, { desktopSpread: readerSpread }),
+      ...readerScriptureTypographyStyle(fontChoice, fontScale, {
+        desktopSpread: readerSpread,
+        compactChrome,
+      }),
       fontFamily: scriptureFont,
       ["--reader-scripture-font-family" as string]: scriptureFont,
     }),
-    [fontChoice, fontScale, scriptureFont, readerSpread],
+    [fontChoice, fontScale, scriptureFont, readerSpread, compactChrome],
   );
   const paragraphStarts = useMemo(
     () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
@@ -1502,6 +1508,7 @@ export default function ReaderPage() {
                 style={{
                   ...readerScriptureTypographyStyle(fontChoice, fontScale, {
                     desktopSpread: readerSpread,
+                    compactChrome,
                   }),
                   fontFamily: scriptureFont,
                   ["--reader-scripture-font-family" as string]: scriptureFont,
@@ -1548,6 +1555,7 @@ export default function ReaderPage() {
               style={{
                 ...readerScriptureTypographyStyle(fontChoice, fontScale, {
                   desktopSpread: readerSpread,
+                  compactChrome,
                 }),
                 fontFamily: scriptureFont,
                 ["--reader-scripture-font-family" as string]: scriptureFont,

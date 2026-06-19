@@ -1467,12 +1467,29 @@
   margin-left: var(--hub-edge);
 }
 
-/* Mobile hub Bible — drop the white card so the book sits on the fabric. */
+/* Mobile hub Bible — full-bleed fabric; book fills to the bottom of the screen. */
 @media (max-width: 767px) {
+  .hub-shell:has([data-bible-reader]) {
+    --hub-edge: 0px;
+    --hub-card-gap: 0px;
+    --hub-card-height: calc(var(--hub-viewport-h) - var(--hub-safe-top));
+  }
+
   .hub-shell .hub-content-card:has([data-bible-reader]) {
     background-color: transparent !important;
     border-color: transparent !important;
     box-shadow: none !important;
+    margin-top: var(--hub-safe-top);
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    height: var(--hub-card-height);
+    max-height: var(--hub-card-height);
+    border-radius: 0;
+  }
+
+  .hub-shell .peer[data-state="collapsed"] ~ .hub-content-card:has([data-bible-reader]) {
+    margin-left: 0;
   }
 }
 

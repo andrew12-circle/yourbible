@@ -41,5 +41,9 @@ describe("fontChoices", () => {
       fontSize: "0.85em",
       fontFamily: scriptureFontFamily("sans"),
     });
+    expect(readerScriptureTypographyStyle("sans", 1, { compactChrome: true })).toEqual({
+      fontSize: "0.9em",
+      fontFamily: scriptureFontFamily("sans"),
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { effectiveReaderFontScaleEm } from "@/lib/bible/readerFontScale";
+import { effectiveReaderFontScaleEm, type ReaderFontScaleLayout } from "@/lib/bible/readerFontScale";
 
 export type FontChoiceId = "serif" | "sans" | "sf";
 
@@ -38,7 +38,7 @@ export function scriptureFontFamily(choice: string | undefined | null): string {
 }
 
 /** Size/leading shared by all reader font choices. */
-export const READER_SCRIPTURE_SIZE = "text-[14px] sm:text-[14.5px] leading-[1.72]";
+export const READER_SCRIPTURE_SIZE = "text-[13px] sm:text-[13.5px] leading-[1.68]";
 
 /** Shared reader typography utilities (matches live page + paginator). */
 export const READER_SCRIPTURE_TYPO_BASE = `${READER_SCRIPTURE_SIZE} ink-text`;
@@ -53,9 +53,9 @@ export function pageTypoClass(choice: string | undefined | null): string {
 export function readerScriptureTypographyStyle(
   choice: string | undefined | null,
   fontScale: number,
-  options?: { desktopSpread?: boolean },
+  options?: ReaderFontScaleLayout,
 ): { fontSize: string; fontFamily: string } {
-  const em = effectiveReaderFontScaleEm(fontScale, options?.desktopSpread ?? false);
+  const em = effectiveReaderFontScaleEm(fontScale, options ?? {});
   return {
     fontSize: `${em}em`,
     fontFamily: scriptureFontFamily(choice),

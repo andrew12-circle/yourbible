@@ -112,9 +112,9 @@ export function BookScene({
     ? Math.max(minStack, Math.round(totalStack * (1 - progress)))
     : stackWidths.right;
 
-  const coverPadX = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 8 : 10) : 14;
-  const coverPadTop = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 12) : 16;
-  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : hubEmbedded ? 8 : 10) : 14;
+  const coverPadX = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 10) : 14;
+  const coverPadTop = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 4 : 12) : 16;
+  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : hubEmbedded ? 4 : 10) : 14;
   const flushMobile = hubEmbedded || (fillContainer && singlePage);
 
   return (
@@ -137,16 +137,23 @@ export function BookScene({
       >
         <div
           className={cn(
-            "flex flex-col flex-1 min-h-0 w-full pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-            flushMobile
-              ? "pt-1"
-              : "pt-[max(0.5rem,env(safe-area-inset-top))]",
-            tabletPortrait ? "px-4" : hubEmbedded ? "px-1" : "px-2 sm:px-3",
+            "flex flex-col flex-1 min-h-0 w-full",
+            hubEmbedded
+              ? "pt-0 pb-0"
+              : cn(
+                  "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+                  flushMobile ? "pt-1" : "pt-[max(0.5rem,env(safe-area-inset-top))]",
+                ),
+            tabletPortrait ? "px-4" : hubEmbedded ? "px-0" : "px-2 sm:px-3",
           )}
         >
           {/* Leather cover — visible on top, left, right, and bottom */}
           <div
-            className={cn("relative flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden", coverClassName)}
+            className={cn(
+              "relative flex flex-col flex-1 min-h-0 overflow-hidden",
+              hubEmbedded ? "rounded-none" : "rounded-xl",
+              coverClassName,
+            )}
             style={{
               ...LEATHER_BG,
               ...coverStyle,
@@ -159,8 +166,9 @@ export function BookScene({
           >
             {/* Subtle sheen across the cover */}
             <div
-              className="absolute inset-0 pointer-events-none rounded-xl"
+              className="absolute inset-0 pointer-events-none"
               style={{
+                borderRadius: hubEmbedded ? 0 : undefined,
                 backgroundImage:
                   "linear-gradient(115deg, transparent 0%, hsl(20 60% 60% / 0.07) 38%, hsl(30 70% 70% / 0.10) 50%, transparent 100%)",
                 mixBlendMode: "screen",
@@ -169,7 +177,10 @@ export function BookScene({
             />
 
             <div
-              className="relative flex flex-col flex-1 min-h-0 overflow-visible"
+              className={cn(
+                "relative flex flex-col flex-1 min-h-0 overflow-visible",
+                hubEmbedded && "pb-[env(safe-area-inset-bottom,0px)]",
+              )}
               style={{
                 padding: `${coverPadTop}px ${coverPadX}px ${coverPadBottom}px`,
               }}
