@@ -14,7 +14,7 @@ import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarSeparator,
+  SidebarSeparator, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -249,6 +249,7 @@ function HubSidebarProfile() {
 
 export function HubSidebar() {
   const { pathname } = useLocation();
+  const { isMobile } = useSidebar();
   const { counts } = useHomeDashboard();
   const bibleTo = getBibleRoute();
   const promptBadge = !counts.journalToday ? 1 : undefined;
@@ -263,7 +264,7 @@ export function HubSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas" variant="floating" className="app-theme">
-      <SidebarHeader className="px-3 py-5">
+      <SidebarHeader className={cn("px-3 pb-5", isMobile ? "pt-2" : "py-5")}>
         <Link
           to="/home"
           className="flex items-center gap-3.5 rounded-lg px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

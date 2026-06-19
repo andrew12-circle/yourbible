@@ -53,15 +53,24 @@ interface SheetContentProps
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
   ({ side = "right", className, children, style, ...props }, ref) => {
+    const isVerticalSide = side === "left" || side === "right";
     const safeAreaStyle: React.CSSProperties =
       side === "bottom"
         ? { paddingBottom: "max(1.5rem, var(--safe-area-inset-bottom))" }
         : side === "top"
           ? { paddingTop: "max(1.5rem, var(--safe-area-inset-top))" }
           : side === "left"
-            ? { paddingLeft: "max(1rem, var(--safe-area-inset-left))" }
+            ? {
+                paddingTop: "calc(var(--safe-area-inset-top) + 0.5rem)",
+                paddingBottom: "max(0.75rem, var(--safe-area-inset-bottom))",
+                paddingLeft: "max(1rem, var(--safe-area-inset-left))",
+              }
             : side === "right"
-              ? { paddingRight: "max(1rem, var(--safe-area-inset-right))" }
+              ? {
+                  paddingTop: "calc(var(--safe-area-inset-top) + 0.5rem)",
+                  paddingBottom: "max(0.75rem, var(--safe-area-inset-bottom))",
+                  paddingRight: "max(1rem, var(--safe-area-inset-right))",
+                }
               : {};
 
     return (
@@ -74,7 +83,14 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
           {...props}
         >
           {children}
-          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <SheetPrimitive.Close
+            className={cn(
+              "absolute right-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none",
+              isVerticalSide
+                ? "top-[calc(var(--safe-area-inset-top)+0.5rem)]"
+                : "top-4",
+            )}
+          >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>

@@ -41,17 +41,80 @@ export default function JournalCover({
     ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
     : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)";
 
+  const safeTopPad = inMiniPhone
+    ? "pt-[calc(var(--safe-area-inset-top)+1.25rem)]"
+    : "pt-[calc(var(--safe-area-inset-top)+0.75rem)]";
+
+  const photoHeroMinH = inMiniPhone
+    ? "min-h-[clamp(200px,32svh,280px)]"
+    : "min-h-[clamp(220px,34svh,320px)]";
+
+  const controlsRow = (
+    <div className="relative flex items-center justify-between text-white">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onOpenRail}
+          className="md:hidden -ml-2 p-2 rounded-full hover:bg-white/15"
+          aria-label="Journals"
+        >
+          <Menu className="w-[22px] h-[22px]" strokeWidth={2.2} />
+        </button>
+        {backTo && backTo !== "/home" ? (
+          <Link
+            to={backTo}
+            className="md:hidden flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]"
+          >
+            <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
+            Back
+          </Link>
+        ) : null}
+        <Link
+          to={backTo ?? "/home"}
+          className="hidden md:flex items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]"
+        >
+          <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
+          Home
+        </Link>
+      </div>
+      <div className="flex items-center gap-1 text-white">{right}</div>
+    </div>
+  );
+
+  const titleBlock = (
+    <div className="relative">
+      {subtitle && (
+        <p className="text-[12px] uppercase tracking-[0.16em] text-white/75 font-semibold mb-2">
+          {subtitle}
+        </p>
+      )}
+      <h1
+        className={cn(
+          "font-bold tracking-tight text-white drop-shadow-sm",
+          inMiniPhone ? "text-[28px] leading-[1.08]" : "text-[44px] leading-[1.02]",
+        )}
+      >
+        {title}
+      </h1>
+    </div>
+  );
+
+  const photoCover = hasPhoto && coverUrl;
+
   return (
     <header className="relative">
       <div
         className={cn(
-          "relative overflow-hidden px-5",
-          inMiniPhone
-            ? "pt-[calc(var(--safe-area-inset-top)+1.25rem)] pb-8"
-            : "pt-[calc(var(--safe-area-inset-top)+0.75rem)] pb-12",
+          "relative overflow-hidden",
+          photoCover
+            ? photoHeroMinH
+            : cn(
+                "px-5",
+                safeTopPad,
+                inMiniPhone ? "pb-8" : "pb-12",
+              ),
         )}
       >
-        {hasPhoto && coverUrl ? (
+        {photoCover ? (
           <>
             <img
               src={coverUrl}
@@ -68,6 +131,22 @@ export default function JournalCover({
               className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-black/15"
               aria-hidden
             />
+            <div
+              className={cn(
+                "pointer-events-auto absolute inset-x-0 top-0 z-10 px-5",
+                safeTopPad,
+              )}
+            >
+              {controlsRow}
+            </div>
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-x-0 bottom-0 z-10 px-5",
+                inMiniPhone ? "pb-8" : "pb-12",
+              )}
+            >
+              {titleBlock}
+            </div>
           </>
         ) : (
           <>
@@ -84,55 +163,10 @@ export default function JournalCover({
               }}
               aria-hidden
             />
+            {controlsRow}
+            <div className={cn("relative", inMiniPhone ? "mt-5" : "mt-8")}>{titleBlock}</div>
           </>
         )}
-
-        <div className="relative flex items-center justify-between text-white">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onOpenRail}
-              className="md:hidden -ml-2 p-2 rounded-full hover:bg-white/15"
-              aria-label="Journals"
-            >
-              <Menu className="w-[22px] h-[22px]" strokeWidth={2.2} />
-            </button>
-            {backTo && backTo !== "/home" ? (
-              <Link
-                to={backTo}
-                className="md:hidden flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]"
-              >
-                <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
-                Back
-              </Link>
-            ) : null}
-            <Link
-              to={backTo ?? "/home"}
-              className="hidden md:flex items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]"
-            >
-              <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
-              Home
-            </Link>
-          </div>
-          <div className="flex items-center gap-1 text-white">{right}</div>
-        </div>
-
-        <div className={cn("relative", inMiniPhone ? "mt-5" : "mt-8")}>
-          {subtitle && (
-            <p className="text-[12px] uppercase tracking-[0.16em] text-white/75 font-semibold mb-2">
-              {subtitle}
-            </p>
-          )}
-          <h1
-            className={cn(
-              "font-bold tracking-tight text-white drop-shadow-sm",
-              inMiniPhone
-                ? "text-[28px] leading-[1.08]"
-                : "text-[44px] leading-[1.02]",
-            )}
-          >
-            {title}
-          </h1>
-        </div>
       </div>
 
       <div

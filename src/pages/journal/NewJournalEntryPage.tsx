@@ -24,7 +24,8 @@ import InlineJournalChatComposer from "@/components/journal/InlineJournalChatCom
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
-import { journalEntryPageRoot, hubShellBottomDock } from "@/lib/shell/hubShellClasses";
+import { journalEntryPageRoot, hubShellBottomDock, journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
+import { mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import { cn } from "@/lib/utils";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import AiWritingAssistToggle, { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
@@ -62,13 +63,28 @@ export default function NewJournalEntryPage() {
   );
 
   const typing = (p.bodyFocused && !p.inlineChatMode) || (p.inlineChatMode && p.composerFocused);
-  const dockHidden = p.bodyFocused && !p.inlineChatMode;
-  const showComposeMap = !typing && !p.inlineChatMode && !p.isListening;
+  const keyboardOpen = p.kbInset > 0;
+  const hideBottomChrome = keyboardOpen || (p.bodyFocused && !p.inlineChatMode);
+  const showComposeMap = !hideBottomChrome && !p.inlineChatMode && !p.isListening;
+
+  const mobileKeyboardLayout = (p.isMobile || p.inMiniPhone) && keyboardOpen;
 
   return (
-    <div className={journalEntryPageRoot(showHubShell, p.inMiniPhone)} data-journal-entry-page>
+    <div
+      className={journalEntryPageRoot(showHubShell, p.inMiniPhone)}
+      data-journal-entry-page
+      style={mobileVisualViewportPageStyle({
+        keyboardInset: p.kbInset,
+        offsetTop: p.vvOffsetTop,
+        viewportHeight: p.viewportHeight,
+        enabled: mobileKeyboardLayout,
+      })}
+    >
       <header
-        className="sticky top-0 z-20 shrink-0 bg-background/85 backdrop-blur-xl border-b border-border/60 pt-[calc(var(--safe-area-inset-top)+0.5rem)]"
+        className={cn(
+          "sticky top-0 z-20 shrink-0 bg-background/85 backdrop-blur-xl border-b border-border/60",
+          journalEntryHeaderPad(showHubShell, p.inMiniPhone),
+        )}
         style={
           !p.inMiniPhone && !p.isMobile && p.vvOffsetTop > 0 ? { top: p.vvOffsetTop } : undefined
         }
@@ -103,7 +119,7 @@ export default function NewJournalEntryPage() {
             {p.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Done"}
           </Button>
         </div>
-        <div className="max-w-3xl mx-auto px-3 sm:px-5 pb-2 flex items-center gap-2 text-[12px] text-muted-foreground">
+        <div className="max-w-3xl mx-auto px-3 sm:px-5 pb-1.5 flex items-center gap-2 text-[12px] text-muted-foreground">
           <span className="uppercase tracking-wider font-semibold text-primary truncate max-w-[40%]">
             {p.journalName}
           </span>
@@ -130,8 +146,10 @@ export default function NewJournalEntryPage() {
         ref={p.mainScrollRef}
         className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
         style={{
-          paddingBottom: dockHidden || typing
-            ? "max(env(safe-area-inset-bottom), 0.75rem)"
+          paddingBottom: hideBottomChrome
+            ? keyboardOpen
+              ? `calc(env(safe-area-inset-bottom) + 0.75rem)`
+              : "max(env(safe-area-inset-bottom), 0.75rem)"
             : "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)",
         }}
         onPointerDown={(e) => {
@@ -199,14 +217,29 @@ export default function NewJournalEntryPage() {
           onOpenSketch={p.triggerHandwritten}
           onRemoveExistingPhoto={(id, path) => void p.removeExistingPhoto(id, path)}
           onRemovePendingFile={p.removePendingFile}
+          showPhotoSuggestion={p.showPhotoSuggestion}
+          onAddPhotos={p.triggerPhotos}
+          onTakePhoto={p.triggerCamera}
+          onDismissPhotoSuggestion={p.dismissPhotoSuggestion}
         />
       </main>
 
       <input
         ref={p.photoInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,image/heic,image/heif,.heic,.heif"
         multiple
+        className="hidden"
+        onChange={(e) => {
+          p.handlePhotoInputChange(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={p.photoCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={(e) => {
           p.handlePhotoInputChange(e.target.files);
@@ -223,7 +256,7 @@ export default function NewJournalEntryPage() {
         ref={p.bottomDockRef}
         className={hubShellBottomDock(
           showHubShell,
-          cn("z-30 flex flex-col justify-end px-3 sm:px-5", dockHidden && "hidden"),
+          cn("z-30 flex flex-col justify-end px-3 sm:px-5", hideBottomChrome && "hidden"),
           p.inMiniPhone,
         )}
         style={{

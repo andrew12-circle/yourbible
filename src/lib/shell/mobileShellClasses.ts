@@ -12,6 +12,11 @@ export function mobileSafeHeaderPad(showHubShell: boolean, extraRem = 0.5): stri
   return `pt-[calc(var(--safe-area-inset-top)+${extraRem}rem)]`;
 }
 
+/** Top padding for chrome inside a full-screen mobile sheet (status bar / Dynamic Island). */
+export function mobileSheetSafeTop(extraRem = 0.5): string {
+  return `pt-[calc(var(--safe-area-inset-top)+${extraRem}rem)]`;
+}
+
 export function mobilePageRoot(
   showHubShell: boolean,
   options?: {
@@ -56,6 +61,22 @@ export function mobileBottomDockTransform(keyboardInset: number): CSSProperties 
   return {
     transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined,
     transition: "transform 120ms ease-out",
+  };
+}
+
+/** Pin a full-screen mobile page to the visible viewport while the keyboard is open (iOS Safari). */
+export function mobileVisualViewportPageStyle(opts: {
+  keyboardInset: number;
+  offsetTop: number;
+  viewportHeight: number;
+  enabled?: boolean;
+}): CSSProperties | undefined {
+  if (opts.enabled === false || opts.keyboardInset <= 0) return undefined;
+  return {
+    height: opts.viewportHeight,
+    maxHeight: opts.viewportHeight,
+    transform: opts.offsetTop > 0 ? `translateY(${opts.offsetTop}px)` : undefined,
+    transition: "transform 120ms ease-out, height 120ms ease-out",
   };
 }
 

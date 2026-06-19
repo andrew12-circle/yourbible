@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,7 @@ import {
 } from "@/lib/journal/listeningEntry";
 import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
+import { cn } from "@/lib/utils";
 
 interface Entry {
   id: string;
@@ -63,7 +64,6 @@ export default function JournalEntryPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
-  const [openingAi, setOpeningAi] = useState(false);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
   const [entryLoading, setEntryLoading] = useState(true);
   const [entryNotFound, setEntryNotFound] = useState(false);
@@ -256,34 +256,6 @@ export default function JournalEntryPage() {
     toast({ title: "Entry scored" });
   };
 
-  const askAiToRespond = async () => {
-    if (!entry || !user || openingAi) return;
-    setOpeningAi(true);
-    try {
-      await supabase
-        .from("journal_entries")
-        .update({ entry_kind: "chat" })
-        .eq("id", entry.id)
-        .eq("user_id", user.id);
-      const { data: existing } = await supabase
-        .from("my_ai_chats")
-        .select("id")
-        .eq("journal_entry_id", entry.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!existing?.id) {
-        await supabase
-          .from("my_ai_chats")
-          .insert({ user_id: user.id, journal_entry_id: entry.id, title: entry.title ?? null });
-      }
-      navigate(`/journal/chat/${entry.id}`);
-    } catch (e) {
-      toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
-    } finally {
-      setOpeningAi(false);
-    }
-  };
-
   const m = moodMeta(entry.mood);
   const renderListening =
     entry.entry_kind === "listening" || isListeningBody(entry.body);
@@ -337,19 +309,6 @@ export default function JournalEntryPage() {
         </button>
       )}
 
-      {entry.entry_kind !== "chat" && entry.entry_kind !== "vent" && entry.body?.trim() && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-3 gap-2"
-          onClick={askAiToRespond}
-          disabled={openingAi}
-        >
-          {openingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-          Ask AI to respond to this entry
-        </Button>
-      )}
-
       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex flex-wrap items-center gap-2">
         <span>{new Date(entry.entry_at_ts).toLocaleString(undefined, {
           weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
@@ -369,7 +328,13 @@ export default function JournalEntryPage() {
       )}
 
       {entryHeading ? (
-        <h1 className="font-display text-2xl mb-4">{entryHeading}</h1>
+        canWrite ? (
+          <button type="button" onClick={openEdit} className="mb-4 block w-full text-left">
+            <h1 className="font-display text-2xl">{entryHeading}</h1>
+          </button>
+        ) : (
+          <h1 className="font-display text-2xl mb-4">{entryHeading}</h1>
+        )
       ) : null}
 
       {(() => {
@@ -425,22 +390,35 @@ export default function JournalEntryPage() {
       })()}
 
       {renderListening ? (
-        <ListeningSectionsView body={entry.body} />
+        canWrite ? (
+          <EditableEntryTap onEdit={openEdit} className="mb-6">
+            <ListeningSectionsView body={entry.body} />
+          </EditableEntryTap>
+        ) : (
+          <ListeningSectionsView body={entry.body} />
+        )
       ) : showChatJournalView ? (
         <ChatJournalView
           body={entry.body}
           summary={entry.summary}
           className="mb-6"
+          onSummaryClick={canWrite ? openEdit : undefined}
         />
       ) : isChatEntry ? (
         <div className="font-sans text-[16px] leading-relaxed mb-6 prose prose-sm dark:prose-invert max-w-none prose-hr:my-4 prose-p:my-2">
-          {entry.body
-            ? <ReactMarkdown>{entry.body}</ReactMarkdown>
-            : (
-              <button type="button" onClick={openEdit} className="italic text-muted-foreground hover:text-foreground">
-                Tap to start writing
-              </button>
-            )}
+          {entry.body ? (
+            canWrite ? (
+              <EditableEntryTap onEdit={openEdit}>
+                <ReactMarkdown>{entry.body}</ReactMarkdown>
+              </EditableEntryTap>
+            ) : (
+              <ReactMarkdown>{entry.body}</ReactMarkdown>
+            )
+          ) : (
+            <button type="button" onClick={openEdit} className="italic text-muted-foreground hover:text-foreground">
+              Tap to start writing
+            </button>
+          )}
         </div>
       ) : (
         <div className="mb-6 space-y-4">
@@ -449,9 +427,17 @@ export default function JournalEntryPage() {
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                 Summary
               </p>
-              <p className="font-sans text-[16px] leading-relaxed text-foreground whitespace-pre-wrap">
-                {entry.summary}
-              </p>
+              {canWrite ? (
+                <EditableEntryTap onEdit={openEdit}>
+                  <p className="font-sans text-[16px] leading-relaxed text-foreground whitespace-pre-wrap">
+                    {entry.summary}
+                  </p>
+                </EditableEntryTap>
+              ) : (
+                <p className="font-sans text-[16px] leading-relaxed text-foreground whitespace-pre-wrap">
+                  {entry.summary}
+                </p>
+              )}
             </section>
           ) : null}
           <section aria-label="Entry body">
@@ -467,7 +453,11 @@ export default function JournalEntryPage() {
                   Reading your handwriting…
                 </span>
               ) : entry.body ? (
-                entry.body
+                canWrite ? (
+                  <EditableEntryTap onEdit={openEdit}>{entry.body}</EditableEntryTap>
+                ) : (
+                  entry.body
+                )
               ) : (
                 <button
                   type="button"
@@ -558,6 +548,39 @@ export default function JournalEntryPage() {
       </section>
       </div>
     </JournalShell>
+  );
+}
+
+function EditableEntryTap({
+  onEdit,
+  children,
+  className,
+}: {
+  onEdit: () => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit();
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={onKeyDown}
+      className={cn(
+        "w-full rounded-lg text-left transition-colors hover:bg-muted/40 active:bg-muted/55 -mx-2 px-2 py-1 cursor-text",
+        className,
+      )}
+      aria-label="Edit entry"
+    >
+      {children}
+    </div>
   );
 }
 

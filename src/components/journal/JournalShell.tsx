@@ -17,6 +17,7 @@ import { exportJournalAsZip } from "@/lib/journal/export";
 import { toast } from "@/hooks/use-toast";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -60,6 +61,8 @@ export default function JournalShell({
   footer,
 }: Props) {
   const inMiniPhone = useMiniPhoneEmbed();
+  const { showHubShell } = useAppShellMode();
+  const fillViewport = inMiniPhone || showHubShell;
   const { user } = useAuth();
   const navigate = useNavigate();
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -175,10 +178,12 @@ export default function JournalShell({
     <div
       className={cn(
         "bg-background",
-        inMiniPhone ? "relative flex h-full min-h-0 flex-col overflow-hidden" : "min-h-[100dvh]",
+        fillViewport
+          ? "relative flex h-full min-h-0 flex-col overflow-hidden"
+          : "min-h-[100dvh]",
       )}
     >
-      <div className={cn("flex", inMiniPhone && "min-h-0 flex-1 flex-col overflow-hidden")}>
+      <div className={cn("flex", fillViewport && "min-h-0 flex-1 flex-col overflow-hidden")}>
         <div className="hidden md:block w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto">
           <JournalsRail
             journals={journals}
@@ -188,7 +193,7 @@ export default function JournalShell({
         </div>
         {/* Mobile rail in sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="left" className="p-0 w-72">
+          <SheetContent side="left" className="w-72 p-0 [&>button]:hidden" style={{ padding: 0 }}>
             <JournalsRail
               journals={journals}
               activeJournalId={journalId}
@@ -198,7 +203,7 @@ export default function JournalShell({
           </SheetContent>
         </Sheet>
 
-        <div className={cn("flex-1 min-w-0", inMiniPhone && "flex min-h-0 flex-col overflow-hidden")}>
+        <div className={cn("flex-1 min-w-0", fillViewport && "flex min-h-0 flex-col overflow-hidden")}>
           <JournalCover
             journal={journal}
             titleOverride={coverTitle}
@@ -210,9 +215,9 @@ export default function JournalShell({
           />
           <main
             className={cn(
-              inMiniPhone
+              fillViewport
                 ? cn(
-                    "min-h-0 flex-1 overflow-y-auto",
+                    "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]",
                     footer
                       ? "pb-3"
                       : "pb-[calc(4.5rem+var(--safe-area-inset-bottom))]",

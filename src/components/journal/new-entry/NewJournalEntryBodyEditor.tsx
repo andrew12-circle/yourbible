@@ -15,6 +15,7 @@ import type { JournalMarkerSuggestion } from "@/hooks/useJournalBodyMarkers";
 import { useRef, useLayoutEffect, type MutableRefObject, type RefObject } from "react";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
+import { NewJournalEntryPhotoSuggestion } from "@/components/journal/new-entry/NewJournalEntryPhotoSuggestion";
 import { cn } from "@/lib/utils";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };
@@ -57,6 +58,10 @@ interface NewJournalEntryBodyEditorProps {
   onOpenSketch: () => void;
   onRemoveExistingPhoto: (photoId: string, storage_path: string) => void;
   onRemovePendingFile: (file: File) => void;
+  showPhotoSuggestion?: boolean;
+  onAddPhotos?: () => void;
+  onTakePhoto?: () => void;
+  onDismissPhotoSuggestion?: () => void;
 }
 
 export function NewJournalEntryBodyEditor({
@@ -91,6 +96,10 @@ export function NewJournalEntryBodyEditor({
   onOpenSketch,
   onRemoveExistingPhoto,
   onRemovePendingFile,
+  showPhotoSuggestion = false,
+  onAddPhotos,
+  onTakePhoto,
+  onDismissPhotoSuggestion,
 }: NewJournalEntryBodyEditorProps) {
   const localBodyRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = bodyTextareaRef ?? localBodyRef;
@@ -221,6 +230,14 @@ export function NewJournalEntryBodyEditor({
         text={dictInterim}
         className="text-sm italic leading-relaxed text-muted-foreground/80"
       />
+      {showPhotoSuggestion && onAddPhotos && onTakePhoto && onDismissPhotoSuggestion ? (
+        <NewJournalEntryPhotoSuggestion
+          className="mt-3"
+          onAddPhotos={onAddPhotos}
+          onTakePhoto={onTakePhoto}
+          onDismiss={onDismissPhotoSuggestion}
+        />
+      ) : null}
       {chatTurns.length > 0 ? (
         <JournalLiveChatCollapsible turns={chatTurns} className="mt-4" />
       ) : null}

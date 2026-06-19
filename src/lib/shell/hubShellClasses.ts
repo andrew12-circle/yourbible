@@ -21,6 +21,12 @@ export function hubShellPageHeight(showHubShell: boolean, inMiniPhone = false) {
   return "h-[100dvh]";
 }
 
+/** Top padding for journal compose headers — avoid double safe-area inside hub / mini-phone panes. */
+export function journalEntryHeaderPad(showHubShell: boolean, inMiniPhone = false): string {
+  if (showHubShell || inMiniPhone) return "pt-2";
+  return "pt-[calc(var(--safe-area-inset-top)+0.5rem)]";
+}
+
 /** Journal compose: flex column that shrinks naturally when iOS resizes the viewport for the keyboard. */
 export function journalEntryPageRoot(showHubShell: boolean, inMiniPhone = false) {
   return cn(

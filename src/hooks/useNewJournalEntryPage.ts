@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { shouldSuggestJournalPhotos } from "@/lib/journal/suggestPhotos";
 import { autosaveSketchPhoto, isJournalSketchAsset } from "@/lib/journal/sketchPhotos";
 import {
   transcribeEntrySketchPaths,
@@ -76,7 +77,7 @@ export function useNewJournalEntryPage() {
   const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
-  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } = useVisualViewportMetrics();
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
 
@@ -129,8 +130,10 @@ export function useNewJournalEntryPage() {
   const [journalName, setJournalName] = useState<string>("Journal");
   const [composerFocused, setComposerFocused] = useState(false);
   const [bodyFocused, setBodyFocused] = useState(false);
+  const [photoSuggestionDismissed, setPhotoSuggestionDismissed] = useState(false);
   const composerLockScrollYRef = useRef<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const photoCameraInputRef = useRef<HTMLInputElement | null>(null);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -149,6 +152,7 @@ export function useNewJournalEntryPage() {
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
+  const keyboardOpen = kbInset > 0;
 
   const getComposeSnapshot = useCallback(
     (): ComposePersistenceSnapshot => ({
@@ -233,7 +237,12 @@ export function useNewJournalEntryPage() {
     kbInset,
     enabled: !inlineChatMode,
     resetKey: editId ?? "journal-new",
-    fixedBottomInsetPx: bodyFocused ? (inMiniPhone ? 16 : kbInset + 16) : undefined,
+    fixedBottomInsetPx:
+      bodyFocused || (keyboardOpen && !inlineChatMode)
+        ? inMiniPhone
+          ? 16
+          : kbInset + 16
+        : undefined,
     topInsetPx: inMiniPhone ? 12 : vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
 
@@ -454,6 +463,10 @@ export function useNewJournalEntryPage() {
   }, [editId, user, loadChatTurns]);
 
   useEffect(() => {
+    setPhotoSuggestionDismissed(false);
+  }, [editId]);
+
+  useEffect(() => {
     if (editId || !user) return;
     const draft = restoreLocalDraft();
     if (!draft) return;
@@ -626,6 +639,30 @@ export function useNewJournalEntryPage() {
     partitionJournalPhotos(existingPhotos);
   const pendingSketches = pendingFiles.filter((f) => isJournalSketchAsset(f.name));
   const pendingAttachments = pendingFiles.filter((f) => !isJournalSketchAsset(f.name));
+  const hasJournalPhotos = existingAttachments.length > 0 || pendingAttachments.length > 0;
+  const showPhotoSuggestion = useMemo(
+    () =>
+      !photoSuggestionDismissed &&
+      !inlineChatMode &&
+      !isListening &&
+      !isVent &&
+      shouldSuggestJournalPhotos({
+        body,
+        title,
+        hasPhotos: hasJournalPhotos,
+        entryKind,
+      }),
+    [
+      body,
+      title,
+      hasJournalPhotos,
+      entryKind,
+      inlineChatMode,
+      isListening,
+      isVent,
+      photoSuggestionDismissed,
+    ],
+  );
   const sketchDraftKey = `compose:${editId ?? journalId ?? "new"}`;
 
   const weatherLabel =
@@ -1042,6 +1079,8 @@ export function useNewJournalEntryPage() {
   }, []);
 
   const triggerPhotos = useCallback(() => photoInputRef.current?.click(), []);
+  const triggerCamera = useCallback(() => photoCameraInputRef.current?.click(), []);
+  const dismissPhotoSuggestion = useCallback(() => setPhotoSuggestionDismissed(true), []);
   const triggerAudio = useCallback(() => dictateRef.current?.toggle(), []);
   const triggerPrompts = useCallback(() => navigate("/journal/prompts"), [navigate]);
   const triggerHandwritten = useCallback(() => setSketchOpen(true), []);
@@ -1163,6 +1202,7 @@ export function useNewJournalEntryPage() {
     navigate,
     kbInset,
     vvOffsetTop,
+    viewportHeight,
     inMiniPhone,
     isMobile,
     bodyFocused,
@@ -1220,6 +1260,7 @@ export function useNewJournalEntryPage() {
     dictateRef,
     composerLockScrollYRef,
     photoInputRef,
+    photoCameraInputRef,
     mainScrollRef,
     bottomDockRef,
     dateLabel,
@@ -1240,6 +1281,9 @@ export function useNewJournalEntryPage() {
     openChatMode,
     exitChatMode,
     triggerPhotos,
+    triggerCamera,
+    dismissPhotoSuggestion,
+    showPhotoSuggestion,
     triggerAudio,
     triggerPrompts,
     triggerHandwritten,

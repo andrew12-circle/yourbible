@@ -11,12 +11,16 @@ import {
   BookHeart,
   Flame,
   FileUp,
+  X,
 } from "lucide-react";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SheetClose } from "@/components/ui/sheet";
+import { mobileSheetSafeTop } from "@/lib/shell/mobileShellClasses";
+import { cn } from "@/lib/utils";
 
 interface Props {
   journals: Journal[];
@@ -52,13 +56,21 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
 
   return (
     <aside
-      className={`${inSheet ? "" : "hidden md:flex"} flex-col w-full h-full ${inDesk ? "min-h-0 overflow-hidden" : "overflow-y-auto"}`}
+      className={cn(
+        inSheet ? "" : "hidden md:flex",
+        "flex-col w-full h-full",
+        inDesk ? "min-h-0 overflow-hidden" : "overflow-y-auto",
+        inSheet && "pb-safe",
+      )}
     >
       <div
         className={
           inDesk
             ? "flex h-12 shrink-0 items-center justify-between border-b border-border/60 px-3"
-            : "flex items-center justify-between px-3 pt-3 pb-2"
+            : cn(
+                "flex items-center justify-between px-3 pb-2",
+                inSheet ? mobileSheetSafeTop(0.5) : "pt-3",
+              )
         }
       >
         <Link
@@ -68,9 +80,22 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
         >
           <Settings className="w-4 h-4" />
         </Link>
-        <Link to="/home" className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
-          Home
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/home"
+            className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            Home
+          </Link>
+          {inSheet ? (
+            <SheetClose
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Close menu"
+            >
+              <X className="w-4 h-4" />
+            </SheetClose>
+          ) : null}
+        </div>
       </div>
 
       <nav className={`px-2 pb-4 space-y-0.5 ${inDesk ? "journal-pane-scroll min-h-0 flex-1 overflow-y-auto" : ""}`}>
