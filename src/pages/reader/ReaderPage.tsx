@@ -1702,7 +1702,7 @@ export default function ReaderPage() {
   // Determine left & right page indices (spread = two consecutive pages)
   const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
   const leftIdx = activePageIdx;
-  const rightIdx = effectiveSpread ? activePageIdx + 1 : activePageIdx;
+  const rightIdx = activePageIdx + 1;
   const subsequentPageHeight = pageBox.h > 0 ? pageBox.h : 0;
   const paginatorFirstPageHeight =
     firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
@@ -1718,6 +1718,7 @@ export default function ReaderPage() {
   return (
     <div
       data-bible-reader
+      data-cropped-spread={!effectiveSpread ? "" : undefined}
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
         (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
@@ -1842,7 +1843,6 @@ export default function ReaderPage() {
         tabletPortrait={tabletPortrait}
         fillContainer
         hubEmbedded={hubEmbedded}
-        pageSide="left"
         coverStyle={readerCoverStyle}
         coverClassName={readerCoverClass}
         pageClassName={readerPageClass}
@@ -1850,7 +1850,7 @@ export default function ReaderPage() {
           focusMode ? null : (
             <Ribbons
               ribbons={bookmarks as RibbonData[]}
-              anchor={effectiveSpread ? "gutter" : "spine"}
+              anchor="gutter"
               swaying={false}
               onJump={(r) =>
                 navigate(
@@ -1895,7 +1895,7 @@ export default function ReaderPage() {
               </PageFlip>
             </SwipePage>
           ) : (
-            <div className="h-full w-full" aria-hidden />
+            renderPageSurface(rightIdx, "right")
           )
         }
       />

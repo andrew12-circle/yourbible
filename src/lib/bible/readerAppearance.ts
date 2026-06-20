@@ -15,5 +15,6 @@ export function pageToneClass(pageTone: string | undefined | null): string {
 
 export function leatherCoverClass(coverId: string | undefined | null): string {
   const cover = resolveCover(coverId);
-  return `leather-cover--${cover.variant}`;
+  const variant = `leather-cover--${cover.variant}`;
+  return cover.variant === "obsidian" ? `${variant} leather-cover--foil-gold` : variant;
 }

@@ -307,14 +307,15 @@
     mix-blend-mode: overlay;
   }
 
-  /* Bible cover swatches — simulated leather for onboarding & settings */
-  .leather-cover-card {
-    /* --lc-* set inline per cover via coverLeatherStyle() */
+  /* Shared leather hue — --lc-* set inline via coverLeatherStyle() */
+  .leather-cover-surface {
+    --lc-deep: 0 58% 11%;
+    --lc-base: 0 52% 19%;
+    --lc-mid: 0 54% 27%;
+    --lc-light: 8 48% 36%;
+    --lc-highlight: 12 42% 44%;
+    --lc-stitch: 38 62% 54%;
     isolation: isolate;
-    box-shadow:
-      inset 0 1px 0 hsl(var(--lc-highlight) / 0.28),
-      inset 0 -3px 10px hsl(var(--lc-deep) / 0.55),
-      0 6px 20px -6px hsl(0 0% 0% / 0.4);
     background:
       linear-gradient(90deg, hsl(var(--lc-deep) / 0.75) 0%, hsl(var(--lc-deep) / 0.2) 7%, transparent 11%),
       radial-gradient(ellipse 85% 45% at 24% 10%, hsl(var(--lc-light) / 0.5) 0%, transparent 58%),
@@ -330,29 +331,76 @@
       );
   }
 
-  .leather-cover-card::before {
+  .leather-cover-surface::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 0;
     opacity: 0.2;
     pointer-events: none;
+    border-radius: inherit;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9 1.1' numOctaves='4' seed='12'/><feColorMatrix type='saturate' values='0.15'/></filter><rect width='100%25' height='100%25' filter='url(%23g)' opacity='0.9'/></svg>");
     background-size: 160px 160px;
     mix-blend-mode: soft-light;
   }
 
-  .leather-cover-card::after {
+  .leather-cover-surface::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
+    border-radius: inherit;
     opacity: 0.55;
     background-image:
       repeating-linear-gradient(118deg, hsl(0 0% 0% / 0.06) 0 0.5px, transparent 0.5px 10px),
       repeating-linear-gradient(62deg, hsl(0 0% 100% / 0.04) 0 0.5px, transparent 0.5px 14px);
     mix-blend-mode: overlay;
+  }
+
+  /* Bible cover swatches — onboarding & settings */
+  .leather-cover-card {
+    box-shadow:
+      inset 0 1px 0 hsl(var(--lc-highlight) / 0.28),
+      inset 0 -3px 10px hsl(var(--lc-deep) / 0.55),
+      0 6px 20px -6px hsl(0 0% 0% / 0.4);
+  }
+
+  /* Open Bible reader frame */
+  .reader-leather-cover {
+    box-shadow:
+      0 20px 48px -16px hsl(0 0% 0% / 0.45),
+      0 6px 16px -6px hsl(0 0% 0% / 0.35),
+      inset 0 2px 0 hsl(var(--lc-highlight) / 0.35),
+      inset 0 -3px 10px hsl(var(--lc-deep) / 0.4);
+  }
+
+  .reader-leather-cover.leather-cover--foil-gold {
+    box-shadow:
+      0 20px 48px -16px hsl(0 0% 0% / 0.45),
+      0 6px 16px -6px hsl(0 0% 0% / 0.35),
+      inset 0 1px 0 hsl(43 70% 58% / 0.35),
+      inset 0 -3px 10px hsl(0 0% 0% / 0.65),
+      inset 0 0 0 2px hsl(43 72% 52% / 0.28);
+  }
+
+  /* Cropped spread — square right edge; cover extends off-screen. */
+  .reader-leather-cover--bleed-right {
+    flex-shrink: 0;
+    min-width: 100%;
+  }
+
+  .reader-leather-cover--bleed-right::before,
+  .reader-leather-cover--bleed-right::after {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+  .reader-leather-spine {
+    box-shadow:
+      -10px 0 22px -8px hsl(0 0% 0% / 0.42),
+      inset 2px 0 0 hsl(var(--lc-stitch) / 0.55),
+      inset -1px 0 6px hsl(var(--lc-deep) / 0.45);
   }
 
   .leather-cover--foil-gold {
@@ -1472,6 +1520,21 @@
   background-color: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
+}
+
+.hub-shell .hub-content-card:has([data-bible-reader][data-cropped-spread]) {
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Cropped Bible — collapse hub gutter so the cover can bleed to the screen edge. */
+.hub-shell:has([data-bible-reader][data-cropped-spread]) {
+  --hub-edge: 0px;
+}
+
+.hub-shell .peer[data-state="collapsed"] ~ .hub-content-card:has([data-bible-reader][data-cropped-spread]) {
+  margin-left: 0 !important;
 }
 
 /* Mobile hub Bible — full-bleed fabric; book fills to the bottom of the screen. */

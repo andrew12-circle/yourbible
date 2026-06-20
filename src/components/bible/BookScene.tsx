@@ -1,4 +1,5 @@
 import { spreadPageStackWidths } from "@/lib/bible/readerPageMargins";
+import { spreadCropLeftInsetCss, spreadCropWidthCss, SPREAD_RIGHT_PEEK } from "@/lib/bible/spreadCrop";
 import { PageStackEdge } from "@/components/bible/PageStackEdge";
 import { cn } from "@/lib/utils";
 import { type CSSProperties, type ReactNode } from "react";
@@ -8,15 +9,14 @@ interface Props {
   progress: number;
   leftPage: ReactNode;
   rightPage: ReactNode;
-  /** One page at a time (phones / narrow tablet). */
+  /** Narrow viewport — crop spread to focus left page with a sliver of the right. */
   singlePage?: boolean;
-  /** iPad portrait — single page with centered, narrower spread. */
+  /** iPad portrait — centered, narrower cover frame. */
   tabletPortrait?: boolean;
   /** Fill parent height (hub workspace) instead of viewport height. */
   fillContainer?: boolean;
   /** Hub embed — transparent surround, fabric shows through behind the leather cover. */
   hubEmbedded?: boolean;
-  pageSide?: "left" | "right";
   ribbons?: ReactNode;
   /** User-selected leather cover (CSS variables). */
   coverStyle?: CSSProperties;
@@ -25,61 +25,7 @@ interface Props {
   pageClassName?: string;
 }
 
-const LEATHER_BG = {
-  backgroundImage:
-    `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
-    `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.05  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),` +
-    "radial-gradient(ellipse 70% 35% at 50% 0%, hsl(10 70% 38% / 0.5) 0%, transparent 70%)," +
-    "radial-gradient(ellipse 60% 30% at 50% 100%, hsl(0 0% 0% / 0.55) 0%, transparent 70%)," +
-    "linear-gradient(150deg, hsl(0 45% 16%) 0%, hsl(0 50% 24%) 35%, hsl(0 55% 20%) 60%, hsl(0 60% 12%) 100%)",
-  backgroundBlendMode: "overlay, multiply, screen, multiply, normal",
-} as const;
-
-const MOBILE_SPINE_W = 20;
-
-/** Leather spine strip on the outer edge of a single-page mobile view. */
-function MobileBookSpine({ coverStyle }: { coverStyle?: CSSProperties }) {
-  return (
-    <>
-      <div
-        aria-hidden
-        className="absolute top-0 bottom-0 right-0 z-[3] pointer-events-none"
-        style={{
-          width: 28,
-          background:
-            "linear-gradient(270deg, hsl(0 0% 0% / 0.16) 0%, hsl(0 0% 0% / 0.07) 38%, transparent 72%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute top-0 bottom-0 right-0 z-[5] pointer-events-none overflow-hidden"
-        style={{
-          width: MOBILE_SPINE_W,
-          ...LEATHER_BG,
-          ...coverStyle,
-          boxShadow:
-            "-10px 0 22px -8px hsl(0 0% 0% / 0.42), " +
-            "inset 2px 0 0 hsl(38 58% 52% / 0.55), " +
-            "inset -1px 0 6px hsl(0 0% 0% / 0.45)",
-        }}
-      >
-        <div
-          className="absolute inset-y-0 left-[28%] w-[44%] pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent 0%, hsl(10 50% 28% / 0.65) 45%, hsl(20 60% 42% / 0.2) 70%, transparent 100%)",
-          }}
-          aria-hidden
-        />
-        <div
-          className="absolute inset-y-0 left-0 w-px pointer-events-none"
-          style={{ background: "hsl(38 58% 52% / 0.65)" }}
-          aria-hidden
-        />
-      </div>
-    </>
-  );
-}
+const coverRadiusLeft = (hubEmbedded: boolean) => (hubEmbedded ? "0.5rem" : "0.75rem");
 
 /**
  * Digital reading layout with a full leather cover frame (top, sides, bottom)
@@ -93,177 +39,176 @@ export function BookScene({
   tabletPortrait = false,
   fillContainer = false,
   hubEmbedded = false,
-  pageSide = "left",
   ribbons,
   coverStyle,
   coverClassName,
   pageClassName,
 }: Props) {
-  const showLeft = !singlePage || pageSide === "left";
-  const showRight = !singlePage || pageSide === "right";
-
-  const totalStack = singlePage ? 26 : 44;
-  const minStack = singlePage ? 12 : 20;
+  const croppedSpread = singlePage;
   const stackWidths = spreadPageStackWidths(progress);
-  const leftStack = singlePage
-    ? Math.max(minStack, Math.round(totalStack * progress))
-    : stackWidths.left;
-  const rightStack = singlePage
-    ? Math.max(minStack, Math.round(totalStack * (1 - progress)))
-    : stackWidths.right;
+  const { left: leftStack, right: rightStack } = stackWidths;
 
-  const coverPadX = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 10) : 14;
-  const coverPadTop = singlePage ? (tabletPortrait ? 14 : hubEmbedded ? 4 : 12) : 16;
-  const coverPadBottom = singlePage ? (tabletPortrait ? 12 : hubEmbedded ? 4 : 10) : 14;
-  const flushMobile = hubEmbedded || (fillContainer && singlePage);
+  const coverPadX = croppedSpread ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 10) : 14;
+  const coverPadTop = croppedSpread ? (tabletPortrait ? 14 : hubEmbedded ? 4 : 12) : 16;
+  const coverPadBottom = croppedSpread ? (tabletPortrait ? 12 : hubEmbedded ? 4 : 10) : 14;
+  const flushMobile = hubEmbedded || (fillContainer && croppedSpread);
+  const leftInset = spreadCropLeftInsetCss(hubEmbedded, tabletPortrait);
+  const leftRadius = coverRadiusLeft(hubEmbedded);
 
-  return (
-    <div
-      className={
-        "relative w-full flex flex-col items-center " +
-        (fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]")
-      }
-      style={{ background: hubEmbedded ? "transparent" : "hsl(0 0% 100%)" }}
-    >
+  const coverChrome = (
+    <>
+      {/* Subtle sheen across the cover */}
       <div
-        className="relative z-10 w-full flex flex-col flex-1 min-h-0"
+        className="absolute inset-0 pointer-events-none z-[1]"
         style={{
-          maxWidth: singlePage
-            ? tabletPortrait
-              ? "min(720px, 92vw)"
-              : "100%"
-            : "min(1420px, 98vw)",
+          borderTopLeftRadius: leftRadius,
+          borderBottomLeftRadius: leftRadius,
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+          backgroundImage:
+            "linear-gradient(115deg, transparent 0%, hsl(var(--lc-light) / 0.12) 38%, hsl(var(--lc-highlight) / 0.14) 50%, transparent 100%)",
+          mixBlendMode: "screen",
+        }}
+        aria-hidden
+      />
+
+      <div
+        className="relative z-[2] flex flex-col flex-1 min-h-0 overflow-visible"
+        style={{
+          padding: `${coverPadTop}px ${coverPadX}px ${coverPadBottom}px`,
         }}
       >
+        {/* Gold rule between cover and pages */}
         <div
-          className={cn(
-            "flex flex-col flex-1 min-h-0 w-full",
-            hubEmbedded
-              ? "pt-0 pb-[env(safe-area-inset-bottom,0px)]"
-              : cn(
-                  "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-                  flushMobile ? "pt-1" : "pt-[max(0.5rem,env(safe-area-inset-top))]",
-                ),
-            tabletPortrait ? "px-4" : hubEmbedded ? "px-0" : "px-2 sm:px-3",
-          )}
+          className="relative flex flex-1 flex-col min-h-0 rounded-[5px] overflow-hidden"
+          style={{
+            boxShadow:
+              "inset 0 0 0 1px hsl(38 58% 52% / 0.5), " +
+              "inset 0 0 0 2px hsl(0 0% 0% / 0.25), " +
+              "0 1px 0 hsl(12 35% 28% / 0.4)",
+          }}
         >
-          {/* Leather cover — visible on top, left, right, and bottom */}
           <div
             className={cn(
-              "relative flex flex-col flex-1 min-h-0 overflow-hidden",
-              hubEmbedded ? "rounded-none" : "rounded-xl",
-              coverClassName,
+              "relative flex flex-1 min-h-0 min-w-0 overflow-hidden bg-paper",
+              pageClassName,
             )}
-            style={{
-              ...LEATHER_BG,
-              ...coverStyle,
-              boxShadow:
-                "0 20px 48px -16px hsl(0 0% 0% / 0.45), " +
-                "0 6px 16px -6px hsl(0 0% 0% / 0.35), " +
-                "inset 0 2px 0 hsl(0 60% 30% / 0.35), " +
-                "inset 0 -3px 10px hsl(0 0% 0% / 0.4)",
-            }}
           >
-            {/* Subtle sheen across the cover */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                borderRadius: hubEmbedded ? 0 : undefined,
-                backgroundImage:
-                  "linear-gradient(115deg, transparent 0%, hsl(20 60% 60% / 0.07) 38%, hsl(30 70% 70% / 0.10) 50%, transparent 100%)",
-                mixBlendMode: "screen",
-              }}
-              aria-hidden
-            />
-
-            <div
-              className="relative flex flex-col flex-1 min-h-0 overflow-visible"
-              style={{
-                padding: `${coverPadTop}px ${coverPadX}px ${coverPadBottom}px`,
-              }}
-            >
-              {/* Gold rule between cover and pages */}
-              <div
-                className="relative flex flex-1 flex-col min-h-0 rounded-[5px] overflow-hidden"
-                style={{
-                  boxShadow:
-                    "inset 0 0 0 1px hsl(38 58% 52% / 0.5), " +
-                    "inset 0 0 0 2px hsl(0 0% 0% / 0.25), " +
-                    "0 1px 0 hsl(12 35% 28% / 0.4)",
-                }}
-              >
+            <div className="relative flex h-full min-h-0 min-w-0 w-full flex-row">
+              <div className="relative flex flex-1 min-h-0 min-w-0 border-r border-border/40">
+                <PageStackEdge side="left" widthPx={leftStack} />
                 <div
-                  className={
-                    "relative flex flex-1 min-h-0 min-w-0 overflow-hidden bg-paper " +
-                    (pageClassName ?? "") +
-                    " " +
-                    (singlePage ? "" : "flex-row")
-                  }
+                  className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
+                  style={{ marginLeft: leftStack }}
                 >
-                  {singlePage ? (
-                    <div className="relative flex flex-1 min-h-0 min-w-0">
-                      <PageStackEdge side="left" widthPx={leftStack} />
-                      <div
-                        className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
-                        style={{
-                          marginLeft: leftStack,
-                          marginRight: MOBILE_SPINE_W,
-                        }}
-                      >
-                        {pageSide === "left" ? leftPage : rightPage}
-                      </div>
-                      <MobileBookSpine coverStyle={coverStyle} />
-                    </div>
-                  ) : (
-                    <>
-                      {showLeft && (
-                        <div className="relative flex-1 min-h-0 min-w-0 flex border-r border-border/40">
-                          <PageStackEdge side="left" widthPx={leftStack} />
-                          <div
-                            className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
-                            style={{ marginLeft: leftStack }}
-                          >
-                            {leftPage}
-                          </div>
-                        </div>
-                      )}
-                      {showRight && (
-                        <div className="relative flex-1 min-h-0 min-w-0 flex flex-row-reverse">
-                          <PageStackEdge side="right" widthPx={rightStack} />
-                          <div
-                            className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
-                            style={{ marginRight: rightStack }}
-                          >
-                            {rightPage}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {ribbons && (
-                    <div className="absolute inset-0 z-[8] pointer-events-none overflow-visible">
-                      {ribbons}
-                    </div>
-                  )}
-
-                  {!singlePage && (
-                    <div
-                      className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 pointer-events-none z-[1]"
-                      style={{
-                        boxShadow:
-                          "-10px 0 18px -8px hsl(0 0% 0% / 0.05), 10px 0 18px -8px hsl(0 0% 0% / 0.05)",
-                        background: "hsl(var(--border) / 0.35)",
-                      }}
-                    />
-                  )}
+                  {leftPage}
                 </div>
               </div>
 
+              <div
+                className={cn(
+                  "relative flex flex-1 min-h-0 min-w-0 flex flex-row-reverse",
+                  croppedSpread && "pointer-events-none select-none",
+                )}
+              >
+                <PageStackEdge side="right" widthPx={rightStack} />
+                <div
+                  className="relative flex-1 min-h-0 min-w-0 overflow-hidden"
+                  style={{ marginRight: rightStack }}
+                >
+                  {rightPage}
+                </div>
+              </div>
+
+              <div
+                className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 pointer-events-none z-[1]"
+                style={{
+                  boxShadow:
+                    "-10px 0 18px -8px hsl(0 0% 0% / 0.05), 10px 0 18px -8px hsl(0 0% 0% / 0.05)",
+                  background: "hsl(var(--border) / 0.35)",
+                }}
+              />
+
+              {ribbons ? (
+                <div className="absolute inset-0 z-[8] pointer-events-none overflow-visible">
+                  {ribbons}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <div
+      data-cropped-spread={croppedSpread ? "" : undefined}
+      className={cn(
+        "relative w-full flex flex-col",
+        croppedSpread ? "items-stretch overflow-x-hidden" : "items-center",
+        fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]",
+      )}
+      style={{ background: hubEmbedded ? "transparent" : "hsl(0 0% 100%)" }}
+    >
+      {croppedSpread ? (
+        <div
+          className={cn(
+            "relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-x-hidden",
+            !hubEmbedded && "max-w-none w-screen",
+            hubEmbedded
+              ? "pb-[env(safe-area-inset-bottom,0px)]"
+              : "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+          )}
+        >
+          <div
+            className={cn(
+              "reader-leather-cover reader-leather-cover--bleed-right leather-cover-surface absolute inset-y-0 left-0 flex min-h-0 flex-col overflow-hidden",
+              coverClassName,
+            )}
+            style={{
+              ...coverStyle,
+              width: spreadCropWidthCss(SPREAD_RIGHT_PEEK, hubEmbedded, leftInset),
+              marginLeft: leftInset,
+              borderTopLeftRadius: leftRadius,
+              borderBottomLeftRadius: leftRadius,
+              borderTopRightRadius: 0,
+              borderBottomRightRadius: 0,
+            }}
+          >
+            {coverChrome}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="relative z-10 w-full flex flex-col flex-1 min-h-0"
+          style={{ maxWidth: "min(1420px, 98vw)" }}
+        >
+          <div
+            className={cn(
+              "flex flex-col flex-1 min-h-0 w-full",
+              hubEmbedded
+                ? "pt-0 pb-[env(safe-area-inset-bottom,0px)]"
+                : cn(
+                    "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+                    flushMobile ? "pt-1" : "pt-[max(0.5rem,env(safe-area-inset-top))]",
+                  ),
+              tabletPortrait ? "px-4" : hubEmbedded ? "px-0" : "px-2 sm:px-3",
+            )}
+          >
+            <div
+              className={cn(
+                "reader-leather-cover leather-cover-surface relative flex flex-col flex-1 min-h-0 overflow-hidden",
+                hubEmbedded ? "rounded-lg" : "rounded-xl",
+                coverClassName,
+              )}
+              style={coverStyle}
+            >
+              {coverChrome}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
   pageToneClass,
   coverStyle as buildCoverStyle,
 } from "@/lib/bible/readerAppearance";
+import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { BOOKS } from "@/data/books";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -91,13 +92,17 @@ export default function ContentsReaderPage() {
     ? undefined
     : { paddingLeft: "clamp(1.125rem, 4vmin, 2.25rem)", paddingRight: "clamp(1.125rem, 4vmin, 2.25rem)" };
 
-  const renderContentsFace = (testament: "ot" | "nt" | "all") => (
+  const renderContentsFace = (testament: "ot" | "nt" | "all", side: "left" | "right" = "left") => (
     <div
       className={cn(
         "relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2",
         readerPageClass,
       )}
-      style={pagePadding}
+      style={
+        testament === "all"
+          ? pagePadding
+          : pageHorizontalPadding(side, !effectiveSpread, compactChrome)
+      }
     >
       <div className="flex-shrink-0 text-left">
         <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium">
@@ -127,6 +132,7 @@ export default function ContentsReaderPage() {
   return (
     <div
       data-bible-reader
+      data-cropped-spread={!effectiveSpread ? "" : undefined}
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
         (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
@@ -182,12 +188,8 @@ export default function ContentsReaderPage() {
           coverStyle={readerCoverStyle}
           coverClassName={readerCoverClass}
           pageClassName={readerPageClass}
-          leftPage={
-            effectiveSpread ? renderContentsFace("ot") : renderContentsFace("all")
-          }
-          rightPage={
-            effectiveSpread ? renderContentsFace("nt") : renderContentsFace("all")
-          }
+          leftPage={renderContentsFace("ot", "left")}
+          rightPage={renderContentsFace("nt", "right")}
         />
       </div>
 

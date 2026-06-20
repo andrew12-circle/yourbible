@@ -29,7 +29,7 @@ export function LeatherCoverCard({
       data-cover={cover.id}
       style={coverLeatherStyle(cover.leather)}
       className={cn(
-        "leather-cover-card group relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all",
+        "leather-cover-card leather-cover-surface group relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all",
         `leather-cover--${cover.variant}`,
         cover.variant === "obsidian" && "leather-cover--foil-gold",
         selected
