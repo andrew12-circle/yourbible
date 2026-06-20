@@ -2150,6 +2150,42 @@ export type Database = {
         }
         Relationships: []
       }
+      questions_for_god: {
+        Row: {
+          context: string | null
+          created_at: string
+          id: string
+          insight: string | null
+          notes: string
+          question: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          insight?: string | null
+          notes?: string
+          question: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          insight?: string | null
+          notes?: string
+          question?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reader_page_ink: {
         Row: {
           anchor_verse: number | null

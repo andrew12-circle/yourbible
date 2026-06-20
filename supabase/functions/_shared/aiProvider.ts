@@ -28,6 +28,14 @@ export function resolveAiProvider(): AiProvider {
 const GEMINI_TOOL_GATEWAY_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GEMINI_TOOL_MODEL = Deno.env.get("GEMINI_TOOL_MODEL")?.trim() || "gemini-2.5-flash";
+const CHAT_TOOLS_TIMEOUT_MS = envInt("AI_CHAT_TOOLS_TIMEOUT_MS", 150_000);
+
+function envInt(name: string, fallback: number): number {
+  const raw = Deno.env.get(name);
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 async function replayResponse(res: Response): Promise<{ res: Response; body: unknown }> {
   const text = await res.text();
@@ -49,10 +57,11 @@ export async function callChatWithTools(
   tools: unknown[],
   toolChoice: unknown,
   maxOutputTokens = 8192,
+  providerOverride?: AiProvider,
 ): Promise<Response> {
   const started = Date.now();
   const inputChars = messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
-  const provider = resolveAiProvider();
+  const provider = providerOverride ?? resolveAiProvider();
 
   if (provider === "openai") {
     const apiKey = openAiApiKey();
@@ -71,6 +80,7 @@ export async function callChatWithTools(
           tool_choice: toolChoice,
           max_tokens: maxOutputTokens,
         }),
+        signal: AbortSignal.timeout(CHAT_TOOLS_TIMEOUT_MS),
       });
       const { res: replayed, body } = await replayResponse(res);
       logAiUsageFromResponse({
@@ -104,6 +114,7 @@ export async function callChatWithTools(
       tool_choice: toolChoice,
       max_tokens: maxOutputTokens,
     }),
+    signal: AbortSignal.timeout(CHAT_TOOLS_TIMEOUT_MS),
   });
   const { res: replayed, body } = await replayResponse(res);
   logAiUsageFromResponse({
@@ -416,6 +427,7 @@ async function callGeminiJsonConfigured(
   userPayload: string,
   temperature: number,
   maxOutputTokens: number,
+  modelOverride?: string,
 ): Promise<ChatCallResult> {
   const apiKey = geminiApiKey();
   if (!apiKey) return { rawText: "", ok: false, err: "GEMINI_API_KEY is not configured." };
@@ -423,7 +435,7 @@ async function callGeminiJsonConfigured(
     systemText,
     userPayload,
     apiKey,
-    GEMINI_CHAT_MODEL,
+    modelOverride?.trim() || GEMINI_CHAT_MODEL,
     temperature,
     maxOutputTokens,
   );
@@ -436,13 +448,20 @@ export async function callChatJson(
   temperature = 0.42,
   maxOutputTokens = 4096,
   providerOverride?: AiProvider,
+  modelOverride?: string,
 ): Promise<ChatCallResult> {
   const provider = providerOverride ?? resolveAiProvider();
 
   if (provider === "openai") {
     const apiKey = openAiApiKey();
     if (!apiKey) {
-      const fallback = await callGeminiJsonConfigured(systemText, userPayload, temperature, maxOutputTokens);
+      const fallback = await callGeminiJsonConfigured(
+        systemText,
+        userPayload,
+        temperature,
+        maxOutputTokens,
+        modelOverride,
+      );
       return fallback.ok ? fallback : { rawText: "", ok: false, err: "OPENAI_API_KEY is not configured." };
     }
     const openAiResult = await callOpenAiJson(
@@ -454,11 +473,17 @@ export async function callChatJson(
       maxOutputTokens,
     );
     if (openAiResult.ok || !isOpenAiAuthFailure(openAiResult.err)) return openAiResult;
-    const fallback = await callGeminiJsonConfigured(systemText, userPayload, temperature, maxOutputTokens);
+    const fallback = await callGeminiJsonConfigured(
+      systemText,
+      userPayload,
+      temperature,
+      maxOutputTokens,
+      modelOverride,
+    );
     return fallback.ok ? fallback : openAiResult;
   }
 
-  return callGeminiJsonConfigured(systemText, userPayload, temperature, maxOutputTokens);
+  return callGeminiJsonConfigured(systemText, userPayload, temperature, maxOutputTokens, modelOverride);
 }
 
 async function embedGeminiQuery(text: string, apiKey: string): Promise<number[] | null> {

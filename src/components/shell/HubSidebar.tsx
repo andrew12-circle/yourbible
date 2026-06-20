@@ -4,7 +4,7 @@ import {
   BookOpen, Sun, Sunrise, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
-  Grid3X3, BookMarked, ChevronRight,
+  Grid3X3, BookMarked, ChevronRight, HandHeart,
 } from "lucide-react";
 import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ const iconColorMap: Record<string, string> = {
   Settings: "text-gray-500",
   "Research later": "text-slate-400",
   "Hard questions": "text-amber-500",
+  "Questions for God": "text-rose-400",
   Playbook: "text-violet-400",
   "Library standing": "text-teal-500",
   Influences: "text-orange-400",
@@ -97,6 +98,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
       { title: "Study", icon: GraduationCap, to: "/framework/study" },
       { title: "Digest", icon: Mail, to: "/framework/digest" },
       { title: "Research later", icon: Clock, to: "/framework/research-later" },
+      { title: "Questions for God", icon: HandHeart, to: "/framework/questions-for-god" },
       { title: "Hard questions", icon: CircleHelp, to: "/framework/hard-questions" },
       { title: "Playbook", icon: ClipboardList, to: "/framework/playbook" },
     ],

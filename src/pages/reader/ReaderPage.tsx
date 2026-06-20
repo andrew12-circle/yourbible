@@ -1713,7 +1713,7 @@ export default function ReaderPage() {
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
   const showReaderDock = !showHubShell && compactChrome && !focusMode;
-  const hubEmbedded = containedInHub && compactChrome;
+  const hubEmbedded = containedInHub;
 
   return (
     <div

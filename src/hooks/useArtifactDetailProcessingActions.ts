@@ -50,6 +50,13 @@ export function useArtifactDetailProcessingActions({
     const processingToken = createTranscriptProcessingToken();
 
     let metadataPatch: Record<string, unknown> | undefined;
+    const baseMeta =
+      a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
+        ? { ...(a.metadata as Record<string, unknown>) }
+        : {};
+    delete baseMeta.analyze_inflight_at;
+    metadataPatch = { ...baseMeta };
+
     if (isReadableDocumentKind(a.kind)) {
       const pages = documentPageCount(a.metadata);
       const existingDuration =
@@ -57,11 +64,7 @@ export function useArtifactDetailProcessingActions({
           ? (a.metadata as Record<string, unknown>).duration_seconds
           : null;
       if (pages != null && pages > 0 && (existingDuration == null || Number(existingDuration) <= 0)) {
-        const base =
-          a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
-            ? { ...(a.metadata as Record<string, unknown>) }
-            : {};
-        metadataPatch = { ...base, duration_seconds: Math.max(3600, Math.floor(pages * 90)) };
+        metadataPatch = { ...metadataPatch, duration_seconds: Math.max(3600, Math.floor(pages * 90)) };
       }
     }
 
@@ -212,14 +215,29 @@ export function useArtifactDetailProcessingActions({
     setClaims([]);
     setA({ ...a, raw_text: normalized, status: "analyzing", error: null });
     setPasteOpen(false);
-    setSavingPaste(false);
-    toast({ title: "Transcript saved", description: "Analysis started." });
-    supabase.functions
-      .invoke("framework-analyze", { body: { artifact_id: a.id, processing_token: processingToken } })
-      .catch((e) => {
-        console.error(e);
-        toast({ title: "Could not start analysis", variant: "destructive" });
+    try {
+      const { data, error } = await supabase.functions.invoke("framework-analyze", {
+        body: { artifact_id: a.id, processing_token: processingToken },
       });
+      if (error) throw error;
+      if (data && typeof data === "object" && "error" in data && data.error) {
+        throw new Error(String(data.error));
+      }
+      toast({ title: "Transcript saved", description: "Analysis started." });
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : "Try again in a moment.";
+      setA((prev) =>
+        prev ? { ...prev, status: "error", error: message } : prev,
+      );
+      toast({
+        title: "Could not start analysis",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPaste(false);
+    }
   }, [a, pasteText, setA, setClaims, setPasteOpen, setSavingPaste]);
 
   return {

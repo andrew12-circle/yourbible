@@ -21,8 +21,9 @@ const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
 const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
 const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
-const ANALYZE_STALE_SECONDS = 240;
-const ANALYZE_AUTO_RETRY_LIMIT = 1;
+const ANALYZE_STALE_SECONDS = 90;
+const ANALYZE_AUTO_RETRY_LIMIT = 2;
+const ANALYZE_CLIENT_TIMEOUT_SECONDS = 180;
 
 function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false;
@@ -80,6 +81,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const prevStatusRef = useRef<string | null>(null);
   const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
   const analyzeRetryRef = useRef<Record<string, number>>({});
+  const analyzeClientTimeoutRef = useRef<string | null>(null);
   const ensureFetchRef = useRef<string | null>(null);
   const clientTimeoutRef = useRef<string | null>(null);
 
@@ -247,6 +249,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   useEffect(() => {
     ensureFetchRef.current = null;
     clientTimeoutRef.current = null;
+    analyzeClientTimeoutRef.current = null;
     analyzeRetryRef.current = {};
   }, [artifactId]);
 
@@ -380,15 +383,44 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     void (async () => {
       const { data } = await supabase
         .from("artifacts")
-        .select("status,processing_token")
+        .select("status,processing_token,metadata")
         .eq("id", a.id)
         .maybeSingle();
       if (data?.status !== "analyzing") return;
       const token = data.processing_token;
       if (typeof token !== "string" || !token.trim()) return;
+      const meta =
+        data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+          ? { ...(data.metadata as Record<string, unknown>) }
+          : {};
+      delete meta.analyze_inflight_at;
+      await supabase.from("artifacts").update({ metadata: meta }).eq("id", a.id);
       await supabase.functions.invoke("framework-analyze", {
         body: { artifact_id: a.id, processing_token: token },
       });
+      await loadStatusOnly();
+    })();
+  }, [a, elapsed, loadStatusOnly]);
+
+  useEffect(() => {
+    if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
+    if (elapsed < ANALYZE_CLIENT_TIMEOUT_SECONDS) return;
+    if (analyzeClientTimeoutRef.current === a.id) return;
+    analyzeClientTimeoutRef.current = a.id;
+    void (async () => {
+      const { data } = await supabase
+        .from("artifacts")
+        .select("status")
+        .eq("id", a.id)
+        .maybeSingle();
+      if (data?.status !== "analyzing") return;
+      await supabase
+        .from("artifacts")
+        .update({
+          status: "error",
+          error: "Analysis is taking too long. Tap Retry analysis — long sermons can take a few minutes.",
+        })
+        .eq("id", a.id);
       await loadStatusOnly();
     })();
   }, [a, elapsed, loadStatusOnly]);

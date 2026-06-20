@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, RefreshCw } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import ArtifactPipelineScene, {
@@ -13,6 +13,8 @@ type Props = {
   label: string;
   hint: string;
   onPasteTranscript: () => void;
+  onRetryAnalyze?: () => void;
+  retryAnalyzeBusy?: boolean;
 };
 
 function ArtifactPipelineBanner({
@@ -22,6 +24,8 @@ function ArtifactPipelineBanner({
   label,
   hint,
   onPasteTranscript,
+  onRetryAnalyze,
+  retryAnalyzeBusy = false,
 }: Props) {
   const microLines = artifactPipelineMicroCopy[status] ?? [];
   const [microIndex, setMicroIndex] = useState(0);
@@ -92,10 +96,25 @@ function ArtifactPipelineBanner({
           </p>
         ) : null}
 
+        {status === "analyzing" && elapsed > 45 ? (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            Long sermons can take 1–3 minutes. Insight cards appear as soon as the first pass finishes.
+          </p>
+        ) : null}
+
         {showPaste ? (
           <div className="mt-3">
             <Button size="sm" variant="outline" onClick={onPasteTranscript}>
               <FileText className="mr-1 h-3.5 w-3.5" /> Paste transcript instead
+            </Button>
+          </div>
+        ) : null}
+
+        {status === "analyzing" && elapsed > 45 && onRetryAnalyze ? (
+          <div className="mt-3">
+            <Button size="sm" variant="outline" disabled={retryAnalyzeBusy} onClick={onRetryAnalyze}>
+              <RefreshCw className={cn("mr-1 h-3.5 w-3.5", retryAnalyzeBusy && "animate-spin")} />
+              {retryAnalyzeBusy ? "Retrying…" : "Retry analysis"}
             </Button>
           </div>
         ) : null}

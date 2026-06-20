@@ -30,7 +30,7 @@ export const HASHTAG_MARKER_SUGGESTIONS: HashtagMarkerSuggestion[] = [
   {
     tag: "ask-god",
     label: "Ask God question",
-    hint: "Questions you want to bring to God",
+    hint: "Framework → Questions for God",
   },
   {
     tag: "dream",
@@ -48,7 +48,7 @@ export const HASHTAG_MARKER_SUGGESTIONS: HashtagMarkerSuggestion[] = [
 
 /** Suggested `@` mentions (merged with the user's journals in autocomplete). */
 export const JOURNAL_MENTION_SUGGESTIONS: JournalMentionSuggestion[] = [
-  { name: "Questions for God", hint: "Ask God questions" },
+  { name: "Questions for God", hint: "Framework → Questions for God" },
   {
     name: "Praise report",
     hint: "Celebrate what God is doing",

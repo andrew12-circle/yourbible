@@ -1467,6 +1467,13 @@
   margin-left: var(--hub-edge);
 }
 
+/* Hub Bible — transparent content card so the book sits on the fabric weave. */
+.hub-shell .hub-content-card:has([data-bible-reader]) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 /* Mobile hub Bible — full-bleed fabric; book fills to the bottom of the screen. */
 @media (max-width: 767px) {
   .hub-shell:has([data-bible-reader]) {
@@ -1491,9 +1498,6 @@
   }
 
   .hub-shell .hub-content-card:has([data-bible-reader]) {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
     margin-top: var(--hub-safe-top);
     margin-right: 0;
     margin-bottom: 0;

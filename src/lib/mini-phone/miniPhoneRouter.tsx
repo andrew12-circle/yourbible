@@ -24,6 +24,9 @@ const ResearchLaterPage = lazy(() => import("@/pages/framework/ResearchLaterPage
 const HardQuestionsListPage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionsListPage"));
 const HardQuestionNewPage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionNewPage"));
 const HardQuestionWorkspacePage = lazy(() => import("@/pages/framework/hardQuestions/HardQuestionWorkspacePage"));
+const QuestionsForGodListPage = lazy(() => import("@/pages/framework/questionsForGod/QuestionsForGodListPage"));
+const QuestionForGodNewPage = lazy(() => import("@/pages/framework/questionsForGod/QuestionForGodNewPage"));
+const QuestionForGodDetailPage = lazy(() => import("@/pages/framework/questionsForGod/QuestionForGodDetailPage"));
 const BeliefGraphPage = lazy(() => import("@/pages/framework/BeliefGraphPage"));
 const MindGraphPage = lazy(() => import("@/pages/framework/MindGraphPage"));
 const PlaybookPage = lazy(() => import("@/pages/framework/PlaybookPage"));
@@ -158,6 +161,9 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/framework/hard-questions", element: <HardQuestionsListPage /> },
   { path: "/framework/hard-questions/new", element: <HardQuestionNewPage /> },
   { path: "/framework/hard-questions/:id", element: <HardQuestionWorkspacePage /> },
+  { path: "/framework/questions-for-god", element: <QuestionsForGodListPage /> },
+  { path: "/framework/questions-for-god/new", element: <QuestionForGodNewPage /> },
+  { path: "/framework/questions-for-god/:id", element: <QuestionForGodDetailPage /> },
   { path: "*", element: <NotFound /> },
 ];
 

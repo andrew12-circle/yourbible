@@ -14,7 +14,7 @@ interface Props {
   tabletPortrait?: boolean;
   /** Fill parent height (hub workspace) instead of viewport height. */
   fillContainer?: boolean;
-  /** Mobile hub embed — flush to card top, transparent surround, fabric shows through. */
+  /** Hub embed — transparent surround, fabric shows through behind the leather cover. */
   hubEmbedded?: boolean;
   pageSide?: "left" | "right";
   ribbons?: ReactNode;

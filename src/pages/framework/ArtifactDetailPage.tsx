@@ -1371,7 +1371,7 @@ export default function ArtifactDetailPage() {
     fetching:
       "Pulling captions from YouTube (or our transcript service). If nothing happens in ~20s, this page retries automatically.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
-    analyzing: "Insight cards usually appear in 30–60 seconds. People, themes, and overview fill in shortly after.",
+    analyzing: "Insight cards usually appear in 30–90 seconds. Long videos may take a few minutes.",
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
@@ -1858,6 +1858,9 @@ export default function ArtifactDetailPage() {
           label={stageLabel[a.status] ?? "Working…"}
           hint={stageHint[a.status] ?? ""}
           onPasteTranscript={() => setPasteOpen(true)}
+          onRetryAnalyze={
+            a.status === "analyzing" && a.raw_text?.trim() ? () => void reanalyze() : undefined
+          }
         />
       )}
 
