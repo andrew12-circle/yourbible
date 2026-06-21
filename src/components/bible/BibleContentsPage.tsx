@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   onSelectBook: (bookAbbr: string, chapter?: number) => void;
+  onSelectStudySection?: (sectionId: string) => void;
   className?: string;
   /** Spread mode: show one testament per page face. */
   testamentFilter?: "all" | "ot" | "nt";
@@ -26,9 +27,11 @@ function formatPage(page: number | string, style?: ContentsRow["pageStyle"]): st
 function ContentsEntry({
   row,
   onSelect,
+  onSelectStudy,
 }: {
   row: ContentsRow;
   onSelect: (bookAbbr: string, chapter?: number) => void;
+  onSelectStudy?: (sectionId: string) => void;
 }) {
   const pageLabel = formatPage(row.page, row.pageStyle);
   const body = (
@@ -38,6 +41,18 @@ function ContentsEntry({
       {pageLabel ? <span className="bible-toc-page">{pageLabel}</span> : null}
     </>
   );
+
+  if (row.clickable && row.studySection && onSelectStudy) {
+    return (
+      <button
+        type="button"
+        className="bible-toc-entry bible-toc-entry-button"
+        onClick={() => onSelectStudy(row.studySection!)}
+      >
+        {body}
+      </button>
+    );
+  }
 
   if (row.clickable && row.bookAbbr) {
     return (
@@ -57,9 +72,11 @@ function ContentsEntry({
 function BookColumn({
   books,
   onSelect,
+  onSelectStudy,
 }: {
   books: ReturnType<typeof bookToContentsRow>[];
   onSelect: (bookAbbr: string, chapter?: number) => void;
+  onSelectStudy?: (sectionId: string) => void;
 }) {
   return (
     <div className="bible-toc-book-column">
@@ -68,7 +85,7 @@ function BookColumn({
         <span>PAGE</span>
       </div>
       {books.map((row) => (
-        <ContentsEntry key={row.id} row={row} onSelect={onSelect} />
+        <ContentsEntry key={row.id} row={row} onSelect={onSelect} onSelectStudy={onSelectStudy} />
       ))}
     </div>
   );
@@ -97,6 +114,7 @@ function TestamentBlock({
 
 export function BibleContentsPage({
   onSelectBook,
+  onSelectStudySection,
   className,
   testamentFilter = "all",
 }: Props) {
@@ -117,7 +135,12 @@ export function BibleContentsPage({
       {showFront ? (
         <div className="bible-toc-front-matter">
           {CONTENTS_FRONT_MATTER.map((row) => (
-            <ContentsEntry key={row.id} row={row} onSelect={onSelectBook} />
+            <ContentsEntry
+              key={row.id}
+              row={row}
+              onSelect={onSelectBook}
+              onSelectStudy={onSelectStudySection}
+            />
           ))}
         </div>
       ) : null}
@@ -147,7 +170,12 @@ export function BibleContentsPage({
       {showBack ? (
         <div className="bible-toc-back-matter">
           {CONTENTS_BACK_MATTER.map((row) => (
-            <ContentsEntry key={row.id} row={row} onSelect={onSelectBook} />
+            <ContentsEntry
+              key={row.id}
+              row={row}
+              onSelect={onSelectBook}
+              onSelectStudy={onSelectStudySection}
+            />
           ))}
         </div>
       ) : null}

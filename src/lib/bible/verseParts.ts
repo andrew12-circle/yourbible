@@ -1,10 +1,11 @@
 import type { PassageCrossRef, PassageFootnote, PassageVerse } from "@/lib/bible/api";
 
-export type VersePartStyle = "divine" | "inscription";
+export type VersePartStyle = "divine" | "inscription" | "selah";
 
 export type VersePart =
   | { kind: "text"; text: string; style?: VersePartStyle }
   | { kind: "footnote"; marker: number; text: string }
+  | { kind: "image"; src: string; alt: string; caption?: string }
   | {
       kind: "crossref";
       label: string;
@@ -68,5 +69,6 @@ export function poetryParagraphClassName(level: number, isContinuation: boolean)
 export function styledTextClass(style?: VersePartStyle): string {
   if (style === "divine") return "scripture-divine-name";
   if (style === "inscription") return "scripture-inscription-sc";
+  if (style === "selah") return "scripture-selah";
   return "";
 }

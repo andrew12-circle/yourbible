@@ -10,10 +10,23 @@ const BOOK_ALIASES: Record<string, string> = {
   lk: "Luk",
   luke: "Luk",
   gen: "Gen",
+  gn: "Gen",
   ps: "Psa",
   psa: "Psa",
   rom: "Rom",
+  rm: "Rom",
   rev: "Rev",
+  rv: "Rev",
+  neh: "Neh",
+  jr: "Jer",
+  jer: "Jer",
+  ezk: "Ezk",
+  gl: "Gal",
+  gal: "Gal",
+  php: "Php",
+  phl: "Php",
+  ex: "Exo",
+  exo: "Exo",
 };
 
 export type ParsedBibleReference = {

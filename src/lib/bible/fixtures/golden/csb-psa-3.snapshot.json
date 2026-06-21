@@ -1,0 +1,32 @@
+{
+  "edition": "CSB",
+  "book": "Psa",
+  "chapter": 3,
+  "reference": "Psalm 3",
+  "verseCount": 3,
+  "versesWithCrossRefs": 0,
+  "versesWithFootnotes": 0,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 33,
+      "textPreview": "Lord, how my foes multiply! Selah",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 30,
+      "textPreview": "Many rise up against me! Selah",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 38,
+      "textPreview": "But you, Lord, are a shield around me.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

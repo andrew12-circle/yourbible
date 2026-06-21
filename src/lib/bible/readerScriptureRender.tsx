@@ -34,7 +34,13 @@ export interface ScriptureRenderOptions {
 
 export type HolmanVerseGroup = { chapter: number; verses: PassageVerse[] };
 
-function HolmanConnectionsParagraph({ grouped }: { grouped: HolmanVerseRefGroup[] }) {
+function HolmanConnectionsParagraph({
+  grouped,
+  onNavigateRef,
+}: {
+  grouped: HolmanVerseRefGroup[];
+  onNavigateRef?: (book: string, chapter: number, verse: number) => void;
+}) {
   return (
     <p className={holmanConnectionsClassName()}>
       {grouped.map((group, groupIndex) => (
@@ -46,7 +52,19 @@ function HolmanConnectionsParagraph({ grouped }: { grouped: HolmanVerseRefGroup[
           {group.refs.map((ref) => (
             <span key={`${group.chapter}:${group.verse}:${ref.letter}`} className="scripture-connections-ref">
               {" "}
-              <span className="scripture-connections-letter">{ref.letter}</span> {ref.label}
+              <span className="scripture-connections-letter">{ref.letter}</span>{" "}
+              {onNavigateRef ? (
+                <button
+                  type="button"
+                  className="scripture-connections-link"
+                  onClick={() => onNavigateRef(ref.book, ref.targetChapter, ref.targetVerse)}
+                  title={`Go to ${ref.label}`}
+                >
+                  {ref.label}
+                </button>
+              ) : (
+                ref.label
+              )}
             </span>
           ))}
         </span>
@@ -58,9 +76,11 @@ function HolmanConnectionsParagraph({ grouped }: { grouped: HolmanVerseRefGroup[
 export function HolmanConnectionsBlock({
   groups,
   dualColumn = false,
+  onNavigateRef,
 }: {
   groups: HolmanVerseGroup[];
   dualColumn?: boolean;
+  onNavigateRef?: (book: string, chapter: number, verse: number) => void;
 }) {
   if (dualColumn) {
     const [leftGroups, rightGroups] = splitHolmanVerseGroupsByColumn(groups, 2);
@@ -73,10 +93,14 @@ export function HolmanConnectionsBlock({
         aria-label="Cross references"
       >
         <div className="scripture-connections-col">
-          {leftGrouped.length > 0 ? <HolmanConnectionsParagraph grouped={leftGrouped} /> : null}
+          {leftGrouped.length > 0 ? (
+            <HolmanConnectionsParagraph grouped={leftGrouped} onNavigateRef={onNavigateRef} />
+          ) : null}
         </div>
         <div className="scripture-connections-col">
-          {rightGrouped.length > 0 ? <HolmanConnectionsParagraph grouped={rightGrouped} /> : null}
+          {rightGrouped.length > 0 ? (
+            <HolmanConnectionsParagraph grouped={rightGrouped} onNavigateRef={onNavigateRef} />
+          ) : null}
         </div>
       </div>
     );
@@ -86,7 +110,7 @@ export function HolmanConnectionsBlock({
   if (grouped.length === 0) return null;
   return (
     <div className="scripture-connections-row scripture-connections-row-full" aria-label="Cross references">
-      <HolmanConnectionsParagraph grouped={grouped} />
+      <HolmanConnectionsParagraph grouped={grouped} onNavigateRef={onNavigateRef} />
     </div>
   );
 }
@@ -114,6 +138,7 @@ export function wrapHolmanStudyContent(
   footnotes: ReactNode | null,
   showConnections = true,
   contentHeightPx?: number,
+  onNavigateRef?: (book: string, chapter: number, verse: number) => void,
 ): ReactNode {
   const columnsClass = readerColumnClassName(columnLayout);
   const hasColumns = Boolean(columnsClass);
@@ -164,6 +189,7 @@ export function wrapHolmanStudyContent(
           key={holmanConnectionsKey(verseGroups)}
           groups={verseGroups}
           dualColumn={hasColumns}
+          onNavigateRef={onNavigateRef}
         />
       ) : null}
       {footnotes}

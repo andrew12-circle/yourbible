@@ -25,6 +25,8 @@ export interface ContentsRow {
   /** Roman numerals for front matter; default arabic. */
   pageStyle?: "roman" | "arabic";
   clickable?: boolean;
+  /** Back/front matter route under /read/study/:id */
+  studySection?: string;
 }
 
 export function chaptersBeforeBook(bookAbbr: string, books = activeBooks()): number {
@@ -58,13 +60,21 @@ export function splitBooksTwoColumns(books: BibleBook[]): [BibleBook[], BibleBoo
 }
 
 export const CONTENTS_FRONT_MATTER: ContentsRow[] = [
-  { id: "preface", label: "PREFACE", page: "VII", pageStyle: "roman", clickable: false },
+  {
+    id: "preface",
+    label: "PREFACE",
+    page: "VII",
+    pageStyle: "roman",
+    clickable: true,
+    studySection: "preface",
+  },
   {
     id: "features",
     label: "EXPLANATION OF FEATURES",
     page: "XII",
     pageStyle: "roman",
-    clickable: false,
+    clickable: true,
+    studySection: "features",
   },
 ];
 
@@ -73,11 +83,30 @@ export const CONTENTS_BACK_MATTER: ContentsRow[] = [
     id: "weights",
     label: "TABLE OF WEIGHTS AND MEASURES",
     page: 1574,
-    clickable: false,
+    clickable: true,
+    studySection: "weights",
   },
-  { id: "abbrev", label: "ABBREVIATIONS", page: 1575, clickable: false },
-  { id: "concordance", label: "CONCORDANCE", page: 1577, clickable: false },
-  { id: "maps", label: "MAPS AND CHART", page: "", clickable: false },
+  {
+    id: "abbrev",
+    label: "ABBREVIATIONS",
+    page: 1575,
+    clickable: true,
+    studySection: "abbrev",
+  },
+  {
+    id: "concordance",
+    label: "CONCORDANCE",
+    page: 1577,
+    clickable: true,
+    studySection: "concordance",
+  },
+  {
+    id: "maps",
+    label: "MAPS AND CHART",
+    page: 1578,
+    clickable: true,
+    studySection: "maps",
+  },
 ];
 
 export function oldTestamentBooks(books = activeBooks()): BibleBook[] {

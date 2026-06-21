@@ -77,6 +77,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // action=bookIntro : optional book introduction chapter (API.Bible *.intro)
+    if (action === "bookIntro") {
+      const bibleId = url.searchParams.get("bibleId");
+      const bookAbbr = url.searchParams.get("book");
+      if (!bibleId || !bookAbbr) {
+        return new Response(JSON.stringify({ error: "bibleId and book are required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const usfmBook = BOOK_ID_MAP[bookAbbr];
+      if (!usfmBook) {
+        return new Response(JSON.stringify({ error: `Unknown book: ${bookAbbr}` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const introId = `${usfmBook}.intro`;
+      const introUrl =
+        `${API_BASE}/bibles/${bibleId}/chapters/${introId}?content-type=html&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=false`;
+      const introRes = await fetch(introUrl, { headers: { "api-key": API_BIBLE_KEY } });
+      if (!introRes.ok) {
+        return new Response(JSON.stringify({ introduction: null }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const introJson = await introRes.json();
+      const html: string = introJson?.data?.content ?? "";
+      const title: string = introJson?.data?.reference ?? bookAbbr;
+      if (!html.trim()) {
+        return new Response(JSON.stringify({ introduction: null }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ title, html }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // action=passage : fetch one chapter
     const bibleId = url.searchParams.get("bibleId");
     const bookAbbr = url.searchParams.get("book"); // e.g. "Gen"

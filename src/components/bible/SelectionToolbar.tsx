@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import type { VerseRange } from "@/lib/bible/verseSelection";
-import { Trash2, NotebookPen, PenLine, Network, BookOpenText, Share2 } from "lucide-react";
+import { Trash2, NotebookPen, PenLine, Network, BookOpenText, Share2, Languages } from "lucide-react";
 
 function useDockToolbar() {
   const [dock, setDock] = useState(() =>
@@ -93,6 +93,7 @@ interface Props {
   onNote: () => void;
   onTestFramework?: () => void;
   onOpenCompanion?: () => void;
+  onWordStudy?: () => void;
   onShare?: () => void;
   onClose: () => void;
 }
@@ -111,6 +112,7 @@ export function SelectionToolbar({
   onNote,
   onTestFramework,
   onOpenCompanion,
+  onWordStudy,
   onShare,
   onClose,
 }: Props) {
@@ -219,6 +221,20 @@ export function SelectionToolbar({
               className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
             >
               <Network className="w-4 h-4" />
+            </button>
+          )}
+          {onWordStudy && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={onWordStudy}
+              title="Word study (concordance, Hebrew, Strong's)"
+              className="w-8 h-8 rounded-full hover:bg-paper-warm flex items-center justify-center text-leather"
+            >
+              <Languages className="w-4 h-4" />
             </button>
           )}
           {onOpenCompanion && (

@@ -118,6 +118,36 @@ describe("parsePassageHtml", () => {
     expect(xrefs[1]).toMatchObject({ letter: "b", label: "Job 1:8" });
   });
 
+  it("enriches continuation cross-ref labels from USFM ids", () => {
+    const html = `<p class="m"><span class="v">2</span>Gate<span class="f"> <span class="ft"><span class="xt"><span id="NEH.3.1">Neh 3:1</span>,<span id="NEH.3.32">32</span>; <span id="NEH.12.39">12:39</span></span></span></span></p>`;
+    const parsed = parsePassageHtml(html, "John 5");
+    const xrefs = parsed.verses[0]?.parts?.filter((p) => p.kind === "crossref") ?? [];
+    expect(xrefs.map((x) => x.label)).toEqual(["Neh 3:1", "Neh 3:32", "Neh 12:39"]);
+    expect(xrefs[1]).toMatchObject({ book: "Neh", chapter: 3, verse: 32 });
+  });
+
+  it("styles Selah markers from qs/selah spans", () => {
+    const html = `<p class="q1"><span class="v">8</span>From you comes my praise in the great assembly. <span class="qs">Selah</span></p>`;
+    const parsed = parsePassageHtml(html, "Psalm 22");
+    const parts = parsed.verses[0]?.parts ?? [];
+    expect(parts.some((p) => p.kind === "text" && p.style === "selah" && p.text === "Selah")).toBe(
+      true,
+    );
+  });
+
+  it("parses inline images from API HTML when present", () => {
+    const html = `<p class="m"><span class="v">1</span>Text<figure class="img"><img src="https://example.com/map.png" alt="Map" /><figcaption>Journey map</figcaption></figure></p>`;
+    const parsed = parsePassageHtml(html, "Acts 1");
+    const images = parsed.verses[0]?.parts?.filter((p) => p.kind === "image") ?? [];
+    expect(images).toHaveLength(1);
+    expect(images[0]).toMatchObject({
+      kind: "image",
+      src: "https://example.com/map.png",
+      alt: "Map",
+      caption: "Journey map",
+    });
+  });
+
   it("records poetry block levels from USFM q classes", () => {
     const html = `
 <p class="q1"><span class="v">1</span>The Lord is my shepherd;</p>

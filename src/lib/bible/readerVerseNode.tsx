@@ -30,7 +30,7 @@ function renderTextRange(
   hlSlices: { text: string; color?: string }[],
   hlGlobalStart: number,
   mv: number,
-  style?: "divine" | "inscription",
+  style?: "divine" | "inscription" | "selah",
   keyPrefix = "",
 ): ReactNode[] {
   const rangeEnd = rangeStart + text.length;
@@ -182,6 +182,15 @@ export function createReaderVerseRenderer({
               [{part.marker}]
             </span>
           ),
+        );
+        continue;
+      }
+      if (part.kind === "image") {
+        bodyNodes.push(
+          <figure key={`img-${pi}`} className="scripture-inline-image">
+            <img src={part.src} alt={part.alt} loading="lazy" className="scripture-inline-image-img" />
+            {part.caption ? <figcaption className="scripture-inline-image-caption">{part.caption}</figcaption> : null}
+          </figure>,
         );
         continue;
       }

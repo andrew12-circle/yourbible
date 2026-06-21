@@ -63,7 +63,13 @@ export function collectHolmanXrefsFromVerses(
 export interface HolmanVerseRefGroup {
   chapter: number;
   verse: number;
-  refs: { letter: string; label: string }[];
+  refs: {
+    letter: string;
+    label: string;
+    book: string;
+    targetChapter: number;
+    targetVerse: number;
+  }[];
 }
 
 export function collectHolmanXrefsFromGroups(
@@ -90,7 +96,13 @@ export function groupHolmanXrefsByVerse(entries: HolmanXrefEntry[]): HolmanVerse
     .map(([, group]) => ({
       chapter: group[0]!.chapter,
       verse: group[0]!.verse,
-      refs: group.map((entry) => ({ letter: entry.letter, label: entry.label })),
+      refs: group.map((entry) => ({
+        letter: entry.letter,
+        label: entry.label,
+        book: entry.book,
+        targetChapter: entry.targetChapter,
+        targetVerse: entry.targetVerse,
+      })),
     }));
 }
 

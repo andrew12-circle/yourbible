@@ -148,4 +148,52 @@ export const BIBLE_PLATES: BiblePlate[] = [
     alt: "Jesus crucified between two thieves",
     artist: "Gustave Doré",
   },
+  {
+    id: "psa-23-shepherd",
+    bookAbbr: "Psa",
+    chapter: 23,
+    beforeVerse: 1,
+    title: "The Lord Is My Shepherd",
+    referenceLabel: "Psalm 23",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/139.The_Good_Shepherd.jpg/960px-139.The_Good_Shepherd.jpg",
+    alt: "The Good Shepherd with his flock",
+    artist: "Gustave Doré",
+  },
+  {
+    id: "dan-3-fiery-furnace",
+    bookAbbr: "Dan",
+    chapter: 3,
+    beforeVerse: 1,
+    title: "Shadrach, Meshach, and Abednego in the Furnace",
+    referenceLabel: "Daniel 3:23",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/089.Shadrach%2C_Meshach%2C_and_Abednego.jpg/960px-089.Shadrach%2C_Meshach%2C_and_Abednego.jpg",
+    alt: "Three men in the fiery furnace",
+    artist: "Gustave Doré",
+  },
+  {
+    id: "jon-1-storm",
+    bookAbbr: "Jon",
+    chapter: 1,
+    beforeVerse: 1,
+    title: "Jonah Cast into the Sea",
+    referenceLabel: "Jonah 1:15",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/078.Jonah_Cast_Into_the_Sea.jpg/960px-078.Jonah_Cast_Into_the_Sea.jpg",
+    alt: "Jonah thrown into the stormy sea",
+    artist: "Gustave Doré",
+  },
+  {
+    id: "rev-1-vision",
+    bookAbbr: "Rev",
+    chapter: 1,
+    beforeVerse: 1,
+    title: "The Vision of the Son of Man",
+    referenceLabel: "Revelation 1:12",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/966.Revelation_of_St_John_-_The_7_Candlesticks%2C_The_7_Stars%2C_and_the_Son_of_Man.jpg/960px-966.Revelation_of_St_John_-_The_7_Candlesticks%2C_The_7_Stars%2C_and_the_Son_of_Man.jpg",
+    alt: "John's vision of Christ among seven lampstands",
+    artist: "Gustave Doré",
+  },
 ];

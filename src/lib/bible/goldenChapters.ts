@@ -53,6 +53,16 @@ export const GOLDEN_CSB_CHAPTERS: GoldenChapterSpec[] = [
     spotCheckCrossRefs: {},
   },
   {
+    id: "csb-psa-3",
+    book: "Psa",
+    usfm: "PSA",
+    chapter: 3,
+    reference: "Psalm 3",
+    minVerseCount: 3,
+    minVersesWithCrossRefs: 0,
+    spotCheckCrossRefs: {},
+  },
+  {
     id: "csb-rom-8",
     book: "Rom",
     usfm: "ROM",

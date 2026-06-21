@@ -23,6 +23,7 @@ const TermsPage = lazy(() => import("./pages/legal/TermsPage"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const ReaderPage = lazy(() => import("./pages/reader/ReaderPage"));
 const ContentsReaderPage = lazy(() => import("./pages/reader/ContentsReaderPage"));
+const StudyBackMatterPage = lazy(() => import("./pages/reader/StudyBackMatterPage"));
 const LifeGuidePage = lazy(() => import("./pages/bible/LifeGuidePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const SleepPage = lazy(() => import("./pages/sleep/SleepPage"));
@@ -105,6 +106,7 @@ const App = () => (
                 <Route path="/partner/accept" element={<PartnerAcceptPage />} />
                 <Route element={<ShellGate />}>
                   <Route path="/read/contents" element={<ContentsReaderPage />} />
+                  <Route path="/read/study/:section" element={<StudyBackMatterPage />} />
                   <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                   <Route path="/bible/life-guide" element={<LifeGuidePage />} />
                   <Route path="/bible/code-lab" element={<CodeLabPage />} />

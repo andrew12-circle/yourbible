@@ -74,6 +74,13 @@ export default function ContentsReaderPage() {
     [navigate],
   );
 
+  const onSelectStudySection = useCallback(
+    (sectionId: string) => {
+      navigate(`/read/study/${sectionId}`);
+    },
+    [navigate],
+  );
+
   const toggleHubFullscreen = useCallback(() => {
     setHubFullscreen((prev) => {
       const next = !prev;
@@ -111,16 +118,18 @@ export default function ContentsReaderPage() {
       </div>
       <div className="relative block flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide" data-bible-scroll>
         {testament === "all" ? (
-          <BibleContentsPage onSelectBook={onSelectBook} />
+          <BibleContentsPage onSelectBook={onSelectBook} onSelectStudySection={onSelectStudySection} />
         ) : testament === "ot" ? (
           <BibleContentsPage
             onSelectBook={onSelectBook}
+            onSelectStudySection={onSelectStudySection}
             className="bible-toc-page-single-testament"
             testamentFilter="ot"
           />
         ) : (
           <BibleContentsPage
             onSelectBook={onSelectBook}
+            onSelectStudySection={onSelectStudySection}
             className="bible-toc-page-single-testament"
             testamentFilter="nt"
           />

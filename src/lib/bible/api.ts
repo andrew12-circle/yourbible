@@ -7,11 +7,12 @@ export { EOTC_BIBLE_ID, isEotcBibleId } from "@/lib/bible/canon";
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-export type VersePartStyle = "divine" | "inscription";
+export type VersePartStyle = "divine" | "inscription" | "selah";
 
 export type VersePart =
   | { kind: "text"; text: string; style?: VersePartStyle }
   | { kind: "footnote"; marker: number; text: string }
+  | { kind: "image"; src: string; alt: string; caption?: string }
   | {
       kind: "crossref";
       label: string;
@@ -167,6 +168,34 @@ export interface BibleSearchHit {
   chapter: number;
   verse: number;
   text: string;
+}
+
+export interface BookIntroduction {
+  title: string;
+  html: string;
+}
+
+export async function fetchBookIntroduction(
+  bibleId: string,
+  book: string,
+  signal?: AbortSignal,
+): Promise<BookIntroduction | null> {
+  const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
+  u.searchParams.set("action", "bookIntro");
+  u.searchParams.set("bibleId", bibleId);
+  u.searchParams.set("book", book);
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
+    signal,
+  });
+  if (r.status === 404) return null;
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`bookIntro ${r.status}: ${err}`);
+  }
+  const json = (await r.json()) as BookIntroduction | { introduction: null };
+  if (!json || typeof json !== "object" || !("html" in json) || !json.html) return null;
+  return json as BookIntroduction;
 }
 
 export async function searchBible(

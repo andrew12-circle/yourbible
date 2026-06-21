@@ -28,7 +28,7 @@ export function studyLayoutPreferenceLabel(preference: ReaderStudyLayoutPreferen
     case "inline":
       return "Inline (recommended)";
     case "holman":
-      return "Holman (print style)";
+      return "Holman (print style, beta)";
     default:
       return "Auto";
   }
@@ -39,7 +39,7 @@ export function studyLayoutPreferenceDescription(preference: ReaderStudyLayoutPr
     case "inline":
       return "Cross-refs and notes appear with each verse — matches publisher data most closely.";
     case "holman":
-      return "Connections block at the page foot, like a printed Holman study Bible.";
+      return "Connections at the column foot — beta; use Inline for maximum accuracy.";
     default:
       return "Holman layout for CSB, NKJV, and HCSB; inline for other translations.";
   }

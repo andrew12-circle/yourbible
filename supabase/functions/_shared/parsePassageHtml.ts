@@ -16,7 +16,7 @@ function parseBibleReference(input: string): { bookAbbr: string; chapter: number
   return null;
 }
 
-type VersePartStyle = "divine" | "inscription";
+type VersePartStyle = "divine" | "inscription" | "selah";
 type VersePart =
   | { kind: "text"; text: string; style?: VersePartStyle }
   | { kind: "footnote"; marker: number; text: string }
@@ -200,13 +200,26 @@ const USFM_TO_BOOK_ABBR: Record<string, string> = {
 };
 
 function parseUsfmSpanId(id: string): { bookAbbr: string; chapter: number; verse: number } | null {
-  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim());
+  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim().split("-")[0]!);
   if (!m) return null;
   const bookAbbr = USFM_TO_BOOK_ABBR[m[1]!.toUpperCase()];
   const chapter = parseInt(m[2]!, 10);
   const verse = parseInt(m[3]!, 10);
   if (!bookAbbr || !Number.isFinite(chapter) || !Number.isFinite(verse)) return null;
   return { bookAbbr, chapter, verse };
+}
+
+const PRINT_ABBR: Record<string, string> = {
+  Gen: "Gn", Exo: "Ex", Neh: "Neh", Jhn: "Jn", Psa: "Ps", Jer: "Jr", Ezk: "Ezk", Gal: "Gl", Php: "Php",
+};
+
+function enrichCrossRefLabel(labelRaw: string, bookAbbr: string, chapter: number, verse: number): string {
+  const label = labelRaw.trim();
+  if (!label || parseBibleReference(label)?.verse) return label;
+  const printAbbr = PRINT_ABBR[bookAbbr] ?? bookAbbr;
+  if (/^\d+$/.test(label)) return `${printAbbr} ${chapter}:${label}`;
+  if (/^\d+:\d+(?:\s*[–—-]\s*\d+)?$/.test(label)) return `${printAbbr} ${label}`;
+  return `${printAbbr} ${chapter}:${verse}`;
 }
 
 function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Extract<VersePart, { kind: "crossref" }> | null {
@@ -219,7 +232,7 @@ function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Ext
   if (!parsed?.verse) return null;
   return {
     kind: "crossref",
-    label,
+    label: enrichCrossRefLabel(label, parsed.bookAbbr, parsed.chapter, parsed.verse),
     book: parsed.bookAbbr,
     chapter: parsed.chapter,
     verse: parsed.verse,
@@ -361,7 +374,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   };
 
   const tokenRe =
-    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
 
   let lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -401,6 +414,10 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
           pushText(label);
         }
       }
+    } else if (/\b(?:qs|selah)\b/i.test(token)) {
+      const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
+      const selahText = sanitizePubVerseText(decodeEntities(stripHtmlTags(innerMatch?.[1] ?? "Selah")));
+      if (selahText) appendTextPart(parts, selahText, "selah");
     } else if (/\bnd\b/i.test(token)) {
       const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
       pushText(innerMatch?.[1] ?? "", "divine");

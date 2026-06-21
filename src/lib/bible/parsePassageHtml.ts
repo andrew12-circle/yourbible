@@ -1,3 +1,4 @@
+import { enrichCrossRefLabel } from "@/lib/bible/crossRefLabel";
 import { parseBibleReference } from "@/lib/bible/parseBibleReference";
 import type { VersePart, VersePartStyle } from "@/lib/bible/api";
 import { assignCrossRefLetters } from "@/lib/bible/holmanStudyLayout";
@@ -146,7 +147,7 @@ const USFM_TO_BOOK_ABBR: Record<string, string> = {
 };
 
 function parseUsfmSpanId(id: string): { bookAbbr: string; chapter: number; verse: number } | null {
-  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim());
+  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim().split("-")[0]!);
   if (!m) return null;
   const bookAbbr = USFM_TO_BOOK_ABBR[m[1]!.toUpperCase()];
   const chapter = parseInt(m[2]!, 10);
@@ -165,7 +166,7 @@ function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Ext
   if (!parsed?.verse) return null;
   return {
     kind: "crossref",
-    label,
+    label: enrichCrossRefLabel(label, parsed.bookAbbr, parsed.chapter, parsed.verse),
     book: parsed.bookAbbr,
     chapter: parsed.chapter,
     verse: parsed.verse,
@@ -290,6 +291,21 @@ function appendTextPart(parts: VersePart[], text: string, style?: VersePartStyle
   parts.push({ kind: "text", text, style });
 }
 
+function imagePartFromHtml(token: string): Extract<VersePart, { kind: "image" }> | null {
+  const srcMatch = /\bsrc=["']([^"']+)["']/i.exec(token);
+  if (!srcMatch?.[1]) return null;
+  const altMatch = /\balt=["']([^"']*)["']/i.exec(token);
+  const captionMatch = /<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i.exec(token);
+  const caption = captionMatch ? sanitizePubVerseText(decodeEntities(stripHtmlTags(captionMatch[1]!))) : undefined;
+  const altRaw = altMatch?.[1]?.trim();
+  return {
+    kind: "image",
+    src: srcMatch[1],
+    alt: decodeEntities(altRaw || caption || "Scripture illustration"),
+    ...(caption ? { caption } : {}),
+  };
+}
+
 /** Parse inline API.Bible markup into ordered verse parts (text, footnotes, cross-refs). */
 export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   parts: VersePart[];
@@ -308,7 +324,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   };
 
   const tokenRe =
-    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<figure\b[\s\S]*?<\/figure>|<img\b[^>]*>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
 
   let lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -348,6 +364,13 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
           pushText(label);
         }
       }
+    } else if (/^<figure|^<img/i.test(token)) {
+      const image = imagePartFromHtml(token);
+      if (image) parts.push(image);
+    } else if (/\b(?:qs|selah)\b/i.test(token)) {
+      const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
+      const selahText = sanitizePubVerseText(decodeEntities(stripHtmlTags(innerMatch?.[1] ?? "Selah")));
+      if (selahText) appendTextPart(parts, selahText, "selah");
     } else if (/\bnd\b/i.test(token)) {
       const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
       pushText(innerMatch?.[1] ?? "", "divine");

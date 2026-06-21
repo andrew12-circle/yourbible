@@ -38,24 +38,13 @@ import {
   writeStoredReaderFontScale,
 } from "@/lib/bible/readerFontScale";
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
-import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { platesForChapter } from "@/lib/bible/biblePlates";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
-import { VerseSheet } from "@/components/bible/VerseSheet";
-import {
-  SelectionToolbar,
-  DEFAULT_TOOLBAR_H,
-  TOOLBAR_GAP,
-  type ToolbarSelection,
-} from "@/components/bible/SelectionToolbar";
 import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
-import { NoteDialog } from "@/components/bible/NoteDialog";
-import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
-import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
 import { BookScene } from "@/components/bible/BookScene";
 import { Paginator } from "@/components/bible/Paginator";
 import { BookPaginator } from "@/components/bible/BookPaginator";
@@ -70,7 +59,6 @@ import { useRecordReadingActivity } from "@/hooks/useReadingActivity";
 import { BibleSearchDialog } from "@/components/bible/BibleSearchDialog";
 import OfflineBanner from "@/components/OfflineBanner";
 import { getPalette } from "@/lib/bible/palettes";
-import { toolbarSelectionFromRange } from "@/lib/bible/verseSelection";
 import { useReaderSpread, useReaderCompactChrome, useIsTabletPortrait, useCompactInkLayout } from "@/hooks/use-reader-layout";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,7 +70,6 @@ import {
   readerReturnFromState,
   type ReaderNavigationState,
 } from "@/lib/bible/readerNavigation";
-import { CompanionPane } from "@/components/reader/CompanionPane";
 import { useCompanion } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
 import ReaderInkLayer, {
@@ -161,7 +148,13 @@ import {
 import { holmanVerseGroupsForRenderedPage } from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
+import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
+import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
+import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
+import { useBookIntroduction } from "@/hooks/useBookIntroduction";
+import { useReaderToolbarSelection } from "@/hooks/useReaderToolbarSelection";
+import { useReaderSelectionMarks } from "@/hooks/useReaderSelectionMarks";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
@@ -253,6 +246,7 @@ export default function ReaderPage() {
     isLoading: loadingPassage,
     isError: passageError,
   } = usePassage(bibleId, book.abbr, chapter, true, bibleEditionAbbr);
+  const { data: bookIntro } = useBookIntroduction(bibleId, book.abbr, chapter);
   const showCachedHint = !online || (passageError && !!passage);
   const [searchOpen, setSearchOpen] = useState(false);
   const readerAudio = useReaderAudio(reference, passage);
@@ -299,9 +293,6 @@ export default function ReaderPage() {
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [tbSel, setTbSel] = useState<ToolbarSelection | null>(null);
-  /** Pinned selection for toolbar actions — survives browser selection collapse on toolbar tap. */
-  const tbSelRef = useRef<ToolbarSelection | null>(null);
   /** Default highlighter color for toolbar swatches. */
   const [activeHighlightColor, setActiveHighlightColor] = useState<string>(() => {
     try {
@@ -777,6 +768,8 @@ export default function ReaderPage() {
     for (const v of verses) m.set(v.number, (typeof v.text === "string" ? v.text : "").length);
     return m;
   }, [verses]);
+  const { tbSel, setTbSel, tbSelRef, pinnedSelection, clearWindowSelection } =
+    useReaderToolbarSelection(verseLengths, inkMode);
   const highlightColor =
     activeHighlightColor ||
     getPalette(profile?.highlight_palette ?? "classic").colors[0]?.cssVar ||
@@ -1067,119 +1060,22 @@ export default function ReaderPage() {
     setMarkTool("highlight");
   };
 
-  // ---- Native text selection → toolbar (apply via toolbar actions only) ----
-  useEffect(() => {
-    if (inkMode) {
-      tbSelRef.current = null;
-      setTbSel(null);
-      window.getSelection()?.removeAllRanges();
-      return;
-    }
-
-    let syncRaf: number | null = null;
-    let selecting = false;
-
-    const computeSelection = (): ToolbarSelection | null => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
-      // Do not gate on sel.toString() — iOS/Safari often report an empty string
-      // while the user is still dragging handles or extending a touch selection.
-      return toolbarSelectionFromRange(sel.getRangeAt(0), verseLengths);
-    };
-
-    const syncToolbar = () => {
-      const next = computeSelection();
-      if (!next) {
-        // While the user is actively selecting, ignore transient collapsed /
-        // empty-geometry frames so the toolbar doesn't flash away mid-drag.
-        if (selecting) return;
-        // Keep the pinned toolbar once shown — tapping a swatch clears the
-        // browser selection before click (especially on touch, >120ms later).
-        return;
-      }
-      // Defer showing the toolbar until pointer/touch release — selectionchange
-      // fires continuously while the user is dragging.
-      if (selecting) return;
-      tbSelRef.current = next;
-      setTbSel(next);
-    };
-
-    const scheduleSync = () => {
-      if (syncRaf != null) cancelAnimationFrame(syncRaf);
-      syncRaf = requestAnimationFrame(() => {
-        syncRaf = null;
-        syncToolbar();
-      });
-    };
-
-    const shouldIgnoreSelectionTarget = (target: EventTarget | null) =>
-      (target as HTMLElement | null)?.closest(
-        ".verse-num, [data-selection-toolbar], [data-page-footer]",
-      );
-
-    const isReadingAreaTarget = (target: EventTarget | null) =>
-      !!(target as HTMLElement | null)?.closest("[data-reading-area]") &&
-      !shouldIgnoreSelectionTarget(target);
-
-    const onSelectionStart = (e: Event) => {
-      if (!isReadingAreaTarget(e.target)) return;
-      selecting = true;
-      tbSelRef.current = null;
-      setTbSel(null);
-    };
-
-    const onSelectionEnd = (e: Event) => {
-      selecting = false;
-      if (shouldIgnoreSelectionTarget(e.target)) return;
-      // Touch browsers may finalize selection geometry after touchend.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(syncToolbar);
-      });
-    };
-
-    document.addEventListener("selectionchange", scheduleSync);
-    document.addEventListener("pointerdown", onSelectionStart);
-    document.addEventListener("touchstart", onSelectionStart, { passive: true });
-    document.addEventListener("pointerup", onSelectionEnd);
-    document.addEventListener("touchend", onSelectionEnd, { passive: true });
-
-    const dismissToolbarUnlessToolbar = (e: Event) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.closest("[data-selection-toolbar], [data-reading-area], .verse-num")) return;
-      tbSelRef.current = null;
-      setTbSel(null);
-    };
-    document.addEventListener("pointerdown", dismissToolbarUnlessToolbar);
-
-    return () => {
-      document.removeEventListener("selectionchange", scheduleSync);
-      document.removeEventListener("pointerdown", onSelectionStart);
-      document.removeEventListener("touchstart", onSelectionStart);
-      document.removeEventListener("pointerup", onSelectionEnd);
-      document.removeEventListener("touchend", onSelectionEnd);
-      document.removeEventListener("pointerdown", dismissToolbarUnlessToolbar);
-      if (syncRaf != null) cancelAnimationFrame(syncRaf);
-    };
-  }, [verseLengths, inkMode]);
-
-  // Keep the selected text visible above a docked or floating toolbar.
-  useEffect(() => {
-    if (!tbSel) return;
-    const docked = window.innerWidth < 768;
-    const toolbarH = DEFAULT_TOOLBAR_H;
-    const margin = 16;
-    const vh = window.innerHeight;
-    const r = tbSel.rect;
-    if (docked) {
-      const dockTop = vh - margin - toolbarH;
-      if (r.bottom + TOOLBAR_GAP > dockTop) {
-        const delta = r.bottom + TOOLBAR_GAP - dockTop + 8;
-        window.scrollBy({ top: delta, behavior: "smooth" });
-      }
-    } else if (r.top - TOOLBAR_GAP - toolbarH < margin) {
-      window.scrollBy({ top: r.top - TOOLBAR_GAP - toolbarH - margin - 8, behavior: "smooth" });
-    }
-  }, [tbSel]);
+  const {
+    applyHighlightToSelection,
+    applyUnderlineToSelection,
+    clearMarksOnSelection,
+    noteOnSelection,
+  } = useReaderSelectionMarks({
+    pinnedSelection,
+    clearWindowSelection,
+    persistHighlightColor,
+    setMarkTool,
+    setMarkRanges,
+    setMarks,
+    verseLengths,
+    ulFor,
+    setNoteOpen,
+  });
 
   const defaultInkLayerId = useBookSpread
     ? `${book.abbr}-${chapter}-${spreadPageIdx}-left`
@@ -1311,80 +1207,12 @@ export default function ReaderPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [inkMode, inkToolbarCollapsed, toggleInkMode]);
 
-  const pinnedSelection = (): ToolbarSelection | null =>
-    tbSelRef.current ?? tbSel;
-
-  const clearWindowSelection = () => {
-    const sel = window.getSelection();
-    if (sel) sel.removeAllRanges();
-    tbSelRef.current = null;
-    setTbSel(null);
-  };
-
-  const applyHighlightToSelection = async (cssVar: string) => {
-    const sel = pinnedSelection();
-    if (!sel || sel.verses.length === 0) return;
-    persistHighlightColor(cssVar);
-    try {
-      if (sel.ranges.length > 0) {
-        await setMarkRanges(sel.ranges, cssVar, "highlight", verseLengths);
-      } else {
-        await setMarks(sel.verses, cssVar, "highlight");
-      }
-    } catch (err) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Couldn't save highlight",
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-      return;
-    }
-    clearWindowSelection();
-  };
-  const applyUnderlineToSelection = async () => {
-    const sel = pinnedSelection();
-    if (!sel) return;
-    setMarkTool("underline");
-    const allUnderlined = sel.verses.every(v => !!ulFor(v));
-    try {
-      await setMarks(sel.verses, allUnderlined ? null : "--leather", "underline");
-    } catch (err) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Couldn't save underline",
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-      return;
-    }
-    clearWindowSelection();
-  };
-  const clearMarksOnSelection = async () => {
-    const sel = pinnedSelection();
-    if (!sel) return;
-    try {
-      await Promise.all([
-        setMarks(sel.verses, null, "highlight"),
-        setMarks(sel.verses, null, "underline"),
-      ]);
-    } catch (err) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Couldn't clear mark",
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-      return;
-    }
-    clearWindowSelection();
-  };
-  const noteOnSelection = () => {
-    const sel = pinnedSelection();
-    if (!sel) return;
-    setNoteOpen({ verse: sel.verses[0] });
-    clearWindowSelection();
-  };
+  const holmanNavigateRef = useCallback(
+    (targetBook: string, targetChapter: number, targetVerse: number) => {
+      navigate(`/read/${targetBook}/${targetChapter}?v=${targetVerse}`);
+    },
+    [navigate],
+  );
 
   const renderVerse = useMemo(
     () =>
@@ -1504,6 +1332,11 @@ export default function ReaderPage() {
         : measuresRestPage || isCurrentLeftPage
           ? onMeasureRestRef
           : undefined;
+    const showBookIntro =
+      pageChapter === 1 &&
+      pageBookAbbr === book.abbr &&
+      bookIntro?.html &&
+      (scrollMode ? pageIdx === chapterPage : measuresFirstPage);
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
@@ -1638,6 +1471,9 @@ export default function ReaderPage() {
                 ["--reader-scripture-font-family" as string]: scriptureFont,
               }}
             >
+              {showBookIntro ? (
+                <BookIntroductionBlock title={bookIntro!.title} html={bookIntro!.html} />
+              ) : null}
               {(() => {
                 const scriptureContent =
                   scrollMode && useStreamReader && streamChapters.length > 0 ? (
@@ -1707,6 +1543,7 @@ export default function ReaderPage() {
                     ) : null,
                     showHolmanConnections,
                     scrollMode ? undefined : scriptureColumnHeightPx,
+                    holmanNavigateRef,
                   );
                 }
 
@@ -2074,118 +1911,61 @@ export default function ReaderPage() {
         )}
       </AnimatePresence>
 
-      {activeVerse && (
-        <VerseSheet
-          open={sheetOpen} onOpenChange={setSheetOpen}
-          reference={`${book.name} ${chapter}:${activeVerse.number}`}
-          verseText={activeVerse.text}
-        />
-      )}
+      <ReaderPageOverlays
+        overlayPos={overlayPos}
+        focusMode={focusMode}
+        readerSpread={readerSpread}
+        setFocusMode={setFocusMode}
+        activeVerse={activeVerse}
+        sheetOpen={sheetOpen}
+        setSheetOpen={setSheetOpen}
+        book={book}
+        chapter={chapter}
+        noteOpen={noteOpen}
+        setNoteOpen={setNoteOpen}
+        noteFor={noteFor}
+        upsertNote={upsertNote}
+        deleteNote={deleteNote}
+        bmDialog={bmDialog}
+        setBmDialog={setBmDialog}
+        bookmarkVerse={bookmarkVerse}
+        bookmarks={bookmarks}
+        setBookmark={setBookmark}
+        toast={toast}
+        anchorBelief={anchorBelief}
+        showReaderDock={showReaderDock}
+      />
 
       {/* Live pencil underline that tracks the current text selection */}
       <SelectionPencilOverlay enabled={!inkMode} />
 
       {/* Toolbar that appears above the user's selection. Highlighter swatches,
           a pen for underlining, a note shortcut, and a clear control. */}
-      <SelectionToolbar
-        open={!!tbSel && !inkMode}
+      <ReaderSelectionChrome
+        tbSel={tbSel}
+        inkMode={inkMode}
         paletteId={profile?.highlight_palette ?? "classic"}
-        selection={tbSel}
-        currentColor={tbSel ? hlFor(tbSel.verses[0])?.color ?? null : null}
-        activeColor={highlightColor}
-        currentlyUnderlined={
-          !!tbSel && tbSel.verses.every(v => !!ulFor(v))
-        }
+        highlightColor={highlightColor}
+        hlFor={hlFor}
+        ulFor={ulFor}
         onPickHighlight={applyHighlightToSelection}
         onActiveColorChange={persistHighlightColor}
         onPickUnderline={applyUnderlineToSelection}
         onClear={clearMarksOnSelection}
         onNote={noteOnSelection}
-        onTestFramework={() => {
-          if (!tbSel) return;
-          const text = verses
-            .filter((v) => tbSel.verses.includes(v.number))
-            .map((v) => `${v.number} ${v.text}`)
-            .join(" ");
-          const refRange =
-            tbSel.verses.length > 1
-              ? `${book.name} ${chapter}:${tbSel.verses[0]}-${tbSel.verses[tbSel.verses.length - 1]}`
-              : `${book.name} ${chapter}:${tbSel.verses[0]}`;
-          navigate(
-            `/framework/artifacts/new?ref=${encodeURIComponent(refRange)}&verse=${encodeURIComponent(text)}`,
-          );
-        }}
-        onOpenCompanion={() => {
-          if (!tbSel) return;
-          if (!online) {
-            toast({ variant: "destructive", title: "Companion needs internet", description: "Reconnect to use AI features." });
-            return;
-          }
-          openCompanion(buildScope(tbSel.verses), "journal");
-        }}
-        onShare={() => {
-          if (!tbSel) return;
-          void sharePassageSelection(reference, passage ?? null, tbSel.verses);
-        }}
-        onClose={() => clearWindowSelection()}
+        book={book}
+        chapter={chapter}
+        verses={verses}
+        passage={passage}
+        bibleId={bibleId}
+        reference={reference}
+        online={online}
+        openCompanion={openCompanion}
+        buildScope={buildScope}
+        clearWindowSelection={clearWindowSelection}
       />
 
       <BibleSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} bibleId={bibleId} />
-
-      {noteOpen && (
-        <NoteDialog
-          open
-          reference={`${book.name} ${chapter}:${noteOpen.verse}`}
-          initialBody={noteFor(noteOpen.verse)?.body}
-          onClose={() => setNoteOpen(null)}
-          onSave={(body) => { upsertNote(noteOpen.verse, body); }}
-          onDelete={noteFor(noteOpen.verse) ? () => deleteNote(noteOpen.verse) : undefined}
-        />
-      )}
-
-      {bmDialog && (
-        <BookmarkDialog
-          open
-          position={bmDialog.position}
-          defaultRef={{ book: book.abbr, bookName: book.name, chapter }}
-          defaultLabel={bookmarks.find(b => b.position === bmDialog.position)?.label}
-          defaultColor={bookmarks.find(b => b.position === bmDialog.position)?.color}
-          onClose={() => setBmDialog(null)}
-          onSave={(label, color) => {
-            setBookmark({
-              position: bmDialog.position,
-              label,
-              color,
-              book: book.abbr,
-              chapter,
-              verse: bookmarkVerse,
-            });
-            toast({
-              title: "Ribbon saved",
-              description: `${label} → ${book.name} ${chapter}:${bookmarkVerse}`,
-            });
-            setBmDialog(null);
-          }}
-        />
-      )}
-
-      {/* Anchor belief banner for this chapter */}
-      {anchorBelief && !focusMode && (
-        <button
-          onClick={() => navigate(`/framework/beliefs/${anchorBelief.id}`)}
-          className={`${overlayPos} top-14 left-1/2 -translate-x-1/2 z-30 max-w-[min(680px,92vw)] bg-paper border border-gold/50 rounded-full shadow-leather px-4 py-1.5 text-xs flex items-center gap-2 hover:bg-paper-warm transition`}
-          title="Your anchor belief for this chapter"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-leather shrink-0" />
-          <span className="ink-text truncate">{anchorBelief.statement}</span>
-        </button>
-      )}
-
-      {!focusMode && <CompanionPane />}
-
-      {showReaderDock ? (
-        <ReaderFloatingTabBar bibleTo={`/read/${book.abbr}/${chapter}`} />
-      ) : null}
     </div>
   );
 }
