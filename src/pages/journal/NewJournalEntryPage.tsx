@@ -22,6 +22,7 @@ import { MoodPicker } from "@/components/journal/MoodPicker";
 import { TagInput } from "@/components/journal/TagInput";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
+import { journalEntryTitleInputClass } from "@/lib/journal/journalChatUi";
 import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { journalEntryPageRoot, hubShellBottomDock, journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
@@ -169,7 +170,10 @@ export default function NewJournalEntryPage() {
           {!p.title.trim() ? (
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 z-0 text-[26px] leading-tight font-display font-semibold tracking-tight text-muted-foreground/55"
+              className={cn(
+                journalEntryTitleInputClass,
+                "pointer-events-none absolute inset-x-0 top-0 z-0 text-muted-foreground/55",
+              )}
             >
               Title
             </span>
@@ -178,7 +182,10 @@ export default function NewJournalEntryPage() {
             value={p.title}
             onChange={(e) => p.setTitle(e.target.value)}
             aria-label="Title"
-            className="relative z-[1] border-0 bg-transparent px-0 text-[26px] leading-tight font-display font-semibold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={cn(
+              journalEntryTitleInputClass,
+              "relative z-[1] border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0",
+            )}
           />
         </div>
 

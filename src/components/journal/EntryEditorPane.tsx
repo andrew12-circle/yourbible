@@ -16,7 +16,7 @@ import {
   isChatJournalExport,
   parseChatJournalEntry,
 } from "@/lib/journal/chatJournalEntry";
-import { journalPlainWriteFieldClass } from "@/lib/journal/journalChatUi";
+import { journalEntryTitleInputClass, journalPlainWriteFieldClass } from "@/lib/journal/journalChatUi";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
@@ -927,7 +927,10 @@ export default function EntryEditorPane({
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
             placeholder="Title"
-            className="text-[26px] leading-tight font-display font-bold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0"
+            className={cn(
+              journalEntryTitleInputClass,
+              "border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0",
+            )}
           />
 
           {!inlineChatMode && sketchPhotos.length > 0 ? (

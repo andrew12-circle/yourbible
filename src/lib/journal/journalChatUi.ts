@@ -2,6 +2,10 @@
 export const journalChatUserBubbleClass =
   "w-fit max-w-[min(100%,85%)] rounded-xl bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm whitespace-pre-wrap break-words";
 
+/** Journal entry title — display size; md: beats shadcn Input default md:text-sm on desktop. */
+export const journalEntryTitleInputClass =
+  "text-[32px] md:text-[36px] leading-tight font-display font-bold tracking-tight";
+
 /** Borderless journal body — no rounded box chrome or focus corner artifacts. */
 export const journalPlainWriteFieldClass =
   "journal-plain-write-field !block w-full !min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-0 shadow-none " +
