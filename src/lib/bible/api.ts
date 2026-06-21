@@ -1,7 +1,7 @@
 import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
 import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { collectCrossRefs, collectFootnotes, versePlainText } from "@/lib/bible/verseParts";
-import { supabase } from "@/integrations/supabase/client";
+import { edgeFunctionAuthHeaders } from "@/lib/auth/functionAuth";
 
 export { EOTC_BIBLE_ID, isEotcBibleId } from "@/lib/bible/canon";
 
@@ -175,9 +175,19 @@ export async function streamVerseAI(opts: {
   signal?: AbortSignal;
 }) {
   const { onDelta, onError, signal, ...body } = opts;
+  let headers: Record<string, string>;
+  try {
+    headers = {
+      "Content-Type": "application/json",
+      ...(await edgeFunctionAuthHeaders()),
+    };
+  } catch {
+    onError?.("Sign in required");
+    return;
+  }
   const resp = await fetch(`${FUNCTIONS_BASE}/verse-ai`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
+    headers,
     body: JSON.stringify(body),
     signal,
   });
@@ -220,9 +230,13 @@ export async function streamVerseAI(opts: {
 }
 
 export async function fetchSleepAudio(text: string, voiceId?: string): Promise<Blob> {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(await edgeFunctionAuthHeaders()),
+  };
   const r = await fetch(`${FUNCTIONS_BASE}/sleep-tts`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
+    headers,
     body: JSON.stringify({ text, voiceId }),
   });
   const ct = r.headers.get("content-type") ?? "";
@@ -256,6 +270,3 @@ export async function checkSleepTtsAvailable(voiceId?: string): Promise<boolean>
     return false;
   }
 }
-
-// suppress unused import warning
-void supabase;

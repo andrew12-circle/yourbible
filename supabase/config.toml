@@ -73,7 +73,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.framework-embed-transcript]
-verify_jwt = false
+verify_jwt = true
 
 [functions.framework-search-transcript]
 verify_jwt = true
@@ -103,10 +103,10 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.verse-ai]
-verify_jwt = false
+verify_jwt = true
 
 [functions.bible-life-guide]
 verify_jwt = true
 
 [functions.sleep-tts]
-verify_jwt = false
+verify_jwt = true

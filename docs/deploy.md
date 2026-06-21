@@ -146,11 +146,52 @@ npx supabase functions deploy framework-fetch-transcript --project-ref itmcsyrnp
 
 ## 4. Smoke test production
 
+Run automated checks (from repo root):
+
+```bash
+npm run verify:prod
+# Optional: PRODUCTION_URL=https://your-domain.com npm run verify:prod
+```
+
 On the **live** URL (not `localhost`):
 
 1. Sign in / session still works.
-2. If you shipped Framework work: open an artifact, run transcript fetch or playback paths you changed.
-3. Check browser network tab for failing edge function calls (401/500).
+2. Password reset: **Forgot password?** on `/auth` → email link → `/auth/reset`.
+3. Read one chapter; one My AI message; one journal entry.
+4. Check browser network tab for failing edge function calls (401/500).
+
+### Auth redirect URLs (Supabase dashboard)
+
+Under **Authentication → URL configuration**, add:
+
+- **Site URL:** your production origin (e.g. `https://your-domain.com`)
+- **Redirect URLs:** same origin, plus `https://your-domain.com/auth/reset` and `https://your-domain.com/onboarding`
+
+### Sentry (recommended for beta)
+
+Set `VITE_SENTRY_DSN` in Vercel (production). Or sync from `.env`:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/set-vercel-env.ps1
+```
+
+Redeploy after adding the DSN. See [beta-monitoring.md](./beta-monitoring.md).
+
+### Secured AI endpoints (beta)
+
+After changing `verse-ai`, `sleep-tts`, or `framework-embed-transcript`:
+
+```bash
+npx supabase functions deploy verse-ai sleep-tts framework-embed-transcript --project-ref itmcsyrnpcnrwviigppe
+```
+
+`npm run verify:prod` should report **401** for anon calls to `verse-ai` and `sleep-tts`.
+
+---
+
+## 5. Beta invite
+
+See [beta-invite.md](./beta-invite.md) for copy-paste invite text and [beta-monitoring.md](./beta-monitoring.md) for the first-cohort checklist.
 
 ---
 

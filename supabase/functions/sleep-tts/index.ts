@@ -1,5 +1,6 @@
 // Sleep narrator — ElevenLabs streaming TTS for calm scripture playback.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { requireUser } from "../_shared/requireUser.ts";
 
 interface Body {
   text: string;
@@ -23,6 +24,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const auth = await requireUser(req);
+    if ("error" in auth) return auth.error;
+
     const KEY = Deno.env.get("ELEVENLABS_API_KEY");
     if (!KEY) throw new Error("ELEVENLABS_API_KEY missing");
 

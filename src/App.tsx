@@ -17,6 +17,9 @@ import { ShellGate } from "@/components/shell/ShellGate";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
+const AuthResetPage = lazy(() => import("./pages/auth/AuthResetPage"));
+const PrivacyPage = lazy(() => import("./pages/legal/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/legal/TermsPage"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const ReaderPage = lazy(() => import("./pages/reader/ReaderPage"));
 const ContentsReaderPage = lazy(() => import("./pages/reader/ContentsReaderPage"));
@@ -95,6 +98,9 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/auth/reset" element={<AuthResetPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/partner/accept" element={<PartnerAcceptPage />} />
                 <Route element={<ShellGate />}>

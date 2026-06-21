@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Brain, Check, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { APP_NAME } from "@/lib/appBrand";
+import { markBetaWelcomePending } from "@/lib/beta/welcome";
 
 const STEPS = 3;
 
@@ -69,6 +70,7 @@ export default function OnboardingPage() {
         return;
       }
       toast({ title: "You're all set", description: `${APP_NAME} is ready whenever you are.` });
+      markBetaWelcomePending();
       navigate("/home", { replace: true });
     } finally {
       setBusy(false);

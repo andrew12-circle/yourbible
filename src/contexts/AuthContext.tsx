@@ -40,6 +40,8 @@ interface AuthCtx {
   signUp: (email: string, password: string, displayName?: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; profile: Profile | null }>;
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<Profile | null>;
   updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null; profile: Profile | null }>;
 }
@@ -129,6 +131,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null, profile: loaded };
     },
     signOut: async () => { await supabase.auth.signOut(); },
+    requestPasswordReset: async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset`,
+      });
+      return { error: error ? new Error(error.message) : null };
+    },
+    updatePassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password });
+      return { error: error ? new Error(error.message) : null };
+    },
     refreshProfile: async () => (user ? loadProfile(user.id) : null),
     updateProfile: async (patch) => {
       if (!user) return { error: new Error("Not signed in"), profile: null };

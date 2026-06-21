@@ -23,6 +23,7 @@ import {
   SettingsProfileSection,
   SettingsReaderSection,
 } from "@/components/settings/SettingsSections";
+import { SettingsLegalFooter } from "@/components/legal/LegalPageLayout";
 
 export default function SettingsPage() {
   const { user, loading, signOut } = useAuth();
@@ -130,6 +131,8 @@ export default function SettingsPage() {
           {activeSection === "knowledge" ? (
             user?.id ? <SeedTimelineCard userId={user.id} /> : null
           ) : null}
+
+          <SettingsLegalFooter />
         </div>
       </main>
     </div>
