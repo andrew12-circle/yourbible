@@ -110,3 +110,6 @@ verify_jwt = true
 
 [functions.sleep-tts]
 verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

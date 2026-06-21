@@ -167,6 +167,12 @@ Under **Authentication → URL configuration**, add:
 - **Site URL:** your production origin (e.g. `https://your-domain.com`)
 - **Redirect URLs:** same origin, plus `https://your-domain.com/auth/reset` and `https://your-domain.com/onboarding`
 
+Or run (reads `.env` + sets URLs for thecirclesystem.com):
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/configure-auth-urls.ps1
+```
+
 ### Sentry (recommended for beta)
 
 Set `VITE_SENTRY_DSN` in Vercel (production). Or sync from `.env`:

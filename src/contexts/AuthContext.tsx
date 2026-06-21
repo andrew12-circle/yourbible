@@ -42,6 +42,7 @@ interface AuthCtx {
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  deleteAccount: () => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<Profile | null>;
   updateProfile: (patch: Partial<Profile>) => Promise<{ error: Error | null; profile: Profile | null }>;
 }
@@ -140,6 +141,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updatePassword: async (password) => {
       const { error } = await supabase.auth.updateUser({ password });
       return { error: error ? new Error(error.message) : null };
+    },
+    deleteAccount: async () => {
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>("delete-account", {
+        method: "POST",
+        body: {},
+      });
+      if (error) return { error: new Error(error.message) };
+      if (data?.error) return { error: new Error(data.error) };
+      return { error: null };
     },
     refreshProfile: async () => (user ? loadProfile(user.id) : null),
     updateProfile: async (patch) => {

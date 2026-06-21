@@ -37,7 +37,7 @@ export default function PrivacyPage() {
       <h2>Retention & deletion</h2>
       <p>
         Beta data is kept while your account is active. You may export journal entries from Settings.
-        To delete your account, contact us at{" "}
+        To delete your account, use <strong>Settings → Profile → Delete account</strong>, or email{" "}
         <a href="mailto:support@beliefarchitecture.app">support@beliefarchitecture.app</a>.
       </p>
 

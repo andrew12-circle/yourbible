@@ -18,8 +18,10 @@ function loadDotEnv() {
   const path = join(root, ".env");
   if (!existsSync(path)) return {};
   const out = {};
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
+  for (const rawLine of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const line = rawLine.replace(/\r$/, "").trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = line.match(/^([A-Z0-9_]+)\s*=\s*(.*)$/);
     if (!m) continue;
     let v = m[2].trim();
     if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {

@@ -23,6 +23,7 @@ import {
   SettingsProfileSection,
   SettingsReaderSection,
 } from "@/components/settings/SettingsSections";
+import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
 import { SettingsLegalFooter } from "@/components/legal/LegalPageLayout";
 
 export default function SettingsPage() {
@@ -108,7 +109,10 @@ export default function SettingsPage() {
           )}
         >
           {activeSection === "profile" ? (
-            <SettingsProfileSection state={settings} onSignOut={signOut} />
+            <>
+              <SettingsProfileSection state={settings} onSignOut={signOut} />
+              <SettingsAccountSection />
+            </>
           ) : null}
 
           {activeSection === "reader" ? <SettingsReaderSection state={settings} /> : null}
