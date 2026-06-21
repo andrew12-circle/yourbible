@@ -7,7 +7,13 @@ export function passageQueryKey(bibleId: string, book: string, chapter: number) 
   return ["passage", bibleId, book, chapter] as const;
 }
 
-export function usePassage(bibleId: string, book: string, chapter: number, enabled = true) {
+export function usePassage(
+  bibleId: string,
+  book: string,
+  chapter: number,
+  enabled = true,
+  bibleAbbr?: string,
+) {
   useEffect(() => {
     if (!bibleId || !enabled) return;
     void hydratePassageFromCache(bibleId, book, chapter);
@@ -15,7 +21,7 @@ export function usePassage(bibleId: string, book: string, chapter: number, enabl
 
   return useQuery<Passage>({
     queryKey: passageQueryKey(bibleId, book, chapter),
-    queryFn: ({ signal }) => fetchPassageWithCache(bibleId, book, chapter, signal),
+    queryFn: ({ signal }) => fetchPassageWithCache(bibleId, book, chapter, signal, bibleAbbr),
     enabled: Boolean(bibleId) && enabled,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60 * 24 * 7,

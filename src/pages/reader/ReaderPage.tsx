@@ -38,7 +38,7 @@ import {
   readStoredReaderFontScale,
   writeStoredReaderFontScale,
 } from "@/lib/bible/readerFontScale";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import {
@@ -217,11 +217,15 @@ export default function ReaderPage() {
     [bibles],
   );
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const bibleEditionAbbr = useMemo(
+    () => displayBibles.find((b) => b.id === bibleId)?.abbreviation,
+    [displayBibles, bibleId],
+  );
   const {
     data: passage,
     isLoading: loadingPassage,
     isError: passageError,
-  } = usePassage(bibleId, book.abbr, chapter);
+  } = usePassage(bibleId, book.abbr, chapter, true, bibleEditionAbbr);
   const showCachedHint = !online || (passageError && !!passage);
   const [searchOpen, setSearchOpen] = useState(false);
   const readerAudio = useReaderAudio(reference, passage);
@@ -237,12 +241,13 @@ export default function ReaderPage() {
     }
     if (bibles.length === 0) return;
     const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    const nextEntry = bibles.find((b) => b.id === next);
     if (next && next !== bibleId) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, nextEntry?.abbreviation);
     } else if (!bibleId && next) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, nextEntry?.abbreviation);
     }
   }, [bibles, bibleId]);
 
@@ -334,6 +339,7 @@ export default function ReaderPage() {
     book.name,
     chapter,
     readerSpread,
+    bibleEditionAbbr,
   );
   const compactChrome = useReaderCompactChrome();
   const tabletPortrait = useIsTabletPortrait();
@@ -1761,7 +1767,10 @@ export default function ReaderPage() {
         bibleId={bibleId}
         bibles={displayBibles}
         books={canonBooks}
-        onChangeBible={(id) => { setBibleId(id); localStorage.setItem(LS_BIBLE_KEY, id); }}
+        onChangeBible={(id) => {
+          setBibleId(id);
+          persistBibleSelection(id, displayBibles.find((b) => b.id === id)?.abbreviation);
+        }}
         onSearch={() => setSearchOpen(true)}
         onToggleAudio={() => void readerAudio.toggle()}
         audioPlaying={readerAudio.playing}

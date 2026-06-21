@@ -151,7 +151,7 @@ export function sanitizePubVerseText(text: string, options?: { trim?: boolean })
   t = repairSplitInitialCaps(t);
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
   t = t.replace(/#\s*#/g, "\u2014");
-  t = t.replace(/\s+#\s+(?=[A-Za-z0-9"(\[])/g, " ");
+  t = t.replace(/\s+#\s+(?=[A-Za-z0-9"([])/g, " ");
   t = t.replace(/([,.;:]|\u2014)\s*#\s+(?=[A-Za-z0-9])/g, "$1 ");
   t = t.replace(/\^+/g, "");
   t = t.replace(/,\s*,+/g, ",");

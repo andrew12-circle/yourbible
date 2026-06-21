@@ -28,11 +28,14 @@ export function pickDefaultBibleId(list: BibleEntry[], storedId: string | null):
   }
   if (storedId && list.some((b) => b.id === storedId)) return storedId;
 
-  const pref = ["CSB", "KJV", "WEB", "ESV", "NIV", "NLT"];
+  const pref = ["CSB", "NKJV", "KJV", "WEB", "ESV", "NIV", "NLT"];
   const byAbbr = (code: string) => list.find((b) => b.abbreviation.toUpperCase() === code);
   const byName = list.find(
     (b) => /christian\s+standard\s+bible/i.test(b.name) || /\bcsb\b/i.test(b.name),
   );
-  const found = byName ?? pref.map(byAbbr).find(Boolean) ?? list[0];
+  const byNkjv = list.find(
+    (b) => /new\s+king\s+james/i.test(b.name) || b.abbreviation.toUpperCase() === "NKJV",
+  );
+  const found = byName ?? pref.map(byAbbr).find(Boolean) ?? byNkjv ?? list[0];
   return found?.id ?? "";
 }

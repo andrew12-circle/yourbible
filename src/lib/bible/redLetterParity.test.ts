@@ -42,4 +42,23 @@ describe("red-letter Holman parity", () => {
     expect(html).toContain('class="red-letter"');
     expect(html).not.toContain("font-weight");
   });
+
+  it("paints NKJV-style discourse without quote marks entirely red (Sermon on the Mount)", () => {
+    const verses = [
+      {
+        number: 3,
+        text: "Blessed are the poor in spirit, For theirs is the kingdom of heaven.",
+        parts: [
+          {
+            kind: "text" as const,
+            text: "Blessed are the poor in spirit, For theirs is the kingdom of heaven.",
+          },
+        ],
+      },
+    ];
+
+    const segs = splitJesusSpeechForChapter("Mat", 5, verses);
+    const html = buildVersePartsInnerHtml(verses[0]!, segs, (s) => s);
+    expect(html).toMatch(/class="red-letter">Blessed are the poor/);
+  });
 });

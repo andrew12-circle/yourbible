@@ -111,11 +111,13 @@ export async function fetchPassage(
   book: string,
   chapter: number,
   signal?: AbortSignal,
+  bibleAbbr?: string,
 ): Promise<Passage> {
   const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
   u.searchParams.set("bibleId", bibleId);
   u.searchParams.set("book", book);
   u.searchParams.set("chapter", String(chapter));
+  if (bibleAbbr) u.searchParams.set("bibleAbbr", bibleAbbr);
   const r = await fetch(u.toString(), {
     headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
     signal,

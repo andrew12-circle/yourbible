@@ -2,7 +2,7 @@
 // Public read endpoint — no auth required to read scripture.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { fetchEotcPassage } from "../_shared/eotcPassage.ts";
-import { CSB_TEXT_REVISION } from "../_shared/textRevision.ts";
+import { passageTextRevisionForBible } from "../_shared/textRevision.ts";
 import {
   parseChapterText,
   parsePassageHtml,
@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
     const bibleId = url.searchParams.get("bibleId");
     const bookAbbr = url.searchParams.get("book"); // e.g. "Gen"
     const chapter = url.searchParams.get("chapter");
+    const bibleEditionAbbr = url.searchParams.get("bibleAbbr") ?? undefined;
 
     if (!bibleId || !bookAbbr || !chapter) {
       return new Response(JSON.stringify({ error: "bibleId, book, chapter are required" }), {
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
       paragraphStarts: parsed.paragraphStarts,
       headings: parsed.headings,
       poetryBlocks: parsed.poetryBlocks ?? [],
-      textRevision: CSB_TEXT_REVISION,
+      textRevision: passageTextRevisionForBible(bibleId, bibleEditionAbbr),
     };
 
     return new Response(JSON.stringify(body), {

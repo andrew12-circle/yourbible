@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { toast } from "@/hooks/use-toast";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import {
@@ -213,7 +213,7 @@ export function useSettingsPage() {
 
   const onBibleChange = (nextId: string) => {
     setBibleId(nextId);
-    localStorage.setItem(LS_BIBLE_KEY, nextId);
+    persistBibleSelection(nextId, bibles.find((b) => b.id === nextId)?.abbreviation);
     toast({ title: "Translation updated", description: "Applies when you open the reader." });
   };
 

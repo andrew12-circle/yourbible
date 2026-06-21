@@ -4,7 +4,12 @@ import { getCachedPassage, setCachedPassage } from "@/lib/bible/passageCache";
 import { queryClient } from "@/lib/queryClient";
 import { passageQueryKey } from "@/hooks/usePassage";
 
-async function prefetchChapter(bibleId: string, book: string, chapter: number): Promise<void> {
+async function prefetchChapter(
+  bibleId: string,
+  book: string,
+  chapter: number,
+  bibleAbbr?: string,
+): Promise<void> {
   const key = passageQueryKey(bibleId, book, chapter);
   if (queryClient.getQueryData(key)) return;
 
@@ -15,7 +20,7 @@ async function prefetchChapter(bibleId: string, book: string, chapter: number): 
   }
 
   try {
-    const passage = await fetchPassage(bibleId, book, chapter);
+    const passage = await fetchPassage(bibleId, book, chapter, undefined, bibleAbbr);
     await setCachedPassage(bibleId, book, chapter, passage);
     queryClient.setQueryData(key, passage);
   } catch {
@@ -28,6 +33,7 @@ export async function fetchPassageWithCache(
   book: string,
   chapter: number,
   signal?: AbortSignal,
+  bibleAbbr?: string,
 ): Promise<Passage> {
   const cached = await getCachedPassage(bibleId, book, chapter);
 
@@ -37,12 +43,12 @@ export async function fetchPassageWithCache(
   }
 
   try {
-    const passage = await fetchPassage(bibleId, book, chapter);
+    const passage = await fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     await setCachedPassage(bibleId, book, chapter, passage);
 
     for (const ref of adjacentChapterRefs(book, chapter)) {
-      void prefetchChapter(bibleId, ref.book, ref.chapter);
+      void prefetchChapter(bibleId, ref.book, ref.chapter, bibleAbbr);
     }
 
     return passage;

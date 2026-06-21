@@ -19,22 +19,25 @@ export function useAdjacentPassages(
   bookName: string,
   chapter: number,
   enabled: boolean,
+  bibleEditionAbbr?: string,
 ): AdjacentPassages {
   const prevRef = useMemo(() => getPrevChapterRef(bookAbbr, chapter), [bookAbbr, chapter]);
   const nextRef = useMemo(() => getNextChapterRef(bookAbbr, chapter), [bookAbbr, chapter]);
 
-  const currentQuery = usePassage(bibleId, bookAbbr, chapter);
+  const currentQuery = usePassage(bibleId, bookAbbr, chapter, true, bibleEditionAbbr);
   const prevQuery = usePassage(
     bibleId,
     prevRef?.book.abbr ?? bookAbbr,
     prevRef?.chapter ?? 1,
     enabled && prevRef != null,
+    bibleEditionAbbr,
   );
   const nextQuery = usePassage(
     bibleId,
     nextRef?.book.abbr ?? bookAbbr,
     nextRef?.chapter ?? 1,
     enabled && nextRef != null,
+    bibleEditionAbbr,
   );
 
   const prev = prevRef ? prevQuery.data : undefined;
