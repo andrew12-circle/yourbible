@@ -20,7 +20,6 @@ import {
   readCanon,
 } from "@/lib/bible/canon";
 import type { PassageVerse } from "@/lib/bible/api";
-import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import {
   ETHIOPIC_SCRIPTURE_FONT,
   fontChoiceLabel,
@@ -41,10 +40,6 @@ import {
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import {
-  scriptureParagraphClassName,
-  scripturePoetryClassName,
-} from "@/lib/bible/scriptureParagraph";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { platesForChapter } from "@/lib/bible/biblePlates";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
@@ -155,7 +150,11 @@ import { readerColumnContentHeightPx } from "@/lib/bible/readerColumnMeasure";
 import {
   renderScriptureParagraphNodes,
   wrapScriptureColumns,
+  wrapHolmanStudyContent,
+  HolmanPageFootnotes,
+  type HolmanVerseGroup,
 } from "@/lib/bible/readerScriptureRender";
+import { resolveStudyLayout, readReaderStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
@@ -164,6 +163,10 @@ const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 const CHAPTER_HEADER_RESERVE_PX = 96;
 /** Extra slack so two-column pages do not clip the last line. */
 const PAGINATOR_OVERFLOW_GUARD_PX = 20;
+/** Reserve space for Holman translation footnotes above the page number. */
+const HOLMAN_PAGE_FOOTNOTES_RESERVE_PX = 56;
+/** Reserve space for Holman connections block at column bottom. */
+const HOLMAN_CONNECTIONS_RESERVE_PX = 52;
 
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
@@ -220,6 +223,10 @@ export default function ReaderPage() {
   const bibleEditionAbbr = useMemo(
     () => displayBibles.find((b) => b.id === bibleId)?.abbreviation,
     [displayBibles, bibleId],
+  );
+  const effectiveStudyLayout = useMemo(
+    () => resolveStudyLayout(readReaderStudyLayout(), bibleEditionAbbr),
+    [bibleEditionAbbr],
   );
   const {
     data: passage,
@@ -768,7 +775,11 @@ export default function ReaderPage() {
     ? isSpreadDoubleColumnSplitsReady(streamSplits, readerStream.length)
     : isStreamSplitsReady(streamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
-  const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
+  const paginatorFooterHeight =
+    PAGINATOR_OVERFLOW_GUARD_PX +
+    (effectiveStudyLayout === "holman"
+      ? HOLMAN_PAGE_FOOTNOTES_RESERVE_PX + HOLMAN_CONNECTIONS_RESERVE_PX
+      : 0);
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -1365,6 +1376,7 @@ export default function ReaderPage() {
         bookAbbr: book.abbr,
         chapter,
         useBookSpread,
+        studyLayout: effectiveStudyLayout,
         redSegments,
         redSegmentsByChapter,
         ulFor,
@@ -1378,6 +1390,7 @@ export default function ReaderPage() {
       book.abbr,
       chapter,
       useBookSpread,
+      effectiveStudyLayout,
       redSegments,
       redSegmentsByChapter,
       ulFor,
@@ -1402,6 +1415,7 @@ export default function ReaderPage() {
       resolveHeading,
       renderVerse,
       resolvePoetryBlocks,
+      { studyLayout: effectiveStudyLayout },
     );
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
@@ -1477,6 +1491,29 @@ export default function ReaderPage() {
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
+    const holmanFootnoteVerses =
+      scrollMode && useStreamReader && streamChapters.length > 0
+        ? streamChapters.flatMap((ch) => ch.verses)
+        : scrollMode && verses.length > 0
+          ? verses
+          : (streamSlice?.verseGroups?.flatMap((g) => g.verses) ?? slice ?? []);
+    const holmanVerseGroups: HolmanVerseGroup[] =
+      scrollMode && useStreamReader && streamChapters.length > 0
+        ? streamChapters.map((ch) => ({ chapter: ch.chapter, verses: ch.verses }))
+        : scrollMode && verses.length > 0
+          ? [{ chapter, verses }]
+          : (streamSlice?.verseGroups?.map((g) => ({
+              chapter: g.chapter,
+              verses: g.verses,
+            })) ?? (slice?.length ? [{ chapter, verses: slice }] : []));
+    const showHolmanConnections =
+      effectiveStudyLayout === "holman" &&
+      holmanVerseGroups.some((group) => group.verses.length > 0) &&
+      (scrollMode || pageContentReady);
+    const showHolmanFootnotes =
+      effectiveStudyLayout === "holman" &&
+      holmanFootnoteVerses.length > 0 &&
+      (scrollMode || pageContentReady);
     const scriptureColumnHeightPx = pageContentReady
       ? readerColumnContentHeightPx({
           columnLayoutActive: !scrollMode && Boolean(columnClassName),
@@ -1565,8 +1602,9 @@ export default function ReaderPage() {
               data-reading-area
               aria-busy={!ready}
               className={cn(
-                scrollMode ? "w-full" : "h-full min-h-0 w-full overflow-hidden",
+                scrollMode ? "w-full" : "flex-1 min-h-0 w-full overflow-hidden",
                 scriptureTypoClass,
+                effectiveStudyLayout === "holman" && "reader-holman-study",
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
@@ -1578,93 +1616,84 @@ export default function ReaderPage() {
                 ["--reader-scripture-font-family" as string]: scriptureFont,
               }}
             >
-              {wrapScriptureColumns(
-                spreadColumnLayout,
-                scrollMode,
-                scrollMode && useStreamReader && streamChapters.length > 0 ? (
-                  scriptureNodes(
-                    streamChapters.map((ch) => ({
-                      bookAbbr: ch.bookAbbr,
-                      chapter: ch.chapter,
-                      verses: ch.verses,
-                    })),
-                    (bookAbbr, ch) =>
-                      new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                    (bookAbbr, ch) =>
-                      new Map(
-                        headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                          h.beforeVerse,
-                          h.text,
-                        ]),
-                      ),
-                    (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                  )
-                ) : scrollMode && verses.length > 0 ? (
-                  scriptureNodes(
-                    [{ bookAbbr: book.abbr, chapter, verses }],
-                    () => paragraphStarts,
-                    () => headingByVerse,
-                    () => passage?.poetryBlocks ?? [],
-                  )
-                ) : streamSlice?.isPlatePage && ready ? (
-                streamSlice.plates.map((plate) => (
-                  <ScripturePlate key={plate.id} plate={plate} />
-                ))
-              ) : useStreamReader && streamSlice && pageContentReady ? (
-                scriptureNodes(
-                  streamSlice.verseGroups.map((verseGroup) => ({
-                    bookAbbr: verseGroup.bookAbbr,
-                    chapter: verseGroup.chapter,
-                    verses: verseGroup.verses,
-                  })),
-                  (bookAbbr, ch) =>
-                    new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                  (bookAbbr, ch) =>
-                    new Map(
-                      headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                        h.beforeVerse,
-                        h.text,
-                      ]),
-                    ),
-                  (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                )
-              ) : slice && slice.length > 0 ? (
-                (() =>
-                  groupVersesIntoParagraphs(slice, paragraphStarts).flatMap((group) => {
-                    const nodes: ReactNode[] = [];
-                    const first = group.verses[0]?.number;
-                    const heading = first != null ? headingByVerse.get(first) : undefined;
-                    if (heading) {
-                      nodes.push(
-                        <p key={`h-${first}`} className="scripture-heading">
-                          {heading}
-                        </p>,
-                      );
-                    }
-                    const poetryLevel =
-                      first != null
-                        ? poetryLevelForVerse(passage?.poetryBlocks ?? [], first)
-                        : 0;
-                    const paraClass =
-                      poetryLevel > 0
-                        ? scripturePoetryClassName(poetryLevel, group.isContinuation)
-                        : scriptureParagraphClassName(group.isContinuation);
-                    nodes.push(
-                      <p
-                        key={`p-${first}`}
-                        className={paraClass}
-                        style={{ orphans: 2, widows: 2 }}
-                      >
-                        {group.verses.map((v) =>
-                          renderVerse(v, { paragraphIsContinuation: group.isContinuation }),
-                        )}
-                      </p>,
-                    );
-                    return nodes;
-                  }))()
-              ) : null,
-                scriptureColumnHeightPx,
-              )}
+              {(() => {
+                const scriptureContent =
+                  scrollMode && useStreamReader && streamChapters.length > 0 ? (
+                    scriptureNodes(
+                      streamChapters.map((ch) => ({
+                        bookAbbr: ch.bookAbbr,
+                        chapter: ch.chapter,
+                        verses: ch.verses,
+                      })),
+                      (bookAbbr, ch) =>
+                        new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                      (bookAbbr, ch) =>
+                        new Map(
+                          headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
+                            h.beforeVerse,
+                            h.text,
+                          ]),
+                        ),
+                      (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
+                    )
+                  ) : scrollMode && verses.length > 0 ? (
+                    scriptureNodes(
+                      [{ bookAbbr: book.abbr, chapter, verses }],
+                      () => paragraphStarts,
+                      () => headingByVerse,
+                      () => passage?.poetryBlocks ?? [],
+                    )
+                  ) : streamSlice?.isPlatePage && ready ? (
+                    streamSlice.plates.map((plate) => (
+                      <ScripturePlate key={plate.id} plate={plate} />
+                    ))
+                  ) : useStreamReader && streamSlice && pageContentReady ? (
+                    scriptureNodes(
+                      streamSlice.verseGroups.map((verseGroup) => ({
+                        bookAbbr: verseGroup.bookAbbr,
+                        chapter: verseGroup.chapter,
+                        verses: verseGroup.verses,
+                      })),
+                      (bookAbbr, ch) =>
+                        new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                      (bookAbbr, ch) =>
+                        new Map(
+                          headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
+                            h.beforeVerse,
+                            h.text,
+                          ]),
+                        ),
+                      (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
+                    )
+                  ) : slice && slice.length > 0 ? (
+                    scriptureNodes(
+                      [{ bookAbbr: book.abbr, chapter, verses: slice }],
+                      () => paragraphStarts,
+                      () => headingByVerse,
+                      () => passage?.poetryBlocks ?? [],
+                    )
+                  ) : null;
+
+                if (effectiveStudyLayout === "holman") {
+                  return wrapHolmanStudyContent(
+                    spreadColumnLayout,
+                    scrollMode,
+                    scriptureContent,
+                    holmanVerseGroups,
+                    showHolmanFootnotes ? (
+                      <HolmanPageFootnotes verses={holmanFootnoteVerses} />
+                    ) : null,
+                    showHolmanConnections,
+                  );
+                }
+
+                return wrapScriptureColumns(
+                  spreadColumnLayout,
+                  scrollMode,
+                  scriptureContent,
+                  scriptureColumnHeightPx,
+                );
+              })()}
             </article>
           </div>
         )}
@@ -1976,6 +2005,7 @@ export default function ReaderPage() {
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
           spreadMode={readerLayout.useSpreadPaginatorMeasure && useStreamReader}
+          studyLayout={effectiveStudyLayout}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
@@ -1993,6 +2023,7 @@ export default function ReaderPage() {
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
+          studyLayout={effectiveStudyLayout}
           onSplitsChange={handleSplitsChange}
         />
       ) : null}

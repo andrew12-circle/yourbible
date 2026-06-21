@@ -954,9 +954,9 @@
   }
   .scripture-xref {
     display: inline;
-    margin: 0 0.12em;
-    padding: 0 0.2em;
-    font-size: 0.72em;
+    margin: 0 0.1em;
+    padding: 0 0.15em;
+    font-size: 0.58em;
     vertical-align: super;
     line-height: 1;
     color: hsl(var(--gold-deep));
@@ -976,6 +976,167 @@
     color: hsl(var(--muted-foreground));
     cursor: help;
     font-weight: 500;
+  }
+
+  /* Holman CSB/NKJV study layout — letter xrefs, column blocks, page footnotes. */
+  .reader-holman-study .scripture-heading-holman {
+    text-align: center;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 0.92em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.35;
+    margin: 1em 0 0.35em;
+    color: hsl(var(--foreground) / 0.9);
+  }
+  .reader-holman-study .scripture-heading-holman-psalm {
+    color: hsl(0 52% 42%);
+  }
+  .reader-theme-dark .reader-holman-study .scripture-heading-holman-psalm {
+    color: hsl(0 58% 58%);
+  }
+
+  /* Holman study stack — scripture columns + bottom connections + page notes. */
+  .reader-holman-study .holman-study-stack {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .reader-holman-study .holman-study-stack:not(.h-full) {
+    height: auto;
+  }
+
+  /* Keep paragraph flow in columns without per-paragraph xref blocks. */
+  .reader-holman-study .scripture-paragraph-unit {
+    break-inside: auto;
+    margin: 0;
+  }
+
+  /* Inline superscript letters and footnote numbers — same line as body text. */
+  .reader-holman-study .scripture-holman-mark {
+    display: inline;
+    vertical-align: super;
+    font-size: 0.62em;
+    line-height: 0;
+    font-weight: 700;
+    margin: 0;
+    padding: 0 0.02em;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-style: normal;
+    text-decoration: none;
+    white-space: nowrap;
+    position: static;
+    top: auto;
+  }
+  .reader-holman-study .scripture-holman-mark--xref {
+    color: hsl(var(--gold-deep));
+    cursor: pointer;
+  }
+  .reader-holman-study .scripture-holman-mark--xref:hover {
+    color: hsl(var(--gold-bright));
+    text-decoration: underline;
+  }
+  .reader-holman-study .scripture-holman-mark--footnote {
+    color: hsl(var(--muted-foreground));
+    cursor: help;
+  }
+  .reader-holman-study [data-verse-body] {
+    display: inline;
+  }
+  .reader-holman-study .verse-body-wrap {
+    display: inline;
+  }
+  .reader-holman-study .scripture-verse {
+    display: inline;
+    margin: 0;
+  }
+  .reader-holman-study .scripture-verse-chapter-open {
+    display: block;
+    margin: 0.12em 0 0.2em;
+  }
+  .reader-holman-study .verse-num-gutter {
+    display: inline;
+    vertical-align: super;
+    font-size: 0.62em;
+    line-height: 0;
+    font-weight: 700;
+    padding: 0 0.2em 0 0;
+    text-align: left;
+    color: hsl(var(--leather) / 0.82);
+  }
+
+  /* Connections block — bottom of right column (Holman print layout). */
+  .reader-holman-study .scripture-connections-row {
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(1rem, 3.5vw, 1.65rem);
+    margin-top: auto;
+    padding-top: 0.35em;
+    align-items: end;
+  }
+  .reader-holman-study .scripture-connections-row-full {
+    grid-template-columns: 1fr;
+  }
+  .reader-holman-study .scripture-connections-gutter {
+    min-width: 0;
+  }
+  .reader-holman-study .scripture-connections {
+    grid-column: 2;
+    margin: 0;
+    padding: 0;
+    font-size: 0.68em;
+    line-height: 1.35;
+    text-align: justify;
+    color: hsl(var(--foreground) / 0.88);
+    break-inside: avoid;
+  }
+  .reader-holman-study .scripture-connections-row-full .scripture-connections {
+    grid-column: 1;
+  }
+  .reader-holman-study .scripture-connections-entry {
+    white-space: normal;
+  }
+  .reader-holman-study .scripture-connections-anchor {
+    color: hsl(0 52% 42%);
+    font-weight: 700;
+  }
+  .reader-theme-dark .reader-holman-study .scripture-connections-anchor {
+    color: hsl(0 58% 58%);
+  }
+  .reader-holman-study .scripture-connections-ref {
+    color: hsl(var(--foreground) / 0.88);
+  }
+  .reader-holman-study .scripture-connections-letter {
+    font-size: 0.95em;
+  }
+
+  .reader-holman-study .scripture-page-footnotes {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 1.25em;
+    margin: 0.45em 0 0;
+    padding: 0.35em 0 0;
+    border-top: 1px solid hsl(var(--foreground) / 0.12);
+    font-size: 0.65em;
+    line-height: 1.35;
+    color: hsl(var(--muted-foreground));
+    break-inside: avoid;
+  }
+  .reader-holman-study .scripture-page-footnotes-line {
+    display: inline;
+    margin: 0;
+    text-indent: 0;
+  }
+  .reader-holman-study .scripture-page-footnotes-marker {
+    margin-right: 0.25em;
+    font-weight: 700;
+    vertical-align: super;
+    font-size: 0.92em;
   }
 
   /* CSB divine name (YHWH) — small caps like Holman print editions. */

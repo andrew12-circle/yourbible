@@ -71,6 +71,34 @@ export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProper
   return { ...base, height: h, maxHeight: h };
 }
 
+export function applyHolmanStudyMeasureHtml(
+  node: HTMLDivElement,
+  scriptureHtml: string,
+  connectionsHtml: string,
+  columnsClassName: string | undefined,
+  contentHeightPx: number,
+  options?: ScriptureColumnMeasureOptions,
+): void {
+  const h = Math.max(1, Math.round(contentHeightPx));
+  if (!connectionsHtml) {
+    applyScriptureColumnMeasureHtml(node, scriptureHtml, columnsClassName, contentHeightPx, options);
+    return;
+  }
+  const columnCount = options?.columnCount ?? 2;
+  const width =
+    options?.measureWidthPx != null && options.measureWidthPx > 0
+      ? `width:${Math.round(options.measureWidthPx)}px;`
+      : "width:100%;";
+  const columnsSection = columnsClassName
+    ? `<div class="${columnsClassName}" style="flex:1 1 auto;min-height:0;overflow:hidden;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
+    : `<div style="flex:1 1 auto;min-height:0;overflow:hidden">${scriptureHtml}</div>`;
+  node.innerHTML =
+    `<div class="holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
+    columnsSection +
+    connectionsHtml +
+    `</div>`;
+}
+
 export function applyScriptureColumnMeasureHtml(
   node: HTMLDivElement,
   bodyHtml: string,
@@ -103,6 +131,17 @@ export function scriptureContentFitsPage(
   columnsClassName?: string,
 ): boolean {
   const limit = Math.max(1, Math.round(contentHeightPx));
+  const holmanStack = node.querySelector(".holman-study-stack") as HTMLElement | null;
+  if (holmanStack) {
+    holmanStack.style.height = `${limit}px`;
+    holmanStack.style.maxHeight = `${limit}px`;
+    holmanStack.style.overflow = "hidden";
+    const fits = holmanStack.scrollHeight <= limit + 1;
+    holmanStack.style.height = "";
+    holmanStack.style.maxHeight = "";
+    holmanStack.style.overflow = "";
+    return fits;
+  }
   if (!columnsClassName) {
     return node.scrollHeight <= limit;
   }

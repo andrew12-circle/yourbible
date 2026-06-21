@@ -43,6 +43,8 @@ interface PassageResponse {
   headings: PassageHeading[];
   poetryBlocks: { beforeVerse: number; level: number }[];
   textRevision: string;
+  /** Raw API.Bible HTML — client re-parses with the bundled parser revision. */
+  rawContent: string;
 }
 
 Deno.serve(async (req) => {
@@ -151,6 +153,7 @@ Deno.serve(async (req) => {
       headings: parsed.headings,
       poetryBlocks: parsed.poetryBlocks ?? [],
       textRevision: passageTextRevisionForBible(bibleId, bibleEditionAbbr),
+      rawContent: content,
     };
 
     return new Response(JSON.stringify(body), {

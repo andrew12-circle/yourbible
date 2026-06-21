@@ -10,6 +10,7 @@ import {
   verseParts,
   versePlainText,
 } from "@/lib/bible/verseParts";
+import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { buildVersePartsInnerHtml } from "@/lib/bible/verseBodyRender";
 
 export function scriptureParagraphClassName(isContinuation: boolean): string {
@@ -48,9 +49,10 @@ export function buildVerseInnerHtml(
   redSegments: Map<number, Segment[]>,
   escapeHtml: (s: string) => string,
   verse?: PassageVerse,
+  studyLayout: ResolvedStudyLayout = "inline",
 ): string {
   if (verse?.parts && verse.parts.length > 0) {
-    return buildVersePartsInnerHtml(verse, redSegments, escapeHtml);
+    return buildVersePartsInnerHtml(verse, redSegments, escapeHtml, studyLayout);
   }
   const segs = redLetterSegmentsForVerse(redSegments, verseNum, text);
   return segs

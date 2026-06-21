@@ -1,5 +1,5 @@
 import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
-import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
+import { parseChapterText, parsePassageHtml, sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { collectCrossRefs, collectFootnotes, versePlainText } from "@/lib/bible/verseParts";
 import { edgeFunctionAuthHeaders } from "@/lib/auth/functionAuth";
 
@@ -18,6 +18,8 @@ export type VersePart =
       book: string;
       chapter: number;
       verse: number;
+      /** Publisher xo letter (a, b, c…) when present; otherwise assigned at render time. */
+      letter?: string;
     };
 
 export interface PassageVerse {
@@ -77,6 +79,35 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
   };
 }
 
+/** Prefer client-side HTML parsing so parser fixes apply without redeploying edge functions. */
+export function resolvePassageFromApi(json: unknown): Passage {
+  if (!json || typeof json !== "object") {
+    throw new Error("Invalid passage response");
+  }
+
+  const row = json as Record<string, unknown>;
+  const reference = typeof row.reference === "string" ? row.reference : "";
+  const textRevision = typeof row.textRevision === "string" ? row.textRevision : undefined;
+  const rawContent = row.rawContent;
+
+  if (typeof rawContent === "string" && rawContent.trim()) {
+    let parsed = parsePassageHtml(rawContent, reference);
+    if (parsed.verses.length === 0) {
+      const verses = parseChapterText(rawContent);
+      parsed = {
+        reference,
+        verses,
+        paragraphStarts: verses.length > 0 ? [verses[0]!.number] : [],
+        headings: [],
+        poetryBlocks: [],
+      };
+    }
+    return normalizePassage({ ...parsed, textRevision });
+  }
+
+  return normalizePassage(json as Passage);
+}
+
 export interface BibleEntry {
   id: string;
   abbreviation: string;
@@ -127,7 +158,7 @@ export async function fetchPassage(
     throw new Error(`passage ${r.status}: ${err}`);
   }
   const json = await r.json();
-  return normalizePassage(json as Passage);
+  return resolvePassageFromApi(json);
 }
 
 export interface BibleSearchHit {

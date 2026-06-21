@@ -109,6 +109,15 @@ describe("parsePassageHtml", () => {
     expect(v?.parts?.some((p) => p.kind === "footnote")).toBe(true);
   });
 
+  it("preserves publisher xo letter markers on cross-refs", () => {
+    const html = `
+<p class="p"><span class="v">1</span>Text<span class="xo">a</span><span class="xt">Ps 37:37</span><span class="xo">b</span><span class="xt">Job 1:8</span></p>`;
+    const parsed = parsePassageHtml(html, "Job 1");
+    const xrefs = parsed.verses[0]?.parts?.filter((p) => p.kind === "crossref") ?? [];
+    expect(xrefs[0]).toMatchObject({ letter: "a", label: "Ps 37:37" });
+    expect(xrefs[1]).toMatchObject({ letter: "b", label: "Job 1:8" });
+  });
+
   it("records poetry block levels from USFM q classes", () => {
     const html = `
 <p class="q1"><span class="v">1</span>The Lord is my shepherd;</p>

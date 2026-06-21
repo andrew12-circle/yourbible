@@ -11,6 +11,7 @@ export type VersePart =
       book: string;
       chapter: number;
       verse: number;
+      letter?: string;
     };
 
 export function verseParts(v: PassageVerse): VersePart[] {

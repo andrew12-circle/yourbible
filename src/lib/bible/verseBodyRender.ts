@@ -1,6 +1,8 @@
 import type { PassageVerse } from "@/lib/bible/api";
 import type { Segment } from "@/lib/bible/redLetter";
 import { redLetterSegmentsForVerse } from "@/lib/bible/redLetter";
+import { holmanPartsForVerse } from "@/lib/bible/holmanStudyLayout";
+import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
   styledTextClass,
   verseParts,
@@ -34,8 +36,9 @@ export function buildVersePartsInnerHtml(
   v: PassageVerse,
   redSegments: Map<number, Segment[]>,
   escapeHtml: (s: string) => string,
+  studyLayout: ResolvedStudyLayout = "inline",
 ): string {
-  const parts = verseParts(v);
+  const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);
   const plain = versePlainText(v);
   const segments = redLetterSegmentsForVerse(redSegments, v.number, plain);
 
@@ -44,11 +47,20 @@ export function buildVersePartsInnerHtml(
 
   for (const part of parts) {
     if (part.kind === "footnote") {
-      html += `<span class="scripture-footnote" title="${escapeHtml(part.text)}">[${part.marker}]</span>`;
+      if (studyLayout === "holman") {
+        html += `<sup class="scripture-holman-mark scripture-holman-mark--footnote" title="${escapeHtml(part.text)}">${part.marker}</sup>`;
+      } else {
+        html += `<span class="scripture-footnote" title="${escapeHtml(part.text)}">[${part.marker}]</span>`;
+      }
       continue;
     }
     if (part.kind === "crossref") {
-      html += `<span class="scripture-xref">${escapeHtml(part.label)}</span>`;
+      if (studyLayout === "holman") {
+        const letter = escapeHtml(part.letter ?? "a");
+        html += `<sup class="scripture-holman-mark scripture-holman-mark--xref">${letter}</sup>`;
+      } else {
+        html += `<span class="scripture-xref">${escapeHtml(part.label)}</span>`;
+      }
       continue;
     }
 

@@ -1,5 +1,6 @@
 import { parseBibleReference } from "@/lib/bible/parseBibleReference";
 import type { VersePart, VersePartStyle } from "@/lib/bible/api";
+import { assignCrossRefLetters } from "@/lib/bible/holmanStudyLayout";
 import {
   collectCrossRefs,
   collectFootnotes,
@@ -131,6 +132,154 @@ function notePlainText(noteHtml: string): string {
   return sanitizePubVerseText(decodeEntities(stripHtmlTags(inner)));
 }
 
+/** API.Bible USFM ids on citation spans (e.g. MAT.12.41). */
+const USFM_TO_BOOK_ABBR: Record<string, string> = {
+  GEN: "Gen", EXO: "Exo", LEV: "Lev", NUM: "Num", DEU: "Deu", JOS: "Jos", JDG: "Jdg", RUT: "Rut",
+  "1SA": "1Sa", "2SA": "2Sa", "1KI": "1Ki", "2KI": "2Ki", "1CH": "1Ch", "2CH": "2Ch",
+  EZR: "Ezr", NEH: "Neh", EST: "Est", JOB: "Job", PSA: "Psa", PRO: "Pro", ECC: "Ecc", SNG: "Sng",
+  ISA: "Isa", JER: "Jer", LAM: "Lam", EZK: "Ezk", DAN: "Dan", HOS: "Hos", JOL: "Jol", AMO: "Amo",
+  OBA: "Oba", JON: "Jon", MIC: "Mic", NAM: "Nam", HAB: "Hab", ZEP: "Zep", HAG: "Hag", ZEC: "Zec",
+  MAL: "Mal", MAT: "Mat", MRK: "Mrk", LUK: "Luk", JHN: "Jhn", ACT: "Act", ROM: "Rom", "1CO": "1Co",
+  "2CO": "2Co", GAL: "Gal", EPH: "Eph", PHP: "Php", COL: "Col", "1TH": "1Th", "2TH": "2Th",
+  "1TI": "1Ti", "2TI": "2Ti", TIT: "Tit", PHM: "Phm", HEB: "Heb", JAS: "Jas", "1PE": "1Pe",
+  "2PE": "2Pe", "1JN": "1Jn", "2JN": "2Jn", "3JN": "3Jn", JUD: "Jud", REV: "Rev",
+};
+
+function parseUsfmSpanId(id: string): { bookAbbr: string; chapter: number; verse: number } | null {
+  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim());
+  if (!m) return null;
+  const bookAbbr = USFM_TO_BOOK_ABBR[m[1]!.toUpperCase()];
+  const chapter = parseInt(m[2]!, 10);
+  const verse = parseInt(m[3]!, 10);
+  if (!bookAbbr || !Number.isFinite(chapter) || !Number.isFinite(verse)) return null;
+  return { bookAbbr, chapter, verse };
+}
+
+function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Extract<VersePart, { kind: "crossref" }> | null {
+  const label = decodeEntities(stripHtmlTags(labelRaw)).replace(/^[\s—–-]+/, "").trim();
+  if (!label || /^[—–-]+$/.test(label)) return null;
+  let parsed = id ? parseUsfmSpanId(id) : null;
+  if (!parsed?.verse) {
+    parsed = parseBibleReference(label) ?? parsed;
+  }
+  if (!parsed?.verse) return null;
+  return {
+    kind: "crossref",
+    label,
+    book: parsed.bookAbbr,
+    chapter: parsed.chapter,
+    verse: parsed.verse,
+  };
+}
+
+function pushXtCrossRefs(xtInner: string, parts: VersePart[], pushText: (raw: string) => void): void {
+  const spans = [...xtInner.matchAll(/<span\b[^>]*\bid=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/gi)];
+  if (spans.length > 0) {
+    for (const [, id, inner] of spans) {
+      const part = crossRefPartFromCitation(id, inner);
+      if (part) parts.push(part);
+      else {
+        const fallback = decodeEntities(stripHtmlTags(inner)).trim();
+        if (fallback) pushText(fallback);
+      }
+    }
+    return;
+  }
+  const plain = decodeEntities(stripHtmlTags(xtInner));
+  for (const chunk of plain.split(/;\s*/)) {
+    const part = crossRefPartFromCitation(undefined, chunk);
+    if (part) parts.push(part);
+    else {
+      const fallback = chunk.trim();
+      if (fallback) pushText(fallback);
+    }
+  }
+}
+
+/** CSB/NKJV study notes: `<span class="f">` with fr/ft/fqa or nested xt citations. */
+function extractStudyFootnoteBlocks(html: string): { html: string; blocks: string[] } {
+  const blocks: string[] = [];
+  let out = "";
+  let i = 0;
+  const openRe = /<span\b[^>]*\bclass=["'](?:[^"']*\s)?f(?:\s+[^"']*)?["'][^>]*>/gi;
+  while (i < html.length) {
+    openRe.lastIndex = i;
+    const m = openRe.exec(html);
+    if (!m) {
+      out += html.slice(i);
+      break;
+    }
+    const start = m.index;
+    out += html.slice(i, start);
+    let depth = 1;
+    let pos = start + m[0].length;
+    while (pos < html.length && depth > 0) {
+      const nextOpen = html.indexOf("<span", pos);
+      const nextClose = html.indexOf("</span>", pos);
+      if (nextClose === -1) {
+        pos = html.length;
+        break;
+      }
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        pos = nextOpen + 5;
+      } else {
+        depth -= 1;
+        pos = nextClose + 7;
+      }
+    }
+    blocks.push(html.slice(start, pos));
+    out += `\uE000STUDYFN${blocks.length - 1}\uE001`;
+    i = pos;
+  }
+  return { html: out, blocks };
+}
+
+function innerHtmlOfNestedSpan(token: string, className: string): string | null {
+  const openRe = new RegExp(`<span\\b[^>]*\\bclass=["'][^"']*\\b${className}\\b[^"']*["'][^>]*>`, "i");
+  const m = openRe.exec(token);
+  if (!m) return null;
+  let depth = 1;
+  let pos = m.index + m[0].length;
+  const contentStart = pos;
+  while (pos < token.length && depth > 0) {
+    const nextOpen = token.indexOf("<span", pos);
+    const nextClose = token.indexOf("</span>", pos);
+    if (nextClose === -1) return null;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      pos = nextOpen + 5;
+    } else {
+      depth -= 1;
+      pos = nextClose + 7;
+    }
+  }
+  return token.slice(contentStart, pos - 7);
+}
+
+function parseStudyFootnoteSpan(token: string, parts: VersePart[], footnoteIdx: number): number {
+  const xtInner = innerHtmlOfNestedSpan(token, "xt");
+  if (xtInner) {
+    pushXtCrossRefs(xtInner, parts, (raw) => appendTextPart(parts, sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)), { trim: false })));
+    return footnoteIdx;
+  }
+  let text = "";
+  const ftMatch =
+    /<span\b[^>]*\bclass=["'][^"']*\bft\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i.exec(token);
+  if (ftMatch) text += decodeEntities(stripHtmlTags(ftMatch[1]!));
+  for (const m of token.matchAll(/<span\b[^>]*\bclass=["'][^"']*\bfqa\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
+    text += decodeEntities(stripHtmlTags(m[1]!));
+  }
+  for (const m of token.matchAll(/<span\b[^>]*\bclass=["'][^"']*\bfq\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
+    text += ` ${decodeEntities(stripHtmlTags(m[1]!))}`;
+  }
+  const cleaned = sanitizePubVerseText(text, { trim: true });
+  if (!cleaned) return footnoteIdx;
+  footnoteIdx += 1;
+  parts.push({ kind: "footnote", marker: footnoteIdx, text: cleaned });
+  return footnoteIdx;
+}
+
 function appendTextPart(parts: VersePart[], text: string, style?: VersePartStyle): void {
   if (!text) return;
   const last = parts[parts.length - 1];
@@ -149,6 +298,9 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   const parts: VersePart[] = [];
   let footnoteIdx = footnoteStart;
   let work = html.replace(/<br\s*\/?>/gi, " ");
+  const studyExtract = extractStudyFootnoteBlocks(work);
+  work = studyExtract.html;
+  const studyBlocks = studyExtract.blocks;
 
   const pushText = (raw: string, style?: VersePartStyle) => {
     const text = sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)), { trim: false });
@@ -156,7 +308,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   };
 
   const tokenRe =
-    /<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
 
   let lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -165,11 +317,18 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
       pushText(work.slice(lastIndex, m.index));
     }
     const token = m[0];
-    if (/^<note/i.test(token)) {
+    if (/^\uE000STUDYFN/i.test(token)) {
+      const idx = Number(token.slice("\uE000STUDYFN".length, -"\uE001".length));
+      const block = studyBlocks[idx];
+      if (block) footnoteIdx = parseStudyFootnoteSpan(block, parts, footnoteIdx);
+    } else if (/^<note/i.test(token)) {
       footnoteIdx += 1;
       const text = notePlainText(token);
       if (text) parts.push({ kind: "footnote", marker: footnoteIdx, text });
     } else if (/\bxt\b/i.test(token)) {
+      const xoLetterMatch =
+        /<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*([a-z])\s*<\/span>/i.exec(token);
+      const letter = xoLetterMatch?.[1];
       const labelMatch = /<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i.exec(token);
       const label = decodeEntities((labelMatch?.[1] ?? "").replace(/^[\s—–-]+/, "").trim());
       if (!label || /^[—–-]+$/.test(label)) {
@@ -183,6 +342,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
             book: parsed.bookAbbr,
             chapter: parsed.chapter,
             verse: parsed.verse,
+            ...(letter ? { letter } : {}),
           });
         } else {
           pushText(label);
@@ -202,6 +362,10 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   }
 
   work = work.replace(
+    /<span\b[^>]*\bclass=["'](?:[^"']*\s)?f(?:\s+[^"']*)?["'][^>]*>[\s\S]*?<\/span>/gi,
+    "",
+  );
+  work = work.replace(
     /<(?:span|a|sup|div)\b[^>]*\bclass=["'][^"']*\b(?:note|ft|fr|fk|fqa|fq|xo|xop|xot|xnt|notelink|footnote|crossref|x)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|a|sup|div)>/gi,
     "",
   );
@@ -220,16 +384,17 @@ function cleanHeadingText(raw: string): string {
 }
 
 function buildPassageVerse(number: number, parts: VersePart[]): PassageVerse | null {
-  const text = sanitizePubVerseText(versePlainText({ number, text: "", parts }));
-  if (!text && parts.every((p) => p.kind !== "footnote" && p.kind !== "crossref")) {
+  const normalizedParts = assignCrossRefLetters(parts);
+  const text = sanitizePubVerseText(versePlainText({ number, text: "", parts: normalizedParts }));
+  if (!text && normalizedParts.every((p) => p.kind !== "footnote" && p.kind !== "crossref")) {
     return null;
   }
   return {
     number,
     text,
-    parts,
-    crossRefs: collectCrossRefs(parts),
-    footnotes: collectFootnotes(parts),
+    parts: normalizedParts,
+    crossRefs: collectCrossRefs(normalizedParts),
+    footnotes: collectFootnotes(normalizedParts),
   };
 }
 

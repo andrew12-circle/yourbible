@@ -10,6 +10,7 @@ import {
 import {
   SPREAD_MEASURE_GAP_PX,
   applyScriptureColumnMeasureHtml,
+  applyHolmanStudyMeasureHtml,
   scriptureContentFitsPage,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
@@ -24,6 +25,11 @@ import {
   poetryBlocksForChapter,
 } from "@/lib/bible/readerStream";
 import type { PassageVerse } from "@/lib/bible/api";
+import {
+  buildHolmanConnectionsMeasureHtml,
+  buildHolmanHeadingMeasureHtml,
+} from "@/lib/bible/holmanStudyLayout";
+import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 
 interface Props {
   chapters: ReaderChapterPassage[];
@@ -36,6 +42,7 @@ interface Props {
   fontSizeStyle?: React.CSSProperties;
   /** Two-page spread with two columns per page — paginate as L-col1 → L-col2 → R-col1 → R-col2. */
   spreadMode?: boolean;
+  studyLayout?: ResolvedStudyLayout;
   onSplitsChange: (splits: number[]) => void;
 }
 
@@ -49,6 +56,7 @@ export function BookPaginator({
   footerHeight = 0,
   fontSizeStyle,
   spreadMode = false,
+  studyLayout = "inline",
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -89,6 +97,7 @@ export function BookPaginator({
     className,
     columnsClassName,
     spreadMode,
+    studyLayout,
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
   ]);
@@ -143,6 +152,7 @@ export function BookPaginator({
           redByChapter,
           READER_SPREAD_COLUMNS_CLASS,
           spreadLimit,
+          studyLayout,
           { columnCount: 4, measureWidthPx: spreadMeasureWidth },
         );
         const leftEnd = findStreamSliceEnd(
@@ -154,6 +164,7 @@ export function BookPaginator({
           redByChapter,
           columnsClassName,
           leftLimit,
+          studyLayout,
           { columnCount: 2, measureWidthPx: pageWidth },
         );
         if (leftEnd === spreadStart) {
@@ -188,6 +199,7 @@ export function BookPaginator({
         redByChapter,
         columnsClassName,
         limit,
+        studyLayout,
       );
       splits.push(lastFit);
       i = lastFit;
@@ -235,6 +247,7 @@ function findStreamSliceEnd(
   redByChapter: Map<string, Map<number, Segment[]>>,
   columnsClassName: string | undefined,
   limit: number,
+  studyLayout: ResolvedStudyLayout,
   measureOptions?: ScriptureColumnMeasureOptions,
 ): number {
   if (start >= maxEnd) return start;
@@ -248,6 +261,7 @@ function findStreamSliceEnd(
       redByChapter,
       columnsClassName,
       limit,
+      studyLayout,
       measureOptions,
     );
     if (scriptureContentFitsPage(node, limit, columnsClassName)) {
@@ -268,6 +282,7 @@ function findStreamSliceEnd(
       redByChapter,
       columnsClassName,
       limit,
+      studyLayout,
       measureOptions,
     );
     if (scriptureContentFitsPage(node, limit, columnsClassName)) {
@@ -304,6 +319,7 @@ function renderStreamSlice(
   redByChapter: Map<string, Map<number, Segment[]>>,
   columnsClassName: string | undefined,
   contentHeightPx: number,
+  studyLayout: ResolvedStudyLayout,
   measureOptions?: ScriptureColumnMeasureOptions,
 ) {
   const parts: string[] = [];
@@ -331,9 +347,6 @@ function renderStreamSlice(
     for (const group of groups) {
       const first = group.verses[0]?.number;
       const heading = first != null ? headingByVerse.get(first) : undefined;
-      if (heading) {
-        parts.push(`<p class="scripture-heading">${escapeHtml(heading)}</p>`);
-      }
       const versesHtml = group.verses
         .map((v) => {
           const inner = buildVerseInnerHtml(
@@ -342,6 +355,7 @@ function renderStreamSlice(
             redSegments,
             escapeHtml,
             v,
+            studyLayout,
           );
           return wrapVerseShellHtml(
             v.number,
@@ -356,9 +370,18 @@ function renderStreamSlice(
         poetryLevel > 0
           ? scripturePoetryClassNameMeasure(poetryLevel, group.isContinuation)
           : scriptureParagraphClassNameMeasure(group.isContinuation);
-      parts.push(
-        `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`,
-      );
+      const paraHtml = `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
+      if (studyLayout === "holman") {
+        if (heading) {
+          parts.push(buildHolmanHeadingMeasureHtml(heading, batch!.bookAbbr, escapeHtml));
+        }
+        parts.push(paraHtml);
+      } else {
+        if (heading) {
+          parts.push(`<p class="scripture-heading">${escapeHtml(heading)}</p>`);
+        }
+        parts.push(paraHtml);
+      }
     }
     batch = null;
   };
@@ -392,14 +415,47 @@ function renderStreamSlice(
   }
   flushBatch();
 
-  const bodyHtml = parts.join("");
+  const scriptureHtml = parts.join("");
+  if (studyLayout === "holman") {
+    const connectionsHtml = buildHolmanConnectionsMeasureHtml(
+      verseGroupsFromStreamSlice(slice),
+      escapeHtml,
+      Boolean(columnsClassName),
+    );
+    applyHolmanStudyMeasureHtml(
+      node,
+      scriptureHtml,
+      connectionsHtml,
+      columnsClassName,
+      contentHeightPx,
+      measureOptions,
+    );
+    return;
+  }
+
   applyScriptureColumnMeasureHtml(
     node,
-    bodyHtml,
+    scriptureHtml,
     columnsClassName,
     contentHeightPx,
     measureOptions,
   );
+}
+
+function verseGroupsFromStreamSlice(
+  slice: ReaderStreamUnit[],
+): { chapter: number; verses: PassageVerse[] }[] {
+  const groups: { chapter: number; verses: PassageVerse[] }[] = [];
+  let current: { chapter: number; verses: PassageVerse[] } | null = null;
+  for (const unit of slice) {
+    if (unit.kind !== "verse") continue;
+    if (!current || current.chapter !== unit.chapter) {
+      current = { chapter: unit.chapter, verses: [] };
+      groups.push(current);
+    }
+    current.verses.push(unit.verse);
+  }
+  return groups;
 }
 
 function escapeHtml(s: string) {

@@ -3,7 +3,13 @@ import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
+  buildHolmanConnectionsMeasureHtml,
+  buildHolmanHeadingMeasureHtml,
+} from "@/lib/bible/holmanStudyLayout";
+import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import {
   applyScriptureColumnMeasureHtml,
+  applyHolmanStudyMeasureHtml,
   scriptureContentFitsPage,
 } from "@/lib/bible/readerColumnMeasure";
 import {
@@ -37,6 +43,7 @@ interface Props {
   /** Optional inline style applied to the measurement node so paginator
    * splits stay in sync with the live page when text size changes. */
   fontSizeStyle?: React.CSSProperties;
+  studyLayout?: ResolvedStudyLayout;
   /** Called with the verse-index splits: pages[i] = verses[splits[i]..splits[i+1]] */
   onSplitsChange: (splits: number[]) => void;
 }
@@ -58,6 +65,7 @@ export function Paginator({
   columnsClassName,
   footerHeight = 0,
   fontSizeStyle,
+  studyLayout = "inline",
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -108,6 +116,7 @@ export function Paginator({
     columnsClassName,
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
+    studyLayout,
   ]);
 
   useEffect(() => {
@@ -140,9 +149,11 @@ export function Paginator({
           redSegments,
           paragraphStartSet,
           headingByVerse,
+          bookAbbr,
           chapter,
           columnsClassName,
           limit,
+          studyLayout,
         );
         if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = i + n;
@@ -162,9 +173,11 @@ export function Paginator({
           redSegments,
           paragraphStartSet,
           headingByVerse,
+          bookAbbr,
           chapter,
           columnsClassName,
           limit,
+          studyLayout,
         );
         if (scriptureContentFitsPage(node, limit, columnsClassName)) {
           lastFit = mid;
@@ -215,9 +228,11 @@ function renderInto(
   redSegments: Map<number, Segment[]>,
   paragraphStarts: Set<number>,
   headingByVerse: Map<number, string>,
+  bookAbbr: string,
   chapter: number,
   columnsClassName: string | undefined,
   contentHeightPx: number,
+  studyLayout: ResolvedStudyLayout,
 ) {
   const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
   const bodyHtml = groups
@@ -225,7 +240,9 @@ function renderInto(
       const first = group.verses[0]?.number;
       const heading = first != null ? headingByVerse.get(first) : undefined;
       const headingHtml = heading
-        ? `<p class="scripture-heading">${escapeHtml(heading)}</p>`
+        ? studyLayout === "holman"
+          ? buildHolmanHeadingMeasureHtml(heading, bookAbbr, escapeHtml)
+          : `<p class="scripture-heading">${escapeHtml(heading)}</p>`
         : "";
       const versesHtml = group.verses
         .map((v) => {
@@ -235,6 +252,7 @@ function renderInto(
             redSegments,
             escapeHtml,
             v,
+            studyLayout,
           );
           return wrapVerseShellHtml(
             v.number,
@@ -245,9 +263,28 @@ function renderInto(
         })
         .join("");
       const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);
-      return `${headingHtml}<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
+      const paraHtml = `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
+      if (studyLayout === "holman") {
+        return `${headingHtml}${paraHtml}`;
+      }
+      return `${headingHtml}${paraHtml}`;
     })
     .join("");
+  if (studyLayout === "holman") {
+    const connectionsHtml = buildHolmanConnectionsMeasureHtml(
+      [{ chapter, verses }],
+      escapeHtml,
+      Boolean(columnsClassName),
+    );
+    applyHolmanStudyMeasureHtml(
+      node,
+      bodyHtml,
+      connectionsHtml,
+      columnsClassName,
+      contentHeightPx,
+    );
+    return;
+  }
   applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
 }
 

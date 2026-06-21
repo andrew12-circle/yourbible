@@ -8,6 +8,8 @@ import {
 import { redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { shouldShowChapterDropCap } from "@/lib/bible/scriptureParagraph";
 import { sliceSegmentsForRange } from "@/lib/bible/verseBodyRender";
+import { holmanPartsForVerse } from "@/lib/bible/holmanStudyLayout";
+import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { styledTextClass, verseParts, versePlainText } from "@/lib/bible/verseParts";
 
 function markerVariant(book: string, chapter: number, verse: number): number {
@@ -99,6 +101,7 @@ export interface ReaderVerseRenderDeps {
   bookAbbr: string;
   chapter: number;
   useBookSpread: boolean;
+  studyLayout: ResolvedStudyLayout;
   redSegments: Map<number, JesusSegment[]>;
   redSegmentsByChapter: Map<string, Map<number, JesusSegment[]>>;
   ulFor: (n: number, bookAbbr?: string, chapterNum?: number) => { color?: string } | undefined;
@@ -121,6 +124,7 @@ export function createReaderVerseRenderer({
   bookAbbr,
   chapter,
   useBookSpread,
+  studyLayout,
   redSegments,
   redSegmentsByChapter,
   ulFor,
@@ -156,39 +160,71 @@ export function createReaderVerseRenderer({
     const intervals = highlightIntervalsForVerse(plain.length, hlMarks);
     const hlSlices = sliceTextByHighlights(plain, intervals);
     const mv = markerVariant(verseBook, verseChapter, v.number);
+    const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);
 
     const bodyNodes: ReactNode[] = [];
     let charOffset = 0;
 
-    for (let pi = 0; pi < verseParts(v).length; pi++) {
-      const part = verseParts(v)[pi]!;
+    for (let pi = 0; pi < parts.length; pi++) {
+      const part = parts[pi]!;
       if (part.kind === "footnote") {
         bodyNodes.push(
-          <span
-            key={`fn-${pi}`}
-            className="scripture-footnote"
-            title={part.text}
-          >
-            [{part.marker}]
-          </span>,
+          studyLayout === "holman" ? (
+            <sup
+              key={`fn-${pi}`}
+              className="scripture-holman-mark scripture-holman-mark--footnote"
+              title={part.text}
+            >
+              {part.marker}
+            </sup>
+          ) : (
+            <span key={`fn-${pi}`} className="scripture-footnote" title={part.text}>
+              [{part.marker}]
+            </span>
+          ),
         );
         continue;
       }
       if (part.kind === "crossref") {
-        bodyNodes.push(
-          <button
-            key={`xr-${pi}`}
-            type="button"
-            className="scripture-xref"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
-            }}
-            title={`Go to ${part.label}`}
-          >
-            {part.label}
-          </button>,
-        );
+        if (studyLayout === "holman") {
+          bodyNodes.push(
+            <sup
+              key={`xr-${pi}`}
+              role="button"
+              tabIndex={0}
+              className="scripture-holman-mark scripture-holman-mark--xref"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
+                }
+              }}
+              title={`Go to ${part.label}`}
+            >
+              {part.letter ?? "a"}
+            </sup>,
+          );
+        } else {
+          bodyNodes.push(
+            <button
+              key={`xr-${pi}`}
+              type="button"
+              className="scripture-xref"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
+              }}
+              title={`Go to ${part.label}`}
+            >
+              {part.label}
+            </button>,
+          );
+        }
         continue;
       }
 
