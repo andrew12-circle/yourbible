@@ -147,8 +147,15 @@ export function scriptureContentFitsPage(
     let fits = holmanStack.scrollHeight <= limit + 1;
     const columns = holmanScriptureColumnsEl(holmanStack);
     if (columns && fits) {
+      if (columns.clientHeight <= 0) fits = false;
       if (columns.scrollHeight > columns.clientHeight + 1) fits = false;
       if (columns.scrollWidth > columns.clientWidth + 2) fits = false;
+    }
+    const connections = holmanStack.querySelector(".scripture-connections-row") as HTMLElement | null;
+    if (connections && fits) {
+      const stackRect = holmanStack.getBoundingClientRect();
+      const connRect = connections.getBoundingClientRect();
+      if (connRect.bottom > stackRect.bottom + 1) fits = false;
     }
 
     holmanStack.style.height = "";

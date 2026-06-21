@@ -103,6 +103,7 @@ export function Paginator({
 
   // Recompute when inputs that actually affect measurement change.
   useEffect(() => {
+    lastSplitsRef.current = "";
     setRevision((r) => r + 1);
   }, [
     versesKey,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
@@ -61,7 +61,12 @@ export function BookPaginator({
   studyLayout = "inline",
   onSplitsChange,
 }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [measureNodeReady, setMeasureNodeReady] = useState(false);
+  const bindMeasureRef = useCallback((el: HTMLDivElement | null) => {
+    ref.current = el;
+    setMeasureNodeReady(el != null);
+  }, []);
   const [revision, setRevision] = useState(0);
   const lastSplitsRef = useRef<string>("");
   const stream = useMemo(() => buildReaderStream(chapters), [chapters]);
@@ -88,7 +93,9 @@ export function BookPaginator({
 
   const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
 
+  // Recompute when inputs that actually affect measurement change.
   useEffect(() => {
+    lastSplitsRef.current = "";
     setRevision((r) => r + 1);
   }, [
     chaptersKey,
@@ -100,6 +107,7 @@ export function BookPaginator({
     columnsClassName,
     spreadMode,
     studyLayout,
+    measureNodeReady,
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
   ]);
@@ -228,7 +236,7 @@ export function BookPaginator({
       }}
     >
       <div
-        ref={ref}
+        ref={bindMeasureRef}
         data-reading-area
         className={cn(className, studyLayout === "holman" && "reader-holman-study")}
         style={{

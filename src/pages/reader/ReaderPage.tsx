@@ -106,7 +106,6 @@ import { buildAdjacentStreamChapters } from "@/lib/bible/readerStreamChapters";
 import {
   areSameStreamSplits,
   buildReaderStream,
-  ensureSpreadPageSplits,
   isSpreadDoubleColumnSplitsReady,
   headingsForChapter,
   isStreamSplitsReady,
@@ -759,11 +758,7 @@ export default function ReaderPage() {
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
   const useSpreadDoubleColumn = readerLayout.useSpreadPaginatorMeasure && useStreamReader;
-  const displayStreamSplits = useMemo(() => {
-    if (!useSpreadDoubleColumn || readerStream.length === 0) return streamSplits;
-    return ensureSpreadPageSplits(streamSplits, readerStream);
-  }, [useSpreadDoubleColumn, streamSplits, readerStream]);
-  const navStreamSplits = useSpreadDoubleColumn ? displayStreamSplits : streamSplits;
+  const navStreamSplits = streamSplits;
   const totalStreamPages =
     useSpreadDoubleColumn && readerStream.length > 2
       ? Math.max(2, streamPageCount(navStreamSplits, readerStream.length))

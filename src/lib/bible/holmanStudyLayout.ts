@@ -159,6 +159,12 @@ export function holmanVerseGroupsForRenderedPage(opts: {
   if (opts.scrollMode && opts.verses.length > 0) {
     return [{ chapter: opts.chapter, verses: opts.verses }];
   }
+  if (!opts.scrollMode && opts.streamSlice?.verseGroups.length) {
+    return opts.streamSlice.verseGroups.map((g) => ({ chapter: g.chapter, verses: g.verses }));
+  }
+  if (!opts.scrollMode && opts.slice?.length) {
+    return [{ chapter: opts.chapter, verses: opts.slice }];
+  }
   if (opts.useStreamReader && opts.readerStream.length > 0 && opts.navStreamSplits.length >= 2) {
     const start = opts.navStreamSplits[opts.pageIdx];
     const end = opts.navStreamSplits[opts.pageIdx + 1];
@@ -168,12 +174,6 @@ export function holmanVerseGroupsForRenderedPage(opts: {
         verses: g.verses,
       }));
     }
-  }
-  if (opts.streamSlice?.verseGroups.length) {
-    return opts.streamSlice.verseGroups.map((g) => ({ chapter: g.chapter, verses: g.verses }));
-  }
-  if (opts.slice?.length) {
-    return [{ chapter: opts.chapter, verses: opts.slice }];
   }
   return [];
 }

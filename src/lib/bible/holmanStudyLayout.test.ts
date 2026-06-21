@@ -148,6 +148,29 @@ describe("holmanStudyLayout", () => {
     expect(page1[0]?.verses.map((v) => v.number)).toEqual([2, 3]);
   });
 
+  it("prefers streamSlice verse groups over nav splits when paginated", () => {
+    const verse = (n: number): PassageVerse => ({ number: n, text: `v${n}` });
+    const stream: ReaderStreamUnit[] = [
+      { kind: "chapter-header", bookAbbr: "Jhn", bookName: "John", chapter: 5 },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 5, verse: verse(1) },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 5, verse: verse(2) },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 6, verse: verse(1) },
+    ];
+    const groups = holmanVerseGroupsForRenderedPage({
+      scrollMode: false,
+      useStreamReader: true,
+      streamChapters: [],
+      chapter: 5,
+      verses: [],
+      readerStream: stream,
+      navStreamSplits: [0, 3, 4],
+      pageIdx: 0,
+      streamSlice: { verseGroups: [{ chapter: 5, verses: [verse(1), verse(2)] }] },
+      slice: null,
+    });
+    expect(groups[0]?.verses.map((v) => v.number)).toEqual([1, 2]);
+  });
+
   it("splits verse groups across Holman columns", () => {
     const verse = (n: number): PassageVerse => ({ number: n, text: `v${n}` });
     const groups = [{ chapter: 1, verses: [verse(1), verse(2), verse(3), verse(4)] }];
