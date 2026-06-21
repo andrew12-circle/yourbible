@@ -22,6 +22,7 @@ describe("parsePassageHtml", () => {
     expect(parsed.headings).toEqual([
       { beforeVerse: 14, text: "The Word Became Flesh" },
     ]);
+    expect(parsed.poetryBlocks).toEqual([]);
   });
 
   it("strips API.Bible footnote hash markers and restores em dashes", () => {
@@ -87,6 +88,48 @@ describe("parsePassageHtml", () => {
     expect(sanitizePubVerseText("the Son of Man. ,")).toBe("the Son of Man.");
   });
 
+  it("preserves divine-name nd spans as styled text parts", () => {
+    const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
+    const parsed = parsePassageHtml(html);
+    const parts = parsed.verses[0]?.parts ?? [];
+    expect(parts.some((p) => p.kind === "text" && p.style === "divine" && p.text === "Lord")).toBe(
+      true,
+    );
+    expect(parsed.verses[0]?.text).toBe("In the Lord we trust.");
+  });
+
+  it("preserves inline cross-refs and footnotes in verse parts", () => {
+    const html = `
+<p class="p"><span class="v">16</span>For God loved the world<span class="xo">#</span><span class="xt">John 3:17</span><note><span class="ft">Study note text.</span></note></p>`;
+    const parsed = parsePassageHtml(html, "John 3");
+    const v = parsed.verses[0];
+    expect(v?.crossRefs?.[0]?.label).toBe("John 3:17");
+    expect(v?.footnotes?.[0]?.text).toContain("Study note");
+    expect(v?.parts?.some((p) => p.kind === "crossref")).toBe(true);
+    expect(v?.parts?.some((p) => p.kind === "footnote")).toBe(true);
+  });
+
+  it("records poetry block levels from USFM q classes", () => {
+    const html = `
+<p class="q1"><span class="v">1</span>The Lord is my shepherd;</p>
+<p class="q2"><span class="v">2</span>he lets me lie down.</p>`;
+    const parsed = parsePassageHtml(html, "Psalm 23");
+    expect(parsed.poetryBlocks).toEqual([
+      { beforeVerse: 1, level: 1 },
+      { beforeVerse: 2, level: 2 },
+    ]);
+  });
+
+  it("merges verse annotations when the same verse spans blocks", () => {
+    const html = `
+<p class="p"><span class="v">1</span>First half </p>
+<p class="p"><span class="v">1</span>second half.</p>`;
+    const parsed = parsePassageHtml(html);
+    expect(parsed.verses).toHaveLength(1);
+    expect(parsed.verses[0]?.text).toContain("First half");
+    expect(parsed.verses[0]?.text).toContain("second half");
+  });
+
   it("preserves spaces between words when inline tags sit on word boundaries", () => {
     const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
     const parsed = parsePassageHtml(html);
@@ -110,8 +153,8 @@ describe("parseChapterText", () => {
   it("parses plain [N] verse markers", () => {
     const verses = parseChapterText("[1] In the beginning. [2] He was with God.");
     expect(verses).toEqual([
-      { number: 1, text: "In the beginning." },
-      { number: 2, text: "He was with God." },
+      { number: 1, text: "In the beginning.", parts: [{ kind: "text", text: "In the beginning." }] },
+      { number: 2, text: "He was with God.", parts: [{ kind: "text", text: "He was with God." }] },
     ]);
   });
 });

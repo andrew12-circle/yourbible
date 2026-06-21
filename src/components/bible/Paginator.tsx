@@ -234,6 +234,7 @@ function renderInto(
             v.text ?? "",
             redSegments,
             escapeHtml,
+            v,
           );
           return wrapVerseShellHtml(
             v.number,

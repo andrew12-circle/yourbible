@@ -1,4 +1,4 @@
-import type { PassageHeading, PassageVerse } from "@/lib/bible/api";
+import type { PassageHeading, PassageVerse, PoetryBlock } from "@/lib/bible/api";
 import { platesForChapter } from "@/lib/bible/biblePlates";
 import type { BiblePlate } from "@/lib/bible/biblePlates";
 
@@ -12,6 +12,7 @@ export interface ReaderChapterPassage {
   verses: PassageVerse[];
   paragraphStarts: number[];
   headings: PassageHeading[];
+  poetryBlocks: PoetryBlock[];
 }
 
 export type ReaderStreamUnit =
@@ -51,7 +52,9 @@ export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStrea
       chapter: ch.chapter,
     });
     for (const verse of ch.verses) {
-      for (const plate of plates.filter((p) => p.beforeVerse === verse.number)) {
+      for (const plate of plates.filter(
+        (p) => p.beforeVerse === verse.number && !(verse.number === 1 && p.beforeVerse === 1),
+      )) {
         stream.push({
           kind: "plate",
           bookAbbr: ch.bookAbbr,
@@ -379,6 +382,14 @@ export function paragraphStartsForChapter(
     : ch.verses[0]
       ? [ch.verses[0].number]
       : [];
+}
+
+export function poetryBlocksForChapter(
+  chapters: ReaderChapterPassage[],
+  bookAbbr: string,
+  chapter: number,
+): PoetryBlock[] {
+  return chapters.find((c) => c.bookAbbr === bookAbbr && c.chapter === chapter)?.poetryBlocks ?? [];
 }
 
 export function headingsForChapter(

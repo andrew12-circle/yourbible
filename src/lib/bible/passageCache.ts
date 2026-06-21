@@ -1,4 +1,5 @@
 import { normalizePassage, type Passage } from "@/lib/bible/api";
+import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 
 const DB_NAME = "yb-passages";
 const STORE = "passages";
@@ -10,11 +11,8 @@ export type CachedPassageRecord = {
   cachedAt: number;
 };
 
-/** Bump when passage payload shape changes (e.g. paragraph metadata, marker cleanup). */
-const PASSAGE_CACHE_VERSION = 5;
-
 export function passageCacheKey(bibleId: string, book: string, chapter: number): string {
-  return `${bibleId}|${book}|${chapter}|v${PASSAGE_CACHE_VERSION}`;
+  return `${bibleId}|${book}|${chapter}|${PASSAGE_PARSER_REVISION}`;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;

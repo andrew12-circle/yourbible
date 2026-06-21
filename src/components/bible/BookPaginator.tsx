@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
+import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
   buildVerseInnerHtml,
   scriptureParagraphClassNameMeasure,
+  scripturePoetryClassNameMeasure,
   wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
 import {
@@ -20,6 +21,7 @@ import {
   buildReaderStream,
   paragraphStartsForChapter,
   headingsForChapter,
+  poetryBlocksForChapter,
 } from "@/lib/bible/readerStream";
 import type { PassageVerse } from "@/lib/bible/api";
 
@@ -321,6 +323,7 @@ function renderStreamSlice(
     for (const h of headingsForChapter(chapters, batch.bookAbbr, batch.chapter)) {
       headingByVerse.set(h.beforeVerse, h.text);
     }
+    const poetryBlocks = poetryBlocksForChapter(chapters, batch.bookAbbr, batch.chapter);
     const redSegments =
       redByChapter.get(`${batch.bookAbbr}|${batch.chapter}`) ??
       new Map<number, Segment[]>();
@@ -338,6 +341,7 @@ function renderStreamSlice(
             v.text ?? "",
             redSegments,
             escapeHtml,
+            v,
           );
           return wrapVerseShellHtml(
             v.number,
@@ -347,7 +351,11 @@ function renderStreamSlice(
           );
         })
         .join("");
-      const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);
+      const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
+      const paraClass =
+        poetryLevel > 0
+          ? scripturePoetryClassNameMeasure(poetryLevel, group.isContinuation)
+          : scriptureParagraphClassNameMeasure(group.isContinuation);
       parts.push(
         `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`,
       );

@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
-import type { PassageVerse } from "@/lib/bible/api";
-import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
+import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
+import {
+  groupVersesIntoParagraphs,
+  poetryLevelForVerse,
+} from "@/lib/bible/parsePassageHtml";
 import {
   readerColumnClassName,
   type ReaderColumnLayout,
 } from "@/lib/bible/readerColumnLayout";
 import { scriptureColumnWrapperStyle } from "@/lib/bible/readerColumnMeasure";
-import { scriptureParagraphClassName } from "@/lib/bible/scriptureParagraph";
+import {
+  scriptureParagraphClassName,
+  scripturePoetryClassName,
+} from "@/lib/bible/scriptureParagraph";
 import { cn } from "@/lib/utils";
 
 export function wrapScriptureColumns(
@@ -35,10 +41,12 @@ export function renderScriptureParagraphNodes(
     v: PassageVerse,
     ctx: { bookAbbr: string; chapter: number; paragraphIsContinuation?: boolean },
   ) => ReactNode,
+  resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => PoetryBlock[],
 ): ReactNode {
   return groups.flatMap((verseGroup) => {
     const paragraphStartSet = resolveParagraphStarts(verseGroup.bookAbbr, verseGroup.chapter);
     const headingMap = resolveHeading(verseGroup.bookAbbr, verseGroup.chapter);
+    const poetryBlocks = resolvePoetryBlocks?.(verseGroup.bookAbbr, verseGroup.chapter) ?? [];
     return groupVersesIntoParagraphs(verseGroup.verses, paragraphStartSet).flatMap((group) => {
       const nodes: ReactNode[] = [];
       const first = group.verses[0]?.number;
@@ -50,10 +58,15 @@ export function renderScriptureParagraphNodes(
           </p>,
         );
       }
+      const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
+      const paraClass =
+        poetryLevel > 0
+          ? scripturePoetryClassName(poetryLevel, group.isContinuation)
+          : scriptureParagraphClassName(group.isContinuation);
       nodes.push(
         <p
           key={`p-${verseGroup.bookAbbr}-${verseGroup.chapter}-${first}`}
-          className={scriptureParagraphClassName(group.isContinuation)}
+          className={paraClass}
           style={{ orphans: 2, widows: 2 }}
         >
           {group.verses.map((v) =>

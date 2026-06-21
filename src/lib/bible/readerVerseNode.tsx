@@ -7,6 +7,8 @@ import {
 } from "@/lib/bible/verseSelection";
 import { redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { shouldShowChapterDropCap } from "@/lib/bible/scriptureParagraph";
+import { sliceSegmentsForRange } from "@/lib/bible/verseBodyRender";
+import { styledTextClass, verseParts, versePlainText } from "@/lib/bible/verseParts";
 
 function markerVariant(book: string, chapter: number, verse: number): number {
   let h = 2166136261;
@@ -16,6 +18,81 @@ function markerVariant(book: string, chapter: number, verse: number): number {
     h = Math.imul(h, 16777619);
   }
   return ((h >>> 0) % 10) + 1;
+}
+
+function renderTextRange(
+  plain: string,
+  text: string,
+  rangeStart: number,
+  segments: JesusSegment[],
+  hlSlices: { text: string; color?: string }[],
+  hlGlobalStart: number,
+  mv: number,
+  style?: "divine" | "inscription",
+  keyPrefix = "",
+): ReactNode[] {
+  const rangeEnd = rangeStart + text.length;
+  const partSegments = sliceSegmentsForRange(segments, rangeStart, rangeEnd, plain);
+  const nodes: ReactNode[] = [];
+  let segOffset = rangeStart;
+
+  for (let si = 0; si < partSegments.length; si++) {
+    const seg = partSegments[si]!;
+    const segStart = segOffset;
+    const segEnd = segStart + seg.text.length;
+    segOffset = segEnd;
+
+    let hlCursor = hlGlobalStart;
+    for (let hi = 0; hi < hlSlices.length; hi++) {
+      const hl = hlSlices[hi]!;
+      const hlStart = hlCursor;
+      const hlEnd = hlStart + hl.text.length;
+      hlCursor = hlEnd;
+
+      const oStart = Math.max(segStart, hlStart);
+      const oEnd = Math.min(segEnd, hlEnd);
+      if (oEnd <= oStart) continue;
+
+      const chunk = plain.slice(oStart, oEnd);
+      let inner: ReactNode = chunk;
+      if (hl.color) {
+        inner = (
+          <span
+            className={`marker-hl v${mv}`}
+            style={{ ["--hl-color" as string]: `var(${hl.color})` }}
+          >
+            <span className="marker-hl-text">{chunk}</span>
+          </span>
+        );
+      }
+
+      const styled = seg.isJesus ? (
+        <span key={`${keyPrefix}-${si}-${hi}`} className="red-letter">
+          {inner}
+        </span>
+      ) : (
+        <span key={`${keyPrefix}-${si}-${hi}`}>{inner}</span>
+      );
+      nodes.push(styled);
+    }
+  }
+
+  if (nodes.length === 0 && text) {
+    const styleClass = styledTextClass(style);
+    const inner = styleClass ? <span className={styleClass}>{text}</span> : text;
+    nodes.push(<span key={`${keyPrefix}-plain`}>{inner}</span>);
+  } else if (style && nodes.length > 0) {
+    const styleClass = styledTextClass(style);
+    if (styleClass) {
+      return [
+        <span key={`${keyPrefix}-styled`} className={styleClass}>
+          {nodes}
+        </span>,
+      ];
+    }
+  }
+
+  return nodes;
 }
 
 export interface ReaderVerseRenderDeps {
@@ -67,60 +144,68 @@ export function createReaderVerseRenderer({
     const chapterDropCap = shouldShowChapterDropCap(v.number, paragraphIsContinuation);
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
-    const verseText = typeof v.text === "string" ? v.text : "";
+    const plain = versePlainText(v);
     const segments = redLetterSegmentsForVerse(
       (useBookSpread
         ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
         : redSegments) ?? new Map<number, JesusSegment[]>(),
       v.number,
-      verseText,
+      plain,
     );
     const hlMarks = hlsFor(v.number, verseBook, verseChapter);
-    const intervals = highlightIntervalsForVerse(verseText.length, hlMarks);
-    const textParts = sliceTextByHighlights(verseText, intervals);
+    const intervals = highlightIntervalsForVerse(plain.length, hlMarks);
+    const hlSlices = sliceTextByHighlights(plain, intervals);
     const mv = markerVariant(verseBook, verseChapter, v.number);
 
-    const segBounds: { start: number; end: number; seg: JesusSegment }[] = [];
-    let acc = 0;
-    for (const s of segments) {
-      segBounds.push({ start: acc, end: acc + s.text.length, seg: s });
-      acc += s.text.length;
-    }
-
     const bodyNodes: ReactNode[] = [];
-    let global = 0;
-    for (let pi = 0; pi < textParts.length; pi++) {
-      const part = textParts[pi];
-      const pStart = global;
-      const pEnd = global + part.text.length;
-      global = pEnd;
-      for (let si = 0; si < segBounds.length; si++) {
-        const { start: sStart, end: sEnd, seg } = segBounds[si];
-        const oStart = Math.max(pStart, sStart);
-        const oEnd = Math.min(pEnd, sEnd);
-        if (oEnd <= oStart) continue;
-        const chunk = verseText.slice(oStart, oEnd);
-        let inner: ReactNode = chunk;
-        if (part.color) {
-          inner = (
-            <span
-              className={`marker-hl v${mv}`}
-              style={{ ["--hl-color" as string]: `var(${part.color})` }}
-            >
-              <span className="marker-hl-text">{chunk}</span>
-            </span>
-          );
-        }
+    let charOffset = 0;
+
+    for (let pi = 0; pi < verseParts(v).length; pi++) {
+      const part = verseParts(v)[pi]!;
+      if (part.kind === "footnote") {
         bodyNodes.push(
-          seg.isJesus ? (
-            <span key={`${pi}-${si}`} className="red-letter">
-              {inner}
-            </span>
-          ) : (
-            <span key={`${pi}-${si}`}>{inner}</span>
-          ),
+          <span
+            key={`fn-${pi}`}
+            className="scripture-footnote"
+            title={part.text}
+          >
+            [{part.marker}]
+          </span>,
         );
+        continue;
       }
+      if (part.kind === "crossref") {
+        bodyNodes.push(
+          <button
+            key={`xr-${pi}`}
+            type="button"
+            className="scripture-xref"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
+            }}
+            title={`Go to ${part.label}`}
+          >
+            {part.label}
+          </button>,
+        );
+        continue;
+      }
+
+      bodyNodes.push(
+        ...renderTextRange(
+          plain,
+          part.text,
+          charOffset,
+          segments,
+          hlSlices,
+          0,
+          mv,
+          part.style,
+          `p${pi}`,
+        ),
+      );
+      charOffset += part.text.length;
     }
 
     const bodyStyle: React.CSSProperties = ul
@@ -161,29 +246,6 @@ export function createReaderVerseRenderer({
         )}
         <span className="verse-body-wrap">
           {wrappedBody}
-          {v.crossRefs?.map((ref, ri) => (
-            <button
-              key={`xr-${verseBook}-${verseChapter}-${v.number}-${ri}`}
-              type="button"
-              className="scripture-xref"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/read/${ref.book}/${ref.chapter}?v=${ref.verse}`);
-              }}
-              title={`Go to ${ref.label}`}
-            >
-              {ref.label}
-            </button>
-          ))}
-          {v.footnotes?.map((fn) => (
-            <span
-              key={`fn-${verseBook}-${verseChapter}-${v.number}-${fn.marker}`}
-              className="scripture-footnote"
-              title={fn.text}
-            >
-              [{fn.marker}]
-            </span>
-          ))}
           {note ? (
             <button
               type="button"

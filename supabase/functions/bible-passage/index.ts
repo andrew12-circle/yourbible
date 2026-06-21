@@ -2,6 +2,7 @@
 // Public read endpoint — no auth required to read scripture.
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { fetchEotcPassage } from "../_shared/eotcPassage.ts";
+import { CSB_TEXT_REVISION } from "../_shared/textRevision.ts";
 import {
   parseChapterText,
   parsePassageHtml,
@@ -40,6 +41,8 @@ interface PassageResponse {
   verses: PassageVerse[];
   paragraphStarts: number[];
   headings: PassageHeading[];
+  poetryBlocks: { beforeVerse: number; level: number }[];
+  textRevision: string;
 }
 
 Deno.serve(async (req) => {
@@ -113,7 +116,7 @@ Deno.serve(async (req) => {
 
     const passageId = `${usfmBook}.${chapter}`;
     const r = await fetch(
-      `${API_BASE}/bibles/${bibleId}/passages/${passageId}?content-type=html&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`,
+      `${API_BASE}/bibles/${bibleId}/passages/${passageId}?content-type=html&include-notes=true&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`,
       { headers: { "api-key": API_BIBLE_KEY } },
     );
 
@@ -136,6 +139,7 @@ Deno.serve(async (req) => {
         verses,
         paragraphStarts: verses.length > 0 ? [verses[0]!.number] : [],
         headings: [],
+        poetryBlocks: [],
       };
     }
 
@@ -144,6 +148,8 @@ Deno.serve(async (req) => {
       verses: parsed.verses,
       paragraphStarts: parsed.paragraphStarts,
       headings: parsed.headings,
+      poetryBlocks: parsed.poetryBlocks ?? [],
+      textRevision: CSB_TEXT_REVISION,
     };
 
     return new Response(JSON.stringify(body), {

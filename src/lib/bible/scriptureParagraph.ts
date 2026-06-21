@@ -3,6 +3,14 @@ import {
   redLetterSegmentsForVerse,
   type Segment,
 } from "@/lib/bible/redLetter";
+import type { PassageVerse } from "@/lib/bible/api";
+import {
+  poetryParagraphClassName,
+  styledTextClass,
+  verseParts,
+  versePlainText,
+} from "@/lib/bible/verseParts";
+import { buildVersePartsInnerHtml } from "@/lib/bible/verseBodyRender";
 
 export function scriptureParagraphClassName(isContinuation: boolean): string {
   return cn(
@@ -18,12 +26,32 @@ export function scriptureParagraphClassNameMeasure(isContinuation: boolean): str
   );
 }
 
+export function scripturePoetryClassName(level: number, isContinuation: boolean): string {
+  const poetry = poetryParagraphClassName(level, isContinuation);
+  return cn(
+    poetry || scriptureParagraphClassName(isContinuation),
+    poetry ? "text-justify hyphens-auto" : "",
+  );
+}
+
+export function scripturePoetryClassNameMeasure(level: number, isContinuation: boolean): string {
+  const poetry = poetryParagraphClassName(level, isContinuation);
+  return cn(
+    poetry || scriptureParagraphClassNameMeasure(isContinuation),
+    poetry ? "text-justify" : "",
+  );
+}
+
 export function buildVerseInnerHtml(
   verseNum: number,
   text: string,
   redSegments: Map<number, Segment[]>,
   escapeHtml: (s: string) => string,
+  verse?: PassageVerse,
 ): string {
+  if (verse?.parts && verse.parts.length > 0) {
+    return buildVersePartsInnerHtml(verse, redSegments, escapeHtml);
+  }
   const segs = redLetterSegmentsForVerse(redSegments, verseNum, text);
   return segs
     .map((s) =>
@@ -55,3 +83,5 @@ export function wrapVerseShellHtml(
   }
   return `<span class="scripture-verse" data-verse="${verseNum}"><span class="verse-num verse-num-gutter">${verseNum}</span>${body}</span> `;
 }
+
+export { verseParts, versePlainText, styledTextClass };

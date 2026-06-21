@@ -1,8 +1,17 @@
 import { parseBibleReference } from "@/lib/bible/parseBibleReference";
+import type { VersePart, VersePartStyle } from "@/lib/bible/api";
+import {
+  collectCrossRefs,
+  collectFootnotes,
+  mergeVerseEntries,
+  poetryLevelFromClass,
+  versePlainText,
+} from "@/lib/bible/verseParts";
 
 export interface PassageVerse {
   number: number;
   text: string;
+  parts?: VersePart[];
   crossRefs?: { label: string; book: string; chapter: number; verse: number }[];
   footnotes?: { marker: number; text: string }[];
 }
@@ -13,12 +22,18 @@ export interface PassageHeading {
   text: string;
 }
 
+export interface PoetryBlock {
+  beforeVerse: number;
+  level: number;
+}
+
 export interface ParsedPassage {
   reference: string;
   verses: PassageVerse[];
   /** Verse numbers that begin a new indented paragraph. Always includes 1 when present. */
   paragraphStarts: number[];
   headings: PassageHeading[];
+  poetryBlocks: PoetryBlock[];
 }
 
 const VERSE_MARKER =
@@ -86,57 +101,22 @@ function repairSplitInitialCaps(text: string): string {
  * Remove API.Bible publisher debris from verse text (`#-#`, `#— #`, lone `#` anchors).
  * Exported so cached passages are cleaned on every load, not only at parse time.
  */
-export function sanitizePubVerseText(text: string): string {
+export function sanitizePubVerseText(text: string, options?: { trim?: boolean }): string {
+  const trim = options?.trim !== false;
   let t = repairGluedPronounI(text);
   t = repairSplitInitialCaps(t);
-  // # - # / #-# / #—# (with or without spaces, any common dash)
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
-  // Stray doubled hashes
   t = t.replace(/#\s*#/g, "\u2014");
-  // Lone footnote/cross-ref hash before a word
   t = t.replace(/\s+#\s+(?=[A-Za-z0-9"(\[])/g, " ");
   t = t.replace(/([,.;:]|\u2014)\s*#\s+(?=[A-Za-z0-9])/g, "$1 ");
-  // Stray cross-ref carets and doubled punctuation from stripped markup
   t = t.replace(/\^+/g, "");
   t = t.replace(/,\s*,+/g, ",");
   t = t.replace(/([,.;:])([A-Za-z])/g, "$1 $2");
   t = t.replace(/\.\s*,+\s*$/g, ".");
-  t = t.replace(/\s+/g, " ").trim();
+  t = t.replace(/\s+/g, " ");
+  if (trim) t = t.trim();
   t = t.replace(/\s+([,.!?;:])/g, "$1");
   return t;
-}
-
-/** API.Bible cross-ref anchors like `<span class="xo">#</span><span class="xt">—</span>…` → em dash. */
-function normalizePubHtml(html: string): string {
-  return html
-    .replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014")
-    .replace(
-      /<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt[^"']*["'][^>]*>\s*[—–-]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>/gi,
-      "\u2014",
-    )
-    .replace(/<span\b[^>]*>\s*#\s*<\/span>/gi, "");
-}
-
-/** Drop footnotes / cross-refs before tag stripping (API.Bible leaves `#` anchor text otherwise). */
-function stripPubMarkup(html: string): string {
-  return html
-    .replace(/<note\b[\s\S]*?<\/note>/gi, "")
-    .replace(
-      /<(?:span|a|sup|div)\b[^>]*\bclass=["'][^"']*\b(?:note|ft|fr|fk|fqa|fq|xt|xo|xop|xot|xnt|notelink|footnote|crossref|x)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|a|sup|div)>/gi,
-      "",
-    );
-}
-
-function removeStrayPubMarkers(text: string): string {
-  return sanitizePubVerseText(text);
-}
-
-/** API.Bible small caps: `<span class="sc">T</span>his` → inscription `THIS`; keep `I` separate. */
-function normalizeSmallCapsMarkup(html: string): string {
-  return html.replace(
-    /<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi,
-    (_m, first: string, rest: string) => joinSmallCapSpan(first, rest),
-  );
 }
 
 function stripHtmlTags(html: string): string {
@@ -146,53 +126,111 @@ function stripHtmlTags(html: string): string {
     .replace(/<[^>]+>/g, "");
 }
 
-function cleanText(raw: string): string {
-  const normalized = normalizePubHtml(raw);
-  const noPub = stripPubMarkup(normalized);
-  const withSmallCaps = normalizeSmallCapsMarkup(noPub);
-  const decoded = decodeEntities(stripHtmlTags(withSmallCaps));
-  return removeStrayPubMarkers(decoded);
+function notePlainText(noteHtml: string): string {
+  const inner = noteHtml.replace(/^<note\b[^>]*>/i, "").replace(/<\/note>$/i, "");
+  return sanitizePubVerseText(decodeEntities(stripHtmlTags(inner)));
 }
 
-function extractVerseAnnotations(html: string): {
-  html: string;
-  crossRefs: NonNullable<PassageVerse["crossRefs"]>;
-  footnotes: NonNullable<PassageVerse["footnotes"]>;
-} {
-  const crossRefs: NonNullable<PassageVerse["crossRefs"]> = [];
-  const footnotes: NonNullable<PassageVerse["footnotes"]> = [];
-  let footnoteIdx = 0;
-  let work = html;
+function appendTextPart(parts: VersePart[], text: string, style?: VersePartStyle): void {
+  if (!text) return;
+  const last = parts[parts.length - 1];
+  if (last?.kind === "text" && !style && !last.style) {
+    last.text += text;
+    return;
+  }
+  parts.push({ kind: "text", text, style });
+}
 
-  work = work.replace(/<note\b[\s\S]*?<\/note>/gi, (noteHtml) => {
-    footnoteIdx += 1;
-    const text = cleanText(noteHtml);
-    if (text) footnotes.push({ marker: footnoteIdx, text });
-    return "";
-  });
+/** Parse inline API.Bible markup into ordered verse parts (text, footnotes, cross-refs). */
+export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
+  parts: VersePart[];
+  nextFootnoteMarker: number;
+} {
+  const parts: VersePart[] = [];
+  let footnoteIdx = footnoteStart;
+  let work = html.replace(/<br\s*\/?>/gi, " ");
+
+  const pushText = (raw: string, style?: VersePartStyle) => {
+    const text = sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)), { trim: false });
+    appendTextPart(parts, text, style);
+  };
+
+  const tokenRe =
+    /<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(work)) !== null) {
+    if (m.index > lastIndex) {
+      pushText(work.slice(lastIndex, m.index));
+    }
+    const token = m[0];
+    if (/^<note/i.test(token)) {
+      footnoteIdx += 1;
+      const text = notePlainText(token);
+      if (text) parts.push({ kind: "footnote", marker: footnoteIdx, text });
+    } else if (/\bxt\b/i.test(token)) {
+      const labelMatch = /<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i.exec(token);
+      const label = decodeEntities((labelMatch?.[1] ?? "").replace(/^[\s—–-]+/, "").trim());
+      if (!label || /^[—–-]+$/.test(label)) {
+        pushText("\u2014");
+      } else {
+        const parsed = parseBibleReference(label);
+        if (parsed?.verse) {
+          parts.push({
+            kind: "crossref",
+            label,
+            book: parsed.bookAbbr,
+            chapter: parsed.chapter,
+            verse: parsed.verse,
+          });
+        } else {
+          pushText(label);
+        }
+      }
+    } else if (/\bnd\b/i.test(token)) {
+      const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
+      pushText(innerMatch?.[1] ?? "", "divine");
+    } else if (/\bsc\b/i.test(token)) {
+      pushText(joinSmallCapSpan(m[1] ?? "", m[2] ?? ""), "inscription");
+    }
+    lastIndex = m.index + token.length;
+  }
+
+  if (lastIndex < work.length) {
+    pushText(work.slice(lastIndex));
+  }
 
   work = work.replace(
-    /<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
-    (_m, rawLabel: string) => {
-      const label = decodeEntities(rawLabel.replace(/^[\s—–-]+/, "").trim());
-      if (!label || /^[—–-]+$/.test(label)) return "\u2014";
-      const parsed = parseBibleReference(label);
-      if (parsed?.verse) {
-        crossRefs.push({
-          label,
-          book: parsed.bookAbbr,
-          chapter: parsed.chapter,
-          verse: parsed.verse,
-        });
-        return "";
-      }
-      return label;
-    },
+    /<(?:span|a|sup|div)\b[^>]*\bclass=["'][^"']*\b(?:note|ft|fr|fk|fqa|fq|xo|xop|xot|xnt|notelink|footnote|crossref|x)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|a|sup|div)>/gi,
+    "",
   );
+  work = work.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
+  work = work.replace(/<span\b[^>]*>\s*#\s*<\/span>/gi, "");
 
-  work = work.replace(/<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>/gi, "");
+  if (parts.length === 0) {
+    pushText(work);
+  }
 
-  return { html: work, crossRefs, footnotes };
+  return { parts, nextFootnoteMarker: footnoteIdx };
+}
+
+function cleanHeadingText(raw: string): string {
+  return sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)));
+}
+
+function buildPassageVerse(number: number, parts: VersePart[]): PassageVerse | null {
+  const text = sanitizePubVerseText(versePlainText({ number, text: "", parts }));
+  if (!text && parts.every((p) => p.kind !== "footnote" && p.kind !== "crossref")) {
+    return null;
+  }
+  return {
+    number,
+    text,
+    parts,
+    crossRefs: collectCrossRefs(parts),
+    footnotes: collectFootnotes(parts),
+  };
 }
 
 function extractVersesFromBlock(html: string): PassageVerse[] {
@@ -205,20 +243,15 @@ function extractVersesFromBlock(html: string): PassageVerse[] {
   if (markers.length === 0) return [];
 
   const verses: PassageVerse[] = [];
+  let footnoteMarker = 0;
   for (let i = 0; i < markers.length; i++) {
     const start = markers[i].index + markers[i].length;
     const end = i + 1 < markers.length ? markers[i + 1].index : html.length;
     const slice = html.slice(start, end);
-    const { html: annotated, crossRefs, footnotes } = extractVerseAnnotations(slice);
-    const text = cleanText(annotated);
-    if (text) {
-      verses.push({
-        number: markers[i].num,
-        text,
-        ...(crossRefs.length ? { crossRefs } : {}),
-        ...(footnotes.length ? { footnotes } : {}),
-      });
-    }
+    const { parts, nextFootnoteMarker } = parseVerseHtmlToParts(slice, footnoteMarker);
+    footnoteMarker = nextFootnoteMarker;
+    const verse = buildPassageVerse(markers[i].num, parts);
+    if (verse) verses.push(verse);
   }
   return verses;
 }
@@ -251,34 +284,44 @@ function isTextBlock(block: string): boolean {
 /** Parse API.Bible HTML chapter content into verses, paragraph breaks, and headings. */
 export function parsePassageHtml(content: string, reference = ""): ParsedPassage {
   const blocks = splitParagraphBlocks(content);
-  const verseMap = new Map<number, string>();
+  const verseMap = new Map<number, PassageVerse>();
   const paragraphStarts: number[] = [];
+  const poetryBlocks: PoetryBlock[] = [];
   const headings: PassageHeading[] = [];
   let nextHeading: string | null = null;
 
   for (const block of blocks) {
     if (isHeadingBlock(block)) {
-      const text = cleanText(block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, ""));
+      const text = cleanHeadingText(block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, ""));
       if (text) nextHeading = text;
       continue;
     }
     if (!isTextBlock(block)) continue;
 
+    const cls = paragraphClass(block);
     const inner = block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, "");
     const blockVerses = extractVersesFromBlock(inner);
     if (blockVerses.length === 0) continue;
 
-    paragraphStarts.push(blockVerses[0]!.number);
+    const firstVerse = blockVerses[0]!.number;
+    paragraphStarts.push(firstVerse);
+    const poetryLevel = poetryLevelFromClass(cls);
+    if (poetryLevel > 0) {
+      poetryBlocks.push({ beforeVerse: firstVerse, level: poetryLevel });
+    }
     if (nextHeading) {
-      headings.push({ beforeVerse: blockVerses[0]!.number, text: nextHeading });
+      headings.push({ beforeVerse: firstVerse, text: nextHeading });
       nextHeading = null;
     }
-    for (const v of blockVerses) verseMap.set(v.number, v.text);
+    for (const v of blockVerses) {
+      const existing = verseMap.get(v.number);
+      verseMap.set(v.number, existing ? mergeVerseEntries(existing, v) : v);
+    }
   }
 
   const verses = [...verseMap.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([number, text]) => ({ number, text }));
+    .map(([, v]) => v);
 
   if (verses.length > 0 && paragraphStarts.length === 0) {
     paragraphStarts.push(verses[0]!.number);
@@ -289,6 +332,7 @@ export function parsePassageHtml(content: string, reference = ""): ParsedPassage
     verses,
     paragraphStarts,
     headings,
+    poetryBlocks,
   };
 }
 
@@ -300,9 +344,21 @@ export function parseChapterText(content: string): PassageVerse[] {
   while ((m = re.exec(content)) !== null) {
     const num = parseInt(m[1], 10);
     const text = sanitizePubVerseText(m[2].replace(/\s+/g, " ").trim());
-    if (text) verses.push({ number: num, text });
+    if (text) verses.push({ number: num, text, parts: [{ kind: "text", text }] });
   }
   return verses;
+}
+
+export function poetryLevelForVerse(
+  poetryBlocks: ReadonlyArray<PoetryBlock>,
+  verseNumber: number,
+): number {
+  let level = 0;
+  for (const block of poetryBlocks) {
+    if (block.beforeVerse <= verseNumber) level = block.level;
+    else break;
+  }
+  return level;
 }
 
 export function groupVersesIntoParagraphs(

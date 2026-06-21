@@ -20,7 +20,7 @@ import {
   readCanon,
 } from "@/lib/bible/canon";
 import type { PassageVerse } from "@/lib/bible/api";
-import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
+import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import {
   ETHIOPIC_SCRIPTURE_FONT,
   fontChoiceLabel,
@@ -43,6 +43,7 @@ import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import {
   scriptureParagraphClassName,
+  scripturePoetryClassName,
 } from "@/lib/bible/scriptureParagraph";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { platesForChapter } from "@/lib/bible/biblePlates";
@@ -115,6 +116,7 @@ import {
   headingsForChapter,
   isStreamSplitsReady,
   paragraphStartsForChapter,
+  poetryBlocksForChapter,
   sliceReaderPage,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
@@ -676,6 +678,7 @@ export default function ReaderPage() {
             verses: passage.verses,
             paragraphStarts: passage.paragraphStarts ?? (passage.verses[0] ? [passage.verses[0].number] : []),
             headings: passage.headings ?? [],
+            poetryBlocks: passage.poetryBlocks ?? [],
           },
         ];
       }
@@ -1385,7 +1388,15 @@ export default function ReaderPage() {
     groups: { bookAbbr: string; chapter: number; verses: PassageVerse[] }[],
     resolveParagraphStarts: (bookAbbr: string, chapter: number) => Set<number>,
     resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
-  ) => renderScriptureParagraphNodes(groups, resolveParagraphStarts, resolveHeading, renderVerse);
+    resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => import("@/lib/bible/api").PoetryBlock[],
+  ) =>
+    renderScriptureParagraphNodes(
+      groups,
+      resolveParagraphStarts,
+      resolveHeading,
+      renderVerse,
+      resolvePoetryBlocks,
+    );
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
@@ -1580,12 +1591,14 @@ export default function ReaderPage() {
                           h.text,
                         ]),
                       ),
+                    (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
                   )
                 ) : scrollMode && verses.length > 0 ? (
                   scriptureNodes(
                     [{ bookAbbr: book.abbr, chapter, verses }],
                     () => paragraphStarts,
                     () => headingByVerse,
+                    () => passage?.poetryBlocks ?? [],
                   )
                 ) : streamSlice?.isPlatePage && ready ? (
                 streamSlice.plates.map((plate) => (
@@ -1607,6 +1620,7 @@ export default function ReaderPage() {
                         h.text,
                       ]),
                     ),
+                  (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
                 )
               ) : slice && slice.length > 0 ? (
                 (() =>
@@ -1621,10 +1635,18 @@ export default function ReaderPage() {
                         </p>,
                       );
                     }
+                    const poetryLevel =
+                      first != null
+                        ? poetryLevelForVerse(passage?.poetryBlocks ?? [], first)
+                        : 0;
+                    const paraClass =
+                      poetryLevel > 0
+                        ? scripturePoetryClassName(poetryLevel, group.isContinuation)
+                        : scriptureParagraphClassName(group.isContinuation);
                     nodes.push(
                       <p
                         key={`p-${first}`}
-                        className={scriptureParagraphClassName(group.isContinuation)}
+                        className={paraClass}
                         style={{ orphans: 2, widows: 2 }}
                       >
                         {group.verses.map((v) =>

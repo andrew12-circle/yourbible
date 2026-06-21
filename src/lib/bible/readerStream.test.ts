@@ -27,6 +27,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Psa",
@@ -35,6 +36,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     expect(stream.map((u) => u.kind)).toEqual([
@@ -57,6 +59,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "2Sa",
@@ -65,6 +68,7 @@ describe("readerStream", () => {
         verses: verses([14, 15, 16]),
         paragraphStarts: [14],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     expect(stream.map((u) => u.kind)).toEqual([
@@ -89,6 +93,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Psa",
@@ -97,6 +102,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const splits = [0, 3, stream.length];
@@ -118,6 +124,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 5, 6]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const n = stream.length;
@@ -135,6 +142,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 5]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const normalized = ensureSpreadPageSplits([0], stream);
@@ -151,6 +159,7 @@ describe("readerStream", () => {
         verses: verses([31, 32, 38]),
         paragraphStarts: [31],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Luk",
@@ -159,6 +168,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 8]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const splits = [0, 4, stream.length];
@@ -176,6 +186,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 5, 6]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const splits = ensureSpreadPageSplits([0], stream);
@@ -200,6 +211,7 @@ describe("readerStream", () => {
         verses: verses([31, 32, 38]),
         paragraphStarts: [31],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Luk",
@@ -208,6 +220,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 8]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const normalized = ensureSpreadPageSplits([0, stream.length], stream);
@@ -230,6 +243,7 @@ describe("readerStream", () => {
         verses: verses([31, 32, 38]),
         paragraphStarts: [31],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Luk",
@@ -238,6 +252,7 @@ describe("readerStream", () => {
         verses: verses([1, 2, 3, 4, 8]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const splits = [0, 4, stream.length];
@@ -257,6 +272,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
       {
         bookAbbr: "Psa",
@@ -265,6 +281,7 @@ describe("readerStream", () => {
         verses: verses([1, 2]),
         paragraphStarts: [1],
         headings: [],
+        poetryBlocks: [],
       },
     ]);
     const splits = [0, 3, stream.length];

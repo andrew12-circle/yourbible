@@ -1,30 +1,64 @@
 import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
 import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
+import { collectCrossRefs, collectFootnotes, versePlainText } from "@/lib/bible/verseParts";
 import { supabase } from "@/integrations/supabase/client";
 
 export { EOTC_BIBLE_ID, isEotcBibleId } from "@/lib/bible/canon";
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-export interface PassageVerse { number: number; text: string; crossRefs?: PassageCrossRef[]; footnotes?: PassageFootnote[]; }
+export type VersePartStyle = "divine" | "inscription";
+
+export type VersePart =
+  | { kind: "text"; text: string; style?: VersePartStyle }
+  | { kind: "footnote"; marker: number; text: string }
+  | {
+      kind: "crossref";
+      label: string;
+      book: string;
+      chapter: number;
+      verse: number;
+    };
+
+export interface PassageVerse {
+  number: number;
+  text: string;
+  parts?: VersePart[];
+  crossRefs?: PassageCrossRef[];
+  footnotes?: PassageFootnote[];
+}
 export interface PassageCrossRef { label: string; book: string; chapter: number; verse: number; }
 export interface PassageFootnote { marker: number; text: string; }
 export interface PassageHeading { beforeVerse: number; text: string; }
+export interface PoetryBlock { beforeVerse: number; level: number; }
 export interface Passage {
   reference: string;
   verses: PassageVerse[];
   paragraphStarts: number[];
   headings: PassageHeading[];
+  poetryBlocks?: PoetryBlock[];
+  textRevision?: string;
 }
 
 /** Ensure every verse has a string body (cached/API payloads can omit text). */
 export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "reference" | "verses">): Passage {
-  const verses = (raw.verses ?? []).map((v) => ({
-    number: v.number,
-    text: sanitizePubVerseText(typeof v.text === "string" ? v.text : ""),
-    crossRefs: v.crossRefs,
-    footnotes: v.footnotes,
-  }));
+  const verses = (raw.verses ?? []).map((v) => {
+    const parts = v.parts;
+    const text = sanitizePubVerseText(
+      parts && parts.length > 0
+        ? versePlainText({ number: v.number, text: "", parts })
+        : typeof v.text === "string"
+          ? v.text
+          : "",
+    );
+    return {
+      number: v.number,
+      text,
+      parts,
+      crossRefs: v.crossRefs ?? (parts ? collectCrossRefs(parts) : undefined),
+      footnotes: v.footnotes ?? (parts ? collectFootnotes(parts) : undefined),
+    };
+  });
   return {
     reference: raw.reference,
     verses,
@@ -38,6 +72,8 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
       ...h,
       text: sanitizePubVerseText(h.text),
     })),
+    poetryBlocks: raw.poetryBlocks ?? [],
+    textRevision: raw.textRevision,
   };
 }
 

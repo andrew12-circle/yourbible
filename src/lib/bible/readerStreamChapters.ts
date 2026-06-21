@@ -16,6 +16,7 @@ export function passageToStreamChapter(
     verses: passage.verses,
     paragraphStarts: passage.paragraphStarts,
     headings: passage.headings,
+    poetryBlocks: passage.poetryBlocks ?? [],
   };
 }
 
