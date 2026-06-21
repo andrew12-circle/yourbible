@@ -155,6 +155,8 @@ import {
   type HolmanVerseGroup,
 } from "@/lib/bible/readerScriptureRender";
 import { resolveStudyLayout, readReaderStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { holmanVerseGroupsForRenderedPage } from "@/lib/bible/holmanStudyLayout";
+import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
@@ -163,11 +165,6 @@ const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 const CHAPTER_HEADER_RESERVE_PX = 96;
 /** Extra slack so two-column pages do not clip the last line. */
 const PAGINATOR_OVERFLOW_GUARD_PX = 20;
-/** Reserve space for Holman translation footnotes above the page number. */
-const HOLMAN_PAGE_FOOTNOTES_RESERVE_PX = 56;
-/** Reserve space for Holman connections block at column bottom. */
-const HOLMAN_CONNECTIONS_RESERVE_PX = 52;
-
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -653,7 +650,7 @@ export default function ReaderPage() {
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, effectiveStudyLayout, PASSAGE_PARSER_REVISION]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
     articleRoRef.current?.disconnect();
@@ -775,11 +772,7 @@ export default function ReaderPage() {
     ? isSpreadDoubleColumnSplitsReady(streamSplits, readerStream.length)
     : isStreamSplitsReady(streamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
-  const paginatorFooterHeight =
-    PAGINATOR_OVERFLOW_GUARD_PX +
-    (effectiveStudyLayout === "holman"
-      ? HOLMAN_PAGE_FOOTNOTES_RESERVE_PX + HOLMAN_CONNECTIONS_RESERVE_PX
-      : 0);
+  const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -1491,21 +1484,19 @@ export default function ReaderPage() {
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
     }
-    const holmanFootnoteVerses =
-      scrollMode && useStreamReader && streamChapters.length > 0
-        ? streamChapters.flatMap((ch) => ch.verses)
-        : scrollMode && verses.length > 0
-          ? verses
-          : (streamSlice?.verseGroups?.flatMap((g) => g.verses) ?? slice ?? []);
-    const holmanVerseGroups: HolmanVerseGroup[] =
-      scrollMode && useStreamReader && streamChapters.length > 0
-        ? streamChapters.map((ch) => ({ chapter: ch.chapter, verses: ch.verses }))
-        : scrollMode && verses.length > 0
-          ? [{ chapter, verses }]
-          : (streamSlice?.verseGroups?.map((g) => ({
-              chapter: g.chapter,
-              verses: g.verses,
-            })) ?? (slice?.length ? [{ chapter, verses: slice }] : []));
+    const holmanVerseGroups: HolmanVerseGroup[] = holmanVerseGroupsForRenderedPage({
+      scrollMode,
+      useStreamReader,
+      streamChapters,
+      chapter,
+      verses,
+      readerStream,
+      navStreamSplits,
+      pageIdx,
+      streamSlice,
+      slice,
+    });
+    const holmanFootnoteVerses = holmanVerseGroups.flatMap((group) => group.verses);
     const showHolmanConnections =
       effectiveStudyLayout === "holman" &&
       holmanVerseGroups.some((group) => group.verses.length > 0) &&
@@ -1684,6 +1675,7 @@ export default function ReaderPage() {
                       <HolmanPageFootnotes verses={holmanFootnoteVerses} />
                     ) : null,
                     showHolmanConnections,
+                    scrollMode ? undefined : scriptureColumnHeightPx,
                   );
                 }
 

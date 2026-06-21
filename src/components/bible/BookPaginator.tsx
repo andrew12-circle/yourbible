@@ -28,8 +28,10 @@ import type { PassageVerse } from "@/lib/bible/api";
 import {
   buildHolmanConnectionsMeasureHtml,
   buildHolmanHeadingMeasureHtml,
+  buildHolmanPageFootnotesMeasureHtml,
 } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { cn } from "@/lib/utils";
 
 interface Props {
   chapters: ReaderChapterPassage[];
@@ -228,7 +230,7 @@ export function BookPaginator({
       <div
         ref={ref}
         data-reading-area
-        className={className}
+        className={cn(className, studyLayout === "holman" && "reader-holman-study")}
         style={{
           width: spreadMode && columnsClassName ? pageWidth * 2 + SPREAD_MEASURE_GAP_PX : pageWidth,
           ...fontSizeStyle,
@@ -417,15 +419,18 @@ function renderStreamSlice(
 
   const scriptureHtml = parts.join("");
   if (studyLayout === "holman") {
+    const verseGroups = verseGroupsFromStreamSlice(slice);
     const connectionsHtml = buildHolmanConnectionsMeasureHtml(
-      verseGroupsFromStreamSlice(slice),
+      verseGroups,
       escapeHtml,
       Boolean(columnsClassName),
     );
+    const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
     applyHolmanStudyMeasureHtml(
       node,
       scriptureHtml,
       connectionsHtml,
+      footnotesHtml,
       columnsClassName,
       contentHeightPx,
       measureOptions,

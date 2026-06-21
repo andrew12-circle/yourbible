@@ -71,16 +71,21 @@ export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProper
   return { ...base, height: h, maxHeight: h };
 }
 
+function holmanScriptureColumnsEl(stack: HTMLElement): HTMLElement | null {
+  return stack.querySelector('[class*="scripture-columns"]') as HTMLElement | null;
+}
+
 export function applyHolmanStudyMeasureHtml(
   node: HTMLDivElement,
   scriptureHtml: string,
   connectionsHtml: string,
+  footnotesHtml: string,
   columnsClassName: string | undefined,
   contentHeightPx: number,
   options?: ScriptureColumnMeasureOptions,
 ): void {
   const h = Math.max(1, Math.round(contentHeightPx));
-  if (!connectionsHtml) {
+  if (!connectionsHtml && !footnotesHtml) {
     applyScriptureColumnMeasureHtml(node, scriptureHtml, columnsClassName, contentHeightPx, options);
     return;
   }
@@ -89,13 +94,15 @@ export function applyHolmanStudyMeasureHtml(
     options?.measureWidthPx != null && options.measureWidthPx > 0
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
-  const columnsSection = columnsClassName
+  const columnsInner = columnsClassName
     ? `<div class="${columnsClassName}" style="flex:1 1 auto;min-height:0;overflow:hidden;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
-    : `<div style="flex:1 1 auto;min-height:0;overflow:hidden">${scriptureHtml}</div>`;
+    : scriptureHtml;
+  const scriptureSection = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInner}</div>`;
   node.innerHTML =
     `<div class="holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
-    columnsSection +
+    scriptureSection +
     connectionsHtml +
+    footnotesHtml +
     `</div>`;
 }
 
@@ -136,7 +143,14 @@ export function scriptureContentFitsPage(
     holmanStack.style.height = `${limit}px`;
     holmanStack.style.maxHeight = `${limit}px`;
     holmanStack.style.overflow = "hidden";
-    const fits = holmanStack.scrollHeight <= limit + 1;
+
+    let fits = holmanStack.scrollHeight <= limit + 1;
+    const columns = holmanScriptureColumnsEl(holmanStack);
+    if (columns && fits) {
+      if (columns.scrollHeight > columns.clientHeight + 1) fits = false;
+      if (columns.scrollWidth > columns.clientWidth + 2) fits = false;
+    }
+
     holmanStack.style.height = "";
     holmanStack.style.maxHeight = "";
     holmanStack.style.overflow = "";

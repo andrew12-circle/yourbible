@@ -1,13 +1,16 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
 import {
   collectHolmanXrefsFromGroups,
   collectPageFootnotes,
   groupHolmanXrefsByVerse,
   holmanConnectionsClassName,
+  holmanConnectionsKey,
   holmanHeadingClassName,
   holmanHeadingText,
   holmanPageFootnotesClassName,
+  splitHolmanVerseGroupsByColumn,
+  type HolmanVerseRefGroup,
 } from "@/lib/bible/holmanStudyLayout";
 import {
   groupVersesIntoParagraphs,
@@ -31,34 +34,59 @@ export interface ScriptureRenderOptions {
 
 export type HolmanVerseGroup = { chapter: number; verses: PassageVerse[] };
 
+function HolmanConnectionsParagraph({ grouped }: { grouped: HolmanVerseRefGroup[] }) {
+  return (
+    <p className={holmanConnectionsClassName()}>
+      {grouped.map((group, groupIndex) => (
+        <span key={`${group.chapter}:${group.verse}`} className="scripture-connections-entry">
+          {groupIndex > 0 ? " " : null}
+          <strong className="scripture-connections-anchor">
+            {group.chapter}:{group.verse}
+          </strong>
+          {group.refs.map((ref) => (
+            <span key={`${group.chapter}:${group.verse}:${ref.letter}`} className="scripture-connections-ref">
+              {" "}
+              <span className="scripture-connections-letter">{ref.letter}</span> {ref.label}
+            </span>
+          ))}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 export function HolmanConnectionsBlock({
   groups,
-  rightColumn = true,
+  dualColumn = false,
 }: {
   groups: HolmanVerseGroup[];
-  rightColumn?: boolean;
+  dualColumn?: boolean;
 }) {
+  if (dualColumn) {
+    const [leftGroups, rightGroups] = splitHolmanVerseGroupsByColumn(groups, 2);
+    const leftGrouped = groupHolmanXrefsByVerse(collectHolmanXrefsFromGroups(leftGroups));
+    const rightGrouped = groupHolmanXrefsByVerse(collectHolmanXrefsFromGroups(rightGroups));
+    if (leftGrouped.length === 0 && rightGrouped.length === 0) return null;
+    return (
+      <div
+        className="scripture-connections-row scripture-connections-row--dual"
+        aria-label="Cross references"
+      >
+        <div className="scripture-connections-col">
+          {leftGrouped.length > 0 ? <HolmanConnectionsParagraph grouped={leftGrouped} /> : null}
+        </div>
+        <div className="scripture-connections-col">
+          {rightGrouped.length > 0 ? <HolmanConnectionsParagraph grouped={rightGrouped} /> : null}
+        </div>
+      </div>
+    );
+  }
+
   const grouped = groupHolmanXrefsByVerse(collectHolmanXrefsFromGroups(groups));
   if (grouped.length === 0) return null;
   return (
-    <div className={cn("scripture-connections-row", !rightColumn && "scripture-connections-row-full")}>
-      {rightColumn ? <div className="scripture-connections-gutter" aria-hidden /> : null}
-      <p className={holmanConnectionsClassName()} aria-label="Cross references">
-        {grouped.map((group, groupIndex) => (
-          <span key={`${group.chapter}:${group.verse}`} className="scripture-connections-entry">
-            {groupIndex > 0 ? " " : null}
-            <strong className="scripture-connections-anchor">
-              {group.chapter}:{group.verse}
-            </strong>
-            {group.refs.map((ref) => (
-              <span key={`${group.chapter}:${group.verse}:${ref.letter}`} className="scripture-connections-ref">
-                {" "}
-                <span className="scripture-connections-letter">{ref.letter}</span> {ref.label}
-              </span>
-            ))}
-          </span>
-        ))}
-      </p>
+    <div className="scripture-connections-row scripture-connections-row-full" aria-label="Cross references">
+      <HolmanConnectionsParagraph grouped={grouped} />
     </div>
   );
 }
@@ -85,15 +113,58 @@ export function wrapHolmanStudyContent(
   verseGroups: HolmanVerseGroup[],
   footnotes: ReactNode | null,
   showConnections = true,
+  contentHeightPx?: number,
 ): ReactNode {
-  const hasColumns = Boolean(readerColumnClassName(columnLayout));
+  const columnsClass = readerColumnClassName(columnLayout);
+  const hasColumns = Boolean(columnsClass);
+  const stackStyle: CSSProperties | undefined =
+    !scrollMode && contentHeightPx != null && contentHeightPx > 0
+      ? {
+          height: contentHeightPx,
+          maxHeight: contentHeightPx,
+          overflow: "hidden",
+          boxSizing: "border-box",
+        }
+      : undefined;
+  const columnsStyle: CSSProperties | undefined = !scrollMode
+    ? {
+        overflow: "hidden",
+        boxSizing: "border-box",
+        columnFill: "auto",
+        WebkitColumnFill: "auto",
+        width: "100%",
+        flex: "1 1 auto",
+        minHeight: 0,
+      }
+    : undefined;
+
   return (
-    <div className={cn("holman-study-stack", !scrollMode && "h-full min-h-0 flex flex-col")}>
-      <div className={cn(!scrollMode && "flex-1 min-h-0 min-w-0")}>
-        {wrapScriptureColumns(columnLayout, scrollMode, scripture)}
+    <div
+      className={cn(
+        "holman-study-stack",
+        !scrollMode && "min-h-0 flex flex-col",
+        !scrollMode && !stackStyle && "h-full",
+      )}
+      style={stackStyle}
+    >
+      <div className={cn(!scrollMode && "flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col")}>
+        {columnsClass ? (
+          <div
+            className={cn(columnsClass, !scrollMode && "min-h-0 overflow-hidden")}
+            style={columnsStyle}
+          >
+            {scripture}
+          </div>
+        ) : (
+          <div className={cn(!scrollMode && "flex-1 min-h-0 overflow-hidden")}>{scripture}</div>
+        )}
       </div>
       {showConnections ? (
-        <HolmanConnectionsBlock groups={verseGroups} rightColumn={hasColumns} />
+        <HolmanConnectionsBlock
+          key={holmanConnectionsKey(verseGroups)}
+          groups={verseGroups}
+          dualColumn={hasColumns}
+        />
       ) : null}
       {footnotes}
     </div>

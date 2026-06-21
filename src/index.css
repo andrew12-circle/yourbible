@@ -1068,7 +1068,7 @@
     color: hsl(var(--leather) / 0.82);
   }
 
-  /* Connections block — bottom of right column (Holman print layout). */
+  /* Connections block — bottom of each column in Holman print layout. */
   .reader-holman-study .scripture-connections-row {
     flex-shrink: 0;
     display: grid;
@@ -1081,11 +1081,10 @@
   .reader-holman-study .scripture-connections-row-full {
     grid-template-columns: 1fr;
   }
-  .reader-holman-study .scripture-connections-gutter {
+  .reader-holman-study .scripture-connections-row--dual .scripture-connections-col {
     min-width: 0;
   }
   .reader-holman-study .scripture-connections {
-    grid-column: 2;
     margin: 0;
     padding: 0;
     font-size: 0.68em;
@@ -1093,9 +1092,6 @@
     text-align: justify;
     color: hsl(var(--foreground) / 0.88);
     break-inside: avoid;
-  }
-  .reader-holman-study .scripture-connections-row-full .scripture-connections {
-    grid-column: 1;
   }
   .reader-holman-study .scripture-connections-entry {
     white-space: normal;

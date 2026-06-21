@@ -5,8 +5,11 @@ import {
   collectPageFootnotes,
   crossRefLetterAt,
   formatHolmanXrefBlockLines,
+  holmanVerseGroupsForRenderedPage,
+  splitHolmanVerseGroupsByColumn,
 } from "@/lib/bible/holmanStudyLayout";
 import type { PassageVerse } from "@/lib/bible/api";
+import type { ReaderStreamUnit } from "@/lib/bible/readerStream";
 
 describe("holmanStudyLayout", () => {
   it("assigns sequential letters to cross-refs", () => {
@@ -105,5 +108,51 @@ describe("holmanStudyLayout", () => {
   it("wraps letters after z", () => {
     expect(crossRefLetterAt(25)).toBe("z");
     expect(crossRefLetterAt(26)).toBe("a1");
+  });
+
+  it("scopes Holman verse groups to one paginated page slice", () => {
+    const verse = (n: number): PassageVerse => ({ number: n, text: `v${n}` });
+    const stream: ReaderStreamUnit[] = [
+      { kind: "chapter-header", bookAbbr: "Jhn", bookName: "John", chapter: 1 },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 1, verse: verse(1) },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 1, verse: verse(2) },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 1, verse: verse(3) },
+      { kind: "verse", bookAbbr: "Jhn", bookName: "John", chapter: 1, verse: verse(4) },
+    ];
+    const splits = [0, 2, 4];
+    const page0 = holmanVerseGroupsForRenderedPage({
+      scrollMode: false,
+      useStreamReader: true,
+      streamChapters: [],
+      chapter: 1,
+      verses: [verse(1), verse(2), verse(3), verse(4)],
+      readerStream: stream,
+      navStreamSplits: splits,
+      pageIdx: 0,
+      streamSlice: null,
+      slice: null,
+    });
+    const page1 = holmanVerseGroupsForRenderedPage({
+      scrollMode: false,
+      useStreamReader: true,
+      streamChapters: [],
+      chapter: 1,
+      verses: [verse(1), verse(2), verse(3), verse(4)],
+      readerStream: stream,
+      navStreamSplits: splits,
+      pageIdx: 1,
+      streamSlice: null,
+      slice: null,
+    });
+    expect(page0[0]?.verses.map((v) => v.number)).toEqual([1]);
+    expect(page1[0]?.verses.map((v) => v.number)).toEqual([2, 3]);
+  });
+
+  it("splits verse groups across Holman columns", () => {
+    const verse = (n: number): PassageVerse => ({ number: n, text: `v${n}` });
+    const groups = [{ chapter: 1, verses: [verse(1), verse(2), verse(3), verse(4)] }];
+    const [left, right] = splitHolmanVerseGroupsByColumn(groups, 2);
+    expect(left[0]?.verses.map((v) => v.number)).toEqual([1, 2]);
+    expect(right[0]?.verses.map((v) => v.number)).toEqual([3, 4]);
   });
 });

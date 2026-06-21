@@ -1,5 +1,11 @@
 import type { PassageFootnote, PassageVerse } from "@/lib/bible/api";
+import {
+  verseGroupsFromStreamRange,
+  type ReaderStreamUnit,
+} from "@/lib/bible/readerStream";
 import { verseParts, type VersePart } from "@/lib/bible/verseParts";
+
+export type HolmanVerseGroup = { chapter: number; verses: PassageVerse[] };
 
 export function crossRefLetterAt(index: number): string {
   if (index < 26) return String.fromCharCode(97 + index);
@@ -127,14 +133,83 @@ export function holmanConnectionsClassName(): string {
   return "scripture-connections";
 }
 
-export function buildHolmanConnectionsMeasureHtml(
-  groups: { chapter: number; verses: PassageVerse[] }[],
+/** Stable key so connections re-render when the visible page slice changes. */
+export function holmanConnectionsKey(groups: HolmanVerseGroup[]): string {
+  return groups
+    .map((g) => `${g.chapter}:${g.verses.map((v) => v.number).join(",")}`)
+    .join("|");
+}
+
+/** Page-scoped Holman verse groups — never the full chapter when paginated. */
+export function holmanVerseGroupsForRenderedPage(opts: {
+  scrollMode: boolean;
+  useStreamReader: boolean;
+  streamChapters: { chapter: number; verses: PassageVerse[] }[];
+  chapter: number;
+  verses: PassageVerse[];
+  readerStream: ReaderStreamUnit[];
+  navStreamSplits: number[];
+  pageIdx: number;
+  streamSlice: { verseGroups: { chapter: number; verses: PassageVerse[] }[] } | null;
+  slice: PassageVerse[] | null;
+}): HolmanVerseGroup[] {
+  if (opts.scrollMode && opts.useStreamReader && opts.streamChapters.length > 0) {
+    return opts.streamChapters.map((ch) => ({ chapter: ch.chapter, verses: ch.verses }));
+  }
+  if (opts.scrollMode && opts.verses.length > 0) {
+    return [{ chapter: opts.chapter, verses: opts.verses }];
+  }
+  if (opts.useStreamReader && opts.readerStream.length > 0 && opts.navStreamSplits.length >= 2) {
+    const start = opts.navStreamSplits[opts.pageIdx];
+    const end = opts.navStreamSplits[opts.pageIdx + 1];
+    if (start != null && end != null && end > start) {
+      return verseGroupsFromStreamRange(opts.readerStream, start, end).map((g) => ({
+        chapter: g.chapter,
+        verses: g.verses,
+      }));
+    }
+  }
+  if (opts.streamSlice?.verseGroups.length) {
+    return opts.streamSlice.verseGroups.map((g) => ({ chapter: g.chapter, verses: g.verses }));
+  }
+  if (opts.slice?.length) {
+    return [{ chapter: opts.chapter, verses: opts.slice }];
+  }
+  return [];
+}
+
+/** Approximate CSS column break — first column verses, then second column. */
+export function splitHolmanVerseGroupsByColumn(
+  groups: HolmanVerseGroup[],
+  columnCount: number,
+): HolmanVerseGroup[][] {
+  if (columnCount <= 1) return [groups];
+
+  const columns: HolmanVerseGroup[][] = Array.from({ length: columnCount }, () => []);
+  for (const group of groups) {
+    const n = group.verses.length;
+    if (n === 0) continue;
+    const perCol = Math.max(1, Math.ceil(n / columnCount));
+    let offset = 0;
+    for (let col = 0; col < columnCount && offset < n; col += 1) {
+      const chunk = group.verses.slice(offset, offset + perCol);
+      offset += chunk.length;
+      if (chunk.length === 0) continue;
+      const existing = columns[col]!.find((entry) => entry.chapter === group.chapter);
+      if (existing) existing.verses.push(...chunk);
+      else columns[col]!.push({ chapter: group.chapter, verses: chunk });
+    }
+  }
+  return columns;
+}
+
+function holmanConnectionsInnerHtml(
+  groups: HolmanVerseGroup[],
   escapeHtml: (s: string) => string,
-  rightColumn = true,
 ): string {
   const grouped = groupHolmanXrefsByVerse(collectHolmanXrefsFromGroups(groups));
   if (grouped.length === 0) return "";
-  const inner = grouped
+  return grouped
     .map((group, groupIndex) => {
       const anchor = `<strong class="scripture-connections-anchor">${group.chapter}:${group.verse}</strong>`;
       const refs = group.refs
@@ -146,8 +221,46 @@ export function buildHolmanConnectionsMeasureHtml(
       return `${groupIndex > 0 ? " " : ""}<span class="scripture-connections-entry">${anchor}${refs}</span>`;
     })
     .join("");
-  const gutter = rightColumn ? `<div class="scripture-connections-gutter" aria-hidden="true"></div>` : "";
-  return `<div class="scripture-connections-row">${gutter}<p class="${holmanConnectionsClassName()}">${inner}</p></div>`;
+}
+
+export function buildHolmanPageFootnotesMeasureHtml(
+  groups: { chapter: number; verses: PassageVerse[] }[],
+  escapeHtml: (s: string) => string,
+): string {
+  const verses = groups.flatMap((group) => group.verses);
+  const notes = collectPageFootnotes(verses);
+  if (notes.length === 0) return "";
+  const inner = notes
+    .map(
+      (note) =>
+        `<span class="scripture-page-footnotes-line"><sup class="scripture-page-footnotes-marker">${note.marker}</sup><span>${escapeHtml(note.text)}</span></span>`,
+    )
+    .join("");
+  return `<div class="${holmanPageFootnotesClassName()}">${inner}</div>`;
+}
+
+export function buildHolmanConnectionsMeasureHtml(
+  groups: { chapter: number; verses: PassageVerse[] }[],
+  escapeHtml: (s: string) => string,
+  dualColumn = false,
+): string {
+  if (dualColumn) {
+    const [leftGroups, rightGroups] = splitHolmanVerseGroupsByColumn(groups, 2);
+    const leftInner = holmanConnectionsInnerHtml(leftGroups, escapeHtml);
+    const rightInner = holmanConnectionsInnerHtml(rightGroups, escapeHtml);
+    if (!leftInner && !rightInner) return "";
+    const leftCell = leftInner
+      ? `<div class="scripture-connections-col"><p class="${holmanConnectionsClassName()}">${leftInner}</p></div>`
+      : `<div class="scripture-connections-col" aria-hidden="true"></div>`;
+    const rightCell = rightInner
+      ? `<div class="scripture-connections-col"><p class="${holmanConnectionsClassName()}">${rightInner}</p></div>`
+      : `<div class="scripture-connections-col" aria-hidden="true"></div>`;
+    return `<div class="scripture-connections-row scripture-connections-row--dual">${leftCell}${rightCell}</div>`;
+  }
+
+  const inner = holmanConnectionsInnerHtml(groups, escapeHtml);
+  if (!inner) return "";
+  return `<div class="scripture-connections-row scripture-connections-row-full"><p class="${holmanConnectionsClassName()}">${inner}</p></div>`;
 }
 
 /** @deprecated Use buildHolmanConnectionsMeasureHtml */

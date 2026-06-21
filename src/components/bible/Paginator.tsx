@@ -5,8 +5,10 @@ import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter"
 import {
   buildHolmanConnectionsMeasureHtml,
   buildHolmanHeadingMeasureHtml,
+  buildHolmanPageFootnotesMeasureHtml,
 } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { cn } from "@/lib/utils";
 import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
@@ -215,7 +217,7 @@ export function Paginator({
       <div
         ref={ref}
         data-reading-area
-        className={className}
+        className={cn(className, studyLayout === "holman" && "reader-holman-study")}
         style={{ width: pageWidth, ...fontSizeStyle }}
       />
     </div>
@@ -271,15 +273,18 @@ function renderInto(
     })
     .join("");
   if (studyLayout === "holman") {
+    const verseGroups = [{ chapter, verses }];
     const connectionsHtml = buildHolmanConnectionsMeasureHtml(
-      [{ chapter, verses }],
+      verseGroups,
       escapeHtml,
       Boolean(columnsClassName),
     );
+    const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
     applyHolmanStudyMeasureHtml(
       node,
       bodyHtml,
       connectionsHtml,
+      footnotesHtml,
       columnsClassName,
       contentHeightPx,
     );
