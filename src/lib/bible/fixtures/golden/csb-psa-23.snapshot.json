@@ -1,0 +1,64 @@
+{
+  "edition": "CSB",
+  "book": "Psa",
+  "chapter": 23,
+  "reference": "Psalm 23",
+  "verseCount": 6,
+  "versesWithCrossRefs": 2,
+  "versesWithFootnotes": 1,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 24,
+      "textPreview": "The Lord is my shepherd;",
+      "crossRefLabels": [
+        "Gn 48:15",
+        "Ps 78:52",
+        "Jr 31:10",
+        "Ezk 34:11–13",
+        "Jn 10:11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 38,
+      "textPreview": "He lets me lie down in green pastures;",
+      "crossRefLabels": [
+        "Ps 65:11–13",
+        "Ezk 34:14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 18,
+      "textPreview": "He renews my life;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 42,
+      "textPreview": "Even when I go through the darkest valley,",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 5,
+      "textLength": 29,
+      "textPreview": "You prepare a table before me",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 46,
+      "textPreview": "Only goodness and faithful love will pursue me",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

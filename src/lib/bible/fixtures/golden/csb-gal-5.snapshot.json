@@ -1,0 +1,300 @@
+{
+  "edition": "CSB",
+  "book": "Gal",
+  "chapter": 5,
+  "reference": "Galatians 5",
+  "verseCount": 26,
+  "versesWithCrossRefs": 21,
+  "versesWithFootnotes": 5,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 95,
+      "textPreview": "For freedom, Christ set us free. Stand firm, then, and don’t submit again to a y",
+      "crossRefLabels": [
+        "Rm 14:4",
+        "Php 1:27",
+        "Gl 4:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 110,
+      "textPreview": "Take note! I, Paul, am telling you that if you get yourselves circumcised, Chris",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 100,
+      "textPreview": "Again I testify to every man who gets himself circumcised that he is obligated t",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 100,
+      "textPreview": "You who are trying to be justified by the law are alienated from Christ; you hav",
+      "crossRefLabels": [
+        "2Pt 3:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 77,
+      "textPreview": "For we eagerly await through the Spirit, by faith, the hope of righteousness.",
+      "crossRefLabels": [
+        "Jd 21",
+        "Rm 8:23–25",
+        "1Th 1:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 126,
+      "textPreview": "For in Christ Jesus neither circumcision nor uncircumcision accomplishes anythin",
+      "crossRefLabels": [
+        "1Th 1:3",
+        "1Co 13:1",
+        "Jms 2:18–22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 64,
+      "textPreview": "You were running well. Who prevented you from obeying the truth?",
+      "crossRefLabels": [
+        "Jn 8:14",
+        "1Jn 5:20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 57,
+      "textPreview": "This persuasion does not come from the one who calls you.",
+      "crossRefLabels": [
+        "Col 3:15",
+        "1Pt 1:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 49,
+      "textPreview": "A little leaven leavens the whole batch of dough.",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 10,
+      "textLength": 131,
+      "textPreview": "I myself am persuaded in the Lord you will not accept any other view. But whoeve",
+      "crossRefLabels": [
+        "Mk 12:40"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 142,
+      "textPreview": "Now brothers and sisters, if I still preach circumcision, why am I still persecu",
+      "crossRefLabels": [
+        "Lk 9:23"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 75,
+      "textPreview": "I wish those who are disturbing you might also let themselves be mutilated!",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 150,
+      "textPreview": "For you were called to be free, brothers and sisters; only don’t use this freedo",
+      "crossRefLabels": [
+        "Col 3:15"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 14,
+      "textLength": 80,
+      "textPreview": "For the whole law is fulfilled in one statement: Love your neighbor as yourself.",
+      "crossRefLabels": [
+        "Mt 1:22",
+        "Lv 19:18",
+        "Lv 19:18",
+        "Mt 7:12",
+        "19:19",
+        "22:37–40",
+        "Jn 13:34"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 90,
+      "textPreview": "But if you bite and devour one another, watch out, or you will be consumed by on",
+      "crossRefLabels": [
+        "Gl 5:20",
+        "Php 3:2",
+        "20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 93,
+      "textPreview": "I say, then, walk by the Spirit and you will certainly not carry out the desire ",
+      "crossRefLabels": [
+        "Rm 8:4",
+        "1Tm 3:16",
+        "2Pt 1:4",
+        "2:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 168,
+      "textPreview": "For the flesh desires what is against the Spirit, and the Spirit desires what is",
+      "crossRefLabels": [
+        "1Pt 2:11",
+        "Rm 7:15",
+        "23",
+        "Php 2:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 60,
+      "textPreview": "But if you are led by the Spirit, you are not under the law.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 87,
+      "textPreview": "Now the works of the flesh are obvious: sexual immorality, moral impurity, promi",
+      "crossRefLabels": [
+        "Mk 7:21",
+        "1Th 4:3",
+        "1Th 4:7",
+        "Mk 7:22"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 20,
+      "textLength": 107,
+      "textPreview": "idolatry, sorcery, hatreds, strife, jealousy, outbursts of anger, selfish ambiti",
+      "crossRefLabels": [
+        "Col 3:5",
+        "1Pt 4:3",
+        "Rv 18:23",
+        "Rm 8:7",
+        "Ti 3:9",
+        "Jms 3:4",
+        "Rv 14:19",
+        "Rm 2:8",
+        "Rm 16:17",
+        "2Pt 2:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 185,
+      "textPreview": "envy, drunkenness, carousing, and anything similar. I am warning you about these",
+      "crossRefLabels": [
+        "Rm 1:29",
+        "Rm 13:13",
+        "1Pt 4:3",
+        "1Co 6:10",
+        "15:50"
+      ],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 22,
+      "textLength": 92,
+      "textPreview": "But the fruit of the Spirit is love, joy, peace, patience, kindness, goodness, f",
+      "crossRefLabels": [
+        "Mt 7:16–20",
+        "Rm 6:21",
+        "7:4",
+        "8:5",
+        "Eph 5:9",
+        "1Co 13:1",
+        "Phm 5",
+        "Jn 15:11",
+        "2Co 6:10",
+        "Ex 34:6",
+        "2Tm 3:10",
+        "Ps 25:6",
+        "2Co 6:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 65,
+      "textPreview": "gentleness, and self-control. The law is not against such things.",
+      "crossRefLabels": [
+        "Jms 3:13",
+        "2Pt 1:6"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 24,
+      "textLength": 92,
+      "textPreview": "Now those who belong to Christ Jesus have crucified the flesh with its passions ",
+      "crossRefLabels": [
+        "Nm 3:12",
+        "Rm 8:12",
+        "2Pt 1:4",
+        "2:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 67,
+      "textPreview": "If we live by the Spirit, let us also keep in step with the Spirit.",
+      "crossRefLabels": [
+        "Php 1:21",
+        "3:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 72,
+      "textPreview": "Let us not become conceited, provoking one another, envying one another.",
+      "crossRefLabels": [
+        "Php 2:3"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

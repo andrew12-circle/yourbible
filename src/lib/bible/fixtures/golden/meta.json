@@ -1,0 +1,30 @@
+{
+  "fetchedAt": "2026-06-21T18:24:45.036Z",
+  "bibleId": "a556c5305ee15c3f-01",
+  "chapters": [
+    {
+      "id": "csb-jhn-1",
+      "bytes": 34740
+    },
+    {
+      "id": "csb-jhn-5",
+      "bytes": 26184
+    },
+    {
+      "id": "csb-psa-23",
+      "bytes": 5450
+    },
+    {
+      "id": "csb-rom-8",
+      "bytes": 31057
+    },
+    {
+      "id": "csb-exo-14",
+      "bytes": 13862
+    },
+    {
+      "id": "csb-gal-5",
+      "bytes": 16570
+    }
+  ]
+}

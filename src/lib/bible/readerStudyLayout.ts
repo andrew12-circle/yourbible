@@ -2,6 +2,9 @@ export type ReaderStudyLayoutPreference = "auto" | "inline" | "holman";
 
 export const LS_READER_STUDY_LAYOUT = "yb.reader.studyLayout";
 
+/** Default to inline — cross-refs stay tied to each verse (highest trust). */
+export const READER_STUDY_LAYOUT_DEFAULT: ReaderStudyLayoutPreference = "inline";
+
 export function readReaderStudyLayout(): ReaderStudyLayoutPreference {
   try {
     const stored = localStorage.getItem(LS_READER_STUDY_LAYOUT);
@@ -9,7 +12,7 @@ export function readReaderStudyLayout(): ReaderStudyLayoutPreference {
   } catch {
     /* ignore */
   }
-  return "auto";
+  return READER_STUDY_LAYOUT_DEFAULT;
 }
 
 export function writeReaderStudyLayout(preference: ReaderStudyLayoutPreference): void {
@@ -17,6 +20,28 @@ export function writeReaderStudyLayout(preference: ReaderStudyLayoutPreference):
     localStorage.setItem(LS_READER_STUDY_LAYOUT, preference);
   } catch {
     /* ignore */
+  }
+}
+
+export function studyLayoutPreferenceLabel(preference: ReaderStudyLayoutPreference): string {
+  switch (preference) {
+    case "inline":
+      return "Inline (recommended)";
+    case "holman":
+      return "Holman (print style)";
+    default:
+      return "Auto";
+  }
+}
+
+export function studyLayoutPreferenceDescription(preference: ReaderStudyLayoutPreference): string {
+  switch (preference) {
+    case "inline":
+      return "Cross-refs and notes appear with each verse — matches publisher data most closely.";
+    case "holman":
+      return "Connections block at the page foot, like a printed Holman study Bible.";
+    default:
+      return "Holman layout for CSB, NKJV, and HCSB; inline for other translations.";
   }
 }
 

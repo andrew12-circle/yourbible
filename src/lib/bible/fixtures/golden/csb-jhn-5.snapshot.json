@@ -1,0 +1,525 @@
+{
+  "edition": "CSB",
+  "book": "Jhn",
+  "chapter": 5,
+  "reference": "John 5",
+  "verseCount": 46,
+  "versesWithCrossRefs": 35,
+  "versesWithFootnotes": 6,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 73,
+      "textPreview": "After this, a Jewish festival took place, and Jesus went up to Jerusalem.",
+      "crossRefLabels": [
+        "Mt 23:37"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 102,
+      "textPreview": "By the Sheep Gate in Jerusalem there is a pool, called Bethesda in Aramaic, whic",
+      "crossRefLabels": [
+        "Neh 3:1",
+        "32",
+        "12:39"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 3,
+      "textLength": 76,
+      "textPreview": "Within these lay a large number of the disabled —blind, lame, and paralyzed.",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 5,
+      "textLength": 63,
+      "textPreview": "One man was there who had been disabled for thirty-eight years.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 126,
+      "textPreview": "When Jesus saw him lying there and realized he had already been there a long tim",
+      "crossRefLabels": [
+        "Is 46:10",
+        "Zch 14:7",
+        "Jn 5:6",
+        "6:6",
+        "8:14",
+        "9:3",
+        "11:11–15",
+        "13:1–3",
+        "11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 156,
+      "textPreview": "“Sir,” the disabled man answered, “I have no one to put me into the pool when th",
+      "crossRefLabels": [
+        "Lk 10:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 54,
+      "textPreview": "“Get up,” Jesus told him, “pick up your mat and walk.”",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 67,
+      "textPreview": "Instantly the man got well, picked up his mat, and started to walk.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 123,
+      "textPreview": "and so the Jews said to the man who had been healed, “This is the Sabbath. The l",
+      "crossRefLabels": [
+        "Jn 11:36",
+        "Lk 14:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 77,
+      "textPreview": "He replied, “The man who made me well told me, ‘Pick up your mat and walk.’ ”",
+      "crossRefLabels": [
+        "Ti 2:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 73,
+      "textPreview": "“Who is this man who told you, ‘Pick up your mat and walk’? ” they asked.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 113,
+      "textPreview": "But the man who was healed did not know who it was, because Jesus had slipped aw",
+      "crossRefLabels": [
+        "Jn 7:28"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 14,
+      "textLength": 146,
+      "textPreview": "After this, Jesus found him in the temple and said to him, “See, you are well. D",
+      "crossRefLabels": [
+        "Ac 21:26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 78,
+      "textPreview": "The man went and reported to the Jews that it was Jesus who had made him well.",
+      "crossRefLabels": [
+        "Ti 2:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 93,
+      "textPreview": "Therefore, the Jews began persecuting Jesus because he was doing these things on",
+      "crossRefLabels": [
+        "Lk 6:28",
+        "2Tm 3:12",
+        "Lk 13:10"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 17,
+      "textLength": 77,
+      "textPreview": "Jesus responded to them, “My Father is still working, and I am working also.”",
+      "crossRefLabels": [
+        "Mt 5:16",
+        "11:27",
+        "Jn 8:42"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 170,
+      "textPreview": "This is why the Jews began trying all the more to kill him: Not only was he brea",
+      "crossRefLabels": [
+        "Mt 12:14",
+        "26:4",
+        "27:1",
+        "Mk 3:6",
+        "14:1",
+        "Lk 6:11",
+        "Jn 7:1",
+        "19",
+        "10:33",
+        "11:53"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 186,
+      "textPreview": "Jesus replied, “Truly I tell you, the Son is not able to do anything on his own,",
+      "crossRefLabels": [
+        "Jn 3:35",
+        "6:38",
+        "7:16",
+        "28",
+        "8:26–42",
+        "10:18",
+        "30",
+        "36–38",
+        "12:49–50",
+        "14:9",
+        "24",
+        "31",
+        "15:9–10",
+        "16:15",
+        "17:9–10"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 20,
+      "textLength": 140,
+      "textPreview": "For the Father loves the Son and shows him everything he is doing, and he will s",
+      "crossRefLabels": [
+        "Heb 3:9",
+        "Rv 15:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 104,
+      "textPreview": "And just as the Father raises the dead and gives them life, so the Son also give",
+      "crossRefLabels": [
+        "Mk 9:27",
+        "Jn 2:19",
+        "Jn 11:25–26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 73,
+      "textPreview": "The Father, in fact, judges no one but has given all judgment to the Son,",
+      "crossRefLabels": [
+        "Mt 11:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 141,
+      "textPreview": "so that all people may honor the Son just as they honor the Father. Anyone who d",
+      "crossRefLabels": [
+        "Jn 15:23",
+        "Lk 10:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 157,
+      "textPreview": "“Truly I tell you, anyone who hears my word and believes him who sent me has ete",
+      "crossRefLabels": [
+        "Jn 6:53",
+        "12:25",
+        "Ac 13:48",
+        "1Jn 2:25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 137,
+      "textPreview": "“Truly I tell you, an hour is coming, and is now here, when the dead will hear t",
+      "crossRefLabels": [
+        "Jn 4:23",
+        "Php 1:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 102,
+      "textPreview": "For just as the Father has life in himself, so also he has granted to the Son to",
+      "crossRefLabels": [
+        "Jn 5:19",
+        "Col 1:19"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 27,
+      "textLength": 80,
+      "textPreview": "And he has granted him the right to pass judgment, because he is the Son of Man.",
+      "crossRefLabels": [
+        "2Th 1:5",
+        "Mk 2:10",
+        "Heb 2:6",
+        "Rv 1:13",
+        "14:14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 101,
+      "textPreview": "Do not be amazed at this, because a time is coming when all who are in the grave",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 151,
+      "textPreview": "and come out —those who have done good things, to the resurrection of life, but ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 145,
+      "textPreview": "“I can do nothing on my own. I judge only as I hear, and my judgment is just, be",
+      "crossRefLabels": [
+        "Mt 12:41",
+        "2Th 1:5",
+        "Mt 6:33",
+        "Jn 8:16",
+        "Mt 26:39",
+        "Jn 4:34",
+        "6:38",
+        "7:16–18",
+        "8:28",
+        "14:10",
+        "Rm 8:27",
+        "Eph 1:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 53,
+      "textPreview": "“If I testify about myself, my testimony is not true.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 32,
+      "textLength": 97,
+      "textPreview": "There is another who testifies about me, and I know that the testimony he gives ",
+      "crossRefLabels": [
+        "1Jn 5:20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 33,
+      "textLength": 59,
+      "textPreview": "You sent messengers to John, and he testified to the truth.",
+      "crossRefLabels": [
+        "Ps 119:142",
+        "Jn 14:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 34,
+      "textLength": 81,
+      "textPreview": "I don’t receive human testimony, but I say these things so that you may be saved",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 35,
+      "textLength": 95,
+      "textPreview": "John, was a burning and shining lamp, and you were willing to rejoice for a whil",
+      "crossRefLabels": [
+        "Mk 1:4",
+        "2Sm 21:17",
+        "Mt 5:14–15",
+        "Lk 12:35",
+        "2Pt 1:19",
+        "Rv 21:23",
+        "Ps 36:9",
+        "Jn 12:46"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 36,
+      "textLength": 182,
+      "textPreview": "“But I have a greater testimony than John’s because of the works that the Father",
+      "crossRefLabels": [
+        "Jn 15:24",
+        "Mk 9:37",
+        "Jn 1:6",
+        "33"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 37,
+      "textLength": 127,
+      "textPreview": "The Father who sent me has himself testified about me. You have not heard his vo",
+      "crossRefLabels": [
+        "1Jn 5:9",
+        "Ex 33:11",
+        "Dt 4:12",
+        "Is 6:1",
+        "Lk 3:22",
+        "Jn 1:18",
+        "6:46–47",
+        "14:9",
+        "1Tm 1:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 38,
+      "textLength": 83,
+      "textPreview": "You don’t have his word residing in you, because you don’t believe the one he se",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 39,
+      "textLength": 108,
+      "textPreview": "You pore over the Scriptures because you think you have eternal life in them, an",
+      "crossRefLabels": [
+        "Mt 26:54",
+        "2Pt 1:20",
+        "Lk 24:27",
+        "44",
+        "Ac 13:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 40,
+      "textLength": 64,
+      "textPreview": "But you are not willing to come to me so that you may have life.",
+      "crossRefLabels": [
+        "Lk 13:34",
+        "Lk 14:26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 41,
+      "textLength": 35,
+      "textPreview": "“I do not accept glory from people,",
+      "crossRefLabels": [
+        "Jn 17:24",
+        "Php 3:19",
+        "1Pt 5:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 42,
+      "textLength": 57,
+      "textPreview": "but I know you —that you have no love for God within you.",
+      "crossRefLabels": [
+        "Lk 10:27",
+        "11:42",
+        "1Jn 4:20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 43,
+      "textLength": 121,
+      "textPreview": "I have come in my Father’s name, and yet you don’t accept me. If someone else co",
+      "crossRefLabels": [
+        "Jn 10:25",
+        "14:13",
+        "Ac 15:14",
+        "Rv 14:1",
+        "Mk 4:16",
+        "Jn 1:12",
+        "12:48",
+        "13:20",
+        "17:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 44,
+      "textLength": 115,
+      "textPreview": "How can you believe, since you accept glory from one another but don’t seek the ",
+      "crossRefLabels": [
+        "Dt 6:4",
+        "Jn 17:3",
+        "Rm 3:30",
+        "16:27",
+        "1Tm 1:17",
+        "6:15–16",
+        "Jd 25",
+        "Rv 15:4",
+        "1Th 2:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 45,
+      "textLength": 105,
+      "textPreview": "Do not think that I will accuse you to the Father. Your accuser is Moses, on who",
+      "crossRefLabels": [
+        "Ps 77:20",
+        "Mt 8:4",
+        "Heb 3:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 46,
+      "textLength": 75,
+      "textPreview": "For if you believed Moses, you would believe me, because he wrote about me.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 47,
+      "textLength": 72,
+      "textPreview": "But if you don’t believe what he wrote, how will you believe my words? ”",
+      "crossRefLabels": [
+        "Mt 26:54",
+        "Rm 1:2",
+        "Lk 16:29–31"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

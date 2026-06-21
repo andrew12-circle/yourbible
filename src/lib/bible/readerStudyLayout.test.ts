@@ -1,20 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { isStudyBibleEdition, resolveStudyLayout } from "@/lib/bible/readerStudyLayout";
+import {
+  READER_STUDY_LAYOUT_DEFAULT,
+  resolveStudyLayout,
+  studyLayoutPreferenceLabel,
+} from "@/lib/bible/readerStudyLayout";
 
 describe("readerStudyLayout", () => {
-  it("auto-enables Holman layout for CSB and NKJV", () => {
+  it("defaults new readers to inline for accuracy", () => {
+    expect(READER_STUDY_LAYOUT_DEFAULT).toBe("inline");
+  });
+
+  it("resolves auto to holman for study editions only", () => {
     expect(resolveStudyLayout("auto", "CSB")).toBe("holman");
-    expect(resolveStudyLayout("auto", "nkjv")).toBe("holman");
-    expect(resolveStudyLayout("auto", "KJV")).toBe("inline");
+    expect(resolveStudyLayout("auto", "ESV")).toBe("inline");
   });
 
-  it("respects explicit preference", () => {
-    expect(resolveStudyLayout("inline", "CSB")).toBe("inline");
-    expect(resolveStudyLayout("holman", "KJV")).toBe("holman");
-  });
-
-  it("detects study bible editions", () => {
-    expect(isStudyBibleEdition("HCSB")).toBe(true);
-    expect(isStudyBibleEdition("ESV")).toBe(false);
+  it("labels inline as recommended", () => {
+    expect(studyLayoutPreferenceLabel("inline")).toMatch(/recommended/i);
   });
 });

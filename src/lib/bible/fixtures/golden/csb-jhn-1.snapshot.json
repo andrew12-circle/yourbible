@@ -1,0 +1,599 @@
+{
+  "edition": "CSB",
+  "book": "Jhn",
+  "chapter": 1,
+  "reference": "John 1",
+  "verseCount": 51,
+  "versesWithCrossRefs": 38,
+  "versesWithFootnotes": 16,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 79,
+      "textPreview": "In the beginning was the Word, and the Word was with God, and the Word was God.",
+      "crossRefLabels": [
+        "Gn 1:1",
+        "Col 1:18",
+        "Jn 1:14",
+        "1Jn 1:1",
+        "Rv 19:13",
+        "Jn 20:28",
+        "Php 2:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 33,
+      "textPreview": "He was with God in the beginning.",
+      "crossRefLabels": [
+        "Jn 8:38",
+        "17:5",
+        "Ac 26:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 104,
+      "textPreview": "All things were created through him, and apart from him not one thing was create",
+      "crossRefLabels": [
+        "Col 1:16",
+        "Heb 1:2",
+        "Rm 11:36"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 52,
+      "textPreview": "In him was life, and that life was the light of men.",
+      "crossRefLabels": [
+        "1Jn 2:5",
+        "Ps 36:9",
+        "Jn 12:46"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 5,
+      "textLength": 76,
+      "textPreview": "That light shines in the darkness, and yet the darkness did not overcome it.",
+      "crossRefLabels": [
+        "1Jn 2:8",
+        "Php 3:12"
+      ],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 6,
+      "textLength": 50,
+      "textPreview": "There was a man sent from God whose name was John.",
+      "crossRefLabels": [
+        "Mk 1:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 87,
+      "textPreview": "He came as a witness to testify about the light, so that all might believe throu",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 8,
+      "textLength": 61,
+      "textPreview": "He was not the light, but he came to testify about the light.",
+      "crossRefLabels": [
+        "Jn 15:26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 70,
+      "textPreview": "The true light that gives light to everyone was coming into the world.",
+      "crossRefLabels": [
+        "Jn 12:46",
+        "Jn 18:37",
+        "1Jn 2:8"
+      ],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 10,
+      "textLength": 100,
+      "textPreview": "He was in the world, and the world was created through him, and yet the world di",
+      "crossRefLabels": [
+        "Jn 1:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 59,
+      "textPreview": "He came to his own, and his own people did not receive him.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 111,
+      "textPreview": "But to all who did receive him, he gave them the right to be children of God, to",
+      "crossRefLabels": [
+        "2Jn 10",
+        "Jn 5:43",
+        "Mk 1:22",
+        "Ac 9:14",
+        "Lk 1:7",
+        "Mt 5:9",
+        "Jn 11:52",
+        "Rm 8:16",
+        "1Jn 3:1",
+        "Jn 3:16",
+        "Jn 10:25",
+        "1Jn 3:23"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 13,
+      "textLength": 102,
+      "textPreview": "who were born, not of natural descent, or of the will of the flesh, or of the wi",
+      "crossRefLabels": [
+        "1Pt 1:3",
+        "1Co 7:37",
+        "16:12",
+        "Eph 2:3",
+        "2Tm 2:26",
+        "2Pt 1:21",
+        "Php 3:3",
+        "1Pt 1:3",
+        "1Jn 2:29"
+      ],
+      "footnoteMarkers": [
+        2,
+        3
+      ]
+    },
+    {
+      "number": 14,
+      "textLength": 140,
+      "textPreview": "The Word became flesh and dwelt among us. We observed his glory, the glory as th",
+      "crossRefLabels": [
+        "Jn 1:1",
+        "Php 2:7",
+        "1Jn 4:2",
+        "5:20",
+        "Mk 10:37",
+        "Jn 17:24",
+        "Heb 11:17",
+        "1Jn 4:9"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 15,
+      "textLength": 157,
+      "textPreview": "(John testified concerning him and exclaimed, “This was the one of whom I said, ",
+      "crossRefLabels": [
+        "Mt 3:11",
+        "Mk 1:7",
+        "Jn 1:27",
+        "30",
+        "Col 1:19",
+        "Jn 3:13",
+        "8:58",
+        "10:30",
+        "14:7–9",
+        "23",
+        "Php 2:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 64,
+      "textPreview": "Indeed, we have all received grace upon grace from his fullness,",
+      "crossRefLabels": [
+        "Ac 15:11",
+        "2Pt 3:18"
+      ],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 17,
+      "textLength": 79,
+      "textPreview": "for the law was given through Moses; grace and truth came through Jesus Christ.",
+      "crossRefLabels": [
+        "Ps 77:20",
+        "Mt 8:4",
+        "Heb 3:2",
+        "Ps 119:142",
+        "Jn 14:6",
+        "2Th 2:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 116,
+      "textPreview": "No one has ever seen God. The one and only Son, who is himself God and is at the",
+      "crossRefLabels": [
+        "1Jn 4:9",
+        "Mt 5:16",
+        "11:27",
+        "Jn 8:42",
+        "Mt 11:27",
+        "Lk 10:22",
+        "1Jn 2:24"
+      ],
+      "footnoteMarkers": [
+        4
+      ]
+    },
+    {
+      "number": 19,
+      "textLength": 107,
+      "textPreview": "This was John’s testimony when the Jews from Jerusalem sent priests and Levites ",
+      "crossRefLabels": [
+        "Mt 23:37",
+        "Ac 4:1",
+        "Ex 6:19",
+        "Lk 10:32"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 56,
+      "textPreview": "He didn’t deny it but confessed, “I am not the Messiah.”",
+      "crossRefLabels": [
+        "Mt 1:17",
+        "Eph 5:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 48,
+      "textPreview": "“What then? ” they asked him. “Are you Elijah? ”",
+      "crossRefLabels": [
+        "Mal 4:5",
+        "Mt 11:14",
+        "17:10–13",
+        "Mk 8:28",
+        "Lk 1:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 121,
+      "textPreview": "“Who are you, then? ” they asked. “We need to give an answer to those who sent u",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 129,
+      "textPreview": "He said, “I am a voice of one crying out in the wilderness: Make straight the wa",
+      "crossRefLabels": [
+        "Is 40:3",
+        "Is 40:3",
+        "Mt 3:3",
+        "4:14",
+        "12:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 42,
+      "textPreview": "Now they had been sent from the Pharisees.",
+      "crossRefLabels": [
+        "Mk 7:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 99,
+      "textPreview": "So they asked him, “Why then do you baptize if you aren’t the Messiah, or Elijah",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 94,
+      "textPreview": "“I baptize with water,” John answered them. “Someone stands among you, but you d",
+      "crossRefLabels": [
+        "Mk 1:8"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 27,
+      "textLength": 75,
+      "textPreview": "He is the one coming after me, whose sandal strap I’m not worthy to untie.”",
+      "crossRefLabels": [
+        "Jn 1:15"
+      ],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 28,
+      "textLength": 73,
+      "textPreview": "All this happened in Bethany across the Jordan, where John was baptizing.",
+      "crossRefLabels": [
+        "Mk 10:1",
+        "Lk 3:3"
+      ],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 29,
+      "textLength": 116,
+      "textPreview": "The next day John saw Jesus coming toward him and said, “Look, the Lamb of God, ",
+      "crossRefLabels": [
+        "Is 53:7",
+        "Ac 8:32",
+        "1Pt 1:19",
+        "Rv 5:6",
+        "Jn 15:22",
+        "1Jn 3:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 109,
+      "textPreview": "This is the one I told you about: ‘After me comes a man who ranks ahead of me, b",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 91,
+      "textPreview": "I didn’t know him, but I came baptizing with water so that he might be revealed ",
+      "crossRefLabels": [
+        "Jn 7:28",
+        "2Co 4:11",
+        "1Jn 1:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 32,
+      "textLength": 95,
+      "textPreview": "And John testified, “I saw the Spirit descending from heaven like a dove, and he",
+      "crossRefLabels": [
+        "Ps 51:11",
+        "Jn 1:33",
+        "Ac 2:4",
+        "Rm 8:9",
+        "Gl 5:25",
+        "Ti 3:5",
+        "1Jn 5:8",
+        "Rv 3:22",
+        "Jms 4:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 33,
+      "textLength": 173,
+      "textPreview": "I didn’t know him, but he who sent me to baptize with water told me, ‘The one yo",
+      "crossRefLabels": [
+        "Mt 3:11",
+        "Mk 1:8",
+        "Lk 3:16",
+        "Ac 11:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 34,
+      "textLength": 56,
+      "textPreview": "I have seen and testified that this is the Son of God.”,",
+      "crossRefLabels": [
+        "Mt 3:17",
+        "4:3",
+        "Jn 1:49",
+        "5:19",
+        "Heb 1:2"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 35,
+      "textLength": 58,
+      "textPreview": "The next day, John was standing with two of his disciples.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 36,
+      "textLength": 64,
+      "textPreview": "When he saw Jesus passing by, he said, “Look, the Lamb of God! ”",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 37,
+      "textLength": 56,
+      "textPreview": "The two disciples heard him say this and followed Jesus.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 38,
+      "textLength": 93,
+      "textPreview": "When Jesus turned and noticed them following him, he asked them, “What are you l",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 39,
+      "textLength": 148,
+      "textPreview": "“Come and you’ll see,” he replied. So they went and saw where he was staying, an",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 40,
+      "textLength": 82,
+      "textPreview": "Andrew, Simon Peter’s brother, was one of the two who heard John and followed hi",
+      "crossRefLabels": [
+        "Mt 4:18–22",
+        "Mk 1:16–20",
+        "Lk 5:2–11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 41,
+      "textLength": 115,
+      "textPreview": "He first found his own brother Simon and told him, “We have found the Messiah”, ",
+      "crossRefLabels": [
+        "Mt 1:17",
+        "Ex 29:29"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 42,
+      "textLength": 30,
+      "textPreview": "and he brought Simon to Jesus.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 43,
+      "textLength": 91,
+      "textPreview": "The next day Jesus decided to leave for Galilee. He found Philip and told him, “",
+      "crossRefLabels": [
+        "Mk 3:18"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 44,
+      "textLength": 64,
+      "textPreview": "Now Philip was from Bethsaida, the hometown of Andrew and Peter.",
+      "crossRefLabels": [
+        "Jn 12:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 45,
+      "textLength": 157,
+      "textPreview": "Philip found Nathanael and told him, “We have found the one Moses wrote about in",
+      "crossRefLabels": [
+        "Jn 1:46–49",
+        "21:2",
+        "Mt 2:23",
+        "Ac 7:52",
+        "Rm 3:21",
+        "Mt 1:16",
+        "Lk 1:27",
+        "2:4",
+        "16",
+        "33",
+        "3:23",
+        "Jn 6:42",
+        "Mk 1:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 46,
+      "textLength": 63,
+      "textPreview": "“Can anything good come out of Nazareth? ” Nathanael asked him.",
+      "crossRefLabels": [
+        "Gn 1:31"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 47,
+      "textLength": 119,
+      "textPreview": "Then Jesus saw Nathanael coming toward him and said about him, “Here truly is an",
+      "crossRefLabels": [
+        "2Co 11:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 48,
+      "textLength": 39,
+      "textPreview": "“How do you know me? ” Nathanael asked.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 49,
+      "textLength": 82,
+      "textPreview": "“Rabbi,” Nathanael replied, “You are the Son of God; you are the King of Israel!",
+      "crossRefLabels": [
+        "Jn 11:8",
+        "Jn 5:19",
+        "Mt 27:42",
+        "Mk 15:32",
+        "Jn 12:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 50,
+      "textLength": 128,
+      "textPreview": "Jesus responded to him, “Do you believe because I told you I saw you under the f",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 51,
+      "textLength": 126,
+      "textPreview": "Then he said, “Truly I tell you, you will see heaven opened and the angels of Go",
+      "crossRefLabels": [
+        "Lk 12:8–9",
+        "15:10",
+        "Ac 10:3",
+        "Gn 28:12",
+        "Mk 2:10"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

@@ -153,9 +153,14 @@ import {
   HolmanPageFootnotes,
   type HolmanVerseGroup,
 } from "@/lib/bible/readerScriptureRender";
-import { resolveStudyLayout, readReaderStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { resolveStudyLayout, readReaderStudyLayout, writeReaderStudyLayout, isStudyBibleEdition, type ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
+import {
+  formatReaderSourceLine,
+  readerEditionAbbreviation,
+} from "@/lib/bible/readerEditionAttribution";
 import { holmanVerseGroupsForRenderedPage } from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
+import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
@@ -220,9 +225,28 @@ export default function ReaderPage() {
     () => displayBibles.find((b) => b.id === bibleId)?.abbreviation,
     [displayBibles, bibleId],
   );
+  const currentBible = useMemo(
+    () => displayBibles.find((b) => b.id === bibleId),
+    [displayBibles, bibleId],
+  );
+  const [studyLayoutPreference, setStudyLayoutPreference] = useState<ReaderStudyLayoutPreference>(
+    () => readReaderStudyLayout(),
+  );
   const effectiveStudyLayout = useMemo(
-    () => resolveStudyLayout(readReaderStudyLayout(), bibleEditionAbbr),
-    [bibleEditionAbbr],
+    () => resolveStudyLayout(studyLayoutPreference, bibleEditionAbbr),
+    [studyLayoutPreference, bibleEditionAbbr],
+  );
+  const updateStudyLayoutPreference = useCallback((next: ReaderStudyLayoutPreference) => {
+    setStudyLayoutPreference(next);
+    writeReaderStudyLayout(next);
+  }, []);
+  const readerSourceLine = useMemo(
+    () =>
+      formatReaderSourceLine(
+        currentBible,
+        isStudyBibleEdition(bibleEditionAbbr) ? effectiveStudyLayout : null,
+      ),
+    [currentBible, bibleEditionAbbr, effectiveStudyLayout],
   );
   const {
     data: passage,
@@ -645,11 +669,6 @@ export default function ReaderPage() {
   const handleStreamSplitsChange = useCallback((next: number[]) => {
     setStreamSplits((prev) => (areSameStreamSplits(prev, next) ? prev : next));
   }, []);
-  // Reset splits when chapter / typography changes.
-  useEffect(() => {
-    setSplits([0]);
-    setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, effectiveStudyLayout, PASSAGE_PARSER_REVISION]);
   useLayoutEffect(() => {
     articleElsRef.current = { first: null, rest: null };
     articleRoRef.current?.disconnect();
@@ -659,6 +678,15 @@ export default function ReaderPage() {
     scheduleSyncPageMeasurements();
   }, [book.abbr, chapter, scheduleSyncPageMeasurements]);
   const verses = passage?.verses ?? [];
+  const activeStudyLayout = useMemo(
+    () => (chapterStudyParseReliable(verses) ? effectiveStudyLayout : "inline"),
+    [verses, effectiveStudyLayout],
+  );
+  // Reset splits when chapter / typography changes.
+  useEffect(() => {
+    setSplits([0]);
+    setStreamSplits([0]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, studyLayoutPreference, PASSAGE_PARSER_REVISION]);
   const chapterPlates = useMemo(
     () => platesForChapter(book.abbr, chapter),
     [book.abbr, chapter],
@@ -1364,7 +1392,7 @@ export default function ReaderPage() {
         bookAbbr: book.abbr,
         chapter,
         useBookSpread,
-        studyLayout: effectiveStudyLayout,
+        studyLayout: activeStudyLayout,
         redSegments,
         redSegmentsByChapter,
         ulFor,
@@ -1378,7 +1406,7 @@ export default function ReaderPage() {
       book.abbr,
       chapter,
       useBookSpread,
-      effectiveStudyLayout,
+      activeStudyLayout,
       redSegments,
       redSegmentsByChapter,
       ulFor,
@@ -1403,7 +1431,7 @@ export default function ReaderPage() {
       resolveHeading,
       renderVerse,
       resolvePoetryBlocks,
-      { studyLayout: effectiveStudyLayout },
+      { studyLayout: activeStudyLayout },
     );
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
@@ -1493,11 +1521,11 @@ export default function ReaderPage() {
     });
     const holmanFootnoteVerses = holmanVerseGroups.flatMap((group) => group.verses);
     const showHolmanConnections =
-      effectiveStudyLayout === "holman" &&
+      activeStudyLayout === "holman" &&
       holmanVerseGroups.some((group) => group.verses.length > 0) &&
       (scrollMode || pageContentReady);
     const showHolmanFootnotes =
-      effectiveStudyLayout === "holman" &&
+      activeStudyLayout === "holman" &&
       holmanFootnoteVerses.length > 0 &&
       (scrollMode || pageContentReady);
     const scriptureColumnHeightPx = pageContentReady
@@ -1533,6 +1561,14 @@ export default function ReaderPage() {
           >
             {pageBookName}
           </button>
+          {side === "left" && readerSourceLine ? (
+            <p
+              className="mt-0.5 max-w-[18rem] text-[9px] leading-snug text-muted-foreground/50 font-system"
+              title={readerSourceLine}
+            >
+              {readerSourceLine}
+            </p>
+          ) : null}
         </div>
         {pageLoading ? (
           <div className="flex flex-1 justify-center items-center">
@@ -1590,7 +1626,7 @@ export default function ReaderPage() {
               className={cn(
                 scrollMode ? "w-full" : "flex-1 min-h-0 w-full overflow-hidden",
                 scriptureTypoClass,
-                effectiveStudyLayout === "holman" && "reader-holman-study",
+                activeStudyLayout === "holman" && "reader-holman-study",
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
@@ -1660,7 +1696,7 @@ export default function ReaderPage() {
                     )
                   ) : null;
 
-                if (effectiveStudyLayout === "holman") {
+                if (activeStudyLayout === "holman") {
                   return wrapHolmanStudyContent(
                     spreadColumnLayout,
                     scrollMode,
@@ -1719,7 +1755,7 @@ export default function ReaderPage() {
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 flex-wrap justify-center">
               <button
                 type="button"
                 onClick={openReaderSettings}
@@ -1728,6 +1764,12 @@ export default function ReaderPage() {
               >
                 {pageBookName}
               </button>
+              {readerEditionAbbreviation(currentBible) ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span title={currentBible?.name}>{readerEditionAbbreviation(currentBible)}</span>
+                </>
+              ) : null}
               <span aria-hidden>· p. {globalPage}</span>
             </span>
             <button
@@ -1801,6 +1843,8 @@ export default function ReaderPage() {
         onToggleReaderDark={toggleReaderDark}
         columnLayout={columnLayout}
         onToggleColumnLayout={!scrollMode ? toggleColumnLayout : undefined}
+        studyLayoutPreference={studyLayoutPreference}
+        onStudyLayoutPreferenceChange={updateStudyLayoutPreference}
         onBookmark={() => {
           const used = new Set(bookmarks.map(b => b.position));
           const free = ([1, 2, 3] as const).find(p => !used.has(p)) ?? 1;
@@ -1992,7 +2036,7 @@ export default function ReaderPage() {
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
           spreadMode={readerLayout.useSpreadPaginatorMeasure && useStreamReader}
-          studyLayout={effectiveStudyLayout}
+          studyLayout={activeStudyLayout}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
@@ -2010,7 +2054,7 @@ export default function ReaderPage() {
           fontSizeStyle={paginatorFontStyle}
           columnsClassName={columnClassName}
           footerHeight={paginatorFooterHeight}
-          studyLayout={effectiveStudyLayout}
+          studyLayout={activeStudyLayout}
           onSplitsChange={handleSplitsChange}
         />
       ) : null}

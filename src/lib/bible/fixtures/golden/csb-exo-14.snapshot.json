@@ -1,0 +1,319 @@
+{
+  "edition": "CSB",
+  "book": "Exo",
+  "chapter": 14,
+  "reference": "Exodus 14",
+  "verseCount": 31,
+  "versesWithCrossRefs": 16,
+  "versesWithFootnotes": 4,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 29,
+      "textPreview": "Then the Lord spoke to Moses:",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 156,
+      "textPreview": "“Tell the Israelites to turn back and camp in front of Pi-hahiroth, between Migd",
+      "crossRefLabels": [
+        "Ex 13:18",
+        "Nm 33:7",
+        "Jr 44:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 118,
+      "textPreview": "Pharaoh will say of the Israelites: They are wandering around the land in confus",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 199,
+      "textPreview": "I will harden Pharaoh’s heart so that he will pursue them. Then I will receive g",
+      "crossRefLabels": [
+        "Ex 4:21",
+        "7:5",
+        "Rm 9:17",
+        "22–23"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 192,
+      "textPreview": "When the king of Egypt was told that the people had fled, Pharaoh and his offici",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 57,
+      "textPreview": "So he got his chariot ready and took his troops with him;",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 7,
+      "textLength": 110,
+      "textPreview": "he took six hundred of the best chariots and all the rest of the chariots of Egy",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 114,
+      "textPreview": "The Lord hardened the heart of Pharaoh king of Egypt, and he pursued the Israeli",
+      "crossRefLabels": [
+        "Ex 6:1",
+        "13:9",
+        "Nm 33:3",
+        "Ac 13:17"
+      ],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 190,
+      "textPreview": "The Egyptians —all Pharaoh’s horses and chariots, his horsemen, and his army —ch",
+      "crossRefLabels": [
+        "Ex 15:9",
+        "Jos 24:6"
+      ],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 10,
+      "textLength": 161,
+      "textPreview": "As Pharaoh approached, the Israelites looked up and there were the Egyptians com",
+      "crossRefLabels": [
+        "Jos 24:7",
+        "Neh 9:9",
+        "Ps 34:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 171,
+      "textPreview": "They said to Moses, “Is it because there are no graves in Egypt that you have ta",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 176,
+      "textPreview": "Isn’t this what we told you in Egypt: Leave us alone so that we may serve the Eg",
+      "crossRefLabels": [
+        "Ex 5:21",
+        "Ps 106:7–8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 185,
+      "textPreview": "But Moses said to the people, “Don’t be afraid. Stand firm and see the Lord’s sa",
+      "crossRefLabels": [
+        "Gn 15:1",
+        "46:3",
+        "Ex 20:20",
+        "2Ch 20:15",
+        "17",
+        "Is 41:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 52,
+      "textPreview": "The Lord will fight for you, and you must be quiet.”",
+      "crossRefLabels": [
+        "Ex 14:25",
+        "Dt 1:30",
+        "3:22",
+        "Jos 10:14",
+        "2Ch 20:29",
+        "Is 30:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 89,
+      "textPreview": "The Lord said to Moses, “Why are you crying out to me? Tell the Israelites to br",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 142,
+      "textPreview": "As for you, lift up your staff, stretch out your hand over the sea, and divide i",
+      "crossRefLabels": [
+        "Ex 4:17",
+        "Nm 20:8–9",
+        "Is 10:26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 186,
+      "textPreview": "As for me, I am going to harden the hearts of the Egyptians so that they will go",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 113,
+      "textPreview": "The Egyptians will know that I am the Lord when I receive glory through Pharaoh,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 169,
+      "textPreview": "Then the angel of God, who was going in front of the Israelite forces, moved and",
+      "crossRefLabels": [
+        "Ex 23:20",
+        "23",
+        "32:34",
+        "33:2",
+        "Ex 13:21",
+        "Is 63:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 155,
+      "textPreview": "It came between the Egyptian and Israelite forces. There was cloud and darkness,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 178,
+      "textPreview": "Then Moses stretched out his hand over the sea. The Lord drove the sea back with",
+      "crossRefLabels": [
+        "Ex 15:8",
+        "Jos 3:16",
+        "Neh 9:11",
+        "Ps 74:13",
+        "114:3",
+        "5",
+        "Is 63:12–13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 121,
+      "textPreview": "and the Israelites went through the sea on dry ground, with the waters like a wa",
+      "crossRefLabels": [
+        "Ex 15:19",
+        "Ps 66:6",
+        "Is 63:13",
+        "Hab 3:10",
+        "1Co 10:1",
+        "Heb 11:29"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 121,
+      "textPreview": "The Egyptians set out in pursuit —all Pharaoh’s horses, his chariots, and his ho",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 150,
+      "textPreview": "During the morning watch, the Lord looked down at the Egyptian forces from the p",
+      "crossRefLabels": [
+        "Ex 13:21",
+        "Nm 14:14",
+        "Neh 9:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 184,
+      "textPreview": "He caused their chariot wheels to swerve, and made them drive with difficulty. “",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "number": 26,
+      "textLength": 147,
+      "textPreview": "Then the Lord said to Moses, “Stretch out your hand over the sea so that the wat",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 27,
+      "textLength": 184,
+      "textPreview": "So Moses stretched out his hand over the sea, and at daybreak the sea returned t",
+      "crossRefLabels": [
+        "Ex 5:1",
+        "7",
+        "Jos 4:18",
+        "Ps 78:53",
+        "Heb 11:29"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 160,
+      "textPreview": "The water came back and covered the chariots and horsemen, plus the entire army ",
+      "crossRefLabels": [
+        "Ps 106:11",
+        "Heb 3:8",
+        "13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 127,
+      "textPreview": "But the Israelites had walked through the sea on dry ground, with the waters lik",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 114,
+      "textPreview": "That day the Lord saved Israel from the power of the Egyptians, and Israel saw t",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 146,
+      "textPreview": "When Israel saw the great power that the Lord used against the Egyptians, the pe",
+      "crossRefLabels": [
+        "Ps 106:12",
+        "Jn 2:11"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

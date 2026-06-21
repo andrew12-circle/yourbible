@@ -1,0 +1,521 @@
+{
+  "edition": "CSB",
+  "book": "Rom",
+  "chapter": 8,
+  "reference": "Romans 8",
+  "verseCount": 39,
+  "versesWithCrossRefs": 37,
+  "versesWithFootnotes": 8,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 66,
+      "textPreview": "Therefore, there is now no condemnation for those in Christ Jesus,",
+      "crossRefLabels": [
+        "Rm 5:16",
+        "8:34",
+        "Rm 8:9–10",
+        "Rm 8:11",
+        "39",
+        "16:3"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 2,
+      "textLength": 101,
+      "textPreview": "because the law of the Spirit of life in Christ Jesus has set you free from the ",
+      "crossRefLabels": [
+        "1Co 15:45",
+        "Jn 8:32",
+        "36",
+        "Rm 6:14",
+        "18",
+        "7:4"
+      ],
+      "footnoteMarkers": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "number": 3,
+      "textLength": 178,
+      "textPreview": "For what the law could not do since it was weakened by the flesh, God did. He co",
+      "crossRefLabels": [
+        "Ac 13:39",
+        "Heb 10:1–2",
+        "Rm 7:18",
+        "Heb 7:18",
+        "Php 2:7",
+        "Heb 2:14",
+        "17",
+        "4:15",
+        "Lv 5:6–7",
+        "11",
+        "14:31",
+        "Is 53:10"
+      ],
+      "footnoteMarkers": [
+        5
+      ]
+    },
+    {
+      "number": 4,
+      "textLength": 128,
+      "textPreview": "in order that the law’s requirement would be fulfilled in us who do not walk acc",
+      "crossRefLabels": [
+        "Lk 1:6",
+        "Rm 2:26",
+        "Gl 5:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 183,
+      "textPreview": "For those who live according to the flesh have their minds set on the things of ",
+      "crossRefLabels": [
+        "Gl 5:19–25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 87,
+      "textPreview": "Now the mindset of the flesh is death, but the mindset of the Spirit is life and",
+      "crossRefLabels": [
+        "Gl 6:8",
+        "Rm 6:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 114,
+      "textPreview": "The mindset of the flesh is hostile to God because it does not submit to God’s l",
+      "crossRefLabels": [
+        "Jms 4:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 45,
+      "textPreview": "Those who are in the flesh cannot please God.",
+      "crossRefLabels": [
+        "Rm 7:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 169,
+      "textPreview": "You, however, are not in the flesh, but in the Spirit, if indeed the Spirit of G",
+      "crossRefLabels": [
+        "Jn 14:23",
+        "1Co 3:16",
+        "6:19",
+        "2Co 6:16",
+        "2Tm 1:14",
+        "Jn 14:17",
+        "Gl 4:6",
+        "Php 1:19",
+        "1Jn 4:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 109,
+      "textPreview": "Now if Christ is in you, the body is dead because of sin, but the Spirit gives l",
+      "crossRefLabels": [
+        "Jn 17:23",
+        "Gl 2:20",
+        "Eph 3:17",
+        "Col 1:27"
+      ],
+      "footnoteMarkers": [
+        6,
+        7
+      ]
+    },
+    {
+      "number": 11,
+      "textLength": 189,
+      "textPreview": "And if the Spirit of him who raised Jesus from the dead lives in you, then he wh",
+      "crossRefLabels": [
+        "Ac 2:24",
+        "Rm 6:4"
+      ],
+      "footnoteMarkers": [
+        8
+      ]
+    },
+    {
+      "number": 12,
+      "textLength": 96,
+      "textPreview": "So then, brothers and sisters, we are not obligated to the flesh to live accordi",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 141,
+      "textPreview": "because if you live according to the flesh, you are going to die. But if by the ",
+      "crossRefLabels": [
+        "Col 3:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 49,
+      "textPreview": "For all those led by God’s Spirit are God’s sons.",
+      "crossRefLabels": [
+        "Gl 5:18",
+        "Hs 1:10",
+        "Mt 5:9",
+        "Jn 1:12",
+        "Rm 9:8",
+        "26",
+        "2Co 6:18",
+        "Gl 3:26",
+        "1Jn 3:1",
+        "Rv 21:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 150,
+      "textPreview": "For you did not receive a spirit of slavery to fall back into fear. Instead, you",
+      "crossRefLabels": [
+        "2Tm 1:7",
+        "Heb 2:15",
+        "Gl 4:5",
+        "Mk 14:36",
+        "Gl 4:6"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 16,
+      "textLength": 81,
+      "textPreview": "The Spirit himself testifies together with our spirit that we are God’s children",
+      "crossRefLabels": [
+        "Ac 5:32"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 138,
+      "textPreview": "and if children, also heirs —heirs of God and coheirs with Christ —if indeed we ",
+      "crossRefLabels": [
+        "Ac 20:32",
+        "Gl 3:29",
+        "4:7",
+        "Eph 3:6",
+        "Ti 3:7",
+        "Heb 1:14",
+        "Rv 21:7",
+        "2Co 1:5",
+        "7",
+        "Php 3:10",
+        "Col 1:24",
+        "2Tm 2:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 130,
+      "textPreview": "For I consider that the sufferings of this present time are not worth comparing ",
+      "crossRefLabels": [
+        "2Co 4:17",
+        "1Pt 4:13",
+        "Rm 1:5",
+        "Col 3:4",
+        "Ti 2:13",
+        "1Pt 5:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 79,
+      "textPreview": "For the creation eagerly waits with anticipation for God’s sons to be revealed.",
+      "crossRefLabels": [
+        "Php 1:20",
+        "1Co 1:7",
+        "Col 3:4",
+        "1Pt 1:7",
+        "13",
+        "1Jn 3:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 107,
+      "textPreview": "For the creation was subjected to futility —not willingly, but because of him wh",
+      "crossRefLabels": [
+        "Gn 3:17–19",
+        "Ps 39:5",
+        "Ec 1:2",
+        "Gn 3:17",
+        "5:29"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 117,
+      "textPreview": "that the creation itself will also be set free from the bondage to decay into th",
+      "crossRefLabels": [
+        "Ac 3:21",
+        "2Pt 3:13",
+        "Rv 21:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 90,
+      "textPreview": "For we know that the whole creation has been groaning together with labor pains ",
+      "crossRefLabels": [
+        "Jr 12:4",
+        "11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 163,
+      "textPreview": "Not only that, but we ourselves who have the Spirit as the firstfruits —we also ",
+      "crossRefLabels": [
+        "Rm 5:3",
+        "Nm 15:17–21",
+        "1Co 16:15",
+        "2Co 1:22",
+        "2Co 5:2",
+        "4",
+        "Gl 5:5",
+        "Rm 7:24"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 102,
+      "textPreview": "Now in this hope we were saved, but hope that is seen is not hope, because who h",
+      "crossRefLabels": [
+        "1Th 5:8",
+        "Ti 3:7",
+        "Rm 4:18",
+        "2Co 5:7",
+        "Heb 11:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 76,
+      "textPreview": "Now if we hope for what we do not see, we eagerly wait for it with patience.",
+      "crossRefLabels": [
+        "1Th 1:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 183,
+      "textPreview": "In the same way the Spirit also helps us in our weakness, because we do not know",
+      "crossRefLabels": [
+        "Mt 20:22",
+        "2Co 12:8",
+        "Jn 14:16",
+        "Rm 8:15–16",
+        "Eph 6:18"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 27,
+      "textLength": 127,
+      "textPreview": "And he who searches our hearts knows the mind of the Spirit, because he interced",
+      "crossRefLabels": [
+        "Ps 139:1–5",
+        "Lk 16:15",
+        "Ac 1:24",
+        "Rv 2:23"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 114,
+      "textPreview": "We know that all things work together for the good of those who love God, who ar",
+      "crossRefLabels": [
+        "Rm 9:24",
+        "11:29",
+        "1Co 1:9",
+        "Gl 1:6",
+        "15",
+        "5:8",
+        "Eph 1:11",
+        "3:11",
+        "2Th 2:14",
+        "Heb 9:15",
+        "1Pt 2:9",
+        "3:9"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 29,
+      "textLength": 149,
+      "textPreview": "For those he foreknew he also predestined to be conformed to the image of his So",
+      "crossRefLabels": [
+        "Rm 9:23",
+        "1Co 2:7",
+        "Eph 1:5",
+        "11",
+        "1Co 15:49",
+        "Php 3:21",
+        "Col 3:10",
+        "1Jn 3:2",
+        "Col 1:18",
+        "Heb 1:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 124,
+      "textPreview": "And those he predestined, he also called; and those he called, he also justified",
+      "crossRefLabels": [
+        "1Co 6:11",
+        "Jn 17:22",
+        "Rm 9:23",
+        "1Co 2:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 82,
+      "textPreview": "What, then, are we to say about these things? If God is for us, who is against u",
+      "crossRefLabels": [
+        "Rm 3:5",
+        "4:1",
+        "Ps 118:6",
+        "Mt 1:23",
+        "Heb 13:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 32,
+      "textLength": 112,
+      "textPreview": "He did not even spare his own Son but gave him up for us all. How will he not al",
+      "crossRefLabels": [
+        "Jn 3:16",
+        "Rm 5:8",
+        "Rm 4:25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 33,
+      "textLength": 78,
+      "textPreview": "Who can bring an accusation against God’s elect? God is the one who justifies.",
+      "crossRefLabels": [
+        "Lk 18:7",
+        "Is 50:8–9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 34,
+      "textLength": 153,
+      "textPreview": "Who is the one who condemns? Christ Jesus is the one who died, but even more, ha",
+      "crossRefLabels": [
+        "Rm 8:1",
+        "Rm 5:6–8",
+        "Ac 2:24",
+        "Mk 16:19",
+        "Heb 7:25",
+        "9:24",
+        "1Jn 2:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 35,
+      "textLength": 129,
+      "textPreview": "Who can separate us from the love of Christ? Can affliction or distress or perse",
+      "crossRefLabels": [
+        "Rm 2:9",
+        "2Co 4:8",
+        "1Co 4:11",
+        "2Co 11:26–27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 36,
+      "textLength": 17,
+      "textPreview": "As it is written:",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 37,
+      "textLength": 77,
+      "textPreview": "No, in all these things we are more than conquerors through him who loved us.",
+      "crossRefLabels": [
+        "Jn 16:33",
+        "1Co 15:57",
+        "Gl 2:20",
+        "Eph 5:2",
+        "Rv 1:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 38,
+      "textLength": 121,
+      "textPreview": "For I am persuaded that neither death nor life, nor angels nor rulers, nor thing",
+      "crossRefLabels": [
+        "1Co 3:22",
+        "1Co 15:24",
+        "Eph 1:21",
+        "1Pt 3:22",
+        "1Co 3:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 39,
+      "textLength": 132,
+      "textPreview": "nor height nor depth, nor any other created thing will be able to separate us fr",
+      "crossRefLabels": [
+        "Rm 5:8",
+        "Rm 8:1"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

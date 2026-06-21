@@ -927,7 +927,7 @@ export default function EntryEditorPane({
             value={entry.title ?? ""}
             onChange={(e) => queueSave({ title: e.target.value })}
             placeholder="Title"
-            className="text-[22px] font-semibold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0"
+            className="text-[26px] leading-tight font-display font-bold tracking-tight border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0"
           />
 
           {!inlineChatMode && sketchPhotos.length > 0 ? (

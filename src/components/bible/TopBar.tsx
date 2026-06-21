@@ -31,6 +31,7 @@ import {
 } from "@/lib/bible/readerChromeClasses";
 import { readerOverlayPosition, readerChromeTopClass, readerHeaderSafePaddingClass } from "@/lib/bible/readerHubLayout";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
+import type { ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
 import type { BibleEntry } from "@/lib/bible/api";
 import type { BibleBook } from "@/data/books";
 import { getBooks } from "@/lib/bible/canon";
@@ -73,6 +74,8 @@ interface Props {
   onToggleReaderDark?: () => void;
   columnLayout?: ReaderColumnLayout;
   onToggleColumnLayout?: () => void;
+  studyLayoutPreference?: ReaderStudyLayoutPreference;
+  onStudyLayoutPreferenceChange?: (next: ReaderStudyLayoutPreference) => void;
   audioPlaybackRate?: number;
   onCycleAudioSpeed?: () => void;
   containedInHub?: boolean;
@@ -118,6 +121,8 @@ export function TopBar({
   onToggleReaderDark,
   columnLayout = "single",
   onToggleColumnLayout,
+  studyLayoutPreference,
+  onStudyLayoutPreferenceChange,
   audioPlaybackRate = 1,
   onCycleAudioSpeed,
   containedInHub = false,
@@ -211,6 +216,8 @@ export function TopBar({
     onToggleDisplayMode,
     columnLayout,
     onToggleColumnLayout,
+    studyLayoutPreference,
+    onStudyLayoutPreferenceChange,
     inkMode,
     onToggleInkMode,
     onSearch,

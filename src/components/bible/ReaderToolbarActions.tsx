@@ -30,6 +30,12 @@ import {
 } from "@/lib/bible/readerFontScale";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
 import {
+  isStudyBibleEdition,
+  studyLayoutPreferenceDescription,
+  studyLayoutPreferenceLabel,
+  type ReaderStudyLayoutPreference,
+} from "@/lib/bible/readerStudyLayout";
+import {
   readerChromeTextMuted,
   readerFontScaleGroup,
 } from "@/lib/bible/readerChromeClasses";
@@ -39,6 +45,10 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -75,6 +85,8 @@ export interface ReaderToolbarActionsProps {
   onChangeBible: (id: string) => void;
   settingsDropdownOpen?: boolean;
   onSettingsDropdownOpenChange?: (open: boolean) => void;
+  studyLayoutPreference?: ReaderStudyLayoutPreference;
+  onStudyLayoutPreferenceChange?: (next: ReaderStudyLayoutPreference) => void;
   /** Tighter spacing for phone / tablet portrait header. */
   compact?: boolean;
 }
@@ -106,10 +118,13 @@ export function ReaderToolbarActions({
   onChangeBible,
   settingsDropdownOpen,
   onSettingsDropdownOpenChange,
+  studyLayoutPreference = "inline",
+  onStudyLayoutPreferenceChange,
   compact = false,
 }: ReaderToolbarActionsProps) {
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const current = bibles.find((b) => b.id === bibleId);
+  const showStudyLayout = isStudyBibleEdition(current?.abbreviation);
   const scaleBtn = compact ? "p-1" : "p-1";
   const scaleIcon = compact ? "w-3 h-3" : "w-3 h-3";
 
@@ -307,7 +322,7 @@ export function ReaderToolbarActions({
             <Settings className="w-[18px] h-[18px]" strokeWidth={2} />
           </ReaderIconButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2">
               <Languages className="w-3.5 h-3.5 text-muted-foreground" />
@@ -327,6 +342,43 @@ export function ReaderToolbarActions({
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          {showStudyLayout && onStudyLayoutPreferenceChange ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="flex-1 truncate">Study notes layout</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-64">
+                  <DropdownMenuRadioGroup
+                    value={studyLayoutPreference}
+                    onValueChange={(value) =>
+                      onStudyLayoutPreferenceChange(value as ReaderStudyLayoutPreference)
+                    }
+                  >
+                    {(["inline", "auto", "holman"] as const).map((value) => (
+                      <DropdownMenuRadioItem key={value} value={value} className="items-start py-2">
+                        <span className="flex flex-col gap-0.5">
+                          <span>{studyLayoutPreferenceLabel(value)}</span>
+                          <span className="text-[10px] font-normal text-muted-foreground leading-snug">
+                            {studyLayoutPreferenceDescription(value)}
+                          </span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </>
+          ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-[10px] font-normal leading-snug text-muted-foreground whitespace-normal">
+            {current
+              ? `Scripture${showStudyLayout ? " and study notes" : ""} from ${current.name} (${current.abbreviation}) via API.Bible.`
+              : "Scripture text via API.Bible."}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           {onToggleColumnLayout ? (
             <DropdownMenuCheckboxItem
               checked={columnLayout === "double"}
