@@ -14,18 +14,22 @@ function useHubViewportHeight(ref: React.RefObject<HTMLDivElement | null>) {
     if (!root) return;
 
     const sync = () => {
-      const h = window.visualViewport?.height ?? window.innerHeight;
+      const vv = window.visualViewport;
+      const h = vv?.height ?? window.innerHeight;
       root.style.setProperty("--hub-viewport-h", `${Math.round(h)}px`);
     };
 
     sync();
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
-    window.visualViewport?.addEventListener("resize", sync);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
     return () => {
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
-      window.visualViewport?.removeEventListener("resize", sync);
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
     };
   }, [ref]);
 }
@@ -39,7 +43,13 @@ export function HubShell({ children }: { children: ReactNode }) {
       <HomeDashboardProvider>
         <SidebarProvider
           ref={layoutRootRef}
-          className="hub-shell h-svh max-h-svh min-h-0 overflow-hidden"
+          className="hub-shell min-h-0 overflow-hidden"
+          style={
+            {
+              height: "var(--hub-viewport-h, 100svh)",
+              maxHeight: "var(--hub-viewport-h, 100svh)",
+            } as React.CSSProperties
+          }
         >
           <HubSidebar />
           <SidebarPeekTab />
