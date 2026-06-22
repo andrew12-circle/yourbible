@@ -56,6 +56,14 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     onInterim: handleInterim,
     language,
   });
+  const speechStopRef = useRef(speech.stop);
+  speechStopRef.current = speech.stop;
+  const speechStartRef = useRef(speech.start);
+  speechStartRef.current = speech.start;
+  const speechSupportedRef = useRef(speech.supported);
+  speechSupportedRef.current = speech.supported;
+
+  const openGenRef = useRef(0);
 
   const cleanupStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -74,7 +82,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
   }, []);
 
   const cancel = useCallback(() => {
-    speech.stop();
+    openGenRef.current += 1;
+    speechStopRef.current();
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
         recorderRef.current.stop();
@@ -89,19 +98,25 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     interimRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
-  }, [cleanupStream, speech]);
+  }, [cleanupStream]);
 
   const openPreview = useCallback(async () => {
     if (!supported) {
       setError("Video recording isn't supported in this browser.");
       return;
     }
+    const gen = ++openGenRef.current;
     setError(null);
+    setPhase("idle");
     interimRef.current = "";
     setInterim("");
     try {
       cleanupStream();
       const stream = await navigator.mediaDevices.getUserMedia(buildJournalVideoConstraints());
+      if (gen !== openGenRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoElRef.current) {
         videoElRef.current.srcObject = stream;
@@ -109,6 +124,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
       }
       setPhase("preview");
     } catch (e) {
+      if (gen !== openGenRef.current) return;
       cleanupStream();
       setPhase("idle");
       setError(
@@ -141,13 +157,13 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     rec.start(250);
     recorderRef.current = rec;
     setPhase("recording");
-    if (speech.supported) speech.start();
-  }, [phase, speech]);
+    if (speechSupportedRef.current) speechStartRef.current();
+  }, [phase]);
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
     if (phase !== "recording") return null;
     setPhase("processing");
-    speech.stop();
+    speechStopRef.current();
     const interimText = interimRef.current.trim();
     if (interimText) onAppendRef.current(`${interimText} `);
     interimRef.current = "";
@@ -175,9 +191,15 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     cleanupStream();
     setPhase("idle");
     return blob;
-  }, [phase, speech, cleanupStream]);
+  }, [phase, cleanupStream]);
 
-  useEffect(() => () => cancel(), [cancel]);
+  useEffect(() => {
+    return () => {
+      openGenRef.current += 1;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, []);
 
   return {
     supported,

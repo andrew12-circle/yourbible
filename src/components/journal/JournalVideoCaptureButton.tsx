@@ -50,6 +50,7 @@ export default function JournalVideoCaptureButton({
         description: e instanceof Error ? e.message : "Please try again.",
         variant: "destructive",
       });
+      setOpen(false);
     } finally {
       setUploading(false);
     }
@@ -84,13 +85,15 @@ export default function JournalVideoCaptureButton({
         </TooltipContent>
       </Tooltip>
 
-      <JournalVideoCaptureDialog
-        open={open}
-        onOpenChange={setOpen}
-        onAppendTranscript={onAppendTranscript}
-        onComplete={handleComplete}
-        uploading={uploading}
-      />
+      {open ? (
+        <JournalVideoCaptureDialog
+          open={open}
+          onOpenChange={setOpen}
+          onAppendTranscript={onAppendTranscript}
+          onComplete={handleComplete}
+          uploading={uploading}
+        />
+      ) : null}
     </>
   );
 }

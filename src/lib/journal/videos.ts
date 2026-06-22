@@ -10,6 +10,17 @@ export interface JournalVideoRow {
   url?: string;
 }
 
+const JOURNAL_VIDEOS_BUCKET = "journal-videos";
+
+function formatVideoStorageError(message: string): string {
+  if (/bucket not found/i.test(message)) {
+    return "Video storage isn't set up yet. Run `npx supabase db push --project-ref itmcsyrnpcnrwviigppe` (or apply migration 20260622160000_journal_videos.sql in the Supabase SQL editor).";
+  }
+  if (/journal_videos/i.test(message) && /does not exist|schema cache/i.test(message)) {
+    return "Video database table isn't set up yet. Run `npx supabase db push --project-ref itmcsyrnpcnrwviigppe`.";
+  }
+  return message;
+}
 const VIDEO_MIME_CANDIDATES = [
   "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8,opus",
@@ -57,16 +68,16 @@ export async function uploadEntryVideo(
   const mime = blob.type || pickJournalVideoMimeType() || "video/webm";
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const path = `${userId}/${entryId}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("journal-videos").upload(path, blob, {
+  const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, blob, {
     upsert: false,
     contentType: mime,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(formatVideoStorageError(error.message));
   return { storage_path: path, duration_ms: durationMs, mime_type: mime };
 }
 
 export async function getSignedVideoUrl(path: string, expiresIn = 3600): Promise<string | null> {
-  const { data, error } = await supabase.storage.from("journal-videos").createSignedUrl(path, expiresIn);
+  const { data, error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).createSignedUrl(path, expiresIn);
   if (error) return null;
   return data?.signedUrl ?? null;
 }
@@ -74,7 +85,7 @@ export async function getSignedVideoUrl(path: string, expiresIn = 3600): Promise
 export async function getSignedVideoUrls(paths: string[]): Promise<Record<string, string>> {
   if (!paths.length) return {};
   const unique = [...new Set(paths.filter(Boolean))];
-  const { data, error } = await supabase.storage.from("journal-videos").createSignedUrls(unique, 3600);
+  const { data, error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).createSignedUrls(unique, 3600);
   if (error) {
     console.warn("[journal-videos] createSignedUrls failed:", error.message);
     return {};
@@ -92,7 +103,7 @@ export async function fetchEntryVideos(entryId: string): Promise<JournalVideoRow
     .select("id,entry_id,storage_path,duration_ms,mime_type,created_at")
     .eq("entry_id", entryId)
     .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(formatVideoStorageError(error.message));
   const rows = (data ?? []) as JournalVideoRow[];
   const urls = await getSignedVideoUrls(rows.map((r) => r.storage_path));
   return rows.map((r) => ({ ...r, url: urls[r.storage_path] }));
@@ -114,14 +125,14 @@ export async function insertEntryVideo(
     })
     .select("id,entry_id,storage_path,duration_ms,mime_type,created_at")
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(formatVideoStorageError(error.message));
   if (!data) return null;
   const url = await getSignedVideoUrl(data.storage_path);
   return { ...(data as JournalVideoRow), url: url ?? undefined };
 }
 
 export async function deleteEntryVideo(id: string, storagePath: string): Promise<void> {
-  await supabase.storage.from("journal-videos").remove([storagePath]).catch(() => {});
+  await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).remove([storagePath]).catch(() => {});
   const { error } = await supabase.from("journal_videos").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(formatVideoStorageError(error.message));
 }

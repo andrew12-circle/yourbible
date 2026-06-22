@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Loader2, Square, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,22 +27,24 @@ export default function JournalVideoCaptureDialog({
   onComplete,
   uploading = false,
 }: Props) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const recordStartedAtRef = useRef(0);
+  const bindPreviewRef = useRef<(el: HTMLVideoElement | null) => void>(() => {});
 
   const capture = useJournalVideoCapture({ onAppendTranscript });
+  const openPreviewRef = useRef(capture.openPreview);
+  const cancelRef = useRef(capture.cancel);
+  openPreviewRef.current = capture.openPreview;
+  cancelRef.current = capture.cancel;
+  bindPreviewRef.current = capture.bindPreview;
+
+  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    bindPreviewRef.current(el);
+  }, []);
 
   useEffect(() => {
-    capture.bindPreview(videoRef.current);
-  }, [capture, capture.phase]);
-
-  useEffect(() => {
-    if (!open) {
-      capture.cancel();
-      return;
-    }
-    void capture.openPreview();
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps -- open only
+    void openPreviewRef.current();
+    return () => cancelRef.current();
+  }, []);
 
   const handleClose = () => {
     capture.cancel();
@@ -68,6 +70,7 @@ export default function JournalVideoCaptureDialog({
   const recording = capture.phase === "recording";
   const processing = capture.phase === "processing" || uploading;
   const ready = capture.phase === "preview" || recording;
+  const starting = open && capture.phase === "idle" && !capture.error;
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
@@ -86,19 +89,21 @@ export default function JournalVideoCaptureDialog({
 
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-black sm:min-h-[420px]">
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             autoPlay
             playsInline
             muted
             className={cn(
               "h-full min-h-[50vh] w-full flex-1 object-cover sm:min-h-[420px]",
               "[transform:scaleX(-1)]",
+              !ready && "invisible",
             )}
           />
 
-          {capture.phase === "idle" && !capture.error ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+          {starting ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
               <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+              <p className="text-sm text-white/70">Connecting camera…</p>
             </div>
           ) : null}
 
@@ -113,7 +118,7 @@ export default function JournalVideoCaptureDialog({
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute right-3 top-3 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+            className="absolute right-3 top-3 z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
             onClick={handleClose}
             disabled={processing}
             aria-label="Close"
@@ -128,7 +133,17 @@ export default function JournalVideoCaptureDialog({
             />
 
             {capture.error ? (
-              <p className="mb-3 text-center text-sm text-red-300">{capture.error}</p>
+              <div className="mb-3 flex flex-col items-center gap-2">
+                <p className="text-center text-sm text-red-300">{capture.error}</p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void capture.openPreview()}
+                >
+                  Try again
+                </Button>
+              </div>
             ) : null}
 
             <div className="flex items-center justify-center gap-4">
