@@ -60,6 +60,7 @@ export default function NewJournalEntryPage() {
       className="h-9 w-9 shrink-0 rounded-full"
       onAppend={p.appendDictatedText}
       onInterim={p.setDictInterim}
+      onListeningChange={p.onDictationListeningChange}
     />
   );
 
@@ -211,6 +212,7 @@ export default function NewJournalEntryPage() {
           aiBusy={p.aiBusy}
           streamingAssistantId={p.streamingAssistantId}
           dictInterim={p.dictInterim}
+          dictationFormatting={p.dictationFormatting}
           existingSketches={p.existingSketches}
           existingAttachments={p.existingAttachments}
           pendingSketches={p.pendingSketches}

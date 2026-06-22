@@ -38,6 +38,7 @@ import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { useDictationAutoFormat } from "@/hooks/useDictationAutoFormat";
 import SketchPad from "@/components/journal/SketchPad";
 import { JournalSketchInline, partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import { autosaveSketchPhoto } from "@/lib/journal/sketchPhotos";
@@ -135,8 +136,10 @@ export default function EntryEditorPane({
   const [linksReloadKey, setLinksReloadKey] = useState(0);
   const [bodyEditing, setBodyEditing] = useState(false);
   const [bodyFocused, setBodyFocused] = useState(false);
+  const [titleFocused, setTitleFocused] = useState(false);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
+  const entryInitialFocusRef = useRef<string | null>(null);
   const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
 
   useEffect(() => {
@@ -502,7 +505,7 @@ export default function EntryEditorPane({
 
   const focusBodyEditor = useCallback(() => {
     const el = bodyRef.current;
-    if (!el || !plainWriteLayout) return;
+    if (!el || !plainWriteLayout || titleFocused) return;
     setBodyFocused(true);
     requestAnimationFrame(() => {
       resizeJournalTextarea(el);
@@ -511,12 +514,19 @@ export default function EntryEditorPane({
       el.setSelectionRange(pos, pos);
       scrollToCaretEnd();
     });
-  }, [plainWriteLayout, scrollToCaretEnd]);
+  }, [plainWriteLayout, scrollToCaretEnd, titleFocused]);
+
+  const focusBodyEditorRef = useRef(focusBodyEditor);
+  focusBodyEditorRef.current = focusBodyEditor;
 
   useEffect(() => {
     if (loadingEntry || !entry || !plainWriteLayout) return;
-    requestAnimationFrame(() => focusBodyEditor());
-  }, [entryId, loadingEntry, entry?.id, plainWriteLayout, focusBodyEditor]);
+    if (entryInitialFocusRef.current === entry.id) return;
+    entryInitialFocusRef.current = entry.id;
+    // Empty entries: let the user choose title or body — don't force body focus.
+    if (!entry.body?.trim()) return;
+    requestAnimationFrame(() => focusBodyEditorRef.current());
+  }, [entryId, loadingEntry, entry?.id, entry?.body, plainWriteLayout]);
 
   useLayoutEffect(() => {
     if (!plainWriteLayout || bodyFocused) return;
@@ -538,6 +548,13 @@ export default function EntryEditorPane({
     [handleBodyChange, inlineChatMode],
   );
 
+  const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
+    useDictationAutoFormat({
+      getBody: () => entryRef.current?.body ?? "",
+      setBody: (next) => handleBodyChange(next),
+      enabled: !inlineChatMode,
+    });
+
   const dictateButton = (
     <DictateButton
       ref={dictateRef}
@@ -546,6 +563,7 @@ export default function EntryEditorPane({
       className={inlineChatMode ? "h-9 w-9 shrink-0 rounded-full" : undefined}
       onAppend={handleDictateAppend}
       onInterim={setDictInterim}
+      onListeningChange={onDictationListeningChange}
     />
   );
 
@@ -911,9 +929,15 @@ export default function EntryEditorPane({
           plainWriteLayout && "flex flex-col",
         )}
         onPointerDown={(e) => {
-          if (!plainWriteLayout || bodyFocused) return;
+          if (!plainWriteLayout || bodyFocused || titleFocused) return;
           const target = e.target as HTMLElement;
-          if (target.closest("textarea, input, button, a, label, [role='button']")) return;
+          if (
+            target.closest(
+              "[data-journal-title], textarea, input, button, a, label, [role='button']",
+            )
+          ) {
+            return;
+          }
           focusBodyEditor();
         }}
       >
@@ -923,15 +947,37 @@ export default function EntryEditorPane({
           plainWriteLayout ? "flex-1" : "min-h-full",
         )}
       >
-          <PrivacyBlurInput
-            value={entry.title ?? ""}
-            onChange={(e) => queueSave({ title: e.target.value })}
-            placeholder="Title"
-            className={cn(
-              journalEntryTitleInputClass,
-              "border-0 px-0 focus-visible:ring-0 shadow-none h-auto py-2 placeholder:text-muted-foreground/50 flex-shrink-0",
-            )}
-          />
+          <div
+            className="relative z-10 shrink-0"
+            data-journal-title
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {!entry.title?.trim() ? (
+              <span
+                aria-hidden
+                className={cn(
+                  journalEntryTitleInputClass,
+                  "pointer-events-none absolute inset-x-0 top-2 z-0 text-muted-foreground/50",
+                )}
+              >
+                Title
+              </span>
+            ) : null}
+            <PrivacyBlurInput
+              value={entry.title ?? ""}
+              onChange={(e) => queueSave({ title: e.target.value })}
+              aria-label="Title"
+              onFocus={() => {
+                setTitleFocused(true);
+                setBodyFocused(false);
+              }}
+              onBlur={() => setTitleFocused(false)}
+              className={cn(
+                journalEntryTitleInputClass,
+                "relative z-[1] border-0 bg-transparent px-0 focus-visible:ring-0 shadow-none h-auto py-2 flex-shrink-0",
+              )}
+            />
+          </div>
 
           {!inlineChatMode && sketchPhotos.length > 0 ? (
             <JournalSketchInline
@@ -1053,6 +1099,12 @@ export default function EntryEditorPane({
                 text={dictInterim}
                 className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
               />
+              {dictationFormatting ? (
+                <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Formatting dictation…
+                </p>
+              ) : null}
               {chatTurns.length > 0 ? (
                 <JournalLiveChatCollapsible turns={chatTurns} className="mt-6" />
               ) : null}

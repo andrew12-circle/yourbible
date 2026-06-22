@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
 import { partitionJournalPhotos } from "@/components/journal/JournalSketchInline";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { useDictationAutoFormat } from "@/hooks/useDictationAutoFormat";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -601,6 +602,16 @@ export function useNewJournalEntryPage() {
     },
     [bodyMarkers, handleBodyChange],
   );
+
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+
+  const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
+    useDictationAutoFormat({
+      enabled: !isVent && !inlineChatMode,
+      getBody: () => bodyRef.current,
+      setBody: (next) => handleBodyChange(next),
+    });
 
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
@@ -1291,6 +1302,8 @@ export function useNewJournalEntryPage() {
     removePendingFile,
     useMyLocation,
     appendDictatedText,
+    onDictationListeningChange,
+    dictationFormatting,
     handlePhotoInputChange,
     handleSketchAutosave,
     handleSketchSave,

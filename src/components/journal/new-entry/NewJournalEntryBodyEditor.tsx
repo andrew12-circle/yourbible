@@ -1,4 +1,4 @@
-import { Ear, Trash2, X } from "lucide-react";
+import { Ear, Loader2, Trash2, X } from "lucide-react";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
@@ -48,6 +48,7 @@ interface NewJournalEntryBodyEditorProps {
   aiBusy: boolean;
   streamingAssistantId?: string | null;
   dictInterim: string;
+  dictationFormatting?: boolean;
   existingSketches: PhotoItem[];
   existingAttachments: PhotoItem[];
   pendingSketches: File[];
@@ -86,6 +87,7 @@ export function NewJournalEntryBodyEditor({
   aiBusy,
   streamingAssistantId = null,
   dictInterim,
+  dictationFormatting = false,
   existingSketches,
   existingAttachments,
   pendingSketches,
@@ -230,6 +232,12 @@ export function NewJournalEntryBodyEditor({
         text={dictInterim}
         className="text-sm italic leading-relaxed text-muted-foreground/80"
       />
+      {dictationFormatting ? (
+        <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Formatting dictation…
+        </p>
+      ) : null}
       {showPhotoSuggestion && onAddPhotos && onTakePhoto && onDismissPhotoSuggestion ? (
         <NewJournalEntryPhotoSuggestion
           className="mt-3"

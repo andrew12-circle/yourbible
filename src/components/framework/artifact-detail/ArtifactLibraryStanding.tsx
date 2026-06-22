@@ -1,7 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Layers, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Loader2, RefreshCw } from "lucide-react";
 import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/ArtifactStudySectionHeader";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   beliefAlignmentFromCounts,
   corpusResonanceLabel,
@@ -164,19 +169,32 @@ export default function ArtifactLibraryStanding({
                     <>No strong echoes yet — this source may be covering new ground for you.</>
                   )}
                 </p>
-                <ul className="space-y-2.5">
-                  {peers.slice(0, 5).map((peer) => (
-                    <PeerRow key={peer.peerArtifactId} peer={peer} currentArtifactId={artifactId} />
-                  ))}
-                </ul>
-                {peers.length > 5 ? (
-                  <Link
-                    to="/framework/library-standing"
-                    className="inline-flex text-xs font-medium text-primary hover:underline"
-                  >
-                    See all {peers.length} library matches
-                  </Link>
-                ) : null}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <ChevronDown
+                      className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                      aria-hidden
+                    />
+                    <span>
+                      {peers.length} library match{peers.length === 1 ? "" : "es"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2.5 pt-2.5">
+                    <ul className="space-y-2.5">
+                      {peers.slice(0, 5).map((peer) => (
+                        <PeerRow key={peer.peerArtifactId} peer={peer} currentArtifactId={artifactId} />
+                      ))}
+                    </ul>
+                    {peers.length > 5 ? (
+                      <Link
+                        to="/framework/library-standing"
+                        className="inline-flex text-xs font-medium text-primary hover:underline"
+                      >
+                        See all {peers.length} library matches
+                      </Link>
+                    ) : null}
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
