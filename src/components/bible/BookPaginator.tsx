@@ -7,6 +7,7 @@ import {
   scripturePoetryClassNameMeasure,
   wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
+import { buildVerseXrefsInnerHtml } from "@/lib/bible/verseBodyRender";
 import {
   SPREAD_MEASURE_GAP_PX,
   applyScriptureColumnMeasureHtml,
@@ -367,11 +368,13 @@ function renderStreamSlice(
             v,
             studyLayout,
           );
+          const xrefs = buildVerseXrefsInnerHtml(v, escapeHtml, studyLayout);
           return wrapVerseShellHtml(
             v.number,
             batch!.chapter,
             inner,
             group.isContinuation,
+            xrefs,
           );
         })
         .join("");

@@ -37,6 +37,7 @@ const DigestPage = lazy(() => import("@/pages/framework/DigestPage"));
 const ChatPage = lazy(() => import("@/pages/framework/ChatPage"));
 const StudyPage = lazy(() => import("@/pages/framework/StudyPage"));
 const DailyPage = lazy(() => import("@/pages/framework/DailyPage"));
+const JournalNotesPage = lazy(() => import("@/pages/journal/JournalNotesPage"));
 const JournalPage = lazy(() => import("@/pages/journal/JournalPage"));
 const JournalCalendarPage = lazy(() => import("@/pages/journal/JournalCalendarPage"));
 const JournalEntryPage = lazy(() => import("@/pages/journal/JournalEntryPage"));
@@ -114,6 +115,8 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/framework/study", element: <StudyPage /> },
   { path: "/framework/daily", element: <DailyPage /> },
   { path: "/framework/live", element: <Navigate to="/framework/artifacts/live" replace /> },
+  { path: "/journal/notes", element: <JournalNotesPage /> },
+  { path: "/journal/notes/e/:entryId", element: <JournalNotesPage /> },
   { path: "/journal", element: <JournalPage /> },
   { path: "/journal/j/:journalId", element: <JournalPage /> },
   { path: "/journal/j/:journalId/e/:entryId", element: <JournalPage /> },

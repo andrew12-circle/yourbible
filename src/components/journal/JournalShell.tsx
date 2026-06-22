@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { exportJournalAsZip } from "@/lib/journal/export";
 import { toast } from "@/hooks/use-toast";
+import { JournalVaultUnlockGate } from "@/components/journal/JournalVaultUnlockGate";
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -175,6 +176,7 @@ export default function JournalShell({
   const fabColor = journal ? `hsl(${journal.color})` : "hsl(211 100% 50%)";
 
   return (
+    <JournalVaultUnlockGate>
     <div
       className={cn(
         "bg-background",
@@ -273,5 +275,6 @@ export default function JournalShell({
         }}
       />
     </div>
+    </JournalVaultUnlockGate>
   );
 }

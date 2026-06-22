@@ -952,21 +952,41 @@
   .reader-theme-dark .red-letter {
     color: hsl(0 62% 58%);
   }
+  /* Inline cross-refs — shown below verse text, not inside the sentence. */
+  .scripture-verse-xrefs {
+    display: block;
+    margin: 0.12em 0 0.22em;
+    font-size: 0.62em;
+    line-height: 1.4;
+    text-align: left;
+    color: hsl(var(--gold-deep));
+  }
+  .scripture-verse-xrefs .scripture-xref + .scripture-xref::before {
+    content: " ";
+    white-space: pre;
+  }
   .scripture-xref {
     display: inline;
-    margin: 0 0.1em;
-    padding: 0 0.15em;
-    font-size: 0.58em;
-    vertical-align: super;
-    line-height: 1;
-    color: hsl(var(--gold-deep));
+    margin: 0;
+    padding: 0;
+    font-size: inherit;
+    font-weight: 600;
+    vertical-align: baseline;
+    line-height: inherit;
+    white-space: nowrap;
+    color: inherit;
     border: 0;
-    background: hsl(var(--gold-bright) / 0.12);
-    border-radius: 0.25rem;
+    background: transparent;
+    border-radius: 0;
     cursor: pointer;
+    letter-spacing: 0;
+    -webkit-appearance: none;
+    appearance: none;
   }
   .scripture-xref:hover {
-    background: hsl(var(--gold-bright) / 0.28);
+    color: hsl(var(--gold-bright));
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
   }
   .scripture-footnote {
     display: inline;

@@ -34,6 +34,14 @@ export default function PrivacyPage() {
         <li><strong>Sentry</strong> — optional error reporting to fix bugs (no journal content in crash reports by default).</li>
       </ul>
 
+      <h2>End-to-end journal encryption</h2>
+      <p>
+        When you enable journal encryption in Settings → Journal privacy, title, body, and summary are
+        encrypted on your device with AES-256-GCM before sync. We store only a wrapped key — not your
+        PIN or recovery key. Dictation formatting runs entirely on your device (no AI). Encrypted entries are excluded
+        from server search, mirror scoring, and My AI retrieval.
+      </p>
+
       <h2>Retention & deletion</h2>
       <p>
         Beta data is kept while your account is active. You may export journal entries from Settings.

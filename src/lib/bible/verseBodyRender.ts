@@ -58,8 +58,6 @@ export function buildVersePartsInnerHtml(
       if (studyLayout === "holman") {
         const letter = escapeHtml(part.letter ?? "a");
         html += `<sup class="scripture-holman-mark scripture-holman-mark--xref">${letter}</sup>`;
-      } else {
-        html += `<span class="scripture-xref">${escapeHtml(part.label)}</span>`;
       }
       continue;
     }
@@ -86,4 +84,17 @@ export function buildVersePartsInnerHtml(
 
 export function iterateVerseParts(v: PassageVerse): VersePart[] {
   return verseParts(v);
+}
+
+/** Cross-refs rendered below verse text in inline study layout (paginator measurement). */
+export function buildVerseXrefsInnerHtml(
+  v: PassageVerse,
+  escapeHtml: (s: string) => string,
+  studyLayout: ResolvedStudyLayout = "inline",
+): string {
+  if (studyLayout === "holman") return "";
+  return verseParts(v)
+    .filter((p): p is Extract<VersePart, { kind: "crossref" }> => p.kind === "crossref")
+    .map((p) => `<span class="scripture-xref">${escapeHtml(p.label)}</span>`)
+    .join(" ");
 }

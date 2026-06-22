@@ -78,8 +78,12 @@ export function wrapVerseShellHtml(
   chapter: number,
   innerHtml: string,
   paragraphIsContinuation: boolean,
+  xrefsHtml = "",
 ): string {
-  const body = `<span class="verse-body-wrap"><span data-verse-body="${verseNum}">${innerHtml}</span></span>`;
+  const xrefs = xrefsHtml
+    ? `<span class="scripture-verse-xrefs" aria-label="Cross references">${xrefsHtml}</span>`
+    : "";
+  const body = `<span class="verse-body-wrap"><span data-verse-body="${verseNum}">${innerHtml}</span>${xrefs}</span>`;
   if (shouldShowChapterDropCap(verseNum, paragraphIsContinuation)) {
     return `<span class="scripture-verse scripture-verse-chapter-open" data-verse="${verseNum}"><span class="chapter-drop-cap">${chapter}</span>${body}</span> `;
   }

@@ -37,7 +37,7 @@ export function studyLayoutPreferenceLabel(preference: ReaderStudyLayoutPreferen
 export function studyLayoutPreferenceDescription(preference: ReaderStudyLayoutPreference): string {
   switch (preference) {
     case "inline":
-      return "Cross-refs and notes appear with each verse — matches publisher data most closely.";
+      return "Cross-refs below each verse; footnotes stay inline with the text.";
     case "holman":
       return "Connections at the column foot — beta; use Inline for maximum accuracy.";
     default:

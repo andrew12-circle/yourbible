@@ -1,21 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useDictationAutoFormat } from "@/hooks/useDictationAutoFormat";
 import { renderHook, act } from "@testing-library/react";
-import { vi } from "vitest";
 
-vi.mock("@/lib/ai/formatDictatedText", () => ({
-  formatDictatedTextWithFallback: vi.fn(async (text: string) => ({
-    text: `Formatted: ${text}`,
-    usedFallback: false,
-  })),
-}));
-
-vi.mock("@/hooks/use-toast", () => ({
-  toast: vi.fn(),
+vi.mock("@/lib/ai/formatDictatedTextLocally", () => ({
+  formatDictationForJournal: vi.fn((text: string) => `Formatted: ${text}`),
 }));
 
 describe("useDictationAutoFormat", () => {
-  it("formats body when dictation stops", async () => {
+  it("formats body when dictation stops", () => {
     const setBody = vi.fn();
     const { result } = renderHook(() =>
       useDictationAutoFormat({
@@ -25,16 +17,15 @@ describe("useDictationAutoFormat", () => {
       }),
     );
 
-    await act(async () => {
+    act(() => {
       result.current.onListeningChange(true);
       result.current.onListeningChange(false);
-      await new Promise((r) => setTimeout(r, 0));
     });
 
     expect(setBody).toHaveBeenCalledWith("Formatted: raw speech without punctuation");
   });
 
-  it("skips when disabled", async () => {
+  it("skips when disabled", () => {
     const setBody = vi.fn();
     const { result } = renderHook(() =>
       useDictationAutoFormat({
@@ -44,10 +35,9 @@ describe("useDictationAutoFormat", () => {
       }),
     );
 
-    await act(async () => {
+    act(() => {
       result.current.onListeningChange(true);
       result.current.onListeningChange(false);
-      await new Promise((r) => setTimeout(r, 0));
     });
 
     expect(setBody).not.toHaveBeenCalled();

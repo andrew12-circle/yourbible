@@ -10,7 +10,7 @@ import { shouldShowChapterDropCap } from "@/lib/bible/scriptureParagraph";
 import { sliceSegmentsForRange } from "@/lib/bible/verseBodyRender";
 import { holmanPartsForVerse } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
-import { styledTextClass, verseParts, versePlainText } from "@/lib/bible/verseParts";
+import { styledTextClass, verseParts, versePlainText, type VersePart } from "@/lib/bible/verseParts";
 
 function markerVariant(book: string, chapter: number, verse: number): number {
   let h = 2166136261;
@@ -163,6 +163,7 @@ export function createReaderVerseRenderer({
     const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);
 
     const bodyNodes: ReactNode[] = [];
+    const verseXrefs: Extract<VersePart, { kind: "crossref" }>[] = [];
     let charOffset = 0;
 
     for (let pi = 0; pi < parts.length; pi++) {
@@ -219,20 +220,7 @@ export function createReaderVerseRenderer({
             </sup>,
           );
         } else {
-          bodyNodes.push(
-            <button
-              key={`xr-${pi}`}
-              type="button"
-              className="scripture-xref"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/read/${part.book}/${part.chapter}?v=${part.verse}`);
-              }}
-              title={`Go to ${part.label}`}
-            >
-              {part.label}
-            </button>,
-          );
+          verseXrefs.push(part);
         }
         continue;
       }
@@ -291,6 +279,32 @@ export function createReaderVerseRenderer({
         )}
         <span className="verse-body-wrap">
           {wrappedBody}
+          {verseXrefs.length > 0 ? (
+            <span className="scripture-verse-xrefs" aria-label="Cross references">
+              {verseXrefs.map((xref, xi) => (
+                <span
+                  key={`vxr-${xi}-${xref.label}`}
+                  role="button"
+                  tabIndex={0}
+                  className="scripture-xref"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/read/${xref.book}/${xref.chapter}?v=${xref.verse}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigate(`/read/${xref.book}/${xref.chapter}?v=${xref.verse}`);
+                    }
+                  }}
+                  title={`Go to ${xref.label}`}
+                >
+                  {xref.label}
+                </span>
+              ))}
+            </span>
+          ) : null}
           {note ? (
             <button
               type="button"

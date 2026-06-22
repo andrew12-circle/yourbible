@@ -11,9 +11,13 @@ import {
   BookHeart,
   Flame,
   FileUp,
+  Lock,
+  StickyNote,
   X,
 } from "lucide-react";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
+import { filterPersonalJournals } from "@/lib/journal/notesJournal";
+import { isPrivateJournal } from "@/lib/journal/privateJournal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -53,6 +57,8 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
     onChange();
     if (j) navigate(`/journal/j/${j.id}`);
   };
+
+  const personalJournals = filterPersonalJournals(journals);
 
   return (
     <aside
@@ -105,6 +111,13 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           label="Today"
           active={pathname.startsWith("/journal/today")}
           accent="142 71% 45%"
+        />
+        <RailItem
+          to="/journal/notes"
+          icon={<StickyNote className="w-4 h-4" />}
+          label="Notes"
+          active={pathname.startsWith("/journal/notes")}
+          accent="48 96% 53%"
         />
         <RailItem
           to="/my-ai"
@@ -163,22 +176,26 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
         </button>
       </div>
       <nav className="px-2 pb-2 space-y-0.5">
-        {journals.map((j) => (
+        {personalJournals.map((j) => (
           <RailItem
             key={j.id}
             to={`/journal/j/${j.id}`}
             icon={
-              <span
-                className="w-4 h-4 rounded-md"
-                style={{ background: `hsl(${j.color})` }}
-              />
+              isPrivateJournal(j) ? (
+                <Lock className="w-4 h-4 text-muted-foreground" aria-hidden />
+              ) : (
+                <span
+                  className="w-4 h-4 rounded-md"
+                  style={{ background: `hsl(${j.color})` }}
+                />
+              )
             }
             label={j.name}
             active={activeJournalId === j.id}
             accent={j.color}
           />
         ))}
-        {journals.length === 0 && (
+        {personalJournals.length === 0 && (
           <p className="px-3 py-2 text-[13px] text-muted-foreground">
             No personal journals yet.
           </p>

@@ -9,8 +9,10 @@ import { BookOpen, Brain, Check, NotebookPen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { APP_NAME } from "@/lib/appBrand";
 import { markBetaWelcomePending } from "@/lib/beta/welcome";
+import { OnboardingJournalPrivacyStep } from "@/components/onboarding/OnboardingJournalPrivacyStep";
+import { ensurePrivateJournal } from "@/lib/journal/privateJournal";
 
-const STEPS = 3;
+const STEPS = 4;
 
 const SPACES = [
   {
@@ -21,7 +23,7 @@ const SPACES = [
   {
     icon: NotebookPen,
     title: "Journal",
-    description: "Daily prompts, life chapters, and a place to process what you're walking through.",
+    description: "Daily prompts, life chapters, and a Private notebook encrypted like Day One.",
   },
   {
     icon: Brain,
@@ -52,6 +54,7 @@ export default function OnboardingPage() {
     setBusy(true);
     try {
       if (!profile) await refreshProfile();
+      await ensurePrivateJournal(user.id);
       const { error, profile: saved } = await updateProfile({
         cover,
         highlight_palette: palette,
@@ -129,7 +132,7 @@ export default function OnboardingPage() {
               </motion.div>
 
               <p className="text-center text-xs text-muted-foreground mt-6">
-                Next: personalize your reader cover and highlight colors. You can change these anytime in Settings.
+                Next: personalize your reader, then protect your journal with encryption.
               </p>
 
               <div className="flex justify-end mt-8">
@@ -176,6 +179,21 @@ export default function OnboardingPage() {
 
           {step === 2 && (
             <motion.div
+              key="privacy"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.4 }}
+            >
+              <OnboardingJournalPrivacyStep
+                onBack={() => setStep(1)}
+                onContinue={() => setStep(3)}
+              />
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div
               key="palette"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
@@ -214,7 +232,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex justify-between mt-8">
-                <Button variant="ghost" type="button" onClick={() => setStep(1)}>Back</Button>
+                <Button variant="ghost" type="button" onClick={() => setStep(2)}>Back</Button>
                 <Button type="button" disabled={busy} onClick={finish} className="leather-texture text-gold-bright shadow-leather border border-gold/30 px-8">
                   {busy ? "Setting up…" : `Enter ${APP_NAME}`}
                 </Button>

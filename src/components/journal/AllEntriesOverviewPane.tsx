@@ -29,6 +29,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface Props {
   journals: Journal[];
+  notesJournalId?: string | null;
   reloadKey?: number;
   onNew: () => void;
   onImportDayOne?: () => void;
@@ -44,6 +45,7 @@ const EMPTY_STATS: JournalOverviewStats = {
 
 export default function AllEntriesOverviewPane({
   journals,
+  notesJournalId = null,
   reloadKey = 0,
   onNew,
   onImportDayOne,
@@ -79,7 +81,9 @@ export default function AllEntriesOverviewPane({
       .select("id,entry_at_ts,journal_id")
       .or("entry_kind.is.null,entry_kind.neq.vent");
 
-    const list = entries ?? [];
+    const list = (entries ?? []).filter(
+      (e) => !notesJournalId || e.journal_id !== notesJournalId,
+    );
     const entryIds = list.map((e) => e.id);
 
     let mediaCount = 0;
@@ -105,7 +109,7 @@ export default function AllEntriesOverviewPane({
     );
     setCountsByJournal(byJournal);
     setLoading(false);
-  }, [user]);
+  }, [user, notesJournalId]);
 
   const loadJournalRowCovers = useCallback(async () => {
     const photoJournals = journals.filter((j) => j.cover_kind === "photo" && j.cover_value);

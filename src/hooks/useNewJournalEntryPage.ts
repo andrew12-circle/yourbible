@@ -17,6 +17,7 @@ import {
   upsertSketchAndTranscribe,
 } from "@/lib/journal/sketchTranscription";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import { fetchJournalEntryDetail, insertJournalEntry, updateJournalEntry } from "@/lib/journal/journalEntryDb";
 import { mergeInlineTags } from "@/lib/journal/inlineMarkers";
 import {
   JOURNAL_RESPONSE_DEPTH_STORAGE_KEY,
@@ -401,12 +402,7 @@ export function useNewJournalEntryPage() {
   useEffect(() => {
     if (!editId || !user) return;
     (async () => {
-      const { data } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("id", editId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const data = await fetchJournalEntryDetail(editId);
       if (!data) return;
       setTitle(data.title ?? "");
       const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
@@ -913,29 +909,44 @@ export function useNewJournalEntryPage() {
     };
 
     let entryId = editId ?? inlineEntryId ?? null;
+    const { user_id: _uid, ...entryPayload } = payload;
     if (entryId) {
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", entryId)
-        .eq("user_id", user.id);
-      if (error) {
+      try {
+        const { error } = await updateJournalEntry(user.id, entryId, entryPayload, {
+          journalId: journalId ?? null,
+        });
+        if (error) {
+          setBusy(false);
+          toast({ title: "Save failed", description: error.message, variant: "destructive" });
+          return;
+        }
+      } catch (err) {
         setBusy(false);
-        toast({ title: "Save failed", description: error.message, variant: "destructive" });
+        toast({
+          title: "Save failed",
+          description: err instanceof Error ? err.message : "Journal encryption required",
+          variant: "destructive",
+        });
         return;
       }
     } else {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert(payload)
-        .select("id")
-        .maybeSingle();
-      if (error || !data) {
+      try {
+        const { data, error } = await insertJournalEntry(user.id, entryPayload);
+        if (error || !data) {
+          setBusy(false);
+          toast({ title: "Save failed", description: error?.message, variant: "destructive" });
+          return;
+        }
+        entryId = data.id;
+      } catch (err) {
         setBusy(false);
-        toast({ title: "Save failed", description: error?.message, variant: "destructive" });
+        toast({
+          title: "Save failed",
+          description: err instanceof Error ? err.message : "Journal encryption required",
+          variant: "destructive",
+        });
         return;
       }
-      entryId = data.id;
     }
 
     if (entryId && composedBody.includes("[[")) {

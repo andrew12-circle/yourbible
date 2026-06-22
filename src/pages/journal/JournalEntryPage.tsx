@@ -22,6 +22,7 @@ import CurrentLocationMap from "@/components/journal/CurrentLocationMap";
 import { syncEntryWikilinks } from "@/lib/journal/links";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
+import { MorningEntrySourceBanner } from "@/components/journal/MorningEntrySourceBanner";
 import {
   LISTENING_SECTIONS,
   isListeningBody,
@@ -30,6 +31,12 @@ import {
 } from "@/lib/journal/listeningEntry";
 import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
+import {
+  loadMorningEntrySourceLinks,
+  type MorningEntrySourceLink,
+} from "@/lib/livingHope/morningEntryLinks";
+import { MORNING_CONVERSATION_ENTRY_KIND } from "@/lib/livingHope/morningConversationJournal";
+import { MORNING_REVIEW_ENTRY_KIND } from "@/lib/livingHope/morningReviewJournal";
 import { cn } from "@/lib/utils";
 
 interface Entry {
@@ -64,6 +71,7 @@ export default function JournalEntryPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
   const [linksReloadKey, setLinksReloadKey] = useState(0);
+  const [morningSourceLinks, setMorningSourceLinks] = useState<MorningEntrySourceLink[]>([]);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
   const [entryLoading, setEntryLoading] = useState(true);
   const [entryNotFound, setEntryNotFound] = useState(false);
@@ -117,6 +125,21 @@ export default function JournalEntryPage() {
     if (user?.id && typeof data.body === "string" && data.body.includes("[[")) {
       await syncEntryWikilinks(user.id, id, data.body);
       setLinksReloadKey((k) => k + 1);
+    }
+    const kind = (data as Entry).entry_kind;
+    if (
+      user?.id &&
+      (kind === MORNING_REVIEW_ENTRY_KIND || kind === MORNING_CONVERSATION_ENTRY_KIND)
+    ) {
+      const links = await loadMorningEntrySourceLinks(
+        user.id,
+        id,
+        kind,
+        (data as Entry).tags,
+      );
+      setMorningSourceLinks(links);
+    } else {
+      setMorningSourceLinks([]);
     }
     setEntryLoading(false);
   }, [id, user?.id]);
@@ -298,6 +321,7 @@ export default function JournalEntryPage() {
       }
     >
       <div className="px-5 pt-3 pb-4">
+      <MorningEntrySourceBanner links={morningSourceLinks} />
       {canWrite && bodyEmpty && (
         <button
           type="button"

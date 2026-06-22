@@ -15,6 +15,7 @@ import {
   mergePendingPatches,
   type JournalAutosavePatch,
 } from "@/lib/journal/journalEntryAutosave";
+import { maybeEncryptJournalPayload } from "@/lib/journal/journalEntryCrypto";
 import type { ListeningSections } from "@/lib/journal/listeningEntry";
 
 export type ComposePersistenceSnapshot = {
@@ -147,7 +148,23 @@ export function useJournalComposePersistence({
       serverGenerationRef.current += 1;
 
       const snap = getSnapshotRef.current();
-      const payload = buildFlushPayload(pending, buildServerPayload(snap));
+      let payload: Record<string, unknown>;
+      try {
+        payload = await maybeEncryptJournalPayload(
+          buildFlushPayload(pending, buildServerPayload(snap)),
+          { journalId: snap.journalId },
+        );
+      } catch (err) {
+        pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
+        if (!opts?.silent) {
+          toast({
+            title: "Couldn't save entry",
+            description: err instanceof Error ? err.message : "Journal encryption required",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
 
       const { error } = await supabase
         .from("journal_entries")
@@ -173,7 +190,19 @@ export function useJournalComposePersistence({
 
     ensuringDraftRef.current = true;
     try {
-      const payload = buildServerPayload(snap);
+      let payload: Record<string, unknown>;
+      try {
+        payload = await maybeEncryptJournalPayload(buildServerPayload(snap), {
+          journalId: snap.journalId,
+        });
+      } catch (err) {
+        toast({
+          title: "Couldn't create entry",
+          description: err instanceof Error ? err.message : "Journal encryption required",
+          variant: "destructive",
+        });
+        return null;
+      }
       const { data, error } = await supabase
         .from("journal_entries")
         .insert({ ...payload, user_id: userId })

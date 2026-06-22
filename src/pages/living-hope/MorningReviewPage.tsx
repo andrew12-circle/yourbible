@@ -364,6 +364,7 @@ export default function MorningReviewPage() {
           connectionNotes: finalConnectionNotes,
           workbook: workbook ?? null,
           goals: activeGoals,
+          reviewId: review.id,
         });
         if (synced?.entryId) setJournalEntryId(synced.entryId);
       } catch {

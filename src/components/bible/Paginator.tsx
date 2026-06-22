@@ -19,6 +19,7 @@ import {
   scriptureParagraphClassNameMeasure,
   wrapVerseShellHtml,
 } from "@/lib/bible/scriptureParagraph";
+import { buildVerseXrefsInnerHtml } from "@/lib/bible/verseBodyRender";
 
 interface Props {
   verses: Verse[];
@@ -257,11 +258,13 @@ function renderInto(
             v,
             studyLayout,
           );
+          const xrefs = buildVerseXrefsInnerHtml(v, escapeHtml, studyLayout);
           return wrapVerseShellHtml(
             v.number,
             chapter,
             inner,
             group.isContinuation,
+            xrefs,
           );
         })
         .join("");

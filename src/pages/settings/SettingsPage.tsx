@@ -24,6 +24,7 @@ import {
   SettingsReaderSection,
 } from "@/components/settings/SettingsSections";
 import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
+import { JournalEncryptionSection } from "@/components/settings/JournalEncryptionSection";
 import { SettingsLegalFooter } from "@/components/legal/LegalPageLayout";
 
 export default function SettingsPage() {
@@ -135,6 +136,8 @@ export default function SettingsPage() {
           {activeSection === "knowledge" ? (
             user?.id ? <SeedTimelineCard userId={user.id} /> : null
           ) : null}
+
+          {activeSection === "privacy" ? <JournalEncryptionSection /> : null}
 
           <SettingsLegalFooter />
         </div>

@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { parseIdentitySummaryPayload, type IdentitySummaryPayload } from "@/lib/framework/identitySummary";
+import { useJournalVaultStore } from "@/stores/journalVaultStore";
+import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
 
 export type { IdentitySummaryPayload };
 
@@ -109,6 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [loadProfile]);
 
+  useEffect(() => {
+    if (!user) {
+      useAiWritingAssistStore.getState().initForUser(null);
+      return;
+    }
+    useAiWritingAssistStore.getState().initForUser(user.id, {
+      email: user.email,
+      displayName: profile?.display_name,
+    });
+  }, [user?.id, user?.email, profile?.display_name]);
+
   const value = useMemo<AuthCtx>(() => ({
     user, session, profile, loading,
     signUp: async (email, password, displayName) => {
@@ -131,7 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loaded = s?.user ? await loadProfile(s.user.id) : null;
       return { error: null, profile: loaded };
     },
-    signOut: async () => { await supabase.auth.signOut(); },
+    signOut: async () => {
+      useJournalVaultStore.getState().reset();
+      await supabase.auth.signOut();
+    },
     requestPasswordReset: async (email) => {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset`,

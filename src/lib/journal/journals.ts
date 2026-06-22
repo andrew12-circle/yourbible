@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ensureNotesJournal } from "@/lib/journal/notesJournal";
+import { ensurePrivateJournal } from "@/lib/journal/privateJournal";
 
 export interface Journal {
   id: string;
@@ -14,6 +16,7 @@ export interface Journal {
   is_default: boolean;
   source_kind: string;
   source_ref: string | null;
+  e2e_required: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,9 +40,13 @@ export const JOURNAL_COLORS: { name: string; value: string }[] = [
  * on every page load. Returns all journals.
  */
 export async function ensureDefaultJournal(userId: string): Promise<Journal[]> {
+  await ensurePrivateJournal(userId);
+  await ensureNotesJournal(userId);
+
   const { data: existing } = await supabase
     .from("journals")
     .select("*")
+    .eq("user_id", userId)
     .order("sort_order")
     .order("created_at");
 
@@ -55,11 +62,20 @@ export async function ensureDefaultJournal(userId: string): Promise<Journal[]> {
       sort_order: 0,
       is_default: true,
       source_kind: "manual",
+      e2e_required: false,
     })
     .select("*")
     .maybeSingle();
 
-  return created ? [created as Journal] : [];
+  const list = created ? [created as Journal] : [];
+  if (list.length) return list;
+  const { data: retry } = await supabase
+    .from("journals")
+    .select("*")
+    .eq("user_id", userId)
+    .order("sort_order")
+    .order("created_at");
+  return (retry as Journal[]) ?? [];
 }
 
 /** Fetch journals (no bootstrap). */

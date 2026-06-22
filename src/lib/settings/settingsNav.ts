@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Palette,
   Plug,
+  ShieldCheck,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -18,7 +19,8 @@ export type SettingsSectionId =
   | "partner"
   | "integrations"
   | "ai"
-  | "knowledge";
+  | "knowledge"
+  | "privacy";
 
 export type SettingsSection = {
   id: SettingsSectionId;
@@ -84,6 +86,13 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "Import spiritual timeline seed data",
     icon: Database,
     accent: "text-teal-500",
+  },
+  {
+    id: "privacy",
+    label: "Journal privacy",
+    description: "End-to-end encryption and recovery",
+    icon: ShieldCheck,
+    accent: "text-emerald-600",
   },
 ];
 

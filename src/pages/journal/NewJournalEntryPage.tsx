@@ -28,10 +28,12 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { journalEntryPageRoot, hubShellBottomDock, journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
 import { mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import { cn } from "@/lib/utils";
-import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
+import { PrivateJournalCryptoBanner } from "@/components/journal/PrivateJournalCryptoBanner";
 import AiWritingAssistToggle, { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
+import { JOURNAL_COMPOSE_HINT } from "@/lib/journal/journalPurpose";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 
 export default function NewJournalEntryPage() {
   const p = useNewJournalEntryPage();
@@ -167,6 +169,14 @@ export default function NewJournalEntryPage() {
           p.focusBodyEditor();
         }}
       >
+        {!p.editId && !p.entryKind ? (
+          <p className="mb-3 text-[13px] text-muted-foreground leading-snug rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+            {JOURNAL_COMPOSE_HINT}{" "}
+            <Link to="/living-hope" className="text-primary font-medium hover:underline">
+              Open First Light
+            </Link>
+          </p>
+        ) : null}
         <div className="relative">
           {!p.title.trim() ? (
             <span
@@ -189,6 +199,8 @@ export default function NewJournalEntryPage() {
             )}
           />
         </div>
+
+        <PrivateJournalCryptoBanner journalId={p.journalId} />
 
         <NewJournalEntryBodyEditor
           editId={p.editId}

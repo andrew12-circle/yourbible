@@ -15,6 +15,7 @@ import { findMorningReviewJournalEntry } from "@/lib/livingHope/morningReviewJou
 import { getMorningFormulaEntryTarget } from "@/lib/livingHope/morningFormulaEntry";
 import { getMorningRitualDraftSummary } from "@/lib/livingHope/morningRitualDraft";
 import { MORNING_FORMULA_TAGLINE } from "@/lib/livingHope/morningRitual";
+import { FIRST_LIGHT_HUB_FOOTER } from "@/lib/journal/journalPurpose";
 import { localDateISO } from "@/lib/lifePriorities";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatUnlockLabel, isLetterUnlockable } from "@/lib/livingHope/letterSections";
@@ -223,6 +224,9 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
             </h1>
             <p className="mt-1 text-[15px] text-muted-foreground leading-snug">
               {greeting} — never look backwards.
+            </p>
+            <p className="mt-2 text-[13px] text-muted-foreground/90 leading-snug max-w-xl">
+              {FIRST_LIGHT_HUB_FOOTER}
             </p>
           </div>
           {streak > 0 ? (

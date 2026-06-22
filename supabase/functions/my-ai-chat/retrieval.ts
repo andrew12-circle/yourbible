@@ -299,7 +299,8 @@ export async function buildFrameworkRetrievalContext(
   let fallbackJournals: JournalHit[] = [];
   if (!scoredJournals.length) {
     let q = supabase.from("journal_entries").select("id,title,body,summary,entry_at_ts")
-      .eq("user_id", userId).or("entry_kind.is.null,entry_kind.neq.vent")
+      .eq("user_id", userId).eq("e2e_encrypted", false)
+      .or("entry_kind.is.null,entry_kind.neq.vent")
       .order("entry_at_ts", { ascending: false }).limit(5);
     if (excludeJournalEntryId) q = q.neq("id", excludeJournalEntryId);
     const { data } = await q;

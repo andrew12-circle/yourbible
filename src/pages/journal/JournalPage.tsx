@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { ensureDefaultJournal, getDefaultJournalId, Journal } from "@/lib/journal/journals";
+import { getNotesJournalId, isNotesJournal } from "@/lib/journal/notesJournal";
 import { getCurrentContext } from "@/lib/journal/context";
 import {
   deleteJournalEntry,
@@ -22,6 +23,7 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
+import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
 import { useJournalTitleBackfill } from "@/hooks/useJournalTitleBackfill";
 import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
 import {
@@ -34,6 +36,7 @@ import {
   journalEntryHref,
   journalNewEntryEditHref,
 } from "@/lib/journal/entryNavigation";
+import { JOURNAL_PURPOSE } from "@/lib/journal/journalPurpose";
 import { Button } from "@/components/ui/button";
 
 interface Entry extends EntryListData {
@@ -50,6 +53,7 @@ export default function JournalPage() {
 
   // Desktop: 3-pane shell
   const [journals, setJournals] = useState<Journal[]>([]);
+  const [notesJournalId, setNotesJournalId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [dayOneImportOpen, setDayOneImportOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -57,6 +61,7 @@ export default function JournalPage() {
   useEffect(() => {
     if (!user) return;
     ensureDefaultJournal(user.id).then(setJournals);
+    getNotesJournalId(user.id).then(setNotesJournalId);
   }, [user]);
 
   const refreshJournals = useCallback(async () => {
@@ -115,6 +120,8 @@ export default function JournalPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   const activeJournal = journalId ? journals.find((j) => j.id === journalId) ?? null : null;
+  const excludeJournalIds =
+    !journalId && notesJournalId ? [notesJournalId] : undefined;
 
   if (isDesktop) {
     return (
@@ -138,6 +145,7 @@ export default function JournalPage() {
               journalId={journalId}
               selectedId={entryId}
               reloadKey={reloadKey}
+              excludeJournalIds={excludeJournalIds}
               headingLabel={activeJournal?.name ?? "All entries"}
               onSelect={(id, entryKind) =>
                 navigate(journalDeskEntryHref(id, journalId, entryKind))
@@ -152,7 +160,8 @@ export default function JournalPage() {
         editor={
           !entryId && !journalId ? (
             <AllEntriesOverviewPane
-              journals={journals}
+              journals={journals.filter((j) => !isNotesJournal(j))}
+              notesJournalId={notesJournalId}
               reloadKey={reloadKey}
               onNew={createNew}
               onImportDayOne={() => setDayOneImportOpen(true)}
@@ -206,7 +215,7 @@ export default function JournalPage() {
     return <MobileEntryRedirect entryId={entryId} />;
   }
 
-  return <MobileJournalList journalId={journalId} />;
+  return <MobileJournalList journalId={journalId} notesJournalId={notesJournalId} />;
 }
 
 /** Resolve entry kind then open the correct mobile read/chat route. */
@@ -233,7 +242,13 @@ function MobileEntryRedirect({ entryId }: { entryId: string }) {
 }
 
 /** Mobile list with swipe actions on each row. */
-function MobileJournalList({ journalId }: { journalId: string | null }) {
+function MobileJournalList({
+  journalId,
+  notesJournalId,
+}: {
+  journalId: string | null;
+  notesJournalId: string | null;
+}) {
   const { user } = useAuth();
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -277,6 +292,8 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
         const offset = append ? entries.length : 0;
         const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
           journalId,
+          excludeJournalIds:
+            !journalId && notesJournalId ? [notesJournalId] : undefined,
           offset,
           limit: JOURNAL_LIST_PAGE_SIZE,
         });
@@ -284,7 +301,7 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
         setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
         await attachPhotoUrls(rows, append);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = formatJournalLoadError(e);
         setLoadError(msg);
         toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
       } finally {
@@ -292,7 +309,7 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
         setLoadingMore(false);
       }
     },
-    [user, journalId, entries.length, attachPhotoUrls],
+    [user, journalId, notesJournalId, entries.length, attachPhotoUrls],
   );
 
   useEffect(() => {
@@ -376,7 +393,7 @@ function MobileJournalList({ journalId }: { journalId: string | null }) {
   }, [rest]);
 
   return (
-    <JournalShell journalId={journalId} activeTab="list" totalCount={entries.length}>
+    <JournalShell journalId={journalId} activeTab="list" totalCount={entries.length} subtitle={JOURNAL_PURPOSE}>
       <div className="px-5 pt-3 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-muted-foreground" />

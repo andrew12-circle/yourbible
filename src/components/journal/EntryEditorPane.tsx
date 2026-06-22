@@ -72,6 +72,10 @@ import {
   buildFlushPayload,
   mergePendingPatches,
 } from "@/lib/journal/journalEntryAutosave";
+import {
+  fetchJournalEntryDetail,
+  updateJournalEntry,
+} from "@/lib/journal/journalEntryDb";
 import { cn } from "@/lib/utils";
 
 interface EntryRow {
@@ -92,6 +96,8 @@ interface EntryRow {
   entry_kind: string | null;
   lat: number | null;
   lng: number | null;
+  e2e_encrypted?: boolean;
+  contentLocked?: boolean;
 }
 
 export default function EntryEditorPane({
@@ -154,19 +160,12 @@ export default function EntryEditorPane({
   }, [togglePrivacyBlur]);
 
   const reloadEntryFromServer = useCallback(async (id: string) => {
-    const { data } = await supabase
-      .from("journal_entries")
-      .select(
-        "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
-      )
-      .eq("id", id)
-      .maybeSingle();
-    const row = (data as EntryRow | null) ?? null;
+    const row = await fetchJournalEntryDetail(id);
     if (row && entryRef.current?.id === id) {
-      entryRef.current = row;
-      setEntry(row);
+      entryRef.current = row as EntryRow;
+      setEntry(row as EntryRow);
     }
-    return row;
+    return row as EntryRow | null;
   }, []);
 
   const applySketchUpload = useCallback(
@@ -204,20 +203,20 @@ export default function EntryEditorPane({
     setBodyEditing(false);
     setBodyFocused(false);
     (async () => {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select(
-          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
-        )
-        .eq("id", entryId)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
+      let row: EntryRow | null = null;
+      try {
+        row = (await fetchJournalEntryDetail(entryId)) as EntryRow | null;
+      } catch (error) {
+        if (cancelled) return;
         setLoadingEntry(false);
-        toast({ title: "Couldn't load entry", description: error.message, variant: "destructive" });
+        toast({
+          title: "Couldn't load entry",
+          description: error instanceof Error ? error.message : "Try again",
+          variant: "destructive",
+        });
         return;
       }
-      const row = (data as EntryRow | null) ?? null;
+      if (cancelled) return;
       if (!row) {
         setLoadingEntry(false);
         setEntryNotFound(true);
@@ -304,11 +303,20 @@ export default function EntryEditorPane({
       saveGenerationRef.current += 1;
 
       const payload = buildFlushPayload(pending, cur);
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", cur.id)
-        .eq("user_id", user.id);
+      let error: { message: string } | null = null;
+      try {
+        ({ error } = await updateJournalEntry(user.id, cur.id, payload, { journalId: cur.journal_id }));
+      } catch (err) {
+        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
+        if (!opts?.silent) {
+          toast({
+            title: "Save failed",
+            description: err instanceof Error ? err.message : "Journal encryption required",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
 
       if (error && !opts?.silent) {
         pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
@@ -348,11 +356,20 @@ export default function EntryEditorPane({
       pendingSaveRef.current = {};
       const payload = buildFlushPayload(pending, latest);
 
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", latest.id)
-        .eq("user_id", user.id);
+      let error: { message: string } | null = null;
+      try {
+        ({ error } = await updateJournalEntry(user.id, latest.id, payload, {
+          journalId: latest.journal_id,
+        }));
+      } catch (err) {
+        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
+        toast({
+          title: "Save failed",
+          description: err instanceof Error ? err.message : "Journal encryption required",
+          variant: "destructive",
+        });
+        return;
+      }
       if (generation !== saveGenerationRef.current) return;
       if (error) {
         pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
@@ -637,13 +654,7 @@ export default function EntryEditorPane({
         persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
       }
       await saveChatAsJournalEntry({ journalEntryId: entry.id });
-      const { data: refreshed } = await supabase
-        .from("journal_entries")
-        .select(
-          "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind,lat,lng",
-        )
-        .eq("id", entry.id)
-        .maybeSingle();
+      const refreshed = await fetchJournalEntryDetail(entry.id);
       if (refreshed) {
         const row = refreshed as EntryRow;
         entryRef.current = row;
@@ -777,6 +788,24 @@ export default function EntryEditorPane({
         <NotebookText className="w-12 h-12 text-muted-foreground/40 mb-3" />
         <p className="text-[15px] font-semibold">Entry not found</p>
         <p className="text-[13px] text-muted-foreground mt-1">This entry may have been deleted.</p>
+      </div>
+    );
+  }
+
+  if (entryId && entry?.contentLocked) {
+    return (
+      <div className="flex h-full min-h-0 flex-col items-center justify-center text-center px-8 gap-3">
+        <p className="text-[15px] font-semibold">This entry is encrypted</p>
+        <p className="text-[13px] text-muted-foreground max-w-sm">
+          Unlock your journal passphrase in Settings → Journal privacy to read and edit.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/settings?section=privacy")}
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium"
+        >
+          Open journal privacy
+        </button>
       </div>
     );
   }

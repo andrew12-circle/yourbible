@@ -14,6 +14,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
 import { ShellGate } from "@/components/shell/ShellGate";
+import { GlobalJournalQuickCapture } from "@/hooks/useGlobalJournalQuickCapture";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
@@ -55,6 +56,7 @@ const DigestPage = lazy(() => import("./pages/framework/DigestPage"));
 const ChatPage = lazy(() => import("./pages/framework/ChatPage"));
 const StudyPage = lazy(() => import("./pages/framework/StudyPage"));
 const DailyPage = lazy(() => import("./pages/framework/DailyPage"));
+const JournalNotesPage = lazy(() => import("./pages/journal/JournalNotesPage"));
 const JournalPage = lazy(() => import("./pages/journal/JournalPage"));
 const JournalCalendarPage = lazy(() => import("./pages/journal/JournalCalendarPage"));
 const JournalEntryPage = lazy(() => import("./pages/journal/JournalEntryPage"));
@@ -143,6 +145,8 @@ const App = () => (
                   <Route path="/framework/study" element={<StudyPage />} />
                   <Route path="/framework/daily" element={<DailyPage />} />
                   <Route path="/framework/live" element={<Navigate to="/framework/artifacts/live" replace />} />
+                  <Route path="/journal/notes" element={<JournalNotesPage />} />
+                  <Route path="/journal/notes/e/:entryId" element={<JournalNotesPage />} />
                   <Route path="/journal" element={<JournalPage />} />
                   <Route path="/journal/j/:journalId" element={<JournalPage />} />
                   <Route path="/journal/j/:journalId/e/:entryId" element={<JournalPage />} />
@@ -200,6 +204,7 @@ const App = () => (
             <Suspense fallback={null}>
               <HomeIndicator />
               <GlobalJournalLauncher />
+              <GlobalJournalQuickCapture />
               <GlobalArtifactVideoPip />
             </Suspense>
           </AuthProvider>

@@ -17,6 +17,7 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
+import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
 import {
   fetchJournalEntryListPage,
   JOURNAL_LIST_PAGE_SIZE,
@@ -51,6 +52,7 @@ export default function EntryListPane({
   onDeleted,
   reloadKey,
   entryKindFilter,
+  excludeJournalIds,
   headingLabel = "All entries",
 }: {
   journalId: string | null;
@@ -61,6 +63,8 @@ export default function EntryListPane({
   reloadKey?: number;
   /** When set, only entries of this faith-journal kind (still respects journalId when set). */
   entryKindFilter?: JournalEntryKind | null;
+  /** Hide entries from these notebooks (e.g. Notes on All entries). */
+  excludeJournalIds?: string[];
   /** Top row label — aligned with the editor date header. */
   headingLabel?: string;
 }) {
@@ -108,6 +112,7 @@ export default function EntryListPane({
       const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
         journalId,
         entryKindFilter,
+        excludeJournalIds,
         offset,
         limit: JOURNAL_LIST_PAGE_SIZE,
       });
@@ -115,7 +120,7 @@ export default function EntryListPane({
       setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
       await attachPhotos(rows, append);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = formatJournalLoadError(e);
       setLoadError(msg);
       toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
     } finally {
@@ -126,7 +131,7 @@ export default function EntryListPane({
 
   useEffect(() => {
     void load(false);
-  }, [user, journalId, reloadKey, entryKindFilter]); // eslint-disable-line react-hooks/exhaustive-deps -- reset list when scope changes
+  }, [user, journalId, reloadKey, entryKindFilter, excludeJournalIds]); // eslint-disable-line react-hooks/exhaustive-deps -- reset list when scope changes
 
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));

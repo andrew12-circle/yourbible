@@ -52,6 +52,7 @@ function composeText(table: TableName, row: Record<string, unknown>): string | n
     }
     case "journal_entries": {
       if (String(row.entry_kind ?? "") === "vent") return null;
+      if (row.e2e_encrypted === true) return null;
       const title = String(row.title ?? "").trim();
       const summary = String(row.summary ?? "").trim();
       const body = String(row.body ?? "").trim();

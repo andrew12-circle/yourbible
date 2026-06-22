@@ -106,7 +106,8 @@ export function SettingsProfileSection({
         <div>
           <p className="text-sm font-medium">AI writing assist</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Lightly correct spelling and grammar after you pause or leave a field. Your meaning stays yours.
+            Off by default. When on, spelling and grammar are lightly corrected after you pause — journal text is sent to
+            AI for that step. Dictation formatting stays on your device.
           </p>
         </div>
         <AiWritingAssistToggle />

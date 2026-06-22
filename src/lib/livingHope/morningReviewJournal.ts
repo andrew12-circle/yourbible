@@ -20,9 +20,12 @@ export interface MorningReviewJournalContext {
   manifestoIndex?: number | null;
   storyIndex?: number | null;
   metricValues?: Record<string, number | string>;
+  routineChecks?: Record<string, boolean>;
   connectionNotes?: MorningConnectionNotes;
   workbook: LivingHopeWorkbookContent | null;
   goals: LivingHopeGoalRow[];
+  /** `living_hope_reviews.id` — stored on the review row after sync. */
+  reviewId?: string;
 }
 
 export function morningReviewTag(reviewDate: string): string {
@@ -105,6 +108,25 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
   if (assignment?.family?.trim()) assignmentLines.push(`- **Family:** ${assignment.family.trim()}`);
   if (assignment?.business?.trim()) assignmentLines.push(`- **Business:** ${assignment.business.trim()}`);
 
+  const routineLines =
+    ctx.workbook?.routine
+      .map((item) => {
+        const checked = ctx.routineChecks?.[item.id];
+        if (checked == null) return "";
+        const label = item.label?.trim() || "Routine item";
+        return `- [${checked ? "x" : " "}] ${label}`;
+      })
+      .filter(Boolean) ?? [];
+
+  const conversationId = ctx.connectionNotes?.conversation_entry_id?.trim();
+  const conversationSection =
+    [
+      ctx.connectionNotes?.prayer_note,
+      conversationId ? `[[entry:${conversationId}]]` : null,
+    ]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
+
   const body = [
     section("Worship", ctx.connectionNotes?.worship_note),
     section(
@@ -123,21 +145,12 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
             .join("\n\n"),
         )
       : section("Scripture", ctx.connectionNotes?.scripture_reflection),
-    section(
-      "Conversation",
-      [
-        ctx.connectionNotes?.prayer_note,
-        ctx.connectionNotes?.conversation_entry_id
-          ? `(Worship, thanksgiving, and conversation live together in today's entry.)`
-          : null,
-      ]
-        .filter(Boolean)
-        .join("\n\n") || undefined,
-    ),
+    section("Conversation", conversationSection),
     section("Manifesto", manifesto),
     visionParts.length ? section("Vision", visionParts.join("\n\n")) : "",
     section("Story", storyBody || undefined),
     assignmentLines.length ? `## Today's assignment\n\n${assignmentLines.join("\n")}\n` : "",
+    routineLines.length ? `## Daily routine\n\n${routineLines.join("\n")}\n` : "",
     goalBlocks.length ? `## Goals\n\n${goalBlocks.join("\n\n")}\n` : "",
     metricLines.length ? `## Metrics\n\n${metricLines.join("\n")}\n` : "",
     section("Surrender", ctx.surrenderNote),
@@ -237,6 +250,13 @@ function beliefLinks(beliefIds: string[]): EntryLinkInput[] {
   }));
 }
 
+function entryLinks(entryIds: string[]): EntryLinkInput[] {
+  return entryIds.map((entry_id) => ({
+    kind: "entry" as const,
+    ref: { entry_id } as Json,
+  }));
+}
+
 /** Upsert today's morning review as a journal entry wired into the mind graph. */
 export async function syncMorningReviewToJournal(
   userId: string,
@@ -292,7 +312,42 @@ export async function syncMorningReviewToJournal(
   if (!entryId) return null;
 
   const beliefIds = await findRelatedBeliefIds(userId, manifesto);
-  await setEntryLinks(userId, entryId, [...verseLinks(verseRefs), ...beliefLinks(beliefIds)]);
+  const linkedEntryIds = [
+    ctx.connectionNotes?.conversation_entry_id?.trim(),
+  ].filter((id): id is string => Boolean(id && id !== entryId));
+  await setEntryLinks(userId, entryId, [
+    ...verseLinks(verseRefs),
+    ...beliefLinks(beliefIds),
+    ...entryLinks(linkedEntryIds),
+  ]);
+
+  if (linkedEntryIds.length) {
+    for (const otherId of linkedEntryIds) {
+      const { data: existing } = await supabase
+        .from("journal_entry_links")
+        .select("id")
+        .eq("entry_id", otherId)
+        .eq("target_kind", "entry")
+        .contains("target_ref", { entry_id: entryId })
+        .maybeSingle();
+      if (!existing) {
+        await supabase.from("journal_entry_links").insert({
+          user_id: userId,
+          entry_id: otherId,
+          target_kind: "entry",
+          target_ref: { entry_id: entryId } as Json,
+        });
+      }
+    }
+  }
+
+  if (ctx.reviewId) {
+    await supabase
+      .from("living_hope_reviews")
+      .update({ journal_entry_id: entryId })
+      .eq("id", ctx.reviewId)
+      .eq("user_id", userId);
+  }
 
   return { entryId };
 }

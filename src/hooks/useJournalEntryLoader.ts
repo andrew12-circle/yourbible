@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { toast } from "@/hooks/use-toast";
+import { fetchJournalEntryDetail } from "@/lib/journal/journalEntryDb";
+import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
 
 export type JournalEntryPhoto = { id: string; storage_path: string; url?: string };
 
@@ -21,10 +23,9 @@ export type LoadedJournalEntry = {
   weather_temp_c: number | null;
   weather_icon: string | null;
   entry_kind: string | null;
+  e2e_encrypted?: boolean;
+  contentLocked?: boolean;
 };
-
-const ENTRY_SELECT =
-  "id,title,body,summary,mood,tags,entry_at_ts,pinned,analyze_for_mirror,journal_id,location_name,weather,weather_temp_c,weather_icon,entry_kind";
 
 /** Loads a journal entry + photo thumbnails with abort-on-id-change semantics. */
 export function useJournalEntryLoader(entryId: string | null) {
@@ -39,13 +40,12 @@ export function useJournalEntryLoader(entryId: string | null) {
   }, [entry]);
 
   const reload = useCallback(async (id: string) => {
-    const { data } = await supabase.from("journal_entries").select(ENTRY_SELECT).eq("id", id).maybeSingle();
-    const row = (data as LoadedJournalEntry | null) ?? null;
-    if (row && entryRef.current?.id === id) {
-      entryRef.current = row;
-      setEntry(row);
+    const decrypted = await fetchJournalEntryDetail(id);
+    if (decrypted && entryRef.current?.id === id) {
+      entryRef.current = decrypted as LoadedJournalEntry;
+      setEntry(decrypted as LoadedJournalEntry);
     }
-    return row;
+    return decrypted as LoadedJournalEntry | null;
   }, []);
 
   useEffect(() => {
@@ -65,34 +65,34 @@ export function useJournalEntryLoader(entryId: string | null) {
     setPhotos([]);
 
     (async () => {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select(ENTRY_SELECT)
-        .eq("id", entryId)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
+      try {
+        const decrypted = await fetchJournalEntryDetail(entryId);
+        if (cancelled) return;
+        if (!decrypted) {
+          setLoading(false);
+          setNotFound(true);
+          return;
+        }
+        entryRef.current = decrypted as LoadedJournalEntry;
+        setEntry(decrypted as LoadedJournalEntry);
+        const { data: ph } = await supabase
+          .from("journal_photos")
+          .select("id,storage_path")
+          .eq("entry_id", entryId);
+        if (cancelled) return;
+        const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
+        if (cancelled) return;
+        setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
         setLoading(false);
-        toast({ title: "Couldn't load entry", description: error.message, variant: "destructive" });
-        return;
-      }
-      const row = (data as LoadedJournalEntry | null) ?? null;
-      if (!row) {
+      } catch (error) {
+        if (cancelled) return;
         setLoading(false);
-        setNotFound(true);
-        return;
+        toast({
+          title: "Couldn't load entry",
+          description: formatJournalLoadError(error),
+          variant: "destructive",
+        });
       }
-      entryRef.current = row;
-      setEntry(row);
-      const { data: ph } = await supabase
-        .from("journal_photos")
-        .select("id,storage_path")
-        .eq("entry_id", entryId);
-      if (cancelled) return;
-      const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
-      if (cancelled) return;
-      setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
-      setLoading(false);
     })();
 
     return () => {

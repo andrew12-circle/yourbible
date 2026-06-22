@@ -9,6 +9,10 @@ describe("buildMorningReviewJournalContent", () => {
     wb.stories = [{ id: "s1", text: "Walking into the office with peace." }];
     wb.vision_headline = "Seven figures, clean structure.";
     wb.metrics = [{ id: "met1", label: "Revenue", unit: "USD" }];
+    wb.routine = [
+      { id: "r1", label: "Morning walk" },
+      { id: "r2", label: "Read letter" },
+    ];
 
     const { title, body, summary, verseRefs } = buildMorningReviewJournalContent({
       reviewDate: "2026-06-11",
@@ -20,7 +24,9 @@ describe("buildMorningReviewJournalContent", () => {
         prayer_note: "Guide my business today.",
         conversation_entry_id: "conv-entry-1",
         scripture_ref: "James 1:5",
+        scripture_reflection: "Wisdom for today's decisions.",
         story_recall: "**Story:** Walking into the office with peace.\n\n**Scene:** I'm at the door.",
+        covering_note: "I cover my home and business in Your blood.",
         daily_assignment: {
           spiritual: "Read James 1 at lunch",
           family: "Finish closet",
@@ -34,6 +40,7 @@ describe("buildMorningReviewJournalContent", () => {
       manifestoIndex: 0,
       storyIndex: 0,
       metricValues: { met1: "12000" },
+      routineChecks: { r1: true, r2: false },
       workbook: wb,
       goals: [
         {
@@ -69,6 +76,12 @@ describe("buildMorningReviewJournalContent", () => {
     expect(body).toContain("Obedience step");
     expect(body).toContain("Revenue");
     expect(body).toContain("Father, not my will");
+    expect(body).toContain("[[entry:conv-entry-1]]");
+    expect(body).toContain("Wisdom for today's decisions.");
+    expect(body).toContain("I cover my home");
+    expect(body).toContain("Daily routine");
+    expect(body).toContain("[x] Morning walk");
+    expect(body).toContain("[ ] Read letter");
     expect(summary).toContain("dashboard green");
     expect(verseRefs).toContain("James 1:5");
     expect(verseRefs).toContain("Rom 12:2");

@@ -1027,6 +1027,7 @@ export type Database = {
           belief_id: string | null
           body: string
           created_at: string
+          e2e_encrypted: boolean
           embedding: string | null
           entry_at: string
           entry_at_ts: string
@@ -1054,6 +1055,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          e2e_encrypted?: boolean
           embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
@@ -1081,6 +1083,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          e2e_encrypted?: boolean
           embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
@@ -1102,6 +1105,36 @@ export type Database = {
           weather?: string | null
           weather_icon?: string | null
           weather_temp_c?: number | null
+        }
+        Relationships: []
+      }
+      user_journal_crypto: {
+        Row: {
+          created_at: string
+          key_version: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Insert: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at?: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Update: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek?: string
+          salt?: string
+          updated_at?: string
+          user_id?: string
+          wrapped_dek?: string
         }
         Relationships: []
       }
@@ -1284,6 +1317,7 @@ export type Database = {
           cover_kind: string
           cover_value: string | null
           created_at: string
+          e2e_required: boolean
           icon: string
           id: string
           is_default: boolean
@@ -1301,6 +1335,7 @@ export type Database = {
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
+          e2e_required?: boolean
           icon?: string
           id?: string
           is_default?: boolean
@@ -1318,6 +1353,7 @@ export type Database = {
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
+          e2e_required?: boolean
           icon?: string
           id?: string
           is_default?: boolean
@@ -1514,6 +1550,7 @@ export type Database = {
           created_at: string
           goal_touches: Json
           id: string
+          journal_entry_id: string | null
           manifesto_index: number | null
           metric_values: Json
           review_date: string
@@ -1529,6 +1566,7 @@ export type Database = {
           created_at?: string
           goal_touches?: Json
           id?: string
+          journal_entry_id?: string | null
           manifesto_index?: number | null
           metric_values?: Json
           review_date: string
@@ -1544,6 +1582,7 @@ export type Database = {
           created_at?: string
           goal_touches?: Json
           id?: string
+          journal_entry_id?: string | null
           manifesto_index?: number | null
           metric_values?: Json
           review_date?: string
@@ -2102,6 +2141,7 @@ export type Database = {
           id: string
           identity_generated_at: string | null
           identity_summary: Json | null
+          journal_e2e_enabled: boolean
           layout: string
           onboarded: boolean
           page_tone: string
@@ -2122,6 +2162,7 @@ export type Database = {
           id?: string
           identity_generated_at?: string | null
           identity_summary?: Json | null
+          journal_e2e_enabled?: boolean
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -2142,6 +2183,7 @@ export type Database = {
           id?: string
           identity_generated_at?: string | null
           identity_summary?: Json | null
+          journal_e2e_enabled?: boolean
           layout?: string
           onboarded?: boolean
           page_tone?: string
