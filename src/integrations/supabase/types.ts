@@ -1282,6 +1282,44 @@ export type Database = {
           },
         ]
       }
+      journal_videos: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          entry_id: string
+          id: string
+          mime_type: string | null
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          entry_id: string
+          id?: string
+          mime_type?: string | null
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          entry_id?: string
+          id?: string
+          mime_type?: string | null
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_videos_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_prompts: {
         Row: {
           category: string

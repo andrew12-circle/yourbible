@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import JournalsRail from "@/components/journal/JournalsRail";
 import JournalDeskLayout from "@/components/journal/JournalDeskLayout";
 import NotesListPane from "@/components/journal/NotesListPane";
@@ -20,28 +21,35 @@ export default function JournalNotesPage() {
 
   const [journals, setJournals] = useState<Journal[]>([]);
   const [notesJournalId, setNotesJournalId] = useState<string | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
+  const loadNotes = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
-    void (async () => {
-      setBooting(true);
+    setBooting(true);
+    setBootError(null);
+    try {
       const [list, nid] = await Promise.all([
         ensureDefaultJournal(user.id),
         getNotesJournalId(user.id),
       ]);
-      if (cancelled) return;
       setJournals(list);
       setNotesJournalId(nid);
+      if (!nid) {
+        setBootError("Could not create the Notes notebook. Check your connection and try again.");
+      }
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : "Couldn't load Notes.");
+    } finally {
       setBooting(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    }
   }, [user]);
+
+  useEffect(() => {
+    void loadNotes();
+  }, [loadNotes]);
 
   const refreshJournals = useCallback(async () => {
     if (!user) return;
@@ -85,8 +93,15 @@ export default function JournalNotesPage() {
   if (!user) return <Navigate to="/auth" replace />;
   if (!notesJournalId) {
     return (
-      <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-        Notes notebook is unavailable. Try refreshing after database migrations finish.
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-[15px] font-medium">Notes isn&apos;t ready yet</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {bootError ??
+            "We couldn't open your Notes notebook. If you recently deployed, run `supabase db push` for the latest migrations, then retry."}
+        </p>
+        <Button variant="outline" size="sm" onClick={() => void loadNotes()}>
+          Try again
+        </Button>
       </div>
     );
   }

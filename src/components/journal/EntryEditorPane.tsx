@@ -7,6 +7,9 @@ import {
   Heading1, List as ListIcon, ListOrdered, CheckSquare, Quote,
   Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle, Link2,
 } from "lucide-react";
+import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
+import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
+import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -119,6 +122,7 @@ export default function EntryEditorPane({
   const navigate = useNavigate();
   const [entry, setEntry] = useState<EntryRow | null>(null);
   const [photos, setPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
+  const { videos, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(entryId);
   const [showMeta, setShowMeta] = useState(false);
   const [scoring, setScoring] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -565,6 +569,8 @@ export default function EntryEditorPane({
     [handleBodyChange, inlineChatMode],
   );
 
+  const handleVideoAppend = handleDictateAppend;
+
   const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
     useDictationAutoFormat({
       getBody: () => entryRef.current?.body ?? "",
@@ -921,6 +927,14 @@ export default function EntryEditorPane({
         <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>
           <Paperclip className="w-4 h-4" />
         </TBtn>
+        {!inlineChatMode ? (
+          <JournalVideoCaptureButton
+            userId={user?.id}
+            entryId={entry?.id ?? null}
+            onAppendTranscript={handleVideoAppend}
+            onVideoSaved={() => void reloadVideos()}
+          />
+        ) : null}
         <TBtn title="Handwritten" onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}>
           <PenLine className="w-4 h-4" />
         </TBtn>
@@ -1017,6 +1031,23 @@ export default function EntryEditorPane({
                 setSketchOpen(true);
               }}
               onRemove={removePhoto}
+            />
+          ) : null}
+
+          {!inlineChatMode && videos.length > 0 ? (
+            <JournalEntryVideos
+              videos={videos}
+              onRemove={async (id, path) => {
+                try {
+                  await removeVideo(id, path);
+                } catch (e) {
+                  toast({
+                    title: "Couldn't remove video",
+                    description: e instanceof Error ? e.message : "Try again",
+                    variant: "destructive",
+                  });
+                }
+              }}
             />
           ) : null}
 
