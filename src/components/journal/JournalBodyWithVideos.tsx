@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import type { JournalVideoRow } from "@/lib/journal/videos";
 import { effectiveVideoAnchor } from "@/lib/journal/journalVideoBody";
 import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
