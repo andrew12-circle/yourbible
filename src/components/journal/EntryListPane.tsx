@@ -3,7 +3,8 @@ import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCi
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
-import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
+import EntryListMediaThumbnail from "@/components/journal/EntryListMediaThumbnail";
 import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
 import { formatTemp } from "@/lib/journal/context";
@@ -71,6 +72,7 @@ export default function EntryListPane({
   const { user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("list");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -82,24 +84,15 @@ export default function EntryListPane({
   const attachPhotos = async (list: JournalEntryListRow[], merge: boolean) => {
     const ids = list.map((e) => e.id);
     if (!ids.length) {
-      if (!merge) setPhotoUrls({});
+      if (!merge) {
+        setPhotoUrls({});
+        setVideoUrls({});
+      }
       return;
     }
-    const { data: photos } = await supabase
-      .from("journal_photos")
-      .select("entry_id,storage_path,created_at")
-      .in("entry_id", ids)
-      .order("created_at");
-    const firstByEntry: Record<string, string> = {};
-    (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-      if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-    });
-    const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-    const byEntry: Record<string, string> = {};
-    for (const [eid, p] of Object.entries(firstByEntry)) {
-      if (urls[p]) byEntry[eid] = urls[p];
-    }
-    setPhotoUrls((prev) => (merge ? { ...prev, ...byEntry } : byEntry));
+    const { photoUrls: photos, videoUrls: videos } = await fetchEntryListMediaUrls(ids);
+    setPhotoUrls((prev) => (merge ? { ...prev, ...photos } : photos));
+    setVideoUrls((prev) => (merge ? { ...prev, ...videos } : videos));
   };
 
   const load = async (append = false) => {
@@ -295,6 +288,7 @@ export default function EntryListPane({
                         e={e}
                         active={selectedId === e.id}
                         photoUrl={photoUrls[e.id]}
+                        videoUrl={videoUrls[e.id]}
                         onClick={() => onSelect(e.id, e.entry_kind)}
                         onPin={() => handlePin(e.id, e.pinned)}
                         onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
@@ -310,18 +304,22 @@ export default function EntryListPane({
         {view === "photos" && (
           <div className="grid grid-cols-3 gap-1 p-1">
             {filtered
-              .filter((e) => photoUrls[e.id])
+              .filter((e) => photoUrls[e.id] || videoUrls[e.id])
               .map((e) => (
                 <button
                   key={e.id}
                   onClick={() => onSelect(e.id, e.entry_kind)}
-                  className="aspect-square overflow-hidden bg-muted hover:opacity-90"
+                  className="relative aspect-square overflow-hidden bg-muted hover:opacity-90"
                 >
-                  <img src={photoUrls[e.id]} alt="" className="w-full h-full object-cover" />
+                  {photoUrls[e.id] ? (
+                    <img src={photoUrls[e.id]} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <EntryListMediaThumbnail videoUrl={videoUrls[e.id]} size="fill" />
+                  )}
                 </button>
               ))}
-            {filtered.filter((e) => photoUrls[e.id]).length === 0 && (
-              <p className="col-span-3 text-center py-12 text-sm text-muted-foreground">No photos yet</p>
+            {filtered.filter((e) => photoUrls[e.id] || videoUrls[e.id]).length === 0 && (
+              <p className="col-span-3 text-center py-12 text-sm text-muted-foreground">No photos or videos yet</p>
             )}
           </div>
         )}
@@ -369,11 +367,12 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
 }
 
 function EntryRow({
-  e, active, photoUrl, onClick, onPin, onFlag, onDelete,
+  e, active, photoUrl, videoUrl, onClick, onPin, onFlag, onDelete,
 }: {
   e: Entry;
   active: boolean;
   photoUrl?: string;
+  videoUrl?: string;
   onClick: () => void;
   onPin: () => void;
   onFlag: () => void;
@@ -459,9 +458,7 @@ function EntryRow({
           {mood && <span className={active ? "" : mood.color}>{mood.label}</span>}
         </div>
       </div>
-      {photoUrl && (
-        <img src={photoUrl} alt="" className="flex-shrink-0 w-12 h-12 rounded-md object-cover bg-muted" />
-      )}
+      <EntryListMediaThumbnail photoUrl={photoUrl} videoUrl={videoUrl} size="sm" />
     </button>
   );
 

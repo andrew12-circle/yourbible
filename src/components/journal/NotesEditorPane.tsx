@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Trash2, ChevronLeft } from "lucide-react";
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
-import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
+import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
-import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { clampAnchorOffset, insertTranscriptAtAnchor, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PrivacyBlurInput } from "@/components/writing/PrivacyBlurInput";
@@ -31,6 +31,10 @@ export default function NotesEditorPane({ entryId, notesJournalId, onChanged, on
   const pendingRef = useRef<Record<string, unknown>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyCaretRef = useRef<number | null>(null);
+  const bodyStateRef = useRef("");
+  bodyStateRef.current = body;
   const { videos, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(entryId);
 
   const flushSave = useCallback(
@@ -64,15 +68,24 @@ export default function NotesEditorPane({ entryId, notesJournalId, onChanged, on
     [flushSave],
   );
 
-  const appendTranscript = useCallback(
-    (chunk: string) => {
-      setBody((prev) => {
-        const next = mergeDictatedText(prev, chunk);
-        queueSave({ body: next });
-        return next;
-      });
+  const handleBodyChange = useCallback(
+    (next: string, cursor?: number) => {
+      if (cursor != null) bodyCaretRef.current = cursor;
+      setBody(next);
+      queueSave({ body: next });
     },
     [queueSave],
+  );
+
+  const handleVideoSaved = useCallback(
+    ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
+      void reloadVideos();
+      if (!transcript.trim()) return;
+      const cur = bodyStateRef.current;
+      const anchor = clampAnchorOffset(cur, anchorOffset);
+      handleBodyChange(insertTranscriptAtAnchor(cur, anchor, transcript));
+    },
+    [handleBodyChange, reloadVideos],
   );
 
   useEffect(() => {
@@ -183,8 +196,19 @@ export default function NotesEditorPane({ entryId, notesJournalId, onChanged, on
           <JournalVideoCaptureButton
             userId={user?.id}
             entryId={entryId}
-            onAppendTranscript={appendTranscript}
-            onVideoSaved={() => void reloadVideos()}
+            getAnchorOffset={() => {
+              const body = bodyStateRef.current;
+              const el = bodyRef.current;
+              const editorFocused = Boolean(el && document.activeElement === el);
+              const caret = editorFocused
+                ? (el!.selectionStart ?? bodyCaretRef.current)
+                : bodyCaretRef.current;
+              return resolveVideoAnchorOffset(body, {
+                caret,
+                bodyEditorFocused: editorFocused,
+              });
+            }}
+            onVideoSaved={handleVideoSaved}
           />
           <Button
             type="button"
@@ -200,20 +224,6 @@ export default function NotesEditorPane({ entryId, notesJournalId, onChanged, on
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        <JournalEntryVideos
-          videos={videos}
-          onRemove={async (id, path) => {
-            try {
-              await removeVideo(id, path);
-            } catch (e) {
-              toast({
-                title: "Couldn't remove video",
-                description: e instanceof Error ? e.message : "Try again",
-                variant: "destructive",
-              });
-            }
-          }}
-        />
         <PrivacyBlurInput
           ref={titleRef}
           value={title}
@@ -227,18 +237,54 @@ export default function NotesEditorPane({ entryId, notesJournalId, onChanged, on
             "placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none",
           )}
         />
-        <PolishedTextarea
-          value={body}
-          onChange={(e) => {
-            setBody(e.target.value);
-            queueSave({ body: e.target.value });
-          }}
-          placeholder="Start typing…"
-          className={cn(
-            "mt-3 min-h-[50vh] w-full resize-none border-0 bg-transparent p-0 text-[16px] leading-relaxed",
-            "placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none",
-          )}
-        />
+        {videos.length > 0 ? (
+          <JournalBodyWithVideos
+            body={body}
+            videos={videos}
+            bodyClassName={cn(
+              "mt-3 min-h-[50vh] w-full resize-none border-0 bg-transparent p-0 text-[16px] leading-relaxed",
+              "placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none",
+            )}
+            onBodyChange={handleBodyChange}
+            onCaretChange={(offset) => {
+              bodyCaretRef.current = offset;
+            }}
+            onRemoveVideo={async (id, path) => {
+              try {
+                await removeVideo(id, path);
+              } catch (e) {
+                toast({
+                  title: "Couldn't remove video",
+                  description: e instanceof Error ? e.message : "Try again",
+                  variant: "destructive",
+                });
+              }
+            }}
+          />
+        ) : (
+          <PolishedTextarea
+            ref={bodyRef}
+            value={body}
+            onChange={(e) =>
+              handleBodyChange(
+                e.target.value,
+                e.target.selectionStart ?? e.target.value.length,
+              )
+            }
+            onSelect={(e) => {
+              bodyCaretRef.current = e.currentTarget.selectionStart ?? e.currentTarget.value.length;
+            }}
+            onFocus={(e) => {
+              bodyCaretRef.current =
+                e.currentTarget.selectionStart ?? e.currentTarget.value.length;
+            }}
+            placeholder="Start typing…"
+            className={cn(
+              "mt-3 min-h-[50vh] w-full resize-none border-0 bg-transparent p-0 text-[16px] leading-relaxed",
+              "placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none",
+            )}
+          />
+        )}
       </div>
     </div>
   );

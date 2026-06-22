@@ -1284,30 +1284,36 @@ export type Database = {
       }
       journal_videos: {
         Row: {
+          anchor_offset: number
           created_at: string
           duration_ms: number | null
           entry_id: string
           id: string
           mime_type: string | null
           storage_path: string
+          transcript: string | null
           user_id: string
         }
         Insert: {
+          anchor_offset?: number
           created_at?: string
           duration_ms?: number | null
           entry_id: string
           id?: string
           mime_type?: string | null
           storage_path: string
+          transcript?: string | null
           user_id: string
         }
         Update: {
+          anchor_offset?: number
           created_at?: string
           duration_ms?: number | null
           entry_id?: string
           id?: string
           mime_type?: string | null
           storage_path?: string
+          transcript?: string | null
           user_id?: string
         }
         Relationships: [

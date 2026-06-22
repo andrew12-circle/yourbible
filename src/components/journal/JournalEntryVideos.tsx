@@ -6,9 +6,11 @@ type Props = {
   videos: JournalVideoRow[];
   onRemove?: (id: string, storagePath: string) => void;
   className?: string;
+  /** When transcript is edited inline below the video in the body, skip duplicate caption. */
+  hideTranscript?: boolean;
 };
 
-export default function JournalEntryVideos({ videos, onRemove, className }: Props) {
+export default function JournalEntryVideos({ videos, onRemove, className, hideTranscript }: Props) {
   if (!videos.length) return null;
 
   return (
@@ -21,13 +23,18 @@ export default function JournalEntryVideos({ videos, onRemove, className }: Prop
               controls
               playsInline
               preload="metadata"
-              className="w-full max-h-[min(70vh,480px)] [transform:scaleX(-1)] object-cover"
+              className="w-full max-h-[min(70vh,480px)] object-contain bg-black"
             />
           ) : (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               Video unavailable
             </div>
           )}
+          {v.transcript?.trim() && !hideTranscript ? (
+            <p className="border-t border-border/40 bg-background/80 px-4 py-3 text-[15px] leading-relaxed text-foreground/90">
+              {v.transcript}
+            </p>
+          ) : null}
           {onRemove ? (
             <button
               type="button"

@@ -8,8 +8,9 @@ import {
   Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle, Link2,
 } from "lucide-react";
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
-import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
+import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
+import { clampAnchorOffset, insertTranscriptAtAnchor, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -126,6 +127,7 @@ export default function EntryEditorPane({
   const [showMeta, setShowMeta] = useState(false);
   const [scoring, setScoring] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyCaretRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<Partial<EntryRow>>({});
@@ -445,6 +447,7 @@ export default function EntryEditorPane({
     (nextText: string, cursor?: number) => {
       const cur = entryRef.current;
       if (!cur) return;
+      if (cursor != null) bodyCaretRef.current = cursor;
       bodyMarkers.updateActiveMarker(nextText, cursor ?? nextText.length);
       if (editingChatSummary && chatParsed && chatParsed.kind !== "plain") {
         const newBody = composeSavedChatJournalBody(nextText, chatParsed.messages);
@@ -483,6 +486,7 @@ export default function EntryEditorPane({
   const handleBodySelect = useCallback(
     (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
       const el = e.currentTarget;
+      bodyCaretRef.current = el.selectionStart ?? el.value.length;
       bodyMarkers.updateActiveMarker(el.value, el.selectionStart ?? el.value.length);
     },
     [bodyMarkers],
@@ -564,12 +568,22 @@ export default function EntryEditorPane({
       }
       const cur = entryRef.current;
       if (!cur) return;
-      handleBodyChange(mergeDictatedText(cur.body, chunk));
+      const next = mergeDictatedText(cur.body, chunk);
+      handleBodyChange(next, next.length);
     },
     [handleBodyChange, inlineChatMode],
   );
 
-  const handleVideoAppend = handleDictateAppend;
+  const handleVideoSaved = useCallback(
+    ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
+      void reloadVideos();
+      const cur = entryRef.current;
+      if (!cur || !transcript.trim()) return;
+      const anchor = clampAnchorOffset(cur.body, anchorOffset);
+      handleBodyChange(insertTranscriptAtAnchor(cur.body, anchor, transcript));
+    },
+    [handleBodyChange, reloadVideos],
+  );
 
   const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
     useDictationAutoFormat({
@@ -931,8 +945,20 @@ export default function EntryEditorPane({
           <JournalVideoCaptureButton
             userId={user?.id}
             entryId={entry?.id ?? null}
-            onAppendTranscript={handleVideoAppend}
-            onVideoSaved={() => void reloadVideos()}
+            getAnchorOffset={() => {
+              const cur = entryRef.current;
+              const body = cur?.body ?? "";
+              const el = bodyRef.current;
+              const editorFocused = Boolean(el && document.activeElement === el);
+              const caret = editorFocused
+                ? (el!.selectionStart ?? bodyCaretRef.current)
+                : bodyCaretRef.current;
+              return resolveVideoAnchorOffset(body, {
+                caret,
+                bodyEditorFocused: editorFocused,
+              });
+            }}
+            onVideoSaved={handleVideoSaved}
           />
         ) : null}
         <TBtn title="Handwritten" onClick={() => { dictateRef.current?.stop(); setSketchOpen(true); }}>
@@ -1034,23 +1060,6 @@ export default function EntryEditorPane({
             />
           ) : null}
 
-          {!inlineChatMode && videos.length > 0 ? (
-            <JournalEntryVideos
-              videos={videos}
-              onRemove={async (id, path) => {
-                try {
-                  await removeVideo(id, path);
-                } catch (e) {
-                  toast({
-                    title: "Couldn't remove video",
-                    description: e instanceof Error ? e.message : "Try again",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            />
-          ) : null}
-
           {attachmentPhotos.length > 0 && !inlineChatMode && (
             <div className={`my-4 grid gap-2 ${attachmentPhotos.length === 1 ? "" : "grid-cols-2"}`}>
               {attachmentPhotos.map((p) => (
@@ -1108,63 +1117,89 @@ export default function EntryEditorPane({
             )
           ) : (
             <>
-              <div
-                className={cn(
-                  "relative",
-                  plainWriteLayout && !bodyFocused && "flex min-h-0 flex-1 flex-col",
-                )}
-              >
-                <PolishedTextarea
-                  ref={bodyRef}
+              {!inlineChatMode && videos.length > 0 ? (
+                <JournalBodyWithVideos
+                  body={entry.body}
+                  videos={videos}
                   polishResetKey={entry.id}
-                  value={entry.body}
-                  onChange={(e) =>
-                    handleBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
-                  }
-                  onKeyDown={handleBodyKeyDown}
-                  onSelect={handleBodySelect}
-                  onFocus={() => {
-                    setBodyFocused(true);
-                    requestAnimationFrame(() => {
-                      const el = bodyRef.current;
-                      if (el) resizeJournalTextarea(el);
-                    });
+                  bodyClassName={journalPlainWriteFieldClass}
+                  onBodyChange={(next) => handleBodyChange(next)}
+                  onCaretChange={(offset) => {
+                    bodyCaretRef.current = offset;
                   }}
-                  onBlur={() => {
-                    bodyMarkers.dismissMarkerMenu();
-                    setBodyFocused(false);
+                  onRemoveVideo={async (id, path) => {
+                    try {
+                      await removeVideo(id, path);
+                    } catch (e) {
+                      toast({
+                        title: "Couldn't remove video",
+                        description: e instanceof Error ? e.message : "Try again",
+                        variant: "destructive",
+                      });
+                    }
                   }}
-                  placeholder="What happened today? Type #tag or @journal name to organize."
-                  wrapperClassName={
-                    plainWriteLayout && !bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined
-                  }
-                  className={cn(
-                    journalPlainWriteFieldClass,
-                    plainWriteLayout &&
-                      (bodyFocused
-                        ? "min-h-0"
-                        : "max-h-full min-h-0 flex-1 overflow-y-auto"),
-                  )}
                 />
-                <JournalMarkerMenu
-                  marker={bodyMarkers.activeMarker}
-                  suggestions={bodyMarkers.suggestions}
-                  activeIndex={bodyMarkers.menuIndex}
-                  onPick={handleMarkerPick}
-                  onHover={bodyMarkers.setMenuIndex}
-                  className="absolute left-0 top-full z-20 mt-1 w-full max-w-sm"
-                />
-              </div>
-              <DictInterimPreview
-                text={dictInterim}
-                className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
-              />
-              {dictationFormatting ? (
-                <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  Formatting dictation…
-                </p>
-              ) : null}
+              ) : (
+                <>
+                  <div
+                    className={cn(
+                      "relative",
+                      plainWriteLayout && !bodyFocused && "flex min-h-0 flex-1 flex-col",
+                    )}
+                  >
+                    <PolishedTextarea
+                      ref={bodyRef}
+                      polishResetKey={entry.id}
+                      value={entry.body}
+                      onChange={(e) =>
+                        handleBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
+                      }
+                      onKeyDown={handleBodyKeyDown}
+                      onSelect={handleBodySelect}
+                      onFocus={() => {
+                        setBodyFocused(true);
+                        requestAnimationFrame(() => {
+                          const el = bodyRef.current;
+                          if (el) resizeJournalTextarea(el);
+                        });
+                      }}
+                      onBlur={() => {
+                        bodyMarkers.dismissMarkerMenu();
+                        setBodyFocused(false);
+                      }}
+                      placeholder="What happened today? Type #tag or @journal name to organize."
+                      wrapperClassName={
+                        plainWriteLayout && !bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined
+                      }
+                      className={cn(
+                        journalPlainWriteFieldClass,
+                        plainWriteLayout &&
+                          (bodyFocused
+                            ? "min-h-0"
+                            : "max-h-full min-h-0 flex-1 overflow-y-auto"),
+                      )}
+                    />
+                    <JournalMarkerMenu
+                      marker={bodyMarkers.activeMarker}
+                      suggestions={bodyMarkers.suggestions}
+                      activeIndex={bodyMarkers.menuIndex}
+                      onPick={handleMarkerPick}
+                      onHover={bodyMarkers.setMenuIndex}
+                      className="absolute left-0 top-full z-20 mt-1 w-full max-w-sm"
+                    />
+                  </div>
+                  <DictInterimPreview
+                    text={dictInterim}
+                    className="mt-1 text-sm italic leading-relaxed text-muted-foreground/80"
+                  />
+                  {dictationFormatting ? (
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      Formatting dictation…
+                    </p>
+                  ) : null}
+                </>
+              )}
               {chatTurns.length > 0 ? (
                 <JournalLiveChatCollapsible turns={chatTurns} className="mt-6" />
               ) : null}

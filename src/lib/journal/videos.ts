@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface JournalVideoRow {
   id: string;
@@ -6,6 +7,8 @@ export interface JournalVideoRow {
   storage_path: string;
   duration_ms: number | null;
   mime_type: string | null;
+  transcript: string | null;
+  anchor_offset: number;
   created_at: string;
   url?: string;
 }
@@ -100,19 +103,25 @@ export async function getSignedVideoUrls(paths: string[]): Promise<Record<string
 export async function fetchEntryVideos(entryId: string): Promise<JournalVideoRow[]> {
   const { data, error } = await supabase
     .from("journal_videos")
-    .select("id,entry_id,storage_path,duration_ms,mime_type,created_at")
+    .select("id,entry_id,storage_path,duration_ms,mime_type,transcript,anchor_offset,created_at")
     .eq("entry_id", entryId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(formatVideoStorageError(error.message));
   const rows = (data ?? []) as JournalVideoRow[];
   const urls = await getSignedVideoUrls(rows.map((r) => r.storage_path));
-  return rows.map((r) => ({ ...r, url: urls[r.storage_path] }));
+  return rows.map((r) => ({
+    ...(r as JournalVideoRow),
+    anchor_offset: (r as JournalVideoRow).anchor_offset ?? 0,
+    transcript: (r as JournalVideoRow).transcript ?? null,
+    url: urls[r.storage_path],
+  }));
 }
 
 export async function insertEntryVideo(
   userId: string,
   entryId: string,
   uploaded: { storage_path: string; duration_ms?: number; mime_type: string },
+  opts?: { anchor_offset?: number; transcript?: string | null },
 ): Promise<JournalVideoRow | null> {
   const { data, error } = await supabase
     .from("journal_videos")
@@ -122,13 +131,35 @@ export async function insertEntryVideo(
       storage_path: uploaded.storage_path,
       duration_ms: uploaded.duration_ms ?? null,
       mime_type: uploaded.mime_type,
+      anchor_offset: opts?.anchor_offset ?? 0,
+      transcript: opts?.transcript ?? null,
     })
-    .select("id,entry_id,storage_path,duration_ms,mime_type,created_at")
+    .select("id,entry_id,storage_path,duration_ms,mime_type,transcript,anchor_offset,created_at")
     .maybeSingle();
   if (error) throw new Error(formatVideoStorageError(error.message));
   if (!data) return null;
   const url = await getSignedVideoUrl(data.storage_path);
   return { ...(data as JournalVideoRow), url: url ?? undefined };
+}
+
+export async function updateEntryVideoTranscript(
+  videoId: string,
+  transcript: string,
+): Promise<void> {
+  const { error } = await supabase.from("journal_videos").update({ transcript }).eq("id", videoId);
+  if (error) throw new Error(formatVideoStorageError(error.message));
+}
+
+/** Transcribe audio from a recorded video blob (avoids mic conflict with live speech). */
+export async function transcribeVideoBlob(userId: string, blob: Blob): Promise<string> {
+  if (blob.size < 800) return "";
+  try {
+    const path = await uploadJournalVoiceMemo(userId, blob);
+    const result = await transcribeJournalVoiceMemo(path);
+    return result.ok ? result.text.trim() : "";
+  } catch {
+    return "";
+  }
 }
 
 export async function deleteEntryVideo(id: string, storagePath: string): Promise<void> {

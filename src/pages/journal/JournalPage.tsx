@@ -12,7 +12,7 @@ import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
 import AllEntriesOverviewPane from "@/components/journal/AllEntriesOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 import { Input } from "@/components/ui/input";
-import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { ensureDefaultJournal, getDefaultJournalId, Journal } from "@/lib/journal/journals";
 import { getNotesJournalId, isNotesJournal } from "@/lib/journal/notesJournal";
@@ -253,6 +253,7 @@ function MobileJournalList({
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -262,24 +263,15 @@ function MobileJournalList({
   const attachPhotoUrls = useCallback(async (list: JournalEntryListRow[], merge: boolean) => {
     const ids = list.map((e) => e.id);
     if (!ids.length) {
-      if (!merge) setPhotoUrls({});
+      if (!merge) {
+        setPhotoUrls({});
+        setVideoUrls({});
+      }
       return;
     }
-    const { data: photos } = await supabase
-      .from("journal_photos")
-      .select("entry_id,storage_path,created_at")
-      .in("entry_id", ids)
-      .order("created_at");
-    const firstByEntry: Record<string, string> = {};
-    (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-      if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-    });
-    const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-    const byEntry: Record<string, string> = {};
-    for (const [eid, p] of Object.entries(firstByEntry)) {
-      if (urls[p]) byEntry[eid] = urls[p];
-    }
-    setPhotoUrls((prev) => (merge ? { ...prev, ...byEntry } : byEntry));
+    const { photoUrls: photos, videoUrls: videos } = await fetchEntryListMediaUrls(ids);
+    setPhotoUrls((prev) => (merge ? { ...prev, ...photos } : photos));
+    setVideoUrls((prev) => (merge ? { ...prev, ...videos } : videos));
   }, []);
 
   const loadEntries = useCallback(
@@ -445,7 +437,7 @@ function MobileJournalList({
             {pinned.map((e) => (
               <EntryListItem
                 key={e.id}
-                entry={{ ...e, photo_url: photoUrls[e.id] }}
+                entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }}
                 onPin={() => handlePin(e.id, e.pinned)}
                 onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
                 onDelete={() => handleDelete(e.id)}
@@ -464,7 +456,7 @@ function MobileJournalList({
             {list.map((e) => (
               <EntryListItem
                 key={e.id}
-                entry={{ ...e, photo_url: photoUrls[e.id] }}
+                entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }}
                 onPin={() => handlePin(e.id, e.pinned)}
                 onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
                 onDelete={() => handleDelete(e.id)}

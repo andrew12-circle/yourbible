@@ -9,6 +9,7 @@ import {
   isTextOnlyJournalEntry,
 } from "@/lib/journal/entryDisplay";
 import SwipeableEntryRow from "./SwipeableEntryRow";
+import EntryListMediaThumbnail from "@/components/journal/EntryListMediaThumbnail";
 
 export interface EntryListData {
   id: string;
@@ -24,6 +25,7 @@ export interface EntryListData {
   pinned: boolean;
   analyze_for_mirror: boolean;
   photo_url?: string;
+  video_url?: string;
   entry_kind?: string | null;
 }
 
@@ -119,13 +121,11 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
         </div>
       </div>
 
-      {entry.photo_url && (
-        <img
-          src={entry.photo_url}
-          alt=""
-          className="flex-shrink-0 w-[68px] h-[68px] rounded-xl object-cover bg-muted"
-        />
-      )}
+      <EntryListMediaThumbnail
+        photoUrl={entry.photo_url}
+        videoUrl={entry.video_url}
+        size="md"
+      />
     </Link>
   );
 

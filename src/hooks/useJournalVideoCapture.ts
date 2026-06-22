@@ -4,46 +4,69 @@ import {
   journalVideoCaptureSupported,
   pickJournalVideoMimeType,
 } from "@/lib/journal/videos";
+import {
+  createScreenCompositeSession,
+  type JournalVideoCaptureMode,
+  type ScreenCompositeSession,
+} from "@/lib/journal/screenRecordingComposite";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 
-export type JournalVideoCapturePhase = "idle" | "preview" | "recording" | "processing";
+export type JournalVideoCapturePhase =
+  | "idle"
+  | "preview"
+  | "countdown"
+  | "recording"
+  | "paused"
+  | "processing";
+
+export type { JournalVideoCaptureMode };
 
 export interface UseJournalVideoCaptureOptions {
-  onAppendTranscript: (chunk: string) => void;
   onInterim?: (partial: string) => void;
   language?: string;
+  onScreenShareEnded?: () => void;
 }
 
 export interface UseJournalVideoCaptureApi {
   supported: boolean;
+  mode: JournalVideoCaptureMode | null;
   phase: JournalVideoCapturePhase;
   error: string | null;
   interim: string;
+  countdown: number | null;
   bindPreview: (el: HTMLVideoElement | null) => void;
-  openPreview: () => Promise<void>;
+  openPreview: (mode: JournalVideoCaptureMode) => Promise<void>;
+  beginCountdown: () => void;
   startRecording: () => void;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
   stopRecording: () => Promise<Blob | null>;
   cancel: () => void;
 }
 
-export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): UseJournalVideoCaptureApi {
-  const { onAppendTranscript, onInterim, language } = options;
-  const onAppendRef = useRef(onAppendTranscript);
+export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = {}): UseJournalVideoCaptureApi {
+  const { onInterim, language, onScreenShareEnded } = options;
   const onInterimRef = useRef(onInterim);
-  onAppendRef.current = onAppendTranscript;
+  const onScreenShareEndedRef = useRef(onScreenShareEnded);
   onInterimRef.current = onInterim;
+  onScreenShareEndedRef.current = onScreenShareEnded;
 
   const supported = journalVideoCaptureSupported();
+  const [mode, setMode] = useState<JournalVideoCaptureMode | null>(null);
   const [phase, setPhase] = useState<JournalVideoCapturePhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
+  const compositeSessionRef = useRef<ScreenCompositeSession | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const resolveStopRef = useRef<((blob: Blob | null) => void) | null>(null);
   const interimRef = useRef("");
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopRecordingRef = useRef<(() => Promise<Blob | null>) | null>(null);
 
   const handleInterim = useCallback((text: string) => {
     interimRef.current = text;
@@ -52,7 +75,11 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
   }, []);
 
   const speech = useSpeechDictation({
-    onAppend: (chunk) => onAppendRef.current(chunk),
+    onAppend: (chunk) => {
+      interimRef.current = `${interimRef.current}${chunk}`.trim();
+      setInterim(interimRef.current);
+      onInterimRef.current?.(interimRef.current);
+    },
     onInterim: handleInterim,
     language,
   });
@@ -65,7 +92,17 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
 
   const openGenRef = useRef(0);
 
+  const clearCountdown = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(null);
+  }, []);
+
   const cleanupStream = useCallback(() => {
+    compositeSessionRef.current?.stop();
+    compositeSessionRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoElRef.current) videoElRef.current.srcObject = null;
@@ -83,6 +120,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
 
   const cancel = useCallback(() => {
     openGenRef.current += 1;
+    clearCountdown();
     speechStopRef.current();
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
@@ -94,56 +132,89 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     resolveStopRef.current?.(null);
     resolveStopRef.current = null;
     cleanupStream();
+    setMode(null);
     setPhase("idle");
     interimRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
-  }, [cleanupStream]);
+  }, [cleanupStream, clearCountdown]);
 
-  const openPreview = useCallback(async () => {
-    if (!supported) {
-      setError("Video recording isn't supported in this browser.");
-      return;
-    }
-    const gen = ++openGenRef.current;
-    setError(null);
-    setPhase("idle");
-    interimRef.current = "";
-    setInterim("");
-    try {
-      cleanupStream();
-      const stream = await navigator.mediaDevices.getUserMedia(buildJournalVideoConstraints());
-      if (gen !== openGenRef.current) {
-        stream.getTracks().forEach((t) => t.stop());
+  const openPreview = useCallback(
+    async (captureMode: JournalVideoCaptureMode) => {
+      if (!supported) {
+        setError("Video recording isn't supported in this browser.");
         return;
       }
-      streamRef.current = stream;
-      if (videoElRef.current) {
-        videoElRef.current.srcObject = stream;
-        await videoElRef.current.play().catch(() => {});
-      }
-      setPhase("preview");
-    } catch (e) {
-      if (gen !== openGenRef.current) return;
-      cleanupStream();
+      const gen = ++openGenRef.current;
+      setMode(captureMode);
+      setError(null);
       setPhase("idle");
-      setError(
-        e instanceof Error && e.name === "NotAllowedError"
-          ? "Camera permission was blocked. Enable camera and microphone for this site in your browser settings."
-          : "Could not access the camera.",
-      );
-    }
-  }, [supported, cleanupStream]);
+      interimRef.current = "";
+      setInterim("");
+      clearCountdown();
+      try {
+        cleanupStream();
+        let stream: MediaStream;
+        if (captureMode === "screen") {
+          const session = await createScreenCompositeSession({
+            onScreenShareEnded: () => {
+              onScreenShareEndedRef.current?.();
+              void stopRecordingRef.current?.();
+            },
+          });
+          if (gen !== openGenRef.current) {
+            session.stop();
+            return;
+          }
+          compositeSessionRef.current = session;
+          stream = session.compositeStream;
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia(buildJournalVideoConstraints());
+          if (gen !== openGenRef.current) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+        }
+        streamRef.current = stream;
+        if (videoElRef.current) {
+          videoElRef.current.srcObject = stream;
+          await videoElRef.current.play().catch(() => {});
+        }
+        setPhase("preview");
+      } catch (e) {
+        if (gen !== openGenRef.current) return;
+        cleanupStream();
+        setMode(null);
+        setPhase("idle");
+        const err = e instanceof Error ? e : new Error(String(e));
+        if (err.name === "NotAllowedError") {
+          setError(
+            captureMode === "screen"
+              ? "Screen or camera permission was blocked. Allow sharing when prompted."
+              : "Camera permission was blocked. Enable camera and microphone for this site in your browser settings.",
+          );
+        } else if (err.name === "NotFoundError") {
+          setError("No camera or screen source was found.");
+        } else {
+          setError(captureMode === "screen" ? "Could not start screen recording." : "Could not access the camera.");
+        }
+      }
+    },
+    [supported, cleanupStream, clearCountdown],
+  );
 
   const startRecording = useCallback(() => {
     const stream = streamRef.current;
-    if (!stream || phase !== "preview") return;
+    if (!stream || (phase !== "preview" && phase !== "countdown")) return;
     const mime = pickJournalVideoMimeType();
     if (!mime) {
       setError("Video recording isn't supported in this browser.");
       return;
     }
+    clearCountdown();
     setError(null);
+    interimRef.current = "";
+    setInterim("");
     chunksRef.current = [];
     const rec = new MediaRecorder(stream, { mimeType: mime });
     rec.ondataavailable = (e) => {
@@ -158,14 +229,53 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
     recorderRef.current = rec;
     setPhase("recording");
     if (speechSupportedRef.current) speechStartRef.current();
+  }, [phase, clearCountdown]);
+
+  const beginCountdown = useCallback(() => {
+    if (phase !== "preview" || countdownTimerRef.current) return;
+    setPhase("countdown");
+    setCountdown(5);
+    let n = 5;
+    countdownTimerRef.current = setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        clearCountdown();
+        startRecording();
+        return;
+      }
+      setCountdown(n);
+    }, 1000);
+  }, [phase, clearCountdown, startRecording]);
+
+  const pauseRecording = useCallback(() => {
+    const rec = recorderRef.current;
+    if (!rec || phase !== "recording" || rec.state !== "recording") return;
+    try {
+      rec.pause();
+      speechStopRef.current();
+      setPhase("paused");
+    } catch {
+      /* ignore */
+    }
+  }, [phase]);
+
+  const resumeRecording = useCallback(() => {
+    const rec = recorderRef.current;
+    if (!rec || phase !== "paused" || rec.state !== "paused") return;
+    try {
+      rec.resume();
+      if (speechSupportedRef.current) speechStartRef.current();
+      setPhase("recording");
+    } catch {
+      /* ignore */
+    }
   }, [phase]);
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
-    if (phase !== "recording") return null;
+    if (phase !== "recording" && phase !== "paused") return null;
     setPhase("processing");
+    clearCountdown();
     speechStopRef.current();
-    const interimText = interimRef.current.trim();
-    if (interimText) onAppendRef.current(`${interimText} `);
     interimRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
@@ -189,26 +299,36 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions): 
 
     const blob = await blobPromise;
     cleanupStream();
+    setMode(null);
     setPhase("idle");
     return blob;
-  }, [phase, cleanupStream]);
+  }, [phase, cleanupStream, clearCountdown]);
+
+  stopRecordingRef.current = stopRecording;
 
   useEffect(() => {
     return () => {
       openGenRef.current += 1;
+      clearCountdown();
+      compositeSessionRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [clearCountdown]);
 
   return {
     supported,
+    mode,
     phase,
     error,
     interim,
+    countdown,
     bindPreview,
     openPreview,
+    beginCountdown,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     cancel,
   };

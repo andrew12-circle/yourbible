@@ -5,7 +5,7 @@ import JournalShell from "@/components/journal/JournalShell";
 import EntryListItem, { type EntryListData } from "@/components/journal/EntryListItem";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSignedPhotoUrls } from "@/lib/journal/photos";
+import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import {
   ENTRY_KIND_META,
   FAITH_JOURNAL_LIST_TITLES,
@@ -131,6 +131,7 @@ function KindList({ kind }: { kind: JournalEntryKind }) {
   const { user } = useAuth();
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -150,23 +151,12 @@ function KindList({ kind }: { kind: JournalEntryKind }) {
 
       const ids = list.map((e) => e.id);
       if (ids.length) {
-        const { data: photos } = await supabase
-          .from("journal_photos")
-          .select("entry_id,storage_path,created_at")
-          .in("entry_id", ids)
-          .order("created_at");
-        const firstByEntry: Record<string, string> = {};
-        (photos ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
-          if (!firstByEntry[p.entry_id]) firstByEntry[p.entry_id] = p.storage_path;
-        });
-        const urls = await getSignedPhotoUrls(Object.values(firstByEntry));
-        const byEntry: Record<string, string> = {};
-        for (const [eid, p] of Object.entries(firstByEntry)) {
-          if (urls[p]) byEntry[eid] = urls[p];
-        }
-        setPhotoUrls(byEntry);
+        const { photoUrls: photos, videoUrls: videos } = await fetchEntryListMediaUrls(ids);
+        setPhotoUrls(photos);
+        setVideoUrls(videos);
       } else {
         setPhotoUrls({});
+        setVideoUrls({});
       }
     })();
   }, [user, kind]);
@@ -211,7 +201,7 @@ function KindList({ kind }: { kind: JournalEntryKind }) {
           </h2>
           <div className="divide-y divide-border/40">
             {pinned.map((e) => (
-              <EntryListItem key={e.id} entry={{ ...e, photo_url: photoUrls[e.id] }} />
+              <EntryListItem key={e.id} entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }} />
             ))}
           </div>
         </section>
@@ -224,7 +214,7 @@ function KindList({ kind }: { kind: JournalEntryKind }) {
           </h2>
           <div className="divide-y divide-border/40">
             {list.map((e) => (
-              <EntryListItem key={e.id} entry={{ ...e, photo_url: photoUrls[e.id] }} />
+              <EntryListItem key={e.id} entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }} />
             ))}
           </div>
         </section>
