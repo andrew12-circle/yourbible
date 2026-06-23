@@ -1,5 +1,7 @@
 import { DictateButton } from "@/components/journal/DictateButton";
 import { NewJournalEntryToolbar } from "@/components/journal/new-entry/NewJournalEntryToolbar";
+import MobileJournalMoreTools from "@/components/journal/new-entry/MobileJournalMoreTools";
+import JournalVideoCaptureDialog from "@/components/journal/JournalVideoCaptureDialog";
 import { NewJournalEntryBodyEditor } from "@/components/journal/new-entry/NewJournalEntryBodyEditor";
 import { NewJournalEntryLocationMap } from "@/components/journal/new-entry/NewJournalEntryLocationMap";
 import SketchPad from "@/components/journal/SketchPad";
@@ -9,7 +11,6 @@ import {
   MapPin,
   BookOpen,
   Sparkles,
-  PenLine,
   ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,14 @@ import { TagInput } from "@/components/journal/TagInput";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { journalEntryTitleInputClass } from "@/lib/journal/journalChatUi";
+import { toast } from "@/hooks/use-toast";
 import { useNewJournalEntryPage } from "@/hooks/useNewJournalEntryPage";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { journalEntryPageRoot, hubShellBottomDock, journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
 import { mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import { cn } from "@/lib/utils";
 import { PrivateJournalCryptoBanner } from "@/components/journal/PrivateJournalCryptoBanner";
-import AiWritingAssistToggle, { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
+import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { JOURNAL_COMPOSE_HINT } from "@/lib/journal/journalPurpose";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { useEffect } from "react";
@@ -242,6 +244,19 @@ export default function NewJournalEntryPage() {
           onAddPhotos={p.triggerPhotos}
           onTakePhoto={p.triggerCamera}
           onDismissPhotoSuggestion={p.dismissPhotoSuggestion}
+          videos={p.videos}
+          onRemoveVideo={async (id, path) => {
+            try {
+              await p.removeVideo(id, path);
+            } catch (e) {
+              toast({
+                title: "Couldn't remove video",
+                description: e instanceof Error ? e.message : "Try again",
+                variant: "destructive",
+              });
+            }
+          }}
+          onCaretChange={p.handleCaretChange}
         />
       </main>
 
@@ -325,11 +340,12 @@ export default function NewJournalEntryPage() {
             <NewJournalEntryToolbar
               onPhotos={p.triggerPhotos}
               onWrite={p.triggerHandwritten}
-              onPrompts={p.triggerPrompts}
+              onVideo={() => void p.triggerVideo()}
               onAudio={p.triggerAudio}
               onChat={() => void p.openChatMode()}
               onMore={() => p.setMoreOpen(true)}
               chatDisabled={!p.canReplyWithAi}
+              videoDisabled={!p.videoCaptureSupported || p.inlineChatMode || p.isListening || p.isVent}
             />
           )}
         </div>
@@ -353,6 +369,29 @@ export default function NewJournalEntryPage() {
             <SheetTitle>Entry details</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-5 pb-6">
+            {!p.inlineChatMode && !p.isListening ? (
+              <MobileJournalMoreTools
+                onPrompts={() => {
+                  p.setMoreOpen(false);
+                  p.triggerPrompts();
+                }}
+                onInsert={(before, after, placeholder) => {
+                  p.insertAtCursor(before, after, placeholder);
+                  p.setMoreOpen(false);
+                }}
+                onTags={() => {
+                  document.getElementById("journal-more-tags")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }}
+                onScore={() => void p.scoreNow()}
+                scoring={p.scoring}
+                scoreDisabled={!p.activeEntryId}
+                formattingDisabled={p.inlineChatMode || p.isListening}
+              />
+            ) : null}
+
             <section>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entry type</Label>
               <select
@@ -379,7 +418,7 @@ export default function NewJournalEntryPage() {
               </div>
             </section>
 
-            <section>
+            <section id="journal-more-tags">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tags</Label>
               <div className="mt-2">
                 <TagInput tags={p.tags} onChange={p.handleTagsManualChange} />
@@ -430,10 +469,6 @@ export default function NewJournalEntryPage() {
             </section>
 
             <section className="rounded-lg border border-border bg-card p-4">
-              <AiWritingAssistToggle compact />
-            </section>
-
-            <section className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                 <div className="flex-1">
@@ -456,21 +491,19 @@ export default function NewJournalEntryPage() {
                 </div>
               </div>
             </section>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                p.setMoreOpen(false);
-                p.setSketchOpen(true);
-              }}
-            >
-              <PenLine className="w-4 h-4 mr-2" /> Add handwritten
-            </Button>
           </div>
         </SheetContent>
       </Sheet>
+
+      {p.videoOpen ? (
+        <JournalVideoCaptureDialog
+          open={p.videoOpen}
+          onOpenChange={p.setVideoOpen}
+          onComplete={p.handleVideoComplete}
+          uploading={p.videoUploading}
+          transcribing={p.videoTranscribing}
+        />
+      ) : null}
 
       <SketchPad
         open={p.sketchOpen}

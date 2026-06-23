@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import {
   ChevronDown,
   Image as ImageIcon,
-  Lightbulb,
   MessageCircle,
   Mic,
   PenLine,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,26 +61,33 @@ export function ToolbarTile({
 export function NewJournalEntryToolbar({
   onPhotos,
   onWrite,
-  onPrompts,
+  onVideo,
   onAudio,
   onChat,
   onMore,
   chatDisabled,
+  videoDisabled,
 }: {
   onPhotos: () => void;
   onWrite: () => void;
-  onPrompts: () => void;
+  onVideo: () => void;
   onAudio: () => void;
   onChat: () => void;
   onMore: () => void;
   chatDisabled?: boolean;
+  videoDisabled?: boolean;
 }) {
   return (
     <JournalEntryDockShell>
       <div className="grid grid-cols-5 gap-0.5 p-1.5">
         <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={onPhotos} />
         <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={onWrite} />
-        <ToolbarTile icon={<Lightbulb className="w-5 h-5" />} label="Prompts" onClick={onPrompts} />
+        <ToolbarTile
+          icon={<Video className="w-5 h-5" />}
+          label="Video"
+          onClick={onVideo}
+          disabled={videoDisabled}
+        />
         <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={onAudio} />
         <ToolbarTile
           icon={<MessageCircle className="w-5 h-5" />}

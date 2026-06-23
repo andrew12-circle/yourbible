@@ -61,6 +61,19 @@ import {
 } from "@/lib/journal/inlineJournalChat";
 import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
 import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
+import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
+import {
+  clampAnchorOffset,
+  insertTranscriptAtAnchor,
+  resolveVideoAnchorOffset,
+} from "@/lib/journal/journalVideoBody";
+import {
+  insertEntryVideo,
+  journalVideoCaptureSupported,
+  transcribeVideoBlob,
+  updateEntryVideoTranscript,
+  uploadEntryVideo,
+} from "@/lib/journal/videos";
 import {
   useJournalComposePersistence,
   type ComposePersistenceSnapshot,
@@ -128,6 +141,10 @@ export function useNewJournalEntryPage() {
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoTranscribing, setVideoTranscribing] = useState(false);
+  const [scoring, setScoring] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [journalName, setJournalName] = useState<string>("Journal");
   const [composerFocused, setComposerFocused] = useState(false);
@@ -139,6 +156,8 @@ export function useNewJournalEntryPage() {
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyCaretRef = useRef<number | null>(null);
+  const videoAnchorRef = useRef(0);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
@@ -552,6 +571,9 @@ export function useNewJournalEntryPage() {
       });
   }, [journalId]);
 
+  const activeEntryId = editId ?? inlineEntryId;
+  const { videos, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(activeEntryId);
+
   const bodyMarkers = useJournalBodyMarkers({
     userId: user?.id,
     body,
@@ -565,6 +587,7 @@ export function useNewJournalEntryPage() {
 
   const handleBodyChange = useCallback(
     (value: string, cursor?: number) => {
+      if (cursor != null) bodyCaretRef.current = cursor;
       setBody(value);
       bodyMarkers.syncMarkersFromBody(value);
       const pos = cursor ?? value.length;
@@ -586,6 +609,7 @@ export function useNewJournalEntryPage() {
   const handleBodySelect = useCallback(
     (e: SyntheticEvent<HTMLTextAreaElement>) => {
       const el = e.currentTarget;
+      bodyCaretRef.current = el.selectionStart ?? el.value.length;
       bodyMarkers.updateActiveMarker(el.value, el.selectionStart ?? el.value.length);
     },
     [bodyMarkers],
@@ -1100,6 +1124,10 @@ export function useNewJournalEntryPage() {
     setBody((cur) => cur.trim() || journalProseBeforeChatRef.current || cur);
   }, []);
 
+  const handleCaretChange = useCallback((offset: number) => {
+    bodyCaretRef.current = offset;
+  }, []);
+
   const triggerPhotos = useCallback(() => photoInputRef.current?.click(), []);
   const triggerCamera = useCallback(() => photoCameraInputRef.current?.click(), []);
   const dismissPhotoSuggestion = useCallback(() => setPhotoSuggestionDismissed(true), []);
@@ -1121,6 +1149,7 @@ export function useNewJournalEntryPage() {
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => {
       const next = mergeDictatedText(b, chunk);
+      bodyCaretRef.current = next.length;
       requestAnimationFrame(() => {
         bodyMarkers.syncMarkersFromBody(next);
         bodyMarkers.updateActiveMarker(next, next.length);
@@ -1129,6 +1158,176 @@ export function useNewJournalEntryPage() {
     });
     requestAnimationFrame(() => scrollToCaretEnd());
   }, [bodyMarkers, scrollToCaretEnd]);
+
+  const insertAtCursor = useCallback(
+    (before: string, after = "", placeholder = "") => {
+      const el = bodyTextareaRef.current;
+      const cur = bodyRef.current;
+      const start = el?.selectionStart ?? cur.length;
+      const end = el?.selectionEnd ?? start;
+      const sel = cur.slice(start, end) || placeholder;
+      const next = cur.slice(0, start) + before + sel + after + cur.slice(end);
+      const cursor = start + before.length + sel.length;
+      handleBodyChange(next, cursor);
+      requestAnimationFrame(() => {
+        const ta = bodyTextareaRef.current;
+        if (!ta) return;
+        ta.focus();
+        ta.setSelectionRange(cursor, cursor);
+      });
+    },
+    [handleBodyChange],
+  );
+
+  const getVideoAnchorOffset = useCallback(() => {
+    const cur = bodyRef.current;
+    const el = bodyTextareaRef.current;
+    const editorFocused = Boolean(el && document.activeElement === el);
+    const caret = editorFocused ? (el!.selectionStart ?? bodyCaretRef.current) : bodyCaretRef.current;
+    return resolveVideoAnchorOffset(cur, { caret, bodyEditorFocused: editorFocused });
+  }, []);
+
+  const ensureDraftEntry = useCallback(async (): Promise<string | null> => {
+    if (!user) return null;
+    const existing = editId ?? inlineEntryId;
+    if (existing) return existing;
+
+    await flushComposeSave({ silent: true });
+    const ts = new Date(entryAt);
+    const payload = {
+      user_id: user.id,
+      journal_id: journalId,
+      title: title.trim() || null,
+      body: body.trim() || " ",
+      mood,
+      tags: mergeInlineTags(body, tags),
+      verse_ref: verseRef.trim() || null,
+      belief_id: beliefId || null,
+      prompt_id: promptId,
+      location_name: locationName.trim() || null,
+      lat,
+      lng,
+      weather,
+      weather_temp_c: weatherTempC,
+      weather_icon: weatherIcon,
+      analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
+      entry_at_ts: ts.toISOString(),
+      entry_at: ts.toISOString().slice(0, 10),
+      entry_kind: entryKind,
+    };
+    const { user_id: _uid, ...entryPayload } = payload;
+    try {
+      const { data, error } = await insertJournalEntry(user.id, entryPayload);
+      if (error || !data) {
+        toast({ title: "Couldn't start entry", description: error?.message, variant: "destructive" });
+        return null;
+      }
+      setInlineEntryId(data.id);
+      return data.id;
+    } catch (err) {
+      toast({
+        title: "Couldn't start entry",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [
+    user,
+    editId,
+    inlineEntryId,
+    flushComposeSave,
+    entryAt,
+    journalId,
+    title,
+    body,
+    mood,
+    tags,
+    verseRef,
+    beliefId,
+    promptId,
+    locationName,
+    lat,
+    lng,
+    weather,
+    weatherTempC,
+    weatherIcon,
+    analyzeForMirror,
+    entryKind,
+  ]);
+
+  const triggerVideo = useCallback(async () => {
+    if (!journalVideoCaptureSupported()) {
+      toast({ title: "Video isn't supported in this browser", variant: "destructive" });
+      return;
+    }
+    videoAnchorRef.current = getVideoAnchorOffset();
+    const entryId = await ensureDraftEntry();
+    if (entryId) setVideoOpen(true);
+  }, [ensureDraftEntry, getVideoAnchorOffset]);
+
+  const handleVideoComplete = useCallback(
+    async (blob: Blob, durationMs: number) => {
+      const entryId = editId ?? inlineEntryId;
+      if (!user?.id || !entryId) {
+        toast({ title: "Save the entry first", variant: "destructive" });
+        setVideoOpen(false);
+        return;
+      }
+      const anchorOffset = videoAnchorRef.current;
+      setVideoUploading(true);
+      try {
+        const uploaded = await uploadEntryVideo(user.id, entryId, blob, durationMs);
+        const row = await insertEntryVideo(user.id, entryId, uploaded, { anchor_offset: anchorOffset });
+        if (!row) throw new Error("Could not attach video to entry");
+
+        setVideoUploading(false);
+        setVideoTranscribing(true);
+        const transcript = await transcribeVideoBlob(user.id, blob);
+        if (transcript) await updateEntryVideoTranscript(row.id, transcript);
+
+        await reloadVideos();
+        if (transcript.trim()) {
+          const cur = bodyRef.current;
+          const anchor = clampAnchorOffset(cur, anchorOffset);
+          handleBodyChange(insertTranscriptAtAnchor(cur, anchor, transcript));
+        }
+        toast({
+          title: transcript ? "Video and transcript saved" : "Video saved",
+        });
+        setVideoOpen(false);
+      } catch (e) {
+        toast({
+          title: "Couldn't save video",
+          description: e instanceof Error ? e.message : "Please try again.",
+          variant: "destructive",
+        });
+        setVideoOpen(false);
+      } finally {
+        setVideoUploading(false);
+        setVideoTranscribing(false);
+      }
+    },
+    [user?.id, editId, inlineEntryId, reloadVideos, handleBodyChange],
+  );
+
+  const scoreNow = useCallback(async () => {
+    const entryId = editId ?? inlineEntryId;
+    if (!entryId) {
+      toast({ title: "Save the entry first" });
+      return;
+    }
+    setScoring(true);
+    const { error } = await supabase.functions.invoke("journal-score-entry", {
+      body: { entry_id: entryId },
+    });
+    setScoring(false);
+    if (error) {
+      toast({ title: "Couldn't score", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Entry scored" });
+  }, [editId, inlineEntryId]);
 
   const handlePhotoInputChange = useCallback((files: FileList | null) => {
     setPendingFiles((arr) => [...arr, ...Array.from(files ?? [])]);
@@ -1221,6 +1420,7 @@ export function useNewJournalEntryPage() {
     user,
     loading,
     editId,
+    activeEntryId,
     navigate,
     kbInset,
     vvOffsetTop,
@@ -1309,6 +1509,19 @@ export function useNewJournalEntryPage() {
     triggerAudio,
     triggerPrompts,
     triggerHandwritten,
+    triggerVideo,
+    insertAtCursor,
+    scoreNow,
+    scoring,
+    videos,
+    removeVideo,
+    videoOpen,
+    setVideoOpen,
+    videoUploading,
+    videoTranscribing,
+    handleVideoComplete,
+    videoCaptureSupported: journalVideoCaptureSupported(),
+    handleCaretChange,
     removeExistingPhoto,
     removePendingFile,
     useMyLocation,

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { SpiritListeningQuestionBank } from "@/components/journal/SpiritListeningQuestionBank";
 import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
+import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
+import type { JournalVideoRow } from "@/lib/journal/videos";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
@@ -63,6 +65,9 @@ interface NewJournalEntryBodyEditorProps {
   onAddPhotos?: () => void;
   onTakePhoto?: () => void;
   onDismissPhotoSuggestion?: () => void;
+  videos?: JournalVideoRow[];
+  onRemoveVideo?: (id: string, storagePath: string) => void;
+  onCaretChange?: (offset: number) => void;
 }
 
 export function NewJournalEntryBodyEditor({
@@ -102,6 +107,9 @@ export function NewJournalEntryBodyEditor({
   onAddPhotos,
   onTakePhoto,
   onDismissPhotoSuggestion,
+  videos = [],
+  onRemoveVideo,
+  onCaretChange,
 }: NewJournalEntryBodyEditorProps) {
   const localBodyRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = bodyTextareaRef ?? localBodyRef;
@@ -184,7 +192,7 @@ export function NewJournalEntryBodyEditor({
           !body.trim() && !bodyFocused && !showLocationMap && "min-h-[32dvh]",
         )}
       >
-        {!body.trim() ? (
+        {!body.trim() && !videos.length ? (
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-3 z-0 text-[16px] leading-relaxed text-muted-foreground/55"
@@ -192,32 +200,44 @@ export function NewJournalEntryBodyEditor({
             {bodyPlaceholder}
           </span>
         ) : null}
-        <PolishedTextarea
-          ref={bodyRef}
-          polishResetKey={editId ?? "journal-new"}
-          value={body}
-          onChange={(e) =>
-            onBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
-          }
-          onKeyDown={onBodyKeyDown}
-          onSelect={onBodySelect}
-          onFocus={() => {
-            requestAnimationFrame(() => {
-              const el = bodyRef.current;
-              if (el) resizeJournalTextarea(el);
-            });
-            onBodyFocus?.();
-          }}
-          onBlur={() => {
-            markerMenu?.dismiss();
-            onBodyBlur?.();
-          }}
-          aria-label="Journal entry"
-          className={cn(
-            "relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0",
-          )}
-        />
-        {markerMenu ? (
+        {videos.length > 0 ? (
+          <JournalBodyWithVideos
+            body={body}
+            videos={videos}
+            polishResetKey={editId ?? "journal-new"}
+            bodyClassName="relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            onBodyChange={(next) => onBodyChange(next)}
+            onCaretChange={onCaretChange}
+            onRemoveVideo={onRemoveVideo}
+          />
+        ) : (
+          <PolishedTextarea
+            ref={bodyRef}
+            polishResetKey={editId ?? "journal-new"}
+            value={body}
+            onChange={(e) =>
+              onBodyChange(e.target.value, e.target.selectionStart ?? e.target.value.length)
+            }
+            onKeyDown={onBodyKeyDown}
+            onSelect={onBodySelect}
+            onFocus={() => {
+              requestAnimationFrame(() => {
+                const el = bodyRef.current;
+                if (el) resizeJournalTextarea(el);
+              });
+              onBodyFocus?.();
+            }}
+            onBlur={() => {
+              markerMenu?.dismiss();
+              onBodyBlur?.();
+            }}
+            aria-label="Journal entry"
+            className={cn(
+              "relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0",
+            )}
+          />
+        )}
+        {videos.length === 0 && markerMenu ? (
           <JournalMarkerMenu
             marker={markerMenu.marker}
             suggestions={markerMenu.suggestions}
