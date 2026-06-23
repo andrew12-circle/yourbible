@@ -1,4 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  isJournalVideoUploadTooLarge,
+  journalVideoUploadTooLargeMessage,
+} from "@/lib/journal/journalVideoLimits";
 import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface JournalVideoRow {
@@ -21,6 +25,9 @@ function formatVideoStorageError(message: string): string {
   }
   if (/journal_videos/i.test(message) && /does not exist|schema cache/i.test(message)) {
     return "Video database table isn't set up yet. Run `npx supabase db push --project-ref itmcsyrnpcnrwviigppe`.";
+  }
+  if (/exceeded the maximum allowed size|entitytoolarge|payload too large|too large/i.test(message)) {
+    return "Video file is too large to upload (about 48 MB max). Use the on-screen countdown to stay within the 30-minute limit, or upgrade Supabase storage on your plan.";
   }
   return message;
 }
@@ -68,6 +75,9 @@ export async function uploadEntryVideo(
   blob: Blob,
   durationMs?: number,
 ): Promise<{ storage_path: string; duration_ms?: number; mime_type: string }> {
+  if (isJournalVideoUploadTooLarge(blob.size)) {
+    throw new Error(journalVideoUploadTooLargeMessage(durationMs ?? 0));
+  }
   const mime = blob.type || pickJournalVideoMimeType() || "video/webm";
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const path = `${userId}/${entryId}/${crypto.randomUUID()}.${ext}`;

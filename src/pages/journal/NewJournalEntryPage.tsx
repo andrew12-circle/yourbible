@@ -31,6 +31,7 @@ import { journalEntryPageRoot, hubShellBottomDock, journalEntryHeaderPad } from 
 import { mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import { cn } from "@/lib/utils";
 import { PrivateJournalCryptoBanner } from "@/components/journal/PrivateJournalCryptoBanner";
+import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { JOURNAL_COMPOSE_HINT } from "@/lib/journal/journalPurpose";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";

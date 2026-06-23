@@ -113,13 +113,6 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           accent="142 71% 45%"
         />
         <RailItem
-          to="/journal/notes"
-          icon={<StickyNote className="w-4 h-4" />}
-          label="Notes"
-          active={pathname.startsWith("/journal/notes")}
-          accent="48 96% 53%"
-        />
-        <RailItem
           to="/my-ai"
           icon={<MessageCircle className="w-4 h-4" />}
           label="My AI"
@@ -153,6 +146,13 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           label="All Entries"
           active={pathname === "/journal" && !activeJournalId}
           accent="220 9% 46%"
+        />
+        <RailItem
+          to="/journal/notes"
+          icon={<StickyNote className="w-4 h-4" />}
+          label="Notes"
+          active={pathname.startsWith("/journal/notes")}
+          accent="48 96% 53%"
         />
         <RailItem
           to="/journal/mirror"

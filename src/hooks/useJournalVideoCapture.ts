@@ -5,6 +5,11 @@ import {
   pickJournalVideoMimeType,
 } from "@/lib/journal/videos";
 import {
+  JOURNAL_VIDEO_BITS_PER_SECOND,
+  JOURNAL_VIDEO_MAX_DURATION_MS,
+  journalVideoRemainingMs,
+} from "@/lib/journal/journalVideoLimits";
+import {
   createScreenCompositeSession,
   type JournalVideoCaptureMode,
   type ScreenCompositeSession,
@@ -25,6 +30,8 @@ export interface UseJournalVideoCaptureOptions {
   onInterim?: (partial: string) => void;
   language?: string;
   onScreenShareEnded?: () => void;
+  /** Called when the 30-minute journal limit is reached (recording auto-stops). */
+  onMaxDuration?: () => void;
 }
 
 export interface UseJournalVideoCaptureApi {
@@ -34,6 +41,9 @@ export interface UseJournalVideoCaptureApi {
   error: string | null;
   interim: string;
   countdown: number | null;
+  recordingElapsedMs: number;
+  recordingRemainingMs: number;
+  maxDurationMs: number;
   bindPreview: (el: HTMLVideoElement | null) => void;
   openPreview: (mode: JournalVideoCaptureMode) => Promise<void>;
   beginCountdown: () => void;
@@ -45,11 +55,13 @@ export interface UseJournalVideoCaptureApi {
 }
 
 export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = {}): UseJournalVideoCaptureApi {
-  const { onInterim, language, onScreenShareEnded } = options;
+  const { onInterim, language, onScreenShareEnded, onMaxDuration } = options;
   const onInterimRef = useRef(onInterim);
   const onScreenShareEndedRef = useRef(onScreenShareEnded);
+  const onMaxDurationRef = useRef(onMaxDuration);
   onInterimRef.current = onInterim;
   onScreenShareEndedRef.current = onScreenShareEnded;
+  onMaxDurationRef.current = onMaxDuration;
 
   const supported = journalVideoCaptureSupported();
   const [mode, setMode] = useState<JournalVideoCaptureMode | null>(null);
@@ -57,6 +69,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const [error, setError] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
 
   const streamRef = useRef<MediaStream | null>(null);
   const compositeSessionRef = useRef<ScreenCompositeSession | null>(null);
@@ -66,6 +79,11 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const resolveStopRef = useRef<((blob: Blob | null) => void) | null>(null);
   const interimRef = useRef("");
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const pausedAccumMsRef = useRef(0);
+  const pauseStartedAtRef = useRef<number | null>(null);
+  const maxDurationTriggeredRef = useRef(false);
   const stopRecordingRef = useRef<(() => Promise<Blob | null>) | null>(null);
 
   const handleInterim = useCallback((text: string) => {
@@ -91,6 +109,46 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   speechSupportedRef.current = speech.supported;
 
   const openGenRef = useRef(0);
+
+  const clearRecordingTick = useCallback(() => {
+    if (recordingTickRef.current) {
+      clearInterval(recordingTickRef.current);
+      recordingTickRef.current = null;
+    }
+  }, []);
+
+  const getRecordingElapsedMs = useCallback(() => {
+    const started = recordingStartedAtRef.current;
+    if (started == null) return 0;
+    const pausedNow = pauseStartedAtRef.current ? Date.now() - pauseStartedAtRef.current : 0;
+    return Math.max(0, Date.now() - started - pausedAccumMsRef.current - pausedNow);
+  }, []);
+
+  const resetRecordingClock = useCallback(() => {
+    clearRecordingTick();
+    recordingStartedAtRef.current = null;
+    pausedAccumMsRef.current = 0;
+    pauseStartedAtRef.current = null;
+    maxDurationTriggeredRef.current = false;
+    setRecordingElapsedMs(0);
+  }, [clearRecordingTick]);
+
+  const startRecordingTick = useCallback(() => {
+    clearRecordingTick();
+    recordingTickRef.current = setInterval(() => {
+      const elapsed = getRecordingElapsedMs();
+      setRecordingElapsedMs(elapsed);
+      if (
+        elapsed >= JOURNAL_VIDEO_MAX_DURATION_MS &&
+        !maxDurationTriggeredRef.current &&
+        recorderRef.current?.state === "recording"
+      ) {
+        maxDurationTriggeredRef.current = true;
+        onMaxDurationRef.current?.();
+        void stopRecordingRef.current?.();
+      }
+    }, 250);
+  }, [clearRecordingTick, getRecordingElapsedMs]);
 
   const clearCountdown = useCallback(() => {
     if (countdownTimerRef.current) {
@@ -121,6 +179,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const cancel = useCallback(() => {
     openGenRef.current += 1;
     clearCountdown();
+    resetRecordingClock();
     speechStopRef.current();
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
@@ -137,7 +196,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     interimRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
-  }, [cleanupStream, clearCountdown]);
+  }, [cleanupStream, clearCountdown, resetRecordingClock]);
 
   const openPreview = useCallback(
     async (captureMode: JournalVideoCaptureMode) => {
@@ -216,7 +275,14 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     interimRef.current = "";
     setInterim("");
     chunksRef.current = [];
-    const rec = new MediaRecorder(stream, { mimeType: mime });
+    const recorderOptions: MediaRecorderOptions = { mimeType: mime };
+    try {
+      recorderOptions.videoBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.video;
+      recorderOptions.audioBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.audio;
+    } catch {
+      /* optional — not all browsers honor bitrates */
+    }
+    const rec = new MediaRecorder(stream, recorderOptions);
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
@@ -227,9 +293,15 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     };
     rec.start(250);
     recorderRef.current = rec;
+    recordingStartedAtRef.current = Date.now();
+    pausedAccumMsRef.current = 0;
+    pauseStartedAtRef.current = null;
+    maxDurationTriggeredRef.current = false;
+    setRecordingElapsedMs(0);
+    startRecordingTick();
     setPhase("recording");
     if (speechSupportedRef.current) speechStartRef.current();
-  }, [phase, clearCountdown]);
+  }, [phase, clearCountdown, startRecordingTick]);
 
   const beginCountdown = useCallback(() => {
     if (phase !== "preview" || countdownTimerRef.current) return;
@@ -253,17 +325,23 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     try {
       rec.pause();
       speechStopRef.current();
+      pauseStartedAtRef.current = Date.now();
+      setRecordingElapsedMs(getRecordingElapsedMs());
       setPhase("paused");
     } catch {
       /* ignore */
     }
-  }, [phase]);
+  }, [phase, getRecordingElapsedMs]);
 
   const resumeRecording = useCallback(() => {
     const rec = recorderRef.current;
     if (!rec || phase !== "paused" || rec.state !== "paused") return;
     try {
       rec.resume();
+      if (pauseStartedAtRef.current != null) {
+        pausedAccumMsRef.current += Date.now() - pauseStartedAtRef.current;
+        pauseStartedAtRef.current = null;
+      }
       if (speechSupportedRef.current) speechStartRef.current();
       setPhase("recording");
     } catch {
@@ -275,6 +353,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     if (phase !== "recording" && phase !== "paused") return null;
     setPhase("processing");
     clearCountdown();
+    clearRecordingTick();
+    setRecordingElapsedMs(getRecordingElapsedMs());
     speechStopRef.current();
     interimRef.current = "";
     setInterim("");
@@ -299,10 +379,11 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
 
     const blob = await blobPromise;
     cleanupStream();
+    resetRecordingClock();
     setMode(null);
     setPhase("idle");
     return blob;
-  }, [phase, cleanupStream, clearCountdown]);
+  }, [phase, cleanupStream, clearCountdown, clearRecordingTick, getRecordingElapsedMs, resetRecordingClock]);
 
   stopRecordingRef.current = stopRecording;
 
@@ -310,11 +391,12 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     return () => {
       openGenRef.current += 1;
       clearCountdown();
+      clearRecordingTick();
       compositeSessionRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [clearCountdown]);
+  }, [clearCountdown, clearRecordingTick]);
 
   return {
     supported,
@@ -323,6 +405,9 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     error,
     interim,
     countdown,
+    recordingElapsedMs,
+    recordingRemainingMs: journalVideoRemainingMs(recordingElapsedMs),
+    maxDurationMs: JOURNAL_VIDEO_MAX_DURATION_MS,
     bindPreview,
     openPreview,
     beginCountdown,

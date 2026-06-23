@@ -14,6 +14,7 @@ import {
   type JournalVideoCaptureMode,
 } from "@/hooks/useJournalVideoCapture";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
+import { formatJournalVideoClock } from "@/lib/journal/journalVideoLimits";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -31,12 +32,16 @@ export default function JournalVideoCaptureDialog({
   uploading = false,
   transcribing = false,
 }: Props) {
-  const recordStartedAtRef = useRef(0);
   const countdownStartedRef = useRef(false);
   const bindPreviewRef = useRef<(el: HTMLVideoElement | null) => void>(() => {});
+  const stopOnMaxRef = useRef<() => void>(() => {});
   const [pickMode, setPickMode] = useState<JournalVideoCaptureMode | null>(null);
 
-  const capture = useJournalVideoCapture({});
+  const capture = useJournalVideoCapture({
+    onMaxDuration: () => {
+      stopOnMaxRef.current();
+    },
+  });
   const openPreviewRef = useRef(capture.openPreview);
   const cancelRef = useRef(capture.cancel);
   const beginCountdownRef = useRef(capture.beginCountdown);
@@ -53,7 +58,6 @@ export default function JournalVideoCaptureDialog({
     if (!open) {
       setPickMode(null);
       countdownStartedRef.current = false;
-      recordStartedAtRef.current = 0;
       return;
     }
     return () => {
@@ -64,7 +68,6 @@ export default function JournalVideoCaptureDialog({
 
   useEffect(() => {
     if (!open || !pickMode) return;
-    recordStartedAtRef.current = 0;
     countdownStartedRef.current = false;
     void openPreviewRef.current(pickMode);
   }, [open, pickMode]);
@@ -83,21 +86,18 @@ export default function JournalVideoCaptureDialog({
   };
 
   const handleStop = async () => {
-    const started = recordStartedAtRef.current;
+    const durationMs = capture.recordingElapsedMs;
     const blob = await capture.stopRecording();
     if (!blob) {
       handleClose();
       return;
     }
-    const durationMs = Math.max(0, Date.now() - started);
     await onComplete(blob, durationMs);
   };
 
-  useEffect(() => {
-    if (capture.phase === "recording" && recordStartedAtRef.current === 0) {
-      recordStartedAtRef.current = Date.now();
-    }
-  }, [capture.phase]);
+  stopOnMaxRef.current = () => {
+    void handleStop();
+  };
 
   const recording = capture.phase === "recording";
   const paused = capture.phase === "paused";
@@ -108,6 +108,8 @@ export default function JournalVideoCaptureDialog({
   const showCountdown = capture.phase === "countdown" && capture.countdown != null;
   const showPicker = open && pickMode === null && !processing;
   const isScreen = capture.mode === "screen";
+  const remainingClock = formatJournalVideoClock(capture.recordingRemainingMs);
+  const lowTime = active && capture.recordingRemainingMs <= 60_000;
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
@@ -198,15 +200,27 @@ export default function JournalVideoCaptureDialog({
             ) : null}
 
             {active ? (
-              <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur-sm">
-                <span
+              <div className="absolute left-4 top-4 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur-sm">
+                  <span
+                    className={cn(
+                      "h-2.5 w-2.5 rounded-full bg-red-500",
+                      recording && "animate-pulse",
+                    )}
+                    aria-hidden
+                  />
+                  {paused ? "Paused" : isScreen ? "Recording screen" : "Recording"}
+                </div>
+                <div
                   className={cn(
-                    "h-2.5 w-2.5 rounded-full bg-red-500",
-                    recording && "animate-pulse",
+                    "rounded-full bg-black/50 px-3 py-1 text-sm font-medium tabular-nums text-white backdrop-blur-sm",
+                    lowTime && "text-amber-300",
                   )}
-                  aria-hidden
-                />
-                {paused ? "Paused" : isScreen ? "Recording screen" : "Recording"}
+                  aria-live="polite"
+                  aria-label={`${remainingClock} remaining`}
+                >
+                  {remainingClock}
+                </div>
               </div>
             ) : null}
 
@@ -281,9 +295,11 @@ export default function JournalVideoCaptureDialog({
                 {active
                   ? paused
                     ? "Paused — tap play to continue or stop to save."
-                    : isScreen
-                      ? "Your screen is recording with your camera in the corner."
-                      : "Talk naturally. Tap pause if you need a moment."
+                    : lowTime
+                      ? "Less than a minute left — recording stops automatically at 0:00."
+                      : isScreen
+                        ? "Your screen is recording with your camera in the corner."
+                        : "Talk naturally. Tap pause if you need a moment."
                   : showCountdown
                     ? "Get ready…"
                     : "Recording starts automatically after the countdown."}

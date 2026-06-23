@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookOpen, Sun, Sunrise, NotebookPen, Brain, Sprout, Network, FileStack, Share2, Sparkles,
+  BookOpen, Sun, Sunrise, NotebookPen, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
   Grid3X3, BookMarked, ChevronRight, HandHeart,
@@ -27,6 +27,7 @@ const iconColorMap: Record<string, string> = {
   "Morning formula": "text-amber-500",
   Daily: "text-orange-500",
   Journal: "text-violet-500",
+  Notes: "text-amber-500",
   Framework: "text-indigo-500",
   Journey: "text-emerald-500",
   Beliefs: "text-sky-500",
@@ -70,6 +71,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
+      { title: "Notes", icon: StickyNote, to: "/journal/notes" },
       { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Mind map", icon: Share2, to: "/framework/graph" },
       { title: "Artifacts", icon: FileStack, to: "/framework/artifacts" },
@@ -121,6 +123,13 @@ function resolveItemPath(item: SidebarItem, bibleTo: string): string {
 
 function isItemActive(item: SidebarItem, to: string, pathname: string): boolean {
   if (item.title === "Bible") return pathname.startsWith("/read/");
+  if (item.title === "Notes") {
+    return pathname === "/journal/notes" || pathname.startsWith("/journal/notes/");
+  }
+  if (item.title === "Journal") {
+    if (pathname.startsWith("/journal/notes")) return false;
+    return pathname === to || pathname.startsWith(to + "/");
+  }
   if (to === "/home") return pathname === "/home";
   return pathname === to || (to !== "/home" && pathname.startsWith(to + "/"));
 }

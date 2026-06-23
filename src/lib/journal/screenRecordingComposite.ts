@@ -81,8 +81,15 @@ export async function createScreenCompositeSession(
   }
 
   const syncCanvasSize = () => {
-    const w = screenVideo.videoWidth || 1280;
-    const h = screenVideo.videoHeight || 720;
+    const srcW = screenVideo.videoWidth || 1280;
+    const srcH = screenVideo.videoHeight || 720;
+    const maxW = 1280;
+    let w = srcW;
+    let h = srcH;
+    if (w > maxW) {
+      h = Math.round((h * maxW) / w);
+      w = maxW;
+    }
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;

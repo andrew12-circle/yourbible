@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import JournalsRail from "@/components/journal/JournalsRail";
 import JournalDeskLayout from "@/components/journal/JournalDeskLayout";
-import NotesListPane from "@/components/journal/NotesListPane";
-import NotesEditorPane from "@/components/journal/NotesEditorPane";
+import EntryListPane from "@/components/journal/EntryListPane";
+import EntryEditorPane from "@/components/journal/EntryEditorPane";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { ensureDefaultJournal, Journal } from "@/lib/journal/journals";
 import { createNoteEntry, getNotesJournalId } from "@/lib/journal/notesJournal";
@@ -83,6 +83,32 @@ export default function JournalNotesPage() {
     navigate("/journal/notes");
   };
 
+  const listPane = notesJournalId ? (
+    <EntryListPane
+      journalId={notesJournalId}
+      selectedId={entryId}
+      reloadKey={reloadKey}
+      headingLabel="Notes"
+      onSelect={(id) => navigate(`/journal/notes/e/${id}`)}
+      onNew={() => void createNew()}
+      onDeleted={(id) => {
+        if (entryId === id) handleDeleted();
+        else setReloadKey((k) => k + 1);
+      }}
+    />
+  ) : null;
+
+  const editorPane = (
+    <EntryEditorPane
+      entryId={entryId}
+      journals={journals}
+      onChanged={() => setReloadKey((k) => k + 1)}
+      onClose={() => navigate("/journal/notes")}
+      onNew={() => void createNew()}
+      onDeleted={handleDeleted}
+    />
+  );
+
   if (loading || booting) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -121,55 +147,16 @@ export default function JournalNotesPage() {
               }}
             />
           }
-          list={
-            <NotesListPane
-              notesJournalId={notesJournalId}
-              selectedId={entryId}
-              reloadKey={reloadKey}
-              onSelect={(id) => navigate(`/journal/notes/e/${id}`)}
-              onNew={() => void createNew()}
-              onDeleted={(id) => {
-                if (entryId === id) handleDeleted();
-                else setReloadKey((k) => k + 1);
-              }}
-            />
-          }
-          editor={
-            <NotesEditorPane
-              entryId={entryId}
-              notesJournalId={notesJournalId}
-              onChanged={() => setReloadKey((k) => k + 1)}
-              onDeleted={handleDeleted}
-            />
-          }
+          list={listPane}
+          editor={editorPane}
         />
       </div>
     );
   }
 
   if (entryId) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <NotesEditorPane
-          entryId={entryId}
-          notesJournalId={notesJournalId}
-          onChanged={() => setReloadKey((k) => k + 1)}
-          onDeleted={handleDeleted}
-          onClose={() => navigate("/journal/notes")}
-        />
-      </div>
-    );
+    return <div className="flex min-h-0 flex-1 flex-col">{editorPane}</div>;
   }
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <NotesListPane
-        notesJournalId={notesJournalId}
-        selectedId={null}
-        reloadKey={reloadKey}
-        onSelect={(id) => navigate(`/journal/notes/e/${id}`)}
-        onNew={() => void createNew()}
-      />
-    </div>
-  );
+  return <div className="flex min-h-0 flex-1 flex-col">{listPane}</div>;
 }
