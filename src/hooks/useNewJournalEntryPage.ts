@@ -70,7 +70,7 @@ import {
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
-  transcribeVideoBlob,
+  transcribeVideoFromStorage,
   updateEntryVideoTranscript,
   uploadEntryVideo,
 } from "@/lib/journal/videos";
@@ -1283,7 +1283,7 @@ export function useNewJournalEntryPage() {
 
         setVideoUploading(false);
         setVideoTranscribing(true);
-        const transcript = await transcribeVideoBlob(user.id, blob);
+        const transcript = await transcribeVideoFromStorage(uploaded.storage_path);
         if (transcript) await updateEntryVideoTranscript(row.id, transcript);
 
         await reloadVideos();

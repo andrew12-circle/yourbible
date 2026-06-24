@@ -56,17 +56,51 @@ export function journalVideoCaptureSupported(): boolean {
   );
 }
 
-/** Front camera on phones; default webcam on desktop. */
-export function buildJournalVideoConstraints(): MediaStreamConstraints {
-  const mobile =
+function isMobileVideoCapture(): boolean {
+  return (
     /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-    (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+    (navigator.maxTouchPoints > 1 && window.innerWidth < 1024)
+  );
+}
+
+/** Front camera on phones; default webcam on desktop. Mobile uses 480p to stay under upload caps. */
+export function buildJournalVideoConstraints(): MediaStreamConstraints {
+  const mobile = isMobileVideoCapture();
   return {
     audio: true,
     video: mobile
-      ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
-      : { width: { ideal: 1280 }, height: { ideal: 720 } },
+      ? {
+          facingMode: "user",
+          width: { ideal: 480, max: 640 },
+          height: { ideal: 480, max: 640 },
+          frameRate: { ideal: 20, max: 24 },
+        }
+      : { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { max: 30 } },
   };
+}
+
+/** Tighten an acquired stream (iOS often ignores initial constraints). */
+export async function tuneJournalVideoStream(stream: MediaStream): Promise<void> {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+  const mobile = isMobileVideoCapture();
+  try {
+    await track.applyConstraints(
+      mobile
+        ? {
+            width: { max: 640 },
+            height: { max: 640 },
+            frameRate: { max: 24 },
+          }
+        : {
+            width: { max: 1280 },
+            height: { max: 720 },
+            frameRate: { max: 30 },
+          },
+    );
+  } catch {
+    /* best effort */
+  }
 }
 
 export async function uploadEntryVideo(
@@ -76,7 +110,7 @@ export async function uploadEntryVideo(
   durationMs?: number,
 ): Promise<{ storage_path: string; duration_ms?: number; mime_type: string }> {
   if (isJournalVideoUploadTooLarge(blob.size)) {
-    throw new Error(journalVideoUploadTooLargeMessage(durationMs ?? 0));
+    throw new Error(journalVideoUploadTooLargeMessage(durationMs ?? 0, blob.size));
   }
   const mime = blob.type || pickJournalVideoMimeType() || "video/webm";
   const ext = mime.includes("mp4") ? "mp4" : "webm";
@@ -160,7 +194,18 @@ export async function updateEntryVideoTranscript(
   if (error) throw new Error(formatVideoStorageError(error.message));
 }
 
-/** Transcribe audio from a recorded video blob (avoids mic conflict with live speech). */
+/** Transcribe audio from an uploaded journal video (no second full upload). */
+export async function transcribeVideoFromStorage(storagePath: string): Promise<string> {
+  if (!storagePath) return "";
+  try {
+    const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
+    return result.ok ? result.text.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+/** @deprecated Prefer transcribeVideoFromStorage after upload. */
 export async function transcribeVideoBlob(userId: string, blob: Blob): Promise<string> {
   if (blob.size < 800) return "";
   try {

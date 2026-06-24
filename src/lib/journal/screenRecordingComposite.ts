@@ -1,4 +1,8 @@
-import { buildJournalVideoConstraints } from "@/lib/journal/videos";
+import {
+  buildJournalVideoConstraints,
+  pickJournalVideoMimeType,
+  tuneJournalVideoStream,
+} from "@/lib/journal/videos";
 
 export type JournalVideoCaptureMode = "camera" | "screen";
 
@@ -58,6 +62,7 @@ export async function createScreenCompositeSession(
     video: buildJournalVideoConstraints().video ?? true,
     audio: !screenHasAudio,
   });
+  await tuneJournalVideoStream(cameraStream);
 
   const screenVideo = document.createElement("video");
   screenVideo.srcObject = screenStream;
@@ -83,7 +88,7 @@ export async function createScreenCompositeSession(
   const syncCanvasSize = () => {
     const srcW = screenVideo.videoWidth || 1280;
     const srcH = screenVideo.videoHeight || 720;
-    const maxW = 1280;
+    const maxW = 960;
     let w = srcW;
     let h = srcH;
     if (w > maxW) {

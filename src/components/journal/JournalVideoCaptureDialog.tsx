@@ -13,8 +13,15 @@ import {
   useJournalVideoCapture,
   type JournalVideoCaptureMode,
 } from "@/hooks/useJournalVideoCapture";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
-import { formatJournalVideoClock } from "@/lib/journal/journalVideoLimits";
+import {
+  formatJournalVideoClock,
+  formatJournalVideoSizeMb,
+  journalVideoEffectiveRemainingMs,
+  journalVideoRemainingMs,
+  JOURNAL_VIDEO_MAX_UPLOAD_BYTES,
+} from "@/lib/journal/journalVideoLimits";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,6 +30,8 @@ type Props = {
   onComplete: (blob: Blob, durationMs: number) => void | Promise<void>;
   uploading?: boolean;
   transcribing?: boolean;
+  /** Skip the Camera vs Screen picker (e.g. when the toolbar Video button is tapped). */
+  defaultMode?: JournalVideoCaptureMode;
 };
 
 export default function JournalVideoCaptureDialog({
@@ -31,7 +40,9 @@ export default function JournalVideoCaptureDialog({
   onComplete,
   uploading = false,
   transcribing = false,
+  defaultMode,
 }: Props) {
+  const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
   const bindPreviewRef = useRef<(el: HTMLVideoElement | null) => void>(() => {});
   const stopOnMaxRef = useRef<() => void>(() => {});
@@ -60,11 +71,15 @@ export default function JournalVideoCaptureDialog({
       countdownStartedRef.current = false;
       return;
     }
+    // Mobile has no screen-share workflow — open the front camera immediately.
+    if (isMobile || defaultMode) {
+      setPickMode(defaultMode ?? "camera");
+    }
     return () => {
       countdownStartedRef.current = false;
       cancelRef.current();
     };
-  }, [open]);
+  }, [open, isMobile, defaultMode]);
 
   useEffect(() => {
     if (!open || !pickMode) return;
@@ -106,10 +121,17 @@ export default function JournalVideoCaptureDialog({
   const ready = capture.phase === "preview" || capture.phase === "countdown" || active;
   const starting = open && pickMode !== null && capture.phase === "idle" && !capture.error;
   const showCountdown = capture.phase === "countdown" && capture.countdown != null;
-  const showPicker = open && pickMode === null && !processing;
+  const showPicker = open && pickMode === null && !processing && !isMobile && !defaultMode;
   const isScreen = capture.mode === "screen";
   const remainingClock = formatJournalVideoClock(capture.recordingRemainingMs);
+  const sizeLabel = formatJournalVideoSizeMb(capture.recordingBytes, 0);
+  const sizeCapLabel = formatJournalVideoSizeMb(JOURNAL_VIDEO_MAX_UPLOAD_BYTES, 0);
   const lowTime = active && capture.recordingRemainingMs <= 60_000;
+  const sizeLimited =
+    active &&
+    capture.recordingBytes > 0 &&
+    journalVideoEffectiveRemainingMs(capture.recordingElapsedMs, capture.recordingBytes) <
+      journalVideoRemainingMs(capture.recordingElapsedMs);
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
@@ -117,7 +139,10 @@ export default function JournalVideoCaptureDialog({
         className={cn(
           "gap-0 overflow-hidden p-0",
           isScreen ? "sm:max-w-4xl" : "sm:max-w-lg",
-          "max-sm:fixed max-sm:inset-0 max-sm:h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0",
+          // Full-screen on mobile — reset centered transform so portrait fits the viewport.
+          "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
+          // Capture UI provides its own close control.
+          "[&>button.absolute]:hidden",
         )}
       >
         <DialogHeader className="sr-only">
@@ -165,8 +190,12 @@ export default function JournalVideoCaptureDialog({
         ) : (
           <div
             className={cn(
-              "relative flex flex-1 flex-col bg-black",
-              isScreen ? "min-h-[50vh] sm:min-h-[360px]" : "min-h-[50vh] sm:min-h-[420px]",
+              "relative flex min-h-0 flex-1 flex-col bg-black",
+              isMobile
+                ? "h-full"
+                : isScreen
+                  ? "min-h-[50vh] sm:min-h-[360px]"
+                  : "min-h-[50vh] sm:min-h-[420px]",
             )}
           >
             <video
@@ -175,8 +204,13 @@ export default function JournalVideoCaptureDialog({
               playsInline
               muted
               className={cn(
-                "h-full w-full flex-1",
-                isScreen ? "min-h-[50vh] object-contain sm:min-h-[360px]" : "min-h-[50vh] object-cover sm:min-h-[420px]",
+                "min-h-0 w-full flex-1",
+                isMobile ? "h-full object-cover" : "h-full",
+                !isMobile && isScreen
+                  ? "min-h-[50vh] object-contain sm:min-h-[360px]"
+                  : !isMobile
+                    ? "min-h-[50vh] object-cover sm:min-h-[420px]"
+                    : null,
                 !isScreen && "[transform:scaleX(-1)]",
                 !ready && "invisible",
               )}
@@ -217,9 +251,15 @@ export default function JournalVideoCaptureDialog({
                     lowTime && "text-amber-300",
                   )}
                   aria-live="polite"
-                  aria-label={`${remainingClock} remaining`}
+                  aria-label={`${remainingClock} remaining, ${sizeLabel} of ${sizeCapLabel} used`}
                 >
                   {remainingClock}
+                  <span className="mx-1.5 text-white/40" aria-hidden>
+                    ·
+                  </span>
+                  <span className="text-[11px] font-normal text-white/75">
+                    {sizeLabel}/{sizeCapLabel}
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -228,7 +268,7 @@ export default function JournalVideoCaptureDialog({
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-3 top-3 z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+              className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
               onClick={handleClose}
               disabled={processing}
               aria-label="Close"
@@ -236,7 +276,7 @@ export default function JournalVideoCaptureDialog({
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-5 pt-16">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-16">
               <DictInterimPreview
                 text={capture.interim}
                 className="mb-4 min-h-[1.5rem] text-center text-sm italic leading-relaxed text-white/90"
@@ -250,8 +290,8 @@ export default function JournalVideoCaptureDialog({
                     variant="secondary"
                     size="sm"
                     onClick={() => {
-                      setPickMode(null);
                       capture.cancel();
+                      setPickMode(isMobile || defaultMode ? (defaultMode ?? "camera") : null);
                     }}
                   >
                     Try again
@@ -296,7 +336,9 @@ export default function JournalVideoCaptureDialog({
                   ? paused
                     ? "Paused — tap play to continue or stop to save."
                     : lowTime
-                      ? "Less than a minute left — recording stops automatically at 0:00."
+                      ? sizeLimited
+                        ? "Almost at the upload size limit — recording stops automatically."
+                        : "Less than a minute left — recording stops automatically at 0:00."
                       : isScreen
                         ? "Your screen is recording with your camera in the corner."
                         : "Talk naturally. Tap pause if you need a moment."

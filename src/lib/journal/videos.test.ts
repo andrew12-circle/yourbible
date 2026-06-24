@@ -33,7 +33,7 @@ describe("buildJournalVideoConstraints", () => {
     });
     vi.stubGlobal("window", { innerWidth: 390 });
     const c = buildJournalVideoConstraints();
-    expect(c.video).toMatchObject({ facingMode: "user" });
+    expect(c.video).toMatchObject({ facingMode: "user", width: { ideal: 480, max: 640 } });
     expect(c.audio).toBe(true);
   });
 

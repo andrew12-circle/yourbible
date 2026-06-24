@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
-  transcribeVideoBlob,
+  transcribeVideoFromStorage,
   updateEntryVideoTranscript,
   uploadEntryVideo,
 } from "@/lib/journal/videos";
@@ -62,7 +62,7 @@ export default function JournalVideoCaptureButton({
 
       setUploading(false);
       setTranscribing(true);
-      const transcript = await transcribeVideoBlob(userId, blob);
+      const transcript = await transcribeVideoFromStorage(uploaded.storage_path);
       if (transcript) {
         await updateEntryVideoTranscript(row.id, transcript);
       }
@@ -126,6 +126,7 @@ export default function JournalVideoCaptureButton({
           onComplete={handleComplete}
           uploading={uploading}
           transcribing={transcribing}
+          defaultMode="camera"
         />
       ) : null}
     </>

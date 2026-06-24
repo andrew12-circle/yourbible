@@ -26,9 +26,12 @@ export async function probeJournalVoiceEdge(): Promise<boolean> {
   return isEdgeFunctionReachable(error);
 }
 
-export async function transcribeJournalVoiceMemo(storagePath: string): Promise<VoiceDictationResult> {
+export async function transcribeJournalVoiceMemo(
+  storagePath: string,
+  bucket: "voice-memos" | "journal-videos" = "voice-memos",
+): Promise<VoiceDictationResult> {
   const { data, error } = await supabase.functions.invoke(JOURNAL_VOICE_FN, {
-    body: { storage_path: storagePath },
+    body: { storage_path: storagePath, bucket },
   });
   if (error) {
     return { ok: false, error: await edgeFunctionErrorMessage(JOURNAL_VOICE_FN, error, data) };

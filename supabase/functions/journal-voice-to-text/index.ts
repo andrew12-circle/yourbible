@@ -35,7 +35,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storage_path } = (await req.json()) as { storage_path?: string };
+    const { storage_path, bucket: bucketRaw } = (await req.json()) as {
+      storage_path?: string;
+      bucket?: string;
+    };
+    const bucket = bucketRaw === "journal-videos" ? "journal-videos" : "voice-memos";
     if (!storage_path) {
       return new Response(JSON.stringify({ error: "storage_path required" }), {
         status: 400,
@@ -50,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: file, error: dlErr } = await admin.storage.from("voice-memos").download(storage_path);
+    const { data: file, error: dlErr } = await admin.storage.from(bucket).download(storage_path);
     if (dlErr || !file) {
       return new Response(JSON.stringify({ error: `download failed: ${dlErr?.message ?? "missing"}` }), {
         status: 400,
