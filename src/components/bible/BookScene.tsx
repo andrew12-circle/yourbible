@@ -23,6 +23,8 @@ interface Props {
   coverClassName?: string;
   /** Page tone / reader theme classes on the paper surface. */
   pageClassName?: string;
+  /** Cropped spread — nudge the open book right on interior pages (more right-page peek). */
+  spreadNudgeRight?: boolean;
 }
 
 const coverRadiusLeft = (hubEmbedded: boolean) => (hubEmbedded ? "0.5rem" : "0.75rem");
@@ -43,6 +45,7 @@ export function BookScene({
   coverStyle,
   coverClassName,
   pageClassName,
+  spreadNudgeRight = false,
 }: Props) {
   const croppedSpread = singlePage;
   const stackWidths = spreadPageStackWidths(progress);
@@ -94,7 +97,14 @@ export function BookScene({
               pageClassName,
             )}
           >
-            <div className="relative flex h-full min-h-0 min-w-0 w-full flex-row">
+            <div
+              className="relative flex h-full min-h-0 min-w-0 w-full flex-row"
+              style={
+                croppedSpread && spreadNudgeRight
+                  ? { transform: "translateX(clamp(0.5rem, 2.5vw, 0.875rem))" }
+                  : undefined
+              }
+            >
               <div className="relative flex flex-1 min-h-0 min-w-0 border-r border-border/40">
                 <PageStackEdge side="left" widthPx={leftStack} />
                 <div

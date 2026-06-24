@@ -1,5 +1,5 @@
 /** Fraction of the right page width kept visible when the spread is cropped. */
-export const SPREAD_RIGHT_PEEK = 0.18;
+export const SPREAD_RIGHT_PEEK = 0.22;
 
 /** Inner spread width as a multiple of the visible viewport (always ≥ 1). */
 export function spreadCropWidthRatio(peek: number = SPREAD_RIGHT_PEEK): number {

@@ -249,8 +249,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
         if (err.name === "NotAllowedError") {
           setError(
             captureMode === "screen"
-              ? "Screen or camera permission was blocked. Allow sharing when prompted."
-              : "Camera permission was blocked. Enable camera and microphone for this site in your browser settings.",
+              ? "Screen or camera access was blocked. Tap Allow when prompted, or check Settings → Safari → Camera/Microphone for this site."
+              : "Camera or microphone access was blocked. Tap Allow when prompted, or check Settings → Safari → Camera/Microphone for this site.",
           );
         } else if (err.name === "NotFoundError") {
           setError("No camera or screen source was found.");

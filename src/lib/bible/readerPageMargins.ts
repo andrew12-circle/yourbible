@@ -22,6 +22,8 @@ export function spreadPageStackWidths(progress: number): { left: number; right: 
 
 /** Comfortable horizontal inset on phones / compact reader chrome. */
 export const MOBILE_PAGE_MARGIN_H = "clamp(1rem, 4.5vw, 1.375rem)";
+/** Spine-side gutter on cropped mobile spreads (room from the binding). */
+export const MOBILE_PAGE_MARGIN_GUTTER = "clamp(1.5rem, 6vw, 2.25rem)";
 
 export function pageHorizontalPadding(
   side: "left" | "right",
@@ -29,10 +31,9 @@ export function pageHorizontalPadding(
   compactSinglePage?: boolean,
 ): CSSProperties {
   if (singlePage && compactSinglePage) {
-    return {
-      paddingLeft: MOBILE_PAGE_MARGIN_H,
-      paddingRight: MOBILE_PAGE_MARGIN_H,
-    };
+    return side === "left"
+      ? { paddingLeft: MOBILE_PAGE_MARGIN_GUTTER, paddingRight: MOBILE_PAGE_MARGIN_H }
+      : { paddingLeft: MOBILE_PAGE_MARGIN_H, paddingRight: MOBILE_PAGE_MARGIN_GUTTER };
   }
   const outer = singlePage ? PAGE_MARGIN_OUTER : SPREAD_PAGE_MARGIN_OUTER;
   const gutter = singlePage ? PAGE_MARGIN_GUTTER : SPREAD_PAGE_MARGIN_GUTTER;

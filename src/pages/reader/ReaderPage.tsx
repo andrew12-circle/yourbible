@@ -46,6 +46,7 @@ import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverla
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
 import { TopBar } from "@/components/bible/TopBar";
 import { BookScene } from "@/components/bible/BookScene";
+import { ReaderMobileChapterBar } from "@/components/bible/ReaderMobileChapterBar";
 import { Paginator } from "@/components/bible/Paginator";
 import { BookPaginator } from "@/components/bible/BookPaginator";
 import { PageFlip } from "@/components/bible/PageFlip";
@@ -1435,7 +1436,11 @@ export default function ReaderPage() {
             className={cn(
               "relative flex-1 min-h-0 min-w-0 w-full",
               scrollMode
-                ? "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide"
+                ? cn(
+                    "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide",
+                    compactChrome &&
+                      "pb-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+0.75rem)]",
+                  )
                 : "flex flex-col",
             )}
           >
@@ -1577,7 +1582,7 @@ export default function ReaderPage() {
             onStrokeStart={handleInkStrokeStart}
           />
         ) : null}
-        {!focusMode && !scrollMode ? (
+        {!focusMode && !scrollMode && !compactChrome ? (
           <div
             data-page-footer
             className={cn(
@@ -1632,10 +1637,35 @@ export default function ReaderPage() {
   const paginatorReady =
     pageBox.w > 0 && (subsequentPageHeight > 0 || paginatorFirstPageHeight > 0);
 
+  const atFirstPage = activePageIdx <= 0;
+  const atLastPage = activePageIdx >= Math.max(0, totalPagesForNav - pagesPerTurn);
+  const canGoBackMobile = scrollMode ? prevChapterRef != null : !atFirstPage || prevChapterRef != null;
+  const canGoForwardMobile = scrollMode ? nextChapterRef != null : !atLastPage || nextChapterRef != null;
+  const handleMobileNavBack = () => {
+    if (scrollMode) {
+      if (prevChapterRef) navigate(`/read/${prevChapterRef.book.abbr}/${prevChapterRef.chapter}`);
+      return;
+    }
+    goPage(-1);
+  };
+  const handleMobileNavForward = () => {
+    if (scrollMode) {
+      if (nextChapterRef) navigate(`/read/${nextChapterRef.book.abbr}/${nextChapterRef.chapter}`);
+      return;
+    }
+    goPage(1);
+  };
+  const spreadNudgeRight = compactChrome && !scrollMode && activePageIdx > 0;
+  const showReaderDock = !showHubShell && compactChrome && !focusMode;
+  const mobileChromeBottom = showReaderDock
+    ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px))]"
+    : compactChrome
+      ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px))]"
+      : "bottom-0";
+
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
-  const showReaderDock = !showHubShell && compactChrome && !focusMode;
   const hubEmbedded = containedInHub;
 
   return (
@@ -1760,9 +1790,7 @@ export default function ReaderPage() {
           overlayPos,
           "inset-x-0",
           readerSceneTopOffsetClass(compactChrome, containedInHub),
-          showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
-            : "bottom-0",
+          mobileChromeBottom,
         )}
       >
       <BookScene
@@ -1774,6 +1802,7 @@ export default function ReaderPage() {
         coverStyle={readerCoverStyle}
         coverClassName={readerCoverClass}
         pageClassName={readerPageClass}
+        spreadNudgeRight={spreadNudgeRight}
         ribbons={
           focusMode ? null : (
             <Ribbons
@@ -1840,8 +1869,10 @@ export default function ReaderPage() {
           readerPageTurnTopOffsetClass(compactChrome, containedInHub),
           "left-0 w-8 z-[5] opacity-0",
           showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : "bottom-safe-16",
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+            : compactChrome
+              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+              : "bottom-safe-16",
           inkMode && "pointer-events-none",
         )}
       />
@@ -1853,8 +1884,10 @@ export default function ReaderPage() {
           readerPageTurnTopOffsetClass(compactChrome, containedInHub),
           "right-0 w-8 z-[5] opacity-0",
           showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : "bottom-safe-16",
+            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+            : compactChrome
+              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
+              : "bottom-safe-16",
           inkMode && "pointer-events-none",
         )}
       />
@@ -1910,6 +1943,19 @@ export default function ReaderPage() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {compactChrome && !focusMode ? (
+        <ReaderMobileChapterBar
+          bookName={book.name}
+          chapter={chapter}
+          scrollMode={scrollMode}
+          canGoBack={canGoBackMobile}
+          canGoForward={canGoForwardMobile}
+          onBack={handleMobileNavBack}
+          onForward={handleMobileNavForward}
+          onOpenSettings={openReaderSettings}
+        />
+      ) : null}
 
       <ReaderPageOverlays
         overlayPos={overlayPos}
