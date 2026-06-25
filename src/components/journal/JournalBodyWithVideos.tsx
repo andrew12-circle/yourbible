@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { JournalVideoRow } from "@/lib/journal/videos";
-import { effectiveVideoAnchor } from "@/lib/journal/journalVideoBody";
+import { buildJournalBodySegments } from "@/lib/journal/journalVideoBody";
 import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { cn } from "@/lib/utils";
@@ -15,35 +15,6 @@ type Props = {
   onCaretChange?: (offset: number) => void;
 };
 
-type Segment =
-  | { kind: "text"; start: number; end: number }
-  | { kind: "video"; video: JournalVideoRow };
-
-function buildSegments(body: string, videos: JournalVideoRow[]): Segment[] {
-  const sorted = [...videos].sort((a, b) => {
-    const ao = a.anchor_offset ?? 0;
-    const bo = b.anchor_offset ?? 0;
-    if (ao !== bo) return ao - bo;
-    return a.created_at.localeCompare(b.created_at);
-  });
-  const segments: Segment[] = [];
-  let cursor = 0;
-  for (const video of sorted) {
-    const anchor = effectiveVideoAnchor(body, video.anchor_offset);
-    if (anchor > cursor) {
-      segments.push({ kind: "text", start: cursor, end: anchor });
-    }
-    segments.push({ kind: "video", video });
-    cursor = anchor;
-  }
-  if (cursor < body.length) {
-    segments.push({ kind: "text", start: cursor, end: body.length });
-  } else if (!segments.length) {
-    segments.push({ kind: "text", start: 0, end: body.length });
-  }
-  return segments;
-}
-
 export default function JournalBodyWithVideos({
   body,
   videos,
@@ -53,7 +24,7 @@ export default function JournalBodyWithVideos({
   onRemoveVideo,
   onCaretChange,
 }: Props) {
-  const segments = useMemo(() => buildSegments(body, videos), [body, videos]);
+  const segments = useMemo(() => buildJournalBodySegments(body, videos), [body, videos]);
 
   const patchText = (start: number, end: number, nextSlice: string) => {
     onBodyChange(body.slice(0, start) + nextSlice + body.slice(end));

@@ -503,6 +503,7 @@ export default function NewJournalEntryPage() {
           onComplete={p.handleVideoComplete}
           uploading={p.videoUploading}
           transcribing={p.videoTranscribing}
+          defaultMode="camera"
         />
       ) : null}
 

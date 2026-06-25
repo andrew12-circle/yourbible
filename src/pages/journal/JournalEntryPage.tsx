@@ -38,6 +38,8 @@ import {
 import { MORNING_CONVERSATION_ENTRY_KIND } from "@/lib/livingHope/morningConversationJournal";
 import { MORNING_REVIEW_ENTRY_KIND } from "@/lib/livingHope/morningReviewJournal";
 import { cn } from "@/lib/utils";
+import { fetchEntryVideos, type JournalVideoRow } from "@/lib/journal/videos";
+import JournalBodyReadWithVideos from "@/components/journal/JournalBodyReadWithVideos";
 
 interface Entry {
   id: string;
@@ -67,6 +69,7 @@ export default function JournalEntryPage() {
   const navigate = useNavigate();
   const [entry, setEntry] = useState<Entry | null>(null);
   const [photos, setPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
+  const [videos, setVideos] = useState<JournalVideoRow[]>([]);
   const [beliefStatement, setBeliefStatement] = useState<string | null>(null);
   const [score, setScore] = useState<Score | null>(null);
   const [scoring, setScoring] = useState(false);
@@ -116,6 +119,12 @@ export default function JournalEntryPage() {
         url: urls[p.storage_path],
       })),
     );
+    try {
+      setVideos(await fetchEntryVideos(id));
+    } catch (e) {
+      console.warn("[journal-entry] videos load failed:", e);
+      setVideos([]);
+    }
     const { data: s } = await supabase
       .from("journal_entry_scores")
       .select("axes,themes,assumptions")
@@ -287,7 +296,7 @@ export default function JournalEntryPage() {
   const entryHeading = entry.title?.trim() || null;
   const mapHeight = inMiniPhone ? 160 : 200;
   const openEdit = () => navigate(`/journal/${entry.id}/edit`);
-  const bodyEmpty = !entry.body?.trim() && !transcribingSketch;
+  const bodyEmpty = !entry.body?.trim() && !transcribingSketch && videos.length === 0;
   const canWrite = entry.entry_kind !== "chat" && entry.entry_kind !== "vent";
 
   const mapFooter = (
@@ -476,6 +485,13 @@ export default function JournalEntryPage() {
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                   Reading your handwriting…
                 </span>
+              ) : videos.length > 0 ? (
+                <JournalBodyReadWithVideos
+                  body={entry.body}
+                  videos={videos}
+                  editable={canWrite}
+                  onEdit={canWrite ? openEdit : undefined}
+                />
               ) : entry.body ? (
                 canWrite ? (
                   <EditableEntryTap onEdit={openEdit}>{entry.body}</EditableEntryTap>

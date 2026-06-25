@@ -1,3 +1,35 @@
+import type { JournalVideoRow } from "@/lib/journal/videos";
+
+export type JournalBodySegment =
+  | { kind: "text"; start: number; end: number }
+  | { kind: "video"; video: JournalVideoRow };
+
+/** Split body text around inline videos at their anchor offsets. */
+export function buildJournalBodySegments(body: string, videos: JournalVideoRow[]): JournalBodySegment[] {
+  const sorted = [...videos].sort((a, b) => {
+    const ao = a.anchor_offset ?? 0;
+    const bo = b.anchor_offset ?? 0;
+    if (ao !== bo) return ao - bo;
+    return a.created_at.localeCompare(b.created_at);
+  });
+  const segments: JournalBodySegment[] = [];
+  let cursor = 0;
+  for (const video of sorted) {
+    const anchor = effectiveVideoAnchor(body, video.anchor_offset);
+    if (anchor > cursor) {
+      segments.push({ kind: "text", start: cursor, end: anchor });
+    }
+    segments.push({ kind: "video", video });
+    cursor = anchor;
+  }
+  if (cursor < body.length) {
+    segments.push({ kind: "text", start: cursor, end: body.length });
+  } else if (!segments.length) {
+    segments.push({ kind: "text", start: 0, end: body.length });
+  }
+  return segments;
+}
+
 /** Insert spoken transcript at the anchor where video recording started. */
 export function insertTranscriptAtAnchor(body: string, anchorOffset: number, transcript: string): string {
   const t = transcript.trim();
