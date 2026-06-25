@@ -143,6 +143,22 @@ export async function importDefaultHabits(userId: string): Promise<number> {
   return rows.length;
 }
 
+/** Archives every active habit and replaces with the current season template. */
+export async function replaceHabitsWithDefaults(userId: string): Promise<number> {
+  const existing = await listHabits(userId);
+  await Promise.all(existing.map((h) => archiveHabit(userId, h.id)));
+
+  const rows: TablesInsert<"habits">[] = DEFAULT_HABIT_NAMES.map((h, i) => ({
+    user_id: userId,
+    name: h.name,
+    category: h.category ?? null,
+    sort_order: i,
+  }));
+  const { error } = await supabase.from("habits").insert(rows);
+  if (error) throwSupabaseError(error);
+  return rows.length;
+}
+
 export async function getHabitNote(
   userId: string,
   habitId: string | null,

@@ -83,7 +83,7 @@ export default function TodoQuickAdd({
       onSubmit={(e) => void submit(e)}
       className="sticky bottom-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
-      <div className="max-w-2xl mx-auto space-y-2">
+      <div className="w-full space-y-2.5">
         <div className="flex gap-2">
           <Input
             ref={inputRef}
@@ -103,14 +103,14 @@ export default function TodoQuickAdd({
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="min-w-0">
             <Label className="text-xs text-muted-foreground">Type</Label>
             <Select
               value={taskType || "__none"}
               onValueChange={(v) => setTaskType(v === "__none" ? "" : (v as TodoTaskType))}
             >
-              <SelectTrigger className="mt-1 h-9">
+              <SelectTrigger className="mt-1 h-9 px-2 text-sm">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
@@ -124,13 +124,13 @@ export default function TodoQuickAdd({
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <Label className="text-xs text-muted-foreground">Priority</Label>
             <Select
               value={String(priority)}
               onValueChange={(v) => setPriority(Number(v) as TodoPriority)}
             >
-              <SelectTrigger className="mt-1 h-9">
+              <SelectTrigger className="mt-1 h-9 px-2 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -143,36 +143,10 @@ export default function TodoQuickAdd({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="todo-quick-start" className="text-xs text-muted-foreground">
-              Start
-            </Label>
-            <Input
-              id="todo-quick-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 h-9"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="todo-quick-end" className="text-xs text-muted-foreground">
-              End
-            </Label>
-            <Input
-              id="todo-quick-end"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 h-9"
-            />
-          </div>
-
-          <div>
+          <div className="min-w-0 col-span-2 sm:col-span-1">
             <Label className="text-xs text-muted-foreground">Status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as TodoStatus)}>
-              <SelectTrigger className="mt-1 h-9">
+              <SelectTrigger className="mt-1 h-9 px-2 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -183,6 +157,32 @@ export default function TodoQuickAdd({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="min-w-0">
+            <Label htmlFor="todo-quick-start" className="text-xs text-muted-foreground">
+              Start
+            </Label>
+            <Input
+              id="todo-quick-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1 h-9 min-w-[8.75rem] px-2 text-sm"
+            />
+          </div>
+
+          <div className="min-w-0">
+            <Label htmlFor="todo-quick-end" className="text-xs text-muted-foreground">
+              End
+            </Label>
+            <Input
+              id="todo-quick-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="mt-1 h-9 min-w-[8.75rem] px-2 text-sm"
+            />
           </div>
         </div>
       </div>

@@ -1666,16 +1666,17 @@ export default function ReaderPage() {
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
-  const hubEmbedded = containedInHub;
+  const hubEmbedded = showHubShell;
 
   return (
     <div
       data-bible-reader
       data-cropped-spread={!effectiveSpread ? "" : undefined}
+      data-hub-fullscreen={hubFullscreen || undefined}
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
-        (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
-        showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
+        (containedInHub || !showHubShell || hubFullscreen) && "flex h-full min-h-0 flex-col",
+        showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0 h-[100dvh] bg-fabric",
         !showHubShell && "h-[100dvh]",
         focusMode && "saturate-[0.88] contrast-[0.97] bg-paper/98",
       )}
@@ -1744,6 +1745,7 @@ export default function ReaderPage() {
         inkMode={inkMode}
         onToggleInkMode={toggleInkMode}
         containedInHub={containedInHub}
+        hubCompactChrome={showHubShell}
         hubFullscreen={hubFullscreen}
         onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
         returnTo={readerReturn?.to}
@@ -1789,7 +1791,7 @@ export default function ReaderPage() {
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
           "inset-x-0",
-          readerSceneTopOffsetClass(compactChrome, containedInHub),
+          readerSceneTopOffsetClass(compactChrome, showHubShell),
           mobileChromeBottom,
         )}
       >
@@ -1866,7 +1868,7 @@ export default function ReaderPage() {
         aria-label="Previous page"
         className={cn(
           overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, containedInHub),
+          readerPageTurnTopOffsetClass(compactChrome, showHubShell),
           "left-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
@@ -1881,7 +1883,7 @@ export default function ReaderPage() {
         aria-label="Next page"
         className={cn(
           overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, containedInHub),
+          readerPageTurnTopOffsetClass(compactChrome, showHubShell),
           "right-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"

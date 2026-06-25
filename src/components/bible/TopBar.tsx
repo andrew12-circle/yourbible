@@ -79,6 +79,8 @@ interface Props {
   audioPlaybackRate?: number;
   onCycleAudioSpeed?: () => void;
   containedInHub?: boolean;
+  /** Hub shell reader — compact chrome whether embedded or fullscreen overlay. */
+  hubCompactChrome?: boolean;
   hubFullscreen?: boolean;
   onToggleHubFullscreen?: () => void;
   returnTo?: string;
@@ -126,6 +128,7 @@ export function TopBar({
   audioPlaybackRate = 1,
   onCycleAudioSpeed,
   containedInHub = false,
+  hubCompactChrome = false,
   hubFullscreen = false,
   onToggleHubFullscreen,
   returnTo,
@@ -246,7 +249,7 @@ export function TopBar({
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show header"
-          className={`${overlayPos} left-1/2 ${readerChromeTopClass(containedInHub)} -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
+          className={`${overlayPos} left-1/2 ${readerChromeTopClass(hubCompactChrome)} -translate-x-1/2 z-30 px-4 py-1.5 rounded-full transition-all ${readerGlassHandle}`}
         >
           <ChevronDown className="w-3.5 h-3.5" strokeWidth={2.25} />
         </button>
@@ -265,7 +268,7 @@ export function TopBar({
       )}
 
       <header
-        className={`${overlayPos} top-0 inset-x-0 z-30 ${readerHeaderSafePaddingClass(containedInHub)} transition-[transform,opacity] duration-300 ease-out ${
+        className={`${overlayPos} top-0 inset-x-0 z-30 ${readerHeaderSafePaddingClass(hubCompactChrome)} transition-[transform,opacity] duration-300 ease-out ${
           open && !(singlePage && focusMode)
             ? "translate-y-0 opacity-100"
             : "-translate-y-[calc(100%+0.75rem)] opacity-0 pointer-events-none"

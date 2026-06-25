@@ -1957,6 +1957,19 @@ body:has(.hub-shell),
   }
 }
 
+/* Hub Bible fullscreen — fabric covers the entire viewport when the reader breaks out of the content card. */
+[data-bible-reader][data-hub-fullscreen] {
+  background-color: hsl(var(--muted) / 0.4);
+}
+
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .hub-content-card {
+  visibility: hidden;
+}
+
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .peer[data-variant="floating"] > .fixed {
+  visibility: hidden;
+}
+
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
   background-color: hsl(0 0% 100%);

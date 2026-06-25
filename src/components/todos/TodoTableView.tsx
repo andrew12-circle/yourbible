@@ -62,13 +62,13 @@ export default function TodoTableView({
     >
       <Table
         className={cn(
-          "w-full border-collapse text-sm",
+          "w-full border-separate border-spacing-0 text-sm",
           contentWidth !== "full" && "min-w-[1024px]",
         )}
       >
         <TableHeader>
           <TableRow className="bg-yellow-300 hover:bg-yellow-300 border-b border-yellow-500/40">
-            <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold whitespace-nowrap min-w-[180px]">
+            <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold whitespace-nowrap min-w-[180px] rounded-tl-lg">
               Task Name
             </TableHead>
             <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold whitespace-nowrap w-[130px]">
@@ -92,7 +92,7 @@ export default function TodoTableView({
             <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold min-w-[140px]">
               Notes
             </TableHead>
-            <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold w-12 text-center">
+            <TableHead className="sticky top-0 z-[1] bg-yellow-300 text-yellow-950 font-semibold w-12 text-center rounded-tr-lg">
               Done
             </TableHead>
           </TableRow>

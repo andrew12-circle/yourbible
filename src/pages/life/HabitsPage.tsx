@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ChevronLeft, Loader2, ListPlus, Sparkles } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Loader2, ListPlus, Sparkles, Table2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,10 @@ import { HabitNoteDialog } from "@/components/habits/HabitNoteDialog";
 import { HabitStreakSummary } from "@/components/habits/HabitStreakSummary";
 import { HabitsHeader } from "@/components/habits/HabitsHeader";
 import { HabitsMonthGrid, isoForToggle } from "@/components/habits/HabitsMonthGrid";
+import { HabitsMonthNavBar } from "@/components/habits/HabitsMonthNavBar";
+import { HabitsMonthSummaryChart } from "@/components/habits/HabitsMonthSummaryChart";
 import { toast } from "@/hooks/use-toast";
+import { readHabitsStatsExpanded, writeHabitsStatsExpanded } from "@/lib/habits/viewMode";
 import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 import { formatSupabaseError as getErrorMessage } from "@/lib/supabase/errors";
 import {
@@ -28,6 +31,7 @@ import {
   listCompletionsForMonth,
   listHabits,
   reorderHabits,
+  replaceHabitsWithDefaults,
   saveHabitNote,
   toggleCompletion,
   type HabitRow,
@@ -61,6 +65,7 @@ export default function HabitsPage() {
   const [noteHabit, setNoteHabit] = useState<HabitRow | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  const [statsExpanded, setStatsExpanded] = useState(() => readHabitsStatsExpanded());
   const badgeSyncRef = useRef(false);
 
   const todayDay = isSameYearMonth(yearMonth) ? new Date().getDate() : null;
@@ -213,14 +218,33 @@ export default function HabitsPage() {
     try {
       const n = await importDefaultHabits(user.id);
       if (n === 0) {
-        toast({ title: "Already up to date", description: "All sheet habits are already on your list." });
+        toast({ title: "Already up to date", description: "All season habits are already on your list." });
         return;
       }
-      toast({ title: "Imported", description: `${n} habits added from your sheet template.` });
+      toast({ title: "Imported", description: `${n} season habits added.` });
       await load();
     } catch (e) {
       toast({
         title: "Import failed",
+        description: getErrorMessage(e),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onResetToSeason = async () => {
+    if (!user?.id) return;
+    try {
+      const n = await replaceHabitsWithDefaults(user.id);
+      toast({
+        title: "Habits reset",
+        description: `Your tracker now has ${n} season habits.`,
+      });
+      setManageOpen(false);
+      await load();
+    } catch (e) {
+      toast({
+        title: "Reset failed",
         description: getErrorMessage(e),
         variant: "destructive",
       });
@@ -273,8 +297,34 @@ export default function HabitsPage() {
         )}
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold tracking-tight">Habits</h1>
-          <p className="text-xs text-muted-foreground">Rings · streaks · awards</p>
+          <p className="text-xs text-muted-foreground">
+            {statsExpanded ? "Rings · streaks · awards" : "Habit chart"}
+          </p>
         </div>
+        {habits.length > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => {
+              const next = !statsExpanded;
+              setStatsExpanded(next);
+              writeHabitsStatsExpanded(next);
+            }}
+          >
+            {statsExpanded ? (
+              <>
+                <Table2 className="w-4 h-4 mr-1" />
+                Focus chart
+              </>
+            ) : (
+              <>
+                <LayoutDashboard className="w-4 h-4 mr-1" />
+                Show stats
+              </>
+            )}
+          </Button>
+        ) : null}
         <Button variant="outline" size="sm" className="shrink-0" onClick={() => setManageOpen(true)}>
           <ListPlus className="w-4 h-4 mr-1" />
           Manage
@@ -289,46 +339,77 @@ export default function HabitsPage() {
           </div>
         ) : (
           <>
-            <div className="mx-auto w-full max-w-4xl space-y-4">
-              <HabitsHeader
-                monthLabel={monthLabel}
-                stats={stats}
-                rings={rings}
-                onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
-                onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
-                canGoNext={canGoNext}
-              />
-
-              {habits.length > 0 ? (
-                <HabitStreakSummary
-                  activeStreak={streakSummary.active}
-                  perfectStreak={streakSummary.perfect}
-                  topHabits={streakSummary.top}
+            {statsExpanded ? (
+              <div className="mx-auto w-full max-w-4xl space-y-4">
+                <HabitsHeader
+                  monthLabel={monthLabel}
+                  stats={stats}
+                  rings={rings}
+                  onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
+                  onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
+                  canGoNext={canGoNext}
                 />
-              ) : null}
 
-              {thresholdMsg ? (
-                <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/40 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                  <p>{thresholdMsg}</p>
-                </div>
-              ) : null}
+                {habits.length > 0 ? (
+                  <HabitStreakSummary
+                    activeStreak={streakSummary.active}
+                    perfectStreak={streakSummary.perfect}
+                    topHabits={streakSummary.top}
+                  />
+                ) : null}
 
-              {habits.length === 0 ? (
+                {thresholdMsg ? (
+                  <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/40 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                    <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                    <p>{thresholdMsg}</p>
+                  </div>
+                ) : null}
+
+                {habits.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 py-8">
+                    <Button type="button" onClick={() => void onImportDefaults()}>
+                      Import defaults from sheet
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setManageOpen(true)}>
+                      Add habits manually
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : habits.length === 0 ? (
+              <div className="mx-auto w-full max-w-4xl">
                 <div className="flex flex-col items-center gap-3 py-8">
                   <Button type="button" onClick={() => void onImportDefaults()}>
-                    Import defaults from sheet
+                    Import season habits
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setManageOpen(true)}>
                     Add habits manually
                   </Button>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {habits.length > 0 ? (
               <>
-                <HabitBadgesSection unlocked={unlockedBadges} />
+                {!statsExpanded ? (
+                  <HabitsMonthNavBar
+                    monthLabel={monthLabel}
+                    canGoNext={canGoNext}
+                    onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
+                    onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
+                  />
+                ) : null}
+                {statsExpanded ? (
+                  <>
+                    <HabitBadgesSection unlocked={unlockedBadges} />
+                    <HabitsMonthSummaryChart
+                      yearMonth={yearMonth}
+                      habitIds={habitIds}
+                      completionSet={completionSet}
+                      creditCompletionSet={creditCompletionSet}
+                    />
+                  </>
+                ) : null}
                 <HabitsMonthGrid
                   yearMonth={yearMonth}
                   habits={habits}
@@ -350,6 +431,7 @@ export default function HabitsPage() {
         onOpenChange={setManageOpen}
         habits={habits}
         onImportDefaults={onImportDefaults}
+        onResetToSeason={onResetToSeason}
         onAdd={async (name, category) => {
           if (!user?.id) return;
           await createHabit(user.id, { name, category, sort_order: habits.length });

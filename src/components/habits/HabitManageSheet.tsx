@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { FileSpreadsheet, GripVertical, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { SEASON_HABIT_COUNT } from "@/lib/habits/defaults";
 import type { HabitRow } from "@/lib/habits/api";
 
 type Props = {
@@ -20,6 +32,7 @@ type Props = {
   onArchive: (id: string) => Promise<void>;
   onReorder: (ids: string[]) => Promise<void>;
   onImportDefaults?: () => Promise<void>;
+  onResetToSeason?: () => Promise<void>;
 };
 
 export function HabitManageSheet({
@@ -30,6 +43,7 @@ export function HabitManageSheet({
   onArchive,
   onReorder,
   onImportDefaults,
+  onResetToSeason,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -93,18 +107,52 @@ export function HabitManageSheet({
             onClick={() => void onImportDefaults()}
           >
             <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Import habits from sheet
+            Add missing season habits
           </Button>
+        ) : null}
+
+        {onResetToSeason ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline" className="mt-2 w-full" disabled={saving}>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset to season habits ({SEASON_HABIT_COUNT})
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Replace all habits?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes your current habit list and replaces it with the {SEASON_HABIT_COUNT}{" "}
+                  season habits. Past check-ins stay in history but won&apos;t show on the new list.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => void onResetToSeason()}
+                >
+                  Replace habits
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null}
 
         <div className="mt-4 space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="habit-name">New habit</Label>
-            <Input id="habit-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Wake up at 6:00 am" />
+            <Input
+              id="habit-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Move for 20 minutes"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="habit-cat">Category (optional)</Label>
-            <Input id="habit-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Morning" />
+            <Input id="habit-cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Body" />
           </div>
           <Button type="button" className="w-full" disabled={saving || !name.trim()} onClick={() => void submitAdd()}>
             <Plus className="w-4 h-4 mr-2" />

@@ -45,7 +45,7 @@ export default function ContentsReaderPage() {
   const compactChrome = useReaderCompactChrome();
   const effectiveSpread = readerSpread && !compactChrome;
   const showReaderDock = !showHubShell && compactChrome;
-  const hubEmbedded = containedInHub;
+  const hubEmbedded = showHubShell;
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
@@ -142,10 +142,11 @@ export default function ContentsReaderPage() {
     <div
       data-bible-reader
       data-cropped-spread={!effectiveSpread ? "" : undefined}
+      data-hub-fullscreen={hubFullscreen || undefined}
       className={cn(
         "relative transition-all duration-700 overflow-hidden",
-        (containedInHub || !showHubShell) && "flex h-full min-h-0 flex-col",
-        showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0",
+        (containedInHub || !showHubShell || hubFullscreen) && "flex h-full min-h-0 flex-col",
+        showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0 h-[100dvh] bg-fabric",
         !showHubShell && "h-[100dvh]",
       )}
     >
@@ -173,6 +174,7 @@ export default function ContentsReaderPage() {
         }}
         singlePage={compactChrome}
         containedInHub={containedInHub}
+        hubCompactChrome={showHubShell}
         hubFullscreen={hubFullscreen}
         onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
       />
@@ -182,7 +184,7 @@ export default function ContentsReaderPage() {
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
           "inset-x-0",
-          readerSceneTopOffsetClass(compactChrome, containedInHub),
+          readerSceneTopOffsetClass(compactChrome, showHubShell),
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
             : "bottom-0",
