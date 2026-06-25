@@ -25,3 +25,11 @@ export function priorityCellClass(priority: TodoPriority): string {
 export function isRowMuted(item: TodoItemRow): boolean {
   return item.done || item.status === "done" || item.status === "cancelled";
 }
+
+/** Single-line notes preview for list/table rows. */
+export function notesPreview(notes: string | null | undefined, maxLen = 72): string | null {
+  const trimmed = notes?.trim();
+  if (!trimmed) return null;
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen).trimEnd()}…`;
+}

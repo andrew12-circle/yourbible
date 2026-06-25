@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -60,12 +60,17 @@ export default function TodoDetailSheet({
   const [listId, setListId] = useState<string>("");
   const [subtaskDraft, setSubtaskDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const notesRef = useRef(notes);
+  const savedNotesRef = useRef<string | null>(null);
   const todayISO = useMemo(() => localDateISO(), []);
+
+  notesRef.current = notes;
 
   useEffect(() => {
     if (!item) return;
     setTitle(item.title);
     setNotes(item.notes ?? "");
+    savedNotesRef.current = item.notes?.trim() || null;
     setStartDate(item.start_date ?? "");
     setEndDate(item.end_date ?? item.due_date ?? "");
     setTaskType(item.task_type ?? "");
@@ -79,19 +84,38 @@ export default function TodoDetailSheet({
     [endDate, todayISO],
   );
 
-  if (!item) return null;
-
-  const persist = async (patch: Partial<TodoItemRow>) => {
+  const persist = useCallback(async (patch: Partial<TodoItemRow>) => {
     setSaving(true);
     try {
       await onSave(patch);
     } finally {
       setSaving(false);
     }
-  };
+  }, [onSave]);
+
+  const persistNotesIfChanged = useCallback(async () => {
+    const trimmed = notesRef.current.trim() || null;
+    if (trimmed === savedNotesRef.current) return;
+    await persist({ notes: trimmed });
+    savedNotesRef.current = trimmed;
+  }, [persist]);
+
+  useEffect(() => {
+    if (!item) return;
+    const trimmed = notes.trim() || null;
+    if (trimmed === savedNotesRef.current) return;
+    const timer = setTimeout(() => void persistNotesIfChanged(), 600);
+    return () => clearTimeout(timer);
+  }, [notes, item, persistNotesIfChanged]);
+
+  const handleClose = useCallback(() => {
+    void persistNotesIfChanged().finally(() => onClose());
+  }, [persistNotesIfChanged, onClose]);
+
+  if (!item) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="sr-only">Task details</DialogTitle>
@@ -251,8 +275,14 @@ export default function TodoDetailSheet({
             <Label className="text-xs text-muted-foreground">Notes</Label>
             <Textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => void persist({ notes: notes.trim() || null })}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                notesRef.current = e.target.value;
+              }}
+              onBlur={(e) => {
+                notesRef.current = e.target.value;
+                void persistNotesIfChanged();
+              }}
               placeholder="Add notes…"
               className="mt-1 min-h-[88px] resize-none"
             />

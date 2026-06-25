@@ -90,6 +90,12 @@ function formatKnownEdgeError(message: string): string {
   if (/ELEVENLABS_API_KEY missing/i.test(message)) {
     return `${message} Set it with: npx supabase secrets set ELEVENLABS_API_KEY=your_key --project-ref itmcsyrnpcnrwviigppe then redeploy journal-voice-to-text.`;
   }
+  if (/ElevenLabs API key missing or invalid on server/i.test(message)) {
+    return `${message}. Fix: npx supabase secrets set ELEVENLABS_API_KEY=your_key --project-ref itmcsyrnpcnrwviigppe then redeploy journal-voice-to-text. Live dictation (mic without record-and-transcribe) may still work.`;
+  }
+  if (/^Unauthorized$/i.test(message)) {
+    return "Session expired or not signed in. Sign in again and retry voice dictation.";
+  }
   if (/Invalid journal_entry_id for journal chat/i.test(message)) {
     return `${message} Save the entry and open chat mode again.`;
   }

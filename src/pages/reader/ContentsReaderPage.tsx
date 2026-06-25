@@ -45,7 +45,7 @@ export default function ContentsReaderPage() {
   const compactChrome = useReaderCompactChrome();
   const effectiveSpread = readerSpread && !compactChrome;
   const showReaderDock = !showHubShell && compactChrome;
-  const hubEmbedded = showHubShell;
+  const hubEmbedded = showHubShell && !hubFullscreen;
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");

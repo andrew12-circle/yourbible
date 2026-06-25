@@ -69,7 +69,6 @@ export function useMediaRecorderDictation(
       return;
     }
     setError(null);
-    onInterimRef.current?.("Listening… tap mic when done.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -80,7 +79,6 @@ export function useMediaRecorderDictation(
       };
       rec.onstop = async () => {
         setListening(false);
-        onInterimRef.current?.("Transcribing…");
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         cleanupStream();
         if (blob.size < 800) {

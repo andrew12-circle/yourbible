@@ -29,7 +29,7 @@ import {
   type TodoStatus,
   type TodoTaskType,
 } from "@/lib/todos/api";
-import { isRowMuted, priorityCellClass } from "@/lib/todos/tableHelpers";
+import { isRowMuted, notesPreview, priorityCellClass } from "@/lib/todos/tableHelpers";
 import type { TodoContentWidth } from "@/lib/todos/layoutPrefs";
 
 type Props = {
@@ -234,8 +234,8 @@ export default function TodoTableView({
                     contentWidth === "full" ? "max-w-none" : "max-w-[200px]",
                   )}
                 >
-                  <span className="line-clamp-2" title={item.notes ?? undefined}>
-                    {item.notes?.trim() || "—"}
+                  <span className="line-clamp-2" title={item.notes?.trim() || undefined}>
+                    {notesPreview(item.notes, 120) ?? "—"}
                   </span>
                 </TableCell>
 

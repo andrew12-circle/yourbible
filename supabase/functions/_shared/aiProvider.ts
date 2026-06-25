@@ -6,6 +6,15 @@ import {
   parseGeminiUsageMetadata,
   parseOpenAiUsage,
 } from "./logAiUsage.ts";
+import {
+  openAiMaxOutputFields,
+  openAiTemperatureField,
+} from "./openAiModelParams.ts";
+
+export {
+  openAiSupportsCustomTemperature,
+  openAiUsesMaxCompletionTokens,
+} from "./openAiModelParams.ts";
 
 export type AiProvider = "openai" | "gemini";
 
@@ -174,31 +183,6 @@ function geminiChatConfig(): ChatConfig | null {
 export function getOpenAiChatModel(): string {
   const m = Deno.env.get("OPENAI_CHAT_MODEL")?.trim();
   return m || DEFAULT_OPENAI_CHAT_MODEL;
-}
-
-/** Newer OpenAI chat models (gpt-5.x, o-series) use max_completion_tokens instead of max_tokens. */
-export function openAiUsesMaxCompletionTokens(model: string): boolean {
-  const m = model.trim().toLowerCase();
-  if (/^o\d/.test(m)) return true;
-  if (m.startsWith("gpt-5")) return true;
-  return false;
-}
-
-function openAiMaxOutputFields(model: string, maxOutputTokens: number): Record<string, number> {
-  if (openAiUsesMaxCompletionTokens(model)) {
-    return { max_completion_tokens: maxOutputTokens };
-  }
-  return { max_tokens: maxOutputTokens };
-}
-
-/** gpt-5 / o-series only support the default temperature (1); omit the param. */
-export function openAiSupportsCustomTemperature(model: string): boolean {
-  return !openAiUsesMaxCompletionTokens(model);
-}
-
-function openAiTemperatureField(model: string, temperature: number): Record<string, number> {
-  if (!openAiSupportsCustomTemperature(model)) return {};
-  return { temperature };
 }
 
 export function getOpenAiWebChatModel(): string {
@@ -489,11 +473,12 @@ export async function callChatJson(
       );
       return fallback.ok ? fallback : { rawText: "", ok: false, err: "OPENAI_API_KEY is not configured." };
     }
+    const openAiModel = modelOverride?.trim() || getOpenAiChatModel();
     const openAiResult = await callOpenAiJson(
       systemText,
       userPayload,
       apiKey,
-      getOpenAiChatModel(),
+      openAiModel,
       temperature,
       maxOutputTokens,
     );

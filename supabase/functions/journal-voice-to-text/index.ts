@@ -73,7 +73,11 @@ Deno.serve(async (req) => {
     });
     if (!r.ok) {
       const t = await r.text();
-      return new Response(JSON.stringify({ error: `Transcription failed (${r.status})`, body: t.slice(0, 300) }), {
+      const statusHint =
+        r.status === 401
+          ? "ElevenLabs API key missing or invalid on server"
+          : `Transcription failed (${r.status})`;
+      return new Response(JSON.stringify({ error: statusHint, body: t.slice(0, 300) }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

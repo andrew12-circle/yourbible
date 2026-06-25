@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import {
   Select,
   SelectContent,
@@ -10,11 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TodoPriority, TodoStatus, TodoTaskType } from "@/lib/todos/api";
+import type { TodoListRow, TodoPriority, TodoStatus, TodoTaskType } from "@/lib/todos/api";
 import { PRIORITY_LABELS, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPES } from "@/lib/todos/api";
 
 export type QuickAddPayload = {
   title: string;
+  listId: string | null;
   startDate: string | null;
   endDate: string | null;
   priority: TodoPriority;
@@ -24,6 +27,10 @@ export type QuickAddPayload = {
 
 type Props = {
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  userId?: string;
+  lists?: TodoListRow[];
+  defaultListId?: string | null;
+  showListPicker?: boolean;
   defaultEndDate?: string | null;
   defaultTaskType?: TodoTaskType | null;
   onSubmit: (payload: QuickAddPayload) => Promise<void>;
@@ -31,17 +38,26 @@ type Props = {
 
 export default function TodoQuickAdd({
   inputRef,
+  userId,
+  lists = [],
+  defaultListId = null,
+  showListPicker = false,
   defaultEndDate = null,
   defaultTaskType = "work",
   onSubmit,
 }: Props) {
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [title, setTitle] = useState("");
+  const [dictInterim, setDictInterim] = useState("");
+  const [listId, setListId] = useState(defaultListId ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(defaultEndDate ?? "");
   const [priority, setPriority] = useState<TodoPriority>(0);
   const [taskType, setTaskType] = useState<TodoTaskType | "">(defaultTaskType ?? "");
   const [status, setStatus] = useState<TodoStatus>("not_started");
   const [busy, setBusy] = useState(false);
+
+  const displayTitle = mergeDictatedText(title, dictInterim);
 
   useEffect(() => {
     setEndDate(defaultEndDate ?? "");
@@ -51,14 +67,21 @@ export default function TodoQuickAdd({
     if (defaultTaskType) setTaskType(defaultTaskType);
   }, [defaultTaskType]);
 
+  useEffect(() => {
+    setListId(defaultListId ?? "");
+  }, [defaultListId]);
+
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const trimmed = title.trim();
+    dictateRef.current?.stop();
+    setDictInterim("");
+    const trimmed = displayTitle.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     try {
       await onSubmit({
         title: trimmed,
+        listId: listId || null,
         startDate: startDate || null,
         endDate: endDate || null,
         priority,
@@ -85,25 +108,58 @@ export default function TodoQuickAdd({
     >
       <div className="w-full space-y-2.5">
         <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="New task…"
-            className="rounded-xl h-11 bg-secondary/50 border-0 flex-1"
-            aria-label="New task"
-          />
+          <div className="relative min-w-0 flex-1">
+            <Input
+              ref={inputRef}
+              value={displayTitle}
+              onChange={(e) => {
+                setDictInterim("");
+                setTitle(e.target.value);
+              }}
+              placeholder="New task…"
+              className="h-11 rounded-xl border-0 bg-secondary/50 pr-10"
+              aria-label="New task"
+            />
+            <div className="absolute right-0.5 top-1/2 -translate-y-1/2">
+              <DictateButton
+                ref={dictateRef}
+                userId={userId}
+                size="sm"
+                className="h-9 w-9 rounded-lg"
+                onAppend={(chunk) => setTitle((t) => mergeDictatedText(t, chunk))}
+                onInterim={setDictInterim}
+              />
+            </div>
+          </div>
           <Button
             type="submit"
             size="icon"
             className="h-11 w-11 shrink-0 rounded-xl"
-            disabled={!title.trim() || busy}
+            disabled={!displayTitle.trim() || busy}
           >
             <Plus className="w-5 h-5" />
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 xl:grid-cols-5">
+          {showListPicker && lists.length > 0 ? (
+            <div className="min-w-0 col-span-2 sm:col-span-1">
+              <Label className="text-xs text-muted-foreground">List</Label>
+              <Select value={listId || "__inbox"} onValueChange={(v) => setListId(v === "__inbox" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-9 px-2 text-sm">
+                  <SelectValue placeholder="List" />
+                </SelectTrigger>
+                <SelectContent>
+                  {lists.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
           <div className="min-w-0">
             <Label className="text-xs text-muted-foreground">Type</Label>
             <Select

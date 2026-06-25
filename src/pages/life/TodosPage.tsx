@@ -64,6 +64,7 @@ import TodoItemRowComponent from "@/components/todos/TodoItemRow";
 import TodoDetailSheet from "@/components/todos/TodoDetailSheet";
 import TodoQuickAdd from "@/components/todos/TodoQuickAdd";
 import TodoTableView from "@/components/todos/TodoTableView";
+import TodoSectionedList from "@/components/todos/TodoSectionedList";
 import TodosSidebar, { type ActiveView } from "@/components/todos/TodosSidebar";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,10 @@ import {
 
   createList,
 
+  customLists,
+
+  defaultFolderLists,
+
   deleteItem,
 
   ensureDefaultLists,
@@ -86,11 +91,17 @@ import {
 
   inboxListId,
 
+  isOverdue,
+
   listItems,
 
   listLists,
 
   listSubtasks,
+
+  partitionBacklogByList,
+
+  partitionTodayItems,
 
   reorderItems,
 
@@ -104,7 +115,7 @@ import {
 
   updateItem,
 
-  type SmartView,
+  sortItemsForView,
 
   type TodoItemRow,
 
@@ -118,6 +129,8 @@ import {
 
 } from "@/lib/todos/api";
 
+import { listEmptyMessage, SMART_VIEW_LABELS, SMART_VIEW_SUBTITLES, smartViewEmptyMessage } from "@/lib/todos/viewCopy";
+
 import { readTodoViewMode, writeTodoViewMode, type TodoViewMode } from "@/lib/todos/viewMode";
 import {
   todoContentAreaClass,
@@ -127,29 +140,21 @@ import {
 
 
 function viewLabel(view: ActiveView, lists: TodoListRow[]): string {
-
   if (typeof view === "object") {
-
     return lists.find((l) => l.id === view.listId)?.name ?? "List";
-
   }
+  return SMART_VIEW_LABELS[view];
+}
 
-  const labels: Record<SmartView, string> = {
-
-    inbox: "Inbox",
-
-    today: "Today",
-
-    upcoming: "Upcoming",
-
-    all: "All",
-
-    done: "Completed",
-
-  };
-
-  return labels[view];
-
+function viewSubtitle(view: ActiveView, lists: TodoListRow[]): string | null {
+  if (typeof view === "object") {
+    const list = lists.find((l) => l.id === view.listId);
+    if (list?.slug === "home") {
+      return "Big home and project ideas — schedule or pin when ready.";
+    }
+    return null;
+  }
+  return SMART_VIEW_SUBTITLES[view] ?? null;
 }
 
 
@@ -297,27 +302,28 @@ export default function TodosPage() {
 
     const filtered = filterItemsForView(items, view, lists, todayISO, typeFilter);
 
-    return [...filtered].sort((a, b) => a.sort_order - b.sort_order);
+    return sortItemsForView(filtered, todayISO, typeof view === "string" ? view : undefined);
 
   }, [items, view, lists, todayISO, typeFilter]);
 
 
 
   const counts = useMemo(
-
-    () => ({
-
-      inbox: filterItemsForView(items, "inbox", lists, todayISO).length,
-
-      today: filterItemsForView(items, "today", lists, todayISO).length,
-
-      upcoming: filterItemsForView(items, "upcoming", lists, todayISO).length,
-
-    }),
-
+    () => {
+      const openToday = filterItemsForView(items, "today", lists, todayISO, null, true);
+      return {
+        inbox: filterItemsForView(items, "inbox", lists, todayISO, null, true).length,
+        today: openToday.length,
+        upcoming: filterItemsForView(items, "upcoming", lists, todayISO, null, true).length,
+        backlog: filterItemsForView(items, "backlog", lists, todayISO, null, true).length,
+        overdue: openToday.filter((i) => isOverdue(i, todayISO)).length,
+      };
+    },
     [items, lists, todayISO],
-
   );
+
+  const folderLists = useMemo(() => defaultFolderLists(lists), [lists]);
+  const userCustomLists = useMemo(() => customLists(lists), [lists]);
 
 
 
@@ -333,30 +339,73 @@ export default function TodosPage() {
 
   const defaultEndForView = view === "today" ? todayISO : null;
 
+  const defaultQuickAddListId = useMemo(() => {
+    if (activeListId) return activeListId;
+    if (view === "inbox") return inboxListId(lists);
+    return inboxListId(lists);
+  }, [activeListId, view, lists]);
+
+  const emptyMessage = useMemo(() => {
+    if (typeof view === "object") {
+      const list = lists.find((l) => l.id === view.listId);
+      return listEmptyMessage(list?.slug ?? null);
+    }
+    return smartViewEmptyMessage(view);
+  }, [view, lists]);
+
+  const todaySections = useMemo(() => {
+    if (view !== "today") return null;
+    const parts = partitionTodayItems(visible, todayISO);
+    return [
+      {
+        key: "overdue",
+        title: "Overdue",
+        description: "Carryover from earlier — finish when you can.",
+        items: parts.overdue,
+      },
+      {
+        key: "today",
+        title: "Due today",
+        items: parts.today,
+      },
+      {
+        key: "pinned",
+        title: "Pinned for today",
+        items: parts.pinned,
+      },
+      {
+        key: "done",
+        title: "Completed today",
+        items: parts.done,
+      },
+    ];
+  }, [view, visible, todayISO]);
+
+  const backlogSections = useMemo(() => {
+    if (view !== "backlog") return null;
+    return partitionBacklogByList(visible, lists).map((section) => ({
+      key: section.list?.id ?? "unassigned",
+      title: section.list?.name ?? "No list",
+      items: section.items,
+    }));
+  }, [view, visible, lists]);
+
 
 
   const onQuickAdd = async (payload: {
-
     title: string;
-
+    listId: string | null;
     startDate: string | null;
-
     endDate: string | null;
-
     priority: TodoPriority;
-
     taskType: TodoTaskType | null;
-
     status: TodoStatus;
-
   }) => {
-
     if (!user?.id) return;
 
     const listId =
-
-      (activeListId && lists.find((l) => l.id === activeListId && l.slug !== "inbox")?.id) ??
-
+      payload.listId ??
+      (activeListId && lists.find((l) => l.id === activeListId)?.slug !== "inbox" ? activeListId : null) ??
       inboxListId(lists);
 
     try {
@@ -635,14 +684,9 @@ export default function TodosPage() {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-
-
-  const projectLists = lists.filter((l) => l.slug !== "inbox");
-
-
+  const subtitle = viewSubtitle(view, lists);
 
   return (
-
     <div
 
       className={hubShellPageRoot(
@@ -664,7 +708,8 @@ export default function TodosPage() {
         view={view}
         onViewChange={setView}
         counts={counts}
-        projectLists={projectLists}
+        folderLists={folderLists}
+        customLists={userCustomLists}
         onNewList={() => setNewListOpen(true)}
       />
 
@@ -693,11 +738,9 @@ export default function TodosPage() {
               <h2 className="text-2xl font-semibold tracking-tight">{viewLabel(view, lists)}</h2>
 
               <p className="text-sm text-muted-foreground mt-0.5">
-
                 {visible.length} {visible.length === 1 ? "task" : "tasks"}
-
+                {subtitle ? <span className="hidden sm:inline"> · {subtitle}</span> : null}
                 <span className="hidden sm:inline"> · Press N to add</span>
-
               </p>
               </div>
             </div>
@@ -869,9 +912,9 @@ export default function TodosPage() {
 
           ) : visible.length === 0 ? (
 
-            <p className="text-center text-muted-foreground py-16 text-sm">
+            <p className="text-center text-muted-foreground py-16 text-sm max-w-md mx-auto">
 
-              {view === "done" ? "No completed tasks yet." : "Nothing here — add a task below."}
+              {emptyMessage}
 
             </p>
 
@@ -886,30 +929,44 @@ export default function TodosPage() {
               onUpdate={onUpdateItem}
             />
 
+          ) : view === "today" && todaySections ? (
+
+            <TodoSectionedList
+              sections={todaySections}
+              subtaskCounts={subtaskCounts}
+              onToggle={onToggle}
+              onOpen={(item) => void openDetail(item)}
+              onPin={(item) => void onPin(item)}
+              onReorder={onReorder}
+              draggable
+            />
+
+          ) : view === "backlog" && backlogSections ? (
+
+            <TodoSectionedList
+              sections={backlogSections}
+              subtaskCounts={subtaskCounts}
+              onToggle={onToggle}
+              onOpen={(item) => void openDetail(item)}
+              onPin={(item) => void onPin(item)}
+              onReorder={onReorder}
+              draggable
+              emphasizePriority
+            />
+
           ) : (
 
             visible.map((item) => (
-
               <TodoItemRowComponent
-
                 key={item.id}
-
                 item={item}
-
                 onToggle={(done) => onToggle(item, done)}
-
                 onOpen={() => void openDetail(item)}
-
                 onPin={() => void onPin(item)}
-
                 onReorder={onReorder}
-
                 draggable={view !== "done"}
-
                 subtaskCount={subtaskCounts[item.id] ?? 0}
-
               />
-
             ))
 
           )}
@@ -921,15 +978,14 @@ export default function TodosPage() {
         {view !== "done" && (
 
           <TodoQuickAdd
-
             inputRef={quickRef}
-
+            userId={user?.id}
+            lists={lists}
+            defaultListId={defaultQuickAddListId}
+            showListPicker={view === "inbox" || view === "all" || view === "backlog"}
             defaultEndDate={defaultEndForView}
-
             defaultTaskType={typeFilter}
-
             onSubmit={onQuickAdd}
-
           />
 
         )}

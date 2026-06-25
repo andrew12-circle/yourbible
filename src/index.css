@@ -1959,13 +1959,11 @@ body:has(.hub-shell),
 
 /* Hub Bible fullscreen — fabric covers the entire viewport when the reader breaks out of the content card. */
 [data-bible-reader][data-hub-fullscreen] {
+  visibility: visible;
   background-color: hsl(var(--muted) / 0.4);
 }
 
-.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .hub-content-card {
-  visibility: hidden;
-}
-
+/* Hide hub chrome behind the reader; do not hide .hub-content-card (the reader lives inside it). */
 .hub-shell:has([data-bible-reader][data-hub-fullscreen]) .peer[data-variant="floating"] > .fixed {
   visibility: hidden;
 }

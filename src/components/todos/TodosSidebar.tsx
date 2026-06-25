@@ -1,18 +1,22 @@
 import { Link } from "react-router-dom";
 import {
+  Archive,
+  Briefcase,
   CalendarClock,
   CheckCircle2,
   ChevronLeft,
+  Home,
   Inbox,
   ListTodo,
   PanelLeftClose,
   Plus,
   Sun,
+  User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { SmartView, TodoListRow } from "@/lib/todos/api";
+import type { DefaultFolderSlug, SmartView, TodoListRow } from "@/lib/todos/api";
 
 export type ActiveView = SmartView | { listId: string };
 
@@ -22,9 +26,16 @@ type Props = {
   onToggleCollapse: () => void;
   view: ActiveView;
   onViewChange: (view: ActiveView) => void;
-  counts: { inbox: number; today: number; upcoming: number };
-  projectLists: TodoListRow[];
+  counts: { inbox: number; today: number; upcoming: number; backlog: number; overdue: number };
+  folderLists: TodoListRow[];
+  customLists: TodoListRow[];
   onNewList: () => void;
+};
+
+const FOLDER_ICONS: Record<DefaultFolderSlug, React.ComponentType<{ className?: string }>> = {
+  work: Briefcase,
+  personal: User,
+  home: Home,
 };
 
 export default function TodosSidebar({
@@ -34,7 +45,8 @@ export default function TodosSidebar({
   view,
   onViewChange,
   counts,
-  projectLists,
+  folderLists,
+  customLists,
   onNewList,
 }: Props) {
   return (
@@ -82,6 +94,7 @@ export default function TodosSidebar({
           icon={Sun}
           label="Today"
           count={counts.today}
+          badge={counts.overdue > 0 ? `${counts.overdue} late` : undefined}
         />
         <ViewTab
           active={view === "upcoming"}
@@ -91,19 +104,39 @@ export default function TodosSidebar({
           count={counts.upcoming}
         />
         <ViewTab
-          active={view === "all"}
-          onClick={() => onViewChange("all")}
-          icon={ListTodo}
-          label="All"
+          active={view === "backlog"}
+          onClick={() => onViewChange("backlog")}
+          icon={Archive}
+          label="Backlog"
+          count={counts.backlog}
         />
+        <ViewTab active={view === "all"} onClick={() => onViewChange("all")} icon={ListTodo} label="All" />
         <ViewTab
           active={view === "done"}
           onClick={() => onViewChange("done")}
           icon={CheckCircle2}
           label="Done"
         />
-        {projectLists.length > 0 && <div className="hidden md:block w-full h-px bg-border my-2" />}
-        {projectLists.map((l) => (
+
+        {folderLists.length > 0 && <SidebarDivider label="Folders" />}
+        {folderLists.map((l) => {
+          const Icon =
+            l.slug && l.slug in FOLDER_ICONS
+              ? FOLDER_ICONS[l.slug as DefaultFolderSlug]
+              : ListTodo;
+          return (
+            <ViewTab
+              key={l.id}
+              active={typeof view === "object" && view.listId === l.id}
+              onClick={() => onViewChange({ listId: l.id })}
+              icon={Icon}
+              label={l.name}
+            />
+          );
+        })}
+
+        {customLists.length > 0 && <SidebarDivider label="My lists" />}
+        {customLists.map((l) => (
           <ViewTab
             key={l.id}
             active={typeof view === "object" && view.listId === l.id}
@@ -112,6 +145,7 @@ export default function TodosSidebar({
             label={l.name}
           />
         ))}
+
         <Button
           variant="ghost"
           size="sm"
@@ -126,18 +160,30 @@ export default function TodosSidebar({
   );
 }
 
+function SidebarDivider({ label }: { label: string }) {
+  return (
+    <div className="hidden md:flex w-full items-center gap-2 px-2 my-2">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 function ViewTab({
   active,
   onClick,
   icon: Icon,
   label,
   count,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   count?: number;
+  badge?: string;
 }) {
   return (
     <button
@@ -149,7 +195,12 @@ function ViewTab({
       )}
     >
       <Icon className="w-4 h-4 shrink-0" />
-      <span className="flex-1 text-left">{label}</span>
+      <span className="flex-1 text-left truncate">{label}</span>
+      {badge ? (
+        <span className="text-[10px] font-medium tabular-nums bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded-md">
+          {badge}
+        </span>
+      ) : null}
       {count !== undefined && count > 0 && (
         <span className="text-xs tabular-nums bg-secondary px-1.5 py-0.5 rounded-md">{count}</span>
       )}

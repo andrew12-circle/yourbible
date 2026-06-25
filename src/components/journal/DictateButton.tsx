@@ -7,6 +7,7 @@ import { useMediaRecorderDictation } from "@/hooks/useMediaRecorderDictation";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 import {
   isJournalVoiceEdgeUnavailable,
+  isJournalVoiceTranscriptionFailure,
   probeJournalVoiceEdge,
 } from "@/lib/journal/voiceDictation";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,22 @@ export type DictateButtonProps = {
 
 const LS_MEDIA_FALLBACK = "journal.dictation.prefer_media";
 
+function readPersistedMediaFallback(): boolean {
+  try {
+    return localStorage.getItem(LS_MEDIA_FALLBACK) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function clearPersistedMediaFallback(): void {
+  try {
+    localStorage.removeItem(LS_MEDIA_FALLBACK);
+  } catch {
+    /* ignore */
+  }
+}
+
 export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>(function DictateButton(
   { userId, onAppend, onInterim, onListeningChange, language, size = "sm", className },
   ref,
@@ -40,11 +57,11 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   };
 
   const [preferMedia, setPreferMedia] = useState(() => {
-    try {
-      return localStorage.getItem(LS_MEDIA_FALLBACK) === "1";
-    } catch {
-      return false;
+    // Legacy: clear sticky record-and-transcribe mode so live Web Speech (with interim) is preferred.
+    if (readPersistedMediaFallback()) {
+      clearPersistedMediaFallback();
     }
+    return false;
   });
 
   const speech = useSpeechDictation({ onAppend, onInterim: handleInterim, language });
@@ -92,17 +109,27 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
       error.includes("snag");
 
     if (useMedia && isJournalVoiceEdgeUnavailable(error)) {
-      try {
-        localStorage.removeItem(LS_MEDIA_FALLBACK);
-      } catch {
-        /* ignore */
-      }
+      clearPersistedMediaFallback();
       setPreferMedia(false);
       const canRetrySpeech = speech.supported;
       toast({
         title: "Voice transcription unavailable",
         description: canRetrySpeech
           ? `${error} Live dictation will be used next time you tap the mic.`
+          : error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (useMedia && isJournalVoiceTranscriptionFailure(error)) {
+      clearPersistedMediaFallback();
+      setPreferMedia(false);
+      const canRetrySpeech = speech.supported;
+      toast({
+        title: "Record-and-transcribe failed",
+        description: canRetrySpeech
+          ? `${error} Tap the mic again for live captions as you speak.`
           : error,
         variant: "destructive",
       });
@@ -123,11 +150,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           });
           return;
         }
-        try {
-          localStorage.setItem(LS_MEDIA_FALLBACK, "1");
-        } catch {
-          /* ignore */
-        }
+        clearPersistedMediaFallback();
         setPreferMedia(true);
         speech.stop();
         toast({

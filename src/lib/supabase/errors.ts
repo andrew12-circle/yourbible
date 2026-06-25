@@ -3,7 +3,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 const TABLE_MIGRATIONS: Record<string, string> = {
   todo_lists: "20260518210000_todo_lists.sql",
   todo_items: "20260518210000_todo_lists.sql",
-  ensure_default_todo_lists: "20260518210000_todo_lists.sql",
+  ensure_default_todo_lists: "20260625130000_todo_home_default_list.sql",
   habits: "20260518190000_habits_tracker.sql",
   habit_completions: "20260518190000_habits_tracker.sql",
   habit_goals: "20260518190000_habits_tracker.sql",

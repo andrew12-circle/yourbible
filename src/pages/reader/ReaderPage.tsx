@@ -1666,7 +1666,7 @@ export default function ReaderPage() {
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
-  const hubEmbedded = showHubShell;
+  const hubEmbedded = showHubShell && !hubFullscreen;
 
   return (
     <div

@@ -53,7 +53,14 @@ export type TodoItemRow = {
   updated_at: string;
 };
 
-export type SmartView = "inbox" | "today" | "upcoming" | "all" | "done";
+export type SmartView = "inbox" | "today" | "upcoming" | "backlog" | "all" | "done";
+
+/** Default folder slugs (Inbox is a smart view, not shown in the folders section). */
+export const DEFAULT_FOLDER_SLUGS = ["work", "personal", "home"] as const;
+export type DefaultFolderSlug = (typeof DEFAULT_FOLDER_SLUGS)[number];
+
+/** Days ahead that still count as "Upcoming" vs "Backlog". */
+export const UPCOMING_HORIZON_DAYS = 7;
 
 export const TASK_TYPES: TodoTaskType[] = [
   "work",
@@ -360,52 +367,239 @@ export function inboxListId(lists: TodoListRow[]): string | null {
   return lists.find((l) => l.slug === "inbox")?.id ?? lists[0]?.id ?? null;
 }
 
+export function homeListId(lists: TodoListRow[]): string | null {
+  return lists.find((l) => l.slug === "home")?.id ?? null;
+}
+
+export function defaultFolderLists(lists: TodoListRow[]): TodoListRow[] {
+  const order = new Map(DEFAULT_FOLDER_SLUGS.map((slug, i) => [slug, i]));
+  return lists
+    .filter((l): l is TodoListRow & { slug: DefaultFolderSlug } =>
+      DEFAULT_FOLDER_SLUGS.includes(l.slug as DefaultFolderSlug),
+    )
+    .sort((a, b) => (order.get(a.slug)! ?? 99) - (order.get(b.slug)! ?? 99));
+}
+
+export function customLists(lists: TodoListRow[]): TodoListRow[] {
+  const defaults = new Set<string>(["inbox", ...DEFAULT_FOLDER_SLUGS]);
+  return lists.filter((l) => !l.slug || !defaults.has(l.slug));
+}
+
+export function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function isOverdue(
+  item: Pick<TodoItemRow, "end_date" | "due_date" | "done">,
+  todayISO = localDateISO(),
+): boolean {
+  if (item.done) return false;
+  const end = effectiveEndDate(item);
+  return end != null && end < todayISO;
+}
+
+export function isDueToday(
+  item: Pick<TodoItemRow, "end_date" | "due_date">,
+  todayISO = localDateISO(),
+): boolean {
+  const end = effectiveEndDate(item);
+  return end === todayISO;
+}
+
+export type TodaySection = "overdue" | "today" | "pinned";
+
+export function todaySection(
+  item: TodoItemRow,
+  todayISO = localDateISO(),
+): TodaySection | null {
+  if (item.done) return null;
+  if (isPinnedToday(item, todayISO) && !isDueToday(item, todayISO) && !isOverdue(item, todayISO)) {
+    return "pinned";
+  }
+  if (isOverdue(item, todayISO)) return "overdue";
+  if (isDueToday(item, todayISO) || isPinnedToday(item, todayISO)) return "today";
+  return null;
+}
+
+export function partitionTodayItems(
+  items: TodoItemRow[],
+  todayISO = localDateISO(),
+): { overdue: TodoItemRow[]; today: TodoItemRow[]; pinned: TodoItemRow[]; done: TodoItemRow[] } {
+  const overdue: TodoItemRow[] = [];
+  const today: TodoItemRow[] = [];
+  const pinned: TodoItemRow[] = [];
+  const done: TodoItemRow[] = [];
+
+  for (const item of items) {
+    if (item.done) {
+      done.push(item);
+      continue;
+    }
+    const section = todaySection(item, todayISO);
+    if (section === "overdue") overdue.push(item);
+    else if (section === "today") today.push(item);
+    else if (section === "pinned") pinned.push(item);
+  }
+
+  const sortOpen = (a: TodoItemRow, b: TodoItemRow) => {
+    const aPinned = isPinnedToday(a, todayISO);
+    const bPinned = isPinnedToday(b, todayISO);
+    if (aPinned !== bPinned) return aPinned ? -1 : 1;
+    return a.sort_order - b.sort_order;
+  };
+
+  overdue.sort(sortOpen);
+  today.sort(sortOpen);
+  pinned.sort(sortOpen);
+  done.sort((a, b) => {
+    const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+    const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return { overdue, today, pinned, done };
+}
+
+/** Sort key for backlog: 1 (high) first, then 2, 3, 0/none last. */
+export function backlogPrioritySortKey(priority: TodoPriority): number {
+  return priority === 0 ? 4 : priority;
+}
+
+export function compareOpenByBacklogPriority(a: TodoItemRow, b: TodoItemRow): number {
+  const pa = backlogPrioritySortKey(a.priority);
+  const pb = backlogPrioritySortKey(b.priority);
+  if (pa !== pb) return pa - pb;
+  return a.sort_order - b.sort_order;
+}
+
+export function partitionBacklogByList(
+  items: TodoItemRow[],
+  lists: TodoListRow[],
+): { list: TodoListRow | null; items: TodoItemRow[] }[] {
+  const open = items.filter((i) => !i.done);
+  const byList = new Map<string | null, TodoItemRow[]>();
+
+  for (const item of open) {
+    const key = item.list_id;
+    const bucket = byList.get(key) ?? [];
+    bucket.push(item);
+    byList.set(key, bucket);
+  }
+
+  const listOrder = lists.map((l) => l.id);
+  const sections: { list: TodoListRow | null; items: TodoItemRow[] }[] = [];
+
+  for (const list of lists) {
+    const bucket = byList.get(list.id);
+    if (bucket?.length) {
+      bucket.sort(compareOpenByBacklogPriority);
+      sections.push({ list, items: bucket });
+      byList.delete(list.id);
+    }
+  }
+
+  for (const [listId, bucket] of byList) {
+    if (!bucket.length) continue;
+    bucket.sort(compareOpenByBacklogPriority);
+    const list = listId ? (lists.find((l) => l.id === listId) ?? null) : null;
+    sections.push({ list, items: bucket });
+  }
+
+  sections.sort((a, b) => {
+    const aIdx = a.list ? listOrder.indexOf(a.list.id) : 999;
+    const bIdx = b.list ? listOrder.indexOf(b.list.id) : 999;
+    return aIdx - bIdx;
+  });
+
+  return sections;
+}
+
+/** Whether an item belongs in a view (open or completed). */
+export function itemMatchesView(
+  item: TodoItemRow,
+  view: SmartView | { listId: string },
+  lists: TodoListRow[],
+  todayISO = localDateISO(),
+): boolean {
+  const inboxId = inboxListId(lists);
+
+  if (typeof view === "object" && "listId" in view) {
+    return item.list_id === view.listId;
+  }
+
+  switch (view) {
+    case "done":
+      return item.done;
+    case "all":
+      return true;
+    case "inbox":
+      return item.list_id === null || item.list_id === inboxId;
+    case "today": {
+      const end = effectiveEndDate(item);
+      return (end != null && end <= todayISO) || isPinnedToday(item, todayISO);
+    }
+    case "upcoming": {
+      const end = effectiveEndDate(item);
+      const horizon = addDaysISO(todayISO, UPCOMING_HORIZON_DAYS);
+      return end != null && end > todayISO && end <= horizon;
+    }
+    case "backlog": {
+      const end = effectiveEndDate(item);
+      const horizon = addDaysISO(todayISO, UPCOMING_HORIZON_DAYS);
+      return end == null || end > horizon;
+    }
+    default:
+      return true;
+  }
+}
+
 export function filterItemsForView(
   items: TodoItemRow[],
   view: SmartView | { listId: string },
   lists: TodoListRow[],
   todayISO = localDateISO(),
   taskTypeFilter: TodoTaskType | null = null,
+  openOnly = false,
 ): TodoItemRow[] {
-  const inboxId = inboxListId(lists);
-
-  let filtered: TodoItemRow[];
-
-  if (typeof view === "object" && "listId" in view) {
-    filtered = items.filter((i) => i.list_id === view.listId && !i.done);
-  } else {
-    switch (view) {
-      case "done":
-        filtered = items.filter((i) => i.done);
-        break;
-      case "all":
-        filtered = items.filter((i) => !i.done);
-        break;
-      case "inbox":
-        filtered = items.filter((i) => !i.done && (i.list_id === null || i.list_id === inboxId));
-        break;
-      case "today":
-        filtered = items.filter((i) => {
-          if (i.done) return false;
-          const end = effectiveEndDate(i);
-          return (end != null && end <= todayISO) || isPinnedToday(i, todayISO);
-        });
-        break;
-      case "upcoming":
-        filtered = items.filter((i) => {
-          if (i.done) return false;
-          const end = effectiveEndDate(i);
-          return end != null && end > todayISO;
-        });
-        break;
-      default:
-        filtered = items.filter((i) => !i.done);
-    }
-  }
+  let filtered = items.filter((i) => {
+    if (!itemMatchesView(i, view, lists, todayISO)) return false;
+    if (openOnly && i.done) return false;
+    return true;
+  });
 
   if (taskTypeFilter) {
     filtered = filtered.filter((i) => i.task_type === taskTypeFilter);
   }
 
   return filtered;
+}
+
+/** Open tasks first, then completed (completed_at desc). Backlog: priority then sort_order; else pinned then sort_order. */
+export function sortItemsForView(
+  items: TodoItemRow[],
+  todayISO = localDateISO(),
+  view?: SmartView | { listId: string },
+): TodoItemRow[] {
+  const open = items.filter((i) => !i.done);
+  const done = items.filter((i) => i.done);
+
+  if (view === "backlog") {
+    open.sort(compareOpenByBacklogPriority);
+  } else {
+    open.sort((a, b) => {
+      const aPinned = isPinnedToday(a, todayISO);
+      const bPinned = isPinnedToday(b, todayISO);
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+      return a.sort_order - b.sort_order;
+    });
+  }
+  done.sort((a, b) => {
+    const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+    const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return [...open, ...done];
 }

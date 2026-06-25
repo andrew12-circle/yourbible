@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Calendar, GripVertical, Pin, StickyNote } from "lucide-react";
+import { Calendar, GripVertical, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { localDateISO } from "@/lib/habits/dates";
 import type { TodoItemRow, TodoPriority } from "@/lib/todos/api";
@@ -7,6 +7,7 @@ import {
   effectiveEndDate,
   isPinnedToday,
   PRIORITY_COLORS,
+  PRIORITY_LABELS,
   remainingDays,
   STATUS_BADGE_CLASSES,
   STATUS_LABELS,
@@ -14,6 +15,7 @@ import {
   TASK_TYPE_LABELS,
   type TodoTaskType,
 } from "@/lib/todos/api";
+import { notesPreview } from "@/lib/todos/tableHelpers";
 
 type Props = {
   item: TodoItemRow;
@@ -23,6 +25,7 @@ type Props = {
   onReorder?: (fromId: string, toId: string) => void;
   draggable?: boolean;
   subtaskCount?: number;
+  emphasizePriority?: boolean;
 };
 
 export default function TodoItemRowComponent({
@@ -33,6 +36,7 @@ export default function TodoItemRowComponent({
   onReorder,
   draggable = true,
   subtaskCount = 0,
+  emphasizePriority = false,
 }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -80,6 +84,7 @@ export default function TodoItemRowComponent({
     item.task_type != null
       ? TASK_TYPE_BORDER_COLORS[item.task_type as TodoTaskType]
       : "border-l-transparent";
+  const noteSnippet = notesPreview(item.notes);
 
   return (
     <div
@@ -150,6 +155,11 @@ export default function TodoItemRowComponent({
           <p className={cn("text-[15px] leading-snug truncate", item.done && "line-through text-muted-foreground")}>
             {item.title}
           </p>
+          {noteSnippet && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5" title={item.notes?.trim()}>
+              {noteSnippet}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
             {item.task_type && (
               <span className="text-[11px] font-medium text-muted-foreground">
@@ -166,12 +176,20 @@ export default function TodoItemRowComponent({
                 {STATUS_LABELS[status]}
               </span>
             )}
-            {item.priority > 0 && (
-              <span
-                className={cn("w-2 h-2 rounded-full", PRIORITY_COLORS[item.priority as TodoPriority])}
-                title={`Priority ${item.priority}`}
-              />
-            )}
+            {item.priority > 0 &&
+              (emphasizePriority ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                  <span
+                    className={cn("w-2 h-2 rounded-full shrink-0", PRIORITY_COLORS[item.priority as TodoPriority])}
+                  />
+                  {PRIORITY_LABELS[item.priority as TodoPriority]}
+                </span>
+              ) : (
+                <span
+                  className={cn("w-2 h-2 rounded-full", PRIORITY_COLORS[item.priority as TodoPriority])}
+                  title={PRIORITY_LABELS[item.priority as TodoPriority]}
+                />
+              ))}
             {daysLeft != null && (
               <span
                 className={cn(
@@ -188,7 +206,6 @@ export default function TodoItemRowComponent({
                 {dueLabel}
               </span>
             )}
-            {item.notes && <StickyNote className="w-3 h-3 text-muted-foreground/70" aria-label="Has notes" />}
             {subtaskCount > 0 && <span className="text-xs text-muted-foreground">{subtaskCount} subtasks</span>}
           </div>
         </button>
