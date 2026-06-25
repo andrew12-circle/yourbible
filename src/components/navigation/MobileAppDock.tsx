@@ -6,7 +6,7 @@ type Props = {
   className?: string;
   anchor?: "viewport" | "pane";
   layoutRootSelector?: string;
-  /** `minimal` — Study + More only; other views live in the menu sheet. */
+  /** `minimal` — Study, Transcript, and Journal (primary study views). */
   variant?: "full" | "minimal";
   activeTab?: "study" | "transcript" | "notes" | "journal";
   onStudyClick?: () => void;
@@ -39,7 +39,20 @@ export default function MobileAppDock({
     variant === "minimal"
       ? [
           { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },
-          { id: "more", label: "More", icon: Menu, onClick: onMenuClick },
+          {
+            id: "transcript",
+            label: secondaryTabLabel,
+            icon: SecondaryTabIcon,
+            active: activeTab === "transcript",
+            onClick: onTranscriptClick,
+          },
+          {
+            id: "journal",
+            label: "Journal",
+            icon: NotebookPen,
+            active: journalActive ?? activeTab === "journal",
+            onClick: onJournalClick,
+          },
         ]
       : [
           { id: "study", label: "Study", icon: BookOpen, active: activeTab === "study", onClick: onStudyClick },

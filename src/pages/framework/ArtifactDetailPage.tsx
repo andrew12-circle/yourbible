@@ -2270,7 +2270,7 @@ export default function ArtifactDetailPage() {
         </aside>
       </div>
 
-      {(desktopStudyDock || (mobilePinnedPane && isReadableDocument)) && !youTubeVideoId ? (
+      {desktopStudyDock || (mobilePinnedPane && isReadableDocument) ? (
         <ArtifactMobileMenu
           open={mobileMenuOpen}
           onOpenChange={setMobileMenuOpen}
