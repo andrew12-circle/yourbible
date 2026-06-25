@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildJournalVideoConstraints,
   journalVideoCaptureSupported,
+  pickJournalAudioMimeType,
   pickJournalVideoMimeType,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
@@ -30,6 +31,12 @@ export type JournalVideoCapturePhase =
 
 export type { JournalVideoCaptureMode };
 
+export type JournalVideoCaptureResult = {
+  video: Blob;
+  audio: Blob | null;
+  liveTranscript: string;
+};
+
 export interface UseJournalVideoCaptureOptions {
   onInterim?: (partial: string) => void;
   language?: string;
@@ -55,7 +62,7 @@ export interface UseJournalVideoCaptureApi {
   startRecording: () => void;
   pauseRecording: () => void;
   resumeRecording: () => void;
-  stopRecording: () => Promise<Blob | null>;
+  stopRecording: () => Promise<JournalVideoCaptureResult | null>;
   cancel: () => void;
 }
 
@@ -80,9 +87,12 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const streamRef = useRef<MediaStream | null>(null);
   const compositeSessionRef = useRef<ScreenCompositeSession | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioChunksRef = useRef<Blob[]>([]);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
-  const resolveStopRef = useRef<((blob: Blob | null) => void) | null>(null);
+  const resolveStopRef = useRef<((result: JournalVideoCaptureResult | null) => void) | null>(null);
+  const resolveAudioStopRef = useRef<((blob: Blob | null) => void) | null>(null);
   const interimRef = useRef("");
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -179,7 +189,9 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     streamRef.current = null;
     if (videoElRef.current) videoElRef.current.srcObject = null;
     recorderRef.current = null;
+    audioRecorderRef.current = null;
     chunksRef.current = [];
+    audioChunksRef.current = [];
   }, []);
 
   const bindPreview = useCallback((el: HTMLVideoElement | null) => {
@@ -202,8 +214,17 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
         /* ignore */
       }
     }
+    if (audioRecorderRef.current && audioRecorderRef.current.state !== "inactive") {
+      try {
+        audioRecorderRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+    }
     resolveStopRef.current?.(null);
     resolveStopRef.current = null;
+    resolveAudioStopRef.current?.(null);
+    resolveAudioStopRef.current = null;
     cleanupStream();
     setMode(null);
     setPhase("idle");
@@ -290,6 +311,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     interimRef.current = "";
     setInterim("");
     chunksRef.current = [];
+    audioChunksRef.current = [];
     const recorderOptions: MediaRecorderOptions = { mimeType: mime };
     try {
       recorderOptions.bitsPerSecond = JOURNAL_VIDEO_TARGET_BITS_PER_SECOND;
@@ -312,6 +334,28 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     };
     rec.start(250);
     recorderRef.current = rec;
+
+    const audioMime = pickJournalAudioMimeType();
+    const audioTracks = stream.getAudioTracks();
+    if (audioMime && audioTracks.length) {
+      try {
+        const audioStream = new MediaStream(audioTracks);
+        const audioRec = new MediaRecorder(audioStream, { mimeType: audioMime });
+        audioRec.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+        audioRec.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: audioRec.mimeType || audioMime });
+          resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
+          resolveAudioStopRef.current = null;
+        };
+        audioRec.start(250);
+        audioRecorderRef.current = audioRec;
+      } catch {
+        audioRecorderRef.current = null;
+      }
+    }
+
     recordingStartedAtRef.current = Date.now();
     pausedAccumMsRef.current = 0;
     pauseStartedAtRef.current = null;
@@ -344,6 +388,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     if (!rec || phase !== "recording" || rec.state !== "recording") return;
     try {
       rec.pause();
+      const audioRec = audioRecorderRef.current;
+      if (audioRec && audioRec.state === "recording") audioRec.pause();
       speechStopRef.current();
       pauseStartedAtRef.current = Date.now();
       setRecordingElapsedMs(getRecordingElapsedMs());
@@ -358,6 +404,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     if (!rec || phase !== "paused" || rec.state !== "paused") return;
     try {
       rec.resume();
+      const audioRec = audioRecorderRef.current;
+      if (audioRec && audioRec.state === "paused") audioRec.resume();
       if (pauseStartedAtRef.current != null) {
         pausedAccumMsRef.current += Date.now() - pauseStartedAtRef.current;
         pauseStartedAtRef.current = null;
@@ -369,20 +417,25 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     }
   }, [phase]);
 
-  const stopRecording = useCallback(async (): Promise<Blob | null> => {
+  const stopRecording = useCallback(async (): Promise<JournalVideoCaptureResult | null> => {
     if (phase !== "recording" && phase !== "paused") return null;
     setPhase("processing");
     clearCountdown();
     clearRecordingTick();
     setRecordingElapsedMs(getRecordingElapsedMs());
     speechStopRef.current();
+    const liveTranscript = interimRef.current.trim();
     interimRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
 
     const rec = recorderRef.current;
-    const blobPromise = new Promise<Blob | null>((resolve) => {
+    const audioRec = audioRecorderRef.current;
+    const videoPromise = new Promise<Blob | null>((resolve) => {
       resolveStopRef.current = resolve;
+    });
+    const audioPromise = new Promise<Blob | null>((resolve) => {
+      resolveAudioStopRef.current = resolve;
     });
 
     if (rec && rec.state !== "inactive") {
@@ -397,12 +450,25 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       resolveStopRef.current = null;
     }
 
-    const blob = await blobPromise;
+    if (audioRec && audioRec.state !== "inactive") {
+      try {
+        audioRec.stop();
+      } catch {
+        resolveAudioStopRef.current?.(null);
+        resolveAudioStopRef.current = null;
+      }
+    } else {
+      resolveAudioStopRef.current?.(null);
+      resolveAudioStopRef.current = null;
+    }
+
+    const [videoBlob, audioBlob] = await Promise.all([videoPromise, audioPromise]);
     cleanupStream();
     resetRecordingClock();
     setMode(null);
     setPhase("idle");
-    return blob;
+    if (!videoBlob) return null;
+    return { video: videoBlob, audio: audioBlob, liveTranscript };
   }, [phase, cleanupStream, clearCountdown, clearRecordingTick, getRecordingElapsedMs, resetRecordingClock]);
 
   stopRecordingRef.current = stopRecording;

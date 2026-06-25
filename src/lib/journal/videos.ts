@@ -38,10 +38,40 @@ const VIDEO_MIME_CANDIDATES = [
   "video/mp4",
 ] as const;
 
+/** Safari / iOS record MP4 natively — prefer it for playback compatibility. */
+const VIDEO_MIME_CANDIDATES_APPLE = [
+  "video/mp4",
+  "video/webm;codecs=vp9,opus",
+  "video/webm;codecs=vp8,opus",
+  "video/webm",
+] as const;
+
+const AUDIO_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/mp4",
+  "audio/webm",
+  "audio/ogg",
+] as const;
+
+function isAppleVideoCapture(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Macintosh|Mac OS X/i.test(navigator.userAgent);
+}
+
 /** Pick the best MediaRecorder mime type supported by this browser. */
 export function pickJournalVideoMimeType(): string {
   if (typeof MediaRecorder === "undefined") return "";
-  for (const t of VIDEO_MIME_CANDIDATES) {
+  const candidates = isAppleVideoCapture() ? VIDEO_MIME_CANDIDATES_APPLE : VIDEO_MIME_CANDIDATES;
+  for (const t of candidates) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+
+/** Audio-only mime for a parallel transcription track (ElevenLabs rejects video containers). */
+export function pickJournalAudioMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  for (const t of AUDIO_MIME_CANDIDATES) {
     if (MediaRecorder.isTypeSupported(t)) return t;
   }
   return "";
@@ -194,15 +224,44 @@ export async function updateEntryVideoTranscript(
   if (error) throw new Error(formatVideoStorageError(error.message));
 }
 
-/** Transcribe audio from an uploaded journal video (no second full upload). */
-export async function transcribeVideoFromStorage(storagePath: string): Promise<string> {
-  if (!storagePath) return "";
-  try {
-    const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
-    return result.ok ? result.text.trim() : "";
-  } catch {
-    return "";
+export type TranscribeJournalVideoOptions = {
+  userId?: string;
+  /** Small audio-only sidecar recorded alongside the video. */
+  audioBlob?: Blob | null;
+  /** Live speech captions shown during recording (fallback when server STT fails). */
+  liveTranscript?: string;
+};
+
+/** Transcribe a journal video — prefers audio sidecar, then storage, then live captions. */
+export async function transcribeJournalVideo(
+  storagePath: string,
+  opts: TranscribeJournalVideoOptions = {},
+): Promise<string> {
+  const live = opts.liveTranscript?.trim() ?? "";
+  const audio = opts.audioBlob;
+  if (audio && audio.size > 800 && opts.userId) {
+    try {
+      const path = await uploadJournalVoiceMemo(opts.userId, audio);
+      const result = await transcribeJournalVoiceMemo(path, "voice-memos");
+      if (result.ok && result.text.trim()) return result.text.trim();
+    } catch {
+      /* try video file next */
+    }
   }
+  if (storagePath) {
+    try {
+      const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
+      if (result.ok && result.text.trim()) return result.text.trim();
+    } catch {
+      /* fall through */
+    }
+  }
+  return live;
+}
+
+/** @deprecated Use transcribeJournalVideo — kept for call sites that only pass storage path. */
+export async function transcribeVideoFromStorage(storagePath: string): Promise<string> {
+  return transcribeJournalVideo(storagePath);
 }
 
 /** @deprecated Prefer transcribeVideoFromStorage after upload. */

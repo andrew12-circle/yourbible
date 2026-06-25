@@ -78,7 +78,7 @@ export async function callChatWithTools(
           messages,
           tools,
           tool_choice: toolChoice,
-          max_tokens: maxOutputTokens,
+          ...openAiMaxOutputFields(model, maxOutputTokens),
         }),
         signal: AbortSignal.timeout(CHAT_TOOLS_TIMEOUT_MS),
       });
@@ -174,6 +174,31 @@ function geminiChatConfig(): ChatConfig | null {
 export function getOpenAiChatModel(): string {
   const m = Deno.env.get("OPENAI_CHAT_MODEL")?.trim();
   return m || DEFAULT_OPENAI_CHAT_MODEL;
+}
+
+/** Newer OpenAI chat models (gpt-5.x, o-series) use max_completion_tokens instead of max_tokens. */
+export function openAiUsesMaxCompletionTokens(model: string): boolean {
+  const m = model.trim().toLowerCase();
+  if (/^o\d/.test(m)) return true;
+  if (m.startsWith("gpt-5")) return true;
+  return false;
+}
+
+function openAiMaxOutputFields(model: string, maxOutputTokens: number): Record<string, number> {
+  if (openAiUsesMaxCompletionTokens(model)) {
+    return { max_completion_tokens: maxOutputTokens };
+  }
+  return { max_tokens: maxOutputTokens };
+}
+
+/** gpt-5 / o-series only support the default temperature (1); omit the param. */
+export function openAiSupportsCustomTemperature(model: string): boolean {
+  return !openAiUsesMaxCompletionTokens(model);
+}
+
+function openAiTemperatureField(model: string, temperature: number): Record<string, number> {
+  if (!openAiSupportsCustomTemperature(model)) return {};
+  return { temperature };
 }
 
 export function getOpenAiWebChatModel(): string {
@@ -390,8 +415,8 @@ async function callOpenAiJson(
         { role: "system", content: systemText },
         { role: "user", content: userPayload },
       ],
-      temperature,
-      max_tokens: maxOutputTokens,
+      ...openAiTemperatureField(model, temperature),
+      ...openAiMaxOutputFields(model, maxOutputTokens),
       response_format: { type: "json_object" },
     }),
   });
@@ -480,7 +505,10 @@ export async function callChatJson(
       maxOutputTokens,
       modelOverride,
     );
-    return fallback.ok ? fallback : openAiResult;
+    if (fallback.ok) return fallback;
+    // Prefer the fallback error (e.g. Gemini rate limit) over a stale OpenAI 401.
+    if (fallback.err) return fallback;
+    return openAiResult;
   }
 
   return callGeminiJsonConfigured(systemText, userPayload, temperature, maxOutputTokens, modelOverride);
@@ -621,8 +649,8 @@ export async function fetchChatCompletionStream(
             { role: "system", content: systemText },
             { role: "user", content: userPayload },
           ],
-          temperature,
-          max_tokens: maxOutputTokens,
+          ...openAiTemperatureField(model, temperature),
+          ...openAiMaxOutputFields(model, maxOutputTokens),
           stream: true,
         }),
       });

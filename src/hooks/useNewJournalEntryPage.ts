@@ -62,6 +62,7 @@ import {
 import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
 import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
+import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import {
   clampAnchorOffset,
   insertTranscriptAtAnchor,
@@ -70,7 +71,7 @@ import {
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
-  transcribeVideoFromStorage,
+  transcribeJournalVideo,
   updateEntryVideoTranscript,
   uploadEntryVideo,
 } from "@/lib/journal/videos";
@@ -1267,7 +1268,7 @@ export function useNewJournalEntryPage() {
   }, [ensureDraftEntry, getVideoAnchorOffset]);
 
   const handleVideoComplete = useCallback(
-    async (blob: Blob, durationMs: number) => {
+    async (result: JournalVideoCaptureResult, durationMs: number) => {
       const entryId = editId ?? inlineEntryId;
       if (!user?.id || !entryId) {
         toast({ title: "Save the entry first", variant: "destructive" });
@@ -1277,13 +1278,17 @@ export function useNewJournalEntryPage() {
       const anchorOffset = videoAnchorRef.current;
       setVideoUploading(true);
       try {
-        const uploaded = await uploadEntryVideo(user.id, entryId, blob, durationMs);
+        const uploaded = await uploadEntryVideo(user.id, entryId, result.video, durationMs);
         const row = await insertEntryVideo(user.id, entryId, uploaded, { anchor_offset: anchorOffset });
         if (!row) throw new Error("Could not attach video to entry");
 
         setVideoUploading(false);
         setVideoTranscribing(true);
-        const transcript = await transcribeVideoFromStorage(uploaded.storage_path);
+        const transcript = await transcribeJournalVideo(uploaded.storage_path, {
+          userId: user.id,
+          audioBlob: result.audio,
+          liveTranscript: result.liveTranscript,
+        });
         if (transcript) await updateEntryVideoTranscript(row.id, transcript);
 
         await reloadVideos();
@@ -1294,6 +1299,9 @@ export function useNewJournalEntryPage() {
         }
         toast({
           title: transcript ? "Video and transcript saved" : "Video saved",
+          description: transcript
+            ? undefined
+            : "Transcription was empty — try speaking closer to the mic.",
         });
         setVideoOpen(false);
       } catch (e) {

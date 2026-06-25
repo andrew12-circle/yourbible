@@ -3,11 +3,12 @@ import { Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import JournalVideoCaptureDialog from "@/components/journal/JournalVideoCaptureDialog";
+import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { toast } from "@/hooks/use-toast";
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
-  transcribeVideoFromStorage,
+  transcribeJournalVideo,
   updateEntryVideoTranscript,
   uploadEntryVideo,
 } from "@/lib/journal/videos";
@@ -47,7 +48,7 @@ export default function JournalVideoCaptureButton({
     setOpen(true);
   };
 
-  const handleComplete = async (blob: Blob, durationMs: number) => {
+  const handleComplete = async (result: JournalVideoCaptureResult, durationMs: number) => {
     if (!userId || !entryId) {
       toast({ title: "Save the entry first", variant: "destructive" });
       setOpen(false);
@@ -56,13 +57,17 @@ export default function JournalVideoCaptureButton({
     const anchorOffset = anchorRef.current;
     setUploading(true);
     try {
-      const uploaded = await uploadEntryVideo(userId, entryId, blob, durationMs);
+      const uploaded = await uploadEntryVideo(userId, entryId, result.video, durationMs);
       const row = await insertEntryVideo(userId, entryId, uploaded, { anchor_offset: anchorOffset });
       if (!row) throw new Error("Could not attach video to entry");
 
       setUploading(false);
       setTranscribing(true);
-      const transcript = await transcribeVideoFromStorage(uploaded.storage_path);
+      const transcript = await transcribeJournalVideo(uploaded.storage_path, {
+        userId,
+        audioBlob: result.audio,
+        liveTranscript: result.liveTranscript,
+      });
       if (transcript) {
         await updateEntryVideoTranscript(row.id, transcript);
       }
@@ -70,7 +75,9 @@ export default function JournalVideoCaptureButton({
       onVideoSaved({ transcript, anchorOffset });
       toast({
         title: transcript ? "Video and transcript saved" : "Video saved",
-        description: transcript ? undefined : "Transcription was empty — try speaking closer to the mic.",
+        description: transcript
+          ? undefined
+          : "Transcription was empty — try speaking closer to the mic.",
       });
       setOpen(false);
     } catch (e) {

@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import {
   callChatJson,
+  isOpenAiAuthFailure,
   resolveAiProvider,
   type AiProvider,
 } from "../_shared/aiProvider.ts";
@@ -162,43 +163,65 @@ function isRateLimitError(err: string | undefined): boolean {
   return /\b429\b/.test(err) || /rate.?limit/i.test(err) || /resource_exhausted/i.test(err);
 }
 
-function transcriptClaimProviders(): AiProvider[] {
+function claimExtractionProviders(): AiProvider[] {
   const primary = resolveAiProvider();
-  const providers: AiProvider[] = [primary];
   const openAiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
   const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
-  if (primary === "openai" && geminiKey) providers.push("gemini");
-  if (primary === "gemini" && openAiKey) providers.push("openai");
-  return providers;
+  const out: AiProvider[] = [];
+  if (primary === "openai" && openAiKey) out.push("openai");
+  else if (primary === "gemini" && geminiKey) out.push("gemini");
+  if (geminiKey && !out.includes("gemini")) out.push("gemini");
+  if (openAiKey && !out.includes("openai")) out.push("openai");
+  if (out.length === 0 && geminiKey) out.push("gemini");
+  if (out.length === 0 && openAiKey) out.push("openai");
+  return out;
 }
 
 export async function submitTranscriptClaimsJson(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<ClaimGeminiResult> {
-  const providers = transcriptClaimProviders();
+  const providers = claimExtractionProviders();
+  console.log(`transcript claims: providers=${providers.join(",") || "none"}`);
+
+  let lastErr: string | undefined;
+  let sawRateLimit = false;
+
   for (const provider of providers) {
-    const maxAttempts = provider === providers[0] ? 3 : 2;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, [2_500, 7_000][attempt - 1] ?? 12_000));
-      }
-      const result = await callChatJson(systemPrompt, userPrompt, 0.35, 4096, provider);
-      if (result.ok) {
-        return { kind: "ok", json: { claims: parseClaimsFromJsonText(result.rawText) } };
-      }
-      if (isRateLimitError(result.err)) {
-        if (attempt < maxAttempts - 1) continue;
-        break;
-      }
-      if (/\b402\b/.test(result.err ?? "") || /billing|insufficient/i.test(result.err ?? "")) {
-        return { kind: "billing" };
-      }
-      console.error("transcript claim json error:", provider, result.err?.slice(0, 240));
+    const result = await callChatJson(systemPrompt, userPrompt, 0.35, 4096, provider);
+    if (result.ok) {
+      return { kind: "ok", json: { claims: parseClaimsFromJsonText(result.rawText) } };
+    }
+
+    lastErr = result.err;
+    console.warn(`transcript claim failed provider=${provider}`, result.err?.slice(0, 180));
+
+    if (/\b402\b/.test(result.err ?? "") || /billing|insufficient/i.test(result.err ?? "")) {
+      return { kind: "billing" };
+    }
+
+    const tryNext =
+      isOpenAiAuthFailure(result.err) ||
+      isRateLimitError(result.err) ||
+      /\b503\b/.test(result.err ?? "") ||
+      /\b502\b/.test(result.err ?? "");
+    if (isRateLimitError(result.err)) sawRateLimit = true;
+    if (tryNext && provider !== providers[providers.length - 1]) continue;
+
+    if (!tryNext) {
       return { kind: "gateway_err", status: 502, body: result.err ?? "unknown" };
     }
   }
-  return { kind: "rate_limit" };
+
+  if (sawRateLimit) return { kind: "rate_limit" };
+  if (isOpenAiAuthFailure(lastErr) && providers.includes("gemini")) {
+    return {
+      kind: "gateway_err",
+      status: 502,
+      body: "OpenAI key rejected and Gemini fallback did not complete. Check OPENAI_API_KEY and GEMINI_API_KEY in Supabase secrets.",
+    };
+  }
+  return { kind: "gateway_err", status: 502, body: lastErr ?? "All AI providers failed" };
 }
 
 type TranscriptBatchWindow = { label: string; body: string; startSeconds: number | null };

@@ -12,6 +12,7 @@ import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
 import {
   useJournalVideoCapture,
   type JournalVideoCaptureMode,
+  type JournalVideoCaptureResult,
 } from "@/hooks/useJournalVideoCapture";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
@@ -27,7 +28,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onComplete: (blob: Blob, durationMs: number) => void | Promise<void>;
+  onComplete: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
   uploading?: boolean;
   transcribing?: boolean;
   /** Skip the Camera vs Screen picker (e.g. when the toolbar Video button is tapped). */
@@ -102,12 +103,12 @@ export default function JournalVideoCaptureDialog({
 
   const handleStop = async () => {
     const durationMs = capture.recordingElapsedMs;
-    const blob = await capture.stopRecording();
-    if (!blob) {
+    const result = await capture.stopRecording();
+    if (!result) {
       handleClose();
       return;
     }
-    await onComplete(blob, durationMs);
+    await onComplete(result, durationMs);
   };
 
   stopOnMaxRef.current = () => {

@@ -4,7 +4,6 @@
 // Epistemology v1+v2: per-claim layers in artifact_claims.epistemology (see docs/EPistemology.md).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
-import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
 import type { YoutubeChapter } from "../_shared/youtubeChapters.ts";
 import {
   collectTranscriptTextsStartingInHalfOpenRange,
@@ -23,10 +22,6 @@ import {
   callChatWithTools,
   getChatConfig,
 } from "../_shared/aiProvider.ts";
-import {
-  generateArtifactFrameworkOverview,
-  persistArtifactFrameworkOverview,
-} from "../_shared/artifactOverviewSummary.ts";
 import { drainPendingEmbeddingJobs } from "../_shared/embeddingJobDrain.ts";
 import { filterSubstantiveClaims, isMetaOrLowValueClaim } from "../_shared/claimQuality.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
@@ -35,6 +30,10 @@ import {
   submitTranscriptClaimsJson,
   type ClaimGeminiResult,
 } from "./transcriptProgressiveClaims.ts";
+import {
+  enrichArtifactAnalysis,
+  type EnrichmentContext,
+} from "./enrichmentPass.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
 
@@ -1244,12 +1243,19 @@ async function geminiSubmitClaims(
 }
 
 function formatClaimGatewayError(status: number, body: string): string {
-  const snippet = body.replace(/\s+/g, " ").trim().slice(0, 200);
+  const sanitized = body
+    .replace(/\s+/g, " ")
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "sk-…")
+    .trim()
+    .slice(0, 200);
   if (status === 401 || status === 403) {
-    return "AI API key rejected — verify GEMINI_API_KEY (and OPENAI_API_KEY if set) in Supabase secrets.";
+    return "OpenAI API key rejected — update OPENAI_API_KEY in Supabase secrets (or the app will fall back to Gemini when configured).";
   }
   if (status === 429) return "Rate limited — try Re-analyze in a minute.";
-  if (snippet) return `AI gateway error (HTTP ${status}): ${snippet}`;
+  if (/incorrect api key/i.test(sanitized) || /\b401\b/.test(sanitized)) {
+    return "OpenAI API key rejected — create a new key at platform.openai.com, run scripts/sync-openai-secrets.ps1, then Re-analyze.";
+  }
+  if (sanitized) return `AI gateway error (HTTP ${status}): ${sanitized}`;
   return `AI gateway error (HTTP ${status})`;
 }
 
@@ -1497,294 +1503,28 @@ async function appendEnrichmentClaims(
   return rows.length;
 }
 
-interface EnrichmentContext {
-  db: SupabaseClient;
-  artifact: Record<string, unknown>;
-  artifact_id: string;
-  processing_token: string;
-  beliefsList: Belief[];
-  rawText: string;
-  segments: TranscriptSegment[];
-  timed: boolean;
-  durationSeconds: number | null;
-  chapters: YoutubeChapter[];
-  metadata: unknown;
-  geminiApiKey: string;
-  serviceRole: string | undefined;
-  supabaseUrl: string;
-}
-
-async function enrichArtifactAnalysis(ctx: EnrichmentContext): Promise<void> {
-  const {
-    db,
-    artifact,
-    artifact_id,
-    processing_token,
-    beliefsList,
-    rawText,
-    segments,
-    timed,
-    durationSeconds,
-    geminiApiKey,
-    serviceRole,
-    supabaseUrl,
-  } = ctx;
-  let chapters = ctx.chapters;
-  let metadata = ctx.metadata;
-
-  if (chapters.length === 0 && rawText.trim().length >= 400) {
-    const chapterDuration =
-      durationSeconds ?? inferArtifactDurationSeconds(metadata, [], rawText.length);
-    const generated = await generateChaptersFromTranscript({
-      apiKey: geminiApiKey,
-      rawText,
-      durationSeconds: chapterDuration,
-      title: (artifact.title as string | null | undefined) ?? null,
-    });
-    if (generated.chapters.length) {
-      chapters = generated.chapters;
-      const prevMeta = (metadata as Record<string, unknown> | null | undefined) ?? {};
-      metadata = {
-        ...prevMeta,
-        youtube_chapters: generated.chapters,
-        youtube_chapters_source: generated.source,
-      };
-      await db.from("artifacts").update({ metadata }).eq("id", artifact_id);
-      console.log(
-        `framework-analyze enrichment: chapters=${chapters.length} source=${generated.source}`,
-      );
-    }
-  }
-
-  if (chapters.length >= 2) {
-    const perChapMin = 2;
-    const perChapMax = 6;
-    const extra: ClaimWithChapter[] = [];
-    console.log(`framework-analyze enrichment: chapter spine chapters=${chapters.length}`);
-    for (let ci = 0; ci < chapters.length; ci += 3) {
-      const batch = chapters.slice(ci, ci + 3);
-      const batchResults = await Promise.all(
-        batch.map(async (ch, offset) => {
-          const idx = ci + offset;
-          const nextCh = chapters[idx + 1];
-          const sliceText = transcriptSliceForWindow({
-            rawText,
-            segments,
-            timed,
-            windowStartSec: ch.start_seconds,
-            windowEndExclusiveSec: nextCh?.start_seconds ?? null,
-            durationSeconds,
-          });
-          if (sliceText.trim().length < 80) return [] as ClaimWithChapter[];
-          const userPrompt = buildChapterSlicePrompt(
-            sliceText,
-            beliefsList,
-            ch.title,
-            ch.start_seconds,
-            nextCh?.start_seconds ?? null,
-            perChapMin,
-            perChapMax,
-          );
-          const gw = await geminiSubmitClaims(geminiApiKey, userPrompt);
-          if (gw.kind !== "ok") {
-            console.warn(`framework-analyze enrichment: chapter ${idx + 1} gateway ${gw.kind}`);
-            return [] as ClaimWithChapter[];
-          }
-          const claims = parseSubmitClaimsFromResponse(gw.json);
-          return claims.map((c) => ({ ...c, chapter_start_seconds: ch.start_seconds }));
-        }),
-      );
-      for (const claims of batchResults) extra.push(...claims);
-    }
-    const appended = await appendEnrichmentClaims(
-      db,
-      artifact_id,
-      processing_token,
-      artifact,
-      beliefsList,
-      extra,
-      serviceRole,
-      supabaseUrl,
-    );
-    console.log(`framework-analyze enrichment: appended chapter claims=${appended}`);
-  } else {
-    const useChunkPass =
-      timed &&
-      durationSeconds != null &&
-      durationSeconds >= MIN_DURATION_FOR_CHUNK_PASS_SEC;
-    if (useChunkPass) {
-      const D = durationSeconds;
-      const chunkClaims: ClaimWithChapter[] = [];
-      for (let t = 0; t < D; t += CHUNK_SPACING_SECONDS) {
-        const end = Math.min(t + CHUNK_SPACING_SECONDS, D);
-        const sliceText = transcriptSliceForWindow({
-          rawText,
-          segments,
-          timed: true,
-          windowStartSec: t,
-          windowEndExclusiveSec: end,
-          durationSeconds: D,
-        });
-        if (sliceText.trim().length < 200) continue;
-        const chunkPrompt = buildTimedChunkPrompt(sliceText, beliefsList, `${t}s–${end}s`, 4, 10);
-        const gwc = await geminiSubmitClaims(geminiApiKey, chunkPrompt);
-        if (gwc.kind !== "ok") continue;
-        const parsed = parseSubmitClaimsFromResponse(gwc.json);
-        for (const c of parsed) chunkClaims.push({ ...c, chapter_start_seconds: null });
-      }
-      const appended = await appendEnrichmentClaims(
-        db,
-        artifact_id,
-        processing_token,
-        artifact,
-        beliefsList,
-        chunkClaims,
-        serviceRole,
-        supabaseUrl,
-      );
-      console.log(`framework-analyze enrichment: appended chunk claims=${appended}`);
-    }
-  }
-
-  let entity_mentions_written = 0;
-  let teaching_rows_written = 0;
-
-  if (serviceRole) {
-    const admin = createClient(supabaseUrl, serviceRole);
-    try {
-      const er = await callChatWithTools(
-        [
-          { role: "system", content: ENTITY_SYSTEM },
-          { role: "user", content: buildEntityPrompt(rawText) },
-        ],
-        [ENTITY_TOOL],
-        { type: "function", function: { name: "submit_knowledge_entities" } },
-      );
-      if (er.ok) {
-        const ej = await er.json();
-        const eArgs = parseToolCall(ej, "submit_knowledge_entities");
-        let entitiesParsed: KnowledgeEntitiesPayload = {};
-        if (eArgs) {
-          try {
-            entitiesParsed = parseKnowledgeEntitiesPayload(JSON.parse(eArgs));
-          } catch (e) {
-            console.error("entity parse fail", e);
-          }
-        }
-        const { data: gate2 } = await db
-          .from("artifacts")
-          .select("id")
-          .eq("id", artifact_id)
-          .eq("processing_token", processing_token)
-          .maybeSingle();
-        if (gate2) {
-          const res = await persistEntitiesForArtifact({
-            admin,
-            userId: artifact.user_id as string,
-            artifactId: artifact_id,
-            rawText,
-            payload: entitiesParsed,
-          });
-          entity_mentions_written = res.mentionCount;
-
-          const prevMeta = (metadata as Record<string, unknown> | null | undefined) ?? {};
-          const channelTitle =
-            typeof prevMeta.channel_title === "string"
-              ? prevMeta.channel_title
-              : typeof prevMeta.channel === "string"
-                ? prevMeta.channel
-                : null;
-          const interviewGuests = inferInterviewGuestsFromPayload(entitiesParsed, channelTitle);
-          if (interviewGuests.length > 0) {
-            await db
-              .from("artifacts")
-              .update({
-                metadata: {
-                  ...prevMeta,
-                  interview_guests: interviewGuests,
-                },
-              })
-              .eq("id", artifact_id);
-          }
-        }
-      } else {
-        console.error("entity extraction gateway error:", er.status, await er.text());
-      }
-
-      const tr = await callChatWithTools(
-        [
-          { role: "system", content: TEACHING_SYSTEM },
-          { role: "user", content: buildTeachingPrompt(rawText) },
-        ],
-        [TEACHING_TOOL],
-        { type: "function", function: { name: "submit_teachings" } },
-      );
-      if (tr.ok) {
-        const tj = await tr.json();
-        const tArgs = parseToolCall(tj, "submit_teachings");
-        let teachingsParsed: TeachingsPayload = {};
-        if (tArgs) {
-          try {
-            teachingsParsed = JSON.parse(tArgs) as TeachingsPayload;
-          } catch (e) {
-            console.error("teaching parse fail", e);
-          }
-        }
-        const { data: gate3 } = await db
-          .from("artifacts")
-          .select("id")
-          .eq("id", artifact_id)
-          .eq("processing_token", processing_token)
-          .maybeSingle();
-        if (gate3) {
-          const tres = await persistTeachingsForArtifact({
-            admin,
-            userId: artifact.user_id as string,
-            artifactId: artifact_id,
-            rawText,
-            teachings: teachingsParsed.teachings ?? [],
-          });
-          teaching_rows_written = tres.inserted;
-        }
-      } else {
-        console.error("teaching extraction gateway error:", tr.status, await tr.text());
-      }
-    } catch (e) {
-      console.error("entity/teaching enrichment failed:", e);
-    }
-  }
-
-  try {
-    const { data: gateOverview } = await db
-      .from("artifacts")
-      .select("id,metadata")
-      .eq("id", artifact_id)
-      .eq("processing_token", processing_token)
-      .maybeSingle();
-    if (gateOverview) {
-      const overview = await generateArtifactFrameworkOverview({
-        rawText,
-        beliefs: beliefsList,
-        title: (artifact.title as string | null | undefined) ?? null,
-      });
-      if (overview) {
-        await persistArtifactFrameworkOverview(
-          db,
-          artifact_id,
-          (gateOverview as { metadata?: unknown }).metadata ?? metadata,
-          overview,
-        );
-        console.log("framework-analyze enrichment: framework_overview persisted");
-      }
-    }
-  } catch (e) {
-    console.error("framework overview enrichment failed:", e);
-  }
-
-  console.log(
-    `framework-analyze enrichment: done entities=${entity_mentions_written} teachings=${teaching_rows_written}`,
-  );
-}
+const enrichmentHost = {
+  entitySystem: ENTITY_SYSTEM,
+  entityTool: ENTITY_TOOL,
+  teachingSystem: TEACHING_SYSTEM,
+  teachingTool: TEACHING_TOOL,
+  minDurationChunkPassSec: MIN_DURATION_FOR_CHUNK_PASS_SEC,
+  chunkSpacingSeconds: CHUNK_SPACING_SECONDS,
+  inferArtifactDurationSeconds,
+  transcriptSliceForWindow,
+  buildChapterSlicePrompt,
+  buildTimedChunkPrompt,
+  geminiSubmitClaims,
+  parseSubmitClaimsFromResponse,
+  appendEnrichmentClaims,
+  buildEntityPrompt,
+  parseToolCall,
+  parseKnowledgeEntitiesPayload,
+  persistEntitiesForArtifact,
+  inferInterviewGuestsFromPayload,
+  buildTeachingPrompt,
+  persistTeachingsForArtifact,
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -2043,22 +1783,25 @@ Deno.serve(async (req) => {
     if (isTranscriptMedia && collected.length > 0) {
       console.log("framework-analyze: transcript done — skipping enrichment burst");
     } else {
-      await enrichArtifactAnalysis({
-        db,
-        artifact: artifact as Record<string, unknown>,
-        artifact_id,
-        processing_token,
-        beliefsList,
-        rawText,
-        segments,
-        timed,
-        durationSeconds: durationSeconds ?? effectiveDuration,
-        chapters,
-        metadata,
-        geminiApiKey: GEMINI_API_KEY,
-        serviceRole: SERVICE_ROLE,
-        supabaseUrl: SUPABASE_URL,
-      });
+      await enrichArtifactAnalysis(
+        {
+          db,
+          artifact: artifact as Record<string, unknown>,
+          artifact_id,
+          processing_token,
+          beliefsList,
+          rawText,
+          segments,
+          timed,
+          durationSeconds: durationSeconds ?? effectiveDuration,
+          chapters,
+          metadata,
+          geminiApiKey: GEMINI_API_KEY,
+          serviceRole: SERVICE_ROLE,
+          supabaseUrl: SUPABASE_URL,
+        },
+        enrichmentHost,
+      );
     }
 
         console.log(`framework-analyze: done initial_claims=${collected.length}`);
