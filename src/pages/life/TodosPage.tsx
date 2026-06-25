@@ -1005,6 +1005,8 @@ export default function TodosPage() {
 
         open={!!detailItem}
 
+        userId={user?.id}
+
         item={detailItem}
 
         lists={lists}

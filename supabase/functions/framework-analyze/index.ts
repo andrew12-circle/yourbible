@@ -1267,23 +1267,33 @@ async function abortClaimsIfBadGateway(
 ): Promise<boolean> {
   if (gw.kind === "ok") return false;
   if (gw.kind === "rate_limit") {
-    const { count } = await supabase
-      .from("artifact_claims")
-      .select("id", { count: "exact", head: true })
-      .eq("artifact_id", artifact_id);
-    if ((count ?? 0) > 0) {
-      const prevMeta = await supabase.from("artifacts").select("metadata").eq("id", artifact_id).maybeSingle();
-      const meta =
-        prevMeta.data?.metadata && typeof prevMeta.data.metadata === "object" && !Array.isArray(prevMeta.data.metadata)
-          ? { ...(prevMeta.data.metadata as Record<string, unknown>) }
-          : {};
-      delete meta.analyze_inflight_at;
+    const [{ count }, artifactRow] = await Promise.all([
+      supabase
+        .from("artifact_claims")
+        .select("id", { count: "exact", head: true })
+        .eq("artifact_id", artifact_id),
+      supabase.from("artifacts").select("metadata,raw_text").eq("id", artifact_id).maybeSingle(),
+    ]);
+    const claimCount = count ?? 0;
+    const rawLen = String(artifactRow.data?.raw_text ?? "").trim().length;
+    const prevMeta =
+      artifactRow.data?.metadata &&
+      typeof artifactRow.data.metadata === "object" &&
+      !Array.isArray(artifactRow.data.metadata)
+        ? { ...(artifactRow.data.metadata as Record<string, unknown>) }
+        : {};
+    delete prevMeta.analyze_inflight_at;
+
+    if (claimCount > 0 || rawLen >= 2000) {
       await supabase
         .from("artifacts")
         .update({
           status: "ready",
           error: null,
-          metadata: meta,
+          metadata: {
+            ...prevMeta,
+            analyze_rate_limit_at: new Date().toISOString(),
+          },
         })
         .eq("id", artifact_id);
       return true;

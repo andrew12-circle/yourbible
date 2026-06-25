@@ -308,14 +308,13 @@ export async function extractTranscriptClaimsProgressive(params: {
     .eq("id", artifact_id)
     .eq("processing_token", processing_token)
     .maybeSingle();
-  if (gate) {
-    await db.from("artifact_claims").delete().eq("artifact_id", artifact_id);
-  }
+  if (!gate) return { claims: [], partial: false };
 
   const seen = new Set<string>();
   const collected: ClaimOut[] = [];
   let lastGateway: ClaimGeminiResult | undefined;
   let stoppedEarly = false;
+  let clearedExistingClaims = false;
 
   for (let i = 0; i < windows.length; i++) {
     if (i > 0 && CLAIM_CHUNK_DELAY_MS > 0) {
@@ -351,6 +350,10 @@ export async function extractTranscriptClaimsProgressive(params: {
     }
 
     if (batchClaims.length > 0) {
+      if (!clearedExistingClaims) {
+        await db.from("artifact_claims").delete().eq("artifact_id", artifact_id);
+        clearedExistingClaims = true;
+      }
       await appendClaims(batchClaims);
     }
 

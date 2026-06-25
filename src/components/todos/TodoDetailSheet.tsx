@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +28,11 @@ import {
   TASK_TYPE_LABELS,
   TASK_TYPES,
 } from "@/lib/todos/api";
+import { prependTimestampedNoteBlock } from "@/lib/todos/notes";
 
 type Props = {
   open: boolean;
+  userId?: string;
   item: TodoItemRow | null;
   lists: TodoListRow[];
   subtasks: TodoItemRow[];
@@ -41,6 +45,7 @@ type Props = {
 
 export default function TodoDetailSheet({
   open,
+  userId,
   item,
   lists,
   subtasks,
@@ -52,6 +57,7 @@ export default function TodoDetailSheet({
 }: Props) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [dictInterim, setDictInterim] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [taskType, setTaskType] = useState<TodoTaskType | "">("");
@@ -62,9 +68,12 @@ export default function TodoDetailSheet({
   const [saving, setSaving] = useState(false);
   const notesRef = useRef(notes);
   const savedNotesRef = useRef<string | null>(null);
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const voiceStampedRef = useRef(false);
   const todayISO = useMemo(() => localDateISO(), []);
 
   notesRef.current = notes;
+  const displayNotes = mergeDictatedText(notes, dictInterim);
 
   useEffect(() => {
     if (!item) return;
@@ -77,6 +86,8 @@ export default function TodoDetailSheet({
     setStatus(item.status ?? (item.done ? "done" : "not_started"));
     setPriority(item.priority as TodoPriority);
     setListId(item.list_id ?? "");
+    setDictInterim("");
+    voiceStampedRef.current = false;
   }, [item]);
 
   const daysLeft = useMemo(
@@ -108,7 +119,44 @@ export default function TodoDetailSheet({
     return () => clearTimeout(timer);
   }, [notes, item, persistNotesIfChanged]);
 
+  const ensureVoiceTimestamp = useCallback((prev: string) => {
+    if (voiceStampedRef.current) return prev;
+    voiceStampedRef.current = true;
+    return prependTimestampedNoteBlock(prev);
+  }, []);
+
+  const handleDictateAppend = useCallback(
+    (chunk: string) => {
+      setNotes((prev) => {
+        const stamped = ensureVoiceTimestamp(prev);
+        const next = mergeDictatedText(stamped, chunk);
+        notesRef.current = next;
+        return next;
+      });
+      setDictInterim("");
+    },
+    [ensureVoiceTimestamp],
+  );
+
+  const handleDictationListeningChange = useCallback(
+    (listening: boolean) => {
+      if (listening) {
+        setNotes((prev) => {
+          const next = ensureVoiceTimestamp(prev);
+          notesRef.current = next;
+          return next;
+        });
+        return;
+      }
+      voiceStampedRef.current = false;
+      setDictInterim("");
+    },
+    [ensureVoiceTimestamp],
+  );
+
   const handleClose = useCallback(() => {
+    dictateRef.current?.stop();
+    setDictInterim("");
     void persistNotesIfChanged().finally(() => onClose());
   }, [persistNotesIfChanged, onClose]);
 
@@ -273,19 +321,34 @@ export default function TodoDetailSheet({
 
           <div>
             <Label className="text-xs text-muted-foreground">Notes</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                notesRef.current = e.target.value;
-              }}
-              onBlur={(e) => {
-                notesRef.current = e.target.value;
-                void persistNotesIfChanged();
-              }}
-              placeholder="Add notes…"
-              className="mt-1 min-h-[88px] resize-none"
-            />
+            <div className="relative mt-1">
+              <Textarea
+                value={displayNotes}
+                onChange={(e) => {
+                  setDictInterim("");
+                  setNotes(e.target.value);
+                  notesRef.current = e.target.value;
+                }}
+                onBlur={(e) => {
+                  notesRef.current = e.target.value;
+                  void persistNotesIfChanged();
+                }}
+                placeholder="Add notes…"
+                className="min-h-[88px] resize-none pr-10"
+              />
+              <div className="absolute right-1 top-1">
+                <DictateButton
+                  ref={dictateRef}
+                  userId={userId}
+                  webSpeechOnly
+                  size="sm"
+                  className="h-8 w-8 rounded-md"
+                  onAppend={handleDictateAppend}
+                  onInterim={setDictInterim}
+                  onListeningChange={handleDictationListeningChange}
+                />
+              </div>
+            </div>
           </div>
 
           <div>

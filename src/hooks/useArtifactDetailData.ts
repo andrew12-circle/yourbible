@@ -20,6 +20,7 @@ import {
   analyzeTimeoutMessage,
   ANALYZE_AUTO_RETRY_LIMIT,
 } from "@/lib/framework/analyzeTimeouts";
+import { shouldRepairRateLimitArtifact } from "@/lib/framework/artifactAnalysisRecovery";
 
 const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
@@ -108,7 +109,19 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
           .eq("id", targetId)
           .maybeSingle()
       : artWithMeta;
-    return (artResult.data as ArtifactRow | null) ?? null;
+    const row = (artResult.data as ArtifactRow | null) ?? null;
+    if (
+      row &&
+      shouldRepairRateLimitArtifact({
+        status: row.status,
+        error: row.error,
+        rawText: row.raw_text,
+      })
+    ) {
+      await supabase.from("artifacts").update({ status: "ready", error: null }).eq("id", targetId);
+      return { ...row, status: "ready", error: null };
+    }
+    return row;
   }, []);
 
   const loadClaimsOnly = useCallback(async () => {

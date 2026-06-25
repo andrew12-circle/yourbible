@@ -12,6 +12,8 @@ type Props = {
   onPaste: () => void;
   onReanalyze?: () => void;
   className?: string;
+  /** Warning when transcript/chapters remain usable despite analysis limits. */
+  variant?: "destructive" | "warning";
 };
 
 /** Split server transcript errors into a short headline + technical log. */
@@ -78,19 +80,40 @@ export default function ArtifactTranscriptFetchErrorCard({
   onPaste,
   onReanalyze,
   className,
+  variant = "destructive",
 }: Props) {
   const { headline, hint, attempts } = parseTranscriptFetchError(error);
+  const warning = variant === "warning";
 
   return (
     <div
       className={cn(
-        "mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive",
+        "mb-4 rounded border p-3 text-sm",
+        warning
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100"
+          : "border-destructive/40 bg-destructive/10 text-destructive",
         className,
       )}
       role="alert"
     >
-      <p className="font-medium leading-snug text-destructive">{headline}</p>
-      {hint ? <p className="mt-2 text-xs leading-relaxed text-destructive/90">{hint}</p> : null}
+      <p
+        className={cn(
+          "font-medium leading-snug",
+          warning ? "text-amber-950 dark:text-amber-50" : "text-destructive",
+        )}
+      >
+        {headline}
+      </p>
+      {hint ? (
+        <p
+          className={cn(
+            "mt-2 text-xs leading-relaxed",
+            warning ? "text-amber-900/90 dark:text-amber-100/90" : "text-destructive/90",
+          )}
+        >
+          {hint}
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
         {showRetry && onRetry ? (
@@ -112,9 +135,18 @@ export default function ArtifactTranscriptFetchErrorCard({
       </div>
 
       {attempts ? (
-        <details className="mt-3 text-xs text-destructive/90">
+        <details
+          className={cn("mt-3 text-xs", warning ? "text-amber-900/90 dark:text-amber-100/90" : "text-destructive/90")}
+        >
           <summary className="cursor-pointer select-none font-medium">Technical details</summary>
-          <pre className="mt-2 max-h-40 overflow-y-auto overscroll-y-contain whitespace-pre-wrap break-words rounded border border-destructive/20 bg-destructive/5 p-2 font-mono text-[10px] leading-snug">
+          <pre
+            className={cn(
+              "mt-2 max-h-40 overflow-y-auto overscroll-y-contain whitespace-pre-wrap break-words rounded border p-2 font-mono text-[10px] leading-snug",
+              warning
+                ? "border-amber-500/20 bg-amber-500/5"
+                : "border-destructive/20 bg-destructive/5",
+            )}
+          >
             {attempts}
           </pre>
         </details>

@@ -78,10 +78,6 @@ export function useArtifactDetailProcessingActions({
         processing_token: processingToken,
       })
       .eq("id", a.id);
-    await supabase.from("artifact_claims").delete().eq("artifact_id", a.id);
-    await supabase.from("entity_mentions").delete().eq("artifact_id", a.id);
-    await supabase.from("teachings").delete().eq("artifact_id", a.id).eq("status", "proposed");
-    setClaims([]);
     setA({
       ...a,
       ...(persistNormalized ? { raw_text: normalized } : {}),
@@ -111,7 +107,7 @@ export function useArtifactDetailProcessingActions({
         variant: "destructive",
       });
     }
-  }, [a, setA, setClaims]);
+  }, [a, setA]);
 
   const formatTranscript = useCallback(async () => {
     if (!a?.raw_text.trim() || !transcriptNeedsFormatting) return;

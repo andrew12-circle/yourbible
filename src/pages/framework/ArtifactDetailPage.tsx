@@ -45,6 +45,7 @@ import ArtifactDetailMobileTabPanels, {
 } from "@/components/framework/artifact-detail/ArtifactDetailMobileTabPanels";
 import ArtifactDetailStudyColumnWrapper from "@/components/framework/artifact-detail/ArtifactDetailStudyColumnWrapper";
 import ArtifactTranscriptFetchErrorCard from "@/components/framework/artifact-detail/ArtifactTranscriptFetchErrorCard";
+import { isNonBlockingAnalysisError } from "@/lib/framework/artifactAnalysisRecovery";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import { buildArtifactDetailTranscriptPanel } from "@/components/framework/artifact-detail/ArtifactDetailTranscriptPanel";
 import ArtifactBookReaderTabPanel from "@/components/framework/artifact-detail/ArtifactBookReaderTabPanel";
@@ -1871,6 +1872,15 @@ export default function ArtifactDetailPage() {
       {a.error && a.status === "error" && (
         <ArtifactTranscriptFetchErrorCard
           error={a.error}
+          variant={
+            isNonBlockingAnalysisError({
+              error: a.error,
+              rawText: a.raw_text,
+              claimsCount: studyClaims.length,
+            })
+              ? "warning"
+              : "destructive"
+          }
           retryingFetch={retryingFetch}
           inFlight={inFlight}
           showRetry={a.kind === "youtube" && Boolean(a.url) && !a.raw_text?.trim()}
