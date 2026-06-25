@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import {
   ChevronDown,
+  Film,
   Image as ImageIcon,
   MessageCircle,
   Mic,
   PenLine,
-  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,8 @@ export function ToolbarTile({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
+      title={label}
       className={cn(
         "flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition text-[11px] font-medium",
         disabled
@@ -80,11 +82,11 @@ export function NewJournalEntryToolbar({
   return (
     <JournalEntryDockShell>
       <div className="grid grid-cols-5 gap-0.5 p-1.5">
-        <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Photos" onClick={onPhotos} />
+        <ToolbarTile icon={<ImageIcon className="w-5 h-5" />} label="Add photos" onClick={onPhotos} />
         <ToolbarTile icon={<PenLine className="w-5 h-5" />} label="Write" onClick={onWrite} />
         <ToolbarTile
-          icon={<Video className="w-5 h-5" />}
-          label="Video"
+          icon={<Film className="w-5 h-5" />}
+          label="Record video"
           onClick={onVideo}
           disabled={videoDisabled}
         />

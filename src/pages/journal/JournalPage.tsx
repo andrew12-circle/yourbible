@@ -14,9 +14,15 @@ import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem
 import { Input } from "@/components/ui/input";
 import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useIsDesktop } from "@/hooks/use-desktop";
-import { ensureDefaultJournal, getDefaultJournalId, Journal } from "@/lib/journal/journals";
+import {
+  ensureDefaultJournal,
+  getDefaultJournalId,
+  Journal,
+  pickDefaultJournalId,
+} from "@/lib/journal/journals";
 import { getNotesJournalId, isNotesJournal } from "@/lib/journal/notesJournal";
-import { getCurrentContext } from "@/lib/journal/context";
+import { scheduleEntryContextEnrichment } from "@/lib/journal/context";
+import { insertJournalEntry } from "@/lib/journal/journalEntryDb";
 import {
   deleteJournalEntry,
   setJournalEntryMirrorFlag,
@@ -73,29 +79,18 @@ export default function JournalPage() {
     if (!user || creating) return;
     setCreating(true);
     try {
-      const jid = journalId ?? (await getDefaultJournalId(user.id));
-      const ctx = await getCurrentContext().catch(() => ({} as Record<string, never>));
+      const jid =
+        journalId ?? pickDefaultJournalId(journals) ?? (await getDefaultJournalId(user.id));
       const now = new Date();
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: user.id,
-          journal_id: jid,
-          title: null,
-          body: "",
-          tags: [],
-          entry_at_ts: now.toISOString(),
-          entry_at: now.toISOString().slice(0, 10),
-          analyze_for_mirror: false,
-          location_name: ctx.location_name ?? null,
-          lat: ctx.lat ?? null,
-          lng: ctx.lng ?? null,
-          weather: ctx.weather ?? null,
-          weather_temp_c: ctx.weather_temp_c ?? null,
-          weather_icon: ctx.weather_icon ?? null,
-        })
-        .select("id")
-        .maybeSingle();
+      const { data, error } = await insertJournalEntry(user.id, {
+        journal_id: jid,
+        title: null,
+        body: "",
+        tags: [],
+        entry_at_ts: now.toISOString(),
+        entry_at: now.toISOString().slice(0, 10),
+        analyze_for_mirror: false,
+      });
       if (error || !data) {
         toast({
           title: "Couldn't create entry",
@@ -111,6 +106,7 @@ export default function JournalPage() {
       } else {
         navigate(journalNewEntryEditHref(data.id));
       }
+      scheduleEntryContextEnrichment(user.id, data.id);
     } finally {
       setCreating(false);
     }

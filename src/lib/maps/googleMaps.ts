@@ -8,8 +8,8 @@ export function googleMapsConfigured(): boolean {
   return Boolean(getGoogleMapsApiKey());
 }
 
-/** Default map style for journal Map tab (satellite + roads/labels). */
-export const JOURNAL_DEFAULT_MAP_TYPE = "hybrid" as const;
+/** Default map style for journal entry maps (road map). */
+export const JOURNAL_DEFAULT_MAP_TYPE = "roadmap" as const;
 
 /** Road map for the All Entries places overview. */
 export const JOURNAL_OVERVIEW_MAP_TYPE = "roadmap" as const;

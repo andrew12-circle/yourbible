@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 /**
  * Auto-capture context for new journal entries: geolocation, reverse geocoding,
  * and weather. All providers are keyless (Open-Meteo + OSM Nominatim).
@@ -120,6 +122,28 @@ function writeCache(ctx: EntryContext) {
   } catch {
     /* ignore */
   }
+}
+
+/** After a blank entry is created, fill location/weather in the background (non-blocking). */
+export function scheduleEntryContextEnrichment(userId: string, entryId: string): void {
+  void getCurrentContext()
+    .then((ctx) => {
+      const hasCtx = ctx.lat != null || ctx.location_name || ctx.weather;
+      if (!hasCtx) return;
+      return supabase
+        .from("journal_entries")
+        .update({
+          location_name: ctx.location_name ?? null,
+          lat: ctx.lat ?? null,
+          lng: ctx.lng ?? null,
+          weather: ctx.weather ?? null,
+          weather_temp_c: ctx.weather_temp_c ?? null,
+          weather_icon: ctx.weather_icon ?? null,
+        })
+        .eq("id", entryId)
+        .eq("user_id", userId);
+    })
+    .catch(() => undefined);
 }
 
 export function formatTemp(c?: number | null): string {

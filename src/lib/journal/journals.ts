@@ -88,9 +88,14 @@ export async function listJournals(): Promise<Journal[]> {
   return (data as Journal[]) ?? [];
 }
 
+/** Sync pick from an already-loaded journal list (avoids extra DB round trips). */
+export function pickDefaultJournalId(journals: Journal[]): string | null {
+  return journals.find((j) => j.is_default)?.id ?? journals[0]?.id ?? null;
+}
+
 export async function getDefaultJournalId(userId: string): Promise<string | null> {
   const list = await ensureDefaultJournal(userId);
-  return list.find((j) => j.is_default)?.id ?? list[0]?.id ?? null;
+  return pickDefaultJournalId(list);
 }
 
 export async function createJournal(

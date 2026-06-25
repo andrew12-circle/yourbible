@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Video } from "lucide-react";
+import { Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import JournalVideoCaptureDialog from "@/components/journal/JournalVideoCaptureDialog";
@@ -112,9 +112,10 @@ export default function JournalVideoCaptureButton({
               snapAnchor();
             }}
             onClick={openCapture}
-            aria-label="Record video journal"
+            aria-label="Record video"
+            title="Record video"
           >
-            <Video className={iconClass} />
+            <Film className={iconClass} />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
@@ -122,7 +123,7 @@ export default function JournalVideoCaptureButton({
             ? "Video journaling isn't supported in this browser."
             : !entryId
               ? "Open an entry to record video"
-              : "Record yourself — camera or screen share like Loom"}
+              : "Record video — camera or screen share"}
         </TooltipContent>
       </Tooltip>
 

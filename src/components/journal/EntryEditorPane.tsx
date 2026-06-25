@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal, Maximize2, NotebookText, Plus, X, Trash2,
   Heading1, List as ListIcon, ListOrdered, CheckSquare, Quote,
-  Table as TableIcon, Paperclip, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle, Link2,
+  Table as TableIcon, Image as ImageIcon, Tag, Sparkles, Loader2, MapPin, PenLine, MessageCircle, Link2,
 } from "lucide-react";
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
@@ -938,8 +938,8 @@ export default function EntryEditorPane({
         <TBtn title="Wikilink ([[note]], [[video:…]], [[belief:…]])" onClick={() => insert("[[", "]]", "title")}><Link2 className="w-4 h-4" /></TBtn>
         <TBtn title="Table" onClick={() => insert("\n| col1 | col2 |\n| --- | --- |\n| ", " | |\n", "")}><TableIcon className="w-4 h-4" /></TBtn>
         <div className="w-px h-5 bg-border mx-1" />
-        <TBtn title="Attach photo" onClick={() => fileInputRef.current?.click()}>
-          <Paperclip className="w-4 h-4" />
+        <TBtn title="Add photo" onClick={() => fileInputRef.current?.click()}>
+          <ImageIcon className="w-4 h-4" />
         </TBtn>
         {!inlineChatMode ? (
           <JournalVideoCaptureButton
@@ -1446,7 +1446,9 @@ function TBtn({
 }) {
   return (
     <button
+      type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       className={`p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground ${className ?? ""}`}
     >
