@@ -1,13 +1,25 @@
-import { useRef, useState } from "react";
-import { Calendar, GripVertical, StickyNote } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Calendar, GripVertical, Pin, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { localDateISO } from "@/lib/habits/dates";
 import type { TodoItemRow, TodoPriority } from "@/lib/todos/api";
-import { PRIORITY_COLORS } from "@/lib/todos/api";
+import {
+  effectiveEndDate,
+  isPinnedToday,
+  PRIORITY_COLORS,
+  remainingDays,
+  STATUS_BADGE_CLASSES,
+  STATUS_LABELS,
+  TASK_TYPE_BORDER_COLORS,
+  TASK_TYPE_LABELS,
+  type TodoTaskType,
+} from "@/lib/todos/api";
 
 type Props = {
   item: TodoItemRow;
   onToggle: (done: boolean) => void;
   onOpen: () => void;
+  onPin?: () => void;
   onReorder?: (fromId: string, toId: string) => void;
   draggable?: boolean;
   subtaskCount?: number;
@@ -17,6 +29,7 @@ export default function TodoItemRowComponent({
   item,
   onToggle,
   onOpen,
+  onPin,
   onReorder,
   draggable = true,
   subtaskCount = 0,
@@ -25,6 +38,12 @@ export default function TodoItemRowComponent({
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const todayISO = useMemo(() => localDateISO(), []);
+
+  const pinned = isPinnedToday(item, todayISO);
+  const endDate = effectiveEndDate(item);
+  const daysLeft = remainingDays(endDate, todayISO);
+  const status = item.status ?? (item.done ? "done" : "not_started");
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -51,17 +70,24 @@ export default function TodoItemRowComponent({
   };
 
   const dueLabel =
-    item.due_date &&
-    new Date(item.due_date + "T12:00:00").toLocaleDateString(undefined, {
+    endDate &&
+    new Date(endDate + "T12:00:00").toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     });
 
+  const typeBorder =
+    item.task_type != null
+      ? TASK_TYPE_BORDER_COLORS[item.task_type as TodoTaskType]
+      : "border-l-transparent";
+
   return (
     <div
       className={cn(
-        "group relative rounded-xl border bg-card transition-shadow",
+        "group relative rounded-xl border border-l-4 bg-card transition-shadow",
+        typeBorder,
         dragOver && "ring-2 ring-primary/30",
+        pinned && "bg-yellow-100/80 dark:bg-yellow-950/40",
         item.done && "opacity-60",
       )}
     >
@@ -125,11 +151,36 @@ export default function TodoItemRowComponent({
             {item.title}
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
+            {item.task_type && (
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {TASK_TYPE_LABELS[item.task_type]}
+              </span>
+            )}
+            {status !== "not_started" && (
+              <span
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-md",
+                  STATUS_BADGE_CLASSES[status],
+                )}
+              >
+                {STATUS_LABELS[status]}
+              </span>
+            )}
             {item.priority > 0 && (
               <span
                 className={cn("w-2 h-2 rounded-full", PRIORITY_COLORS[item.priority as TodoPriority])}
                 title={`Priority ${item.priority}`}
               />
+            )}
+            {daysLeft != null && (
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  daysLeft < 0 ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground",
+                )}
+              >
+                {daysLeft < 0 ? `Past Due (${Math.abs(daysLeft)}d)` : daysLeft === 0 ? "Due today" : `${daysLeft}d left`}
+              </span>
             )}
             {dueLabel && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -141,6 +192,22 @@ export default function TodoItemRowComponent({
             {subtaskCount > 0 && <span className="text-xs text-muted-foreground">{subtaskCount} subtasks</span>}
           </div>
         </button>
+        {onPin && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPin();
+            }}
+            className={cn(
+              "shrink-0 p-1.5 rounded-lg transition",
+              pinned ? "text-amber-600 bg-amber-100 dark:bg-amber-950" : "text-muted-foreground/50 hover:text-amber-600 hover:bg-secondary",
+            )}
+            aria-label={pinned ? "Unpin from today" : "Pin for today"}
+          >
+            <Pin className={cn("w-4 h-4", pinned && "fill-current")} />
+          </button>
+        )}
       </div>
     </div>
   );

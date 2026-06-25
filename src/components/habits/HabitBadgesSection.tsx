@@ -22,7 +22,7 @@ export function HabitBadgesSection({ unlocked }: Props) {
           {unlockedCount}/{HABIT_BADGE_DEFS.length}
         </span>
       </div>
-      <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-0.5 px-0.5">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2.5">
         {HABIT_BADGE_DEFS.map((badge) => (
           <HabitBadgeCard
             key={badge.id}

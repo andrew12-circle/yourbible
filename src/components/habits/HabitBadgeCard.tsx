@@ -21,7 +21,7 @@ export function HabitBadgeCard({ badge, unlocked, unlockedAt, compact }: Props) 
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border shadow-sm",
-        compact ? "min-w-[120px] w-[120px] shrink-0" : "min-w-[140px] flex-1",
+        compact ? "w-full shrink-0" : "min-w-[140px] flex-1",
         unlocked ? `border-white/20 ring-2 ${TIER_RING[badge.tier]}` : "border-zinc-200/80 opacity-75",
       )}
     >

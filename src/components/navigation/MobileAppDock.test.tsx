@@ -1,5 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import MobileAppDock from "./MobileAppDock";
 
@@ -22,8 +21,7 @@ describe("MobileAppDock", () => {
     expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
   });
 
-  it("calls journal handler from minimal variant", async () => {
-    const user = userEvent.setup();
+  it("calls journal handler from minimal variant", () => {
     const onJournalClick = vi.fn();
 
     render(
@@ -35,7 +33,7 @@ describe("MobileAppDock", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Journal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Journal" }));
     expect(onJournalClick).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { DEFAULT_HABIT_NAMES } from "@/lib/habits/defaults";
+import { countsForCredit } from "@/lib/habits/credit";
 import { yearMonthFromDate } from "@/lib/habits/dates";
 import { throwSupabaseError } from "@/lib/supabase/errors";
 
@@ -44,7 +45,7 @@ export async function listAllCompletionDates(
   if (habitIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from("habit_completions")
-    .select("habit_id, completion_date")
+    .select("habit_id, completion_date, created_at")
     .eq("user_id", userId)
     .in("habit_id", habitIds)
     .order("completion_date", { ascending: true });
@@ -52,6 +53,7 @@ export async function listAllCompletionDates(
 
   const map = new Map<string, string[]>();
   for (const row of data ?? []) {
+    if (!countsForCredit(row.completion_date, row.created_at)) continue;
     const list = map.get(row.habit_id) ?? [];
     list.push(row.completion_date);
     map.set(row.habit_id, list);
@@ -122,13 +124,19 @@ export async function toggleCompletion(
 
 export async function importDefaultHabits(userId: string): Promise<number> {
   const existing = await listHabits(userId);
-  if (existing.length > 0) return 0;
+  const existingNames = new Set(existing.map((h) => h.name.trim().toLowerCase()));
 
-  const rows: TablesInsert<"habits">[] = DEFAULT_HABIT_NAMES.map((h, i) => ({
+  const missing = DEFAULT_HABIT_NAMES.filter(
+    (h) => !existingNames.has(h.name.trim().toLowerCase()),
+  );
+  if (missing.length === 0) return 0;
+
+  const startOrder = existing.length;
+  const rows: TablesInsert<"habits">[] = missing.map((h, i) => ({
     user_id: userId,
     name: h.name,
     category: h.category ?? null,
-    sort_order: i,
+    sort_order: startOrder + i,
   }));
   const { error } = await supabase.from("habits").insert(rows);
   if (error) throwSupabaseError(error);

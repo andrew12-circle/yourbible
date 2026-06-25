@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,8 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TodoItemRow, TodoListRow, TodoPriority } from "@/lib/todos/api";
-import { PRIORITY_LABELS } from "@/lib/todos/api";
+import { localDateISO } from "@/lib/habits/dates";
+import type { TodoItemRow, TodoListRow, TodoPriority, TodoStatus, TodoTaskType } from "@/lib/todos/api";
+import {
+  PRIORITY_LABELS,
+  remainingDays,
+  STATUS_LABELS,
+  TASK_TYPE_LABELS,
+  TASK_TYPES,
+} from "@/lib/todos/api";
 
 type Props = {
   open: boolean;
@@ -40,20 +52,32 @@ export default function TodoDetailSheet({
 }: Props) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [taskType, setTaskType] = useState<TodoTaskType | "">("");
+  const [status, setStatus] = useState<TodoStatus>("not_started");
   const [priority, setPriority] = useState<TodoPriority>(0);
   const [listId, setListId] = useState<string>("");
   const [subtaskDraft, setSubtaskDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const todayISO = useMemo(() => localDateISO(), []);
 
   useEffect(() => {
     if (!item) return;
     setTitle(item.title);
     setNotes(item.notes ?? "");
-    setDueDate(item.due_date ?? "");
+    setStartDate(item.start_date ?? "");
+    setEndDate(item.end_date ?? item.due_date ?? "");
+    setTaskType(item.task_type ?? "");
+    setStatus(item.status ?? (item.done ? "done" : "not_started"));
     setPriority(item.priority as TodoPriority);
     setListId(item.list_id ?? "");
   }, [item]);
+
+  const daysLeft = useMemo(
+    () => remainingDays(endDate || null, todayISO),
+    [endDate, todayISO],
+  );
 
   if (!item) return null;
 
@@ -67,12 +91,12 @@ export default function TodoDetailSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="max-h-[88dvh] rounded-t-2xl overflow-y-auto">
-        <SheetHeader className="text-left pb-2">
-          <SheetTitle className="sr-only">Task details</SheetTitle>
-        </SheetHeader>
-        <div className="space-y-4 pb-8">
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="sr-only">Task details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -83,16 +107,27 @@ export default function TodoDetailSheet({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Due</Label>
-              <Input
-                type="date"
-                value={dueDate}
-                onChange={(e) => {
-                  setDueDate(e.target.value);
-                  void persist({ due_date: e.target.value || null });
+              <Label className="text-xs text-muted-foreground">Type</Label>
+              <Select
+                value={taskType || "__none"}
+                onValueChange={(v) => {
+                  const next = v === "__none" ? null : (v as TodoTaskType);
+                  setTaskType(next ?? "");
+                  void persist({ task_type: next });
                 }}
-                className="mt-1"
-              />
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  {TASK_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {TASK_TYPE_LABELS[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Priority</Label>
@@ -111,6 +146,74 @@ export default function TodoDetailSheet({
                   {([0, 1, 2, 3] as TodoPriority[]).map((p) => (
                     <SelectItem key={p} value={String(p)}>
                       {PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Start date</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  void persist({ start_date: e.target.value || null });
+                }}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">End date</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  void persist({ end_date: e.target.value || null, due_date: e.target.value || null });
+                }}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Remaining days</Label>
+              <p
+                className={`mt-2 text-sm font-medium tabular-nums ${
+                  daysLeft != null && daysLeft < 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
+                }`}
+              >
+                {daysLeft == null
+                  ? "—"
+                  : daysLeft < 0
+                    ? `Past Due (${Math.abs(daysLeft)}d)`
+                    : daysLeft === 0
+                      ? "Due today"
+                      : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v) => {
+                  const next = v as TodoStatus;
+                  setStatus(next);
+                  void persist({ status: next });
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(STATUS_LABELS) as TodoStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STATUS_LABELS[s]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -205,7 +308,7 @@ export default function TodoDetailSheet({
             Delete task
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

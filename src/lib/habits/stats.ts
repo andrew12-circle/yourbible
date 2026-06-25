@@ -5,6 +5,7 @@ import {
   monthWeekRanges,
   parseYearMonth,
 } from "@/lib/habits/dates";
+import { countsForCredit } from "@/lib/habits/credit";
 
 export type MonthStats = {
   /** Overall completion % for elapsed days in month */
@@ -103,15 +104,27 @@ export function buildCompletionSet(
   rows: { habit_id: string; completion_date: string }[],
   yearMonth: string,
 ): Set<string> {
+  return buildCompletionSets(rows, yearMonth).all;
+}
+
+export function buildCompletionSets(
+  rows: { habit_id: string; completion_date: string; created_at?: string }[],
+  yearMonth: string,
+): { all: Set<string>; credit: Set<string> } {
   const { year, month } = parseYearMonth(yearMonth);
   const prefix = `${year}-${String(month).padStart(2, "0")}-`;
-  const set = new Set<string>();
+  const all = new Set<string>();
+  const credit = new Set<string>();
   for (const row of rows) {
     if (!row.completion_date.startsWith(prefix)) continue;
     const day = Number(row.completion_date.slice(8, 10));
-    set.add(completionKey(row.habit_id, year, month, day));
+    const key = completionKey(row.habit_id, year, month, day);
+    all.add(key);
+    if (row.created_at && countsForCredit(row.completion_date, row.created_at)) {
+      credit.add(key);
+    }
   }
-  return set;
+  return { all, credit };
 }
 
 export function isoForDay(year: number, month: number, day: number): string {

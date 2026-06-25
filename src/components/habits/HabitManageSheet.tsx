@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, GripVertical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,18 @@ type Props = {
   onAdd: (name: string, category: string | null) => Promise<void>;
   onArchive: (id: string) => Promise<void>;
   onReorder: (ids: string[]) => Promise<void>;
+  onImportDefaults?: () => Promise<void>;
 };
 
-export function HabitManageSheet({ open, onOpenChange, habits, onAdd, onArchive, onReorder }: Props) {
+export function HabitManageSheet({
+  open,
+  onOpenChange,
+  habits,
+  onAdd,
+  onArchive,
+  onReorder,
+  onImportDefaults,
+}: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [localOrder, setLocalOrder] = useState<string[]>([]);
@@ -66,11 +75,27 @@ export function HabitManageSheet({ open, onOpenChange, habits, onAdd, onArchive,
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-[22px]">
+      <SheetContent
+        side="bottom"
+        className="max-h-[85dvh] rounded-t-[22px] inset-x-auto left-1/2 right-auto w-full max-w-lg -translate-x-1/2"
+      >
         <SheetHeader>
           <SheetTitle>Manage habits</SheetTitle>
           <SheetDescription>Add, reorder, or remove habits from your tracker.</SheetDescription>
         </SheetHeader>
+
+        {onImportDefaults ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-4 w-full"
+            disabled={saving}
+            onClick={() => void onImportDefaults()}
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Import habits from sheet
+          </Button>
+        ) : null}
 
         <div className="mt-4 space-y-3">
           <div className="space-y-1.5">

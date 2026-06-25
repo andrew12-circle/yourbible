@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Flame, StickyNote } from "lucide-react";
 import type { HabitRow } from "@/lib/habits/api";
+import { isMissedDay } from "@/lib/habits/credit";
 import {
   dateISOInMonth,
   daysInMonth,
@@ -16,16 +17,20 @@ type Props = {
   yearMonth: string;
   habits: HabitRow[];
   completionSet: Set<string>;
+  creditCompletionSet: Set<string>;
   streakDatesByHabit: Map<string, string[]>;
   todayDay: number | null;
   onToggle: (habitId: string, day: number, next: boolean) => void;
   onEditNote: (habit: HabitRow) => void;
 };
 
+const HABIT_COL_WIDTH = 176;
+
 export function HabitsMonthGrid({
   yearMonth,
   habits,
   completionSet,
+  creditCompletionSet,
   streakDatesByHabit,
   todayDay,
   onToggle,
@@ -35,6 +40,22 @@ export function HabitsMonthGrid({
   const totalDays = daysInMonth(year, month);
   const lastDay = effectiveLastDay(year, month, yearMonth);
   const days = useMemo(() => Array.from({ length: totalDays }, (_, i) => i + 1), [totalDays]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const todayHeaderRef = useRef<HTMLTableCellElement>(null);
+
+  useEffect(() => {
+    if (todayDay == null) return;
+    const container = scrollRef.current;
+    const marker = todayHeaderRef.current;
+    if (!container || !marker) return;
+
+    const raf = requestAnimationFrame(() => {
+      const targetLeft = marker.offsetLeft - HABIT_COL_WIDTH - 12;
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      container.scrollLeft = Math.min(maxScroll, Math.max(0, targetLeft));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [todayDay, yearMonth, habits.length]);
 
   if (habits.length === 0) {
     return (
@@ -45,18 +66,31 @@ export function HabitsMonthGrid({
   }
 
   return (
-    <div className="rounded-[22px] bg-white/90 border border-zinc-200/80 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto scrollbar-hide">
-        <table className="w-full min-w-[640px] border-collapse text-[11px]">
+    <div className="rounded-[22px] bg-white/90 border border-zinc-200/80 shadow-sm overflow-hidden w-full">
+      <div ref={scrollRef} className="overflow-x-auto scrollbar-hide">
+        <table className="w-full min-w-[640px] table-fixed border-collapse text-[11px]">
+          <colgroup>
+            <col className="w-44" />
+            <col className="w-10" />
+            <col className="w-10" />
+            {days.map((day) => (
+              <col key={day} />
+            ))}
+            <col className="w-8" />
+          </colgroup>
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50/80">
-              <th className="sticky left-0 z-20 bg-zinc-50/95 backdrop-blur px-3 py-2 text-left font-semibold text-zinc-600 min-w-[140px] max-w-[180px]">
+              <th className="sticky left-0 z-20 bg-zinc-50/95 backdrop-blur px-3 py-2 text-left font-semibold text-zinc-600">
                 Habit
               </th>
-              <th className="px-1 py-2 text-center font-medium text-zinc-500 w-10">Cur</th>
-              <th className="px-1 py-2 text-center font-medium text-zinc-500 w-10">Max</th>
+              <th className="px-1 py-2 text-center font-medium text-zinc-500">Cur</th>
+              <th className="px-1 py-2 text-center font-medium text-zinc-500">Max</th>
               {days.map((day) => (
-                <th key={day} className="px-0 py-1 text-center font-normal min-w-[28px]">
+                <th
+                  key={day}
+                  ref={todayDay === day ? todayHeaderRef : undefined}
+                  className="px-0 py-1 text-center font-normal"
+                >
                   <span className="block text-[9px] text-zinc-400 leading-none">{weekdayShort(year, month, day)}</span>
                   <span
                     className={cn(
@@ -93,9 +127,20 @@ export function HabitsMonthGrid({
                   <td className="px-1 py-2 text-center tabular-nums text-zinc-500">{max}</td>
                   {days.map((day) => {
                     const key = completionKey(habit.id, year, month, day);
-                    const done = completionSet.has(key);
+                    const marked = completionSet.has(key);
+                    const credited = creditCompletionSet.has(key);
+                    const late = marked && !credited;
+                    const iso = dateISOInMonth(year, month, day);
                     const future = day > lastDay;
+                    const missed = !future && isMissedDay(iso, marked);
                     const disabled = future;
+                    const statusLabel = credited
+                      ? "done"
+                      : late
+                        ? "logged late, no credit"
+                        : missed
+                          ? "missed"
+                          : "not done";
                     return (
                       <td key={day} className="p-0.5 text-center">
                         <button
@@ -108,16 +153,24 @@ export function HabitsMonthGrid({
                             } catch {
                               /* optional haptic */
                             }
-                            onToggle(habit.id, day, !done);
+                            onToggle(habit.id, day, !marked);
                           }}
-                          aria-label={`${habit.name} day ${day} ${done ? "done" : "not done"}`}
+                          aria-label={`${habit.name} day ${day} ${statusLabel}`}
+                          title={
+                            late
+                              ? "Logged after the 48h window — no streak credit"
+                              : missed
+                                ? "Not completed in time — no credit"
+                                : undefined
+                          }
                           className={cn(
-                            "w-7 h-7 rounded-lg border transition-all active:scale-90",
+                            "mx-auto w-full max-w-8 aspect-square rounded-lg border transition-all active:scale-90",
                             disabled && "opacity-30 cursor-not-allowed",
-                            done
-                              ? "bg-emerald-500 border-emerald-600 shadow-sm"
-                              : "bg-zinc-50 border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50",
-                            todayDay === day && !done && "ring-2 ring-emerald-300/60",
+                            credited && "bg-emerald-500 border-emerald-600 shadow-sm",
+                            late && "bg-emerald-50 border-emerald-500 border-dashed",
+                            missed && "bg-rose-50 border-rose-200",
+                            !marked && !missed && !disabled && "bg-zinc-50 border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50",
+                            todayDay === day && !marked && "ring-2 ring-emerald-300/60",
                           )}
                         />
                       </td>

@@ -44,7 +44,8 @@ import {
   topHabitStreaks,
 } from "@/lib/habits/overallStreak";
 import { computeRingStats } from "@/lib/habits/ringStats";
-import { buildCompletionSet, completionKey, computeMonthStats } from "@/lib/habits/stats";
+import { isCreditWindowOpen } from "@/lib/habits/credit";
+import { buildCompletionSets, completionKey, computeMonthStats } from "@/lib/habits/stats";
 
 export default function HabitsPage() {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ export default function HabitsPage() {
   const [yearMonth, setYearMonth] = useState(() => yearMonthFromDate());
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [completionSet, setCompletionSet] = useState<Set<string>>(new Set());
+  const [creditCompletionSet, setCreditCompletionSet] = useState<Set<string>>(new Set());
   const [streakDatesByHabit, setStreakDatesByHabit] = useState<Map<string, string[]>>(new Map());
   const [unlockedBadges, setUnlockedBadges] = useState<HabitBadgeRow[]>([]);
   const [busy, setBusy] = useState(true);
@@ -79,8 +81,10 @@ export default function HabitsPage() {
         listCompletionsForMonth(user.id, yearMonth),
         listUnlockedBadges(user.id).catch(() => [] as HabitBadgeRow[]),
       ]);
+      const { all, credit } = buildCompletionSets(completions, yearMonth);
       setHabits(habitList);
-      setCompletionSet(buildCompletionSet(completions, yearMonth));
+      setCompletionSet(all);
+      setCreditCompletionSet(credit);
       const streakMap = await listAllCompletionDates(
         user.id,
         habitList.map((h) => h.id),
@@ -106,16 +110,16 @@ export default function HabitsPage() {
     const categories = new Map(habits.map((h) => [h.id, h.category]));
     return computeMonthStats(
       habits.length,
-      completionSet,
+      creditCompletionSet,
       categories,
       habitIds,
       yearMonth,
     );
-  }, [habits, completionSet, yearMonth, habitIds]);
+  }, [habits, creditCompletionSet, yearMonth, habitIds]);
 
   const rings = useMemo(
-    () => computeRingStats(habitIds, completionSet, yearMonth),
-    [habitIds, completionSet, yearMonth],
+    () => computeRingStats(habitIds, creditCompletionSet, yearMonth),
+    [habitIds, creditCompletionSet, yearMonth],
   );
 
   const streakSummary = useMemo(
@@ -172,21 +176,30 @@ export default function HabitsPage() {
     if (!user?.id) return;
     const key = completionKey(habitId, year, month, day);
     const prev = new Set(completionSet);
+    const prevCredit = new Set(creditCompletionSet);
     const optimistic = new Set(completionSet);
-    if (next) optimistic.add(key);
-    else optimistic.delete(key);
-    setCompletionSet(optimistic);
-
+    const creditOptimistic = new Set(creditCompletionSet);
     const iso = isoForToggle(yearMonth, day);
+    if (next) {
+      optimistic.add(key);
+      if (isCreditWindowOpen(iso)) creditOptimistic.add(key);
+    } else {
+      optimistic.delete(key);
+      creditOptimistic.delete(key);
+    }
+    setCompletionSet(optimistic);
+    setCreditCompletionSet(creditOptimistic);
+
     try {
       await toggleCompletion(user.id, habitId, iso, next);
       const dates = streakDatesByHabit.get(habitId) ?? [];
-      const nextDates = next
+      const nextDates = next && isCreditWindowOpen(iso)
         ? [...new Set([...dates, iso])].sort()
         : dates.filter((d) => d !== iso);
       setStreakDatesByHabit(new Map(streakDatesByHabit).set(habitId, nextDates));
     } catch (e) {
       setCompletionSet(prev);
+      setCreditCompletionSet(prevCredit);
       toast({
         title: "Couldn't save",
         description: getErrorMessage(e),
@@ -200,7 +213,7 @@ export default function HabitsPage() {
     try {
       const n = await importDefaultHabits(user.id);
       if (n === 0) {
-        toast({ title: "Already set up", description: "You already have habits." });
+        toast({ title: "Already up to date", description: "All sheet habits are already on your list." });
         return;
       }
       toast({ title: "Imported", description: `${n} habits added from your sheet template.` });
@@ -268,7 +281,7 @@ export default function HabitsPage() {
         </Button>
       </header>
 
-      <div className={hubShellScrollMain(showHubShell, "max-w-4xl mx-auto px-4 py-4 space-y-4")}>
+      <div className={hubShellScrollMain(showHubShell, "px-4 py-4 space-y-4")}>
         {busy ? (
           <div className="flex justify-center py-16 text-muted-foreground gap-2 items-center">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -276,53 +289,58 @@ export default function HabitsPage() {
           </div>
         ) : (
           <>
-            <HabitsHeader
-              monthLabel={monthLabel}
-              stats={stats}
-              rings={rings}
-              onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
-              onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
-              canGoNext={canGoNext}
-            />
+            <div className="mx-auto w-full max-w-4xl space-y-4">
+              <HabitsHeader
+                monthLabel={monthLabel}
+                stats={stats}
+                rings={rings}
+                onPrevMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, -1))}
+                onNextMonth={() => setYearMonth((ym) => addMonthsYearMonth(ym, 1))}
+                canGoNext={canGoNext}
+              />
 
-            {habits.length > 0 ? (
-              <>
+              {habits.length > 0 ? (
                 <HabitStreakSummary
                   activeStreak={streakSummary.active}
                   perfectStreak={streakSummary.perfect}
                   topHabits={streakSummary.top}
                 />
+              ) : null}
+
+              {thresholdMsg ? (
+                <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/40 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <p>{thresholdMsg}</p>
+                </div>
+              ) : null}
+
+              {habits.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <Button type="button" onClick={() => void onImportDefaults()}>
+                    Import defaults from sheet
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setManageOpen(true)}>
+                    Add habits manually
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+
+            {habits.length > 0 ? (
+              <>
                 <HabitBadgesSection unlocked={unlockedBadges} />
+                <HabitsMonthGrid
+                  yearMonth={yearMonth}
+                  habits={habits}
+                  completionSet={completionSet}
+                  creditCompletionSet={creditCompletionSet}
+                  streakDatesByHabit={streakDatesByHabit}
+                  todayDay={todayDay}
+                  onToggle={(id, day, next) => void onToggle(id, day, next)}
+                  onEditNote={(h) => void openNote(h)}
+                />
               </>
             ) : null}
-
-            {thresholdMsg ? (
-              <div className="flex items-start gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/40 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-                <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                <p>{thresholdMsg}</p>
-              </div>
-            ) : null}
-
-            {habits.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-8">
-                <Button type="button" onClick={() => void onImportDefaults()}>
-                  Import defaults from sheet
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setManageOpen(true)}>
-                  Add habits manually
-                </Button>
-              </div>
-            ) : (
-              <HabitsMonthGrid
-                yearMonth={yearMonth}
-                habits={habits}
-                completionSet={completionSet}
-                streakDatesByHabit={streakDatesByHabit}
-                todayDay={todayDay}
-                onToggle={(id, day, next) => void onToggle(id, day, next)}
-                onEditNote={(h) => void openNote(h)}
-              />
-            )}
           </>
         )}
       </div>
@@ -331,6 +349,7 @@ export default function HabitsPage() {
         open={manageOpen}
         onOpenChange={setManageOpen}
         habits={habits}
+        onImportDefaults={onImportDefaults}
         onAdd={async (name, category) => {
           if (!user?.id) return;
           await createHabit(user.id, { name, category, sort_order: habits.length });
