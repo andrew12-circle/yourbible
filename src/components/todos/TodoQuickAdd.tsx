@@ -27,7 +27,6 @@ export type QuickAddPayload = {
 
 type Props = {
   inputRef?: React.RefObject<HTMLInputElement | null>;
-  userId?: string;
   lists?: TodoListRow[];
   defaultListId?: string | null;
   showListPicker?: boolean;
@@ -38,7 +37,6 @@ type Props = {
 
 export default function TodoQuickAdd({
   inputRef,
-  userId,
   lists = [],
   defaultListId = null,
   showListPicker = false,
@@ -123,7 +121,7 @@ export default function TodoQuickAdd({
             <div className="absolute right-0.5 top-1/2 -translate-y-1/2">
               <DictateButton
                 ref={dictateRef}
-                userId={userId}
+                webSpeechOnly
                 size="sm"
                 className="h-9 w-9 rounded-lg"
                 onAppend={(chunk) => setTitle((t) => mergeDictatedText(t, chunk))}

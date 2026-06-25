@@ -20,6 +20,8 @@ export type DictateButtonProps = {
   onInterim?: (partial: string) => void;
   /** Fires when the browser speech session starts/stops (for silence-based auto-send, etc.). */
   onListeningChange?: (listening: boolean) => void;
+  /** Browser Web Speech API only — no record-and-transcribe fallback. */
+  webSpeechOnly?: boolean;
   language?: string;
   size?: "sm" | "md";
   className?: string;
@@ -43,8 +45,11 @@ function clearPersistedMediaFallback(): void {
   }
 }
 
+const WEB_SPEECH_UNSUPPORTED_MSG =
+  "Live dictation needs Chrome, Edge, or Safari. Enable microphone access in your browser settings.";
+
 export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>(function DictateButton(
-  { userId, onAppend, onInterim, onListeningChange, language, size = "sm", className },
+  { userId, onAppend, onInterim, onListeningChange, webSpeechOnly = false, language, size = "sm", className },
   ref,
 ) {
   const onListeningChangeRef = useRef(onListeningChange);
@@ -64,10 +69,14 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     return false;
   });
 
+  useEffect(() => {
+    if (webSpeechOnly) clearPersistedMediaFallback();
+  }, [webSpeechOnly]);
+
   const speech = useSpeechDictation({ onAppend, onInterim: handleInterim, language });
   const media = useMediaRecorderDictation({ userId, onAppend, onInterim: handleInterim });
 
-  const useMedia = preferMedia || !speech.supported;
+  const useMedia = !webSpeechOnly && (preferMedia || !speech.supported);
 
   const active = useMedia ? media : speech;
   const { listening, error, stop, toggle } = active;
@@ -136,7 +145,14 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
       return;
     }
 
-    if (!useMedia && isNetworkish && media.supported && userId && !switchingRef.current) {
+    if (
+      !webSpeechOnly &&
+      !useMedia &&
+      isNetworkish &&
+      media.supported &&
+      userId &&
+      !switchingRef.current
+    ) {
       switchingRef.current = true;
       void (async () => {
         const edgeOk = await probeJournalVoiceEdge();
@@ -162,7 +178,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     }
 
     toast({ title: "Dictation", description: error, variant: "destructive" });
-  }, [error, useMedia, media.supported, userId, speech]);
+  }, [error, useMedia, webSpeechOnly, media.supported, userId, speech]);
 
   useEffect(() => {
     if (!error) lastToasted.current = null;
@@ -171,9 +187,11 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   const iconClass = size === "md" ? "h-5 w-5" : "h-4 w-4";
   const btnClass = size === "md" ? "h-10 w-10" : "h-8 w-8";
 
-  const tip = !supported
-    ? "Voice dictation isn't supported in this browser yet."
-    : transcribing
+  const tip = webSpeechOnly && !speech.supported
+    ? "Live dictation needs Chrome, Edge, or Safari"
+    : !supported
+      ? "Voice dictation isn't supported in this browser yet."
+      : transcribing
       ? "Transcribing…"
       : listening
         ? useMedia
@@ -190,7 +208,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           type="button"
           variant="ghost"
           size="icon"
-          disabled={!supported || transcribing}
+          disabled={webSpeechOnly ? transcribing : !supported || transcribing}
           aria-pressed={listening}
           aria-label={listening ? "Stop dictation" : "Dictate"}
           className={cn(
@@ -200,6 +218,10 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
             className,
           )}
           onClick={() => {
+            if (webSpeechOnly && !speech.supported) {
+              toast({ title: "Voice dictation unavailable", description: WEB_SPEECH_UNSUPPORTED_MSG });
+              return;
+            }
             if (supported) toggle();
           }}
         >

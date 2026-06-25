@@ -196,6 +196,14 @@ export default function TodosPage() {
 
   const todayISO = useMemo(() => localDateISO(), []);
 
+  useEffect(() => {
+    try {
+      localStorage.removeItem("journal.dictation.prefer_media");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
 
 
   const load = useCallback(async () => {
@@ -979,7 +987,6 @@ export default function TodosPage() {
 
           <TodoQuickAdd
             inputRef={quickRef}
-            userId={user?.id}
             lists={lists}
             defaultListId={defaultQuickAddListId}
             showListPicker={view === "inbox" || view === "all" || view === "backlog"}
