@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   clampArtifactPipLayout,
   defaultArtifactPipLayout,
+  intersectionRatioForPipTarget,
   maxPipVideoWidthForTopLeft,
   PIP_MIN_W,
   PIP_ENTER_DELAY_MS,
@@ -107,15 +108,12 @@ export function useArtifactYoutubePip(options: {
       clearExitTimer();
     };
 
-    const onIntersection = (entries: IntersectionObserverEntry[]) => {
-      const entry = entries[0];
-      if (!entry) return;
-
-      if (entry.intersectionRatio >= PIP_ENTER_CANCEL_RATIO) {
+    const deliverIntersectionRatio = (intersectionRatio: number) => {
+      if (intersectionRatio >= PIP_ENTER_CANCEL_RATIO) {
         pipEnterArmedRef.current = true;
       }
 
-      const signal = pipVisibilitySignal(pipModeRef.current, entry.intersectionRatio);
+      const signal = pipVisibilitySignal(pipModeRef.current, intersectionRatio);
 
       switch (signal) {
         case "enter":
@@ -147,6 +145,35 @@ export function useArtifactYoutubePip(options: {
         case "hold":
           break;
       }
+    };
+
+    const onIntersection = (entries: IntersectionObserverEntry[]) => {
+      const entry = entries[0];
+      if (!entry) return;
+      if (document.hidden) {
+        clearTimers();
+        return;
+      }
+      deliverIntersectionRatio(entry.intersectionRatio);
+    };
+
+    const refreshIntersectionAfterTabVisible = () => {
+      const target = ioTargetRef.current;
+      if (!target) return;
+      const records = ioRef.current?.takeRecords();
+      if (records?.length) {
+        onIntersection(records);
+        return;
+      }
+      deliverIntersectionRatio(intersectionRatioForPipTarget(target, ioRootRef.current));
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        clearTimers();
+        return;
+      }
+      refreshIntersectionAfterTabVisible();
     };
 
     const attach = () => {
@@ -197,9 +224,11 @@ export function useArtifactYoutubePip(options: {
     let pollRaf = window.requestAnimationFrame(pollAttach);
     const onResize = () => attach();
     window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.cancelAnimationFrame(pollRaf);
       clearTimers();
+      document.removeEventListener("visibilitychange", onVisibility);
       ioRef.current?.disconnect();
       ioRef.current = null;
       ioRootRef.current = null;

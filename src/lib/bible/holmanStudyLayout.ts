@@ -114,6 +114,10 @@ export function formatHolmanXrefBlockLines(entries: HolmanXrefEntry[]): string[]
   });
 }
 
+export function versesHavePageFootnotes(verses: PassageVerse[]): boolean {
+  return collectPageFootnotes(verses).length > 0;
+}
+
 export function collectPageFootnotes(verses: PassageVerse[]): PassageFootnote[] {
   const seen = new Set<number>();
   const out: PassageFootnote[] = [];

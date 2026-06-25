@@ -166,7 +166,7 @@ export function wrapHolmanStudyContent(
   return (
     <div
       className={cn(
-        "holman-study-stack",
+        "scripture-page-stack holman-study-stack",
         !scrollMode && "min-h-0 flex flex-col",
         !scrollMode && !stackStyle && "h-full",
       )}

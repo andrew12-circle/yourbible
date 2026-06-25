@@ -71,8 +71,12 @@ export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProper
   return { ...base, height: h, maxHeight: h };
 }
 
-function holmanScriptureColumnsEl(stack: HTMLElement): HTMLElement | null {
+function studyStackScriptureColumnsEl(stack: HTMLElement): HTMLElement | null {
   return stack.querySelector('[class*="scripture-columns"]') as HTMLElement | null;
+}
+
+function studyStackFootnotesEl(stack: HTMLElement): HTMLElement | null {
+  return stack.querySelector(".scripture-page-footnotes") as HTMLElement | null;
 }
 
 export function applyHolmanStudyMeasureHtml(
@@ -99,7 +103,7 @@ export function applyHolmanStudyMeasureHtml(
     : scriptureHtml;
   const scriptureSection = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInner}</div>`;
   node.innerHTML =
-    `<div class="holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
+    `<div class="scripture-page-stack holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
     scriptureSection +
     connectionsHtml +
     footnotesHtml +
@@ -138,29 +142,35 @@ export function scriptureContentFitsPage(
   columnsClassName?: string,
 ): boolean {
   const limit = Math.max(1, Math.round(contentHeightPx));
-  const holmanStack = node.querySelector(".holman-study-stack") as HTMLElement | null;
-  if (holmanStack) {
-    holmanStack.style.height = `${limit}px`;
-    holmanStack.style.maxHeight = `${limit}px`;
-    holmanStack.style.overflow = "hidden";
+  const studyStack = node.querySelector(".scripture-page-stack, .holman-study-stack") as HTMLElement | null;
+  if (studyStack) {
+    studyStack.style.height = `${limit}px`;
+    studyStack.style.maxHeight = `${limit}px`;
+    studyStack.style.overflow = "hidden";
 
-    let fits = holmanStack.scrollHeight <= limit + 1;
-    const columns = holmanScriptureColumnsEl(holmanStack);
+    let fits = studyStack.scrollHeight <= limit + 1;
+    const columns = studyStackScriptureColumnsEl(studyStack);
     if (columns && fits) {
       if (columns.clientHeight <= 0) fits = false;
       if (columns.scrollHeight > columns.clientHeight + 1) fits = false;
       if (columns.scrollWidth > columns.clientWidth + 2) fits = false;
     }
-    const connections = holmanStack.querySelector(".scripture-connections-row") as HTMLElement | null;
+    const connections = studyStack.querySelector(".scripture-connections-row") as HTMLElement | null;
     if (connections && fits) {
-      const stackRect = holmanStack.getBoundingClientRect();
+      const stackRect = studyStack.getBoundingClientRect();
       const connRect = connections.getBoundingClientRect();
       if (connRect.bottom > stackRect.bottom + 1) fits = false;
     }
+    const footnotes = studyStackFootnotesEl(studyStack);
+    if (footnotes && fits) {
+      const stackRect = studyStack.getBoundingClientRect();
+      const notesRect = footnotes.getBoundingClientRect();
+      if (notesRect.bottom > stackRect.bottom + 1) fits = false;
+    }
 
-    holmanStack.style.height = "";
-    holmanStack.style.maxHeight = "";
-    holmanStack.style.overflow = "";
+    studyStack.style.height = "";
+    studyStack.style.maxHeight = "";
+    studyStack.style.overflow = "";
     return fits;
   }
   if (!columnsClassName) {

@@ -7,6 +7,7 @@ import {
   formatHolmanXrefBlockLines,
   holmanVerseGroupsForRenderedPage,
   splitHolmanVerseGroupsByColumn,
+  versesHavePageFootnotes,
 } from "@/lib/bible/holmanStudyLayout";
 import type { PassageVerse } from "@/lib/bible/api";
 import type { ReaderStreamUnit } from "@/lib/bible/readerStream";
@@ -103,6 +104,8 @@ describe("holmanStudyLayout", () => {
       { marker: 1, text: "Lit sons" },
       { marker: 2, text: "Or upright" },
     ]);
+    expect(versesHavePageFootnotes(verses)).toBe(true);
+    expect(versesHavePageFootnotes([{ number: 1, text: "Plain" }])).toBe(false);
   });
 
   it("wraps letters after z", () => {

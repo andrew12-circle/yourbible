@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampArtifactPipLayout,
   defaultArtifactPipLayout,
+  intersectionRatioForPipTarget,
   PIP_ENTER_CANCEL_RATIO,
   PIP_ENTER_VISIBLE_RATIO,
   PIP_EXIT_VISIBLE_RATIO,
@@ -54,6 +55,25 @@ describe("shouldAllowPipEnter", () => {
     expect(shouldAllowPipEnter(false, "enter")).toBe(false);
     expect(shouldAllowPipEnter(true, "enter")).toBe(true);
     expect(shouldAllowPipEnter(true, "cancel_enter")).toBe(false);
+  });
+});
+
+describe("intersectionRatioForPipTarget", () => {
+  it("computes visible height fraction for viewport root", () => {
+    const target = document.createElement("div");
+    target.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        bottom: 400,
+        left: 0,
+        right: 100,
+        width: 100,
+        height: 300,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    expect(intersectionRatioForPipTarget(target, null)).toBeCloseTo(1);
   });
 });
 

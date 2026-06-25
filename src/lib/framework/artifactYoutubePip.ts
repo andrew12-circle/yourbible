@@ -29,6 +29,19 @@ export function shouldUseScrollRootForPipIo(
   return Boolean(scrollRoot && target && scrollRoot.contains(target) && splitPaneScrollRoot);
 }
 
+/** Match IntersectionObserver ratio for PiP enter/exit (viewport or scroll-root root). */
+export function intersectionRatioForPipTarget(target: Element, root: Element | null): number {
+  const targetRect = target.getBoundingClientRect();
+  if (targetRect.height <= 0) return 0;
+
+  const rootTop = root ? root.getBoundingClientRect().top : 0;
+  const rootBottom = root ? root.getBoundingClientRect().bottom : window.innerHeight;
+  const visibleTop = Math.max(targetRect.top, rootTop);
+  const visibleBottom = Math.min(targetRect.bottom, rootBottom);
+  const visibleH = Math.max(0, visibleBottom - visibleTop);
+  return visibleH / targetRect.height;
+}
+
 /** Block enter until the slot has been at least half visible (avoids false PiP on load). */
 export function shouldAllowPipEnter(armed: boolean, signal: PipVisibilitySignal): boolean {
   return signal === "enter" && armed;

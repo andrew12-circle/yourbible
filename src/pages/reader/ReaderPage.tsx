@@ -146,7 +146,7 @@ import {
   formatReaderSourceLine,
   readerEditionAbbreviation,
 } from "@/lib/bible/readerEditionAttribution";
-import { holmanVerseGroupsForRenderedPage } from "@/lib/bible/holmanStudyLayout";
+import { holmanVerseGroupsForRenderedPage, versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
 import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
@@ -1358,10 +1358,9 @@ export default function ReaderPage() {
       activeStudyLayout === "holman" &&
       holmanVerseGroups.some((group) => group.verses.length > 0) &&
       (scrollMode || pageContentReady);
-    const showHolmanFootnotes =
-      activeStudyLayout === "holman" &&
-      holmanFootnoteVerses.length > 0 &&
-      (scrollMode || pageContentReady);
+    const showPageFootnotes =
+      versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
+    const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
     const scriptureColumnHeightPx = pageContentReady
       ? readerColumnContentHeightPx({
           columnLayoutActive: !scrollMode && Boolean(columnClassName),
@@ -1465,6 +1464,7 @@ export default function ReaderPage() {
                 scrollMode ? "w-full" : "flex-1 min-h-0 w-full overflow-hidden",
                 scriptureTypoClass,
                 activeStudyLayout === "holman" && "reader-holman-study",
+                showPageFootnotes && "reader-page-footnotes",
                 inkMode ? "!select-none" : "selectable-text",
               )}
               style={{
@@ -1537,13 +1537,13 @@ export default function ReaderPage() {
                     )
                   ) : null;
 
-                if (activeStudyLayout === "holman") {
+                if (useStudyPageStack) {
                   return wrapHolmanStudyContent(
                     spreadColumnLayout,
                     scrollMode,
                     scriptureContent,
                     holmanVerseGroups,
-                    showHolmanFootnotes ? (
+                    showPageFootnotes ? (
                       <HolmanPageFootnotes verses={holmanFootnoteVerses} />
                     ) : null,
                     showHolmanConnections,

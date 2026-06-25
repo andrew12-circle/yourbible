@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { buildHolmanConnectionsMeasureHtml } from "@/lib/bible/holmanStudyLayout";
+import { buildHolmanConnectionsMeasureHtml, buildHolmanPageFootnotesMeasureHtml } from "@/lib/bible/holmanStudyLayout";
 import {
   applyHolmanStudyMeasureHtml,
   applyScriptureColumnMeasureHtml,
@@ -155,6 +155,44 @@ describe("readerColumnMeasure", () => {
     );
     node.classList.add("reader-holman-study");
     const stack = node.querySelector(".holman-study-stack") as HTMLElement;
+    const columns = stack.querySelector(".scripture-columns-2") as HTMLElement;
+    Object.defineProperty(columns, "scrollWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(columns, "clientWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(columns, "scrollHeight", { configurable: true, get: () => 220 });
+    Object.defineProperty(columns, "clientHeight", { configurable: true, get: () => 80 });
+    Object.defineProperty(stack, "scrollHeight", { configurable: true, get: () => 120 });
+
+    expect(scriptureContentFitsPage(node, 120, "scripture-columns-2")).toBe(false);
+  });
+
+  it("scriptureContentFitsPage rejects clipped inline scripture above page footnotes", () => {
+    const footnotes = buildHolmanPageFootnotesMeasureHtml(
+      [
+        {
+          chapter: 1,
+          verses: [
+            {
+              number: 1,
+              text: "In the beginning",
+              parts: [
+                { kind: "text", text: "In the beginning" },
+                { kind: "footnote", marker: 1, text: "Lit sons" },
+              ],
+            },
+          ],
+        },
+      ],
+      (s) => s,
+    );
+    applyHolmanStudyMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>" + "word ".repeat(120) + "</p>",
+      "",
+      footnotes,
+      "scripture-columns-2",
+      120,
+    );
+    const stack = node.querySelector(".scripture-page-stack") as HTMLElement;
     const columns = stack.querySelector(".scripture-columns-2") as HTMLElement;
     Object.defineProperty(columns, "scrollWidth", { configurable: true, get: () => 320 });
     Object.defineProperty(columns, "clientWidth", { configurable: true, get: () => 320 });

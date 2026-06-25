@@ -549,28 +549,31 @@
     letter-spacing: 0.01em;
   }
 
-  /* Verse rows — gutter numbers + body text (printed Bible layout). */
+  /* Flowing prose — inline superscript verse numbers like a printed Bible. */
   .scripture-verse {
-    display: grid;
-    grid-template-columns: 1.85em minmax(0, 1fr);
-    column-gap: 0.45em;
-    align-items: start;
-    margin: 0.08em 0;
+    display: inline;
+    margin: 0;
   }
   .scripture-verse-chapter-open {
     display: block;
     margin: 0.12em 0 0.2em;
   }
   .verse-num-gutter {
-    display: block;
-    text-align: right;
-    font-size: 0.74em;
-    line-height: 1.45;
-    padding-top: 0.12em;
-    vertical-align: baseline;
+    display: inline;
+    vertical-align: super;
+    font-size: 0.62em;
+    line-height: 0;
+    font-weight: 700;
+    padding: 0 0.2em 0 0;
+    text-align: left;
+    color: hsl(var(--leather) / 0.82);
     margin: 0;
   }
+  [data-verse-body] {
+    display: inline;
+  }
   .verse-body-wrap {
+    display: inline;
     min-width: 0;
     text-align: justify;
   }
@@ -584,13 +587,16 @@
     font-weight: 700;
     line-height: 0.82;
     letter-spacing: -0.02em;
-    color: hsl(var(--foreground) / 0.92);
+    color: hsl(0 52% 42%);
     margin: 0.02em 0.1em 0 0;
     padding-right: 0.06em;
     user-select: none;
   }
+  .reader-theme-dark .chapter-drop-cap {
+    color: hsl(0 58% 58%);
+  }
 
-  /* Traditional Bible paragraph flow — drop-cap + gutter verses replace indent. */
+  /* Traditional Bible paragraph flow — drop-cap + inline verse numbers. */
   .scripture-paragraph {
     text-indent: 0;
     margin: 0;
@@ -952,12 +958,13 @@
   .reader-theme-dark .red-letter {
     color: hsl(0 62% 58%);
   }
-  /* Inline cross-refs — shown below verse text, not inside the sentence. */
+  /* Inline cross-refs — small superscript trail after the verse, like print margins. */
   .scripture-verse-xrefs {
-    display: block;
-    margin: 0.12em 0 0.22em;
-    font-size: 0.62em;
-    line-height: 1.4;
+    display: inline;
+    margin: 0 0 0 0.12em;
+    font-size: 0.58em;
+    line-height: 0;
+    vertical-align: super;
     text-align: left;
     color: hsl(var(--gold-deep));
   }
@@ -998,6 +1005,63 @@
     font-weight: 500;
   }
 
+  /* Superscript footnote markers in verse text — full note text lives in the page band. */
+  .scripture-footnote-mark {
+    display: inline;
+    vertical-align: super;
+    font-size: 0.62em;
+    line-height: 0;
+    font-weight: 700;
+    margin: 0;
+    padding: 0 0.02em;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-style: normal;
+    text-decoration: none;
+    white-space: nowrap;
+    color: hsl(var(--muted-foreground));
+    cursor: help;
+  }
+
+  /* Study page stack — scripture columns + optional connections + page footnotes. */
+  .scripture-page-stack,
+  .holman-study-stack {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .scripture-page-stack:not(.h-full),
+  .holman-study-stack:not(.h-full) {
+    height: auto;
+  }
+
+  /* Ruled footnote band — classic study-Bible page foot. */
+  .scripture-page-footnotes {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 1.25em;
+    margin: 0.45em 0 0;
+    padding: 0.35em 0 0;
+    border-top: 1px solid hsl(var(--foreground) / 0.12);
+    font-size: 0.65em;
+    line-height: 1.35;
+    color: hsl(var(--muted-foreground));
+    break-inside: avoid;
+  }
+  .scripture-page-footnotes-line {
+    display: inline;
+    margin: 0;
+    text-indent: 0;
+  }
+  .scripture-page-footnotes-marker {
+    margin-right: 0.25em;
+    font-weight: 700;
+    vertical-align: super;
+    font-size: 0.92em;
+  }
+
   /* Holman CSB/NKJV study layout — letter xrefs, column blocks, page footnotes. */
   .reader-holman-study .scripture-heading-holman {
     text-align: center;
@@ -1022,9 +1086,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-  }
-  .reader-holman-study .holman-study-stack:not(.h-full) {
-    height: auto;
   }
 
   /* Keep paragraph flow in columns without per-paragraph xref blocks. */
@@ -1063,32 +1124,6 @@
     color: hsl(var(--muted-foreground));
     cursor: help;
   }
-  .reader-holman-study [data-verse-body] {
-    display: inline;
-  }
-  .reader-holman-study .verse-body-wrap {
-    display: inline;
-  }
-  .reader-holman-study .scripture-verse {
-    display: inline;
-    margin: 0;
-  }
-  .reader-holman-study .scripture-verse-chapter-open {
-    display: block;
-    margin: 0.12em 0 0.2em;
-  }
-  .reader-holman-study .verse-num-gutter {
-    display: inline;
-    vertical-align: super;
-    font-size: 0.62em;
-    line-height: 0;
-    font-weight: 700;
-    padding: 0 0.2em 0 0;
-    text-align: left;
-    color: hsl(var(--leather) / 0.82);
-  }
-
-  /* Connections block — bottom of each column in Holman print layout. */
   .reader-holman-study .scripture-connections-row {
     flex-shrink: 0;
     display: grid;
@@ -1130,32 +1165,7 @@
     font-size: 0.95em;
   }
 
-  .reader-holman-study .scripture-page-footnotes {
-    flex-shrink: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.15em 1.25em;
-    margin: 0.45em 0 0;
-    padding: 0.35em 0 0;
-    border-top: 1px solid hsl(var(--foreground) / 0.12);
-    font-size: 0.65em;
-    line-height: 1.35;
-    color: hsl(var(--muted-foreground));
-    break-inside: avoid;
-  }
-  .reader-holman-study .scripture-page-footnotes-line {
-    display: inline;
-    margin: 0;
-    text-indent: 0;
-  }
-  .reader-holman-study .scripture-page-footnotes-marker {
-    margin-right: 0.25em;
-    font-weight: 700;
-    vertical-align: super;
-    font-size: 0.92em;
-  }
-
-  /* CSB divine name (YHWH) — small caps like Holman print editions. */
+  /* Connections block — bottom of each column in Holman print layout. */
   .scripture-divine-name {
     font-variant: small-caps;
     letter-spacing: 0.04em;

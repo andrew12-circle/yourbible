@@ -294,6 +294,18 @@ function renderInto(
     );
     return;
   }
+  const footnotesHtml = buildHolmanPageFootnotesMeasureHtml([{ chapter, verses }], escapeHtml);
+  if (footnotesHtml) {
+    applyHolmanStudyMeasureHtml(
+      node,
+      bodyHtml,
+      "",
+      footnotesHtml,
+      columnsClassName,
+      contentHeightPx,
+    );
+    return;
+  }
   applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
 }
 

@@ -448,6 +448,22 @@ function renderStreamSlice(
     );
     return;
   }
+  const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(
+    verseGroupsFromStreamSlice(slice),
+    escapeHtml,
+  );
+  if (footnotesHtml) {
+    applyHolmanStudyMeasureHtml(
+      node,
+      scriptureHtml,
+      "",
+      footnotesHtml,
+      columnsClassName,
+      contentHeightPx,
+      measureOptions,
+    );
+    return;
+  }
 
   applyScriptureColumnMeasureHtml(
     node,

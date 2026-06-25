@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { useMediaRecorderDictation } from "@/hooks/useMediaRecorderDictation";
-import { useSpeechDictation } from "@/hooks/useSpeechDictation";
+import {
+  isSpeechErrorToastWorthy,
+  useSpeechDictation,
+} from "@/hooks/useSpeechDictation";
 import {
   isJournalVoiceEdgeUnavailable,
   isJournalVoiceTranscriptionFailure,
-  probeJournalVoiceEdge,
 } from "@/lib/journal/voiceDictation";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +50,32 @@ function clearPersistedMediaFallback(): void {
 const WEB_SPEECH_UNSUPPORTED_MSG =
   "Live dictation needs Chrome, Edge, or Safari. Enable microphone access in your browser settings.";
 
+function isMediaInfraError(error: string): boolean {
+  return /elevenlabs|journal-voice-to-text|ELEVENLABS|401|unauthorized/i.test(error);
+}
+
+function speechToastContent(
+  error: string,
+  webSpeechOnly: boolean,
+): { title: string; description: string } | null {
+  if (!isSpeechErrorToastWorthy(error)) return null;
+  if (webSpeechOnly && isMediaInfraError(error)) return null;
+
+  if (/microphone|mic for this site|allow microphone/i.test(error)) {
+    return { title: "Allow microphone access", description: error };
+  }
+  if (/chrome, edge, or safari|secure \(https\)/i.test(error)) {
+    return { title: "Try Chrome or Edge", description: error };
+  }
+  if (/no microphone was found/i.test(error)) {
+    return { title: "No microphone found", description: error };
+  }
+  if (webSpeechOnly && /live speech recognition|hit a snag/i.test(error)) {
+    return { title: "Dictation unavailable", description: error };
+  }
+  return { title: "Dictation", description: error };
+}
+
 export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>(function DictateButton(
   { userId, onAppend, onInterim, onListeningChange, webSpeechOnly = false, language, size = "sm", className },
   ref,
@@ -74,7 +102,11 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   }, [webSpeechOnly]);
 
   const speech = useSpeechDictation({ onAppend, onInterim: handleInterim, language });
-  const media = useMediaRecorderDictation({ userId, onAppend, onInterim: handleInterim });
+  const media = useMediaRecorderDictation({
+    userId: webSpeechOnly ? undefined : userId,
+    onAppend,
+    onInterim: handleInterim,
+  });
 
   const useMedia = !webSpeechOnly && (preferMedia || !speech.supported);
 
@@ -106,16 +138,10 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   }, [listening, transcribing, onAppend, onInterim]);
 
   const lastToasted = useRef<string | null>(null);
-  const switchingRef = useRef(false);
 
   useEffect(() => {
     if (!error || error === lastToasted.current) return;
     lastToasted.current = error;
-
-    const isNetworkish =
-      error.includes("Network") ||
-      error.includes("service not allowed") ||
-      error.includes("snag");
 
     if (useMedia && isJournalVoiceEdgeUnavailable(error)) {
       clearPersistedMediaFallback();
@@ -145,40 +171,10 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
       return;
     }
 
-    if (
-      !webSpeechOnly &&
-      !useMedia &&
-      isNetworkish &&
-      media.supported &&
-      userId &&
-      !switchingRef.current
-    ) {
-      switchingRef.current = true;
-      void (async () => {
-        const edgeOk = await probeJournalVoiceEdge();
-        switchingRef.current = false;
-        if (!edgeOk) {
-          toast({
-            title: "Record-and-transcribe unavailable",
-            description:
-              "journal-voice-to-text is not deployed. Run: npx supabase functions deploy journal-voice-to-text --project-ref itmcsyrnpcnrwviigppe and set ELEVENLABS_API_KEY. Live dictation will keep trying.",
-            variant: "destructive",
-          });
-          return;
-        }
-        clearPersistedMediaFallback();
-        setPreferMedia(true);
-        speech.stop();
-        toast({
-          title: "Switching dictation mode",
-          description: "Live captions failed — tap the mic to record, then tap again to transcribe.",
-        });
-      })();
-      return;
-    }
-
-    toast({ title: "Dictation", description: error, variant: "destructive" });
-  }, [error, useMedia, webSpeechOnly, media.supported, userId, speech]);
+    const toastBody = speechToastContent(error, webSpeechOnly);
+    if (!toastBody) return;
+    toast({ ...toastBody, variant: "destructive" });
+  }, [error, useMedia, webSpeechOnly, speech.supported]);
 
   useEffect(() => {
     if (!error) lastToasted.current = null;
@@ -208,7 +204,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           type="button"
           variant="ghost"
           size="icon"
-          disabled={webSpeechOnly ? transcribing : !supported || transcribing}
+          disabled={webSpeechOnly ? !speech.supported || transcribing : !supported || transcribing}
           aria-pressed={listening}
           aria-label={listening ? "Stop dictation" : "Dictate"}
           className={cn(
@@ -219,7 +215,11 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           )}
           onClick={() => {
             if (webSpeechOnly && !speech.supported) {
-              toast({ title: "Voice dictation unavailable", description: WEB_SPEECH_UNSUPPORTED_MSG });
+              toast({
+                title: "Try Chrome or Edge",
+                description: WEB_SPEECH_UNSUPPORTED_MSG,
+                variant: "destructive",
+              });
               return;
             }
             if (supported) toggle();

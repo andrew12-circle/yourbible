@@ -170,19 +170,9 @@ export function createReaderVerseRenderer({
       const part = parts[pi]!;
       if (part.kind === "footnote") {
         bodyNodes.push(
-          studyLayout === "holman" ? (
-            <sup
-              key={`fn-${pi}`}
-              className="scripture-holman-mark scripture-holman-mark--footnote"
-              title={part.text}
-            >
-              {part.marker}
-            </sup>
-          ) : (
-            <span key={`fn-${pi}`} className="scripture-footnote" title={part.text}>
-              [{part.marker}]
-            </span>
-          ),
+          <sup key={`fn-${pi}`} className="scripture-footnote-mark" title={part.text}>
+            {part.marker}
+          </sup>,
         );
         continue;
       }

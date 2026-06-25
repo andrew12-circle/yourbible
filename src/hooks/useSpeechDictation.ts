@@ -61,23 +61,34 @@ function getSpeechRecognitionCtor(): (new () => RecInstance) | null {
 
 export const speechDictationSupported = (): boolean => getSpeechRecognitionCtor() !== null;
 
-function mapSpeechError(code: string): string {
+export function mapSpeechError(code: string): string {
   switch (code) {
     case "not-allowed":
-      return "Microphone permission was blocked. Enable the microphone for this site in your browser settings.";
+      return "Allow microphone access for this site in your browser settings, then tap the mic again.";
     case "no-speech":
       return "Didn't catch that — try again";
     case "audio-capture":
-      return "No microphone was found or it could not be opened.";
+      return "No microphone was found. Check that a mic is connected and not in use by another app.";
     case "network":
-      return "Network error — check your connection and try again.";
+      return "Live speech recognition is unavailable. Try Chrome or Edge, check your connection, and allow microphone access.";
     case "aborted":
       return "Dictation was interrupted.";
     case "service-not-allowed":
-      return "Speech recognition isn't available (service not allowed).";
+      return "Live dictation needs Chrome, Edge, or Safari on a secure (HTTPS) connection.";
     default:
-      return "Voice dictation hit a snag — try again";
+      return "Voice dictation hit a snag — try Chrome or Edge and allow microphone access.";
   }
+}
+
+/** Benign Web Speech errors — restart silently, no toast. */
+export function isTransientSpeechError(code: string): boolean {
+  return code === "aborted" || code === "no-speech" || code === "network";
+}
+
+export function isSpeechErrorToastWorthy(message: string): boolean {
+  if (/didn't catch that/i.test(message)) return false;
+  if (/interrupted|paused — tap/i.test(message)) return false;
+  return true;
 }
 
 function resultTranscript(r: SpeechRecognitionResult): string {
@@ -165,12 +176,45 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
     [teardownInstance],
   );
 
-  const start = useCallback(() => {
-    if (!Ctor) return;
-    setError(null);
-    desiredRef.current = true;
-    rapidFailRef.current = 0;
+  const scheduleRestart = useCallback(
+    (bindRec: (rec: RecInstance) => void, delayMs = 250) => {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = setTimeout(() => {
+        restartTimerRef.current = null;
+        if (!desiredRef.current) return;
+        const NextCtor = getSpeechRecognitionCtor();
+        if (!NextCtor) {
+          desiredRef.current = false;
+          setListening(false);
+          return;
+        }
+        try {
+          const next = new NextCtor();
+          next.continuous = true;
+          next.interimResults = true;
+          next.lang = language;
+          recRef.current = next;
+          bindRec(next);
+          next.start();
+          rapidFailRef.current = 0;
+        } catch {
+          bumpRapidFail();
+          if (rapidFailRef.current >= 4) {
+            desiredRef.current = false;
+            setListening(false);
+            setError(mapSpeechError("network"));
+            onInterimRef.current?.("");
+            return;
+          }
+          scheduleRestart(bindRec, Math.min(delayMs * 2, 1200));
+        }
+      }, delayMs);
+    },
+    [language, bumpRapidFail],
+  );
 
+  const beginRecognition = useCallback(() => {
+    if (!Ctor) return;
     if (recRef.current) {
       try {
         recRef.current.stop();
@@ -188,60 +232,43 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
           if (chunk) onAppendRef.current(`${chunk} `);
         }
         onInterimRef.current?.(interim);
-        if (finals.length) setError(null);
+        if (finals.length) {
+          setError(null);
+          rapidFailRef.current = 0;
+        }
       };
 
       rec.onerror = (ev: Event) => {
         const code = (ev as SpeechErrorEvent).error || "unknown";
-        if (code === "aborted") return;
+        if (isTransientSpeechError(code)) return;
 
-        if (code === "no-speech") {
-          bumpRapidFail();
+        bumpRapidFail();
+        if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
+          setError(mapSpeechError(code));
+          desiredRef.current = false;
+          setListening(false);
           return;
         }
 
-        setError(mapSpeechError(code));
-        bumpRapidFail();
-        if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
-          desiredRef.current = false;
-          setListening(false);
+        if (rapidFailRef.current >= 3) {
+          setError(mapSpeechError(code));
+          if (rapidFailRef.current >= 6) {
+            desiredRef.current = false;
+            setListening(false);
+          }
         }
       };
 
       rec.onend = () => {
         if (!desiredRef.current) return;
-        if (rapidFailRef.current >= 8) {
+        if (rapidFailRef.current >= 6) {
           desiredRef.current = false;
           setListening(false);
-          setError("Dictation stopped after repeated errors. Tap the mic to try again.");
+          setError(mapSpeechError("network"));
           onInterimRef.current?.("");
           return;
         }
-        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-        restartTimerRef.current = setTimeout(() => {
-          restartTimerRef.current = null;
-          if (!desiredRef.current) return;
-          const NextCtor = getSpeechRecognitionCtor();
-          if (!NextCtor) {
-            desiredRef.current = false;
-            setListening(false);
-            return;
-          }
-          try {
-            const next = new NextCtor();
-            next.continuous = true;
-            next.interimResults = true;
-            next.lang = language;
-            recRef.current = next;
-            bindRec(next);
-            next.start();
-          } catch {
-            desiredRef.current = false;
-            setListening(false);
-            setError("Dictation paused — tap the mic to continue.");
-            onInterimRef.current?.("");
-          }
-        }, 250);
+        scheduleRestart(bindRec);
       };
     };
 
@@ -257,9 +284,41 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
     } catch {
       desiredRef.current = false;
       setListening(false);
-      setError("Could not start voice dictation.");
+      setError(mapSpeechError("service-not-allowed"));
     }
-  }, [Ctor, language, bumpRapidFail]);
+  }, [Ctor, language, bumpRapidFail, scheduleRestart]);
+
+  const start = useCallback(() => {
+    if (!Ctor) return;
+    setError(null);
+    desiredRef.current = true;
+    rapidFailRef.current = 0;
+
+    void (async () => {
+      if (navigator.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+          if (!desiredRef.current) return;
+          if (e instanceof DOMException && e.name === "NotAllowedError") {
+            setError(mapSpeechError("not-allowed"));
+            desiredRef.current = false;
+            setListening(false);
+            return;
+          }
+          if (e instanceof DOMException && e.name === "NotFoundError") {
+            setError(mapSpeechError("audio-capture"));
+            desiredRef.current = false;
+            setListening(false);
+            return;
+          }
+        }
+      }
+      if (!desiredRef.current) return;
+      beginRecognition();
+    })();
+  }, [Ctor, beginRecognition]);
 
   const stop = useCallback(() => {
     stopInternal({ clearInterim: true });

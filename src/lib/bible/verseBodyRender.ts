@@ -47,11 +47,7 @@ export function buildVersePartsInnerHtml(
 
   for (const part of parts) {
     if (part.kind === "footnote") {
-      if (studyLayout === "holman") {
-        html += `<sup class="scripture-holman-mark scripture-holman-mark--footnote" title="${escapeHtml(part.text)}">${part.marker}</sup>`;
-      } else {
-        html += `<span class="scripture-footnote" title="${escapeHtml(part.text)}">[${part.marker}]</span>`;
-      }
+      html += `<sup class="scripture-footnote-mark" title="${escapeHtml(part.text)}">${part.marker}</sup>`;
       continue;
     }
     if (part.kind === "crossref") {

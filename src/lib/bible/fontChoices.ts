@@ -38,7 +38,7 @@ export function scriptureFontFamily(choice: string | undefined | null): string {
 }
 
 /** Size/leading shared by all reader font choices. */
-export const READER_SCRIPTURE_SIZE = "text-[13px] sm:text-[13.5px] leading-[1.68]";
+export const READER_SCRIPTURE_SIZE = "text-[13px] sm:text-[14px] leading-[1.62]";
 
 /** Shared reader typography utilities (matches live page + paginator). */
 export const READER_SCRIPTURE_TYPO_BASE = `${READER_SCRIPTURE_SIZE} ink-text`;

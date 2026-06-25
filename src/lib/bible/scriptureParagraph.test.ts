@@ -11,7 +11,7 @@ describe("scripture verse layout", () => {
     expect(shouldShowChapterDropCap(2, false)).toBe(false);
   });
 
-  it("wraps measurement HTML with gutter numbers and drop cap", () => {
+  it("wraps measurement HTML with inline superscript numbers and drop cap", () => {
     const open = wrapVerseShellHtml(1, 2, "Why do the nations rage", false);
     expect(open).toContain('class="chapter-drop-cap">2');
     expect(open).not.toContain("verse-num-gutter");
