@@ -19,7 +19,10 @@ import {
   SUGGESTED_ACTIONS,
   sanitizeEpistemology,
 } from "../_shared/epistemology.ts";
-import { callChatWithTools, getChatConfig } from "../_shared/aiProvider.ts";
+import {
+  callChatWithTools,
+  getChatConfig,
+} from "../_shared/aiProvider.ts";
 import {
   generateArtifactFrameworkOverview,
   persistArtifactFrameworkOverview,
@@ -27,6 +30,11 @@ import {
 import { drainPendingEmbeddingJobs } from "../_shared/embeddingJobDrain.ts";
 import { filterSubstantiveClaims, isMetaOrLowValueClaim } from "../_shared/claimQuality.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
+import {
+  extractTranscriptClaimsProgressive,
+  submitTranscriptClaimsJson,
+  type ClaimGeminiResult,
+} from "./transcriptProgressiveClaims.ts";
 /** Max transcript characters fed to a single extraction prompt. Gemini 2.5 Pro has a 1M-token window; this is well within it. */
 const ANALYSIS_TEXT_CAP = 200_000;
 
@@ -54,6 +62,8 @@ const MAX_PERSISTED_TEACHINGS = 30;
 /** Above this length, sample opening/middle/closing instead of sending every character. */
 const TRANSCRIPT_SAMPLE_THRESHOLD = envInt("FRAMEWORK_ANALYZE_SAMPLE_THRESHOLD_CHARS", 38_000);
 const TRANSCRIPT_SAMPLE_SECTION_CHARS = envInt("FRAMEWORK_ANALYZE_SAMPLE_SECTION_CHARS", 14_000);
+/** Progressive from-start batches for long sermon transcripts (persist after each batch). */
+const TRANSCRIPT_PROGRESSIVE_THRESHOLD = envInt("FRAMEWORK_ANALYZE_PROGRESSIVE_THRESHOLD_CHARS", 20_000);
 /** Skip duplicate analyze invokes while a run is in flight. */
 const ANALYZE_INFLIGHT_DEDUP_MS = envInt("FRAMEWORK_ANALYZE_INFLIGHT_DEDUP_MS", 4 * 60 * 1000);
 
@@ -664,52 +674,6 @@ const TOOL = {
   },
 } as const;
 
-/** Lite tool for pasted transcripts — no epistemology v2 blob (restores pre–Jun 2026 behavior). */
-const TRANSCRIPT_CLAIM_TOOL = {
-  type: "function",
-  function: {
-    name: "submit_claims",
-    description: "Submit extracted transcript claims.",
-    parameters: {
-      type: "object",
-      properties: {
-        claims: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              claim: { type: "string" },
-              tone: { type: "string" },
-              doctrine_tags: { type: "array", items: { type: "string" } },
-              scripture_supports: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: { ref: { type: "string" }, note: { type: "string" } },
-                  required: ["ref"],
-                },
-              },
-              scripture_challenges: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: { ref: { type: "string" }, note: { type: "string" } },
-                  required: ["ref"],
-                },
-              },
-              matched_belief_id: { type: ["string", "null"] },
-              match_relation: { type: ["string", "null"], enum: ["agree", "disagree", "new", null] },
-              bias_flags: { type: "array", items: { type: "string" } },
-            },
-            required: ["claim"],
-          },
-        },
-      },
-      required: ["claims"],
-    },
-  },
-} as const;
-
 const ENTITY_TOOL = {
   type: "function",
   function: {
@@ -1210,42 +1174,14 @@ async function persistEntitiesForArtifact(params: {
 }
 
 async function geminiSubmitTranscriptClaims(userPrompt: string): Promise<ClaimGeminiResult> {
-  const maxAttempts = 2;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const r = await callChatWithTools(
-      [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: userPrompt },
-      ],
-      [TRANSCRIPT_CLAIM_TOOL],
-      { type: "function", function: { name: "submit_claims" } },
-      4096,
-      "gemini",
-    );
-    if (r.status === 429) {
-      if (attempt < maxAttempts - 1) {
-        await new Promise((res) => setTimeout(res, 30_000));
-        continue;
-      }
-      return { kind: "rate_limit" };
-    }
-    if (r.status === 402) return { kind: "billing" };
-    if (!r.ok) {
-      const t = await r.text();
-      const retryable = r.status >= 500;
-      if (retryable && attempt < maxAttempts - 1) {
-        await new Promise((res) => setTimeout(res, 5000));
-        continue;
-      }
-      console.error("transcript claim gateway error:", r.status, t.slice(0, 300));
-      return { kind: "gateway_err", status: r.status, body: t };
-    }
-    return { kind: "ok", json: await r.json() };
-  }
-  return { kind: "rate_limit" };
+  return submitTranscriptClaimsJson(SYSTEM, userPrompt);
 }
 
 function parseSubmitClaimsFromResponse(json: unknown): ClaimOut[] {
+  if (json && typeof json === "object" && !Array.isArray(json)) {
+    const direct = (json as { claims?: ClaimOut[] }).claims;
+    if (Array.isArray(direct)) return direct;
+  }
   const argsStr = parseToolCall(json, "submit_claims");
   if (argsStr) {
     try {
@@ -1268,12 +1204,6 @@ function parseSubmitClaimsFromResponse(json: unknown): ClaimOut[] {
   return [];
 }
 
-type ClaimGeminiResult =
-  | { kind: "ok"; json: unknown }
-  | { kind: "rate_limit" }
-  | { kind: "billing" }
-  | { kind: "gateway_err"; status: number; body: string };
-
 async function geminiSubmitClaims(
   _apiKeyUnused: string,
   userPrompt: string,
@@ -1288,11 +1218,11 @@ async function geminiSubmitClaims(
       [TOOL],
       { type: "function", function: { name: "submit_claims" } },
       8192,
-      "gemini",
     );
     if (r.status === 429) {
       if (attempt < maxAttempts - 1) {
-        await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+        const waitMs = [5_000, 15_000][attempt] ?? 20_000;
+        await new Promise((res) => setTimeout(res, waitMs));
         continue;
       }
       return { kind: "rate_limit" };
@@ -1331,11 +1261,33 @@ async function abortClaimsIfBadGateway(
 ): Promise<boolean> {
   if (gw.kind === "ok") return false;
   if (gw.kind === "rate_limit") {
+    const { count } = await supabase
+      .from("artifact_claims")
+      .select("id", { count: "exact", head: true })
+      .eq("artifact_id", artifact_id);
+    if ((count ?? 0) > 0) {
+      const prevMeta = await supabase.from("artifacts").select("metadata").eq("id", artifact_id).maybeSingle();
+      const meta =
+        prevMeta.data?.metadata && typeof prevMeta.data.metadata === "object" && !Array.isArray(prevMeta.data.metadata)
+          ? { ...(prevMeta.data.metadata as Record<string, unknown>) }
+          : {};
+      delete meta.analyze_inflight_at;
+      await supabase
+        .from("artifacts")
+        .update({
+          status: "ready",
+          error: null,
+          metadata: meta,
+        })
+        .eq("id", artifact_id);
+      return true;
+    }
     await supabase
       .from("artifacts")
       .update({
         status: "error",
-        error: "Rate limited — wait 2 minutes, then tap Re-analyze once.",
+        error:
+          "Claim extraction hit an AI provider limit before any insights were saved. Wait 2–3 minutes, then tap Re-analyze once.",
       })
       .eq("id", artifact_id);
     return true;
@@ -1347,6 +1299,50 @@ async function abortClaimsIfBadGateway(
   }
   const msg = formatClaimGatewayError(gw.status, gw.body);
   await supabase.from("artifacts").update({ status: "error", error: msg }).eq("id", artifact_id);
+  return true;
+}
+
+async function markArtifactAnalysisComplete(
+  db: SupabaseClient,
+  artifact_id: string,
+  processing_token: string,
+  opts?: { error?: string | null; skipEmbeddings?: boolean },
+  serviceRole?: string,
+  supabaseUrl?: string,
+  userId?: string,
+): Promise<boolean> {
+  const { data: gate } = await db
+    .from("artifacts")
+    .select("id,metadata")
+    .eq("id", artifact_id)
+    .eq("processing_token", processing_token)
+    .maybeSingle();
+  if (!gate) return false;
+
+  const prevMeta =
+    gate.metadata && typeof gate.metadata === "object" && !Array.isArray(gate.metadata)
+      ? { ...(gate.metadata as Record<string, unknown>) }
+      : {};
+  delete prevMeta.analyze_inflight_at;
+
+  const { count } = await db
+    .from("artifact_claims")
+    .select("id", { count: "exact", head: true })
+    .eq("artifact_id", artifact_id);
+
+  await db
+    .from("artifacts")
+    .update({
+      status: "ready",
+      error: opts?.error ?? ((count ?? 0) === 0 ? "No claims could be extracted." : null),
+      metadata: prevMeta,
+    })
+    .eq("id", artifact_id)
+    .eq("processing_token", processing_token);
+
+  if (!opts?.skipEmbeddings && (count ?? 0) > 0 && serviceRole && supabaseUrl && userId) {
+    await scheduleClaimEmbeddings(serviceRole, supabaseUrl, userId);
+  }
   return true;
 }
 
@@ -1886,20 +1882,62 @@ Deno.serve(async (req) => {
     const isTranscriptMedia = artifactKind === "youtube" || artifactKind === "audio";
 
     let fastClaims: ClaimOut[] = [];
-    // Chunked extraction is for large books/PDFs only — YouTube/audio use one fast-first call
-    // (splitting sermons into many Gemini calls was causing rate-limit failures).
+    let claimsAlreadyPersisted = false;
     const useChunkedExtraction =
       isDocument && rawText.trim().length >= LONG_TRANSCRIPT_CHUNK_CHARS;
 
     if (isTranscriptMedia && rawText.trim().length >= 200) {
+      const useProgressivePass = rawText.trim().length > TRANSCRIPT_PROGRESSIVE_THRESHOLD;
       console.log(
-        `framework-analyze: transcript single-pass (len=${rawText.length} kind=${artifactKind})`,
+        `framework-analyze: transcript ${useProgressivePass ? "progressive" : "single"}-pass (len=${rawText.length} kind=${artifactKind})`,
       );
-      const prompt = buildTranscriptPastePrompt(rawText, beliefsList);
-      const gw = await geminiSubmitTranscriptClaims(prompt);
-      if (await abortClaimsIfBadGateway(db, artifact_id, gw)) return;
-      if (gw.kind === "ok") {
-        fastClaims = parseSubmitClaimsFromResponse(gw.json);
+      if (useProgressivePass) {
+        const progressive = await extractTranscriptClaimsProgressive({
+          systemPrompt: SYSTEM,
+          rawText,
+          beliefsList,
+          segments,
+          timed,
+          durationSeconds,
+          db,
+          artifact_id,
+          processing_token,
+          maxPersistedClaims: MAX_PERSISTED_CLAIMS,
+          appendClaims: (incoming) =>
+            appendEnrichmentClaims(
+              db,
+              artifact_id,
+              processing_token,
+              artifact,
+              beliefsList,
+              incoming,
+              SERVICE_ROLE,
+              SUPABASE_URL,
+            ),
+        });
+        fastClaims = progressive.claims;
+        claimsAlreadyPersisted = fastClaims.length > 0;
+        if (
+          fastClaims.length === 0 &&
+          progressive.lastGateway &&
+          (await abortClaimsIfBadGateway(db, artifact_id, progressive.lastGateway))
+        ) {
+          return;
+        }
+        if (
+          progressive.partial &&
+          progressive.lastGateway &&
+          (await abortClaimsIfBadGateway(db, artifact_id, progressive.lastGateway))
+        ) {
+          return;
+        }
+      } else {
+        const prompt = buildTranscriptPastePrompt(rawText, beliefsList);
+        const gw = await geminiSubmitTranscriptClaims(prompt);
+        if (await abortClaimsIfBadGateway(db, artifact_id, gw)) return;
+        if (gw.kind === "ok") {
+          fastClaims = parseSubmitClaimsFromResponse(gw.json);
+        }
       }
     } else if (useChunkedExtraction) {
       console.log(
@@ -1970,27 +2008,39 @@ Deno.serve(async (req) => {
       chapter_start_seconds: null,
     }));
     console.log(
-      `framework-analyze: fast-first claims=${collected.length} document=${isDocument} timed=${timed} effectiveDuration=${effectiveDuration}`,
+      `framework-analyze: fast-first claims=${collected.length} document=${isDocument} timed=${timed} effectiveDuration=${effectiveDuration} progressivePersisted=${claimsAlreadyPersisted}`,
     );
 
-    const rows = mapCollectedClaimsToRows(collected, artifact, artifact_id, beliefsList);
-    console.log(
-      `framework-analyze: persisted_claims=${rows.length} cap=${MAX_PERSISTED_CLAIMS} chapters=${chapters.length} timed=${timed}`,
-    );
-
-    const persisted = await persistInitialClaimsAndReady(
-      db,
-      artifact_id,
-      processing_token,
-      rows,
-      SERVICE_ROLE,
-      SUPABASE_URL,
-      artifact.user_id as string,
-      { skipEmbeddings: isTranscriptMedia },
-    );
+    let persisted = false;
+    if (claimsAlreadyPersisted) {
+      persisted = await markArtifactAnalysisComplete(
+        db,
+        artifact_id,
+        processing_token,
+        { skipEmbeddings: isTranscriptMedia },
+        SERVICE_ROLE,
+        SUPABASE_URL,
+        artifact.user_id as string,
+      );
+    } else {
+      const rows = mapCollectedClaimsToRows(collected, artifact, artifact_id, beliefsList);
+      console.log(
+        `framework-analyze: persisted_claims=${rows.length} cap=${MAX_PERSISTED_CLAIMS} chapters=${chapters.length} timed=${timed}`,
+      );
+      persisted = await persistInitialClaimsAndReady(
+        db,
+        artifact_id,
+        processing_token,
+        rows,
+        SERVICE_ROLE,
+        SUPABASE_URL,
+        artifact.user_id as string,
+        { skipEmbeddings: isTranscriptMedia },
+      );
+    }
     if (!persisted) return;
 
-    if (isTranscriptMedia && rows.length > 0) {
+    if (isTranscriptMedia && collected.length > 0) {
       console.log("framework-analyze: transcript done — skipping enrichment burst");
     } else {
       await enrichArtifactAnalysis({
@@ -2011,7 +2061,7 @@ Deno.serve(async (req) => {
       });
     }
 
-        console.log(`framework-analyze: done initial_claims=${rows.length}`);
+        console.log(`framework-analyze: done initial_claims=${collected.length}`);
       } catch (e) {
         console.error("framework-analyze background error:", e);
         const msg = e instanceof Error ? e.message : String(e);
@@ -2026,10 +2076,21 @@ Deno.serve(async (req) => {
             : {};
         delete clearMeta.analyze_inflight_at;
         if (current?.status !== "ready") {
-          await db
-            .from("artifacts")
-            .update({ status: "error", error: msg, metadata: clearMeta })
-            .eq("id", artifact_id);
+          const { count } = await db
+            .from("artifact_claims")
+            .select("id", { count: "exact", head: true })
+            .eq("artifact_id", artifact_id);
+          if ((count ?? 0) > 0) {
+            await db
+              .from("artifacts")
+              .update({ status: "ready", error: null, metadata: clearMeta })
+              .eq("id", artifact_id);
+          } else {
+            await db
+              .from("artifacts")
+              .update({ status: "error", error: msg, metadata: clearMeta })
+              .eq("id", artifact_id);
+          }
         }
       } finally {
         clearAiUsageContext();

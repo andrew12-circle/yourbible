@@ -78,11 +78,13 @@ type Props = {
   menuSections?: ArtifactNavSection[];
   menuActiveHash?: string;
   menuShowPaste?: boolean;
+  menuShowRetryFetch?: boolean;
   menuShowWrapUp?: boolean;
   menuShowReanalyze?: boolean;
   onMenuNavigateSection?: (hash: string) => void;
   onMenuOpenTranscript?: () => void;
   onMenuPaste?: () => void;
+  onMenuRetryFetch?: () => void;
   onMenuWrapUp?: () => void;
   onMenuReanalyze?: () => void;
   menuMobileTab?: "study" | "transcript" | "notes" | "journal";
@@ -140,11 +142,13 @@ function ArtifactYoutubeVideoBlock({
   menuSections = [],
   menuActiveHash = "",
   menuShowPaste = false,
+  menuShowRetryFetch = false,
   menuShowWrapUp = false,
   menuShowReanalyze = false,
   onMenuNavigateSection,
   onMenuOpenTranscript,
   onMenuPaste,
+  onMenuRetryFetch,
   onMenuWrapUp,
   onMenuReanalyze,
   menuMobileTab = mobileActiveTab,
@@ -329,6 +333,7 @@ function ArtifactYoutubeVideoBlock({
           sections={menuSections}
           activeHash={menuActiveHash}
           showPaste={menuShowPaste}
+          showRetryFetch={menuShowRetryFetch}
           showWrapUp={menuShowWrapUp}
           showReanalyze={menuShowReanalyze}
           hasTranscript={hasTranscript}
@@ -341,6 +346,7 @@ function ArtifactYoutubeVideoBlock({
           onNavigateSection={onMenuNavigateSection ?? (() => {})}
           onOpenTranscript={onMenuOpenTranscript ?? (() => {})}
           onPaste={onMenuPaste ?? (() => {})}
+          onRetryFetch={onMenuRetryFetch ?? (() => {})}
           onWrapUp={onMenuWrapUp ?? (() => {})}
           onReanalyze={onMenuReanalyze ?? (() => {})}
           canCapture={canCaptureMoments}

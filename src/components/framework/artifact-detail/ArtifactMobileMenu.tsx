@@ -26,6 +26,7 @@ type Props = {
   sections: ArtifactNavSection[];
   activeHash: string;
   showPaste: boolean;
+  showRetryFetch?: boolean;
   showWrapUp: boolean;
   showReanalyze: boolean;
   hasTranscript: boolean;
@@ -39,6 +40,7 @@ type Props = {
   onNavigateSection: (hash: string) => void;
   onOpenTranscript: () => void;
   onPaste: () => void;
+  onRetryFetch?: () => void;
   onWrapUp: () => void;
   onReanalyze: () => void;
   /** When false, sheet is controlled externally (e.g. quick-capture More). */
@@ -122,6 +124,7 @@ export default function ArtifactMobileMenu({
   sections,
   activeHash,
   showPaste,
+  showRetryFetch = false,
   showWrapUp,
   showReanalyze,
   hasTranscript,
@@ -134,6 +137,7 @@ export default function ArtifactMobileMenu({
   onNavigateSection,
   onOpenTranscript,
   onPaste,
+  onRetryFetch,
   onWrapUp,
   onReanalyze,
   showTrigger = true,
@@ -267,8 +271,11 @@ export default function ArtifactMobileMenu({
             </MenuSection>
           ) : null}
 
-          {showPaste || showWrapUp || showReanalyze ? (
+          {showPaste || showRetryFetch || showWrapUp || showReanalyze ? (
             <MenuSection title="Artifact">
+              {showRetryFetch && onRetryFetch ? (
+                <MenuItem icon={RefreshCw} label="Try fetch again" onClick={() => run(onRetryFetch)} />
+              ) : null}
               {showPaste ? (
                 <MenuItem icon={FileText} label="Paste transcript" onClick={() => run(onPaste)} />
               ) : null}

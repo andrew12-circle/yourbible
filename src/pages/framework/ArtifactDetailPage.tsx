@@ -44,6 +44,7 @@ import ArtifactDetailMobileTabPanels, {
   ArtifactDetailMobileAppDock,
 } from "@/components/framework/artifact-detail/ArtifactDetailMobileTabPanels";
 import ArtifactDetailStudyColumnWrapper from "@/components/framework/artifact-detail/ArtifactDetailStudyColumnWrapper";
+import ArtifactTranscriptFetchErrorCard from "@/components/framework/artifact-detail/ArtifactTranscriptFetchErrorCard";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import { buildArtifactDetailTranscriptPanel } from "@/components/framework/artifact-detail/ArtifactDetailTranscriptPanel";
 import ArtifactBookReaderTabPanel from "@/components/framework/artifact-detail/ArtifactBookReaderTabPanel";
@@ -1371,7 +1372,7 @@ export default function ArtifactDetailPage() {
     fetching:
       "Pulling captions from YouTube (or our transcript service). If nothing happens in ~20s, this page retries automatically.",
     transcribing: "Converting your audio to text. Usually 10–30 seconds.",
-    analyzing: "Insight cards usually appear in 30–90 seconds. Long videos may take a few minutes.",
+    analyzing: "Insight cards appear from the opening first — keep watching or reading while the rest loads.",
   };
 
   /** Immersive header + main padding for `lg` split-pane height. */
@@ -1397,7 +1398,7 @@ export default function ArtifactDetailPage() {
     <ArtifactHeaderActions
       showPaste={a.kind === "youtube"}
       showWrapUp={a.kind === "youtube" && a.status === "ready"}
-      showReanalyze={!inFlight && a.status !== "error"}
+      showReanalyze={!inFlight && (a.status !== "error" || Boolean(a.raw_text?.trim()))}
       onPaste={() => setPasteOpen(true)}
       onWrapUp={() => setWrapUpOpen(true)}
       onReanalyze={reanalyze}
@@ -1714,8 +1715,10 @@ export default function ArtifactDetailPage() {
             menuSections={navSections}
             menuActiveHash={pageSectionHash}
             menuShowPaste={a.kind === "youtube"}
+            menuShowRetryFetch={a.kind === "youtube" && a.status === "error" && Boolean(a.url)}
             menuShowWrapUp={a.kind === "youtube" && a.status === "ready"}
             menuShowReanalyze={!inFlight && a.status !== "error"}
+            onMenuRetryFetch={() => void retryFetch()}
             onMenuNavigateSection={navigateToArtifactHash}
             onMenuOpenTranscript={switchToTranscriptTab}
             onMenuOpenStudy={switchToStudyTab}
@@ -1751,6 +1754,7 @@ export default function ArtifactDetailPage() {
         {embeddedJournalPanel && !mobilePinnedPane ? embeddedJournalPanel : null}
         <div
           ref={mobileBodyScrollRef}
+          data-artifact-mobile-scroll=""
           className={cn(
             mobilePinnedPane
               ? cn(
@@ -1793,7 +1797,7 @@ export default function ArtifactDetailPage() {
       !(mobilePinnedPane && isReadableDocument && mobileInsightExploreOpen) &&
       (isDesktop ||
         (mobileTab !== "transcript" && mobileTab !== "notes" && mobileTab !== "journal" && mobileTab !== "research")) ? (
-        <div className={cn(desktopPremiumSplitPane && artifactDesktopBodySheet)}>
+        <div className={cn(desktopPremiumSplitPane && artifactDesktopBodySheet, mobilePinnedPane && "min-w-0")}>
         <ArtifactSectionNav
           sections={navSections}
           activeHash={pageSectionHash}
@@ -1865,25 +1869,17 @@ export default function ArtifactDetailPage() {
       )}
 
       {a.error && a.status === "error" && (
-        <div className="mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          <div className="mb-2">{a.error}</div>
-          <div className="flex flex-wrap gap-2">
-            {a.raw_text?.trim() && (
-              <Button size="sm" variant="outline" disabled={inFlight} onClick={() => void reanalyze()}>
-                <RefreshCw className="w-3.5 h-3.5 mr-1" /> Re-analyze
-              </Button>
-            )}
-            {a.kind === "youtube" && a.url && (
-              <Button size="sm" variant="outline" disabled={retryingFetch || inFlight} onClick={() => void retryFetch()}>
-                <RefreshCw className={cn("w-3.5 h-3.5 mr-1", retryingFetch && "animate-spin")} />{" "}
-                {retryingFetch ? "Fetching…" : "Try fetch again"}
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => setPasteOpen(true)}>
-              <FileText className="w-3.5 h-3.5 mr-1" /> Paste transcript
-            </Button>
-          </div>
-        </div>
+        <ArtifactTranscriptFetchErrorCard
+          error={a.error}
+          retryingFetch={retryingFetch}
+          inFlight={inFlight}
+          showRetry={a.kind === "youtube" && Boolean(a.url) && !a.raw_text?.trim()}
+          showReanalyze={Boolean(a.raw_text?.trim())}
+          onRetry={() => void retryFetch()}
+          onPaste={() => setPasteOpen(true)}
+          onReanalyze={() => void reanalyze()}
+          className={mobilePinnedPane ? artifactMobileStudyContentInset : undefined}
+        />
       )}
 
       <ArtifactDetailStudyColumnWrapper
@@ -2282,9 +2278,11 @@ export default function ArtifactDetailPage() {
           sections={navSections}
           activeHash={pageSectionHash}
           showPaste={a.kind === "youtube"}
+          showRetryFetch={a.kind === "youtube" && a.status === "error" && Boolean(a.url)}
           showWrapUp={a.kind === "youtube" && a.status === "ready"}
-          showReanalyze={!inFlight && a.status !== "error"}
+          showReanalyze={!inFlight && (a.status !== "error" || Boolean(a.raw_text?.trim()))}
           hasTranscript={isReadableDocument ? true : Boolean(a.raw_text?.trim())}
+          onRetryFetch={() => void retryFetch()}
           secondaryViewLabel={isReadableDocument ? "Reader" : "Transcript"}
           mobileTab={mobileTab}
           journalActive={artifactJournalOpen}

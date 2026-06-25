@@ -14,6 +14,12 @@ import {
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { resolveYouTubeVideoId } from "@/lib/youtube";
 import { isReadableDocumentKind } from "@/lib/framework/documentArtifact";
+import {
+  analyzeClientTimeoutSeconds,
+  analyzeStaleSeconds,
+  analyzeTimeoutMessage,
+  ANALYZE_AUTO_RETRY_LIMIT,
+} from "@/lib/framework/analyzeTimeouts";
 
 const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
@@ -21,9 +27,6 @@ const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
 const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
 const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
-const ANALYZE_STALE_SECONDS = 90;
-const ANALYZE_AUTO_RETRY_LIMIT = 2;
-const ANALYZE_CLIENT_TIMEOUT_SECONDS = 180;
 
 function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false;
@@ -372,9 +375,14 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     });
   }, [a, elapsed, loadStatusOnly]);
 
+  const transcriptLength = a?.raw_text?.trim().length ?? 0;
+  const analyzeStaleSec = analyzeStaleSeconds(transcriptLength);
+  const analyzeClientTimeoutSec = analyzeClientTimeoutSeconds(transcriptLength);
+
   useEffect(() => {
     if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
-    if (elapsed < ANALYZE_STALE_SECONDS) return;
+    if (transcriptLength >= 40_000) return;
+    if (elapsed < analyzeStaleSec) return;
 
     const retries = analyzeRetryRef.current[a.id] ?? 0;
     if (retries >= ANALYZE_AUTO_RETRY_LIMIT) return;
@@ -400,11 +408,11 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       });
       await loadStatusOnly();
     })();
-  }, [a, elapsed, loadStatusOnly]);
+  }, [a, elapsed, analyzeStaleSec, loadStatusOnly]);
 
   useEffect(() => {
     if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
-    if (elapsed < ANALYZE_CLIENT_TIMEOUT_SECONDS) return;
+    if (elapsed < analyzeClientTimeoutSec) return;
     if (analyzeClientTimeoutRef.current === a.id) return;
     analyzeClientTimeoutRef.current = a.id;
     void (async () => {
@@ -418,12 +426,12 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
         .from("artifacts")
         .update({
           status: "error",
-          error: "Analysis is taking too long. Tap Retry analysis — long sermons can take a few minutes.",
+          error: analyzeTimeoutMessage(transcriptLength),
         })
         .eq("id", a.id);
       await loadStatusOnly();
     })();
-  }, [a, elapsed, loadStatusOnly]);
+  }, [a, elapsed, analyzeClientTimeoutSec, transcriptLength, loadStatusOnly]);
 
   const patchArtifactMetadata = useCallback(async (targetId: string) => {
     const { data } = await supabase

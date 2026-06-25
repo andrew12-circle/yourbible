@@ -98,7 +98,8 @@ function ArtifactPipelineBanner({
 
         {status === "analyzing" && elapsed > 45 ? (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-            Long sermons can take 1–3 minutes. Insight cards appear as soon as the first pass finishes.
+            We work through the sermon from the beginning — opening insights usually land in under a minute.
+            More cards fill in as later sections finish.
           </p>
         ) : null}
 
@@ -110,7 +111,7 @@ function ArtifactPipelineBanner({
           </div>
         ) : null}
 
-        {status === "analyzing" && elapsed > 45 && onRetryAnalyze ? (
+        {status === "analyzing" && elapsed > 120 && onRetryAnalyze ? (
           <div className="mt-3">
             <Button size="sm" variant="outline" disabled={retryAnalyzeBusy} onClick={onRetryAnalyze}>
               <RefreshCw className={cn("mr-1 h-3.5 w-3.5", retryAnalyzeBusy && "animate-spin")} />

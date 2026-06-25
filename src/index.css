@@ -1795,8 +1795,8 @@
 html:has(.hub-shell),
 body:has(.hub-shell),
 #root:has(.hub-shell) {
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: 100lvh;
+  height: 100lvh;
   overflow: hidden;
   background-color: hsl(var(--muted) / 0.4);
   background-image: url("/images/fabric-light-herringbone.png");
@@ -1807,8 +1807,8 @@ body:has(.hub-shell),
 }
 
 .group\/sidebar-wrapper.hub-shell {
-  min-height: 100dvh !important;
-  height: 100dvh !important;
+  min-height: 100lvh !important;
+  height: 100lvh !important;
   max-height: none !important;
 }
 
@@ -1903,13 +1903,31 @@ body:has(.hub-shell),
   margin-left: 0 !important;
 }
 
-/* Mobile hub — reinforce full-viewport fabric (shell is position:fixed inset:0). */
+/* Mobile hub — card flush to bottom; grey fabric stays on left/right only. */
 @media (max-width: 767px) {
   html:has(.hub-shell),
   body:has(.hub-shell),
   #root:has(.hub-shell) {
-    min-height: 100dvh;
-    height: 100dvh;
+    min-height: 100lvh;
+    height: 100lvh;
+  }
+
+  .group\/sidebar-wrapper.hub-shell {
+    min-height: 100lvh !important;
+    height: 100lvh !important;
+  }
+
+  .hub-shell .hub-content-card {
+    --hub-card-height: calc(100% - var(--hub-safe-top)) !important;
+    margin-bottom: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .hub-shell .peer[data-state="collapsed"] ~ .hub-content-card {
+    margin-left: var(--hub-edge);
+    margin-right: var(--hub-edge);
   }
 }
 
