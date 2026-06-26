@@ -10,6 +10,7 @@ import {
   type LifeWeekReviewSubject,
   type PendingLifeWeekReview,
 } from "@/lib/lifeWeekReview";
+import { localListClosedLifeWeekIndicesBySubject } from "@/lib/lifeWeekReviewLocalStore";
 import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 
 type LifeWeekReviewContextValue = {
@@ -49,6 +50,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     try {
       const closed = await listClosedLifeWeekIndicesBySubject(userId);
       setClosedWeekIndicesBySubject(closed);
+    } catch {
+      setClosedWeekIndicesBySubject(localListClosedLifeWeekIndicesBySubject(userId));
     } finally {
       setLoading(false);
     }

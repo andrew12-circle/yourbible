@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { PostgrestError } from "@supabase/supabase-js";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 import {
   computeLifeWeekIndex,
@@ -11,7 +12,7 @@ import {
   localSaveLifeWeekReview,
   notifyLifeWeekReviewLocalModeOnce,
 } from "@/lib/lifeWeekReviewLocalStore";
-import { formatSupabaseError, isSupabaseMissingTable } from "@/lib/supabase/errors";
+import { isPostgrestError, isSupabaseMissingTable } from "@/lib/supabase/errors";
 
 export type LifeWeekReviewRow = Tables<"life_week_reviews">;
 
@@ -46,6 +47,26 @@ export function emptyClosedWeekIndicesBySubject(): Record<LifeWeekReviewSubject,
 function normalizeSubject(raw: string | null | undefined): LifeWeekReviewSubject {
   if (raw === "lilly" || raw === "caroline") return raw;
   return "self";
+}
+
+function isMissingSubjectColumn(error: PostgrestError): boolean {
+  return /subject/i.test(error.message) && isSupabaseMissingTable(error);
+}
+
+function isRemoteSchemaMismatch(error: PostgrestError): boolean {
+  if (isSupabaseMissingTable(error)) return true;
+  if (isMissingSubjectColumn(error)) return true;
+  return (
+    error.code === "42P10" ||
+    /on conflict/i.test(error.message) ||
+    /there is no unique.*constraint/i.test(error.message)
+  );
+}
+
+function warnRemoteLifeWeekReviewFailure(action: string, error: unknown): void {
+  if (import.meta.env.DEV) {
+    console.warn(`life week review ${action} failed; using local copy`, error);
+  }
 }
 
 export function priorLifeWeekIndex(currentWeekIndex: number): number {
@@ -110,34 +131,98 @@ function mergeClosedBySubject(
   return merged;
 }
 
+async function fetchRemoteClosedBySubject(
+  userId: string,
+): Promise<Record<LifeWeekReviewSubject, Set<number>> | null> {
+  const withSubject = await supabase
+    .from("life_week_reviews")
+    .select("week_index, subject")
+    .eq("user_id", userId);
+
+  if (!withSubject.error) {
+    const remote = emptyClosedWeekIndicesBySubject();
+    for (const row of withSubject.data ?? []) {
+      remote[normalizeSubject(row.subject)].add(row.week_index);
+    }
+    return remote;
+  }
+
+  if (!isRemoteSchemaMismatch(withSubject.error)) {
+    throw withSubject.error;
+  }
+
+  const legacy = await supabase.from("life_week_reviews").select("week_index").eq("user_id", userId);
+  if (legacy.error) {
+    if (isSupabaseMissingTable(legacy.error)) return null;
+    throw legacy.error;
+  }
+
+  const remote = emptyClosedWeekIndicesBySubject();
+  for (const row of legacy.data ?? []) {
+    remote.self.add(row.week_index);
+  }
+  return remote;
+}
+
 export async function listClosedLifeWeekIndicesBySubject(
   userId: string,
 ): Promise<Record<LifeWeekReviewSubject, Set<number>>> {
+  const local = localListClosedLifeWeekIndicesBySubject(userId);
+
   try {
-    const { data, error } = await supabase
-      .from("life_week_reviews")
-      .select("week_index, subject")
-      .eq("user_id", userId);
-    if (error) throw error;
-    const remote = emptyClosedWeekIndicesBySubject();
-    for (const row of data ?? []) {
-      remote[normalizeSubject(row.subject)].add(row.week_index);
-    }
-    const local = localListClosedLifeWeekIndicesBySubject(userId);
-    return mergeClosedBySubject(remote, local);
+    const remote = await fetchRemoteClosedBySubject(userId);
+    if (remote) return mergeClosedBySubject(remote, local);
   } catch (e) {
     if (isSupabaseMissingTable(e)) {
       notifyLifeWeekReviewLocalModeOnce();
-      return localListClosedLifeWeekIndicesBySubject(userId);
+    } else {
+      warnRemoteLifeWeekReviewFailure("load", e);
     }
-    throw e;
   }
+
+  return local;
 }
 
 /** @deprecated Use listClosedLifeWeekIndicesBySubject */
 export async function listClosedLifeWeekIndices(userId: string): Promise<Set<number>> {
   const bySubject = await listClosedLifeWeekIndicesBySubject(userId);
   return bySubject.self;
+}
+
+async function upsertRemoteLifeWeekReview(
+  row: TablesInsert<"life_week_reviews">,
+): Promise<LifeWeekReviewRow | null> {
+  const withSubject = await supabase
+    .from("life_week_reviews")
+    .upsert(row, { onConflict: "user_id,subject,week_index" })
+    .select("*")
+    .single();
+
+  if (!withSubject.error && withSubject.data) return withSubject.data;
+  if (withSubject.error && !isRemoteSchemaMismatch(withSubject.error)) {
+    throw withSubject.error;
+  }
+
+  if (row.subject !== "self") return null;
+
+  const legacyRow = {
+    user_id: row.user_id,
+    week_index: row.week_index,
+    week_start: row.week_start,
+    reflection: row.reflection,
+  };
+  const legacy = await supabase
+    .from("life_week_reviews")
+    .upsert(legacyRow, { onConflict: "user_id,week_index" })
+    .select("*")
+    .single();
+
+  if (legacy.error) {
+    if (isSupabaseMissingTable(legacy.error)) return null;
+    throw legacy.error;
+  }
+
+  return legacy.data ? { ...legacy.data, subject: "self" } : null;
 }
 
 export async function saveLifeWeekReview(
@@ -152,6 +237,8 @@ export async function saveLifeWeekReview(
     throw new Error(`Write at least ${LIFE_WEEK_REFLECTION_MIN} characters.`);
   }
 
+  const localRow = localSaveLifeWeekReview(userId, subject, weekIndex, weekStart, trimmed);
+
   const row: TablesInsert<"life_week_reviews"> = {
     user_id: userId,
     subject,
@@ -161,19 +248,16 @@ export async function saveLifeWeekReview(
   };
 
   try {
-    const { data, error } = await supabase
-      .from("life_week_reviews")
-      .upsert(row, { onConflict: "user_id,subject,week_index" })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return data;
+    const remoteRow = await upsertRemoteLifeWeekReview(row);
+    if (remoteRow) return remoteRow;
+    notifyLifeWeekReviewLocalModeOnce();
+    return localRow;
   } catch (e) {
-    if (isSupabaseMissingTable(e)) {
-      notifyLifeWeekReviewLocalModeOnce();
-      return localSaveLifeWeekReview(userId, subject, weekIndex, weekStart, trimmed);
+    if (isPostgrestError(e) && !isSupabaseMissingTable(e)) {
+      warnRemoteLifeWeekReviewFailure("save", e);
     }
-    throw new Error(formatSupabaseError(e));
+    notifyLifeWeekReviewLocalModeOnce();
+    return localRow;
   }
 }
 

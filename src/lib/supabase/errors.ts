@@ -18,7 +18,6 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   life_week_reviews: "20260626120000_life_week_reviews.sql",
 };
 
-/** Column-level migrations (app code may reference columns added after the base table migration). */
 const COLUMN_MIGRATIONS: Record<string, string> = {
   kind: "20260625120000_todo_list_kind.sql",
   task_type: "20260625130000_todo_item_spreadsheet_fields.sql",
@@ -26,6 +25,7 @@ const COLUMN_MIGRATIONS: Record<string, string> = {
   end_date: "20260625130000_todo_item_spreadsheet_fields.sql",
   status: "20260625130000_todo_item_spreadsheet_fields.sql",
   pinned_for_date: "20260625130000_todo_item_spreadsheet_fields.sql",
+  subject: "20260626130000_life_week_reviews_subject.sql",
 };
 
 function supabaseProjectRef(): string {
