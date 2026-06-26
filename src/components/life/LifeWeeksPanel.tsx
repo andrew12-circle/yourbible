@@ -46,8 +46,9 @@ import { APP_NAME } from "@/lib/appBrand";
 
 const APP_TAGLINE = APP_NAME;
 
-/** Cap poster chart width on large viewports (~half the screen) so grids stay taller than wide. */
+/** Cap poster chart width on standalone views; Overview split layout uses full right column. */
 const CHART_WIDTH_CLASS = "mx-auto w-full max-w-full lg:max-w-[min(720px,50vw)]";
+const CHART_FILL_CLASS = "w-full min-h-0 flex-1";
 
 function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
@@ -327,6 +328,7 @@ export function LifeWeeksPanel({
 
   const hubLayout = showHubShell && !embedded;
   const chartFillLayout = hubLayout || splitLayout;
+  const chartWidthClass = splitLayout ? CHART_FILL_CLASS : CHART_WIDTH_CLASS;
   const fitMaxHeight = splitLayout
     ? "calc(100dvh - 8rem)"
     : embedded
@@ -407,7 +409,7 @@ export function LifeWeeksPanel({
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3",
-              CHART_WIDTH_CLASS,
+              chartWidthClass,
               cardClass,
             )}
           >
@@ -439,7 +441,7 @@ export function LifeWeeksPanel({
         )}
         <div
           className={cn(
-            CHART_WIDTH_CLASS,
+            chartWidthClass,
             cardClass,
             chartFillLayout
               ? "flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5"
@@ -454,7 +456,9 @@ export function LifeWeeksPanel({
             className={cn(
               boundedGridView
                 ? chartFillLayout
-                  ? "flex min-h-0 flex-1 items-center justify-center"
+                  ? splitLayout
+                    ? "flex min-h-0 flex-1 items-stretch"
+                    : "flex min-h-0 flex-1 items-center justify-center"
                   : "mx-auto"
                 : cn(
                     "overflow-auto overscroll-contain scrollbar-hide",
@@ -468,7 +472,9 @@ export function LifeWeeksPanel({
               className={
                 boundedGridView
                   ? chartFillLayout
-                    ? "h-full max-h-full w-auto max-w-full"
+                    ? splitLayout
+                      ? "h-auto max-h-full w-full"
+                      : "h-full max-h-full w-auto max-w-full"
                     : "mx-auto"
                   : undefined
               }
@@ -478,7 +484,8 @@ export function LifeWeeksPanel({
                       aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
                       maxWidth: "100%",
                       maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
-                      ...(chartFillLayout ? { height: "100%" } : {}),
+                      ...(chartFillLayout && splitLayout ? { width: "100%" } : {}),
+                      ...(chartFillLayout && !splitLayout ? { height: "100%" } : {}),
                     }
                   : undefined
               }
@@ -752,7 +759,7 @@ export function LifeWeeksPanel({
       )}
 
       {splitLayout ? (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(280px,380px)_1fr] lg:gap-6 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] lg:gap-5 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
           <div className="shrink-0 lg:col-start-1 lg:row-start-1">{leadingContent}</div>
 
           {chartPhaseStats && chartIndexState && chartDob ? (
@@ -761,8 +768,8 @@ export function LifeWeeksPanel({
             </div>
           ) : null}
 
-          <div className="flex min-h-[320px] flex-col items-center sm:min-h-[380px] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-0">
-            <div className={cn("flex min-h-0 w-full flex-1 flex-col", CHART_WIDTH_CLASS)}>
+          <div className="flex min-h-[320px] flex-col sm:min-h-[380px] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-0">
+            <div className={cn("flex min-h-0 w-full flex-1 flex-col", chartWidthClass)}>
               {renderChartSection()}
             </div>
           </div>
