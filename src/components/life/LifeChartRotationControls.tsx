@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chartSlotLabel, type LifeChartSlot } from "@/lib/lifeChartRotation";
+import { LIFE_WEEKS_CHART_SHORT } from "@/lib/lifeWeeks";
 import type { LifeChartKind } from "@/hooks/useRotatingLifeChart";
 
 type LifeChartRotationControlsProps = {
@@ -20,7 +21,7 @@ type LifeChartRotationControlsProps = {
 const SLOT_ORDER: LifeChartSlot[] = ["self", "lilly", "caroline"];
 
 function kindLabel(kind: LifeChartKind): string {
-  return kind === "blink" ? "Blink of an Eye" : "Life in Weeks";
+  return kind === "blink" ? "Blink of an Eye" : LIFE_WEEKS_CHART_SHORT;
 }
 
 export function LifeChartRotationControls({

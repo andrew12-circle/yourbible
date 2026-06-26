@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDisplayName, resolveProfileDisplayName } from "./displayName";
+import { formatDisplayName, formatFormalGreetingName, resolveProfileDisplayName } from "./displayName";
 
 describe("formatDisplayName", () => {
   it("title-cases spaced names", () => {
@@ -13,6 +13,13 @@ describe("formatDisplayName", () => {
 
   it("title-cases a single lowercase token", () => {
     expect(formatDisplayName("andrewheisley")).toBe("Andrewheisley");
+  });
+});
+
+describe("formatFormalGreetingName", () => {
+  it("uses Mr. and the last name", () => {
+    expect(formatFormalGreetingName("Andrew Heisley")).toBe("Mr. Heisley");
+    expect(formatFormalGreetingName("andrew.heisley")).toBe("Mr. Heisley");
   });
 });
 

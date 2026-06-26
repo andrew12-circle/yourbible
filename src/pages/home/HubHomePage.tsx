@@ -5,6 +5,7 @@ import { LifeWeeksPanel } from "@/components/life/LifeWeeksPanel";
 import { HomeJournalCards } from "@/components/home/HomeJournalCards";
 import { MorningFormulaHomeCard } from "@/components/home/MorningFormulaHomeCard";
 import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
+import { formatFormalGreetingName } from "@/lib/profile/displayName";
 
 export default function HubHomePage() {
   const { todayPrompt, onThisDayCount, counts, displayName } = useHomeDashboard();
@@ -16,6 +17,8 @@ export default function HubHomePage() {
     if (h < 18) return "Good afternoon";
     return "Good evening";
   })();
+
+  const greetingName = displayName ? formatFormalGreetingName(displayName) : "";
 
   const dateStr = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -37,7 +40,7 @@ export default function HubHomePage() {
               <div className="rounded-xl border bg-card px-4 py-3">
                 <p className="text-xs text-muted-foreground">{dateStr}</p>
                 <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
-                  {greeting}{displayName ? `, ${displayName}` : ""}
+                  {greeting}{greetingName ? `, ${greetingName}` : ""}
                 </h2>
               </div>
               <HubStatusStrip counts={counts} />

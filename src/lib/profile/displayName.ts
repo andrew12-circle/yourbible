@@ -19,6 +19,15 @@ export function formatDisplayName(raw: string): string {
     .join(" ");
 }
 
+/** Overview greeting suffix, e.g. "Andrew Heisley" → "Mr. Heisley". */
+export function formatFormalGreetingName(raw: string): string {
+  const formatted = formatDisplayName(raw);
+  if (!formatted) return "";
+  const parts = formatted.split(/\s+/).filter(Boolean);
+  const lastName = parts[parts.length - 1];
+  return lastName ? `Mr. ${lastName}` : "";
+}
+
 type UserLike = {
   email?: string | null;
   user_metadata?: Record<string, unknown>;

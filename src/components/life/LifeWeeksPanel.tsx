@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Maximize2, Minus, Plus } from "lucide-react";
 import {
   LIFE_WEEKS_TOTAL,
+  LIFE_WEEKS_CHART_TITLE,
   type LifePhaseStats,
   type LifeWeekIndexResult,
   getCurrentWeekDisplay,
@@ -429,6 +430,9 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
             chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
           )}
         >
+          <p className="mb-3 shrink-0 border-b border-border/50 pb-3 text-center text-sm font-semibold leading-snug tracking-tight text-foreground sm:text-[15px]">
+            {LIFE_WEEKS_CHART_TITLE}
+          </p>
           <div
             ref={gridScrollRef}
             className={cn(
@@ -460,23 +464,14 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
             >
               <svg
                 role="img"
-                aria-label={`My life in weeks: ${GRID_ROWS} rows by ${GRID_COLS} columns in 13 sections`}
+                aria-label={`${LIFE_WEEKS_CHART_TITLE}: ${GRID_ROWS} rows by ${GRID_COLS} week-columns`}
                 viewBox={chartSvgViewBox}
                 preserveAspectRatio="xMidYMid meet"
                 width={boundedGridView ? "100%" : gridW * (typeof zoom === "number" ? zoom : 1)}
                 height={boundedGridView ? "100%" : gridH * (typeof zoom === "number" ? zoom : 1)}
                 className="block text-zinc-900 dark:text-zinc-100"
               >
-                <title>MY LIFE IN WEEKS</title>
-                <text
-                  x={gridW / 2}
-                  y={20}
-                  textAnchor="middle"
-                  className="fill-current text-[13px] font-semibold tracking-[0.2em]"
-                  style={{ fontVariantCaps: "small-caps" }}
-                >
-                  MY LIFE IN WEEKS
-                </text>
+                <title>{LIFE_WEEKS_CHART_TITLE}</title>
 
                 {SECTION_TICKS.map((s) => {
                   const x = MARGIN_LEFT + sectionX(s - 1);

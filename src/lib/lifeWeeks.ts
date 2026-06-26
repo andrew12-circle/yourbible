@@ -6,6 +6,9 @@
 
 export const LIFE_WEEKS_TOTAL = 120 * 52; // 6,240
 
+export const LIFE_WEEKS_CHART_TITLE = "Make Big Moves so you can enjoy your time left";
+export const LIFE_WEEKS_CHART_SHORT = "Make Big Moves";
+
 /** Parse YYYY-MM-DD to UTC midnight on that calendar day. */
 export function parseUtcDateOnly(iso: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
