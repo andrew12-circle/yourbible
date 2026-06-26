@@ -26,7 +26,7 @@ export function FamilyBirthDatePrompt({
   return (
     <section className={`mx-auto max-w-md p-4 sm:p-5 ${POSTER_CLASS}`}>
       <p className="text-sm leading-relaxed" style={{ fontFamily: 'Georgia, "Times New Roman", Times, serif' }}>
-        Add {memberName}&apos;s birthdate to see <em>The Blink of an Eye</em> — the first 18 years, one week at a time.
+        Add {memberName}&apos;s birthdate to see <em>The Blink of an Eye</em> — life-years 0 through 17 at home, one week at a time.
       </p>
       <div className="mt-4 max-w-xs space-y-2">
         <Label htmlFor={`family-dob-${memberId}`} className="text-xs uppercase tracking-wide text-muted-foreground">

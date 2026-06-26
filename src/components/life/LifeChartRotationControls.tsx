@@ -9,6 +9,8 @@ type LifeChartRotationControlsProps = {
   availableSlots: LifeChartSlot[];
   chartKind: LifeChartKind;
   displayName?: string | null;
+  /** Poster-style birthdate shown beside the chart title (blink charts). */
+  birthDateLabel?: string | null;
   onSelect: (slot: LifeChartSlot) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -26,19 +28,22 @@ export function LifeChartRotationControls({
   availableSlots,
   chartKind,
   displayName,
+  birthDateLabel,
   onSelect,
   onPrev,
   onNext,
   className,
 }: LifeChartRotationControlsProps) {
-  const title = `${kindLabel(chartKind)} · ${chartSlotLabel(activeSlot, displayName)}`;
+  const person = chartSlotLabel(activeSlot, displayName);
+  const titleParts = [kindLabel(chartKind), person];
+  if (birthDateLabel?.trim()) titleParts.push(birthDateLabel.trim());
+  const title = titleParts.join(" · ");
 
   return (
     <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between", className)}>
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rotating view</p>
         <p className="truncate text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">A fresh perspective each time you open Overview.</p>
       </div>
       <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} aria-label="Previous chart">

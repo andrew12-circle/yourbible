@@ -10,6 +10,7 @@ import {
   type LifePhaseStats,
   type LifeWeekIndexResult,
   getCurrentWeekDisplay,
+  formatBirthDatePoster,
 } from "@/lib/lifeWeeks";
 import {
   AGE_TICKS,
@@ -376,6 +377,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
     }
 
     if (showBlinkChart && chartDob && chartIndexState) {
+      const blinkBirthLabel = formatBirthDatePoster(chartDob);
       return (
         <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
           <LifeChartRotationControls
@@ -383,6 +385,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
             availableSlots={rotation.availableSlots}
             chartKind={rotation.activeChart.kind}
             displayName={profile?.display_name}
+            birthDateLabel={blinkBirthLabel}
             onSelect={rotation.selectSlot}
             onPrev={rotation.prevSlot}
             onNext={rotation.nextSlot}
@@ -390,14 +393,15 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
           />
           <div
             className={cn(
-              chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
+              "mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5",
+              cardClass,
             )}
           >
             <BlinkOfAnEyeChart
               birthDate={chartDob}
               currentWeekIndex={chartIndexState.currentWeekIndex}
               personName={rotation.activeChart.name}
-              className="max-h-full border-0 shadow-none"
+              className="min-h-[320px]"
             />
           </div>
         </div>
