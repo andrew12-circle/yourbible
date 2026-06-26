@@ -10,7 +10,7 @@ import {
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
-import { clampAnchorOffset, insertTranscriptAtAnchor, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
+import { clampAnchorOffset, insertTranscriptAtAnchor, prepareVideoJournalTranscript, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -578,9 +578,10 @@ export default function EntryEditorPane({
     ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
       void reloadVideos();
       const cur = entryRef.current;
-      if (!cur || !transcript.trim()) return;
+      const prepared = prepareVideoJournalTranscript(transcript);
+      if (!cur || !prepared) return;
       const anchor = clampAnchorOffset(cur.body, anchorOffset);
-      handleBodyChange(insertTranscriptAtAnchor(cur.body, anchor, transcript));
+      handleBodyChange(insertTranscriptAtAnchor(cur.body, anchor, prepared));
     },
     [handleBodyChange, reloadVideos],
   );

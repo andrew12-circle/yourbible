@@ -66,6 +66,7 @@ import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import {
   clampAnchorOffset,
   insertTranscriptAtAnchor,
+  prepareVideoJournalTranscript,
   resolveVideoAnchorOffset,
 } from "@/lib/journal/journalVideoBody";
 import {
@@ -1292,14 +1293,15 @@ export function useNewJournalEntryPage() {
         if (transcript) await updateEntryVideoTranscript(row.id, transcript);
 
         await reloadVideos();
-        if (transcript.trim()) {
+        const prepared = prepareVideoJournalTranscript(transcript);
+        if (prepared.trim()) {
           const cur = bodyRef.current;
           const anchor = clampAnchorOffset(cur, anchorOffset);
-          handleBodyChange(insertTranscriptAtAnchor(cur, anchor, transcript));
+          handleBodyChange(insertTranscriptAtAnchor(cur, anchor, prepared));
         }
         toast({
-          title: transcript ? "Video and transcript saved" : "Video saved",
-          description: transcript
+          title: prepared ? "Video and transcript saved" : "Video saved",
+          description: prepared
             ? undefined
             : "Transcription was empty — try speaking closer to the mic.",
         });

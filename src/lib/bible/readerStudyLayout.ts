@@ -37,9 +37,9 @@ export function studyLayoutPreferenceLabel(preference: ReaderStudyLayoutPreferen
 export function studyLayoutPreferenceDescription(preference: ReaderStudyLayoutPreference): string {
   switch (preference) {
     case "inline":
-      return "Cross-refs trail each verse; study notes collect in a ruled band at the page foot.";
+      return "Footnotes appear with each verse; study notes collect in a ruled band at the page foot.";
     case "holman":
-      return "Connections at the column foot — beta; use Inline for maximum accuracy.";
+      return "Footnotes at the page bottom, like a printed Holman study Bible (beta).";
     default:
       return "Holman layout for CSB, NKJV, and HCSB; inline for other translations.";
   }

@@ -19,7 +19,8 @@ import {
   type JournalVideoCaptureMode,
   type ScreenCompositeSession,
 } from "@/lib/journal/screenRecordingComposite";
-import { useSpeechDictation } from "@/hooks/useSpeechDictation";
+import { mergeDictatedText, useSpeechDictation } from "@/hooks/useSpeechDictation";
+import { composeVideoLiveTranscript } from "@/lib/journal/journalVideoBody";
 
 export type JournalVideoCapturePhase =
   | "idle"
@@ -93,7 +94,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const resolveStopRef = useRef<((result: JournalVideoCaptureResult | null) => void) | null>(null);
   const resolveAudioStopRef = useRef<((blob: Blob | null) => void) | null>(null);
-  const interimRef = useRef("");
+  const finalizedTranscriptRef = useRef("");
+  const interimPartialRef = useRef("");
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -102,17 +104,27 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const maxDurationTriggeredRef = useRef(false);
   const stopRecordingRef = useRef<(() => Promise<Blob | null>) | null>(null);
 
-  const handleInterim = useCallback((text: string) => {
-    interimRef.current = text;
-    setInterim(text);
-    onInterimRef.current?.(text);
+  const syncLiveTranscriptDisplay = useCallback(() => {
+    const combined = composeVideoLiveTranscript(
+      finalizedTranscriptRef.current,
+      interimPartialRef.current,
+    );
+    setInterim(combined);
+    onInterimRef.current?.(combined);
   }, []);
+
+  const handleInterim = useCallback(
+    (partial: string) => {
+      interimPartialRef.current = partial;
+      syncLiveTranscriptDisplay();
+    },
+    [syncLiveTranscriptDisplay],
+  );
 
   const speech = useSpeechDictation({
     onAppend: (chunk) => {
-      interimRef.current = `${interimRef.current}${chunk}`.trim();
-      setInterim(interimRef.current);
-      onInterimRef.current?.(interimRef.current);
+      finalizedTranscriptRef.current = mergeDictatedText(finalizedTranscriptRef.current, chunk);
+      syncLiveTranscriptDisplay();
     },
     onInterim: handleInterim,
     language,
@@ -228,7 +240,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     cleanupStream();
     setMode(null);
     setPhase("idle");
-    interimRef.current = "";
+    finalizedTranscriptRef.current = "";
+    interimPartialRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
   }, [cleanupStream, clearCountdown, resetRecordingClock]);
@@ -243,7 +256,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       setMode(captureMode);
       setError(null);
       setPhase("idle");
-      interimRef.current = "";
+      finalizedTranscriptRef.current = "";
+      interimPartialRef.current = "";
       setInterim("");
       clearCountdown();
       try {
@@ -308,7 +322,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     }
     clearCountdown();
     setError(null);
-    interimRef.current = "";
+    finalizedTranscriptRef.current = "";
+    interimPartialRef.current = "";
     setInterim("");
     chunksRef.current = [];
     audioChunksRef.current = [];
@@ -423,9 +438,13 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     clearCountdown();
     clearRecordingTick();
     setRecordingElapsedMs(getRecordingElapsedMs());
+    const liveTranscript = composeVideoLiveTranscript(
+      finalizedTranscriptRef.current,
+      interimPartialRef.current,
+    ).trim();
     speechStopRef.current();
-    const liveTranscript = interimRef.current.trim();
-    interimRef.current = "";
+    finalizedTranscriptRef.current = "";
+    interimPartialRef.current = "";
     setInterim("");
     onInterimRef.current?.("");
 

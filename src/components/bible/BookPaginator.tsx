@@ -27,7 +27,6 @@ import {
 } from "@/lib/bible/readerStream";
 import type { PassageVerse } from "@/lib/bible/api";
 import {
-  buildHolmanConnectionsMeasureHtml,
   buildHolmanHeadingMeasureHtml,
   buildHolmanPageFootnotesMeasureHtml,
 } from "@/lib/bible/holmanStudyLayout";
@@ -431,11 +430,7 @@ function renderStreamSlice(
   const scriptureHtml = parts.join("");
   if (studyLayout === "holman") {
     const verseGroups = verseGroupsFromStreamSlice(slice);
-    const connectionsHtml = buildHolmanConnectionsMeasureHtml(
-      verseGroups,
-      escapeHtml,
-      Boolean(columnsClassName),
-    );
+    const connectionsHtml = "";
     const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
     applyHolmanStudyMeasureHtml(
       node,

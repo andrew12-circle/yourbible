@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { insertTranscriptAtAnchor, resolveVideoAnchorOffset, effectiveVideoAnchor } from "@/lib/journal/journalVideoBody";
+import {
+  composeVideoLiveTranscript,
+  insertTranscriptAtAnchor,
+  prepareVideoJournalTranscript,
+  resolveVideoAnchorOffset,
+  effectiveVideoAnchor,
+} from "@/lib/journal/journalVideoBody";
+
+describe("composeVideoLiveTranscript", () => {
+  it("combines finalized speech with the current partial phrase", () => {
+    expect(composeVideoLiveTranscript("Hello world.", "How are")).toBe("Hello world. How are");
+  });
+
+  it("returns finalized text when partial is empty", () => {
+    expect(composeVideoLiveTranscript("Hello world.", "")).toBe("Hello world.");
+  });
+});
+
+describe("prepareVideoJournalTranscript", () => {
+  it("returns empty for blank input", () => {
+    expect(prepareVideoJournalTranscript("   ")).toBe("");
+  });
+});
 
 describe("insertTranscriptAtAnchor", () => {
   it("appends transcript when anchor is at end", () => {

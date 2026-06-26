@@ -13,8 +13,8 @@ export function formatReaderSourceLine(
   }
   const layoutNote =
     studyLayout === "holman"
-      ? "study notes in Holman layout"
-      : "study notes inline with each verse";
+      ? "study footnotes in Holman layout"
+      : "study footnotes inline with each verse";
   return `${label} · ${layoutNote} · API.Bible`;
 }
 

@@ -3,7 +3,6 @@ import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
-  buildHolmanConnectionsMeasureHtml,
   buildHolmanHeadingMeasureHtml,
   buildHolmanPageFootnotesMeasureHtml,
 } from "@/lib/bible/holmanStudyLayout";
@@ -278,11 +277,7 @@ function renderInto(
     .join("");
   if (studyLayout === "holman") {
     const verseGroups = [{ chapter, verses }];
-    const connectionsHtml = buildHolmanConnectionsMeasureHtml(
-      verseGroups,
-      escapeHtml,
-      Boolean(columnsClassName),
-    );
+    const connectionsHtml = "";
     const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
     applyHolmanStudyMeasureHtml(
       node,

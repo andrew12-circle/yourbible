@@ -13,12 +13,11 @@ describe("buildVerseXrefsInnerHtml", () => {
     ],
   };
 
-  it("renders cross-refs below the verse body in inline layout", () => {
+  it("omits cross-refs from reader output", () => {
     const body = buildVersePartsInnerHtml(verse, new Map(), (s) => s, "inline");
     const xrefs = buildVerseXrefsInnerHtml(verse, (s) => s, "inline");
     expect(body).toBe("He looked up");
-    expect(xrefs).toContain('class="scripture-xref"');
-    expect(xrefs).toContain("Mk 12:41-44");
+    expect(xrefs).toBe("");
     expect(body).not.toContain("Mk 12:41-44");
   });
 
@@ -39,5 +38,19 @@ describe("buildVerseXrefsInnerHtml", () => {
 
   it("omits cross-refs for holman layout", () => {
     expect(buildVerseXrefsInnerHtml(verse, (s) => s, "holman")).toBe("");
+  });
+
+  it("omits holman cross-ref superscripts from verse body", () => {
+    const holmanVerse: PassageVerse = {
+      number: 1,
+      text: "In the beginning",
+      parts: [
+        { kind: "text", text: "In the beginning" },
+        { kind: "crossref", label: "Gn 1:1", book: "Gen", chapter: 1, verse: 1, letter: "a" },
+      ],
+    };
+    const body = buildVersePartsInnerHtml(holmanVerse, new Map(), (s) => s, "holman");
+    expect(body).toBe("In the beginning");
+    expect(body).not.toContain("scripture-holman-mark");
   });
 });

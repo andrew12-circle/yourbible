@@ -31,16 +31,20 @@ export default function HubHomePage() {
       mainClassName="overflow-y-auto scrollbar-hide"
     >
       <div className="space-y-3 md:space-y-6">
-        <div className="rounded-xl border bg-card px-4 py-3">
-          <p className="text-xs text-muted-foreground">{dateStr}</p>
-          <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
-            {greeting}{displayName ? `, ${displayName}` : ""}
-          </h2>
-        </div>
-
-        <HubStatusStrip counts={counts} />
-
-        <LifeWeeksPanel embedded />
+        <LifeWeeksPanel
+          embedded
+          leadingContent={
+            <>
+              <div className="rounded-xl border bg-card px-4 py-3">
+                <p className="text-xs text-muted-foreground">{dateStr}</p>
+                <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
+                  {greeting}{displayName ? `, ${displayName}` : ""}
+                </h2>
+              </div>
+              <HubStatusStrip counts={counts} />
+            </>
+          }
+        />
 
         <MorningFormulaHomeCard />
         <BibleHomeWidgets />

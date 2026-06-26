@@ -1,3 +1,5 @@
+import { formatDictationForJournal } from "@/lib/ai/formatDictatedTextLocally";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import type { JournalVideoRow } from "@/lib/journal/videos";
 
 export type JournalBodySegment =
@@ -28,6 +30,18 @@ export function buildJournalBodySegments(body: string, videos: JournalVideoRow[]
     segments.push({ kind: "text", start: 0, end: body.length });
   }
   return segments;
+}
+
+/** Combine finalized speech chunks with the current partial phrase (live captions). */
+export function composeVideoLiveTranscript(finalized: string, interimPartial: string): string {
+  return mergeDictatedText(finalized, interimPartial);
+}
+
+/** Clean up raw speech-to-text before inserting into the journal body. */
+export function prepareVideoJournalTranscript(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return formatDictationForJournal(trimmed);
 }
 
 /** Insert spoken transcript at the anchor where video recording started. */

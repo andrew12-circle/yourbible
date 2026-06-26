@@ -82,15 +82,15 @@ export const STUDY_MAPS: StudyMapEntry[] = [
 ];
 
 const FEATURES_HTML = `
-<p>This reader includes publisher cross-references and footnotes from your selected translation via API.Bible.</p>
+<p>This reader includes publisher footnotes from your selected translation via API.Bible.</p>
 <ul>
-  <li><strong>Inline study notes</strong> — cross-refs and footnotes appear with each verse (recommended).</li>
-  <li><strong>Holman layout (beta)</strong> — Connections block at the column foot and footnotes at the page bottom, like a printed Holman study Bible.</li>
+  <li><strong>Inline study notes</strong> — footnotes appear with each verse (recommended).</li>
+  <li><strong>Holman layout (beta)</strong> — footnotes at the page bottom, like a printed Holman study Bible.</li>
   <li><strong>Illustrations</strong> — classic public-domain plates at key passages; maps and charts in back matter.</li>
   <li><strong>Word study</strong> — highlight a word, tap the languages icon for concordance, Hebrew (OT), and Strong&apos;s lookup.</li>
   <li><strong>Book introductions</strong> — when your translation provides them, an introduction appears before chapter 1.</li>
 </ul>
-<p>Tap any cross-reference to jump to that passage.</p>
+<p>Tap a footnote marker to read the study note.</p>
 `;
 
 const WEIGHTS_HTML = `

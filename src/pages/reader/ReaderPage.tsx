@@ -1354,10 +1354,7 @@ export default function ReaderPage() {
       slice,
     });
     const holmanFootnoteVerses = holmanVerseGroups.flatMap((group) => group.verses);
-    const showHolmanConnections =
-      activeStudyLayout === "holman" &&
-      holmanVerseGroups.some((group) => group.verses.length > 0) &&
-      (scrollMode || pageContentReady);
+    const showHolmanConnections = false;
     const showPageFootnotes =
       versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
     const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
