@@ -14,16 +14,21 @@ import {
 import {
   AGE_TICKS,
   CELL,
+  GRID_COLS,
+  GRID_ROWS,
   LABEL_SIZE,
   MARGIN_LEFT,
   MARGIN_TOP,
   POSTER_CLASS,
+  ROWS_PER_YEAR,
   WEEK_TICKS,
   colX,
   fitnessDashColor,
   rowY,
+  weekIndexToGridPos,
 } from "@/lib/lifeWeeksGrid";
 import { useLifeWeeksPanel, type LifeWeeksStageDraft } from "@/hooks/useLifeWeeksPanel";
+import { useLifeWeekReviewOptional } from "@/contexts/LifeWeekReviewContext";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { APP_NAME } from "@/lib/appBrand";
 
@@ -236,6 +241,7 @@ type LifeWeeksPanelProps = {
 
 export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPanelProps) {
   const splitLayout = embedded && leadingContent != null;
+  const closedWeekIndices = useLifeWeekReviewOptional()?.closedWeekIndices;
   const panel = useLifeWeeksPanel({ defaultZoom: splitLayout ? "fit" : undefined });
   const {
     showHubShell,
@@ -301,6 +307,189 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
   const renderChartSection = () =>
     indexState ? (
       <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
+        <div
+          className={cn(
+            "mx-auto w-full p-3 sm:p-4 md:p-5",
+            cardClass,
+            chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
+          )}
+        >
+          <div
+            ref={gridScrollRef}
+            className={cn(
+              boundedGridView
+                ? chartFillLayout
+                  ? "flex min-h-0 flex-1 items-center justify-center"
+                  : "mx-auto"
+                : cn(
+                    "overflow-auto overscroll-contain scrollbar-hide",
+                    chartFillLayout
+                      ? "flex min-h-0 w-full flex-1"
+                      : "inline-block max-h-[min(58vh,calc(100dvh-18rem))]",
+                  ),
+            )}
+          >
+            <div
+              className={
+                boundedGridView ? (chartFillLayout ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined
+              }
+              style={
+                boundedGridView
+                  ? {
+                      aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
+                      maxWidth: "100%",
+                      maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
+                    }
+                  : undefined
+              }
+            >
+              <svg
+                role="img"
+                aria-label={`My life in weeks: ${GRID_ROWS} rows by ${GRID_COLS} columns`}
+                viewBox={svgViewBox}
+                preserveAspectRatio="xMidYMid meet"
+                width={boundedGridView ? "100%" : gridW * (typeof zoom === "number" ? zoom : 1)}
+                height={boundedGridView ? "100%" : gridH * (typeof zoom === "number" ? zoom : 1)}
+                className="block text-zinc-900 dark:text-zinc-100"
+              >
+                <title>MY LIFE IN WEEKS</title>
+                <text
+                  x={gridW / 2}
+                  y={20}
+                  textAnchor="middle"
+                  className="fill-current text-[13px] font-semibold tracking-[0.2em]"
+                  style={{ fontVariantCaps: "small-caps" }}
+                >
+                  MY LIFE IN WEEKS
+                </text>
+
+                {WEEK_TICKS.map((w) => {
+                  const col = w - 1;
+                  const cx = MARGIN_LEFT + colX(col) + CELL / 2;
+                  return (
+                    <text
+                      key={`wk-${w}`}
+                      x={cx}
+                      y={MARGIN_TOP - 6}
+                      textAnchor="middle"
+                      className="pointer-events-none fill-current"
+                      style={{ fontSize: LABEL_SIZE }}
+                    >
+                      {w}
+                    </text>
+                  );
+                })}
+
+                {AGE_TICKS.map((age) => {
+                  if (age === 120) {
+                    const y = MARGIN_TOP + rowY(GRID_ROWS - 1) + CELL + 14;
+                    return (
+                      <text
+                        key="age-120"
+                        x={MARGIN_LEFT - 10}
+                        y={y}
+                        textAnchor="end"
+                        dominantBaseline="middle"
+                        className="pointer-events-none fill-current"
+                        style={{ fontSize: LABEL_SIZE }}
+                      >
+                        120
+                      </text>
+                    );
+                  }
+                  const row = age * ROWS_PER_YEAR;
+                  const y = MARGIN_TOP + rowY(row) + CELL / 2;
+                  return (
+                    <text
+                      key={`age-${age}`}
+                      x={MARGIN_LEFT - 10}
+                      y={y}
+                      textAnchor="end"
+                      dominantBaseline="middle"
+                      className="pointer-events-none fill-current"
+                      style={{ fontSize: LABEL_SIZE }}
+                    >
+                      {age}
+                    </text>
+                  );
+                })}
+
+                {Array.from({ length: LIFE_WEEKS_TOTAL }, (_, i) => {
+                  const { row, col } = weekIndexToGridPos(i);
+                  const x = MARGIN_LEFT + colX(col);
+                  const y = MARGIN_TOP + rowY(row);
+                  const isPast = i < indexState.currentWeekIndex;
+                  const isCurrent = i === indexState.currentWeekIndex;
+                  const isFuture = i > indexState.currentWeekIndex;
+                  const isClosed = isPast && (closedWeekIndices?.has(i) ?? false);
+
+                  return (
+                    <g key={i}>
+                      {isPast && (
+                        <>
+                          <rect
+                            x={x}
+                            y={y}
+                            width={CELL}
+                            height={CELL}
+                            className={cn("fill-current", isClosed && "fill-emerald-600 dark:fill-emerald-500")}
+                            rx={0.5}
+                          />
+                          {isClosed ? (
+                            <path
+                              d={`M ${x + 2} ${y + CELL * 0.55} L ${x + CELL * 0.42} ${y + CELL - 2} L ${x + CELL - 2} ${y + 2}`}
+                              fill="none"
+                              className="stroke-white"
+                              strokeWidth={1.75}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          ) : null}
+                        </>
+                      )}
+                      {isFuture && (
+                        <rect
+                          x={x + 0.5}
+                          y={y + 0.5}
+                          width={CELL - 1}
+                          height={CELL - 1}
+                          fill="none"
+                          className="stroke-current stroke-[1]"
+                          rx={0.5}
+                        />
+                      )}
+                      {isCurrent && (
+                        <>
+                          <rect x={x} y={y} width={CELL} height={CELL} className="fill-current" rx={0.5} />
+                          <rect
+                            x={x - 2}
+                            y={y - 2}
+                            width={CELL + 4}
+                            height={CELL + 4}
+                            fill="none"
+                            className="stroke-primary"
+                            strokeWidth={2.25}
+                            rx={1}
+                          />
+                        </>
+                      )}
+                    </g>
+                  );
+                })}
+
+                <text
+                  x={gridW / 2}
+                  y={gridH - 8}
+                  textAnchor="middle"
+                  className="fill-current text-[10px] tracking-[0.22em] opacity-70"
+                  style={{ fontVariantCaps: "small-caps" }}
+                >
+                  {`6,240 weeks · ${APP_TAGLINE}`}
+                </text>
+              </svg>
+            </div>
+          </div>
+        </div>
         <div className="flex shrink-0 items-center justify-end gap-1.5 px-1">
           <Button
             type="button"
@@ -348,170 +537,6 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
           >
             <Plus className="w-4 h-4" />
           </Button>
-        </div>
-        <div
-          className={cn(
-            "mx-auto w-full p-3 sm:p-4 md:p-5",
-            cardClass,
-            chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
-          )}
-        >
-          <div
-            ref={gridScrollRef}
-            className={cn(
-              boundedGridView
-                ? chartFillLayout
-                  ? "flex min-h-0 flex-1 items-center justify-center"
-                  : "mx-auto"
-                : cn(
-                    "overflow-auto overscroll-contain scrollbar-hide",
-                    chartFillLayout
-                      ? "flex min-h-0 w-full flex-1"
-                      : "inline-block max-h-[min(58vh,calc(100dvh-18rem))]",
-                  ),
-            )}
-          >
-            <div
-              className={
-                boundedGridView ? (chartFillLayout ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined
-              }
-              style={
-                boundedGridView
-                  ? {
-                      aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
-                      maxWidth: "100%",
-                      maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
-                    }
-                  : undefined
-              }
-            >
-              <svg
-                role="img"
-                aria-label="My life in weeks: 120 rows by 52 columns"
-                viewBox={svgViewBox}
-                preserveAspectRatio="xMidYMid meet"
-                width={boundedGridView ? "100%" : gridW * (typeof zoom === "number" ? zoom : 1)}
-                height={boundedGridView ? "100%" : gridH * (typeof zoom === "number" ? zoom : 1)}
-                className="block text-zinc-900 dark:text-zinc-100"
-              >
-                <title>MY LIFE IN WEEKS</title>
-                <text
-                  x={gridW / 2}
-                  y={20}
-                  textAnchor="middle"
-                  className="fill-current text-[13px] font-semibold tracking-[0.2em]"
-                  style={{ fontVariantCaps: "small-caps" }}
-                >
-                  MY LIFE IN WEEKS
-                </text>
-
-                {WEEK_TICKS.map((w) => {
-                  const col = w - 1;
-                  const cx = MARGIN_LEFT + colX(col) + CELL / 2;
-                  return (
-                    <text
-                      key={`wk-${w}`}
-                      x={cx}
-                      y={MARGIN_TOP - 6}
-                      textAnchor="middle"
-                      className="pointer-events-none fill-current"
-                      style={{ fontSize: LABEL_SIZE }}
-                    >
-                      {w}
-                    </text>
-                  );
-                })}
-
-                {AGE_TICKS.map((age) => {
-                  if (age === 120) {
-                    const y = MARGIN_TOP + rowY(119) + CELL + 14;
-                    return (
-                      <text
-                        key="age-120"
-                        x={MARGIN_LEFT - 10}
-                        y={y}
-                        textAnchor="end"
-                        dominantBaseline="middle"
-                        className="pointer-events-none fill-current"
-                        style={{ fontSize: LABEL_SIZE }}
-                      >
-                        120
-                      </text>
-                    );
-                  }
-                  const row = age;
-                  const y = MARGIN_TOP + rowY(row) + CELL / 2;
-                  return (
-                    <text
-                      key={`age-${age}`}
-                      x={MARGIN_LEFT - 10}
-                      y={y}
-                      textAnchor="end"
-                      dominantBaseline="middle"
-                      className="pointer-events-none fill-current"
-                      style={{ fontSize: LABEL_SIZE }}
-                    >
-                      {age}
-                    </text>
-                  );
-                })}
-
-                {Array.from({ length: LIFE_WEEKS_TOTAL }, (_, i) => {
-                  const row = Math.floor(i / 52);
-                  const col = i % 52;
-                  const x = MARGIN_LEFT + colX(col);
-                  const y = MARGIN_TOP + rowY(row);
-                  const isPast = i < indexState.currentWeekIndex;
-                  const isCurrent = i === indexState.currentWeekIndex;
-                  const isFuture = i > indexState.currentWeekIndex;
-
-                  return (
-                    <g key={i}>
-                      {isPast && (
-                        <rect x={x} y={y} width={CELL} height={CELL} className="fill-current" rx={0.5} />
-                      )}
-                      {isFuture && (
-                        <rect
-                          x={x + 0.5}
-                          y={y + 0.5}
-                          width={CELL - 1}
-                          height={CELL - 1}
-                          fill="none"
-                          className="stroke-current stroke-[1]"
-                          rx={0.5}
-                        />
-                      )}
-                      {isCurrent && (
-                        <>
-                          <rect x={x} y={y} width={CELL} height={CELL} className="fill-current" rx={0.5} />
-                          <rect
-                            x={x - 2}
-                            y={y - 2}
-                            width={CELL + 4}
-                            height={CELL + 4}
-                            fill="none"
-                            className="stroke-primary"
-                            strokeWidth={2.25}
-                            rx={1}
-                          />
-                        </>
-                      )}
-                    </g>
-                  );
-                })}
-
-                <text
-                  x={gridW / 2}
-                  y={gridH - 8}
-                  textAnchor="middle"
-                  className="fill-current text-[10px] tracking-[0.22em] opacity-70"
-                  style={{ fontVariantCaps: "small-caps" }}
-                >
-                  {`6,240 weeks · ${APP_TAGLINE}`}
-                </text>
-              </svg>
-            </div>
-          </div>
         </div>
       </div>
     ) : null;

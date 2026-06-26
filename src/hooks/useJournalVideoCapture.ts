@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildJournalVideoConstraints,
+  createJournalAudioSidecarRecorder,
   journalVideoCaptureSupported,
-  pickJournalAudioMimeType,
   pickJournalVideoMimeType,
+  stopMediaRecorderWithFlush,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
 import {
@@ -128,6 +129,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     },
     onInterim: handleInterim,
     language,
+    skipMicPermissionProbe: true,
   });
   const speechStopRef = useRef(speech.stop);
   speechStopRef.current = speech.stop;
@@ -350,20 +352,19 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     rec.start(250);
     recorderRef.current = rec;
 
-    const audioMime = pickJournalAudioMimeType();
-    const audioTracks = stream.getAudioTracks();
-    if (audioMime && audioTracks.length) {
+    const sidecar = createJournalAudioSidecarRecorder(stream);
+    if (sidecar) {
+      const { recorder: audioRec, mimeType: audioMime } = sidecar;
+      audioChunksRef.current = [];
+      audioRec.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      audioRec.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: audioRec.mimeType || audioMime });
+        resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
+        resolveAudioStopRef.current = null;
+      };
       try {
-        const audioStream = new MediaStream(audioTracks);
-        const audioRec = new MediaRecorder(audioStream, { mimeType: audioMime });
-        audioRec.ondataavailable = (e) => {
-          if (e.data.size > 0) audioChunksRef.current.push(e.data);
-        };
-        audioRec.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: audioRec.mimeType || audioMime });
-          resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
-          resolveAudioStopRef.current = null;
-        };
         audioRec.start(250);
         audioRecorderRef.current = audioRec;
       } catch {
@@ -458,9 +459,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     });
 
     if (rec && rec.state !== "inactive") {
-      try {
-        rec.stop();
-      } catch {
+      if (!stopMediaRecorderWithFlush(rec)) {
         resolveStopRef.current?.(null);
         resolveStopRef.current = null;
       }
@@ -470,9 +469,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     }
 
     if (audioRec && audioRec.state !== "inactive") {
-      try {
-        audioRec.stop();
-      } catch {
+      if (!stopMediaRecorderWithFlush(audioRec)) {
         resolveAudioStopRef.current?.(null);
         resolveAudioStopRef.current = null;
       }

@@ -1683,6 +1683,36 @@ export type Database = {
         }
         Relationships: []
       }
+      life_week_reviews: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          reflection: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection?: string
+          user_id?: string
+          week_index?: number
+          week_start?: string
+        }
+        Relationships: []
+      }
       life_priorities: {
         Row: {
           archived_at: string | null

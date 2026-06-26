@@ -77,6 +77,52 @@ export function pickJournalAudioMimeType(): string {
   return "";
 }
 
+/** Sidecar audio recorder for post-record transcription (ElevenLabs needs audio, not video). */
+export function createJournalAudioSidecarRecorder(
+  stream: MediaStream,
+): { recorder: MediaRecorder; mimeType: string } | null {
+  if (typeof MediaRecorder === "undefined") return null;
+  const audioTracks = stream.getAudioTracks();
+  if (!audioTracks.length) return null;
+
+  const audioStream = new MediaStream(audioTracks);
+  const preferred = pickJournalAudioMimeType();
+  const candidates = preferred
+    ? [preferred, ...AUDIO_MIME_CANDIDATES.filter((t) => t !== preferred)]
+    : [...AUDIO_MIME_CANDIDATES];
+
+  for (const mimeType of candidates) {
+    if (!MediaRecorder.isTypeSupported(mimeType)) continue;
+    try {
+      return { recorder: new MediaRecorder(audioStream, { mimeType }), mimeType };
+    } catch {
+      /* try next */
+    }
+  }
+
+  try {
+    return { recorder: new MediaRecorder(audioStream), mimeType: "audio/webm" };
+  } catch {
+    return null;
+  }
+}
+
+export function stopMediaRecorderWithFlush(recorder: MediaRecorder | null): boolean {
+  if (!recorder || recorder.state === "inactive") return false;
+  try {
+    if (typeof recorder.requestData === "function") recorder.requestData();
+    recorder.stop();
+    return true;
+  } catch {
+    try {
+      recorder.stop();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 export function journalVideoCaptureSupported(): boolean {
   return (
     typeof navigator !== "undefined" &&
@@ -232,36 +278,70 @@ export type TranscribeJournalVideoOptions = {
   liveTranscript?: string;
 };
 
-/** Transcribe a journal video — prefers audio sidecar, then storage, then live captions. */
+export type TranscribeJournalVideoResult = {
+  text: string;
+  source: "audio-sidecar" | "live" | "none";
+  error?: string;
+};
+
+const MIN_JOURNAL_VIDEO_AUDIO_BYTES = 200;
+
+/** User-facing hint when no transcript could be produced. */
+export function journalVideoTranscriptEmptyMessage(opts: {
+  sttError?: string;
+  hadLiveCaption: boolean;
+  hadAudioSidecar: boolean;
+}): string {
+  if (opts.sttError?.trim()) return opts.sttError.trim();
+  if (opts.hadLiveCaption) {
+    return "Live captions didn't save — try Chrome or Edge and allow microphone access.";
+  }
+  if (!opts.hadAudioSidecar) {
+    return "No audio was captured for transcription. Check mic permissions and try Chrome or Edge.";
+  }
+  return "Couldn't detect speech. Speak after the countdown and stay close to the mic.";
+}
+
+/** Transcribe a journal video — prefers audio sidecar, then live captions from recording. */
 export async function transcribeJournalVideo(
-  storagePath: string,
+  _storagePath: string,
   opts: TranscribeJournalVideoOptions = {},
-): Promise<string> {
+): Promise<TranscribeJournalVideoResult> {
   const live = opts.liveTranscript?.trim() ?? "";
+  let lastError: string | undefined;
   const audio = opts.audioBlob;
-  if (audio && audio.size > 800 && opts.userId) {
+
+  if (live) {
+    // Keep server STT as a quality upgrade when available, but never discard live captions.
+  }
+
+  if (audio && audio.size > MIN_JOURNAL_VIDEO_AUDIO_BYTES && opts.userId) {
     try {
       const path = await uploadJournalVoiceMemo(opts.userId, audio);
       const result = await transcribeJournalVoiceMemo(path, "voice-memos");
-      if (result.ok && result.text.trim()) return result.text.trim();
-    } catch {
-      /* try video file next */
+      if (result.ok && result.text.trim()) {
+        return { text: result.text.trim(), source: "audio-sidecar" };
+      }
+      if (!result.ok) lastError = result.error;
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
     }
+  } else if (audio && audio.size > 0 && audio.size <= MIN_JOURNAL_VIDEO_AUDIO_BYTES) {
+    lastError = "Audio was too short to transcribe — record a little longer.";
+  } else if (!audio?.size) {
+    lastError = "No audio track was captured for transcription.";
   }
-  if (storagePath) {
-    try {
-      const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
-      if (result.ok && result.text.trim()) return result.text.trim();
-    } catch {
-      /* fall through */
-    }
+
+  if (live) {
+    return { text: live, source: "live", error: lastError };
   }
-  return live;
+
+  return { text: "", source: "none", error: lastError };
 }
 
 /** @deprecated Use transcribeJournalVideo — kept for call sites that only pass storage path. */
 export async function transcribeVideoFromStorage(storagePath: string): Promise<string> {
-  return transcribeJournalVideo(storagePath);
+  return (await transcribeJournalVideo(storagePath)).text;
 }
 
 /** @deprecated Prefer transcribeVideoFromStorage after upload. */

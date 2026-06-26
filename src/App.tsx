@@ -10,6 +10,8 @@ import AppRouteFallback from "@/components/AppRouteFallback";
 import OfflineBanner from "@/components/OfflineBanner";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
+import { LifeWeekReviewGate } from "@/components/life/LifeWeekReviewGate";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
@@ -96,6 +98,7 @@ const App = () => (
         <BrowserRouter>
           <AppOfflineBanner />
           <AuthProvider>
+            <LifeWeekReviewProvider>
             <ThemeSwitcher />
             <Suspense fallback={<AppRouteFallback />}>
               <Routes>
@@ -206,7 +209,9 @@ const App = () => (
               <GlobalJournalLauncher />
               <GlobalJournalQuickCapture />
               <GlobalArtifactVideoPip />
+              <LifeWeekReviewGate />
             </Suspense>
+            </LifeWeekReviewProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

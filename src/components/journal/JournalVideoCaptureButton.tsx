@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
+  journalVideoTranscriptEmptyMessage,
   transcribeJournalVideo,
   updateEntryVideoTranscript,
   uploadEntryVideo,
@@ -63,11 +64,12 @@ export default function JournalVideoCaptureButton({
 
       setUploading(false);
       setTranscribing(true);
-      const transcript = await transcribeJournalVideo(uploaded.storage_path, {
+      const stt = await transcribeJournalVideo(uploaded.storage_path, {
         userId,
         audioBlob: result.audio,
         liveTranscript: result.liveTranscript,
       });
+      const transcript = stt.text;
       if (transcript) {
         await updateEntryVideoTranscript(row.id, transcript);
       }
@@ -77,7 +79,11 @@ export default function JournalVideoCaptureButton({
         title: transcript ? "Video and transcript saved" : "Video saved",
         description: transcript
           ? undefined
-          : "Transcription was empty — try speaking closer to the mic.",
+          : journalVideoTranscriptEmptyMessage({
+              sttError: stt.error,
+              hadLiveCaption: Boolean(result.liveTranscript.trim()),
+              hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
+            }),
       });
       setOpen(false);
     } catch (e) {

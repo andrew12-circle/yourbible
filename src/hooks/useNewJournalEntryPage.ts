@@ -72,6 +72,7 @@ import {
 import {
   insertEntryVideo,
   journalVideoCaptureSupported,
+  journalVideoTranscriptEmptyMessage,
   transcribeJournalVideo,
   updateEntryVideoTranscript,
   uploadEntryVideo,
@@ -1285,11 +1286,12 @@ export function useNewJournalEntryPage() {
 
         setVideoUploading(false);
         setVideoTranscribing(true);
-        const transcript = await transcribeJournalVideo(uploaded.storage_path, {
+        const stt = await transcribeJournalVideo(uploaded.storage_path, {
           userId: user.id,
           audioBlob: result.audio,
           liveTranscript: result.liveTranscript,
         });
+        const transcript = stt.text;
         if (transcript) await updateEntryVideoTranscript(row.id, transcript);
 
         await reloadVideos();
@@ -1303,7 +1305,11 @@ export function useNewJournalEntryPage() {
           title: prepared ? "Video and transcript saved" : "Video saved",
           description: prepared
             ? undefined
-            : "Transcription was empty — try speaking closer to the mic.",
+            : journalVideoTranscriptEmptyMessage({
+                sttError: stt.error,
+                hadLiveCaption: Boolean(result.liveTranscript.trim()),
+                hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
+              }),
         });
         setVideoOpen(false);
       } catch (e) {

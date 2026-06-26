@@ -99,6 +99,43 @@ export function formatBirthDateForInput(iso: string | null | undefined): string 
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const WEEKS_PER_YEAR = 52;
+
+/** UTC calendar date `YYYY-MM-DD` for a UTC ms timestamp. */
+export function utcDateIsoFromMs(utcMs: number): string {
+  const d = new Date(utcMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** ISO Monday (UTC) for a 0-based life week index. */
+export function lifeWeekMondayIso(birthIsoDate: string, weekIndex: number): string | null {
+  const birthDay = parseBirthDate(birthIsoDate);
+  if (birthDay === null || weekIndex < 0) return null;
+  const birthWeekMonday = utcMondayOfWeekContaining(birthDay);
+  return utcDateIsoFromMs(birthWeekMonday + weekIndex * WEEK_MS);
+}
+
+/** Human-readable Mon–Sun range for a life week. */
+export function formatLifeWeekRange(birthIsoDate: string, weekIndex: number): string {
+  const startIso = lifeWeekMondayIso(birthIsoDate, weekIndex);
+  if (!startIso) return `Week ${weekIndex + 1}`;
+  const startMs = parseUtcDateOnly(startIso);
+  if (startMs === null) return `Week ${weekIndex + 1}`;
+  const endIso = utcDateIsoFromMs(startMs + 6 * 24 * 60 * 60 * 1000);
+  const fmt = (iso: string) => {
+    const t = parseUtcDateOnly(iso);
+    if (t === null) return iso;
+    return new Date(t).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  };
+  return `${fmt(startIso)} – ${fmt(endIso)}`;
+}
+
 export const DEFAULT_RETIREMENT_AGE = 65;
 export const DEFAULT_COLLEGE_START_AGE = 18;
 export const DEFAULT_COLLEGE_END_AGE = 22;

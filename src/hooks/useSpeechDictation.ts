@@ -6,6 +6,8 @@ export interface UseSpeechDictationOptions {
   /** Live partial transcript (replaces the prior partial). */
   onInterim?: (partial: string) => void;
   language?: string;
+  /** Skip a fresh getUserMedia probe — use when video capture already holds the mic. */
+  skipMicPermissionProbe?: boolean;
 }
 
 export interface UseSpeechDictationApi {
@@ -121,11 +123,13 @@ export function mergeDictatedText(currentBody: string, chunkFromHook: string): s
 }
 
 export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeechDictationApi {
-  const { onAppend, onInterim, language = "en-US" } = options;
+  const { onAppend, onInterim, language = "en-US", skipMicPermissionProbe = false } = options;
   const onAppendRef = useRef(onAppend);
   const onInterimRef = useRef(onInterim);
+  const skipMicProbeRef = useRef(skipMicPermissionProbe);
   onAppendRef.current = onAppend;
   onInterimRef.current = onInterim;
+  skipMicProbeRef.current = skipMicPermissionProbe;
 
   const Ctor = getSpeechRecognitionCtor();
   const supported = Ctor !== null;
@@ -295,7 +299,7 @@ export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeec
     rapidFailRef.current = 0;
 
     void (async () => {
-      if (navigator.mediaDevices?.getUserMedia) {
+      if (!skipMicProbeRef.current && navigator.mediaDevices?.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach((t) => t.stop());

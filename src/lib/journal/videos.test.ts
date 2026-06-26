@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   buildJournalVideoConstraints,
+  createJournalAudioSidecarRecorder,
+  journalVideoTranscriptEmptyMessage,
   pickJournalAudioMimeType,
   pickJournalVideoMimeType,
 } from "@/lib/journal/videos";
@@ -73,5 +75,45 @@ describe("buildJournalVideoConstraints", () => {
     const c = buildJournalVideoConstraints();
     expect(c.video).not.toHaveProperty("facingMode");
     expect(c.audio).toBe(true);
+  });
+});
+
+describe("createJournalAudioSidecarRecorder", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "MediaStream",
+      class {
+        constructor(public tracks: MediaStreamTrack[]) {}
+      },
+    );
+    vi.stubGlobal("MediaRecorder", class {
+      static isTypeSupported(type: string) {
+        return type.startsWith("audio/");
+      }
+      constructor(_stream: MediaStream, public options?: { mimeType?: string }) {}
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("creates a sidecar recorder when audio tracks exist", () => {
+    const track = { kind: "audio" } as MediaStreamTrack;
+    const stream = { getAudioTracks: () => [track] } as MediaStream;
+    const sidecar = createJournalAudioSidecarRecorder(stream);
+    expect(sidecar?.mimeType).toBe("audio/webm;codecs=opus");
+  });
+});
+
+describe("journalVideoTranscriptEmptyMessage", () => {
+  it("surfaces server STT errors when present", () => {
+    expect(
+      journalVideoTranscriptEmptyMessage({
+        sttError: "ElevenLabs API key missing or invalid on server",
+        hadLiveCaption: false,
+        hadAudioSidecar: true,
+      }),
+    ).toContain("ElevenLabs");
   });
 });

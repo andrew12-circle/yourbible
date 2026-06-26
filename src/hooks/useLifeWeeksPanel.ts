@@ -23,6 +23,7 @@ import {
   colX,
   focusedViewBoxForWeek,
   rowY,
+  weekIndexToGridPos,
   type ZoomMode,
 } from "@/lib/lifeWeeksGrid";
 
@@ -209,8 +210,7 @@ export function useLifeWeeksPanel({ defaultZoom }: { defaultZoom?: ZoomMode } = 
     if (zoom === "fit" || zoom === "now" || !indexState) return;
     const el = gridScrollRef.current;
     if (!el) return;
-    const row = Math.floor(indexState.currentWeekIndex / 52);
-    const col = indexState.currentWeekIndex % 52;
+    const { row, col } = weekIndexToGridPos(indexState.currentWeekIndex);
     const cellCenterX = (MARGIN_LEFT + colX(col) + CELL / 2) * zoom;
     const cellCenterY = (MARGIN_TOP + rowY(row) + CELL / 2) * zoom;
     const targetLeft = Math.max(0, cellCenterX - el.clientWidth / 2);
