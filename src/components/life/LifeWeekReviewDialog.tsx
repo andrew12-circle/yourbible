@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Check, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,6 +17,7 @@ import {
   type PendingLifeWeekReview,
 } from "@/lib/lifeWeekReview";
 import { toast } from "@/hooks/use-toast";
+import { LifeWeekReviewGridSnippet } from "@/components/life/LifeWeekReviewGridSnippet";
 
 type Props = {
   open: boolean;
@@ -33,6 +32,7 @@ export function LifeWeekReviewDialog({ open, pending, saving, onComplete }: Prop
 
   const trimmedLen = reflection.trim().length;
   const canSubmit = checked && trimmedLen >= LIFE_WEEK_REFLECTION_MIN && !saving;
+  const currentWeekIndex = pending.weekIndex + 1;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -60,54 +60,39 @@ export function LifeWeekReviewDialog({ open, pending, saving, onComplete }: Prop
         <DialogHeader>
           <DialogTitle>Close out last week</DialogTitle>
           <DialogDescription>
-            A new week started Monday. Before you move on, look back at week{" "}
-            {pending.weekNumber.toLocaleString()} ({pending.weekRangeLabel}).
+            A new week started Monday. Before you move on, check off week{" "}
+            {pending.weekNumber.toLocaleString()} ({pending.weekRangeLabel}) on your life grid, then
+            reflect.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <button
-            type="button"
-            onClick={() => setChecked((v) => !v)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-xl border p-4 text-left transition",
-              checked ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/40",
-            )}
-          >
-            <div
-              className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border-2",
-                checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40 bg-muted",
-              )}
-              aria-hidden
-            >
-              {checked ? <Check className="h-6 w-6" strokeWidth={2.5} /> : null}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Check off week {pending.weekNumber.toLocaleString()}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Mark this week complete on your life grid — lived, not wasted.
+          <LifeWeekReviewGridSnippet
+            weekIndex={pending.weekIndex}
+            currentWeekIndex={currentWeekIndex}
+            checked={checked}
+            onToggle={() => setChecked(true)}
+          />
+
+          {checked ? (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Label htmlFor="life-week-reflection" className="text-sm leading-snug">
+                {LIFE_WEEK_REFLECTION_PROMPT}
+              </Label>
+              <Textarea
+                id="life-week-reflection"
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                placeholder="Be honest. What moved you toward your calling—and what did you let slip?"
+                rows={5}
+                className="resize-none"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {trimmedLen}/{LIFE_WEEK_REFLECTION_MIN} characters minimum
               </p>
             </div>
-            <Checkbox checked={checked} className="sr-only" aria-hidden tabIndex={-1} />
-          </button>
-
-          <div className="space-y-2">
-            <Label htmlFor="life-week-reflection" className="text-sm leading-snug">
-              {LIFE_WEEK_REFLECTION_PROMPT}
-            </Label>
-            <Textarea
-              id="life-week-reflection"
-              value={reflection}
-              onChange={(e) => setReflection(e.target.value)}
-              placeholder="Be honest. What moved you toward your calling—and what did you let slip?"
-              rows={5}
-              className="resize-none"
-            />
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {trimmedLen}/{LIFE_WEEK_REFLECTION_MIN} characters minimum
-            </p>
-          </div>
+          ) : null}
         </div>
 
         <DialogFooter>

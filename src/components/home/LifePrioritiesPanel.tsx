@@ -273,7 +273,13 @@ export function LifePrioritiesManageSheet({
   );
 }
 
-export function LifePrioritiesPanel() {
+type LifePrioritiesPanelProps = {
+  /** Narrow left column beside the life-weeks chart on Overview. */
+  variant?: "default" | "sidebar";
+};
+
+export function LifePrioritiesPanel({ variant = "default" }: LifePrioritiesPanelProps) {
+  const sidebar = variant === "sidebar";
   const { user } = useAuth();
   const userId = user?.id;
   const [loading, setLoading] = useState(true);
@@ -378,7 +384,12 @@ export function LifePrioritiesPanel() {
 
   return (
     <>
-      <section className="w-full text-left mb-3 p-3 sm:p-3.5 rounded-[18px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)]">
+      <section
+        className={cn(
+          "w-full text-left p-3 sm:p-3.5 rounded-[18px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)]",
+          sidebar ? "mb-0" : "mb-3",
+        )}
+      >
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
@@ -432,7 +443,7 @@ export function LifePrioritiesPanel() {
         ) : priorities.length === 0 ? (
           <p className="text-xs text-zinc-600 py-2">No active priorities yet.</p>
         ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
+          <ul className={cn("grid gap-1.5 sm:gap-2", sidebar ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
             {priorities.map((p) => {
               const pk = parseKey(p);
               const Icon = ICONS[pk];

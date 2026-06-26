@@ -15,6 +15,7 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   living_hope_reviews: "20260610120000_living_hope.sql",
   living_hope_workbook: "20260610130000_living_hope_workbook.sql",
   living_hope_weekly_reviews: "20260610130000_living_hope_workbook.sql",
+  life_week_reviews: "20260626120000_life_week_reviews.sql",
 };
 
 /** Column-level migrations (app code may reference columns added after the base table migration). */

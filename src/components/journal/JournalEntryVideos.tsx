@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import type { JournalVideoRow } from "@/lib/journal/videos";
+import JournalEntryVideoPlayer from "@/components/journal/JournalEntryVideoPlayer";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -18,13 +19,7 @@ export default function JournalEntryVideos({ videos, onRemove, className, hideTr
       {videos.map((v) => (
         <div key={v.id} className="group relative overflow-hidden rounded-xl bg-black/5 dark:bg-black/30">
           {v.url ? (
-            <video
-              src={v.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="w-full max-h-[min(70vh,480px)] object-contain bg-black"
-            />
+            <JournalEntryVideoPlayer url={v.url} durationMs={v.duration_ms} mimeType={v.mime_type} />
           ) : (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               Video unavailable

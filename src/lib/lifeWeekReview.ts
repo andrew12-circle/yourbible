@@ -5,6 +5,12 @@ import {
   formatLifeWeekRange,
   lifeWeekMondayIso,
 } from "@/lib/lifeWeeks";
+import {
+  localListClosedLifeWeekIndices,
+  localSaveLifeWeekReview,
+  notifyLifeWeekReviewLocalModeOnce,
+} from "@/lib/lifeWeekReviewLocalStore";
+import { formatSupabaseError, isSupabaseMissingTable } from "@/lib/supabase/errors";
 
 export type LifeWeekReviewRow = Tables<"life_week_reviews">;
 
@@ -56,13 +62,6 @@ export function buildPendingLifeWeekReview(
   };
 }
 
-function isMissingTableError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const code = "code" in error && error.code != null ? String(error.code) : "";
-  const msg = "message" in error && error.message != null ? String(error.message) : "";
-  return code === "42P01" || /life_week_reviews/i.test(msg);
-}
-
 export async function listClosedLifeWeekIndices(userId: string): Promise<Set<number>> {
   try {
     const { data, error } = await supabase
@@ -70,9 +69,15 @@ export async function listClosedLifeWeekIndices(userId: string): Promise<Set<num
       .select("week_index")
       .eq("user_id", userId);
     if (error) throw error;
-    return new Set((data ?? []).map((row) => row.week_index));
+    const remote = new Set((data ?? []).map((row) => row.week_index));
+    const local = localListClosedLifeWeekIndices(userId);
+    if (local.size === 0) return remote;
+    return new Set([...remote, ...local]);
   } catch (e) {
-    if (isMissingTableError(e)) return new Set();
+    if (isSupabaseMissingTable(e)) {
+      notifyLifeWeekReviewLocalModeOnce();
+      return localListClosedLifeWeekIndices(userId);
+    }
     throw e;
   }
 }
@@ -95,13 +100,21 @@ export async function saveLifeWeekReview(
     reflection: trimmed,
   };
 
-  const { data, error } = await supabase
-    .from("life_week_reviews")
-    .upsert(row, { onConflict: "user_id,week_index" })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from("life_week_reviews")
+      .upsert(row, { onConflict: "user_id,week_index" })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    if (isSupabaseMissingTable(e)) {
+      notifyLifeWeekReviewLocalModeOnce();
+      return localSaveLifeWeekReview(userId, weekIndex, weekStart, trimmed);
+    }
+    throw new Error(formatSupabaseError(e));
+  }
 }
 
 export function resolvePendingLifeWeekReview(

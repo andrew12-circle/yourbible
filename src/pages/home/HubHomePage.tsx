@@ -2,7 +2,6 @@ import { HubPageLayout } from "@/components/shell/HubPageLayout";
 import { HubStatusStrip } from "@/components/home/HubStatusStrip";
 import { BibleHomeWidgets } from "@/components/home/BibleHomeWidgets";
 import { LifeWeeksPanel } from "@/components/life/LifeWeeksPanel";
-import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { HomeJournalCards } from "@/components/home/HomeJournalCards";
 import { MorningFormulaHomeCard } from "@/components/home/MorningFormulaHomeCard";
 import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
@@ -48,7 +47,6 @@ export default function HubHomePage() {
 
         <MorningFormulaHomeCard />
         <BibleHomeWidgets />
-        <LifePrioritiesPanel />
         <HomeJournalCards
           todayPrompt={todayPrompt}
           onThisDayCount={onThisDayCount}

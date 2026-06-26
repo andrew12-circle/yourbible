@@ -3,6 +3,7 @@ import {
   isJournalVideoUploadTooLarge,
   journalVideoUploadTooLargeMessage,
 } from "@/lib/journal/journalVideoLimits";
+import { fixJournalVideoBlob } from "@/lib/journal/fixJournalVideoBlob";
 import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface JournalVideoRow {
@@ -189,9 +190,11 @@ export async function uploadEntryVideo(
     throw new Error(journalVideoUploadTooLargeMessage(durationMs ?? 0, blob.size));
   }
   const mime = blob.type || pickJournalVideoMimeType() || "video/webm";
+  const uploadBlob =
+    durationMs && mime.includes("webm") ? await fixJournalVideoBlob(blob, durationMs) : blob;
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const path = `${userId}/${entryId}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, blob, {
+  const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, uploadBlob, {
     upsert: false,
     contentType: mime,
   });

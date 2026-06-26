@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Grid3x3 } from "lucide-react";
 import { LIFE_WEEKS_TOTAL, computeLifeWeekIndex } from "@/lib/lifeWeeks";
+import { lifeWeekColorAt } from "@/lib/lifeWeekCellColors";
+import { useLifeWeekColorMap } from "@/hooks/useLifeWeekColorMap";
 
 /**
  * Compact home summary + 52-cell strip for the current year-of-life row (week columns).
@@ -24,9 +26,16 @@ export function LifeWeeksTile() {
     return computeLifeWeekIndex(dob, now);
   }, [dob, now]);
 
+  const colorMap = useLifeWeekColorMap({
+    birthDate: dob,
+    totalCells: LIFE_WEEKS_TOTAL,
+    cols: 52,
+  });
+
   const weeksLived = stats ? stats.currentWeekIndex + 1 : 0;
   const weeksRemaining = stats ? Math.max(0, LIFE_WEEKS_TOTAL - weeksLived) : LIFE_WEEKS_TOTAL;
   const weekCol = stats ? stats.currentWeekIndex % 52 : 0;
+  const yearRowStart = stats ? Math.floor(stats.currentWeekIndex / 52) * 52 : 0;
 
   return (
     <button
@@ -56,14 +65,20 @@ export function LifeWeeksTile() {
             <span className="font-semibold">{weeksRemaining.toLocaleString()}</span> remaining
           </p>
           <div className="mt-3 flex gap-0.5 w-full" aria-hidden>
-            {Array.from({ length: 52 }, (_, c) => (
-              <div
-                key={c}
-                className={`h-1.5 min-w-0 flex-1 rounded-[1px] ${
-                  c <= weekCol ? "bg-zinc-900" : "border border-zinc-400/90 bg-transparent"
-                }`}
-              />
-            ))}
+            {Array.from({ length: 52 }, (_, c) => {
+              const weekIndex = yearRowStart + c;
+              const filled = c <= weekCol;
+              const color = colorMap ? lifeWeekColorAt(colorMap, weekIndex) : "#18181b";
+              return (
+                <div
+                  key={c}
+                  className={`h-1.5 min-w-0 flex-1 rounded-[1px] ${
+                    filled ? "" : "border border-zinc-400/90 bg-transparent"
+                  }`}
+                  style={filled ? { backgroundColor: color } : undefined}
+                />
+              );
+            })}
           </div>
         </>
       )}

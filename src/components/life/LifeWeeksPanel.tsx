@@ -20,16 +20,25 @@ import {
   MARGIN_LEFT,
   MARGIN_TOP,
   POSTER_CLASS,
-  ROWS_PER_YEAR,
-  WEEK_TICKS,
+  SECTION_TICKS,
   colX,
-  fitnessDashColor,
+  gridHeightPx,
   rowY,
+  sectionWidthPx,
+  sectionX,
   weekIndexToGridPos,
+  focusedViewBoxForWeek,
 } from "@/lib/lifeWeeksGrid";
+import { lifeWeekColorAt } from "@/lib/lifeWeekCellColors";
+import { useLifeWeekColorMap } from "@/hooks/useLifeWeekColorMap";
 import { useLifeWeeksPanel, type LifeWeeksStageDraft } from "@/hooks/useLifeWeeksPanel";
+import { useRotatingLifeChart } from "@/hooks/useRotatingLifeChart";
 import { useLifeWeekReviewOptional } from "@/contexts/LifeWeekReviewContext";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
+import { BlinkOfAnEyeChart } from "@/components/life/BlinkOfAnEyeChart";
+import { LifeChartRotationControls } from "@/components/life/LifeChartRotationControls";
+import { FamilyBirthDatePrompt } from "@/components/life/FamilyBirthDatePrompt";
+import { useAuth } from "@/contexts/AuthContext";
 import { APP_NAME } from "@/lib/appBrand";
 
 const APP_TAGLINE = APP_NAME;
@@ -53,13 +62,20 @@ function StatPill({ label, value, highlight }: { label: string; value: string; h
 function CurrentWeekHero({
   stats,
   indexState,
+  birthDate,
 }: {
   stats: LifePhaseStats;
   indexState: LifeWeekIndexResult;
+  birthDate: string;
 }) {
+  const colorMap = useLifeWeekColorMap({
+    birthDate,
+    totalCells: LIFE_WEEKS_TOTAL,
+    cols: GRID_COLS,
+  });
   const fmt = (n: number) => n.toLocaleString();
   const { weekNumber, ageYear, weekOfYear } = getCurrentWeekDisplay(indexState.currentWeekIndex);
-  const weekCol = indexState.currentWeekIndex % 52;
+  const yearRowStart = ageYear * GRID_COLS;
 
   return (
     <div className="relative shrink-0 overflow-hidden rounded-2xl bg-[#1c1c1e] px-4 py-4 shadow-lg md:px-6 md:py-5">
@@ -93,9 +109,10 @@ function CurrentWeekHero({
         aria-label={`Year ${ageYear}: week ${weekOfYear} of 52`}
       >
         {Array.from({ length: 52 }, (_, c) => {
-          const isPast = c < weekCol;
-          const isCurrent = c === weekCol;
-          const color = fitnessDashColor(c);
+          const weekIndex = yearRowStart + c;
+          const isPast = weekIndex < indexState.currentWeekIndex;
+          const isCurrent = weekIndex === indexState.currentWeekIndex;
+          const color = colorMap ? lifeWeekColorAt(colorMap, weekIndex) : "#71717a";
           return (
             <div
               key={c}
@@ -241,8 +258,10 @@ type LifeWeeksPanelProps = {
 
 export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPanelProps) {
   const splitLayout = embedded && leadingContent != null;
+  const { profile } = useAuth();
   const closedWeekIndices = useLifeWeekReviewOptional()?.closedWeekIndices;
   const panel = useLifeWeeksPanel({ defaultZoom: splitLayout ? "fit" : undefined });
+  const rotation = useRotatingLifeChart({ rotateOnMount: embedded });
   const {
     showHubShell,
     missingDobColumn,
@@ -272,6 +291,26 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
     gridH,
   } = panel;
 
+  const chartIndexState = embedded ? rotation.activeChart.indexState : indexState;
+  const chartPhaseStats = embedded ? rotation.activeChart.phaseStats : phaseStats;
+  const chartDob = embedded ? rotation.activeChart.birthDate : dob;
+  const showBlinkChart = embedded && rotation.activeChart.kind === "blink" && chartDob && chartIndexState;
+  const showFamilySetup =
+    embedded &&
+    (rotation.activeSlot === "lilly" || rotation.activeSlot === "caroline") &&
+    !rotation.activeChart.birthDate;
+  const showClosedWeeks = !embedded || rotation.activeSlot === "self";
+  const chartSvgViewBox =
+    zoom === "now" && chartIndexState
+      ? focusedViewBoxForWeek(chartIndexState.currentWeekIndex)
+      : svgViewBox;
+  const colorBirthDate = chartDob ?? dob;
+  const colorMap = useLifeWeekColorMap({
+    birthDate: colorBirthDate,
+    totalCells: LIFE_WEEKS_TOTAL,
+    cols: GRID_COLS,
+  });
+
   const hubLayout = showHubShell && !embedded;
   const chartFillLayout = hubLayout || splitLayout;
   const fitMaxHeight = splitLayout
@@ -283,30 +322,102 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
         : "calc(100dvh - 280px)";
 
   const renderStatsSection = () =>
-    phaseStats ? (
+    chartPhaseStats ? (
       <section className={cn("shrink-0 p-3 sm:p-4", cardClass)}>
-        <LifeStatsBar stats={phaseStats} />
-        <button
-          type="button"
-          onClick={() => setShowStageSettings((v) => !v)}
-          className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-        >
-          {showStageSettings ? "Hide" : "Adjust"} college & retirement assumptions
-        </button>
-        {showStageSettings && (
-          <LifeStageSettingsForm
-            draft={stageDraft}
-            onChange={setStageDraft}
-            onSave={onSaveStageSettings}
-            saving={saving}
-          />
+        <LifeStatsBar stats={chartPhaseStats} />
+        {rotation.activeSlot === "self" && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowStageSettings((v) => !v)}
+              className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {showStageSettings ? "Hide" : "Adjust"} college & retirement assumptions
+            </button>
+            {showStageSettings && (
+              <LifeStageSettingsForm
+                draft={stageDraft}
+                onChange={setStageDraft}
+                onSave={onSaveStageSettings}
+                saving={saving}
+              />
+            )}
+          </>
         )}
       </section>
     ) : null;
 
-  const renderChartSection = () =>
-    indexState ? (
+  const renderChartSection = () => {
+    if (showFamilySetup) {
+      const member = rotation.familyMembers.find((m) => m.id === rotation.activeSlot);
+      return (
+        <div className="space-y-2">
+          <LifeChartRotationControls
+            activeSlot={rotation.activeSlot}
+            availableSlots={rotation.availableSlots}
+            chartKind={rotation.activeChart.kind}
+            displayName={profile?.display_name}
+            onSelect={rotation.selectSlot}
+            onPrev={rotation.prevSlot}
+            onNext={rotation.nextSlot}
+            className="px-1"
+          />
+          <FamilyBirthDatePrompt
+            memberId={rotation.activeSlot as "lilly" | "caroline"}
+            memberName={member?.name ?? rotation.activeSlot}
+            saving={rotation.savingFamilyDob}
+            dobMax={dobMax}
+            onSave={(birthDate) =>
+              void rotation.saveFamilyBirthDate(rotation.activeSlot as "lilly" | "caroline", birthDate)
+            }
+          />
+        </div>
+      );
+    }
+
+    if (showBlinkChart && chartDob && chartIndexState) {
+      return (
+        <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
+          <LifeChartRotationControls
+            activeSlot={rotation.activeSlot}
+            availableSlots={rotation.availableSlots}
+            chartKind={rotation.activeChart.kind}
+            displayName={profile?.display_name}
+            onSelect={rotation.selectSlot}
+            onPrev={rotation.prevSlot}
+            onNext={rotation.nextSlot}
+            className="px-1"
+          />
+          <div
+            className={cn(
+              chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
+            )}
+          >
+            <BlinkOfAnEyeChart
+              birthDate={chartDob}
+              currentWeekIndex={chartIndexState.currentWeekIndex}
+              personName={rotation.activeChart.name}
+              className="max-h-full border-0 shadow-none"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return chartIndexState ? (
       <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
+        {embedded && (
+          <LifeChartRotationControls
+            activeSlot={rotation.activeSlot}
+            availableSlots={rotation.availableSlots}
+            chartKind={rotation.activeChart.kind}
+            displayName={profile?.display_name}
+            onSelect={rotation.selectSlot}
+            onPrev={rotation.prevSlot}
+            onNext={rotation.nextSlot}
+            className="px-1"
+          />
+        )}
         <div
           className={cn(
             "mx-auto w-full p-3 sm:p-4 md:p-5",
@@ -345,8 +456,8 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
             >
               <svg
                 role="img"
-                aria-label={`My life in weeks: ${GRID_ROWS} rows by ${GRID_COLS} columns`}
-                viewBox={svgViewBox}
+                aria-label={`My life in weeks: ${GRID_ROWS} rows by ${GRID_COLS} columns in 13 sections`}
+                viewBox={chartSvgViewBox}
                 preserveAspectRatio="xMidYMid meet"
                 width={boundedGridView ? "100%" : gridW * (typeof zoom === "number" ? zoom : 1)}
                 height={boundedGridView ? "100%" : gridH * (typeof zoom === "number" ? zoom : 1)}
@@ -363,19 +474,35 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                   MY LIFE IN WEEKS
                 </text>
 
-                {WEEK_TICKS.map((w) => {
-                  const col = w - 1;
-                  const cx = MARGIN_LEFT + colX(col) + CELL / 2;
+                {SECTION_TICKS.map((s) => {
+                  const x = MARGIN_LEFT + sectionX(s - 1);
+                  return (
+                    <rect
+                      key={`sec-outline-${s}`}
+                      x={x - 1}
+                      y={MARGIN_TOP - 1}
+                      width={sectionWidthPx() + 2}
+                      height={gridHeightPx() + 2}
+                      fill="none"
+                      className="stroke-current opacity-[0.12]"
+                      strokeWidth={1}
+                      rx={2}
+                    />
+                  );
+                })}
+
+                {SECTION_TICKS.map((s) => {
+                  const cx = MARGIN_LEFT + sectionX(s - 1) + sectionWidthPx() / 2;
                   return (
                     <text
-                      key={`wk-${w}`}
+                      key={`sec-${s}`}
                       x={cx}
                       y={MARGIN_TOP - 6}
                       textAnchor="middle"
                       className="pointer-events-none fill-current"
                       style={{ fontSize: LABEL_SIZE }}
                     >
-                      {w}
+                      {s}
                     </text>
                   );
                 })}
@@ -397,7 +524,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                       </text>
                     );
                   }
-                  const row = age * ROWS_PER_YEAR;
+                  const row = age;
                   const y = MARGIN_TOP + rowY(row) + CELL / 2;
                   return (
                     <text
@@ -418,10 +545,11 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                   const { row, col } = weekIndexToGridPos(i);
                   const x = MARGIN_LEFT + colX(col);
                   const y = MARGIN_TOP + rowY(row);
-                  const isPast = i < indexState.currentWeekIndex;
-                  const isCurrent = i === indexState.currentWeekIndex;
-                  const isFuture = i > indexState.currentWeekIndex;
-                  const isClosed = isPast && (closedWeekIndices?.has(i) ?? false);
+                  const isPast = i < chartIndexState.currentWeekIndex;
+                  const isCurrent = i === chartIndexState.currentWeekIndex;
+                  const isFuture = i > chartIndexState.currentWeekIndex;
+                  const isClosed = showClosedWeeks && isPast && (closedWeekIndices?.has(i) ?? false);
+                  const fill = colorMap ? lifeWeekColorAt(colorMap, i) : undefined;
 
                   return (
                     <g key={i}>
@@ -432,7 +560,8 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                             y={y}
                             width={CELL}
                             height={CELL}
-                            className={cn("fill-current", isClosed && "fill-emerald-600 dark:fill-emerald-500")}
+                            fill={fill}
+                            className={fill ? undefined : "fill-current"}
                             rx={0.5}
                           />
                           {isClosed ? (
@@ -460,7 +589,15 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                       )}
                       {isCurrent && (
                         <>
-                          <rect x={x} y={y} width={CELL} height={CELL} className="fill-current" rx={0.5} />
+                          <rect
+                            x={x}
+                            y={y}
+                            width={CELL}
+                            height={CELL}
+                            fill={fill}
+                            className={fill ? undefined : "fill-current"}
+                            rx={0.5}
+                          />
                           <rect
                             x={x - 2}
                             y={y - 2}
@@ -540,6 +677,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
         </div>
       </div>
     ) : null;
+  };
 
   return (
     <div
@@ -593,19 +731,26 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
         </section>
       )}
 
-      {splitLayout && dob && phaseStats && indexState ? (
+      {splitLayout ? (
         <div className="grid gap-3 lg:grid-cols-[minmax(280px,380px)_1fr] lg:gap-6 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             {leadingContent}
-            <CurrentWeekHero stats={phaseStats} indexState={indexState} />
+            {chartPhaseStats && chartIndexState && chartDob ? (
+              <CurrentWeekHero stats={chartPhaseStats} indexState={chartIndexState} birthDate={chartDob} />
+            ) : null}
             {renderStatsSection()}
+            <div className="min-h-0 flex-1 lg:overflow-y-auto lg:scrollbar-hide">
+              <LifePrioritiesPanel variant="sidebar" />
+            </div>
           </div>
           <div className="flex min-h-[420px] flex-col lg:min-h-0">{renderChartSection()}</div>
         </div>
       ) : (
         <>
           {leadingContent}
-          {dob && phaseStats && indexState && <CurrentWeekHero stats={phaseStats} indexState={indexState} />}
+          {dob && phaseStats && indexState && (
+            <CurrentWeekHero stats={phaseStats} indexState={indexState} birthDate={dob} />
+          )}
           {dob && indexState && renderChartSection()}
           {dob && phaseStats && !splitLayout && renderStatsSection()}
         </>
