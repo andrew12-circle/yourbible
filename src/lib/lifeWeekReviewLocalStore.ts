@@ -80,6 +80,19 @@ export function localListClosedLifeWeekIndices(userId: string): Set<number> {
   return localListClosedLifeWeekIndicesBySubject(userId).self;
 }
 
+export function localListAllLifeWeekReviews(userId: string): LifeWeekReviewRow[] {
+  return reviewsFor(userId).map((review) => ({
+    id: `${normalizeSubject(review.subject)}:${review.week_index}`,
+    user_id: userId,
+    subject: normalizeSubject(review.subject),
+    week_index: review.week_index,
+    week_start: review.week_start,
+    reflection: review.reflection,
+    completed_at: review.completed_at,
+    created_at: review.completed_at,
+  }));
+}
+
 export function localSaveLifeWeekReview(
   userId: string,
   subject: LifeWeekReviewSubject,

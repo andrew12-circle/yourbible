@@ -79,6 +79,7 @@ const MyAiPage = lazy(() => import("./pages/myai/MyAiPage"));
 const PartnerWalkPage = lazy(() => import("./pages/partner/PartnerWalkPage"));
 const PartnerAcceptPage = lazy(() => import("./pages/partner/PartnerAcceptPage"));
 const LifeWeeksPage = lazy(() => import("./pages/life/LifeWeeksPage"));
+const LifeWeekReviewLogPage = lazy(() => import("./pages/life/LifeWeekReviewLogPage"));
 const LifePrioritiesPage = lazy(() => import("./pages/life/LifePrioritiesPage"));
 const HabitsPage = lazy(() => import("./pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("./pages/life/TodosPage"));
@@ -127,6 +128,7 @@ const App = () => (
                   <Route path="/living-hope/review" element={<MorningReviewPage />} />
                   <Route path="/living-hope/workbook/:section" element={<WorkbookSectionPage />} />
                   <Route path="/life-weeks" element={<LifeWeeksPage />} />
+                  <Route path="/life/week-reviews" element={<LifeWeekReviewLogPage />} />
                   <Route path="/life/priorities" element={<LifePrioritiesPage />} />
                   <Route path="/life/habits" element={<HabitsPage />} />
                   <Route path="/life/todos" element={<TodosPage />} />

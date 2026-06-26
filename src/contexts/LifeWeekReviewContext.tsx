@@ -11,6 +11,7 @@ import {
   type PendingLifeWeekReview,
 } from "@/lib/lifeWeekReview";
 import { localListClosedLifeWeekIndicesBySubject } from "@/lib/lifeWeekReviewLocalStore";
+import { syncLifeWeekReviewToJournal } from "@/lib/lifeWeekReviewJournal";
 import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 
 type LifeWeekReviewContextValue = {
@@ -96,6 +97,15 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           pendingReview.weekStart,
           reflection,
         );
+        void syncLifeWeekReviewToJournal(userId, {
+          subject: pendingReview.subject,
+          personName: pendingReview.personName,
+          weekIndex: pendingReview.weekIndex,
+          weekNumber: pendingReview.weekNumber,
+          weekRangeLabel: pendingReview.weekRangeLabel,
+          weekStart: pendingReview.weekStart,
+          reflection,
+        }).catch(() => {});
         setClosedWeekIndicesBySubject((prev) => {
           const next = emptyClosedWeekIndicesBySubject();
           for (const subject of Object.keys(prev) as LifeWeekReviewSubject[]) {

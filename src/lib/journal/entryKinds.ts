@@ -7,7 +7,8 @@ export type JournalEntryKind =
   | "chat"
   | "listening"
   | "morning_review"
-  | "morning_conversation";
+  | "morning_conversation"
+  | "life_week_review";
 
 /** Faith-journal kinds (shown under /journal/life). */
 export type FaithJournalKind = "dream" | "praise_report" | "testimony";
@@ -93,6 +94,12 @@ export const ENTRY_KIND_META: Record<
       "What's on your heart? Talk honestly. When you're ready, ask what God wants you to know — then listen.",
     newTitleHint: "Conversation",
   },
+  life_week_review: {
+    label: "Week close-out",
+    shortHint: "Auto-saved when you close out a life-in-weeks review.",
+    placeholder: "",
+    newTitleHint: "Week review",
+  },
 };
 
 /** `?kind=` on `/journal/new` */
@@ -113,7 +120,7 @@ export function coerceJournalEntryKind(raw: string | null | undefined): JournalE
   if (
     raw === "dream" || raw === "praise_report" || raw === "testimony" || raw === "vent" ||
     raw === "chat" || raw === "listening" || raw === "morning_review" ||
-    raw === "morning_conversation"
+    raw === "morning_conversation" || raw === "life_week_review"
   ) {
     return raw;
   }

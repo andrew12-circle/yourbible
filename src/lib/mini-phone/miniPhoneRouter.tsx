@@ -54,6 +54,7 @@ const JournalChatPage = lazy(() => import("@/pages/journal/JournalChatPage"));
 const MyAiPage = lazy(() => import("@/pages/myai/MyAiPage"));
 const PartnerWalkPage = lazy(() => import("@/pages/partner/PartnerWalkPage"));
 const LifeWeeksPage = lazy(() => import("@/pages/life/LifeWeeksPage"));
+const LifeWeekReviewLogPage = lazy(() => import("@/pages/life/LifeWeekReviewLogPage"));
 const LifePrioritiesPage = lazy(() => import("@/pages/life/LifePrioritiesPage"));
 const HabitsPage = lazy(() => import("@/pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("@/pages/life/TodosPage"));
@@ -94,6 +95,7 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/living-hope/review", element: <MorningReviewPage /> },
   { path: "/living-hope/workbook/:section", element: <WorkbookSectionPage /> },
   { path: "/life-weeks", element: <LifeWeeksPage /> },
+  { path: "/life/week-reviews", element: <LifeWeekReviewLogPage /> },
   { path: "/life/priorities", element: <LifePrioritiesPage /> },
   { path: "/life/habits", element: <HabitsPage /> },
   { path: "/life/todos", element: <TodosPage /> },

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Maximize2, Minus, Plus } from "lucide-react";
+import { Loader2, Maximize2, Minus, Plus, BookOpen } from "lucide-react";
 import {
   LIFE_WEEKS_TOTAL,
   LIFE_WEEKS_CHART_TITLE,
@@ -51,6 +51,21 @@ const CHART_WIDTH_CLASS = "mx-auto w-full max-w-full lg:max-w-[min(720px,50vw)]"
 /** Overview desktop: chart column scrolls; chart fills card width. */
 const SPLIT_CHART_COLUMN_CLASS =
   "w-full min-w-0 lg:max-h-[calc(100dvh-10rem)] lg:overflow-y-auto lg:scrollbar-hide";
+
+function WeekReviewLogLink({ className }: { className?: string }) {
+  return (
+    <Link
+      to="/life/week-reviews"
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline",
+        className,
+      )}
+    >
+      <BookOpen className="h-3.5 w-3.5" aria-hidden />
+      Week review log
+    </Link>
+  );
+}
 
 function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
@@ -386,6 +401,7 @@ export function LifeWeeksPanel({
             onNext={rotation.nextSlot}
             className="px-1"
           />
+          <WeekReviewLogLink className="px-1" />
           <FamilyBirthDatePrompt
             memberId={rotation.activeSlot as "lilly" | "caroline"}
             memberName={member?.name ?? rotation.activeSlot}
@@ -414,6 +430,7 @@ export function LifeWeeksPanel({
             onNext={rotation.nextSlot}
             className="px-1"
           />
+          <WeekReviewLogLink className="px-1" />
         <div
           className={cn(
             chartWidthClass,
@@ -440,16 +457,19 @@ export function LifeWeeksPanel({
     return chartIndexState ? (
       <div className={cn("space-y-2", chartSectionLayoutClass)}>
         {embedded && (
-          <LifeChartRotationControls
-            activeSlot={rotation.activeSlot}
-            availableSlots={rotation.availableSlots}
-            chartKind={rotation.activeChart.kind}
-            displayName={profile?.display_name}
-            onSelect={rotation.selectSlot}
-            onPrev={rotation.prevSlot}
-            onNext={rotation.nextSlot}
-            className="px-1"
-          />
+          <>
+            <LifeChartRotationControls
+              activeSlot={rotation.activeSlot}
+              availableSlots={rotation.availableSlots}
+              chartKind={rotation.activeChart.kind}
+              displayName={profile?.display_name}
+              onSelect={rotation.selectSlot}
+              onPrev={rotation.prevSlot}
+              onNext={rotation.nextSlot}
+              className="px-1"
+            />
+            <WeekReviewLogLink className="px-1" />
+          </>
         )}
         <div
           className={cn(

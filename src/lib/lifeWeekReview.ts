@@ -8,10 +8,15 @@ import {
 } from "@/lib/lifeWeeks";
 import type { FamilyMemberId } from "@/lib/lifeWeeksFamily";
 import {
+  localListAllLifeWeekReviews,
   localListClosedLifeWeekIndicesBySubject,
   localSaveLifeWeekReview,
   notifyLifeWeekReviewLocalModeOnce,
 } from "@/lib/lifeWeekReviewLocalStore";
+import {
+  mergeLifeWeekReviewLogEntries,
+  type LifeWeekReviewLogEntry,
+} from "@/lib/lifeWeekReviewLog";
 import { isPostgrestError, isSupabaseMissingTable } from "@/lib/supabase/errors";
 
 export type LifeWeekReviewRow = Tables<"life_week_reviews">;
@@ -162,6 +167,67 @@ async function fetchRemoteClosedBySubject(
     remote.self.add(row.week_index);
   }
   return remote;
+}
+
+function rowToLogEntry(row: LifeWeekReviewRow, source: "remote" | "local"): LifeWeekReviewLogEntry {
+  return {
+    id: row.id,
+    subject: normalizeSubject(row.subject),
+    week_index: row.week_index,
+    week_start: row.week_start,
+    reflection: row.reflection,
+    completed_at: row.completed_at,
+    source,
+  };
+}
+
+async function fetchRemoteLifeWeekReviewLog(userId: string): Promise<LifeWeekReviewLogEntry[] | null> {
+  const withSubject = await supabase
+    .from("life_week_reviews")
+    .select("id, week_index, week_start, reflection, completed_at, subject")
+    .eq("user_id", userId)
+    .order("completed_at", { ascending: false });
+
+  if (!withSubject.error) {
+    return (withSubject.data ?? []).map((row) =>
+      rowToLogEntry(row as LifeWeekReviewRow, "remote"),
+    );
+  }
+
+  if (!isRemoteSchemaMismatch(withSubject.error)) {
+    throw withSubject.error;
+  }
+
+  const legacy = await supabase
+    .from("life_week_reviews")
+    .select("id, week_index, week_start, reflection, completed_at")
+    .eq("user_id", userId)
+    .order("completed_at", { ascending: false });
+
+  if (legacy.error) {
+    if (isSupabaseMissingTable(legacy.error)) return null;
+    throw legacy.error;
+  }
+
+  return (legacy.data ?? []).map((row) =>
+    rowToLogEntry({ ...row, subject: "self" } as LifeWeekReviewRow, "remote"),
+  );
+}
+
+/** All closed week reflections — remote merged with local fallback. */
+export async function listAllLifeWeekReviews(userId: string): Promise<LifeWeekReviewLogEntry[]> {
+  const local = localListAllLifeWeekReviews(userId).map((row) => rowToLogEntry(row, "local"));
+
+  try {
+    const remote = await fetchRemoteLifeWeekReviewLog(userId);
+    if (remote) return mergeLifeWeekReviewLogEntries(remote, local);
+  } catch (e) {
+    if (!isSupabaseMissingTable(e)) {
+      warnRemoteLifeWeekReviewFailure("log load", e);
+    }
+  }
+
+  return mergeLifeWeekReviewLogEntries([], local);
 }
 
 export async function listClosedLifeWeekIndicesBySubject(
