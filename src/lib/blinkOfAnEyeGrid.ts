@@ -8,14 +8,14 @@ export const BLINK_YEARS = 18;
 export const BLINK_WEEKS_PER_YEAR = 52;
 export const BLINK_WEEKS_TOTAL = BLINK_YEARS * BLINK_WEEKS_PER_YEAR;
 
-export const BLINK_CELL = 8;
-export const BLINK_GAP = 3;
-export const BLINK_MARGIN_LEFT = 26;
-export const BLINK_MARGIN_TOP = 18;
-export const BLINK_AXIS_FONT = 6;
-export const BLINK_TICK_FONT = 6;
-export const BLINK_YEARS_LABEL_Y = 8;
-export const BLINK_YEAR_TICK_Y = 16;
+export const BLINK_CELL = 5;
+export const BLINK_GAP = 1;
+export const BLINK_MARGIN_LEFT = 18;
+export const BLINK_MARGIN_TOP = 12;
+export const BLINK_AXIS_FONT = 5;
+export const BLINK_TICK_FONT = 5;
+export const BLINK_YEARS_LABEL_Y = 5;
+export const BLINK_YEAR_TICK_Y = 10;
 
 export const BLINK_WEEK_TICKS = [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52] as const;
 /** Column labels 0–17 — through the 17th full life-year at home. */
@@ -42,8 +42,8 @@ export function blinkYearTickX(year: number): number {
   return blinkColX(year) + BLINK_CELL / 2;
 }
 
-export const BLINK_GRID_W = BLINK_MARGIN_LEFT + blinkGridWidthPx() + 32;
-export const BLINK_GRID_H = BLINK_MARGIN_TOP + blinkGridHeightPx() + 24;
+export const BLINK_GRID_W = BLINK_MARGIN_LEFT + blinkGridWidthPx() + 18;
+export const BLINK_GRID_H = BLINK_MARGIN_TOP + blinkGridHeightPx() + 14;
 
 /** Map linear week index to poster cell (year column, week row). */
 export function blinkWeekIndexToPos(weekIndex: number): { year: number; week: number } {

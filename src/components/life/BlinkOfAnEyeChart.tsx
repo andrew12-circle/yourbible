@@ -48,7 +48,7 @@ function FlyingBirds({ x, y }: { x: number; y: number }) {
           className="stroke-zinc-400"
           strokeWidth={1}
           strokeLinecap="round"
-          transform={`translate(${i * 10}, ${i * 5}) scale(0.85)`}
+          transform={`translate(${i * 8}, ${i * 4}) scale(0.65)`}
         />
       ))}
     </g>
@@ -78,13 +78,13 @@ export function BlinkOfAnEyeChart({
     : `The Blink of an Eye, born ${subtitle}`;
 
   return (
-    <div className={cn("flex min-h-0 flex-1 items-center justify-center overflow-auto", className)}>
+    <div className={cn("flex min-h-0 flex-1 items-center justify-center overflow-hidden", className)}>
       <svg
         role="img"
         aria-label={ariaTitle}
         viewBox={`0 0 ${BLINK_GRID_W} ${BLINK_GRID_H}`}
         preserveAspectRatio="xMidYMid meet"
-        className="block h-auto w-full max-h-full overflow-visible text-zinc-900 dark:text-zinc-100"
+        className="block h-full max-h-full w-full overflow-visible text-zinc-900 dark:text-zinc-100"
       >
         <title>{ariaTitle}</title>
 
@@ -131,7 +131,7 @@ export function BlinkOfAnEyeChart({
           return (
             <text
               key={`w-${week}`}
-              x={BLINK_MARGIN_LEFT - 4}
+              x={BLINK_MARGIN_LEFT - 3}
               y={y}
               textAnchor="end"
               dominantBaseline="middle"
@@ -162,19 +162,19 @@ export function BlinkOfAnEyeChart({
                   height={BLINK_CELL}
                   fill={fill}
                   className={fill ? undefined : "fill-current"}
-                  rx={0.75}
+                  rx={0.5}
                 />
               )}
               {isFuture && (
                 <rect
-                  x={x + 0.5}
-                  y={y + 0.5}
-                  width={BLINK_CELL - 1}
-                  height={BLINK_CELL - 1}
+                  x={x + 0.35}
+                  y={y + 0.35}
+                  width={BLINK_CELL - 0.7}
+                  height={BLINK_CELL - 0.7}
                   fill="none"
                   className="stroke-zinc-300 dark:stroke-zinc-600"
-                  strokeWidth={0.75}
-                  rx={0.75}
+                  strokeWidth={0.5}
+                  rx={0.5}
                 />
               )}
               {isCurrent && (
@@ -186,17 +186,17 @@ export function BlinkOfAnEyeChart({
                     height={BLINK_CELL}
                     fill={fill}
                     className={fill ? undefined : "fill-current"}
-                    rx={0.75}
+                    rx={0.5}
                   />
                   <rect
-                    x={x - 1.5}
-                    y={y - 1.5}
-                    width={BLINK_CELL + 3}
-                    height={BLINK_CELL + 3}
+                    x={x - 1}
+                    y={y - 1}
+                    width={BLINK_CELL + 2}
+                    height={BLINK_CELL + 2}
                     fill="none"
                     className="stroke-primary"
-                    strokeWidth={1.5}
-                    rx={1}
+                    strokeWidth={1}
+                    rx={0.75}
                   />
                 </>
               )}
@@ -204,14 +204,14 @@ export function BlinkOfAnEyeChart({
           );
         })}
 
-        <FlyingBirds x={BLINK_MARGIN_LEFT + gridW - 8} y={BLINK_MARGIN_TOP + gridH + 2} />
+        <FlyingBirds x={BLINK_MARGIN_LEFT + gridW - 6} y={BLINK_MARGIN_TOP + gridH + 1} />
 
         <text
           x={BLINK_GRID_W / 2}
-          y={BLINK_GRID_H - 6}
+          y={BLINK_GRID_H - 4}
           textAnchor="middle"
           className="fill-muted-foreground"
-          style={{ fontSize: 6, letterSpacing: "0.16em" }}
+          style={{ fontSize: 5, letterSpacing: "0.14em" }}
         >
           {`${BLINK_WEEKS_TOTAL.toLocaleString()} weeks · ${APP_NAME}`}
         </text>

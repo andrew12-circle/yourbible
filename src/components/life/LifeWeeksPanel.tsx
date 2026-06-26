@@ -45,6 +45,9 @@ import { APP_NAME } from "@/lib/appBrand";
 
 const APP_TAGLINE = APP_NAME;
 
+/** Cap poster chart width on large viewports (~half the screen) so grids stay taller than wide. */
+const CHART_WIDTH_CLASS = "mx-auto w-full max-w-full lg:max-w-[min(720px,50vw)]";
+
 function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div
@@ -394,7 +397,8 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
           />
           <div
             className={cn(
-              "mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5",
+              "flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3",
+              CHART_WIDTH_CLASS,
               cardClass,
             )}
           >
@@ -402,7 +406,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
               birthDate={chartDob}
               currentWeekIndex={chartIndexState.currentWeekIndex}
               personName={rotation.activeChart.name}
-              className="min-h-[320px]"
+              className="min-h-0"
             />
           </div>
         </div>
@@ -425,9 +429,11 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
         )}
         <div
           className={cn(
-            "mx-auto w-full p-3 sm:p-4 md:p-5",
+            CHART_WIDTH_CLASS,
             cardClass,
-            chartFillLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-hidden",
+            chartFillLayout
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5"
+              : "overflow-hidden p-3 sm:p-4 md:p-5",
           )}
         >
           <p className="mb-3 shrink-0 border-b border-border/50 pb-3 text-center text-sm font-semibold leading-snug tracking-tight text-foreground sm:text-[15px]">
@@ -450,7 +456,11 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
           >
             <div
               className={
-                boundedGridView ? (chartFillLayout ? "h-full w-full max-h-full max-w-full" : "mx-auto") : undefined
+                boundedGridView
+                  ? chartFillLayout
+                    ? "h-full max-h-full w-auto max-w-full"
+                    : "mx-auto"
+                  : undefined
               }
               style={
                 boundedGridView
@@ -458,6 +468,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
                       aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
                       maxWidth: "100%",
                       maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
+                      ...(chartFillLayout ? { height: "100%" } : {}),
                     }
                   : undefined
               }
@@ -742,7 +753,11 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
               <LifePrioritiesPanel variant="sidebar" />
             </div>
           </div>
-          <div className="flex min-h-[420px] flex-col lg:min-h-0">{renderChartSection()}</div>
+          <div className="flex min-h-[420px] flex-col items-center lg:min-h-0">
+            <div className={cn("flex min-h-0 w-full flex-1 flex-col", CHART_WIDTH_CLASS)}>
+              {renderChartSection()}
+            </div>
+          </div>
         </div>
       ) : (
         <>
