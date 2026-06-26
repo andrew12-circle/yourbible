@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { computeLifeWeekIndex } from "@/lib/lifeWeeks";
 import {
   buildPendingLifeWeekReview,
+  emptyClosedWeekIndicesBySubject,
   needsPriorLifeWeekReview,
   pendingLifeWeekIndex,
   priorLifeWeekIndex,
   resolvePendingLifeWeekReview,
+  resolvePendingLifeWeekReviews,
 } from "@/lib/lifeWeekReview";
 
 describe("lifeWeekReview", () => {
@@ -27,11 +29,20 @@ describe("lifeWeekReview", () => {
   });
 
   it("buildPendingLifeWeekReview for a known birth date", () => {
-    const pending = buildPendingLifeWeekReview("1990-01-15", 99);
+    const pending = buildPendingLifeWeekReview("1990-01-15", 99, "self", "Andrew");
     expect(pending?.weekIndex).toBe(99);
     expect(pending?.weekNumber).toBe(100);
+    expect(pending?.subject).toBe("self");
+    expect(pending?.chartKind).toBe("life-weeks");
     expect(pending?.weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(pending?.weekRangeLabel).toContain("–");
+  });
+
+  it("buildPendingLifeWeekReview for family uses blink chart kind", () => {
+    const pending = buildPendingLifeWeekReview("2015-06-01", 40, "lilly", "Lilly");
+    expect(pending?.subject).toBe("lilly");
+    expect(pending?.chartKind).toBe("blink");
+    expect(pending?.personName).toBe("Lilly");
   });
 
   it("resolvePendingLifeWeekReview returns null when prior week closed", () => {
@@ -39,6 +50,20 @@ describe("lifeWeekReview", () => {
     const current = computeLifeWeekIndex(birth);
     expect(current).not.toBeNull();
     const prior = current!.currentWeekIndex - 1;
-    expect(resolvePendingLifeWeekReview(birth, Date.now(), new Set([prior]))).toBeNull();
+    expect(resolvePendingLifeWeekReview(birth, new Set([prior]), "self", "Andrew")).toBeNull();
+  });
+
+  it("resolvePendingLifeWeekReviews queues each person independently", () => {
+    const closed = emptyClosedWeekIndicesBySubject();
+    const pending = resolvePendingLifeWeekReviews(
+      [
+        { subject: "self", birthIso: "1990-01-15", personName: "Andrew" },
+        { subject: "lilly", birthIso: "2015-06-01", personName: "Lilly" },
+        { subject: "caroline", birthIso: "2018-03-10", personName: "Caroline" },
+      ],
+      closed,
+    );
+    expect(pending.length).toBe(3);
+    expect(pending.map((p) => p.subject)).toEqual(["self", "lilly", "caroline"]);
   });
 });

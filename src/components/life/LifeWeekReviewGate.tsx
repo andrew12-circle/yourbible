@@ -9,7 +9,8 @@ const SKIP_PREFIXES = ["/auth", "/onboarding"];
 export function LifeWeekReviewGate() {
   const { user, profile, loading: authLoading } = useAuth();
   const { pathname } = useLocation();
-  const { pendingReview, completeReview, saving, loading: reviewLoading } = useLifeWeekReview();
+  const { pendingReview, completeReview, saving, loading: reviewLoading, pendingReviewCount } =
+    useLifeWeekReview();
 
   const skipRoute = SKIP_PREFIXES.some((p) => pathname.startsWith(p));
   const open =
@@ -24,10 +25,11 @@ export function LifeWeekReviewGate() {
 
   return (
     <LifeWeekReviewDialog
-      key={pendingReview.weekIndex}
+      key={`${pendingReview.subject}-${pendingReview.weekIndex}`}
       open={open}
       pending={pendingReview}
       saving={saving}
+      remainingCount={pendingReviewCount}
       onComplete={completeReview}
     />
   );

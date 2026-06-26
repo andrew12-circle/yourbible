@@ -9,6 +9,7 @@ import {
   blinkYearTickX,
   blinkColX,
   BLINK_CELL,
+  blinkReviewSnippetViewBox,
 } from "@/lib/blinkOfAnEyeGrid";
 import { advanceChartSlot, writeStoredChartSlot } from "@/lib/lifeChartRotation";
 
@@ -34,6 +35,14 @@ describe("blinkOfAnEyeGrid", () => {
   it("aligns year ticks to column centers", () => {
     expect(blinkYearTickX(0)).toBe(BLINK_CELL / 2);
     expect(blinkYearTickX(17)).toBe(blinkColX(17) + BLINK_CELL / 2);
+  });
+
+  it("builds a review snippet viewBox around a week cell", () => {
+    const viewBox = blinkReviewSnippetViewBox(52);
+    expect(viewBox).toMatch(/^\d/);
+    const parts = viewBox.split(" ").map(Number);
+    expect(parts[2]).toBeGreaterThan(0);
+    expect(parts[3]).toBeGreaterThan(0);
   });
 });
 

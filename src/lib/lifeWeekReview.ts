@@ -5,8 +5,9 @@ import {
   formatLifeWeekRange,
   lifeWeekMondayIso,
 } from "@/lib/lifeWeeks";
+import type { FamilyMemberId } from "@/lib/lifeWeeksFamily";
 import {
-  localListClosedLifeWeekIndices,
+  localListClosedLifeWeekIndicesBySubject,
   localSaveLifeWeekReview,
   notifyLifeWeekReviewLocalModeOnce,
 } from "@/lib/lifeWeekReviewLocalStore";
@@ -14,10 +15,38 @@ import { formatSupabaseError, isSupabaseMissingTable } from "@/lib/supabase/erro
 
 export type LifeWeekReviewRow = Tables<"life_week_reviews">;
 
+export type LifeWeekReviewSubject = "self" | FamilyMemberId;
+
+export type LifeWeekChartKind = "life-weeks" | "blink";
+
+export const LIFE_WEEK_REVIEW_SUBJECTS: LifeWeekReviewSubject[] = ["self", "lilly", "caroline"];
+
 export const LIFE_WEEK_REFLECTION_MIN = 20;
 
 export const LIFE_WEEK_REFLECTION_PROMPT =
   "What did you do this past week to live the life you want—or the life God has called you to live?";
+
+export function lifeWeekReflectionPrompt(subject: LifeWeekReviewSubject, personName: string): string {
+  if (subject === "self") return LIFE_WEEK_REFLECTION_PROMPT;
+  return `What stood out about ${personName}'s past week—joys, struggles, or moments you want to remember while they're still home?`;
+}
+
+export function lifeWeekReviewChartKind(subject: LifeWeekReviewSubject): LifeWeekChartKind {
+  return subject === "self" ? "life-weeks" : "blink";
+}
+
+export function emptyClosedWeekIndicesBySubject(): Record<LifeWeekReviewSubject, Set<number>> {
+  return {
+    self: new Set(),
+    lilly: new Set(),
+    caroline: new Set(),
+  };
+}
+
+function normalizeSubject(raw: string | null | undefined): LifeWeekReviewSubject {
+  if (raw === "lilly" || raw === "caroline") return raw;
+  return "self";
+}
 
 export function priorLifeWeekIndex(currentWeekIndex: number): number {
   return currentWeekIndex - 1;
@@ -41,6 +70,9 @@ export function needsPriorLifeWeekReview(
 }
 
 export type PendingLifeWeekReview = {
+  subject: LifeWeekReviewSubject;
+  personName: string;
+  chartKind: LifeWeekChartKind;
   weekIndex: number;
   weekNumber: number;
   weekRangeLabel: string;
@@ -50,11 +82,16 @@ export type PendingLifeWeekReview = {
 export function buildPendingLifeWeekReview(
   birthIso: string,
   weekIndex: number,
+  subject: LifeWeekReviewSubject,
+  personName: string,
 ): PendingLifeWeekReview | null {
   if (weekIndex < 0) return null;
   const weekStart = lifeWeekMondayIso(birthIso, weekIndex);
   if (!weekStart) return null;
   return {
+    subject,
+    personName,
+    chartKind: lifeWeekReviewChartKind(subject),
     weekIndex,
     weekNumber: weekIndex + 1,
     weekRangeLabel: formatLifeWeekRange(birthIso, weekIndex),
@@ -62,28 +99,50 @@ export function buildPendingLifeWeekReview(
   };
 }
 
-export async function listClosedLifeWeekIndices(userId: string): Promise<Set<number>> {
+function mergeClosedBySubject(
+  remote: Record<LifeWeekReviewSubject, Set<number>>,
+  local: Record<LifeWeekReviewSubject, Set<number>>,
+): Record<LifeWeekReviewSubject, Set<number>> {
+  const merged = emptyClosedWeekIndicesBySubject();
+  for (const subject of LIFE_WEEK_REVIEW_SUBJECTS) {
+    merged[subject] = new Set([...remote[subject], ...local[subject]]);
+  }
+  return merged;
+}
+
+export async function listClosedLifeWeekIndicesBySubject(
+  userId: string,
+): Promise<Record<LifeWeekReviewSubject, Set<number>>> {
   try {
     const { data, error } = await supabase
       .from("life_week_reviews")
-      .select("week_index")
+      .select("week_index, subject")
       .eq("user_id", userId);
     if (error) throw error;
-    const remote = new Set((data ?? []).map((row) => row.week_index));
-    const local = localListClosedLifeWeekIndices(userId);
-    if (local.size === 0) return remote;
-    return new Set([...remote, ...local]);
+    const remote = emptyClosedWeekIndicesBySubject();
+    for (const row of data ?? []) {
+      remote[normalizeSubject(row.subject)].add(row.week_index);
+    }
+    const local = localListClosedLifeWeekIndicesBySubject(userId);
+    return mergeClosedBySubject(remote, local);
   } catch (e) {
     if (isSupabaseMissingTable(e)) {
       notifyLifeWeekReviewLocalModeOnce();
-      return localListClosedLifeWeekIndices(userId);
+      return localListClosedLifeWeekIndicesBySubject(userId);
     }
     throw e;
   }
 }
 
+/** @deprecated Use listClosedLifeWeekIndicesBySubject */
+export async function listClosedLifeWeekIndices(userId: string): Promise<Set<number>> {
+  const bySubject = await listClosedLifeWeekIndicesBySubject(userId);
+  return bySubject.self;
+}
+
 export async function saveLifeWeekReview(
   userId: string,
+  subject: LifeWeekReviewSubject,
   weekIndex: number,
   weekStart: string,
   reflection: string,
@@ -95,6 +154,7 @@ export async function saveLifeWeekReview(
 
   const row: TablesInsert<"life_week_reviews"> = {
     user_id: userId,
+    subject,
     week_index: weekIndex,
     week_start: weekStart,
     reflection: trimmed,
@@ -103,7 +163,7 @@ export async function saveLifeWeekReview(
   try {
     const { data, error } = await supabase
       .from("life_week_reviews")
-      .upsert(row, { onConflict: "user_id,week_index" })
+      .upsert(row, { onConflict: "user_id,subject,week_index" })
       .select("*")
       .single();
     if (error) throw error;
@@ -111,7 +171,7 @@ export async function saveLifeWeekReview(
   } catch (e) {
     if (isSupabaseMissingTable(e)) {
       notifyLifeWeekReviewLocalModeOnce();
-      return localSaveLifeWeekReview(userId, weekIndex, weekStart, trimmed);
+      return localSaveLifeWeekReview(userId, subject, weekIndex, weekStart, trimmed);
     }
     throw new Error(formatSupabaseError(e));
   }
@@ -119,13 +179,40 @@ export async function saveLifeWeekReview(
 
 export function resolvePendingLifeWeekReview(
   birthIso: string | null | undefined,
-  nowMs: number = Date.now(),
   closedWeekIndices: ReadonlySet<number>,
+  subject: LifeWeekReviewSubject,
+  personName: string,
+  nowMs: number = Date.now(),
 ): PendingLifeWeekReview | null {
   if (!birthIso?.trim()) return null;
   const indexState = computeLifeWeekIndex(birthIso, nowMs);
   if (!indexState) return null;
   const pendingIndex = pendingLifeWeekIndex(indexState.currentWeekIndex, closedWeekIndices);
   if (pendingIndex === null) return null;
-  return buildPendingLifeWeekReview(birthIso, pendingIndex);
+  return buildPendingLifeWeekReview(birthIso, pendingIndex, subject, personName);
+}
+
+export type LifeWeekReviewPerson = {
+  subject: LifeWeekReviewSubject;
+  birthIso: string;
+  personName: string;
+};
+
+export function resolvePendingLifeWeekReviews(
+  people: LifeWeekReviewPerson[],
+  closedBySubject: Record<LifeWeekReviewSubject, Set<number>>,
+  nowMs: number = Date.now(),
+): PendingLifeWeekReview[] {
+  const pending: PendingLifeWeekReview[] = [];
+  for (const person of people) {
+    const review = resolvePendingLifeWeekReview(
+      person.birthIso,
+      closedBySubject[person.subject],
+      person.subject,
+      person.personName,
+      nowMs,
+    );
+    if (review) pending.push(review);
+  }
+  return pending;
 }

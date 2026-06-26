@@ -36,6 +36,7 @@ import { useLifeWeekColorMap } from "@/hooks/useLifeWeekColorMap";
 import { useLifeWeeksPanel, type LifeWeeksStageDraft } from "@/hooks/useLifeWeeksPanel";
 import { useRotatingLifeChart } from "@/hooks/useRotatingLifeChart";
 import { useLifeWeekReviewOptional } from "@/contexts/LifeWeekReviewContext";
+import type { LifeWeekReviewSubject } from "@/lib/lifeWeekReview";
 import { LifePrioritiesPanel } from "@/components/home/LifePrioritiesPanel";
 import { BlinkOfAnEyeChart } from "@/components/life/BlinkOfAnEyeChart";
 import { LifeChartRotationControls } from "@/components/life/LifeChartRotationControls";
@@ -257,14 +258,20 @@ function LifeStageSettingsForm({
 type LifeWeeksPanelProps = {
   /** When true, panel is embedded in Overview — compact grid, no daily review section. */
   embedded?: boolean;
-  /** Renders in the left column beside the chart (Overview two-column layout). */
+  /** Top of Overview sidebar (e.g. greeting card). */
   leadingContent?: ReactNode;
+  /** Below the chart on mobile; bottom of sidebar on desktop (e.g. status strip). */
+  overviewBelowChartContent?: ReactNode;
 };
 
-export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPanelProps) {
+export function LifeWeeksPanel({
+  embedded = false,
+  leadingContent,
+  overviewBelowChartContent,
+}: LifeWeeksPanelProps) {
   const splitLayout = embedded && leadingContent != null;
   const { profile } = useAuth();
-  const closedWeekIndices = useLifeWeekReviewOptional()?.closedWeekIndices;
+  const reviewCtx = useLifeWeekReviewOptional();
   const panel = useLifeWeeksPanel({ defaultZoom: splitLayout ? "fit" : undefined });
   const rotation = useRotatingLifeChart({ rotateOnMount: embedded });
   const {
@@ -304,7 +311,9 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
     embedded &&
     (rotation.activeSlot === "lilly" || rotation.activeSlot === "caroline") &&
     !rotation.activeChart.birthDate;
-  const showClosedWeeks = !embedded || rotation.activeSlot === "self";
+  const activeReviewSubject: LifeWeekReviewSubject = embedded ? rotation.activeSlot : "self";
+  const closedWeekIndices = reviewCtx?.closedWeekIndicesBySubject[activeReviewSubject];
+  const showClosedWeeks = Boolean(closedWeekIndices);
   const chartSvgViewBox =
     zoom === "now" && chartIndexState
       ? focusedViewBoxForWeek(chartIndexState.currentWeekIndex)
@@ -406,6 +415,7 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
               birthDate={chartDob}
               currentWeekIndex={chartIndexState.currentWeekIndex}
               personName={rotation.activeChart.name}
+              closedWeekIndices={closedWeekIndices}
               className="min-h-0"
             />
           </div>
@@ -742,20 +752,26 @@ export function LifeWeeksPanel({ embedded = false, leadingContent }: LifeWeeksPa
       )}
 
       {splitLayout ? (
-        <div className="grid gap-3 lg:grid-cols-[minmax(280px,380px)_1fr] lg:gap-6 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
-          <div className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
-            {leadingContent}
-            {chartPhaseStats && chartIndexState && chartDob ? (
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(280px,380px)_1fr] lg:gap-6 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
+          <div className="shrink-0 lg:col-start-1 lg:row-start-1">{leadingContent}</div>
+
+          {chartPhaseStats && chartIndexState && chartDob ? (
+            <div className="shrink-0 lg:col-start-1 lg:row-start-2">
               <CurrentWeekHero stats={chartPhaseStats} indexState={chartIndexState} birthDate={chartDob} />
-            ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex min-h-[320px] flex-col items-center sm:min-h-[380px] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-0">
+            <div className={cn("flex min-h-0 w-full flex-1 flex-col", CHART_WIDTH_CLASS)}>
+              {renderChartSection()}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-col gap-3 lg:col-start-1 lg:row-start-3 lg:overflow-hidden">
+            {overviewBelowChartContent}
             {renderStatsSection()}
             <div className="min-h-0 flex-1 lg:overflow-y-auto lg:scrollbar-hide">
               <LifePrioritiesPanel variant="sidebar" />
-            </div>
-          </div>
-          <div className="flex min-h-[420px] flex-col items-center lg:min-h-0">
-            <div className={cn("flex min-h-0 w-full flex-1 flex-col", CHART_WIDTH_CLASS)}>
-              {renderChartSection()}
             </div>
           </div>
         </div>

@@ -29,6 +29,7 @@ type BlinkOfAnEyeChartProps = {
   birthDate: string;
   currentWeekIndex: number;
   personName?: string;
+  closedWeekIndices?: ReadonlySet<number>;
   className?: string;
 };
 
@@ -59,6 +60,7 @@ export function BlinkOfAnEyeChart({
   birthDate,
   currentWeekIndex,
   personName,
+  closedWeekIndices,
   className,
 }: BlinkOfAnEyeChartProps) {
   const gridW = blinkGridWidthPx();
@@ -150,20 +152,33 @@ export function BlinkOfAnEyeChart({
           const isPast = pastBlinkSpan || i < currentWeekIndex;
           const isCurrent = !pastBlinkSpan && i === cappedWeekIndex;
           const isFuture = !pastBlinkSpan && i > currentWeekIndex;
+          const isClosed = isPast && (closedWeekIndices?.has(i) ?? false);
           const fill = colorMap ? lifeWeekColorAt(colorMap, i) : undefined;
 
           return (
             <g key={i}>
               {isPast && (
-                <rect
-                  x={x}
-                  y={y}
-                  width={BLINK_CELL}
-                  height={BLINK_CELL}
-                  fill={fill}
-                  className={fill ? undefined : "fill-current"}
-                  rx={0.5}
-                />
+                <>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={BLINK_CELL}
+                    height={BLINK_CELL}
+                    fill={fill}
+                    className={fill ? undefined : "fill-current"}
+                    rx={0.5}
+                  />
+                  {isClosed ? (
+                    <path
+                      d={`M ${x + 1.5} ${y + BLINK_CELL * 0.55} L ${x + BLINK_CELL * 0.42} ${y + BLINK_CELL - 1.5} L ${x + BLINK_CELL - 1.5} ${y + 1.5}`}
+                      fill="none"
+                      className="stroke-white"
+                      strokeWidth={1.25}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ) : null}
+                </>
               )}
               {isFuture && (
                 <rect

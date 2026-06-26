@@ -1689,6 +1689,7 @@ export type Database = {
           created_at: string
           id: string
           reflection: string
+          subject: string
           user_id: string
           week_index: number
           week_start: string
@@ -1698,6 +1699,7 @@ export type Database = {
           created_at?: string
           id?: string
           reflection: string
+          subject?: string
           user_id: string
           week_index: number
           week_start: string
@@ -1707,6 +1709,7 @@ export type Database = {
           created_at?: string
           id?: string
           reflection?: string
+          subject?: string
           user_id?: string
           week_index?: number
           week_start?: string

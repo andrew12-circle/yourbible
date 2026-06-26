@@ -2,16 +2,23 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import {
-  listClosedLifeWeekIndices,
-  resolvePendingLifeWeekReview,
+  emptyClosedWeekIndicesBySubject,
+  listClosedLifeWeekIndicesBySubject,
+  resolvePendingLifeWeekReviews,
   saveLifeWeekReview,
+  type LifeWeekReviewPerson,
+  type LifeWeekReviewSubject,
   type PendingLifeWeekReview,
 } from "@/lib/lifeWeekReview";
+import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 
 type LifeWeekReviewContextValue = {
   loading: boolean;
+  closedWeekIndicesBySubject: Record<LifeWeekReviewSubject, Set<number>>;
+  /** Closed weeks for self — convenience for life-weeks chart. */
   closedWeekIndices: Set<number>;
   pendingReview: PendingLifeWeekReview | null;
+  pendingReviewCount: number;
   completeReview: (reflection: string) => Promise<void>;
   saving: boolean;
   refresh: () => Promise<void>;
@@ -23,21 +30,25 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
   const userId = user?.id;
   const birthIso = profile?.date_of_birth ?? null;
-  const enabled = Boolean(userId && birthIso?.trim() && !needsOnboarding(profile));
+  const displayName = profile?.display_name?.trim() || "You";
+  const familyMembers = useMemo(() => parseFamilyFromLayout(profile?.layout), [profile?.layout]);
+  const enabled = Boolean(userId && !needsOnboarding(profile));
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [closedWeekIndices, setClosedWeekIndices] = useState<Set<number>>(() => new Set());
+  const [closedWeekIndicesBySubject, setClosedWeekIndicesBySubject] = useState<
+    Record<LifeWeekReviewSubject, Set<number>>
+  >(emptyClosedWeekIndicesBySubject);
 
   const refresh = useCallback(async () => {
     if (!userId || !enabled) {
-      setClosedWeekIndices(new Set());
+      setClosedWeekIndicesBySubject(emptyClosedWeekIndicesBySubject());
       return;
     }
     setLoading(true);
     try {
-      const closed = await listClosedLifeWeekIndices(userId);
-      setClosedWeekIndices(closed);
+      const closed = await listClosedLifeWeekIndicesBySubject(userId);
+      setClosedWeekIndicesBySubject(closed);
     } finally {
       setLoading(false);
     }
@@ -47,18 +58,49 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const pendingReview = useMemo(() => {
-    if (!enabled || loading) return null;
-    return resolvePendingLifeWeekReview(birthIso, Date.now(), closedWeekIndices);
-  }, [enabled, loading, birthIso, closedWeekIndices]);
+  const reviewPeople = useMemo((): LifeWeekReviewPerson[] => {
+    const people: LifeWeekReviewPerson[] = [];
+    if (birthIso?.trim()) {
+      people.push({ subject: "self", birthIso: birthIso.trim(), personName: displayName });
+    }
+    for (const member of familyMembers) {
+      if (!member.birthDate) continue;
+      people.push({
+        subject: member.id,
+        birthIso: member.birthDate,
+        personName: member.name,
+      });
+    }
+    return people;
+  }, [birthIso, displayName, familyMembers]);
+
+  const pendingReviews = useMemo(() => {
+    if (!enabled || loading || reviewPeople.length === 0) return [];
+    return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject);
+  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject]);
+
+  const pendingReview = pendingReviews[0] ?? null;
 
   const completeReview = useCallback(
     async (reflection: string) => {
       if (!userId || !pendingReview) return;
       setSaving(true);
       try {
-        await saveLifeWeekReview(userId, pendingReview.weekIndex, pendingReview.weekStart, reflection);
-        setClosedWeekIndices((prev) => new Set(prev).add(pendingReview.weekIndex));
+        await saveLifeWeekReview(
+          userId,
+          pendingReview.subject,
+          pendingReview.weekIndex,
+          pendingReview.weekStart,
+          reflection,
+        );
+        setClosedWeekIndicesBySubject((prev) => {
+          const next = emptyClosedWeekIndicesBySubject();
+          for (const subject of Object.keys(prev) as LifeWeekReviewSubject[]) {
+            next[subject] = new Set(prev[subject]);
+          }
+          next[pendingReview.subject].add(pendingReview.weekIndex);
+          return next;
+        });
       } finally {
         setSaving(false);
       }
@@ -69,13 +111,23 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       loading,
-      closedWeekIndices,
+      closedWeekIndicesBySubject,
+      closedWeekIndices: closedWeekIndicesBySubject.self,
       pendingReview,
+      pendingReviewCount: pendingReviews.length,
       completeReview,
       saving,
       refresh,
     }),
-    [loading, closedWeekIndices, pendingReview, completeReview, saving, refresh],
+    [
+      loading,
+      closedWeekIndicesBySubject,
+      pendingReview,
+      pendingReviews.length,
+      completeReview,
+      saving,
+      refresh,
+    ],
   );
 
   return <LifeWeekReviewContext.Provider value={value}>{children}</LifeWeekReviewContext.Provider>;

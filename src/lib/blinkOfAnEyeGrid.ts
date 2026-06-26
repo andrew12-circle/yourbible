@@ -53,3 +53,36 @@ export function blinkWeekIndexToPos(weekIndex: number): { year: number; week: nu
     week: clamped % BLINK_WEEKS_PER_YEAR,
   };
 }
+
+/** Zoomed viewBox for week-review check-off snippet on Blink poster grid. */
+export function blinkReviewSnippetViewBox(weekIndex: number): string {
+  const { year, week } = blinkWeekIndexToPos(weekIndex);
+  const padYear = 2;
+  const padWeek = 8;
+  const minYear = Math.max(0, year - padYear);
+  const maxYear = Math.min(BLINK_YEARS - 1, year + padYear);
+  const minWeek = Math.max(0, week - padWeek);
+  const maxWeek = Math.min(BLINK_WEEKS_PER_YEAR - 1, week + padWeek);
+  const x0 = BLINK_MARGIN_LEFT + blinkColX(minYear) - 8;
+  const y0 = BLINK_MARGIN_TOP + blinkRowY(minWeek) - 8;
+  const x1 = BLINK_MARGIN_LEFT + blinkColX(maxYear) + BLINK_CELL + 8;
+  const y1 = BLINK_MARGIN_TOP + blinkRowY(maxWeek) + BLINK_CELL + 8;
+  return `${x0} ${y0} ${x1 - x0} ${y1 - y0}`;
+}
+
+export function blinkWeekIndicesInReviewWindow(weekIndex: number): number[] {
+  const { year, week } = blinkWeekIndexToPos(weekIndex);
+  const padYear = 2;
+  const padWeek = 8;
+  const minYear = Math.max(0, year - padYear);
+  const maxYear = Math.min(BLINK_YEARS - 1, year + padYear);
+  const minWeek = Math.max(0, week - padWeek);
+  const maxWeek = Math.min(BLINK_WEEKS_PER_YEAR - 1, week + padWeek);
+  const indices: number[] = [];
+  for (let y = minYear; y <= maxYear; y++) {
+    for (let w = minWeek; w <= maxWeek; w++) {
+      indices.push(y * BLINK_WEEKS_PER_YEAR + w);
+    }
+  }
+  return indices;
+}

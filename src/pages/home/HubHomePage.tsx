@@ -36,16 +36,14 @@ export default function HubHomePage() {
         <LifeWeeksPanel
           embedded
           leadingContent={
-            <>
-              <div className="rounded-xl border bg-card px-4 py-3">
-                <p className="text-xs text-muted-foreground">{dateStr}</p>
-                <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
-                  {greeting}{greetingName ? `, ${greetingName}` : ""}
-                </h2>
-              </div>
-              <HubStatusStrip counts={counts} />
-            </>
+            <div className="rounded-xl border bg-card px-4 py-3">
+              <p className="text-xs text-muted-foreground">{dateStr}</p>
+              <h2 className="mt-0.5 text-lg font-semibold tracking-tight">
+                {greeting}{greetingName ? `, ${greetingName}` : ""}
+              </h2>
+            </div>
           }
+          overviewBelowChartContent={<HubStatusStrip counts={counts} />}
         />
 
         <MorningFormulaHomeCard />
