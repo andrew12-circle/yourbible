@@ -17,6 +17,7 @@ import {
   BLINK_YEAR_TICK_Y,
   BLINK_YEARS_LABEL_Y,
   BLINK_WEEK_TICKS,
+  BLINK_FOOTER_FONT,
   blinkColX,
   blinkGridHeightPx,
   blinkGridWidthPx,
@@ -80,13 +81,13 @@ export function BlinkOfAnEyeChart({
     : `The Blink of an Eye, born ${subtitle}`;
 
   return (
-    <div className={cn("flex min-h-0 flex-1 items-center justify-center overflow-hidden", className)}>
+    <div className={cn("flex min-h-0 w-full flex-1 flex-col overflow-hidden", className)}>
       <svg
         role="img"
         aria-label={ariaTitle}
         viewBox={`0 0 ${BLINK_GRID_W} ${BLINK_GRID_H}`}
         preserveAspectRatio="xMidYMid meet"
-        className="block h-full max-h-full w-full overflow-visible text-zinc-900 dark:text-zinc-100"
+        className="block h-auto w-full overflow-visible text-zinc-900 dark:text-zinc-100"
       >
         <title>{ariaTitle}</title>
 
@@ -226,7 +227,7 @@ export function BlinkOfAnEyeChart({
           y={BLINK_GRID_H - 4}
           textAnchor="middle"
           className="fill-muted-foreground"
-          style={{ fontSize: 5, letterSpacing: "0.14em" }}
+          style={{ fontSize: BLINK_FOOTER_FONT, letterSpacing: "0.14em" }}
         >
           {`${BLINK_WEEKS_TOTAL.toLocaleString()} weeks · ${APP_NAME}`}
         </text>

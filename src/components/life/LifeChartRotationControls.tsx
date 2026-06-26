@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chartSlotLabel, type LifeChartSlot } from "@/lib/lifeChartRotation";
-import { LIFE_WEEKS_CHART_SHORT } from "@/lib/lifeWeeks";
+import { LIFE_WEEKS_CHART_SHORT, LIFE_WEEKS_CHART_TITLE } from "@/lib/lifeWeeks";
 import type { LifeChartKind } from "@/hooks/useRotatingLifeChart";
 
 type LifeChartRotationControlsProps = {
@@ -20,8 +20,15 @@ type LifeChartRotationControlsProps = {
 
 const SLOT_ORDER: LifeChartSlot[] = ["self", "lilly", "caroline"];
 
-function kindLabel(kind: LifeChartKind): string {
-  return kind === "blink" ? "Blink of an Eye" : LIFE_WEEKS_CHART_SHORT;
+function chartSubtitle(
+  kind: LifeChartKind,
+  person: string,
+  birthDateLabel?: string | null,
+): string {
+  if (kind === "life-weeks") return LIFE_WEEKS_CHART_TITLE;
+  const parts = [kind === "blink" ? "Blink of an Eye" : LIFE_WEEKS_CHART_SHORT, person];
+  if (birthDateLabel?.trim()) parts.push(birthDateLabel.trim());
+  return parts.join(" · ");
 }
 
 export function LifeChartRotationControls({
@@ -36,15 +43,20 @@ export function LifeChartRotationControls({
   className,
 }: LifeChartRotationControlsProps) {
   const person = chartSlotLabel(activeSlot, displayName);
-  const titleParts = [kindLabel(chartKind), person];
-  if (birthDateLabel?.trim()) titleParts.push(birthDateLabel.trim());
-  const title = titleParts.join(" · ");
+  const subtitle = chartSubtitle(chartKind, person, birthDateLabel);
 
   return (
-    <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between", className)}>
+    <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between", className)}>
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rotating view</p>
-        <p className="truncate text-sm font-medium text-foreground">{title}</p>
+        <p
+          className={cn(
+            "text-sm font-medium leading-snug text-foreground",
+            chartKind === "life-weeks" ? "text-[13px] sm:text-sm" : "truncate",
+          )}
+        >
+          {subtitle}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} aria-label="Previous chart">

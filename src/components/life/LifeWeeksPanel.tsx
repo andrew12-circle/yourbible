@@ -46,9 +46,11 @@ import { APP_NAME } from "@/lib/appBrand";
 
 const APP_TAGLINE = APP_NAME;
 
-/** Cap poster chart width on standalone views; Overview split layout uses full right column. */
+/** Cap poster chart width on standalone views. */
 const CHART_WIDTH_CLASS = "mx-auto w-full max-w-full lg:max-w-[min(720px,50vw)]";
-const CHART_FILL_CLASS = "w-full min-h-0 flex-1";
+/** Overview desktop: chart column scrolls; chart fills card width. */
+const SPLIT_CHART_COLUMN_CLASS =
+  "w-full min-w-0 lg:max-h-[calc(100dvh-10rem)] lg:overflow-y-auto lg:scrollbar-hide";
 
 function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
@@ -328,7 +330,7 @@ export function LifeWeeksPanel({
 
   const hubLayout = showHubShell && !embedded;
   const chartFillLayout = hubLayout || splitLayout;
-  const chartWidthClass = splitLayout ? CHART_FILL_CLASS : CHART_WIDTH_CLASS;
+  const chartWidthClass = splitLayout ? "w-full" : CHART_WIDTH_CLASS;
   const fitMaxHeight = splitLayout
     ? "calc(100dvh - 8rem)"
     : embedded
@@ -336,6 +338,12 @@ export function LifeWeeksPanel({
       : showHubShell
         ? "min(58vh, calc(100dvh - 22rem))"
         : "calc(100dvh - 280px)";
+
+  const chartSectionLayoutClass = chartFillLayout
+    ? splitLayout
+      ? "flex w-full min-h-0 flex-col"
+      : "flex min-h-[280px] flex-1 flex-col"
+    : "";
 
   const renderStatsSection = () =>
     chartPhaseStats ? (
@@ -394,7 +402,7 @@ export function LifeWeeksPanel({
     if (showBlinkChart && chartDob && chartIndexState) {
       const blinkBirthLabel = formatBirthDatePoster(chartDob);
       return (
-        <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
+        <div className={cn("space-y-2", chartSectionLayoutClass)}>
           <LifeChartRotationControls
             activeSlot={rotation.activeSlot}
             availableSlots={rotation.availableSlots}
@@ -406,19 +414,23 @@ export function LifeWeeksPanel({
             onNext={rotation.nextSlot}
             className="px-1"
           />
-          <div
-            className={cn(
-              "flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3",
-              chartWidthClass,
-              cardClass,
-            )}
-          >
+        <div
+          className={cn(
+            chartWidthClass,
+            cardClass,
+            splitLayout
+              ? "flex w-full flex-col p-2 sm:p-3"
+              : chartFillLayout
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3"
+                : "overflow-hidden p-2 sm:p-3",
+          )}
+        >
             <BlinkOfAnEyeChart
               birthDate={chartDob}
               currentWeekIndex={chartIndexState.currentWeekIndex}
               personName={rotation.activeChart.name}
               closedWeekIndices={closedWeekIndices}
-              className="min-h-0"
+              className="min-h-0 w-full"
             />
           </div>
         </div>
@@ -426,7 +438,7 @@ export function LifeWeeksPanel({
     }
 
     return chartIndexState ? (
-      <div className={cn("space-y-2", chartFillLayout && "flex min-h-[280px] flex-1 flex-col")}>
+      <div className={cn("space-y-2", chartSectionLayoutClass)}>
         {embedded && (
           <LifeChartRotationControls
             activeSlot={rotation.activeSlot}
@@ -443,23 +455,27 @@ export function LifeWeeksPanel({
           className={cn(
             chartWidthClass,
             cardClass,
-            chartFillLayout
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5"
-              : "overflow-hidden p-3 sm:p-4 md:p-5",
+            splitLayout
+              ? "flex w-full flex-col p-3 sm:p-4 md:p-5"
+              : chartFillLayout
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5"
+                : "overflow-hidden p-3 sm:p-4 md:p-5",
           )}
         >
-          <p className="mb-3 shrink-0 border-b border-border/50 pb-3 text-center text-sm font-semibold leading-snug tracking-tight text-foreground sm:text-[15px]">
-            {LIFE_WEEKS_CHART_TITLE}
-          </p>
+          {embedded ? null : (
+            <p className="mb-3 shrink-0 border-b border-border/50 pb-3 text-center text-sm font-semibold leading-snug tracking-tight text-foreground sm:text-[15px]">
+              {LIFE_WEEKS_CHART_TITLE}
+            </p>
+          )}
           <div
             ref={gridScrollRef}
             className={cn(
               boundedGridView
-                ? chartFillLayout
-                  ? splitLayout
-                    ? "flex min-h-0 flex-1 items-stretch"
-                    : "flex min-h-0 flex-1 items-center justify-center"
-                  : "mx-auto"
+                ? splitLayout
+                  ? "w-full"
+                  : chartFillLayout
+                    ? "flex min-h-0 flex-1 items-center justify-center"
+                    : "mx-auto"
                 : cn(
                     "overflow-auto overscroll-contain scrollbar-hide",
                     chartFillLayout
@@ -471,22 +487,26 @@ export function LifeWeeksPanel({
             <div
               className={
                 boundedGridView
-                  ? chartFillLayout
-                    ? splitLayout
-                      ? "h-auto max-h-full w-full"
-                      : "h-full max-h-full w-auto max-w-full"
-                    : "mx-auto"
+                  ? splitLayout
+                    ? "w-full"
+                    : chartFillLayout
+                      ? "h-full max-h-full w-auto max-w-full"
+                      : "mx-auto"
                   : undefined
               }
               style={
                 boundedGridView
-                  ? {
-                      aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
-                      maxWidth: "100%",
-                      maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
-                      ...(chartFillLayout && splitLayout ? { width: "100%" } : {}),
-                      ...(chartFillLayout && !splitLayout ? { height: "100%" } : {}),
-                    }
+                  ? splitLayout
+                    ? {
+                        aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
+                        width: "100%",
+                      }
+                    : {
+                        aspectRatio: `${viewBoxSize.w} / ${viewBoxSize.h}`,
+                        maxWidth: "100%",
+                        maxHeight: chartFillLayout ? "100%" : fitMaxHeight,
+                        ...(chartFillLayout ? { height: "100%" } : {}),
+                      }
                   : undefined
               }
             >
@@ -496,8 +516,17 @@ export function LifeWeeksPanel({
                 viewBox={chartSvgViewBox}
                 preserveAspectRatio="xMidYMid meet"
                 width={boundedGridView ? "100%" : gridW * (typeof zoom === "number" ? zoom : 1)}
-                height={boundedGridView ? "100%" : gridH * (typeof zoom === "number" ? zoom : 1)}
-                className="block text-zinc-900 dark:text-zinc-100"
+                height={
+                  boundedGridView && !splitLayout
+                    ? "100%"
+                    : boundedGridView
+                      ? undefined
+                      : gridH * (typeof zoom === "number" ? zoom : 1)
+                }
+                className={cn(
+                  "block w-full text-zinc-900 dark:text-zinc-100",
+                  boundedGridView && splitLayout && "h-auto",
+                )}
               >
                 <title>{LIFE_WEEKS_CHART_TITLE}</title>
 
@@ -759,27 +788,28 @@ export function LifeWeeksPanel({
       )}
 
       {splitLayout ? (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] lg:gap-5 lg:items-stretch lg:min-h-[min(680px,calc(100dvh-10rem))]">
-          <div className="shrink-0 lg:col-start-1 lg:row-start-1">{leadingContent}</div>
+        <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_46%] lg:items-start lg:gap-4">
+          <div className="w-full min-w-0 lg:col-start-1 lg:row-start-1">{leadingContent}</div>
 
           {chartPhaseStats && chartIndexState && chartDob ? (
-            <div className="shrink-0 lg:col-start-1 lg:row-start-2">
+            <div className="w-full min-w-0 lg:col-start-1 lg:row-start-2">
               <CurrentWeekHero stats={chartPhaseStats} indexState={chartIndexState} birthDate={chartDob} />
             </div>
           ) : null}
 
-          <div className="flex min-h-[320px] flex-col sm:min-h-[380px] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-0">
-            <div className={cn("flex min-h-0 w-full flex-1 flex-col", chartWidthClass)}>
-              {renderChartSection()}
-            </div>
+          <div
+            className={cn(
+              "flex min-h-[320px] flex-col sm:min-h-[380px] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-0",
+              SPLIT_CHART_COLUMN_CLASS,
+            )}
+          >
+            {renderChartSection()}
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3 lg:col-start-1 lg:row-start-3 lg:overflow-hidden">
+          <div className="flex w-full min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-3">
             {overviewBelowChartContent}
             {renderStatsSection()}
-            <div className="min-h-0 flex-1 lg:overflow-y-auto lg:scrollbar-hide">
-              <LifePrioritiesPanel variant="sidebar" />
-            </div>
+            <LifePrioritiesPanel variant="sidebar" />
           </div>
         </div>
       ) : (
