@@ -47,6 +47,7 @@ export type JournalVideoCaptureResult = {
   audio: Blob | null;
   liveTranscript: string;
   chapters: JournalVideoChapter[];
+  durationMs: number;
 };
 
 export interface UseJournalVideoCaptureOptions {
@@ -535,6 +536,7 @@ export function useJournalVideoCapture(
     clearCountdown();
     clearRecordingTick();
     setRecordingElapsedMs(getRecordingElapsedMs());
+    const durationMs = getRecordingElapsedMs();
     const liveTranscript = composeVideoLiveTranscript(
       finalizedTranscriptRef.current,
       interimPartialRef.current,
@@ -589,6 +591,7 @@ export function useJournalVideoCapture(
       audio: audioBlob,
       liveTranscript,
       chapters: recordedChapters,
+      durationMs,
     };
   }, [phase, cleanupStream, clearCountdown, clearRecordingTick, getRecordingElapsedMs, resetRecordingClock]);
 

@@ -90,7 +90,7 @@ import {
   pageVerseSlice,
 } from "@/lib/bible/pageSplits";
 import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
-import { buildAdjacentStreamChapters } from "@/lib/bible/readerStreamChapters";
+import { buildAdjacentStreamChapters, passageToStreamChapter, streamChapterCompositionKey } from "@/lib/bible/readerStreamChapters";
 import {
   areSameStreamSplits,
   buildReaderStream,
@@ -99,6 +99,9 @@ import {
   paragraphStartsForChapter,
   poetryBlocksForChapter,
   sliceReaderPage,
+  findSpreadPageForVerse,
+  interimSpreadDisplaySplits,
+  isSpreadDoubleColumnSplitsReady,
   sliceReaderSpreadPane,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
@@ -132,7 +135,12 @@ import {
 } from "@/lib/bible/readerColumnLayout";
 import { deriveReaderLayout } from "@/lib/bible/readerLayout";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
-import { readerColumnContentHeightPx } from "@/lib/bible/readerColumnMeasure";
+import {
+  holmanChromeBelowColumnsPx,
+  readerColumnContentHeightPx,
+  readerPageContentLimitPx,
+  READER_LIVE_COLUMN_SAFETY_PX,
+} from "@/lib/bible/readerColumnMeasure";
 import {
   renderScriptureParagraphNodes,
   wrapScriptureColumns,
@@ -695,6 +703,15 @@ export default function ReaderPage() {
   const streamChapters = useMemo(
     () => {
       if (readerSpread) {
+        if (!adjacentPassages.streamReady) {
+          const current = passageToStreamChapter(
+            book.abbr,
+            book.name,
+            chapter,
+            adjacentPassages.current ?? passage,
+          );
+          return current ? [current] : [];
+        }
         return buildAdjacentStreamChapters(
           adjacentPassages.prevRef,
           adjacentPassages.prev,
@@ -729,6 +746,7 @@ export default function ReaderPage() {
       adjacentPassages.current,
       adjacentPassages.next,
       adjacentPassages.nextRef,
+      adjacentPassages.streamReady,
       book.abbr,
       book.name,
       chapter,
@@ -737,6 +755,10 @@ export default function ReaderPage() {
   );
   const readerStream = useMemo(
     () => (streamChapters.length > 0 ? buildReaderStream(streamChapters) : []),
+    [streamChapters],
+  );
+  const streamCompositionKey = useMemo(
+    () => streamChapterCompositionKey(streamChapters),
     [streamChapters],
   );
   const paginatorParagraphStarts = useMemo(
@@ -795,6 +817,17 @@ export default function ReaderPage() {
     streamSplits,
     readerStream,
   });
+  const displayStreamSplits = useMemo(
+    () =>
+      useSpreadDoubleColumn && useBookSpread
+        ? interimSpreadDisplaySplits(navStreamSplits, readerStream)
+        : navStreamSplits,
+    [useSpreadDoubleColumn, useBookSpread, navStreamSplits, readerStream],
+  );
+  const spreadPanesRenderable =
+    !useSpreadDoubleColumn ||
+    !useBookSpread ||
+    isSpreadDoubleColumnSplitsReady(displayStreamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
@@ -830,6 +863,10 @@ export default function ReaderPage() {
   const [pendingSpreadEnd, setPendingSpreadEnd] = useState(false);
   const skipSpreadUrlSyncRef = useRef(true);
   const lastSpreadAnchorKeyRef = useRef("");
+  const spreadReadingAnchorRef = useRef<{ bookAbbr: string; chapter: number; verse: number } | null>(
+    null,
+  );
+  const lastStreamCompositionKeyRef = useRef("");
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
   useEffect(() => {
     setChapterPage(0);
@@ -837,7 +874,54 @@ export default function ReaderPage() {
     setPendingSpreadEnd(false);
     skipSpreadUrlSyncRef.current = true;
     lastSpreadAnchorKeyRef.current = "";
+    spreadReadingAnchorRef.current = null;
+    lastStreamCompositionKeyRef.current = "";
   }, [book.abbr, chapter, fontScale, spreadColumnLayout]);
+
+  useEffect(() => {
+    if (lastStreamCompositionKeyRef.current === streamCompositionKey) return;
+    lastStreamCompositionKeyRef.current = streamCompositionKey;
+    lastSpreadAnchorKeyRef.current = "";
+  }, [streamCompositionKey]);
+
+  useEffect(() => {
+    if (!useBookSpread || !streamSplitsReady || !spreadReadingAnchorRef.current) return;
+    const anchor = spreadReadingAnchorRef.current;
+    const target = findSpreadPageForVerse(
+      readerStream,
+      navStreamSplits,
+      anchor.bookAbbr,
+      anchor.chapter,
+      anchor.verse,
+    );
+    setSpreadPageIdx((prev) => (prev === target ? prev : target));
+  }, [streamCompositionKey, streamSplitsReady, navStreamSplits, readerStream, useBookSpread]);
+
+  useEffect(() => {
+    if (!useBookSpread || !streamSplitsReady) return;
+    const left = sliceReaderSpreadPane(
+      readerStream,
+      navStreamSplits,
+      spreadPageIdx,
+      "left",
+      readerStream.length,
+    );
+    const lastGroup = left?.verseGroups.at(-1);
+    const lastVerse = lastGroup?.verses.at(-1);
+    if (lastGroup && lastVerse) {
+      spreadReadingAnchorRef.current = {
+        bookAbbr: lastGroup.bookAbbr,
+        chapter: lastGroup.chapter,
+        verse: lastVerse.number,
+      };
+    }
+  }, [
+    useBookSpread,
+    streamSplitsReady,
+    spreadPageIdx,
+    navStreamSplits,
+    readerStream,
+  ]);
 
   useEffect(() => {
     if (!scrollMode) return;
@@ -996,6 +1080,9 @@ export default function ReaderPage() {
           setPendingSpreadEnd(true);
           navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
         }
+        return;
+      }
+      if (!streamSplitsReady) {
         return;
       }
       if (next >= totalStreamPages) {
@@ -1304,21 +1391,23 @@ export default function ReaderPage() {
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
     const splitsForPage =
-      useStreamReader && navStreamSplits.length >= 2
-        ? navStreamSplits
+      useStreamReader && displayStreamSplits.length >= 2
+        ? displayStreamSplits
         : !useStreamReader && splitsReady
           ? splits
           : null;
     const streamSlice =
       useStreamReader && !scrollMode && !pageOutOfRange && splitsForPage
         ? useSpreadDoubleColumn && useBookSpread
-          ? sliceReaderSpreadPane(
-              readerStream,
-              splitsForPage,
-              spreadPageIdx,
-              side,
-              readerStream.length,
-            )
+          ? spreadPanesRenderable
+            ? sliceReaderSpreadPane(
+                readerStream,
+                splitsForPage,
+                spreadPageIdx,
+                side,
+                readerStream.length,
+              )
+            : null
           : sliceReaderPage(readerStream, splitsForPage, pageIdx)
         : null;
     const slice =
@@ -1341,14 +1430,8 @@ export default function ReaderPage() {
       useSpreadDoubleColumn && useBookSpread
         ? spreadPageIdx + (side === "left" ? 0 : 1)
         : pageIdx;
-    /** Only the first stream page uses firstPageHeight — not every chapter-opening left page. */
-    const measuresFirstPage =
-      useBookSpread
-        ? side === "left" &&
-          pageIdx === spreadPageIdx &&
-          spreadPageIdx === 0 &&
-          pageStartsWithChapterHeader
-        : pageIdx === 0 && side === "left" && chapterPage === 0;
+    const paginatorPageIndex = streamPaginatorPageIdx;
+    const measuresFirstPage = paginatorPageIndex === 0 && pageStartsWithChapterHeader;
     const isCurrentLeftPage = side === "left" && pageIdx === activePageIdx;
     const spreadRightPageIdx = useSpreadDoubleColumn ? spreadPageIdx : spreadPageIdx + 1;
     const isOpeningRightPage =
@@ -1364,12 +1447,9 @@ export default function ReaderPage() {
     const ready = scrollMode || pageContentReady;
     const attachMeasureRef = effectiveSpread
       ? side === "left" && pageIdx === spreadPageIdx
-        ? measuresFirstPage
-          ? onMeasureFirstRef
-          : onMeasureRestRef
+        ? onMeasureFirstRef
         : side === "right" &&
-            pageIdx === spreadRightPageIdx &&
-            measuresRestPage
+            pageIdx === spreadRightPageIdx
           ? onMeasureRestRef
           : undefined
       : measuresFirstPage
@@ -1431,19 +1511,34 @@ export default function ReaderPage() {
           .map((h) => [h.beforeVerse, h.text]),
       );
     };
-    const scriptureColumnHeightPx =
+    const stackContentHeightPx =
       pageContentReady || (streamSlice != null && !scrollMode)
-        ? readerColumnContentHeightPx({
-          columnLayoutActive: !scrollMode && Boolean(columnClassName),
-          measuresFirstPage:
-            streamPaginatorPageIdx === 0 && pageStartsWithChapterHeader,
+        ? readerPageContentLimitPx({
+          pageIndex: paginatorPageIndex,
           startsWithChapterHeader: pageStartsWithChapterHeader,
           firstPageHeight,
           pageHeight: pageBox.h,
           footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
           chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
         })
-      : undefined;
+        : undefined;
+    const scriptureColumnHeightPx =
+      stackContentHeightPx != null && !scrollMode
+        ? readerColumnContentHeightPx({
+          columnLayoutActive: Boolean(columnClassName),
+          pageIndex: paginatorPageIndex,
+          startsWithChapterHeader: pageStartsWithChapterHeader,
+          firstPageHeight,
+          pageHeight: pageBox.h,
+          footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
+          chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
+          holmanChromeBelowColumnsPx:
+            useStudyPageStack && showPageFootnotes
+              ? holmanChromeBelowColumnsPx({ hasFootnotes: true, hasConnections: false })
+              : undefined,
+          liveColumnSafetyPx: READER_LIVE_COLUMN_SAFETY_PX,
+        })
+        : undefined;
     return (
       <div
         className={cn(
@@ -1645,7 +1740,7 @@ export default function ReaderPage() {
                       <HolmanPageFootnotes verses={holmanFootnoteVerses} />
                     ) : null,
                     showHolmanConnections,
-                    scrollMode ? undefined : scriptureColumnHeightPx,
+                    scrollMode ? undefined : stackContentHeightPx,
                     holmanNavigateRef,
                   );
                 }
@@ -1735,7 +1830,8 @@ export default function ReaderPage() {
   const paginatorFirstPageHeight =
     firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
   const paginatorReady =
-    pageBox.w > 0 && (subsequentPageHeight > 0 || paginatorFirstPageHeight > 0);
+    (pageBox.w > 0 || firstPageHeight > 0) &&
+    Math.max(subsequentPageHeight, paginatorFirstPageHeight, firstPageHeight) > 0;
 
   const atFirstPage = activePageIdx <= 0;
   const atLastPage = activePageIdx >= Math.max(0, totalPagesForNav - pagesPerTurn);

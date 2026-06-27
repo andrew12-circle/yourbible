@@ -144,6 +144,24 @@ export type VideoAnchorOptions = {
   bodyEditorFocused?: boolean;
 };
 
+/**
+ * Replace the spoken transcript block that sits before an inline video.
+ * Common layout: transcript text, then the video at the end of the body.
+ */
+export function replaceTranscriptBeforeVideo(
+  body: string,
+  anchorOffset: number | null | undefined,
+  newTranscript: string,
+): string {
+  const prepared = prepareVideoJournalTranscript(newTranscript) || newTranscript.trim();
+  if (!prepared) return body;
+
+  const anchor = effectiveVideoAnchor(body, anchorOffset);
+  const trailing = body.slice(anchor).trimStart();
+  if (!trailing) return prepared;
+  return `${prepared}\n\n${trailing}`;
+}
+
 /** Pick where an inline video belongs: at the caret while editing, otherwise after existing text. */
 export function resolveVideoAnchorOffset(body: string, options: VideoAnchorOptions = {}): number {
   const len = body.length;

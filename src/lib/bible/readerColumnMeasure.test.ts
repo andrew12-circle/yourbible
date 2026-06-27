@@ -4,6 +4,7 @@ import {
   applyHolmanStudyMeasureHtml,
   applyScriptureColumnMeasureHtml,
   readerColumnContentHeightPx,
+  readerPageContentLimitPx,
   scriptureColumnWrapperStyle,
   scriptureContentFitsPage,
 } from "./readerColumnMeasure";
@@ -21,11 +22,38 @@ describe("readerColumnMeasure", () => {
     node.remove();
   });
 
+  it("readerPageContentLimitPx matches paginator content limits", () => {
+    expect(
+      readerPageContentLimitPx({
+        pageIndex: 0,
+        startsWithChapterHeader: true,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(488);
+    expect(
+      readerPageContentLimitPx({
+        pageIndex: 1,
+        startsWithChapterHeader: true,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(472);
+    expect(
+      readerPageContentLimitPx({
+        pageIndex: 1,
+        startsWithChapterHeader: false,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(568);
+  });
+
   it("readerColumnContentHeightPx matches paginator content limits", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
-        measuresFirstPage: true,
+        pageIndex: 0,
         startsWithChapterHeader: true,
         firstPageHeight: 520,
         pageHeight: 600,
@@ -34,7 +62,7 @@ describe("readerColumnMeasure", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
-        measuresFirstPage: false,
+        pageIndex: 1,
         startsWithChapterHeader: true,
         firstPageHeight: 520,
         pageHeight: 600,
@@ -43,7 +71,16 @@ describe("readerColumnMeasure", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
-        measuresFirstPage: false,
+        pageIndex: 4,
+        startsWithChapterHeader: true,
+        firstPageHeight: 520,
+        pageHeight: 600,
+      }),
+    ).toBe(472);
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        pageIndex: 1,
         startsWithChapterHeader: false,
         firstPageHeight: 520,
         pageHeight: 600,
@@ -52,12 +89,25 @@ describe("readerColumnMeasure", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: false,
-        measuresFirstPage: false,
+        pageIndex: 0,
         startsWithChapterHeader: false,
         firstPageHeight: 520,
         pageHeight: 600,
       }),
     ).toBeUndefined();
+  });
+
+  it("scriptureColumnAreaHeightPx deducts Holman chrome below columns", () => {
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        pageIndex: 1,
+        startsWithChapterHeader: false,
+        firstPageHeight: 520,
+        pageHeight: 600,
+        holmanChromeBelowColumnsPx: 72,
+      }),
+    ).toBe(496);
   });
 
   it("scriptureColumnWrapperStyle sets pixel height for column-fill auto", () => {
@@ -110,6 +160,22 @@ describe("readerColumnMeasure", () => {
     Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 80 });
 
     expect(scriptureContentFitsPage(node, 80, "scripture-columns-2")).toBe(false);
+  });
+
+  it("scriptureContentFitsPage rejects implicit overflow in four-column spread measurement", () => {
+    applyScriptureColumnMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>alpha</p>",
+      "scripture-columns-spread",
+      120,
+      { columnCount: 4, measureWidthPx: 640 },
+    );
+    const col = node.firstElementChild as HTMLElement;
+    Object.defineProperty(col, "scrollWidth", { configurable: true, get: () => 900 });
+    Object.defineProperty(col, "clientWidth", { configurable: true, get: () => 640 });
+    Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 120 });
+
+    expect(scriptureContentFitsPage(node, 120, "scripture-columns-spread")).toBe(false);
   });
 
   it("applyScriptureColumnMeasureHtml can render four columns for spread measurement", () => {

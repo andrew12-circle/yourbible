@@ -58,3 +58,10 @@ export function buildAdjacentStreamChapters(
   }
   return chapters;
 }
+
+/** Stable key for adjacent-chapter stream composition (prev|current|next). */
+export function streamChapterCompositionKey(
+  chapters: ReaderChapterPassage[],
+): string {
+  return chapters.map((ch) => `${ch.bookAbbr}:${ch.chapter}`).join("|");
+}

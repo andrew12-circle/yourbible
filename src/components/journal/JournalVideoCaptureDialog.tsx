@@ -165,13 +165,12 @@ export default function JournalVideoCaptureDialog({
   };
 
   const handleStop = async () => {
-    const durationMs = capture.recordingElapsedMs;
     const result = await capture.stopRecording();
     if (!result) {
       handleClose();
       return;
     }
-    await finishCapture(result, durationMs);
+    await finishCapture(result, result.durationMs);
   };
 
   stopOnMaxRef.current = () => {

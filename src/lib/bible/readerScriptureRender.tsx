@@ -20,7 +20,12 @@ import {
   readerColumnClassName,
   type ReaderColumnLayout,
 } from "@/lib/bible/readerColumnLayout";
-import { scriptureColumnWrapperStyle } from "@/lib/bible/readerColumnMeasure";
+import {
+  holmanChromeBelowColumnsPx,
+  scriptureColumnAreaHeightPx,
+  scriptureColumnWrapperStyle,
+} from "@/lib/bible/readerColumnMeasure";
+import { versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
   ScriptureHeading,
@@ -142,6 +147,11 @@ export function wrapHolmanStudyContent(
 ): ReactNode {
   const columnsClass = readerColumnClassName(columnLayout);
   const hasColumns = Boolean(columnsClass);
+  const flatVerses = verseGroups.flatMap((g) => g.verses);
+  const hasFootnotes = versesHavePageFootnotes(flatVerses) || footnotes != null;
+  const chromeBelow = !scrollMode
+    ? holmanChromeBelowColumnsPx({ hasFootnotes, hasConnections: showConnections })
+    : 0;
   const stackStyle: CSSProperties | undefined =
     !scrollMode && contentHeightPx != null && contentHeightPx > 0
       ? {
@@ -151,17 +161,14 @@ export function wrapHolmanStudyContent(
           boxSizing: "border-box",
         }
       : undefined;
-  const columnsStyle: CSSProperties | undefined = !scrollMode
-    ? {
-        overflow: "hidden",
-        boxSizing: "border-box",
-        columnFill: "auto",
-        WebkitColumnFill: "auto",
-        width: "100%",
-        flex: "1 1 auto",
-        minHeight: 0,
-      }
-    : undefined;
+  const columnHeightPx =
+    !scrollMode && contentHeightPx != null && contentHeightPx > 0
+      ? scriptureColumnAreaHeightPx(contentHeightPx, chromeBelow)
+      : undefined;
+  const columnsStyle: CSSProperties | undefined =
+    !scrollMode && hasColumns
+      ? scriptureColumnWrapperStyle(columnHeightPx)
+      : undefined;
 
   return (
     <div

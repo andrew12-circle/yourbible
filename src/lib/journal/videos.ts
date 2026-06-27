@@ -305,7 +305,7 @@ export type TranscribeJournalVideoOptions = {
 
 export type TranscribeJournalVideoResult = {
   text: string;
-  source: "audio-sidecar" | "live" | "none";
+  source: "audio-sidecar" | "storage-video" | "live" | "none";
   error?: string;
 };
 
@@ -327,41 +327,76 @@ export function journalVideoTranscriptEmptyMessage(opts: {
   return "Couldn't detect speech. Speak after the countdown and stay close to the mic.";
 }
 
-/** Transcribe a journal video — prefers audio sidecar, then live captions from recording. */
+type TranscriptCandidate = {
+  text: string;
+  source: Exclude<TranscribeJournalVideoResult["source"], "none">;
+};
+
+/** Pick the longest transcript — server STT beats partial live captions. */
+function pickBestTranscriptCandidate(candidates: TranscriptCandidate[]): TranscriptCandidate | null {
+  if (!candidates.length) return null;
+  return candidates.reduce((best, cur) => (cur.text.length > best.text.length ? cur : best));
+}
+
+/** Transcribe a journal video — audio sidecar, stored video file, then live captions. */
 export async function transcribeJournalVideo(
-  _storagePath: string,
+  storagePath: string,
   opts: TranscribeJournalVideoOptions = {},
 ): Promise<TranscribeJournalVideoResult> {
   const live = opts.liveTranscript?.trim() ?? "";
   let lastError: string | undefined;
   const audio = opts.audioBlob;
-
-  if (live) {
-    // Keep server STT as a quality upgrade when available, but never discard live captions.
-  }
+  const candidates: TranscriptCandidate[] = [];
 
   if (audio && audio.size > MIN_JOURNAL_VIDEO_AUDIO_BYTES && opts.userId) {
     try {
       const path = await uploadJournalVoiceMemo(opts.userId, audio);
       const result = await transcribeJournalVoiceMemo(path, "voice-memos");
       if (result.ok && result.text.trim()) {
-        return { text: result.text.trim(), source: "audio-sidecar" };
+        candidates.push({ text: result.text.trim(), source: "audio-sidecar" });
+      } else if (!result.ok) {
+        lastError = result.error;
       }
-      if (!result.ok) lastError = result.error;
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
     }
   } else if (audio && audio.size > 0 && audio.size <= MIN_JOURNAL_VIDEO_AUDIO_BYTES) {
     lastError = "Audio was too short to transcribe — record a little longer.";
-  } else if (!audio?.size) {
+  } else if (!audio?.size && !storagePath) {
     lastError = "No audio track was captured for transcription.";
   }
 
+  if (storagePath && opts.userId) {
+    try {
+      const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
+      if (result.ok && result.text.trim()) {
+        candidates.push({ text: result.text.trim(), source: "storage-video" });
+      } else if (!result.ok && !lastError) {
+        lastError = result.error;
+      }
+    } catch (e) {
+      if (!lastError) lastError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
   if (live) {
-    return { text: live, source: "live", error: lastError };
+    candidates.push({ text: live, source: "live" });
+  }
+
+  const best = pickBestTranscriptCandidate(candidates);
+  if (best) {
+    return { text: best.text, source: best.source, error: lastError };
   }
 
   return { text: "", source: "none", error: lastError };
+}
+
+/** Re-run server transcription from a stored journal video (recovery after partial live captions). */
+export async function retranscribeJournalEntryVideo(
+  userId: string,
+  storagePath: string,
+): Promise<TranscribeJournalVideoResult> {
+  return transcribeJournalVideo(storagePath, { userId, liveTranscript: "" });
 }
 
 /** @deprecated Use transcribeJournalVideo — kept for call sites that only pass storage path. */

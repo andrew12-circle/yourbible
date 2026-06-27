@@ -7,10 +7,13 @@ import {
   isStreamSplitsReady,
   repairSpreadPagePairSplits,
   spreadSplitsNeedPagePairRepair,
+  findSpreadPageForVerse,
+  spreadPaneSplitsReady,
   sliceReaderPage,
   sliceReaderSpreadPane,
   sliceReaderStreamRange,
   spreadPaneStreamRanges,
+  interimSpreadDisplaySplits,
   spreadPageForChapterStart,
   spreadStreamRange,
   streamPageCount,
@@ -449,5 +452,86 @@ describe("readerStream", () => {
     const splits = [0, 3, stream.length];
     expect(spreadPageForChapterStart(stream, splits, "Psa", 6)).toBe(0);
     expect(spreadPageForChapterStart(stream, splits, "Psa", 5)).toBe(0);
+  });
+
+  it("interimSpreadDisplaySplits fabricates left/right boundaries while measuring", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 14,
+        verses: verses(Array.from({ length: 15 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const interim = interimSpreadDisplaySplits([0], stream);
+    expect(isSpreadDoubleColumnSplitsReady(interim, stream.length)).toBe(true);
+    const left = sliceReaderSpreadPane(stream, interim, 0, "left", stream.length);
+    const right = sliceReaderSpreadPane(stream, interim, 0, "right", stream.length);
+    expect(left?.verseGroups.length).toBeGreaterThan(0);
+    expect(right?.verseGroups.length).toBeGreaterThan(0);
+  });
+
+  it("spreadPaneStreamRanges returns empty panes when splits are incomplete", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 13,
+        verses: verses(Array.from({ length: 20 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const ranges = spreadPaneStreamRanges([0], 0, stream.length);
+    expect(ranges.left.end).toBe(0);
+    expect(ranges.right.end).toBe(0);
+    expect(sliceReaderSpreadPane(stream, [0], 0, "right", stream.length)).toBeNull();
+  });
+
+  it("right pane continues immediately after left pane in stream order", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 13,
+        verses: verses(Array.from({ length: 30 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const splits = [0, 12, 24, stream.length];
+    expect(spreadPaneSplitsReady(splits, 0, stream.length)).toBe(true);
+    const left = sliceReaderSpreadPane(stream, splits, 0, "left", stream.length);
+    const right = sliceReaderSpreadPane(stream, splits, 0, "right", stream.length);
+    const leftLast = left!.verseGroups.at(-1)!.verses.at(-1)!.number;
+    const rightFirst = right!.verseGroups[0]!.verses[0]!.number;
+    expect(rightFirst).toBe(leftLast + 1);
+    expect(right!.verseGroups[0]!.chapter).toBe(13);
+  });
+
+  it("findSpreadPageForVerse locates spread containing a verse", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 13,
+        verses: verses(Array.from({ length: 30 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const splits = [0, 10, 20, 30, stream.length];
+    const spread = findSpreadPageForVerse(stream, splits, "Jos", 13, 15);
+    expect(spread).toBe(0);
+    const right = sliceReaderSpreadPane(stream, splits, spread, "right", stream.length);
+    expect(
+      right?.verseGroups.some((g) => g.verses.some((v) => v.number === 15)),
+    ).toBe(true);
   });
 });

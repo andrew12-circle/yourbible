@@ -12,6 +12,8 @@ type Props = {
   bodyClassName?: string;
   onBodyChange: (next: string) => void;
   onRemoveVideo?: (id: string, storagePath: string) => void;
+  onRetranscribeVideo?: (video: JournalVideoRow) => void;
+  retranscribingVideoId?: string | null;
   onCaretChange?: (offset: number) => void;
 };
 
@@ -22,6 +24,8 @@ export default function JournalBodyWithVideos({
   bodyClassName,
   onBodyChange,
   onRemoveVideo,
+  onRetranscribeVideo,
+  retranscribingVideoId = null,
   onCaretChange,
 }: Props) {
   const segments = useMemo(() => buildJournalBodySegments(body, videos), [body, videos]);
@@ -39,6 +43,8 @@ export default function JournalBodyWithVideos({
               key={seg.video.id}
               videos={[seg.video]}
               onRemove={onRemoveVideo}
+              onRetranscribe={onRetranscribeVideo}
+              retranscribingId={retranscribingVideoId}
               hideTranscript
             />
           );

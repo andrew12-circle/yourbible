@@ -8,6 +8,7 @@ import {
   prepareVideoJournalTranscript,
   resolveVideoAnchorOffset,
   effectiveVideoAnchor,
+  replaceTranscriptBeforeVideo,
 } from "@/lib/journal/journalVideoBody";
 
 describe("composeVideoLiveTranscript", () => {
@@ -74,6 +75,24 @@ describe("effectiveVideoAnchor", () => {
 
   it("keeps intentional sentence-boundary anchors", () => {
     expect(effectiveVideoAnchor("Before. After.", 7)).toBe(7);
+  });
+});
+
+describe("replaceTranscriptBeforeVideo", () => {
+  it("replaces the full body when the video sits at the end", () => {
+    expect(
+      replaceTranscriptBeforeVideo(
+        "Okay I don't look very good but cuz I'm running down",
+        0,
+        "Full five minute reflection about the rough day ahead.",
+      ),
+    ).toBe("Full five minute reflection about the rough day ahead.");
+  });
+
+  it("keeps trailing text when the video is inline mid-body", () => {
+    expect(replaceTranscriptBeforeVideo("Old spoken.\n\nTrailing notes.", 11, "New spoken words.")).toBe(
+      "New spoken words.\n\nTrailing notes.",
+    );
   });
 });
 

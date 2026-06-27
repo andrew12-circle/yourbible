@@ -84,7 +84,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 4;
+export const READER_PAGINATOR_SPLIT_REVISION = 9;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -278,6 +278,10 @@ export function spreadPaneStreamRanges(
   spreadPageIdx: number,
   streamLength: number,
 ): { left: { start: number; end: number }; right: { start: number; end: number } } {
+  const empty = {
+    left: { start: 0, end: 0 },
+    right: { start: 0, end: 0 },
+  };
   const leftStart = splits[spreadPageIdx] ?? 0;
   const mid = splits[spreadPageIdx + 1];
   const far = splits[spreadPageIdx + 2];
@@ -293,18 +297,62 @@ export function spreadPaneStreamRanges(
     const rightEnd = far != null && far > mid ? far : streamLength;
     return {
       left: { start: leftStart, end: mid },
-      right: { start: mid, end: rightEnd },
+      right:
+        rightEnd > mid
+          ? { start: mid, end: rightEnd }
+          : { start: mid, end: mid },
     };
   }
 
-  const provisionalMid = Math.max(
-    leftStart + 1,
-    Math.min(streamLength - 1, Math.floor(streamLength * 0.48)),
-  );
-  return {
-    left: { start: leftStart, end: provisionalMid },
-    right: { start: provisionalMid, end: streamLength },
-  };
+  return empty;
+}
+
+/** Provisional left/right boundaries while the paginator is still measuring. */
+export function interimSpreadDisplaySplits(
+  splits: number[],
+  stream: ReaderStreamUnit[],
+): number[] {
+  const streamLength = stream.length;
+  if (streamLength === 0) return splits;
+  if (isSpreadDoubleColumnSplitsReady(splits, streamLength)) return splits;
+  const wholeStream = [0, streamLength];
+  if (!isStreamSplitsReady(wholeStream, streamLength)) return splits;
+  return ensureSpreadPageSplits(wholeStream, stream);
+}
+
+/** True when measured splits define a full left/right pair for this spread. */
+export function spreadPaneSplitsReady(
+  splits: number[],
+  spreadPageIdx: number,
+  streamLength: number,
+): boolean {
+  const ranges = spreadPaneStreamRanges(splits, spreadPageIdx, streamLength);
+  return ranges.left.end > ranges.left.start && ranges.right.end > ranges.right.start;
+}
+
+/** Even page index of the spread that contains a verse (searches left then right panes). */
+export function findSpreadPageForVerse(
+  stream: ReaderStreamUnit[],
+  splits: number[],
+  bookAbbr: string,
+  chapter: number,
+  verse: number,
+): number {
+  if (!isStreamSplitsReady(splits, stream.length)) return 0;
+  let found = 0;
+  for (let spreadIdx = 0; spreadIdx < splits.length - 1; spreadIdx += 2) {
+    for (const side of ["left", "right"] as const) {
+      const slice = sliceReaderSpreadPane(stream, splits, spreadIdx, side, stream.length);
+      const containsVerse = slice?.verseGroups.some(
+        (g) =>
+          g.bookAbbr === bookAbbr &&
+          g.chapter === chapter &&
+          g.verses.some((v) => v.number === verse),
+      );
+      if (containsVerse) found = spreadIdx;
+    }
+  }
+  return found;
 }
 
 export function findChapterHeaderStreamIndex(

@@ -16,22 +16,83 @@ export interface ScriptureColumnMeasureOptions {
  * browsers fall back to balanced columns (top-half / bottom-half banding).
  */
 
+/** Extra slack on live column wrappers so the last line is never clipped vs paginator. */
+export const READER_LIVE_COLUMN_SAFETY_PX = 12;
+
 /** Default slack reserved in paginator fit tests (must match ReaderPage). */
 export const READER_COLUMN_FOOTER_GUARD_PX = 32;
 
 /** Chapter title block reserved above the text area on non-opening pages. */
 export const READER_CHAPTER_HEADER_RESERVE_PX = 96;
 
+/** Conservative reserve for page footnotes band below scripture columns. */
+export const READER_HOLMAN_FOOTNOTES_BAND_PX = 72;
+
+/** Conservative reserve for cross-reference connections row (when shown). */
+export const READER_HOLMAN_CONNECTIONS_BAND_PX = 48;
+
+export interface ReaderPageContentLimitOptions {
+  pageIndex: number;
+  startsWithChapterHeader: boolean;
+  firstPageHeight: number;
+  pageHeight: number;
+  footerGuardPx?: number;
+  chapterHeaderReservePx?: number;
+}
+
+/** Shared paginator + live-page text-area height (px). */
+export function readerPageContentLimitPx(
+  options: ReaderPageContentLimitOptions,
+): number {
+  const footer = options.footerGuardPx ?? READER_COLUMN_FOOTER_GUARD_PX;
+  const headerReserve =
+    options.chapterHeaderReservePx ?? READER_CHAPTER_HEADER_RESERVE_PX;
+  const { firstPageHeight, pageHeight, pageIndex, startsWithChapterHeader } = options;
+
+  if (pageIndex === 0 && startsWithChapterHeader && firstPageHeight > 0) {
+    return Math.max(1, firstPageHeight - footer);
+  }
+  if (startsWithChapterHeader) {
+    return Math.max(1, pageHeight - headerReserve - footer);
+  }
+  return Math.max(1, pageHeight - footer);
+}
+
+/** Alias — spread pages use the same limit formula as single-page mode. */
+export const readerSpreadPageContentLimitPx = readerPageContentLimitPx;
+
+/** Pixel height for scripture columns inside a Holman stack (below connections/footnotes). */
+export function scriptureColumnAreaHeightPx(
+  stackContentHeightPx: number,
+  chromeBelowColumnsPx: number,
+): number {
+  return Math.max(1, Math.round(stackContentHeightPx - chromeBelowColumnsPx));
+}
+
+export function holmanChromeBelowColumnsPx(options: {
+  hasFootnotes: boolean;
+  hasConnections: boolean;
+}): number {
+  let reserve = 0;
+  if (options.hasFootnotes) reserve += READER_HOLMAN_FOOTNOTES_BAND_PX;
+  if (options.hasConnections) reserve += READER_HOLMAN_CONNECTIONS_BAND_PX;
+  return reserve;
+}
+
 export interface ReaderColumnContentHeightOptions {
   columnLayoutActive: boolean;
-  /** Opening spread page whose article was measured as the chapter-start surface. */
-  measuresFirstPage: boolean;
+  /** Stream page index — must match BookPaginator pageIndex. */
+  pageIndex: number;
   /** Slice begins with a chapter-header stream unit. */
   startsWithChapterHeader: boolean;
   firstPageHeight: number;
   pageHeight: number;
   footerGuardPx?: number;
   chapterHeaderReservePx?: number;
+  /** Holman study stack: reserve space below columns for footnotes/connections. */
+  holmanChromeBelowColumnsPx?: number;
+  /** Live reader only — extra clip guard (paginator does not use this). */
+  liveColumnSafetyPx?: number;
 }
 
 /**
@@ -42,19 +103,39 @@ export function readerColumnContentHeightPx(
   options: ReaderColumnContentHeightOptions,
 ): number | undefined {
   if (!options.columnLayoutActive) return undefined;
-  const footer = options.footerGuardPx ?? READER_COLUMN_FOOTER_GUARD_PX;
-  const headerReserve =
-    options.chapterHeaderReservePx ?? READER_CHAPTER_HEADER_RESERVE_PX;
-  const { firstPageHeight, pageHeight } = options;
+  if (options.pageHeight <= 0) return undefined;
+  const stackLimit = readerPageContentLimitPx({
+    pageIndex: options.pageIndex,
+    startsWithChapterHeader: options.startsWithChapterHeader,
+    firstPageHeight: options.firstPageHeight,
+    pageHeight: options.pageHeight,
+    footerGuardPx: options.footerGuardPx,
+    chapterHeaderReservePx: options.chapterHeaderReservePx,
+  });
+  const chrome = options.holmanChromeBelowColumnsPx ?? 0;
+  const liveSafety = options.liveColumnSafetyPx ?? 0;
+  if (chrome > 0 || liveSafety > 0) {
+    return scriptureColumnAreaHeightPx(stackLimit, chrome + liveSafety);
+  }
+  return stackLimit;
+}
 
-  if (options.measuresFirstPage && firstPageHeight > 0) {
-    return Math.max(1, firstPageHeight - footer);
-  }
-  if (pageHeight <= 0) return undefined;
-  if (options.startsWithChapterHeader) {
-    return Math.max(1, pageHeight - headerReserve - footer);
-  }
-  return Math.max(1, pageHeight - footer);
+/** Stack height for Holman pages (columns + footnotes band). */
+export function readerHolmanStackContentHeightPx(
+  options: ReaderColumnContentHeightOptions & {
+    hasFootnotes: boolean;
+    hasConnections: boolean;
+  },
+): number | undefined {
+  if (!options.columnLayoutActive || options.pageHeight <= 0) return undefined;
+  return readerPageContentLimitPx({
+    pageIndex: options.pageIndex,
+    startsWithChapterHeader: options.startsWithChapterHeader,
+    firstPageHeight: options.firstPageHeight,
+    pageHeight: options.pageHeight,
+    footerGuardPx: options.footerGuardPx,
+    chapterHeaderReservePx: options.chapterHeaderReservePx,
+  });
 }
 
 /** Inline styles for the live `.scripture-columns-2` wrapper (matches paginator). */
@@ -89,6 +170,9 @@ export function applyHolmanStudyMeasureHtml(
   options?: ScriptureColumnMeasureOptions,
 ): void {
   const h = Math.max(1, Math.round(contentHeightPx));
+  const chromeBelow = (connectionsHtml ? READER_HOLMAN_CONNECTIONS_BAND_PX : 0)
+    + (footnotesHtml ? READER_HOLMAN_FOOTNOTES_BAND_PX : 0);
+  const columnH = scriptureColumnAreaHeightPx(h, chromeBelow);
   if (!connectionsHtml && !footnotesHtml) {
     applyScriptureColumnMeasureHtml(node, scriptureHtml, columnsClassName, contentHeightPx, options);
     return;
@@ -99,7 +183,7 @@ export function applyHolmanStudyMeasureHtml(
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
   const columnsInner = columnsClassName
-    ? `<div class="${columnsClassName}" style="flex:1 1 auto;min-height:0;overflow:hidden;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
+    ? `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
     : scriptureHtml;
   const scriptureSection = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInner}</div>`;
   node.innerHTML =

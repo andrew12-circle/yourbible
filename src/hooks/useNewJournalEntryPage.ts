@@ -1318,9 +1318,10 @@ export function useNewJournalEntryPage() {
         return;
       }
       const anchorOffset = videoAnchorRef.current;
+      const recordedMs = result.durationMs || durationMs;
       setVideoUploading(true);
       try {
-        const uploaded = await uploadEntryVideo(user.id, entryId, result.video, durationMs);
+        const uploaded = await uploadEntryVideo(user.id, entryId, result.video, recordedMs);
         const row = await insertEntryVideo(user.id, entryId, uploaded, { anchor_offset: anchorOffset });
         if (!row) throw new Error("Could not attach video to entry");
 

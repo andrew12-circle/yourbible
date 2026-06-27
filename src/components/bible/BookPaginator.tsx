@@ -1,37 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
-import {
-  buildVerseInnerHtml,
-  scriptureParagraphClassNameMeasure,
-  scripturePoetryClassNameMeasure,
-  wrapVerseShellHtml,
-} from "@/lib/bible/scriptureParagraph";
-import { buildVerseXrefsInnerHtml } from "@/lib/bible/verseBodyRender";
 import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
+  readerPageContentLimitPx,
   scriptureContentFitsPage,
   SPREAD_MEASURE_GAP_PX,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
 import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
-  CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
   type ReaderStreamUnit,
   buildReaderStream,
-  paragraphStartsForChapter,
-  headingsForChapter,
-  poetryBlocksForChapter,
   synthesizeSpreadLeftBoundaryInRange,
   READER_PAGINATOR_SPLIT_REVISION,
 } from "@/lib/bible/readerStream";
-import type { PassageVerse } from "@/lib/bible/api";
 import {
-  buildHolmanHeadingMeasureHtml,
-  buildHolmanPageFootnotesMeasureHtml,
-} from "@/lib/bible/holmanStudyLayout";
+  buildStreamSliceFootnotesMeasureHtml,
+  buildStreamSliceMeasureHtml,
+} from "@/lib/bible/streamSliceMeasureHtml";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { cn } from "@/lib/utils";
 
@@ -94,8 +82,8 @@ export function BookPaginator({
   );
 
   const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
+  const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
 
-  // Recompute when inputs that actually affect measurement change.
   useEffect(() => {
     lastSplitsRef.current = "";
     setRevision((r) => r + 1);
@@ -117,8 +105,6 @@ export function BookPaginator({
 
   useEffect(() => {
     if (!ref.current || pageHeight <= 0 || stream.length === 0) {
-      // Spread double-column must wait for real column measurement — verse-count
-      // halves ([0, N/2, N]) render as one filled column per page (two total).
       if (spreadMode && columnsClassName) return;
       const next = [0, stream.length];
       const key = next.join(",");
@@ -133,7 +119,14 @@ export function BookPaginator({
     let i = 0;
     let pageIndex = 0;
     const useSpreadColumns = Boolean(spreadMode && columnsClassName);
-    const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
+    const spreadMeasureOpts2: ScriptureColumnMeasureOptions = {
+      columnCount: 2,
+      measureWidthPx: pageWidth,
+    };
+    const spreadMeasureOpts4: ScriptureColumnMeasureOptions = {
+      columnCount: 4,
+      measureWidthPx: spreadMeasureWidth,
+    };
 
     while (i < stream.length) {
       if (stream[i]?.kind === "plate") {
@@ -146,15 +139,56 @@ export function BookPaginator({
       if (useSpreadColumns) {
         const spreadStart = i;
         const spreadStartsWithHeader = stream[i]?.kind === "chapter-header";
-        const leftLimit = pageContentLimit(
+        const leftLimit = readerPageContentLimitPx({
           pageIndex,
-          spreadStartsWithHeader,
-          resolvedFirstPageHeight,
+          startsWithChapterHeader: spreadStartsWithHeader,
+          firstPageHeight: resolvedFirstPageHeight,
           pageHeight,
-          footerHeight,
+          footerGuardPx: footerHeight,
+        });
+        const rightStartsAtHeader =
+          stream[spreadStart + 1]?.kind === "chapter-header" ||
+          (stream[spreadStart + 1]?.kind !== "verse" &&
+            stream[spreadStart + 2]?.kind === "chapter-header");
+        const rightLimit = readerPageContentLimitPx({
+          pageIndex: pageIndex + 1,
+          startsWithChapterHeader: rightStartsAtHeader,
+          firstPageHeight: resolvedFirstPageHeight,
+          pageHeight,
+          footerGuardPx: footerHeight,
+        });
+        const spreadLimit = Math.min(leftLimit, rightLimit);
+        let leftPageEnd = findStreamSliceEnd(
+          node,
+          stream,
+          spreadStart,
+          stream.length,
+          chapters,
+          redByChapter,
+          columnsClassName,
+          leftLimit,
+          studyLayout,
+          spreadMeasureOpts2,
         );
-        const spreadLimit = pageHeight - footerHeight;
-        const spreadCap = findStreamSliceEnd(
+        if (leftPageEnd <= spreadStart) {
+          leftPageEnd = spreadStart + 1;
+        }
+        let sequentialSpreadEnd = findStreamSliceEnd(
+          node,
+          stream,
+          leftPageEnd,
+          stream.length,
+          chapters,
+          redByChapter,
+          columnsClassName,
+          rightLimit,
+          studyLayout,
+          spreadMeasureOpts2,
+        );
+        if (sequentialSpreadEnd <= leftPageEnd) {
+          sequentialSpreadEnd = leftPageEnd + 1;
+        }
+        const spreadCap4 = findStreamSliceEnd(
           node,
           stream,
           spreadStart,
@@ -164,64 +198,42 @@ export function BookPaginator({
           READER_SPREAD_COLUMNS_CLASS,
           spreadLimit,
           studyLayout,
-          { columnCount: 4, measureWidthPx: spreadMeasureWidth },
+          spreadMeasureOpts4,
         );
-        if (spreadCap <= spreadStart + 1) {
+        const spreadEnd = Math.min(
+          spreadCap4 > spreadStart ? spreadCap4 : spreadStart + 1,
+          sequentialSpreadEnd,
+        );
+        if (spreadEnd <= spreadStart + 1) {
           splits.push(spreadStart + 1);
           i = spreadStart + 1;
           pageIndex += 1;
           continue;
         }
-        let leftPageEnd = findStreamSliceEnd(
+        leftPageEnd = findStreamSliceEnd(
           node,
           stream,
           spreadStart,
-          spreadCap,
+          spreadEnd,
           chapters,
           redByChapter,
           columnsClassName,
           leftLimit,
           studyLayout,
-          { columnCount: 2, measureWidthPx: pageWidth },
+          spreadMeasureOpts2,
         );
         if (leftPageEnd <= spreadStart) {
           leftPageEnd = spreadStart + 1;
         }
-        if (leftPageEnd >= spreadCap) {
+        if (leftPageEnd >= spreadEnd) {
           leftPageEnd = synthesizeSpreadLeftBoundaryInRange(
             spreadStart,
-            spreadCap,
+            spreadEnd,
             stream,
           );
         }
         if (leftPageEnd <= spreadStart) {
           leftPageEnd = spreadStart + 1;
-        }
-        const rightStartsWithHeader =
-          stream[leftPageEnd]?.kind === "chapter-header" ||
-          (stream[leftPageEnd]?.kind !== "verse" &&
-            stream[leftPageEnd + 1]?.kind === "chapter-header");
-        const rightLimit = pageContentLimit(
-          pageIndex + 1,
-          rightStartsWithHeader,
-          resolvedFirstPageHeight,
-          pageHeight,
-          footerHeight,
-        );
-        let spreadEnd = findStreamSliceEnd(
-          node,
-          stream,
-          leftPageEnd,
-          spreadCap,
-          chapters,
-          redByChapter,
-          columnsClassName,
-          rightLimit,
-          studyLayout,
-          { columnCount: 2, measureWidthPx: pageWidth },
-        );
-        if (spreadEnd <= leftPageEnd) {
-          spreadEnd = leftPageEnd + 1;
         }
         splits.push(leftPageEnd);
         splits.push(spreadEnd);
@@ -231,13 +243,13 @@ export function BookPaginator({
       }
 
       const startsWithHeader = stream[i]?.kind === "chapter-header";
-      const limit = pageContentLimit(
+      const limit = readerPageContentLimitPx({
         pageIndex,
-        startsWithHeader,
-        resolvedFirstPageHeight,
+        startsWithChapterHeader: startsWithHeader,
+        firstPageHeight: resolvedFirstPageHeight,
         pageHeight,
-        footerHeight,
-      );
+        footerGuardPx: footerHeight,
+      });
       const lastFit = findStreamSliceEnd(
         node,
         stream,
@@ -260,8 +272,6 @@ export function BookPaginator({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
-
-  const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
 
   return (
     <div
@@ -346,22 +356,6 @@ function findStreamSliceEnd(
   return lastFit;
 }
 
-function pageContentLimit(
-  pageIndex: number,
-  startsWithHeader: boolean,
-  firstPageHeight: number,
-  pageHeight: number,
-  footerHeight: number,
-): number {
-  if (pageIndex === 0 && startsWithHeader) {
-    return firstPageHeight - footerHeight;
-  }
-  if (startsWithHeader) {
-    return pageHeight - CHAPTER_HEADER_RESERVE_PX - footerHeight;
-  }
-  return pageHeight - footerHeight;
-}
-
 function renderStreamSlice(
   node: HTMLDivElement,
   slice: ReaderStreamUnit[],
@@ -372,122 +366,14 @@ function renderStreamSlice(
   studyLayout: ResolvedStudyLayout,
   measureOptions?: ScriptureColumnMeasureOptions,
 ) {
-  const parts: string[] = [];
-  let batch: {
-    bookAbbr: string;
-    bookName: string;
-    chapter: number;
-    verses: PassageVerse[];
-  } | null = null;
-
-  const flushBatch = () => {
-    if (!batch || batch.verses.length === 0) return;
-    const paragraphStarts = new Set(
-      paragraphStartsForChapter(chapters, batch.bookAbbr, batch.chapter),
-    );
-    const headingByVerse = new Map<number, string>();
-    for (const h of headingsForChapter(chapters, batch.bookAbbr, batch.chapter)) {
-      headingByVerse.set(h.beforeVerse, h.text);
-    }
-    const poetryBlocks = poetryBlocksForChapter(chapters, batch.bookAbbr, batch.chapter);
-    const redSegments =
-      redByChapter.get(`${batch.bookAbbr}|${batch.chapter}`) ??
-      new Map<number, Segment[]>();
-    const groups = groupVersesIntoParagraphs(batch.verses, paragraphStarts);
-    for (const group of groups) {
-      const first = group.verses[0]?.number;
-      const heading = first != null ? headingByVerse.get(first) : undefined;
-      const versesHtml = group.verses
-        .map((v) => {
-          const inner = buildVerseInnerHtml(
-            v.number,
-            v.text ?? "",
-            redSegments,
-            escapeHtml,
-            v,
-            studyLayout,
-          );
-          const xrefs = buildVerseXrefsInnerHtml(v, escapeHtml, studyLayout);
-          return wrapVerseShellHtml(
-            v.number,
-            batch!.chapter,
-            inner,
-            group.isContinuation,
-            xrefs,
-          );
-        })
-        .join("");
-      const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
-      const paraClass =
-        poetryLevel > 0
-          ? scripturePoetryClassNameMeasure(poetryLevel, group.isContinuation)
-          : scriptureParagraphClassNameMeasure(group.isContinuation);
-      const paraHtml = `<p class="${paraClass}" style="orphans:2;widows:2">${versesHtml}</p>`;
-      if (studyLayout === "holman") {
-        if (heading) {
-          parts.push(buildHolmanHeadingMeasureHtml(heading, batch!.bookAbbr, escapeHtml));
-        }
-        parts.push(paraHtml);
-      } else {
-        if (heading) {
-          parts.push(`<p class="scripture-heading">${escapeHtml(heading)}</p>`);
-        }
-        parts.push(paraHtml);
-      }
-    }
-    batch = null;
-  };
-
-  for (const unit of slice) {
-    if (unit.kind === "plate") {
-      flushBatch();
-      parts.push(
-        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(unit.plate.imageUrl)}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
-      );
-      continue;
-    }
-    if (unit.kind === "chapter-header") continue;
-    if (unit.kind === "verse") {
-      if (
-        batch &&
-        (batch.bookAbbr !== unit.bookAbbr || batch.chapter !== unit.chapter)
-      ) {
-        flushBatch();
-      }
-      if (!batch) {
-        batch = {
-          bookAbbr: unit.bookAbbr,
-          bookName: unit.bookName,
-          chapter: unit.chapter,
-          verses: [],
-        };
-      }
-      batch.verses.push(unit.verse);
-    }
-  }
-  flushBatch();
-
-  const scriptureHtml = parts.join("");
-  if (studyLayout === "holman") {
-    const verseGroups = verseGroupsFromStreamSlice(slice);
-    const connectionsHtml = "";
-    const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
-    applyHolmanStudyMeasureHtml(
-      node,
-      scriptureHtml,
-      connectionsHtml,
-      footnotesHtml,
-      columnsClassName,
-      contentHeightPx,
-      measureOptions,
-    );
-    return;
-  }
-  const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(
-    verseGroupsFromStreamSlice(slice),
-    escapeHtml,
+  const scriptureHtml = buildStreamSliceMeasureHtml(
+    slice,
+    chapters,
+    redByChapter,
+    studyLayout,
   );
-  if (footnotesHtml) {
+  const footnotesHtml = buildStreamSliceFootnotesMeasureHtml(slice);
+  if (studyLayout === "holman" || footnotesHtml) {
     applyHolmanStudyMeasureHtml(
       node,
       scriptureHtml,
@@ -499,7 +385,6 @@ function renderStreamSlice(
     );
     return;
   }
-
   applyScriptureColumnMeasureHtml(
     node,
     scriptureHtml,
@@ -507,30 +392,4 @@ function renderStreamSlice(
     contentHeightPx,
     measureOptions,
   );
-}
-
-function verseGroupsFromStreamSlice(
-  slice: ReaderStreamUnit[],
-): { chapter: number; verses: PassageVerse[] }[] {
-  const groups: { chapter: number; verses: PassageVerse[] }[] = [];
-  let current: { chapter: number; verses: PassageVerse[] } | null = null;
-  for (const unit of slice) {
-    if (unit.kind !== "verse") continue;
-    if (!current || current.chapter !== unit.chapter) {
-      current = { chapter: unit.chapter, verses: [] };
-      groups.push(current);
-    }
-    current.verses.push(unit.verse);
-  }
-  return groups;
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
-}
-
-function escapeAttr(s: string) {
-  return escapeHtml(s).replace(/`/g, "&#96;");
 }

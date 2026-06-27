@@ -57,6 +57,7 @@ export default function JournalVideoCaptureButton({
       return;
     }
     const anchorOffset = anchorRef.current;
+    const recordedMs = result.durationMs || durationMs;
     setUploading(true);
     try {
       const saved = await saveJournalVideoCapture(
@@ -64,7 +65,7 @@ export default function JournalVideoCaptureButton({
         entryId,
         result.video,
         result.audio,
-        durationMs,
+        recordedMs,
         anchorOffset,
         result.liveTranscript,
         result.chapters,
@@ -92,7 +93,7 @@ export default function JournalVideoCaptureButton({
               userId,
               entryId,
               anchorOffset,
-              durationMs,
+              durationMs: recordedMs,
               liveTranscript: result.liveTranscript,
               createdAt: new Date().toISOString(),
             },

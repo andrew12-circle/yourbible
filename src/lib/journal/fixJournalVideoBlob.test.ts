@@ -10,6 +10,11 @@ describe("journalVideoDurationNeedsFix", () => {
     expect(journalVideoDurationNeedsFix({ duration: 8 }, 120_000, "video/webm")).toBe(true);
   });
 
+  it("uses blob size when duration_ms is missing", () => {
+    const bytes = Math.round((120_000 / 1000) * (212_000 / 8));
+    expect(journalVideoDurationNeedsFix({ duration: 8 }, null, "video/webm", bytes)).toBe(true);
+  });
+
   it("returns false when webm duration matches recorded length", () => {
     expect(journalVideoDurationNeedsFix({ duration: 120 }, 120_000, "video/webm")).toBe(false);
   });

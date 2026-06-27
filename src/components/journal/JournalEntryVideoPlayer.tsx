@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
+  estimateJournalVideoDurationMs,
   fixJournalVideoBlob,
   journalVideoDurationNeedsFix,
 } from "@/lib/journal/fixJournalVideoBlob";
@@ -41,17 +42,29 @@ export default function JournalEntryVideoPlayer({ url, durationMs, mimeType, cla
   const repairDurationIfNeeded = useCallback(async () => {
     const video = videoRef.current;
     if (!video || fixedRef.current || !url) return;
-    if (!journalVideoDurationNeedsFix(video, durationMs, mimeType)) return;
+
+    let blob: Blob;
+    try {
+      blob = await fetch(url).then((r) => {
+        if (!r.ok) throw new Error(`fetch failed: ${r.status}`);
+        return r.blob();
+      });
+    } catch (e) {
+      console.warn("[journal-video] playback blob fetch failed:", e);
+      return;
+    }
+
+    const repairMs =
+      durationMs != null && durationMs > 0
+        ? durationMs
+        : estimateJournalVideoDurationMs(blob.size) ?? 0;
+    if (!journalVideoDurationNeedsFix(video, repairMs, mimeType, blob.size)) return;
 
     fixedRef.current = true;
     setFixing(true);
     const resumeAt = video.currentTime;
     try {
-      const blob = await fetch(url).then((r) => {
-        if (!r.ok) throw new Error(`fetch failed: ${r.status}`);
-        return r.blob();
-      });
-      const fixed = await fixJournalVideoBlob(blob, durationMs ?? 0);
+      const fixed = await fixJournalVideoBlob(blob, repairMs);
       if (fixed === blob) return;
 
       const objectUrl = URL.createObjectURL(fixed);

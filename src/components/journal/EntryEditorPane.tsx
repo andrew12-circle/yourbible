@@ -10,7 +10,8 @@ import {
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
-import { clampAnchorOffset, bodyWithLiveVideoTranscript, insertTranscriptAtAnchor, prepareVideoJournalTranscript, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
+import { retranscribeJournalEntryVideo, updateEntryVideoTranscript } from "@/lib/journal/videos";
+import { clampAnchorOffset, bodyWithLiveVideoTranscript, insertTranscriptAtAnchor, prepareVideoJournalTranscript, replaceTranscriptBeforeVideo, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -153,6 +154,7 @@ export default function EntryEditorPane({
   const [bodyFocused, setBodyFocused] = useState(false);
   const [titleFocused, setTitleFocused] = useState(false);
   const [videoSummarizing, setVideoSummarizing] = useState(false);
+  const [videoRetranscribingId, setVideoRetranscribingId] = useState<string | null>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const entryInitialFocusRef = useRef<string | null>(null);
@@ -646,6 +648,51 @@ export default function EntryEditorPane({
       videoLiveSnapRef.current = null;
     },
     [handleBodyChange, reloadVideos, videoAutoTitle],
+  );
+
+  const handleRetranscribeVideo = useCallback(
+    async (video: { id: string; storage_path: string; anchor_offset: number }) => {
+      if (!user?.id || !entryId) return;
+      setVideoRetranscribingId(video.id);
+      try {
+        const stt = await retranscribeJournalEntryVideo(user.id, video.storage_path);
+        if (!stt.text.trim()) {
+          toast({
+            title: "Couldn't transcribe video",
+            description:
+              stt.error ??
+              "No speech was detected. If the clip is only a few seconds long, the full recording may not have saved.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const prepared = prepareVideoJournalTranscript(stt.text);
+        await updateEntryVideoTranscript(video.id, prepared);
+        const cur = entryRef.current;
+        if (cur) {
+          const nextBody = replaceTranscriptBeforeVideo(cur.body, video.anchor_offset, prepared);
+          handleBodyChange(nextBody);
+          await videoAutoTitle.onRecordingComplete(nextBody);
+        }
+        await reloadVideos();
+        toast({
+          title: "Transcript updated",
+          description:
+            stt.source === "storage-video"
+              ? "Recovered the full transcript from your saved video."
+              : undefined,
+        });
+      } catch (e) {
+        toast({
+          title: "Couldn't transcribe video",
+          description: e instanceof Error ? e.message : "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setVideoRetranscribingId(null);
+      }
+    },
+    [user?.id, entryId, handleBodyChange, reloadVideos, videoAutoTitle],
   );
 
   const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
@@ -1192,6 +1239,8 @@ export default function EntryEditorPane({
                   polishResetKey={entry.id}
                   bodyClassName={journalPlainWriteFieldClass}
                   onBodyChange={(next) => handleBodyChange(next)}
+                  onRetranscribeVideo={(video) => void handleRetranscribeVideo(video)}
+                  retranscribingVideoId={videoRetranscribingId}
                   onCaretChange={(offset) => {
                     bodyCaretRef.current = offset;
                   }}

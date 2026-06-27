@@ -1,17 +1,27 @@
-import { Trash2 } from "lucide-react";
+import { Loader2, Mic, Trash2 } from "lucide-react";
 import type { JournalVideoRow } from "@/lib/journal/videos";
 import JournalEntryVideoPlayer from "@/components/journal/JournalEntryVideoPlayer";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
   videos: JournalVideoRow[];
   onRemove?: (id: string, storagePath: string) => void;
+  onRetranscribe?: (video: JournalVideoRow) => void;
+  retranscribingId?: string | null;
   className?: string;
   /** When transcript is edited inline below the video in the body, skip duplicate caption. */
   hideTranscript?: boolean;
 };
 
-export default function JournalEntryVideos({ videos, onRemove, className, hideTranscript }: Props) {
+export default function JournalEntryVideos({
+  videos,
+  onRemove,
+  onRetranscribe,
+  retranscribingId = null,
+  className,
+  hideTranscript,
+}: Props) {
   if (!videos.length) return null;
 
   return (
@@ -29,6 +39,25 @@ export default function JournalEntryVideos({ videos, onRemove, className, hideTr
             <p className="border-t border-border/40 bg-background/80 px-4 py-3 text-[15px] leading-relaxed text-foreground/90">
               {v.transcript}
             </p>
+          ) : null}
+          {onRetranscribe ? (
+            <div className="flex justify-end border-t border-border/40 bg-background/80 px-3 py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                disabled={retranscribingId === v.id}
+                onClick={() => onRetranscribe(v)}
+              >
+                {retranscribingId === v.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" aria-hidden />
+                )}
+                {retranscribingId === v.id ? "Transcribing…" : "Transcribe again"}
+              </Button>
+            </div>
           ) : null}
           {onRemove ? (
             <button
