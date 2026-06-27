@@ -14,7 +14,10 @@ import {
   Lock,
   StickyNote,
   X,
+  Users,
 } from "lucide-react";
+import { JournalRailStorageMeter } from "@/components/journal/JournalRailStorageMeter";
+import { useJournalRailPartners } from "@/hooks/useJournalRailPartners";
 import { Journal, JOURNAL_COLORS, createJournal } from "@/lib/journal/journals";
 import { filterPersonalJournals } from "@/lib/journal/notesJournal";
 import { isPrivateJournal } from "@/lib/journal/privateJournal";
@@ -59,13 +62,14 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
   };
 
   const personalJournals = filterPersonalJournals(journals);
+  const { partners: sharedPartners } = useJournalRailPartners();
 
   return (
     <aside
       className={cn(
         inSheet ? "" : "hidden md:flex",
-        "flex-col w-full h-full",
-        inDesk ? "min-h-0 overflow-hidden" : "overflow-y-auto",
+        "flex-col w-full h-full min-h-0",
+        inDesk ? "overflow-hidden" : "overflow-y-auto",
         inSheet && "pb-safe",
       )}
     >
@@ -104,7 +108,8 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
         </div>
       </div>
 
-      <nav className={`px-2 pb-4 space-y-0.5 ${inDesk ? "journal-pane-scroll min-h-0 flex-1 overflow-y-auto" : ""}`}>
+      <div className={cn(inDesk ? "journal-pane-scroll min-h-0 flex-1 overflow-y-auto" : "")}>
+      <nav className="px-2 pb-4 space-y-0.5">
         <RailItem
           to="/journal/today"
           icon={<CalIcon className="w-4 h-4" />}
@@ -217,7 +222,17 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           Shared
         </h3>
       </div>
-      <nav className="px-2 pb-6 space-y-0.5">
+      <nav className="px-2 pb-2 space-y-0.5">
+        {sharedPartners.map((p) => (
+          <RailItem
+            key={p.connectionId}
+            to="/partner"
+            icon={<Users className="w-4 h-4" />}
+            label={p.displayName}
+            active={pathname.startsWith("/partner")}
+            accent="350 89% 60%"
+          />
+        ))}
         <button
           onClick={() => setOpen(true)}
           className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -226,6 +241,11 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           New Shared Journal
         </button>
       </nav>
+      </div>
+
+      <div className="mt-auto shrink-0 border-t border-border/60 px-3 py-3">
+        <JournalRailStorageMeter />
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
