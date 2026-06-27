@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ import { LifeWeekReviewGridSnippet } from "@/components/life/LifeWeekReviewGridS
 import { BlinkLifeWeekReviewGridSnippet } from "@/components/life/BlinkLifeWeekReviewGridSnippet";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseFamilyFromLayout, familyMemberById } from "@/lib/lifeWeeksFamily";
+import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 
 type Props = {
   open: boolean;
@@ -38,11 +40,14 @@ function gridLabel(pending: PendingLifeWeekReview): string {
 }
 
 export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, onComplete }: Props) {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [checked, setChecked] = useState(false);
   const [reflection, setReflection] = useState("");
+  const [dictInterim, setDictInterim] = useState("");
+  const dictateRef = useRef<DictateButtonHandle | null>(null);
 
-  const trimmedLen = reflection.trim().length;
+  const displayReflection = mergeDictatedText(reflection, dictInterim);
+  const trimmedLen = displayReflection.trim().length;
   const canSubmit = checked && trimmedLen >= LIFE_WEEK_REFLECTION_MIN && !saving;
   const currentWeekIndex = pending.weekIndex + 1;
   const reflectionPrompt = lifeWeekReflectionPrompt(pending.subject, pending.personName);
@@ -54,12 +59,22 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
       ? selfBirthDate
       : familyMemberById(familyMembers, pending.subject).birthDate;
 
+  useEffect(() => {
+    setChecked(false);
+    setReflection("");
+    setDictInterim("");
+    dictateRef.current?.stop();
+  }, [pending.subject, pending.weekIndex]);
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    dictateRef.current?.stop();
+    const finalReflection = mergeDictatedText(reflection, dictInterim).trim();
     try {
-      await onComplete(reflection);
+      await onComplete(finalReflection);
       setChecked(false);
       setReflection("");
+      setDictInterim("");
       const who = pending.subject === "self" ? "Your" : `${pending.personName}'s`;
       toast({ title: `${who} week ${pending.weekNumber.toLocaleString()} closed` });
     } catch (e) {
@@ -120,19 +135,35 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
               <Label htmlFor="life-week-reflection" className="text-sm leading-snug">
                 {reflectionPrompt}
               </Label>
-              <Textarea
-                id="life-week-reflection"
-                value={reflection}
-                onChange={(e) => setReflection(e.target.value)}
-                placeholder={
-                  pending.subject === "self"
-                    ? "Be honest. What moved you toward your calling—and what did you let slip?"
-                    : `What do you want to remember about ${pending.personName}'s week?`
-                }
-                rows={5}
-                className="resize-none"
-                autoFocus
-              />
+              <div className="relative">
+                <Textarea
+                  id="life-week-reflection"
+                  value={displayReflection}
+                  onChange={(e) => {
+                    setDictInterim("");
+                    setReflection(e.target.value);
+                  }}
+                  placeholder={
+                    pending.subject === "self"
+                      ? "Be honest. What moved you toward your calling—and what did you let slip?"
+                      : `What do you want to remember about ${pending.personName}'s week?`
+                  }
+                  rows={5}
+                  className="resize-none pb-10 pr-10"
+                  autoFocus
+                />
+                <div className="absolute bottom-1.5 right-1.5">
+                  <DictateButton
+                    ref={dictateRef}
+                    userId={user?.id}
+                    webSpeechOnly
+                    size="sm"
+                    className="h-8 w-8 rounded-md"
+                    onAppend={(chunk) => setReflection((r) => mergeDictatedText(r, chunk))}
+                    onInterim={setDictInterim}
+                  />
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground tabular-nums">
                 {trimmedLen}/{LIFE_WEEK_REFLECTION_MIN} characters minimum
               </p>
