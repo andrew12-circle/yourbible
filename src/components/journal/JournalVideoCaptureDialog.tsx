@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Monitor, Pause, Play, Square, Video, X } from "lucide-react";
+import { Loader2, Monitor, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -315,11 +315,20 @@ export default function JournalVideoCaptureDialog({
 
         <LiveTranscriptTicker text={capture.interim} className="mb-2 text-sm italic text-white/90" />
 
-        <div className="mb-3 flex justify-center">
+        <div className="flex justify-center">
           <JournalVideoCaptureToolbar
             capture={capture}
             isMobile={isMobile}
             videoRef={videoRef}
+            active={active}
+            paused={paused}
+            processing={processing}
+            onPauseResume={
+              active && !processing
+                ? () => (paused ? capture.resumeRecording() : capture.pauseRecording())
+                : undefined
+            }
+            onStop={active && !processing ? () => void handleStop() : undefined}
           />
         </div>
 
@@ -340,40 +349,12 @@ export default function JournalVideoCaptureDialog({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-center gap-4">
-          {processing ? (
-            <div className="flex flex-col items-center gap-1 text-sm text-white/90">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              {transcribing ? (transcribingLabel ?? "Transcribing…") : "Saving video…"}
-            </div>
-          ) : active ? (
-            <>
-              <Button
-                type="button"
-                size="lg"
-                variant="secondary"
-                className="h-12 w-12 rounded-full p-0 sm:h-14 sm:w-14"
-                onClick={paused ? capture.resumeRecording : capture.pauseRecording}
-                aria-label={paused ? "Resume recording" : "Pause recording"}
-              >
-                {paused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                variant="destructive"
-                className="h-12 w-12 rounded-full p-0 sm:h-14 sm:w-14"
-                onClick={() => void handleStop()}
-                aria-label="Stop recording"
-              >
-                <Square className="h-6 w-6 fill-current" />
-              </Button>
-            </>
-          ) : null}
-        </div>
-
-        <p className="mt-2 text-center text-[11px] text-white/60 sm:mt-3 sm:text-xs">
-          {active
+        <p className="mt-3 text-center text-[11px] text-white/60 sm:text-xs">
+          {processing
+            ? transcribing
+              ? (transcribingLabel ?? "Transcribing…")
+              : "Saving video…"
+            : active
             ? paused
               ? "Paused — tap play to continue or stop to save."
               : lowTime
