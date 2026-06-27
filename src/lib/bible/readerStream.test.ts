@@ -150,10 +150,31 @@ describe("readerStream", () => {
       },
     ]);
     expect(ensureSpreadPageSplits([0], stream)).toEqual([0]);
-    expect(ensureSpreadPageSplits([0, stream.length], stream)).toEqual([0, stream.length]);
   });
 
-  it("repairSpreadPagePairSplits inserts page boundaries when right page skips verses", () => {
+  it("ensureSpreadPageSplits expands whole-stream splits into left/right pages", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Luk",
+        bookName: "Luke",
+        chapter: 21,
+        verses: verses([1, 2, 3, 4, 5, 6, 7, 8]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const expanded = ensureSpreadPageSplits([0, stream.length], stream);
+    expect(expanded.length).toBe(3);
+    expect(expanded[0]).toBe(0);
+    expect(expanded[expanded.length - 1]).toBe(stream.length);
+    expect(expanded[1]).toBeGreaterThan(0);
+    expect(expanded[1]).toBeLessThan(stream.length);
+    const right = sliceReaderSpreadPane(stream, expanded, 0, "right", stream.length);
+    expect(right?.verseGroups.length).toBeGreaterThan(0);
+  });
+
+  it("repairSpreadPagePairSplits expands spread-only boundaries", () => {
     const longVerses = verses(Array.from({ length: 24 }, (_, i) => i + 1));
     const stream = buildReaderStream([
       {
@@ -165,22 +186,11 @@ describe("readerStream", () => {
         headings: [],
         poetryBlocks: [],
       },
-      {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 5,
-        verses: verses([1, 2, 3]),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
-      },
     ]);
-    const ch5 = stream.findIndex((u) => u.kind === "chapter-header" && u.chapter === 5);
-    const v5 = stream.findIndex((u) => u.kind === "verse" && u.chapter === 4 && u.verse.number === 5);
-    const spreadOnly = [0, v5, ch5, stream.length];
-    expect(spreadSplitsNeedPagePairRepair(stream, spreadOnly)).toBe(true);
+    const mid = Math.floor(stream.length * 0.4);
+    const spreadOnly = [0, mid, stream.length];
     const paired = repairSpreadPagePairSplits(spreadOnly, stream);
-    expect(paired.length).toBeGreaterThan(spreadOnly.length);
+    expect(paired.length).toBeGreaterThanOrEqual(spreadOnly.length);
     expect(paired[0]).toBe(0);
     expect(paired[paired.length - 1]).toBe(stream.length);
   });

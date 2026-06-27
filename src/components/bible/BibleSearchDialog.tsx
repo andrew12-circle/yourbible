@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { searchBible, type BibleSearchHit } from "@/lib/bible/api";
+import {
+  isCanonicalCsbBible,
+  searchCanonicalVerses,
+  countIndexedVerses,
+  type LocalVerseSearchHit,
+} from "@/lib/bible/canonical";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { looksLikeBibleReference, parseBibleReference } from "@/lib/bible/parseBibleReference";
 import { pushRecentSearch, readRecentSearches } from "@/lib/bible/searchRecent";
@@ -43,6 +49,13 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
     }
   }, [open]);
 
+  const [localIndexSize, setLocalIndexSize] = useState(0);
+
+  useEffect(() => {
+    if (!open || !isCanonicalCsbBible(bibleId)) return;
+    void countIndexedVerses(bibleId).then(setLocalIndexSize);
+  }, [open, bibleId]);
+
   useEffect(() => {
     if (!open || !bibleId || query.trim().length < 2) {
       setResults([]);
@@ -58,16 +71,44 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
       return;
     }
 
-    if (!online) {
-      setError("Search requires an internet connection.");
-      setResults([]);
-      return;
-    }
-
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
       setLoading(true);
       setError(null);
+
+      if (isCanonicalCsbBible(bibleId) && localIndexSize > 0) {
+        try {
+          const localHits = await searchCanonicalVerses(query.trim(), 40, bibleId);
+          const mapped: BibleSearchHit[] = localHits.map((h: LocalVerseSearchHit) => ({
+            reference: h.reference,
+            book: h.bookAbbr,
+            chapter: h.chapter,
+            verse: h.verse,
+            text: h.snippet,
+          }));
+          const filtered =
+            bookFilter === "all" ? mapped : mapped.filter((h) => h.book === bookFilter);
+          setResults(filtered);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Local search failed");
+          setResults([]);
+        } finally {
+          if (!controller.signal.aborted) setLoading(false);
+        }
+        return;
+      }
+
+      if (!online) {
+        setError(
+          localIndexSize > 0
+            ? "No local index for this translation yet. Read chapters while online to build it."
+            : "Search requires an internet connection.",
+        );
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+
       searchBible(bibleId, query.trim(), 40, controller.signal)
         .then((hits) => {
           if (bookFilter === "all") return hits;
@@ -88,7 +129,7 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [open, bibleId, query, online, bookFilter]);
+  }, [open, bibleId, query, online, bookFilter, localIndexSize]);
 
   if (!open) return null;
 
@@ -186,8 +227,13 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
             </div>
           ) : null}
 
-          {!online && !parsedRef && (
+          {!online && !parsedRef && localIndexSize === 0 && (
             <p className="text-sm text-muted-foreground px-2 py-4">Connect to search Scripture.</p>
+          )}
+          {!online && !parsedRef && localIndexSize > 0 && query.trim().length < 2 && (
+            <p className="text-sm text-muted-foreground px-2 py-4">
+              Search your offline CSB index ({localIndexSize.toLocaleString()} verses indexed).
+            </p>
           )}
           {loading && (
             <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">

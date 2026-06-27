@@ -19,7 +19,7 @@ export function computeDailySummary(
 ): DailySummaryPoint[] {
   const { year, month } = parseYearMonth(yearMonth);
   const totalDays = daysInMonth(year, month);
-  const lastEligible = effectiveLastDay(year, month, yearMonth);
+  const lastEligible = effectiveLastDay(year, month, yearMonth, now);
 
   const points: DailySummaryPoint[] = [];
   for (let day = 1; day <= totalDays; day++) {

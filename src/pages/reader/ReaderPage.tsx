@@ -94,10 +94,7 @@ import { buildAdjacentStreamChapters } from "@/lib/bible/readerStreamChapters";
 import {
   areSameStreamSplits,
   buildReaderStream,
-  ensureSpreadPageSplits,
-  isSpreadDoubleColumnSplitsReady,
   headingsForChapter,
-  isStreamSplitsReady,
   READER_PAGINATOR_SPLIT_REVISION,
   paragraphStartsForChapter,
   poetryBlocksForChapter,
@@ -105,7 +102,6 @@ import {
   sliceReaderSpreadPane,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
-  streamPageCount,
 } from "@/lib/bible/readerStream";
 import { useAdjacentPassages } from "@/hooks/useAdjacentPassages";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -155,6 +151,13 @@ import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
 import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
 import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
 import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
+import { useReaderPagination } from "@/hooks/useReaderPagination";
+import { ReaderShell } from "@/pages/reader/ReaderShell";
+import { ReaderNotesPanel } from "@/pages/reader/ReaderNotesPanel";
+import { ReaderCompanionColumn } from "@/pages/reader/ReaderCompanionColumn";
+import { ScriptureVirtualChapter, ScriptureDocumentBlocks } from "@/components/scripture";
+import { buildDocumentBlocks } from "@/lib/bible/documentModel";
+import { passageToCanonicalChapter } from "@/lib/bible/canonical/passageToCanonical";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
 import { useBookIntroduction } from "@/hooks/useBookIntroduction";
 import { useReaderToolbarSelection } from "@/hooks/useReaderToolbarSelection";
@@ -514,6 +517,8 @@ export default function ReaderPage() {
       .then(({ data }) => { if (data && data[0]) setAnchorBelief(data[0]); });
   }, [user, book.abbr, chapter]);
 
+  const { open: companionOpen } = useCompanion();
+
   const buildScope = (verses: number[]) => {
     const text = (passage?.verses ?? [])
       .filter(v => verses.length === 0 || verses.includes(v.number))
@@ -783,19 +788,13 @@ export default function ReaderPage() {
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
   const useSpreadDoubleColumn = readerLayout.useSpreadPaginatorMeasure && useStreamReader;
-  const navStreamSplits = useMemo(
-    () =>
-      useBookSpread && readerStream.length > 0
-        ? ensureSpreadPageSplits(streamSplits, readerStream)
-        : streamSplits,
-    [useBookSpread, readerStream, streamSplits],
-  );
-  const streamSplitsReady = useSpreadDoubleColumn
-    ? isSpreadDoubleColumnSplitsReady(navStreamSplits, readerStream.length)
-    : isStreamSplitsReady(navStreamSplits, readerStream.length);
-  const totalStreamPages = streamSplitsReady
-    ? streamPageCount(navStreamSplits, readerStream.length)
-    : 1;
+  const { navStreamSplits, streamSplitsReady, totalStreamPages } = useReaderPagination({
+    useBookSpread,
+    useStreamReader,
+    useSpreadDoubleColumn,
+    streamSplits,
+    readerStream,
+  });
   /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
@@ -1245,9 +1244,16 @@ export default function ReaderPage() {
     [navigate],
   );
 
+  const scrollDocumentBlocks = useMemo(() => {
+    if (!scrollMode || !passage) return [];
+    const record = passageToCanonicalChapter(passage, book.abbr, chapter, bibleId);
+    return buildDocumentBlocks(record.verses, record.layout, redSegments, bibleId);
+  }, [scrollMode, passage, book.abbr, chapter, bibleId, redSegments]);
+
   const renderVerse = useMemo(
     () =>
       createReaderVerseRenderer({
+        bibleId,
         bookAbbr: book.abbr,
         chapter,
         useBookSpread,
@@ -1262,6 +1268,7 @@ export default function ReaderPage() {
         setNoteOpen,
       }),
     [
+      bibleId,
       book.abbr,
       chapter,
       useBookSpread,
@@ -1574,6 +1581,28 @@ export default function ReaderPage() {
                         ),
                       (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
                     )
+                  ) : scrollMode && scrollDocumentBlocks.length > 0 ? (
+                    <ScriptureVirtualChapter
+                      blocks={scrollDocumentBlocks}
+                      className="h-full min-h-0"
+                      renderBlock={(block) => (
+                        <ScriptureDocumentBlocks
+                          blocks={[block]}
+                          renderVerse={(v, ctx) =>
+                            renderVerse(
+                              {
+                                number: v.number,
+                                text: v.text,
+                                parts: v.parts,
+                                crossRefs: v.crossRefs,
+                                footnotes: v.footnotes,
+                              },
+                              ctx,
+                            )
+                          }
+                        />
+                      )}
+                    />
                   ) : scrollMode && verses.length > 0 ? (
                     scriptureNodes(
                       [{ bookAbbr: book.abbr, chapter, verses }],
@@ -1866,6 +1895,15 @@ export default function ReaderPage() {
           mobileChromeBottom,
         )}
       >
+      <ReaderShell
+        threeColumn={readerSpread && !scrollMode && !compactChrome && companionOpen}
+        notesPane={
+          readerSpread && !scrollMode ? (
+            <ReaderNotesPanel bookName={book.name} chapter={chapter} />
+          ) : undefined
+        }
+        companionPane={companionOpen ? <ReaderCompanionColumn /> : undefined}
+        biblePane={
       <BookScene
         progress={progress}
         singlePage={!effectiveSpread}
@@ -1929,6 +1967,8 @@ export default function ReaderPage() {
           ) : (
             renderPageSurface(rightIdx, "right")
           )
+        }
+      />
         }
       />
       </div>

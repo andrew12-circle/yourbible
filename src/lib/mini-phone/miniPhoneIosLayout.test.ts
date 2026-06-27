@@ -13,8 +13,9 @@ describe("miniPhoneIosLayout", () => {
   });
 
   it("enforces a minimum wallpaper blur on the mini phone", () => {
-    expect(iosWallpaperBlurPx(288, 0)).toBeGreaterThan(0);
-    expect(iosWallpaperBlurPx(288, 20)).toBe(20);
+    const scaledMin = Math.round((288 * 36) / IOS_HOME_SCREEN_WIDTH);
+    expect(iosWallpaperBlurPx(288, 0)).toBe(scaledMin);
+    expect(iosWallpaperBlurPx(288, 20)).toBe(scaledMin);
   });
 
   it("computes row stride from phone width", () => {

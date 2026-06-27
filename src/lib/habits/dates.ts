@@ -63,8 +63,13 @@ export function addDaysISO(isoDate: string, deltaDays: number): string {
 }
 
 /** Last countable day in month view (today if current month, else full month). */
-export function effectiveLastDay(year: number, month: number, viewingYm: string): number {
+export function effectiveLastDay(
+  year: number,
+  month: number,
+  viewingYm: string,
+  now = new Date(),
+): number {
   const total = daysInMonth(year, month);
-  if (!isSameYearMonth(viewingYm)) return total;
-  return Math.min(total, new Date().getDate());
+  if (!isSameYearMonth(viewingYm, now)) return total;
+  return Math.min(total, now.getDate());
 }

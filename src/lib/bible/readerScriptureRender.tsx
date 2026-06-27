@@ -23,9 +23,9 @@ import {
 import { scriptureColumnWrapperStyle } from "@/lib/bible/readerColumnMeasure";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
-  scriptureParagraphClassName,
-  scripturePoetryClassName,
-} from "@/lib/bible/scriptureParagraph";
+  ScriptureHeading,
+  ScriptureParagraph,
+} from "@/components/scripture/ScriptureComponents";
 import { cn } from "@/lib/utils";
 
 export interface ScriptureRenderOptions {
@@ -237,23 +237,23 @@ export function renderScriptureParagraphNodes(
       const heading = first != null ? headingMap.get(first) : undefined;
       const unitKey = `${verseGroup.bookAbbr}-${verseGroup.chapter}-${first}`;
       const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
-      const paraClass =
-        poetryLevel > 0
-          ? scripturePoetryClassName(poetryLevel, group.isContinuation)
-          : scriptureParagraphClassName(group.isContinuation);
 
       if (heading) {
         nodes.push(
-          <p
+          <ScriptureHeading
             key={`h-${unitKey}`}
-            className={holman ? holmanHeadingClassName(verseGroup.bookAbbr) : "scripture-heading"}
+            className={holman ? holmanHeadingClassName(verseGroup.bookAbbr) : undefined}
           >
             {holman ? holmanHeadingText(heading) : heading}
-          </p>,
+          </ScriptureHeading>,
         );
       }
       nodes.push(
-        <p key={`p-${unitKey}`} className={paraClass} style={{ orphans: 2, widows: 2 }}>
+        <ScriptureParagraph
+          key={`p-${unitKey}`}
+          poetryLevel={poetryLevel}
+          isContinuation={group.isContinuation}
+        >
           {group.verses.map((v) =>
             renderVerse(v, {
               bookAbbr: verseGroup.bookAbbr,
@@ -261,7 +261,7 @@ export function renderScriptureParagraphNodes(
               paragraphIsContinuation: group.isContinuation,
             }),
           )}
-        </p>,
+        </ScriptureParagraph>,
       );
       return nodes;
     });

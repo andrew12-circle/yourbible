@@ -1,0 +1,6 @@
+{
+  "bibleId": "a556c5305ee15c3f-01",
+  "textRevision": "api-bible-csb-2024",
+  "chaptersWritten": 0,
+  "note": "Run npm run ingest:csb to populate public/bibles/csb/chapters/"
+}

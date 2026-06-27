@@ -84,7 +84,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 3;
+export const READER_PAGINATOR_SPLIT_REVISION = 4;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -108,7 +108,14 @@ export function isSpreadDoubleColumnSplitsReady(
   if (!isStreamSplitsReady(splits, streamLength)) return false;
   if (streamLength <= 2) return true;
   const leftEnd = splits[1] ?? 0;
-  return splits.length >= 3 && leftEnd > 0 && leftEnd < streamLength;
+  const rightEnd = splits[2];
+  return (
+    splits.length >= 3 &&
+    leftEnd > 0 &&
+    leftEnd < streamLength &&
+    rightEnd != null &&
+    rightEnd > leftEnd
+  );
 }
 
 export function streamPageCount(splits: number[], streamLength: number): number {
@@ -236,7 +243,18 @@ export function ensureSpreadPageSplits(
   const streamLength = stream.length;
   if (streamLength === 0) return splits;
   if (!isStreamSplitsReady(splits, streamLength)) return splits;
-  return repairSpreadPagePairSplits(splits, stream);
+
+  let normalized = repairSpreadPagePairSplits(splits, stream);
+
+  // [0, end] puts the whole stream on the left page and leaves the right blank.
+  if (normalized.length === 2 && streamLength > 2) {
+    const mid = synthesizeSpreadLeftBoundaryInRange(0, streamLength, stream);
+    if (mid > 0 && mid < streamLength) {
+      normalized = [0, mid, streamLength];
+    }
+  }
+
+  return normalized;
 }
 
 /** Slice one pane (left or right) of an open-book spread in double-column mode. */

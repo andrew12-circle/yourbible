@@ -12,8 +12,10 @@ import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
   scriptureContentFitsPage,
+  SPREAD_MEASURE_GAP_PX,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
+import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
   CHAPTER_HEADER_RESERVE_PX,
   type ReaderChapterPassage,
@@ -22,6 +24,7 @@ import {
   paragraphStartsForChapter,
   headingsForChapter,
   poetryBlocksForChapter,
+  synthesizeSpreadLeftBoundaryInRange,
   READER_PAGINATOR_SPLIT_REVISION,
 } from "@/lib/bible/readerStream";
 import type { PassageVerse } from "@/lib/bible/api";
@@ -130,6 +133,7 @@ export function BookPaginator({
     let i = 0;
     let pageIndex = 0;
     const useSpreadColumns = Boolean(spreadMode && columnsClassName);
+    const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
 
     while (i < stream.length) {
       if (stream[i]?.kind === "plate") {
@@ -149,11 +153,30 @@ export function BookPaginator({
           pageHeight,
           footerHeight,
         );
-        let leftPageEnd = findStreamSliceEnd(
+        const spreadLimit = pageHeight - footerHeight;
+        const spreadCap = findStreamSliceEnd(
           node,
           stream,
           spreadStart,
           stream.length,
+          chapters,
+          redByChapter,
+          READER_SPREAD_COLUMNS_CLASS,
+          spreadLimit,
+          studyLayout,
+          { columnCount: 4, measureWidthPx: spreadMeasureWidth },
+        );
+        if (spreadCap <= spreadStart + 1) {
+          splits.push(spreadStart + 1);
+          i = spreadStart + 1;
+          pageIndex += 1;
+          continue;
+        }
+        let leftPageEnd = findStreamSliceEnd(
+          node,
+          stream,
+          spreadStart,
+          spreadCap,
           chapters,
           redByChapter,
           columnsClassName,
@@ -164,11 +187,15 @@ export function BookPaginator({
         if (leftPageEnd <= spreadStart) {
           leftPageEnd = spreadStart + 1;
         }
-        if (leftPageEnd >= stream.length) {
-          splits.push(stream.length);
-          i = stream.length;
-          pageIndex += 2;
-          continue;
+        if (leftPageEnd >= spreadCap) {
+          leftPageEnd = synthesizeSpreadLeftBoundaryInRange(
+            spreadStart,
+            spreadCap,
+            stream,
+          );
+        }
+        if (leftPageEnd <= spreadStart) {
+          leftPageEnd = spreadStart + 1;
         }
         const rightStartsWithHeader =
           stream[leftPageEnd]?.kind === "chapter-header" ||
@@ -185,7 +212,7 @@ export function BookPaginator({
           node,
           stream,
           leftPageEnd,
-          stream.length,
+          spreadCap,
           chapters,
           redByChapter,
           columnsClassName,
@@ -234,6 +261,8 @@ export function BookPaginator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 
+  const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
+
   return (
     <div
       aria-hidden
@@ -241,7 +270,7 @@ export function BookPaginator({
         position: "fixed",
         top: -99999,
         left: -99999,
-        width: pageWidth,
+        width: spreadMode && columnsClassName ? spreadMeasureWidth : pageWidth,
         visibility: "hidden",
         pointerEvents: "none",
       }}
@@ -251,7 +280,7 @@ export function BookPaginator({
         data-reading-area
         className={cn(className, studyLayout === "holman" && "reader-holman-study")}
         style={{
-          width: pageWidth,
+          width: spreadMode && columnsClassName ? spreadMeasureWidth : pageWidth,
           ...fontSizeStyle,
         }}
       />

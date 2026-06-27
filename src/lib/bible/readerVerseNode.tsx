@@ -6,10 +6,11 @@ import {
   sliceTextByHighlights,
 } from "@/lib/bible/verseSelection";
 import { redLetterSegmentsForVerse, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import { shouldShowChapterDropCap } from "@/lib/bible/scriptureParagraph";
+import { makeVerseId } from "@/lib/bible/canonical/verseId";
 import { sliceSegmentsForRange } from "@/lib/bible/verseBodyRender";
 import { holmanPartsForVerse } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { shouldShowChapterDropCap } from "@/lib/bible/scriptureParagraph";
 import { styledTextClass, verseParts, versePlainText } from "@/lib/bible/verseParts";
 
 function markerVariant(book: string, chapter: number, verse: number): number {
@@ -98,6 +99,7 @@ function renderTextRange(
 }
 
 export interface ReaderVerseRenderDeps {
+  bibleId?: string;
   bookAbbr: string;
   chapter: number;
   useBookSpread: boolean;
@@ -121,6 +123,7 @@ export interface ReaderVerseRenderDeps {
 }
 
 export function createReaderVerseRenderer({
+  bibleId,
   bookAbbr,
   chapter,
   useBookSpread,
@@ -221,10 +224,13 @@ export function createReaderVerseRenderer({
       </span>
     );
 
+    const verseId = makeVerseId(bibleId ?? "CSB", verseBook, verseChapter, v.number);
+
     return (
       <span
         key={`${verseBook}-${verseChapter}-${v.number}`}
         data-verse={v.number}
+        data-verse-id={verseId}
         className={
           chapterDropCap ? "scripture-verse scripture-verse-chapter-open" : "scripture-verse"
         }
