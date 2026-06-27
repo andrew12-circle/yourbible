@@ -30,7 +30,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(500);
+    ).toBe(488);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -39,7 +39,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(484);
+    ).toBe(472);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -48,7 +48,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(580);
+    ).toBe(568);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: false,

@@ -268,7 +268,7 @@ function renderInto(
         })
         .join("");
       const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);
-      const paraHtml = `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
+      const paraHtml = `<p class="${paraClass}" style="orphans:2;widows:2">${versesHtml}</p>`;
       if (studyLayout === "holman") {
         return `${headingHtml}${paraHtml}`;
       }

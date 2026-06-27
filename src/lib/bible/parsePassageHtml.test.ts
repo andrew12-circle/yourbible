@@ -52,6 +52,12 @@ describe("parsePassageHtml", () => {
     ).toBe("An inscription was above him: THIS IS the KING of the JEWS.");
   });
 
+  it("does not merge normal words when repairing split caps", () => {
+    expect(sanitizePubVerseText("A city and A man walked.")).toBe(
+      "A city and A man walked.",
+    );
+  });
+
   it("joins small-cap span splits without inserting spaces (CSB inscription text)", () => {
     const html = `
 <p class="p"><span data-number="38" data-sid="LUK 23:38" class="v">38</span>An inscription was above him: <span class="sc">T</span>his <span class="sc">I</span>s the <span class="sc">K</span>ing of the <span class="sc">J</span>ews . </p>`;

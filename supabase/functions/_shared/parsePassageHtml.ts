@@ -141,13 +141,15 @@ function repairGluedPronounI(text: string): string {
 /**
  * Repair verse text when inline HTML tags were replaced with spaces (e.g. CSB
  * small-cap spans `<span class="sc">T</span>his` → "T his").
+ * Only merges obvious single-letter small-cap splits — never "A city" → "ACITY".
  */
 function repairSplitInitialCaps(text: string): string {
-  const splits = text.match(/\b[A-Z] [a-z]+\b/g);
-  if (!splits || splits.length < 2) return text;
-  return text.replace(/\b([A-Z]) ([a-z]+)\b/g, (_m, cap: string, rest: string) => {
-    if (cap === "I" && rest.length === 1) return (cap + rest).toUpperCase();
-    if (cap === "I") return `I ${rest}`;
+  return text.replace(/\b([A-Z]) ([a-z]{1,3})\b/g, (_m, cap: string, rest: string) => {
+    if (cap === "A" || cap === "O") return `${cap} ${rest}`;
+    if (cap === "I") {
+      if (rest.length === 1) return (cap + rest).toUpperCase();
+      return `I ${rest}`;
+    }
     return (cap + rest).toUpperCase();
   });
 }
@@ -169,6 +171,9 @@ export function sanitizePubVerseText(text: string, options?: { trim?: boolean })
   t = t.replace(/([,.;:])([A-Za-z])/g, "$1 $2");
   t = t.replace(/\.\s*,+\s*$/g, ".");
   t = t.replace(/\s+/g, " ");
+  t = t.replace(/\u2014{2,}/g, "\u2014");
+  t = t.replace(/\s+#\s*(?=[A-Za-z0-9"([])/g, " ");
+  t = t.replace(/(^|\s)#\s*(?=$|\s|[,.;:!?])/g, "$1");
   if (trim) t = t.trim();
   t = t.replace(/\s+([,.!?;:])/g, "$1");
   return t;

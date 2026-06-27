@@ -7,6 +7,8 @@ interface Props {
   side?: "left" | "right";
   /** Subtle horizontal slide — single-page mobile only; spread stays fade-only. */
   enableSlide?: boolean;
+  /** Instant swap — no crossfade (avoids empty-page flash while paginating). */
+  instant?: boolean;
   children: ReactNode;
 }
 
@@ -33,15 +35,24 @@ export function PageFlip({
   direction,
   side = "left",
   enableSlide = false,
+  instant = false,
   children,
 }: Props) {
   const reduceMotion = useReducedMotion();
-  const slide = enableSlide && !reduceMotion;
+  if (instant || reduceMotion) {
+    return (
+      <div
+        key={pageKey}
+        className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper"
+      >
+        {children}
+      </div>
+    );
+  }
+  const slide = enableSlide;
   const enterX = slide ? slideForTurn(direction, side, "enter") : 0;
   const exitX = slide ? slideForTurn(direction, side, "exit") : 0;
-  const transition = reduceMotion
-    ? { duration: 0.01 }
-    : { duration: DURATION, ease: EASE };
+  const transition = { duration: DURATION, ease: EASE };
 
   return (
     <motion.div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper">

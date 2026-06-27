@@ -24,6 +24,8 @@ import {
   paragraphStartsForChapter,
   headingsForChapter,
   poetryBlocksForChapter,
+  secondChapterHeaderInRange,
+  synthesizeSpreadLeftBoundaryInRange,
 } from "@/lib/bible/readerStream";
 import type { PassageVerse } from "@/lib/bible/api";
 import {
@@ -150,9 +152,10 @@ export function BookPaginator({
           pageHeight,
           footerHeight,
         );
-        const spreadLimit = spreadStartsWithHeader
-          ? leftLimit
-          : pageHeight - footerHeight;
+        // Full spread height — using leftLimit here made spreadEnd === leftEnd whenever a
+        // chapter header opened the spread, so each spread became one page boundary and
+        // the right page showed the next spread (ch1 | ch3 instead of ch1 | ch2).
+        const spreadLimit = pageHeight - footerHeight;
         const spreadEnd = findStreamSliceEnd(
           node,
           stream,
@@ -165,11 +168,14 @@ export function BookPaginator({
           studyLayout,
           { columnCount: 4, measureWidthPx: spreadMeasureWidth },
         );
+        const chapterSplit = secondChapterHeaderInRange(stream, spreadStart, spreadEnd);
+        const leftSearchEnd =
+          chapterSplit > spreadStart ? chapterSplit : spreadEnd;
         const leftEnd = findStreamSliceEnd(
           node,
           stream,
           spreadStart,
-          spreadEnd,
+          leftSearchEnd,
           chapters,
           redByChapter,
           columnsClassName,
@@ -183,12 +189,20 @@ export function BookPaginator({
           pageIndex += 1;
           continue;
         }
-        splits.push(leftEnd);
-        if (leftEnd < spreadEnd) {
+        let leftPageEnd = leftEnd;
+        if (leftPageEnd >= spreadEnd && spreadEnd > spreadStart + 1) {
+          leftPageEnd = synthesizeSpreadLeftBoundaryInRange(
+            spreadStart,
+            spreadEnd,
+            stream,
+          );
+        }
+        splits.push(leftPageEnd);
+        if (leftPageEnd < spreadEnd) {
           splits.push(spreadEnd);
         }
         i = spreadEnd;
-        pageIndex += leftEnd < spreadEnd ? 2 : 1;
+        pageIndex += leftPageEnd < spreadEnd ? 2 : 1;
         continue;
       }
 
@@ -382,7 +396,7 @@ function renderStreamSlice(
         poetryLevel > 0
           ? scripturePoetryClassNameMeasure(poetryLevel, group.isContinuation)
           : scriptureParagraphClassNameMeasure(group.isContinuation);
-      const paraHtml = `<p class="${paraClass}" style="hyphens:auto;orphans:2;widows:2">${versesHtml}</p>`;
+      const paraHtml = `<p class="${paraClass}" style="orphans:2;widows:2">${versesHtml}</p>`;
       if (studyLayout === "holman") {
         if (heading) {
           parts.push(buildHolmanHeadingMeasureHtml(heading, batch!.bookAbbr, escapeHtml));

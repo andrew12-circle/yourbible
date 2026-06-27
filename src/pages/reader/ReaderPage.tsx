@@ -101,6 +101,7 @@ import {
   paragraphStartsForChapter,
   poetryBlocksForChapter,
   sliceReaderPage,
+  sliceReaderSpreadPane,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
   streamPageCount,
@@ -162,8 +163,8 @@ import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
-/** Extra slack so two-column pages do not clip the last line. */
-const PAGINATOR_OVERFLOW_GUARD_PX = 20;
+/** Extra slack so two-column pages do not clip the last line or footnote band. */
+const PAGINATOR_OVERFLOW_GUARD_PX = 32;
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -886,17 +887,38 @@ export default function ReaderPage() {
     if (useStreamReader) {
       if (!streamSplitsReady) return;
       let target = 0;
-      for (let p = 0; p < navStreamSplits.length - 1; p++) {
-        const slice = sliceReaderPage(readerStream, navStreamSplits, p);
-        const containsVerse = slice?.verseGroups.some(
-          (g) =>
-            g.bookAbbr === book.abbr &&
-            g.chapter === chapter &&
-            g.verses.some((v) => v.number === pendingVerse),
-        );
-        if (containsVerse) target = p;
+      if (useBookSpread && useSpreadDoubleColumn) {
+        for (let p = 0; p < navStreamSplits.length - 1; p += 2) {
+          for (const side of ["left", "right"] as const) {
+            const slice = sliceReaderSpreadPane(
+              readerStream,
+              navStreamSplits,
+              p,
+              side,
+              readerStream.length,
+            );
+            const containsVerse = slice?.verseGroups.some(
+              (g) =>
+                g.bookAbbr === book.abbr &&
+                g.chapter === chapter &&
+                g.verses.some((v) => v.number === pendingVerse),
+            );
+            if (containsVerse) target = p;
+          }
+        }
+      } else {
+        for (let p = 0; p < navStreamSplits.length - 1; p++) {
+          const slice = sliceReaderPage(readerStream, navStreamSplits, p);
+          const containsVerse = slice?.verseGroups.some(
+            (g) =>
+              g.bookAbbr === book.abbr &&
+              g.chapter === chapter &&
+              g.verses.some((v) => v.number === pendingVerse),
+          );
+          if (containsVerse) target = p;
+        }
+        if (useBookSpread && target % 2 === 1) target -= 1;
       }
-      if (useBookSpread && target % 2 === 1) target -= 1;
       if (useBookSpread) setSpreadPageIdx(Math.max(0, target));
       else setChapterPage(Math.max(0, target));
       setPendingVerse(null);
@@ -919,6 +941,7 @@ export default function ReaderPage() {
     readerStream,
     useStreamReader,
     useBookSpread,
+    useSpreadDoubleColumn,
     book.abbr,
     chapter,
   ]);
@@ -1274,14 +1297,22 @@ export default function ReaderPage() {
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
     const splitsForPage =
-      useStreamReader && streamSplitsReady
+      useStreamReader && navStreamSplits.length >= 2
         ? navStreamSplits
         : !useStreamReader && splitsReady
           ? splits
           : null;
     const streamSlice =
       useStreamReader && !scrollMode && !pageOutOfRange && splitsForPage
-        ? sliceReaderPage(readerStream, splitsForPage, pageIdx)
+        ? useSpreadDoubleColumn && useBookSpread
+          ? sliceReaderSpreadPane(
+              readerStream,
+              splitsForPage,
+              spreadPageIdx,
+              side,
+              readerStream.length,
+            )
+          : sliceReaderPage(readerStream, splitsForPage, pageIdx)
         : null;
     const slice =
       scrollMode || useStreamReader || pageOutOfRange || !splitsForPage
@@ -1290,8 +1321,7 @@ export default function ReaderPage() {
     const pageContentReady = pageOutOfRange
       ? false
       : useStreamReader
-        ? streamSplitsReady &&
-          streamSlice != null &&
+        ? streamSlice != null &&
           (streamSlice.isPlatePage || streamSlice.verseGroups.length > 0)
         : splitsReady && slice != null && slice.length > 0;
     const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
@@ -1299,16 +1329,24 @@ export default function ReaderPage() {
     const pageBookAbbr = pagePrimary?.bookAbbr ?? book.abbr;
     const pageBookName = pagePrimary?.bookName ?? book.name;
     const pageChapter = pagePrimary?.chapter ?? chapter;
+    const pageStartsWithChapterHeader = streamSlice?.startsWithChapterHeader != null;
+    const streamPaginatorPageIdx =
+      useSpreadDoubleColumn && useBookSpread
+        ? spreadPageIdx + (side === "left" ? 0 : 1)
+        : pageIdx;
+    /** Only the first stream page uses firstPageHeight — not every chapter-opening left page. */
     const measuresFirstPage =
       useBookSpread
         ? side === "left" &&
           pageIdx === spreadPageIdx &&
-          streamSlice?.startsWithChapterHeader != null
+          spreadPageIdx === 0 &&
+          pageStartsWithChapterHeader
         : pageIdx === 0 && side === "left" && chapterPage === 0;
     const isCurrentLeftPage = side === "left" && pageIdx === activePageIdx;
+    const spreadRightPageIdx = useSpreadDoubleColumn ? spreadPageIdx : spreadPageIdx + 1;
     const isOpeningRightPage =
       useBookSpread
-        ? side === "right" && pageIdx === spreadPageIdx + 1
+        ? side === "right" && pageIdx === spreadRightPageIdx
         : readerSpread && chapterPage === 0 && pageIdx === 1 && side === "right";
     const measuresRestPage =
       isOpeningRightPage ||
@@ -1317,25 +1355,13 @@ export default function ReaderPage() {
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
-    const paginationPending =
-      !scrollMode &&
-      !pageOutOfRange &&
-      !pageContentReady &&
-      verses.length > 0;
-    const showPaginationSpinner =
-      paginationPending &&
-      (scrollMode
-        ? pageIdx === chapterPage
-        : useBookSpread
-          ? pageIdx === spreadPageIdx || pageIdx === spreadPageIdx + 1
-          : pageIdx === chapterPage);
     const attachMeasureRef = effectiveSpread
       ? side === "left" && pageIdx === spreadPageIdx
         ? measuresFirstPage
           ? onMeasureFirstRef
           : onMeasureRestRef
         : side === "right" &&
-            pageIdx === spreadPageIdx + 1 &&
+            pageIdx === spreadRightPageIdx &&
             measuresRestPage
           ? onMeasureRestRef
           : undefined
@@ -1369,11 +1395,13 @@ export default function ReaderPage() {
     const showPageFootnotes =
       versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
     const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
-    const scriptureColumnHeightPx = pageContentReady
-      ? readerColumnContentHeightPx({
+    const scriptureColumnHeightPx =
+      pageContentReady || (streamSlice != null && !scrollMode)
+        ? readerColumnContentHeightPx({
           columnLayoutActive: !scrollMode && Boolean(columnClassName),
-          measuresFirstPage,
-          startsWithChapterHeader: streamSlice?.startsWithChapterHeader != null,
+          measuresFirstPage:
+            streamPaginatorPageIdx === 0 && pageStartsWithChapterHeader,
+          startsWithChapterHeader: pageStartsWithChapterHeader,
           firstPageHeight,
           pageHeight: pageBox.h,
           footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
@@ -1390,26 +1418,48 @@ export default function ReaderPage() {
         style={pageHorizontalPadding(side, !effectiveSpread, compactChrome)}
       >
         <div
-          className={`flex-shrink-0 ${
-            !effectiveSpread || side === "left" ? "text-left" : "text-right"
-          } ${inkMode ? "pointer-events-none" : ""}`}
+          className={cn(
+            "flex-shrink-0 flex items-start justify-between gap-3",
+            inkMode && "pointer-events-none",
+          )}
         >
-          <button
-            type="button"
-            onClick={openReaderSettings}
-            className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
-            aria-label={`${pageBookName} — open reader settings`}
+          {side === "right" && !scrollMode && !compactChrome ? (
+            <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
+              {globalPage}
+            </span>
+          ) : (
+            <span className="w-0 shrink-0" aria-hidden />
+          )}
+          <div
+            className={cn(
+              "min-w-0 flex-1",
+              !effectiveSpread || side === "left" ? "text-left" : "text-right",
+            )}
           >
-            {pageBookName}
-          </button>
-          {side === "left" && readerSourceLine ? (
-            <p
-              className="mt-0.5 max-w-[18rem] text-[9px] leading-snug text-muted-foreground/50 font-system"
-              title={readerSourceLine}
+            <button
+              type="button"
+              onClick={openReaderSettings}
+              className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
+              aria-label={`${pageBookName} — open reader settings`}
             >
-              {readerSourceLine}
-            </p>
-          ) : null}
+              {pageBookName}
+            </button>
+            {side === "left" && readerSourceLine ? (
+              <p
+                className="mt-0.5 max-w-[18rem] text-[9px] leading-snug text-muted-foreground/50 font-system"
+                title={readerSourceLine}
+              >
+                {readerSourceLine}
+              </p>
+            ) : null}
+          </div>
+          {side === "left" && !scrollMode && !compactChrome ? (
+            <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
+              {globalPage}
+            </span>
+          ) : (
+            <span className="w-0 shrink-0" aria-hidden />
+          )}
         </div>
         {pageLoading ? (
           <div className="flex flex-1 justify-center items-center">
@@ -1451,20 +1501,8 @@ export default function ReaderPage() {
                 : "flex flex-col",
             )}
           >
-            {showPaginationSpinner ? (
-              <div
-                className="absolute inset-0 z-[2] flex items-center justify-center bg-paper/40 pointer-events-none"
-                aria-hidden
-              >
-                <Loader2 className="w-5 h-5 animate-spin text-leather/50" />
-              </div>
-            ) : null}
             <article
-              key={
-                attachMeasureRef
-                  ? `${book.abbr}-${chapter}-measure-${side}`
-                  : `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`
-              }
+              key={`${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`}
               ref={attachMeasureRef}
               data-reading-area
               aria-busy={!ready}
@@ -1514,7 +1552,7 @@ export default function ReaderPage() {
                       () => headingByVerse,
                       () => passage?.poetryBlocks ?? [],
                     )
-                  ) : streamSlice?.isPlatePage && ready ? (
+                  ) : streamSlice?.isPlatePage && pageContentReady ? (
                     streamSlice.plates.map((plate) => (
                       <ScripturePlate key={plate.id} plate={plate} />
                     ))
@@ -1620,7 +1658,9 @@ export default function ReaderPage() {
                   <span title={currentBible?.name}>{readerEditionAbbreviation(currentBible)}</span>
                 </>
               ) : null}
-              <span aria-hidden>· p. {globalPage}</span>
+              <span aria-hidden className="reader-page-number">
+                · p. {globalPage}
+              </span>
             </span>
             <button
               onClick={() => goPage(1)}
@@ -1638,7 +1678,7 @@ export default function ReaderPage() {
   // Determine left & right page indices (spread = two consecutive pages)
   const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
   const leftIdx = activePageIdx;
-  const rightIdx = activePageIdx + 1;
+  const rightIdx = useSpreadDoubleColumn ? activePageIdx : activePageIdx + 1;
   const subsequentPageHeight = pageBox.h > 0 ? pageBox.h : 0;
   const paginatorFirstPageHeight =
     firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
@@ -1842,6 +1882,7 @@ export default function ReaderPage() {
               direction={flipDirection}
               side="left"
               enableSlide={!effectiveSpread}
+              instant={effectiveSpread}
             >
               {renderPageSurface(effectiveSpread ? leftIdx : chapterPage, "left")}
             </PageFlip>
@@ -1857,6 +1898,7 @@ export default function ReaderPage() {
                 pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`}
                 direction={flipDirection}
                 side="right"
+                instant
               >
                 {renderPageSurface(rightIdx, "right")}
               </PageFlip>

@@ -113,8 +113,15 @@ export function streamPageCount(splits: number[], streamLength: number): number 
   return isStreamSplitsReady(splits, streamLength) ? splits.length - 1 : 1;
 }
 
-function synthesizeSpreadLeftBoundary(end: number, stream: ReaderStreamUnit[]): number {
-  const target = Math.max(1, Math.floor(end * 0.48));
+/** Verse-boundary split for one spread segment (stream[start:end)). */
+export function synthesizeSpreadLeftBoundaryInRange(
+  start: number,
+  end: number,
+  stream: ReaderStreamUnit[],
+): number {
+  if (end <= start + 1) return end;
+  const len = end - start;
+  const target = start + Math.max(1, Math.floor(len * 0.48));
   let leftEnd = target;
   for (let i = target; i < end; i++) {
     if (stream[i]?.kind === "chapter-header") {
@@ -122,10 +129,73 @@ function synthesizeSpreadLeftBoundary(end: number, stream: ReaderStreamUnit[]): 
       break;
     }
   }
-  if (leftEnd <= 0 || leftEnd >= end) {
-    leftEnd = Math.max(1, Math.floor(end / 2));
+  if (leftEnd <= start || leftEnd >= end) {
+    leftEnd = start + Math.max(1, Math.floor(len / 2));
   }
   return leftEnd;
+}
+
+function synthesizeSpreadLeftBoundary(end: number, stream: ReaderStreamUnit[]): number {
+  return synthesizeSpreadLeftBoundaryInRange(0, end, stream);
+}
+
+function countChapterHeadersInRange(
+  stream: ReaderStreamUnit[],
+  start: number,
+  end: number,
+): number {
+  let count = 0;
+  for (let i = start; i < end; i++) {
+    if (stream[i]?.kind === "chapter-header") count += 1;
+  }
+  return count;
+}
+
+/** Second+ chapter header inside a spread segment — split left/right pages here. */
+export function secondChapterHeaderInRange(
+  stream: ReaderStreamUnit[],
+  start: number,
+  end: number,
+): number {
+  let seen = 0;
+  for (let i = start; i < end; i++) {
+    if (stream[i]?.kind !== "chapter-header") continue;
+    seen += 1;
+    if (seen >= 2) return i;
+  }
+  return -1;
+}
+
+/**
+ * When the paginator recorded one boundary per spread (each segment holds multiple
+ * chapters), expand into left/right page pairs so the open book shows ch N | ch N+1.
+ */
+export function expandMultiChapterSpreadSplits(
+  splits: number[],
+  stream: ReaderStreamUnit[],
+): number[] {
+  if (splits.length < 3 || splits[0] !== 0 || stream.length === 0) return splits;
+
+  let needsExpand = false;
+  for (let i = 0; i < splits.length - 1; i++) {
+    if (countChapterHeadersInRange(stream, splits[i]!, splits[i + 1]!) >= 2) {
+      needsExpand = true;
+      break;
+    }
+  }
+  if (!needsExpand) return splits;
+
+  const expanded: number[] = [0];
+  for (let i = 0; i < splits.length - 1; i++) {
+    const start = expanded[expanded.length - 1]!;
+    const end = splits[i + 1]!;
+    if (end <= start) continue;
+
+    const chapterSplit = secondChapterHeaderInRange(stream, start, end);
+    if (chapterSplit > start && chapterSplit < end) expanded.push(chapterSplit);
+    expanded.push(end);
+  }
+  return expanded;
 }
 
 /**
@@ -139,22 +209,40 @@ export function ensureSpreadPageSplits(
   const streamLength = stream.length;
   if (streamLength === 0) return splits;
 
-  if (splits.length >= 3 && splits[0] === 0) {
-    const mid = splits[1]!;
-    const last = splits[splits.length - 1]!;
-    if (mid > 0 && mid < last) return splits;
+  let normalized = splits;
+
+  if (normalized.length >= 3 && normalized[0] === 0) {
+    const mid = normalized[1]!;
+    const last = normalized[splits.length - 1]!;
+    if (!(mid > 0 && mid < last)) {
+      normalized = splits;
+    }
+  } else if (streamLength <= 2) {
+    return normalized.length >= 2 && normalized[0] === 0 ? normalized : [0, streamLength];
+  } else {
+    const end =
+      normalized.length >= 2 && normalized[0] === 0 && (normalized[normalized.length - 1] ?? 0) > 0
+        ? normalized[normalized.length - 1]!
+        : streamLength;
+    normalized = [0, synthesizeSpreadLeftBoundary(end, stream), end];
   }
 
-  if (streamLength <= 2) {
-    return splits.length >= 2 && splits[0] === 0 ? splits : [0, streamLength];
-  }
+  return expandMultiChapterSpreadSplits(normalized, stream);
+}
 
-  const end =
-    splits.length >= 2 && splits[0] === 0 && (splits[splits.length - 1] ?? 0) > 0
-      ? splits[splits.length - 1]!
-      : streamLength;
-
-  return [0, synthesizeSpreadLeftBoundary(end, stream), end];
+/** Slice one pane (left or right) of an open-book spread in double-column mode. */
+export function sliceReaderSpreadPane(
+  stream: ReaderStreamUnit[],
+  splits: number[],
+  spreadLeftPageIdx: number,
+  side: "left" | "right",
+  streamLength: number,
+): ReaderPageSlice | null {
+  const ranges = spreadPaneStreamRanges(splits, spreadLeftPageIdx, streamLength);
+  const range = side === "left" ? ranges.left : ranges.right;
+  if (range.end <= range.start) return null;
+  const pageIdx = spreadLeftPageIdx + (side === "right" ? 1 : 0);
+  return sliceReaderStreamRange(stream, range.start, range.end, pageIdx);
 }
 
 /** Left/right stream index ranges for one facing spread in double-column mode. */

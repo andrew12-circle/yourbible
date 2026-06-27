@@ -17,7 +17,7 @@ export interface ScriptureColumnMeasureOptions {
  */
 
 /** Default slack reserved in paginator fit tests (must match ReaderPage). */
-export const READER_COLUMN_FOOTER_GUARD_PX = 20;
+export const READER_COLUMN_FOOTER_GUARD_PX = 32;
 
 /** Chapter title block reserved above the text area on non-opening pages. */
 export const READER_CHAPTER_HEADER_RESERVE_PX = 96;

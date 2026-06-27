@@ -576,6 +576,9 @@
     display: inline;
     min-width: 0;
     text-align: justify;
+    hyphens: none;
+    -webkit-hyphens: none;
+    overflow-wrap: break-word;
   }
   .scripture-verse-chapter-open .verse-body-wrap {
     display: flow-root;
@@ -596,10 +599,27 @@
     color: hsl(0 58% 58%);
   }
 
+  /* Printed Bible page numbers — matches chapter drop-cap / cover cordovan. */
+  .reader-page-number {
+    font-family: var(--font-display, 'Cormorant Garamond', serif);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    color: hsl(0 52% 42%);
+    font-variant-numeric: tabular-nums;
+  }
+  .reader-theme-dark .reader-page-number {
+    color: hsl(0 58% 58%);
+  }
+
   /* Traditional Bible paragraph flow — drop-cap + inline verse numbers. */
   .scripture-paragraph {
     text-indent: 0;
     margin: 0;
+    hyphens: none;
+    -webkit-hyphens: none;
+    overflow-wrap: break-word;
   }
   .scripture-paragraph-continue {
     text-indent: 0;
@@ -607,6 +627,7 @@
   .scripture-heading {
     text-align: center;
     font-style: italic;
+    font-weight: 700;
     font-size: 1.05em;
     line-height: 1.45;
     text-indent: 0;
@@ -631,6 +652,8 @@
     overflow: hidden;
     box-sizing: border-box;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
+    padding-inline: 0.04em;
+    padding-bottom: 0.12em;
   }
   .reader-theme-dark .scripture-columns-spread {
     column-rule-color: hsl(var(--foreground) / 0.14);
@@ -669,6 +692,8 @@
     overflow: hidden;
     box-sizing: border-box;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
+    padding-inline: 0.04em;
+    padding-bottom: 0.12em;
   }
   .reader-theme-dark .scripture-columns-2 {
     column-rule-color: hsl(var(--foreground) / 0.14);

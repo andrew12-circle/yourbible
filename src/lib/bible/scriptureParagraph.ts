@@ -15,7 +15,7 @@ import { buildVersePartsInnerHtml } from "@/lib/bible/verseBodyRender";
 
 export function scriptureParagraphClassName(isContinuation: boolean): string {
   return cn(
-    "scripture-paragraph text-justify hyphens-auto",
+    "scripture-paragraph text-justify",
     isContinuation && "scripture-paragraph-continue",
   );
 }
@@ -31,7 +31,7 @@ export function scripturePoetryClassName(level: number, isContinuation: boolean)
   const poetry = poetryParagraphClassName(level, isContinuation);
   return cn(
     poetry || scriptureParagraphClassName(isContinuation),
-    poetry ? "text-justify hyphens-auto" : "",
+    poetry ? "text-justify" : "",
   );
 }
 

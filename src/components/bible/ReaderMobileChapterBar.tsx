@@ -95,7 +95,7 @@ export function ReaderMobileChapterBar({
           {!scrollMode && globalPage != null ? (
             <>
               <span aria-hidden> · </span>
-              <span>p. {globalPage}</span>
+              <span className="reader-page-number">p. {globalPage}</span>
             </>
           ) : null}
         </button>
