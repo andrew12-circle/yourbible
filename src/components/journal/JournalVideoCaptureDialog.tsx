@@ -216,7 +216,7 @@ export default function JournalVideoCaptureDialog({
       className={cn(
         "relative flex w-full items-center justify-center bg-black",
         floating
-          ? "aspect-video"
+          ? "h-full min-h-0 w-full"
           : isMobile
             ? "h-full min-h-0 flex-1"
             : isScreen
