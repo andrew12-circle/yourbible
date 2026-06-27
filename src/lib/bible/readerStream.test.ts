@@ -3,9 +3,10 @@ import type { PassageVerse } from "@/lib/bible/api";
 import {
   buildReaderStream,
   ensureSpreadPageSplits,
-  expandMultiChapterSpreadSplits,
   isSpreadDoubleColumnSplitsReady,
   isStreamSplitsReady,
+  repairSpreadPagePairSplits,
+  spreadSplitsNeedPagePairRepair,
   sliceReaderPage,
   sliceReaderSpreadPane,
   sliceReaderStreamRange,
@@ -136,7 +137,7 @@ describe("readerStream", () => {
     expect(isSpreadDoubleColumnSplitsReady([0, 3, n], n)).toBe(true);
   });
 
-  it("ensureSpreadPageSplits adds a right-page boundary when splits are still [0] only", () => {
+  it("ensureSpreadPageSplits leaves incomplete splits unchanged while measuring", () => {
     const stream = buildReaderStream([
       {
         bookAbbr: "Luk",
@@ -148,9 +149,60 @@ describe("readerStream", () => {
         poetryBlocks: [],
       },
     ]);
-    const normalized = ensureSpreadPageSplits([0], stream);
-    expect(normalized).toHaveLength(3);
-    expect(sliceReaderStreamRange(stream, normalized[1]!, normalized[2]!, 1)?.verseGroups.length).toBeGreaterThan(0);
+    expect(ensureSpreadPageSplits([0], stream)).toEqual([0]);
+    expect(ensureSpreadPageSplits([0, stream.length], stream)).toEqual([0, stream.length]);
+  });
+
+  it("repairSpreadPagePairSplits inserts page boundaries when right page skips verses", () => {
+    const longVerses = verses(Array.from({ length: 24 }, (_, i) => i + 1));
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 4,
+        verses: longVerses,
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 5,
+        verses: verses([1, 2, 3]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const ch5 = stream.findIndex((u) => u.kind === "chapter-header" && u.chapter === 5);
+    const v5 = stream.findIndex((u) => u.kind === "verse" && u.chapter === 4 && u.verse.number === 5);
+    const spreadOnly = [0, v5, ch5, stream.length];
+    expect(spreadSplitsNeedPagePairRepair(stream, spreadOnly)).toBe(true);
+    const paired = repairSpreadPagePairSplits(spreadOnly, stream);
+    expect(paired.length).toBeGreaterThan(spreadOnly.length);
+    expect(paired[0]).toBe(0);
+    expect(paired[paired.length - 1]).toBe(stream.length);
+  });
+
+  it("spreadPaneStreamRanges continues a long chapter across multiple spreads", () => {
+    const longVerses = verses(Array.from({ length: 40 }, (_, i) => i + 1));
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 4,
+        verses: longVerses,
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const splits = [0, 10, 20, 30, 40, stream.length];
+    const spread1Left = sliceReaderSpreadPane(stream, splits, 2, "left", stream.length);
+    expect(spread1Left?.startsWithChapterHeader).toBeNull();
+    expect(spread1Left?.verseGroups[0]?.verses[0]?.number).toBeGreaterThan(1);
+    expect(streamPageCount(splits, stream.length)).toBe(5);
   });
 
   it("spreadPaneStreamRanges maps left and right panes for a spread", () => {
@@ -192,7 +244,11 @@ describe("readerStream", () => {
         poetryBlocks: [],
       },
     ]);
-    const splits = ensureSpreadPageSplits([0], stream);
+    const splits = [
+      0,
+      synthesizeSpreadLeftBoundaryInRange(0, stream.length, stream),
+      stream.length,
+    ];
     const left = sliceReaderPage(stream, splits, 0);
     const right = sliceReaderPage(stream, splits, 1);
     expect(left?.verseGroups.length).toBeGreaterThan(0);
@@ -279,71 +335,28 @@ describe("readerStream", () => {
     expect(right?.verseGroups.some((g) => g.chapter === 3)).toBe(false);
   });
 
-  it("expandMultiChapterSpreadSplits splits spread-only boundaries into left/right chapter pairs", () => {
+  it("spreadPaneStreamRanges continues mid-chapter across spread turns", () => {
+    const longVerses = verses(Array.from({ length: 40 }, (_, i) => i + 1));
     const stream = buildReaderStream([
       {
-        bookAbbr: "Gen",
-        bookName: "Genesis",
-        chapter: 2,
-        verses: verses([1, 2, 3]),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
-      },
-      {
-        bookAbbr: "Gen",
-        bookName: "Genesis",
-        chapter: 3,
-        verses: verses([1, 2, 3]),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
-      },
-      {
-        bookAbbr: "Gen",
-        bookName: "Genesis",
+        bookAbbr: "Jos",
+        bookName: "Joshua",
         chapter: 4,
-        verses: verses([1, 2, 3]),
+        verses: longVerses,
         paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
-      },
-      {
-        bookAbbr: "Gen",
-        bookName: "Genesis",
-        chapter: 5,
-        verses: verses([1, 2, 3]),
-        paragraphStarts: [1],
-        headings: [],
+        headings: [{ beforeVerse: 1, text: "Memorial Stones" }],
         poetryBlocks: [],
       },
     ]);
-    const ch3 = stream.findIndex(
-      (u) => u.kind === "chapter-header" && u.chapter === 3,
-    );
-    const ch4 = stream.findIndex(
-      (u) => u.kind === "chapter-header" && u.chapter === 4,
-    );
-    const ch5 = stream.findIndex(
-      (u) => u.kind === "chapter-header" && u.chapter === 5,
-    );
-    const spreadOnly = [0, ch4, ch5, stream.length];
-    const expanded = expandMultiChapterSpreadSplits(spreadOnly, stream);
-    expect(expanded.length).toBeGreaterThan(spreadOnly.length);
-
-    const left0 = sliceReaderSpreadPane(stream, expanded, 0, "left", stream.length);
-    const right0 = sliceReaderSpreadPane(stream, expanded, 0, "right", stream.length);
-    expect(left0?.verseGroups.some((g) => g.chapter === 2)).toBe(true);
-    expect(right0?.verseGroups.some((g) => g.chapter === 3)).toBe(true);
-    expect(right0?.verseGroups.some((g) => g.chapter === 4)).toBe(false);
-
-    const left1 = sliceReaderSpreadPane(stream, expanded, 2, "left", stream.length);
-    const right1 = sliceReaderSpreadPane(stream, expanded, 2, "right", stream.length);
-    expect(left1?.verseGroups.some((g) => g.chapter === 4)).toBe(true);
-    expect(right1?.verseGroups.some((g) => g.chapter === 5)).toBe(true);
+    const chHeader = stream.findIndex((u) => u.kind === "chapter-header");
+    const mid = synthesizeSpreadLeftBoundaryInRange(chHeader, stream.length, stream);
+    const splits = [0, mid, mid + 8, mid + 20, stream.length];
+    const spread1Left = sliceReaderSpreadPane(stream, splits, 2, "left", stream.length);
+    expect(spread1Left?.startsWithChapterHeader).toBeNull();
+    expect(spread1Left?.verseGroups[0]?.verses[0]?.number).toBeGreaterThan(1);
   });
 
-  it("ensureSpreadPageSplits adds a right-page boundary when only [0, N] exists", () => {
+  it("ensureSpreadPageSplits passes through valid page-paired splits", () => {
     const stream = buildReaderStream([
       {
         bookAbbr: "Luk",
@@ -364,15 +377,13 @@ describe("readerStream", () => {
         poetryBlocks: [],
       },
     ]);
-    const normalized = ensureSpreadPageSplits([0, stream.length], stream);
-    expect(normalized).toHaveLength(3);
-    expect(normalized[0]).toBe(0);
-    expect(normalized[2]).toBe(stream.length);
-    expect(normalized[1]).toBeGreaterThan(0);
-    expect(normalized[1]).toBeLessThan(stream.length);
+    const ch22 = stream.findIndex((u) => u.kind === "chapter-header" && u.chapter === 22);
+    const paired = [0, ch22 - 1, ch22, ch22 + 2, stream.length];
+    const normalized = ensureSpreadPageSplits(paired, stream);
+    expect(normalized).toEqual(paired);
 
-    const rightPage = sliceReaderPage(stream, normalized, 1);
-    expect(rightPage?.verseGroups.some((g) => g.chapter === 22)).toBe(true);
+    const rightPage = sliceReaderSpreadPane(stream, normalized, 0, "right", stream.length);
+    expect(rightPage?.verseGroups.some((g) => g.chapter === 21)).toBe(true);
   });
 
   it("spreadStreamRange spans left and right page indices", () => {

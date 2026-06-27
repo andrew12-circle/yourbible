@@ -98,6 +98,7 @@ import {
   isSpreadDoubleColumnSplitsReady,
   headingsForChapter,
   isStreamSplitsReady,
+  READER_PAGINATOR_SPLIT_REVISION,
   paragraphStartsForChapter,
   poetryBlocksForChapter,
   sliceReaderPage,
@@ -680,7 +681,7 @@ export default function ReaderPage() {
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, studyLayoutPreference, PASSAGE_PARSER_REVISION]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, studyLayoutPreference, PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION]);
   const chapterPlates = useMemo(
     () => platesForChapter(book.abbr, chapter),
     [book.abbr, chapter],
@@ -789,13 +790,12 @@ export default function ReaderPage() {
         : streamSplits,
     [useBookSpread, readerStream, streamSplits],
   );
-  const totalStreamPages =
-    useSpreadDoubleColumn && readerStream.length > 2
-      ? Math.max(2, streamPageCount(navStreamSplits, readerStream.length))
-      : streamPageCount(navStreamSplits, readerStream.length);
   const streamSplitsReady = useSpreadDoubleColumn
     ? isSpreadDoubleColumnSplitsReady(navStreamSplits, readerStream.length)
     : isStreamSplitsReady(navStreamSplits, readerStream.length);
+  const totalStreamPages = streamSplitsReady
+    ? streamPageCount(navStreamSplits, readerStream.length)
+    : 1;
   /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
@@ -1395,6 +1395,35 @@ export default function ReaderPage() {
     const showPageFootnotes =
       versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
     const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
+    const pageScriptureNodes = (
+      groups: { bookAbbr: string; chapter: number; verses: PassageVerse[] }[],
+      resolveParagraphStarts: (bookAbbr: string, chapter: number) => Set<number>,
+      resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
+      resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => import("@/lib/bible/api").PoetryBlock[],
+    ) =>
+      renderScriptureParagraphNodes(
+        groups,
+        resolveParagraphStarts,
+        resolveHeading,
+        (v, ctx) =>
+          renderVerse(v, {
+            ...ctx,
+            showChapterDropCap:
+              useStreamReader && !scrollMode ? pageStartsWithChapterHeader : undefined,
+          }),
+        resolvePoetryBlocks,
+        { studyLayout: activeStudyLayout },
+      );
+    const headingsFromVerseOnPage = (bookAbbr: string, ch: number) => {
+      const firstVerse =
+        streamSlice?.verseGroups.find((g) => g.bookAbbr === bookAbbr && g.chapter === ch)
+          ?.verses[0]?.number ?? 1;
+      return new Map(
+        headingsForChapter(streamChapters, bookAbbr, ch)
+          .filter((h) => h.beforeVerse >= firstVerse)
+          .map((h) => [h.beforeVerse, h.text]),
+      );
+    };
     const scriptureColumnHeightPx =
       pageContentReady || (streamSlice != null && !scrollMode)
         ? readerColumnContentHeightPx({
@@ -1557,7 +1586,7 @@ export default function ReaderPage() {
                       <ScripturePlate key={plate.id} plate={plate} />
                     ))
                   ) : useStreamReader && streamSlice && pageContentReady ? (
-                    scriptureNodes(
+                    pageScriptureNodes(
                       streamSlice.verseGroups.map((verseGroup) => ({
                         bookAbbr: verseGroup.bookAbbr,
                         chapter: verseGroup.chapter,
@@ -1565,13 +1594,7 @@ export default function ReaderPage() {
                       })),
                       (bookAbbr, ch) =>
                         new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                      (bookAbbr, ch) =>
-                        new Map(
-                          headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                            h.beforeVerse,
-                            h.text,
-                          ]),
-                        ),
+                      headingsFromVerseOnPage,
                       (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
                     )
                   ) : slice && slice.length > 0 ? (

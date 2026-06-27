@@ -140,12 +140,16 @@ export function createReaderVerseRenderer({
       bookAbbr: string;
       chapter: number;
       paragraphIsContinuation?: boolean;
+      /** False on mid-chapter continuation pages in spread mode. */
+      showChapterDropCap?: boolean;
     },
   ): ReactNode {
     const verseBook = ctx?.bookAbbr ?? bookAbbr;
     const verseChapter = ctx?.chapter ?? chapter;
     const paragraphIsContinuation = ctx?.paragraphIsContinuation ?? false;
-    const chapterDropCap = shouldShowChapterDropCap(v.number, paragraphIsContinuation);
+    const chapterDropCap =
+      ctx?.showChapterDropCap !== false &&
+      shouldShowChapterDropCap(v.number, paragraphIsContinuation);
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
     const plain = versePlainText(v);
