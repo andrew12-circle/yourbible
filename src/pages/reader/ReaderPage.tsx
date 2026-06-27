@@ -94,6 +94,7 @@ import { buildAdjacentStreamChapters } from "@/lib/bible/readerStreamChapters";
 import {
   areSameStreamSplits,
   buildReaderStream,
+  ensureSpreadPageSplits,
   isSpreadDoubleColumnSplitsReady,
   headingsForChapter,
   isStreamSplitsReady,
@@ -780,14 +781,20 @@ export default function ReaderPage() {
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
   const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
   const useSpreadDoubleColumn = readerLayout.useSpreadPaginatorMeasure && useStreamReader;
-  const navStreamSplits = streamSplits;
+  const navStreamSplits = useMemo(
+    () =>
+      useBookSpread && readerStream.length > 0
+        ? ensureSpreadPageSplits(streamSplits, readerStream)
+        : streamSplits,
+    [useBookSpread, readerStream, streamSplits],
+  );
   const totalStreamPages =
     useSpreadDoubleColumn && readerStream.length > 2
       ? Math.max(2, streamPageCount(navStreamSplits, readerStream.length))
       : streamPageCount(navStreamSplits, readerStream.length);
   const streamSplitsReady = useSpreadDoubleColumn
-    ? isSpreadDoubleColumnSplitsReady(streamSplits, readerStream.length)
-    : isStreamSplitsReady(streamSplits, readerStream.length);
+    ? isSpreadDoubleColumnSplitsReady(navStreamSplits, readerStream.length)
+    : isStreamSplitsReady(navStreamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
@@ -1327,7 +1334,11 @@ export default function ReaderPage() {
         ? measuresFirstPage
           ? onMeasureFirstRef
           : onMeasureRestRef
-        : undefined
+        : side === "right" &&
+            pageIdx === spreadPageIdx + 1 &&
+            measuresRestPage
+          ? onMeasureRestRef
+          : undefined
       : measuresFirstPage
         ? onMeasureFirstRef
         : measuresRestPage || isCurrentLeftPage

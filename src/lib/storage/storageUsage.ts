@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { throwOnError } from "@/lib/supabase/errors";
 import type { StorageUsageSummary } from "@/lib/storage/storageMeter";
 
 function parseUsageRow(raw: unknown): StorageUsageSummary {
@@ -21,6 +22,6 @@ function parseUsageRow(raw: unknown): StorageUsageSummary {
 
 export async function fetchStorageUsage(): Promise<StorageUsageSummary> {
   const { data, error } = await supabase.rpc("get_my_storage_usage");
-  if (error) throw error;
+  throwOnError(error);
   return parseUsageRow(data);
 }

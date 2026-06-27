@@ -71,11 +71,7 @@ export function StorageUsageSection({ embedded }: Props = {}) {
           </CardHeader>
           <CardContent className="space-y-5">
             {error ? (
-              <p className="text-sm text-destructive">
-                Could not load storage usage. Apply migration{" "}
-                <code className="text-xs">20260627120000_storage_usage_and_google_drive</code> on Supabase.
-                ({error})
-              </p>
+              <p className="text-sm text-destructive">{error}</p>
             ) : null}
 
             {loading && !usage ? (

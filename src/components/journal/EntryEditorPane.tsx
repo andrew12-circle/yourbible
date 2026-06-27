@@ -617,9 +617,8 @@ export default function EntryEditorPane({
       if (!snap) return;
       const nextBody = bodyWithLiveVideoTranscript(snap.body, snap.anchor, live);
       handleBodyChange(nextBody);
-      videoAutoTitle.onLiveTranscriptBody(nextBody);
     },
-    [handleBodyChange, videoAutoTitle],
+    [handleBodyChange],
   );
 
   const handleVideoRecordingCancelled = useCallback(() => {

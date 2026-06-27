@@ -18,6 +18,7 @@ import {
   SidebarSeparator, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { HubSidebarStorageMeter } from "@/components/shell/HubSidebarStorageMeter";
 
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
@@ -344,6 +345,7 @@ export function HubSidebar() {
           isMobile && "pb-safe",
         )}
       >
+        <HubSidebarStorageMeter />
         <HubSidebarProfile />
       </SidebarFooter>
     </Sidebar>

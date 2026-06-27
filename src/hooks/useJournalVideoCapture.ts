@@ -29,8 +29,8 @@ import {
   type ScreenBubbleLayout,
   type ScreenCompositeSession,
 } from "@/lib/journal/screenRecordingComposite";
-import { mergeDictatedText, useSpeechDictation } from "@/hooks/useSpeechDictation";
-import { composeVideoLiveTranscript } from "@/lib/journal/journalVideoBody";
+import { useSpeechDictation } from "@/hooks/useSpeechDictation";
+import { composeVideoLiveTranscript, appendVideoSpeechFinal } from "@/lib/journal/journalVideoBody";
 
 export type JournalVideoCapturePhase =
   | "idle"
@@ -132,6 +132,7 @@ export function useJournalVideoCapture(
   const finalizedTranscriptRef = useRef("");
   const interimPartialRef = useRef("");
   const chaptersRef = useRef<JournalVideoChapter[]>([]);
+  const lastSpeechFinalRef = useRef<{ text: string; at: number }>({ text: "", at: 0 });
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -163,7 +164,13 @@ export function useJournalVideoCapture(
 
   const speech = useSpeechDictation({
     onAppend: (chunk) => {
-      finalizedTranscriptRef.current = mergeDictatedText(finalizedTranscriptRef.current, chunk);
+      const { text, lastFinal } = appendVideoSpeechFinal(
+        finalizedTranscriptRef.current,
+        chunk,
+        lastSpeechFinalRef.current,
+      );
+      finalizedTranscriptRef.current = text;
+      lastSpeechFinalRef.current = lastFinal;
       syncLiveTranscriptDisplay();
     },
     onInterim: handleInterim,
@@ -332,6 +339,7 @@ export function useJournalVideoCapture(
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
     chaptersRef.current = [];
+    lastSpeechFinalRef.current = { text: "", at: 0 };
     setChapters([]);
     setInterim("");
     onInterimRef.current?.("");
@@ -401,6 +409,7 @@ export function useJournalVideoCapture(
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
     chaptersRef.current = [];
+    lastSpeechFinalRef.current = { text: "", at: 0 };
     setChapters([]);
     setInterim("");
     chunksRef.current = [];
@@ -495,7 +504,6 @@ export function useJournalVideoCapture(
       rec.pause();
       const audioRec = audioRecorderRef.current;
       if (audioRec && audioRec.state === "recording") audioRec.pause();
-      speechStopRef.current();
       pauseStartedAtRef.current = Date.now();
       setRecordingElapsedMs(getRecordingElapsedMs());
       setPhase("paused");
@@ -515,7 +523,6 @@ export function useJournalVideoCapture(
         pausedAccumMsRef.current += Date.now() - pauseStartedAtRef.current;
         pauseStartedAtRef.current = null;
       }
-      if (speechSupportedRef.current) speechStartRef.current();
       setPhase("recording");
     } catch {
       /* ignore */
@@ -574,6 +581,7 @@ export function useJournalVideoCapture(
     setMode(null);
     setPhase("idle");
     chaptersRef.current = [];
+    lastSpeechFinalRef.current = { text: "", at: 0 };
     setChapters([]);
     if (!videoBlob) return null;
     return {

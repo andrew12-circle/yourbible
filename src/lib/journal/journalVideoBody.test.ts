@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendVideoSpeechFinal,
   bodyWithLiveVideoTranscript,
   composeVideoLiveTranscript,
   insertTranscriptAtAnchor,
@@ -16,6 +17,10 @@ describe("composeVideoLiveTranscript", () => {
 
   it("returns finalized text when partial is empty", () => {
     expect(composeVideoLiveTranscript("Hello world.", "")).toBe("Hello world.");
+  });
+
+  it("does not duplicate interim that overlaps finalized tail", () => {
+    expect(composeVideoLiveTranscript("good morning ", "good morning")).toBe("good morning");
   });
 });
 
@@ -79,6 +84,20 @@ describe("liveTranscriptTickerLine", () => {
     expect(line.split("\n")).toHaveLength(1);
     expect(line.startsWith("…")).toBe(true);
     expect(line.endsWith("twelve")).toBe(true);
+  });
+});
+
+describe("appendVideoSpeechFinal", () => {
+  it("skips rapid duplicate finals from mic restarts", () => {
+    const first = appendVideoSpeechFinal("", "good morning");
+    const second = appendVideoSpeechFinal(first.text, "good morning", first.lastFinal, first.lastFinal.at + 200);
+    expect(second.text).toBe("good morning ");
+  });
+
+  it("allows the same phrase again after a pause", () => {
+    const first = appendVideoSpeechFinal("", "good morning");
+    const second = appendVideoSpeechFinal(first.text, "good morning", first.lastFinal, first.lastFinal.at + 2000);
+    expect(second.text).toBe("good morning good morning ");
   });
 });
 

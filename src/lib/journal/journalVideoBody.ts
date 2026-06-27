@@ -32,9 +32,49 @@ export function buildJournalBodySegments(body: string, videos: JournalVideoRow[]
   return segments;
 }
 
+/** Collapse live caption whitespace — keeps the journal body as one flowing paragraph. */
+export function normalizeLiveVideoTranscript(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Append a finalized speech chunk without replay duplicates from mic restarts. */
+export function appendVideoSpeechFinal(
+  current: string,
+  chunk: string,
+  lastFinal?: { text: string; at: number },
+  now = Date.now(),
+): { text: string; lastFinal: { text: string; at: number } } {
+  const addition = chunk.trim();
+  if (!addition) return { text: current, lastFinal: lastFinal ?? { text: "", at: 0 } };
+  if (lastFinal && addition === lastFinal.text && now - lastFinal.at < 1500) {
+    return { text: current, lastFinal };
+  }
+  const base = current.trimEnd();
+  const next = !base ? `${addition} ` : `${mergeDictatedText(base, addition)} `;
+  return { text: next, lastFinal: { text: addition, at: now } };
+}
+
 /** Combine finalized speech chunks with the current partial phrase (live captions). */
 export function composeVideoLiveTranscript(finalized: string, interimPartial: string): string {
-  return mergeDictatedText(finalized, interimPartial);
+  const f = finalized.trimEnd();
+  const interim = normalizeLiveVideoTranscript(interimPartial);
+  if (!interim) return f;
+  if (!f) return interim;
+
+  const fWords = f.split(/\s+/);
+  const iWords = interim.split(/\s+/);
+  let overlap = 0;
+  for (let n = Math.min(fWords.length, iWords.length); n > 0; n -= 1) {
+    const tail = fWords.slice(-n).join(" ").toLowerCase();
+    const head = iWords.slice(0, n).join(" ").toLowerCase();
+    if (tail === head) {
+      overlap = n;
+      break;
+    }
+  }
+  const uniqueInterim = iWords.slice(overlap).join(" ");
+  if (!uniqueInterim) return f;
+  return mergeDictatedText(f, uniqueInterim);
 }
 
 /** One-line overlay: most recent words only (keeps the camera visible). */
@@ -51,7 +91,7 @@ export function bodyWithLiveVideoTranscript(
   anchorOffset: number,
   liveTranscript: string,
 ): string {
-  const t = liveTranscript.trim();
+  const t = normalizeLiveVideoTranscript(liveTranscript);
   if (!t) return baseBody;
   return insertTranscriptAtAnchor(baseBody, anchorOffset, t);
 }

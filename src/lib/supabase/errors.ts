@@ -4,6 +4,8 @@ const TABLE_MIGRATIONS: Record<string, string> = {
   todo_lists: "20260518210000_todo_lists.sql",
   todo_items: "20260518210000_todo_lists.sql",
   ensure_default_todo_lists: "20260625130000_todo_home_default_list.sql",
+  get_my_storage_usage: "20260627120000_storage_usage_and_google_drive.sql",
+  google_drive_oauth_connections: "20260627120000_storage_usage_and_google_drive.sql",
   habits: "20260518190000_habits_tracker.sql",
   habit_completions: "20260518190000_habits_tracker.sql",
   habit_goals: "20260518190000_habits_tracker.sql",
