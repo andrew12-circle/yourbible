@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +45,7 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
   const [reflection, setReflection] = useState("");
   const [dictInterim, setDictInterim] = useState("");
   const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const reflectionSectionRef = useRef<HTMLDivElement | null>(null);
 
   const displayReflection = mergeDictatedText(reflection, dictInterim);
   const trimmedLen = displayReflection.trim().length;
@@ -65,6 +66,14 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
     setDictInterim("");
     dictateRef.current?.stop();
   }, [pending.subject, pending.weekIndex]);
+
+  useEffect(() => {
+    if (!checked) return;
+    const id = window.requestAnimationFrame(() => {
+      reflectionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [checked]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -89,7 +98,7 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-lg [&>button]:hidden"
+        className="max-h-[min(92dvh,720px)] max-w-lg overflow-y-auto [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -131,39 +140,48 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
           )}
 
           {checked ? (
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div
+              ref={reflectionSectionRef}
+              className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300"
+            >
               <Label htmlFor="life-week-reflection" className="text-sm leading-snug">
                 {reflectionPrompt}
               </Label>
-              <div className="relative">
-                <Textarea
-                  id="life-week-reflection"
-                  value={displayReflection}
-                  onChange={(e) => {
-                    setDictInterim("");
-                    setReflection(e.target.value);
-                  }}
-                  placeholder={
-                    pending.subject === "self"
-                      ? "Be honest. What moved you toward your calling—and what did you let slip?"
-                      : `What do you want to remember about ${pending.personName}'s week?`
-                  }
-                  rows={5}
-                  className="resize-none pb-10 pr-10"
-                  autoFocus
+
+              <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
+                <DictateButton
+                  ref={dictateRef}
+                  userId={user?.id}
+                  size="md"
+                  className="h-11 w-11 shrink-0 rounded-full border border-border bg-background shadow-sm"
+                  onAppend={(chunk) => setReflection((r) => mergeDictatedText(r, chunk))}
+                  onInterim={setDictInterim}
                 />
-                <div className="absolute bottom-1.5 right-1.5">
-                  <DictateButton
-                    ref={dictateRef}
-                    userId={user?.id}
-                    webSpeechOnly
-                    size="sm"
-                    className="h-8 w-8 rounded-md"
-                    onAppend={(chunk) => setReflection((r) => mergeDictatedText(r, chunk))}
-                    onInterim={setDictInterim}
-                  />
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <Mic className="h-4 w-4 text-primary" aria-hidden />
+                    Tap mic · speak your reflection
+                  </p>
+                  <p className="text-xs text-muted-foreground">Tap again when you&apos;re done talking.</p>
                 </div>
               </div>
+
+              <Textarea
+                id="life-week-reflection"
+                value={displayReflection}
+                onChange={(e) => {
+                  setDictInterim("");
+                  setReflection(e.target.value);
+                }}
+                placeholder={
+                  pending.subject === "self"
+                    ? "Be honest. What moved you toward your calling—and what did you let slip?"
+                    : `What do you want to remember about ${pending.personName}'s week?`
+                }
+                rows={5}
+                className="resize-none"
+                autoFocus
+              />
               <p className="text-xs text-muted-foreground tabular-nums">
                 {trimmedLen}/{LIFE_WEEK_REFLECTION_MIN} characters minimum
               </p>
