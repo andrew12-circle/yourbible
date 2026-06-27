@@ -21,7 +21,7 @@ export function JournalRailStorageMeter({ className }: { className?: string }) {
 
   return (
     <Link
-      to="/settings"
+      to="/settings?section=storage"
       className={cn(
         "block rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50",
         className,

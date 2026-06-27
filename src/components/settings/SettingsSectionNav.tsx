@@ -4,12 +4,14 @@ import {
   BookOpen,
   ChevronLeft,
   Database,
+  HardDrive,
   HeartHandshake,
   LayoutGrid,
   Loader2,
   Palette,
   Plug,
   Settings,
+  ShieldCheck,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,8 +29,10 @@ const ICONS: Record<SettingsSectionId, React.ComponentType<{ className?: string 
   home: LayoutGrid,
   partner: HeartHandshake,
   integrations: Plug,
+  storage: HardDrive,
   ai: BarChart3,
   knowledge: Database,
+  privacy: ShieldCheck,
 };
 
 type NavProps = {
