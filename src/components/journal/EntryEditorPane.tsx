@@ -49,6 +49,8 @@ import { autosaveSketchPhoto } from "@/lib/journal/sketchPhotos";
 import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
+import { useVideoJournalAutoTitle } from "@/hooks/useVideoJournalAutoTitle";
+import { JournalEntrySummaryBlock } from "@/components/journal/JournalEntrySummaryBlock";
 import {
   persistJournalChatIncludeGeneral,
   readJournalChatIncludeGeneralDefault,
@@ -150,6 +152,7 @@ export default function EntryEditorPane({
   const [bodyEditing, setBodyEditing] = useState(false);
   const [bodyFocused, setBodyFocused] = useState(false);
   const [titleFocused, setTitleFocused] = useState(false);
+  const [videoSummarizing, setVideoSummarizing] = useState(false);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const entryInitialFocusRef = useRef<string | null>(null);
@@ -260,6 +263,15 @@ export default function EntryEditorPane({
   }, [entryId]);
 
   const queueSaveRef = useRef<(patch: Partial<EntryRow>) => void>(() => {});
+
+  const videoAutoTitle = useVideoJournalAutoTitle({
+    title: entry?.title ?? "",
+    setTitle: (t) => queueSaveRef.current({ title: t }),
+    entryAt: entry?.entry_at_ts ?? undefined,
+    entryId: entry?.id ?? null,
+    onSummary: (s) => queueSaveRef.current({ summary: s }),
+    onSummarizingChange: setVideoSummarizing,
+  });
   const linksReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -596,15 +608,18 @@ export default function EntryEditorPane({
       body: cur.body,
       anchor: resolveBodyVideoAnchor(),
     };
-  }, [resolveBodyVideoAnchor]);
+    videoAutoTitle.onRecordingStart();
+  }, [resolveBodyVideoAnchor, videoAutoTitle]);
 
   const handleVideoLiveTranscript = useCallback(
     (live: string) => {
       const snap = videoLiveSnapRef.current;
       if (!snap) return;
-      handleBodyChange(bodyWithLiveVideoTranscript(snap.body, snap.anchor, live));
+      const nextBody = bodyWithLiveVideoTranscript(snap.body, snap.anchor, live);
+      handleBodyChange(nextBody);
+      videoAutoTitle.onLiveTranscriptBody(nextBody);
     },
-    [handleBodyChange],
+    [handleBodyChange, videoAutoTitle],
   );
 
   const handleVideoRecordingCancelled = useCallback(() => {
@@ -614,21 +629,24 @@ export default function EntryEditorPane({
   }, [handleBodyChange]);
 
   const handleVideoSaved = useCallback(
-    ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
-      void reloadVideos();
+    async ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
+      await reloadVideos();
       const cur = entryRef.current;
       const prepared = prepareVideoJournalTranscript(transcript);
       if (!cur || !prepared) {
         videoLiveSnapRef.current = null;
+        if (cur) await videoAutoTitle.onRecordingComplete(cur.body);
         return;
       }
       const snap = videoLiveSnapRef.current;
       const baseBody = snap?.body ?? cur.body;
       const anchor = snap?.anchor ?? clampAnchorOffset(baseBody, anchorOffset);
-      handleBodyChange(insertTranscriptAtAnchor(baseBody, anchor, prepared));
+      const nextBody = insertTranscriptAtAnchor(baseBody, anchor, prepared);
+      handleBodyChange(nextBody);
+      await videoAutoTitle.onRecordingComplete(nextBody);
       videoLiveSnapRef.current = null;
     },
-    [handleBodyChange, reloadVideos],
+    [handleBodyChange, reloadVideos, videoAutoTitle],
   );
 
   const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
@@ -1071,7 +1089,10 @@ export default function EntryEditorPane({
             ) : null}
             <PrivacyBlurInput
               value={entry.title ?? ""}
-              onChange={(e) => queueSave({ title: e.target.value })}
+              onChange={(e) => {
+                videoAutoTitle.markTitleEdited();
+                queueSave({ title: e.target.value });
+              }}
               aria-label="Title"
               onFocus={() => {
                 setTitleFocused(true);
@@ -1154,6 +1175,17 @@ export default function EntryEditorPane({
             )
           ) : (
             <>
+              {!inlineChatMode && entry.summary?.trim() ? (
+                <JournalEntrySummaryBlock
+                  summary={entry.summary}
+                  onSummaryChange={(next) => queueSaveRef.current({ summary: next || null })}
+                  summarizing={videoSummarizing}
+                  showFullTextLabel
+                  className="mb-4"
+                />
+              ) : videoSummarizing ? (
+                <JournalEntrySummaryBlock summary="" summarizing className="mb-4" />
+              ) : null}
               {!inlineChatMode && videos.length > 0 ? (
                 <JournalBodyWithVideos
                   body={entry.body}

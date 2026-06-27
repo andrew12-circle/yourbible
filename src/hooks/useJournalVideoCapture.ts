@@ -7,6 +7,14 @@ import {
   stopMediaRecorderWithFlush,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
+import type { JournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
+import { readJournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
+import {
+  formatChapterLabel,
+  type JournalVideoChapter,
+} from "@/lib/journal/journalVideoChapters";
+import type { CameraFacing } from "@/lib/journal/journalVideoDevices";
+import { toggleCameraFacing } from "@/lib/journal/journalVideoDevices";
 import {
   JOURNAL_VIDEO_BITS_PER_SECOND,
   JOURNAL_VIDEO_MAX_DURATION_MS,
@@ -18,6 +26,7 @@ import {
 import {
   createScreenCompositeSession,
   type JournalVideoCaptureMode,
+  type ScreenBubbleLayout,
   type ScreenCompositeSession,
 } from "@/lib/journal/screenRecordingComposite";
 import { mergeDictatedText, useSpeechDictation } from "@/hooks/useSpeechDictation";
@@ -37,14 +46,15 @@ export type JournalVideoCaptureResult = {
   video: Blob;
   audio: Blob | null;
   liveTranscript: string;
+  chapters: JournalVideoChapter[];
 };
 
 export interface UseJournalVideoCaptureOptions {
   onInterim?: (partial: string) => void;
   language?: string;
   onScreenShareEnded?: () => void;
-  /** Called when the 30-minute journal limit is reached (recording auto-stops). */
   onMaxDuration?: () => void;
+  settings?: JournalVideoCaptureSettings;
 }
 
 export interface UseJournalVideoCaptureApi {
@@ -58,18 +68,32 @@ export interface UseJournalVideoCaptureApi {
   recordingBytes: number;
   recordingRemainingMs: number;
   maxDurationMs: number;
+  previewStream: MediaStream | null;
+  facingMode: CameraFacing;
+  deviceId: string | null;
+  chapters: JournalVideoChapter[];
+  settings: JournalVideoCaptureSettings;
   bindPreview: (el: HTMLVideoElement | null) => void;
   openPreview: (mode: JournalVideoCaptureMode) => Promise<void>;
   beginCountdown: () => void;
+  skipCountdown: () => void;
   startRecording: () => void;
   pauseRecording: () => void;
   resumeRecording: () => void;
   stopRecording: () => Promise<JournalVideoCaptureResult | null>;
   cancel: () => void;
+  switchFacing: () => Promise<void>;
+  selectDevice: (deviceId: string) => Promise<void>;
+  markChapter: (label?: string) => void;
+  setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
+  patchSettings: (patch: Partial<JournalVideoCaptureSettings>) => void;
 }
 
-export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = {}): UseJournalVideoCaptureApi {
-  const { onInterim, language, onScreenShareEnded, onMaxDuration } = options;
+export function useJournalVideoCapture(
+  options: UseJournalVideoCaptureOptions = {},
+): UseJournalVideoCaptureApi {
+  const { onInterim, language, onScreenShareEnded, onMaxDuration, settings: settingsProp } =
+    options;
   const onInterimRef = useRef(onInterim);
   const onScreenShareEndedRef = useRef(onScreenShareEnded);
   const onMaxDurationRef = useRef(onMaxDuration);
@@ -85,25 +109,40 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [recordingBytes, setRecordingBytes] = useState(0);
+  const [facingMode, setFacingMode] = useState<CameraFacing>("user");
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [chapters, setChapters] = useState<JournalVideoChapter[]>([]);
+  const [settings, setSettings] = useState<JournalVideoCaptureSettings>(
+    () => settingsProp ?? readJournalVideoCaptureSettings(),
+  );
+
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   const streamRef = useRef<MediaStream | null>(null);
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const compositeSessionRef = useRef<ScreenCompositeSession | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioChunksRef = useRef<Blob[]>([]);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
-  const resolveStopRef = useRef<((result: JournalVideoCaptureResult | null) => void) | null>(null);
+  const resolveStopRef = useRef<((result: Blob | null) => void) | null>(null);
   const resolveAudioStopRef = useRef<((blob: Blob | null) => void) | null>(null);
   const finalizedTranscriptRef = useRef("");
   const interimPartialRef = useRef("");
+  const chaptersRef = useRef<JournalVideoChapter[]>([]);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
   const pausedAccumMsRef = useRef(0);
   const pauseStartedAtRef = useRef<number | null>(null);
   const maxDurationTriggeredRef = useRef(false);
-  const stopRecordingRef = useRef<(() => Promise<Blob | null>) | null>(null);
+  const stopRecordingRef = useRef<(() => Promise<JournalVideoCaptureResult | null>) | null>(null);
+  const facingRef = useRef<CameraFacing>("user");
+  const deviceIdRef = useRef<string | null>(null);
+  facingRef.current = facingMode;
+  deviceIdRef.current = deviceId;
 
   const syncLiveTranscriptDisplay = useCallback(() => {
     const combined = composeVideoLiveTranscript(
@@ -201,6 +240,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     compositeSessionRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setPreviewStream(null);
     if (videoElRef.current) videoElRef.current.srcObject = null;
     recorderRef.current = null;
     audioRecorderRef.current = null;
@@ -215,6 +255,53 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       void el.play().catch(() => {});
     }
   }, []);
+
+  const acquireStream = useCallback(
+    async (captureMode: JournalVideoCaptureMode, gen: number) => {
+      const s = settingsRef.current;
+      let stream: MediaStream;
+      if (captureMode === "screen") {
+        const session = await createScreenCompositeSession({
+          onScreenShareEnded: () => {
+            onScreenShareEndedRef.current?.();
+            void stopRecordingRef.current?.();
+          },
+          includeSystemAudio: s.includeSystemAudio,
+          cameraOptions: {
+            quality: s.quality,
+            facingMode: facingRef.current,
+            deviceId: deviceIdRef.current,
+          },
+          initialBubble: {
+            corner: s.bubbleCorner,
+            size: s.bubbleSize,
+            visible: s.bubbleVisible,
+          },
+        });
+        if (gen !== openGenRef.current) {
+          session.stop();
+          return null;
+        }
+        compositeSessionRef.current = session;
+        stream = session.compositeStream;
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia(
+          buildJournalVideoConstraints({
+            quality: s.quality,
+            facingMode: facingRef.current,
+            deviceId: deviceIdRef.current,
+          }),
+        );
+        await tuneJournalVideoStream(stream, s.quality);
+        if (gen !== openGenRef.current) {
+          stream.getTracks().forEach((t) => t.stop());
+          return null;
+        }
+      }
+      return stream;
+    },
+    [],
+  );
 
   const cancel = useCallback(() => {
     openGenRef.current += 1;
@@ -244,6 +331,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     setPhase("idle");
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
+    chaptersRef.current = [];
+    setChapters([]);
     setInterim("");
     onInterimRef.current?.("");
   }, [cleanupStream, clearCountdown, resetRecordingClock]);
@@ -260,33 +349,16 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       setPhase("idle");
       finalizedTranscriptRef.current = "";
       interimPartialRef.current = "";
+      chaptersRef.current = [];
+      setChapters([]);
       setInterim("");
       clearCountdown();
       try {
         cleanupStream();
-        let stream: MediaStream;
-        if (captureMode === "screen") {
-          const session = await createScreenCompositeSession({
-            onScreenShareEnded: () => {
-              onScreenShareEndedRef.current?.();
-              void stopRecordingRef.current?.();
-            },
-          });
-          if (gen !== openGenRef.current) {
-            session.stop();
-            return;
-          }
-          compositeSessionRef.current = session;
-          stream = session.compositeStream;
-        } else {
-          stream = await navigator.mediaDevices.getUserMedia(buildJournalVideoConstraints());
-          await tuneJournalVideoStream(stream);
-          if (gen !== openGenRef.current) {
-            stream.getTracks().forEach((t) => t.stop());
-            return;
-          }
-        }
+        const stream = await acquireStream(captureMode, gen);
+        if (!stream) return;
         streamRef.current = stream;
+        setPreviewStream(stream);
         if (videoElRef.current) {
           videoElRef.current.srcObject = stream;
           await videoElRef.current.play().catch(() => {});
@@ -307,11 +379,13 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
         } else if (err.name === "NotFoundError") {
           setError("No camera or screen source was found.");
         } else {
-          setError(captureMode === "screen" ? "Could not start screen recording." : "Could not access the camera.");
+          setError(
+            captureMode === "screen" ? "Could not start screen recording." : "Could not access the camera.",
+          );
         }
       }
     },
-    [supported, cleanupStream, clearCountdown],
+    [supported, cleanupStream, clearCountdown, acquireStream],
   );
 
   const startRecording = useCallback(() => {
@@ -326,6 +400,8 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     setError(null);
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
+    chaptersRef.current = [];
+    setChapters([]);
     setInterim("");
     chunksRef.current = [];
     audioChunksRef.current = [];
@@ -335,7 +411,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       recorderOptions.videoBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.video;
       recorderOptions.audioBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.audio;
     } catch {
-      /* optional — not all browsers honor bitrates */
+      /* optional */
     }
     const rec = new MediaRecorder(stream, recorderOptions);
     rec.ondataavailable = (e) => {
@@ -360,7 +436,9 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
       audioRec.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: audioRec.mimeType || audioMime });
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: audioRec.mimeType || audioMime,
+        });
         resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
         resolveAudioStopRef.current = null;
       };
@@ -385,9 +463,14 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
 
   const beginCountdown = useCallback(() => {
     if (phase !== "preview" || countdownTimerRef.current) return;
+    const seconds = settingsRef.current.countdown;
+    if (seconds <= 0) {
+      startRecording();
+      return;
+    }
     setPhase("countdown");
-    setCountdown(5);
-    let n = 5;
+    setCountdown(seconds);
+    let n = seconds;
     countdownTimerRef.current = setInterval(() => {
       n -= 1;
       if (n <= 0) {
@@ -397,6 +480,12 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       }
       setCountdown(n);
     }, 1000);
+  }, [phase, clearCountdown, startRecording]);
+
+  const skipCountdown = useCallback(() => {
+    if (phase !== "countdown") return;
+    clearCountdown();
+    startRecording();
   }, [phase, clearCountdown, startRecording]);
 
   const pauseRecording = useCallback(() => {
@@ -443,6 +532,7 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
       finalizedTranscriptRef.current,
       interimPartialRef.current,
     ).trim();
+    const recordedChapters = [...chaptersRef.current];
     speechStopRef.current();
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
@@ -483,11 +573,98 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     resetRecordingClock();
     setMode(null);
     setPhase("idle");
+    chaptersRef.current = [];
+    setChapters([]);
     if (!videoBlob) return null;
-    return { video: videoBlob, audio: audioBlob, liveTranscript };
+    return {
+      video: videoBlob,
+      audio: audioBlob,
+      liveTranscript,
+      chapters: recordedChapters,
+    };
   }, [phase, cleanupStream, clearCountdown, clearRecordingTick, getRecordingElapsedMs, resetRecordingClock]);
 
   stopRecordingRef.current = stopRecording;
+
+  const switchFacing = useCallback(async () => {
+    if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+    const next = toggleCameraFacing(facingRef.current);
+    setFacingMode(next);
+    facingRef.current = next;
+    setDeviceId(null);
+    deviceIdRef.current = null;
+    const gen = ++openGenRef.current;
+    try {
+      cleanupStream();
+      const stream = await acquireStream("camera", gen);
+      if (!stream) return;
+      streamRef.current = stream;
+      setPreviewStream(stream);
+      if (videoElRef.current) {
+        videoElRef.current.srcObject = stream;
+        await videoElRef.current.play().catch(() => {});
+      }
+      setPhase("preview");
+    } catch {
+      setError("Could not switch camera.");
+    }
+  }, [mode, phase, cleanupStream, acquireStream]);
+
+  const selectDevice = useCallback(
+    async (nextDeviceId: string) => {
+      if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+      setDeviceId(nextDeviceId);
+      deviceIdRef.current = nextDeviceId;
+      const gen = ++openGenRef.current;
+      try {
+        cleanupStream();
+        const stream = await acquireStream("camera", gen);
+        if (!stream) return;
+        streamRef.current = stream;
+        setPreviewStream(stream);
+        if (videoElRef.current) {
+          videoElRef.current.srcObject = stream;
+          await videoElRef.current.play().catch(() => {});
+        }
+        setPhase("preview");
+      } catch {
+        setError("Could not switch camera.");
+      }
+    },
+    [mode, phase, cleanupStream, acquireStream],
+  );
+
+  const markChapter = useCallback(
+    (label?: string) => {
+      if (phase !== "recording" && phase !== "paused") return;
+      const atMs = getRecordingElapsedMs();
+      const chapter: JournalVideoChapter = {
+        label: label?.trim() || formatChapterLabel(chaptersRef.current.length),
+        atMs,
+      };
+      chaptersRef.current = [...chaptersRef.current, chapter];
+      setChapters(chaptersRef.current);
+    },
+    [phase, getRecordingElapsedMs],
+  );
+
+  const setBubbleLayout = useCallback((layout: Partial<ScreenBubbleLayout>) => {
+    compositeSessionRef.current?.setBubbleLayout(layout);
+    setSettings((prev) => ({
+      ...prev,
+      ...(layout.corner != null ? { bubbleCorner: layout.corner } : {}),
+      ...(layout.size != null ? { bubbleSize: layout.size } : {}),
+      ...(layout.visible != null ? { bubbleVisible: layout.visible } : {}),
+    }));
+  }, []);
+
+  const patchSettings = useCallback((patch: Partial<JournalVideoCaptureSettings>) => {
+    setSettings((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  useEffect(() => {
+    if (settingsProp) setSettings(settingsProp);
+  }, [settingsProp]);
 
   useEffect(() => {
     return () => {
@@ -511,13 +688,24 @@ export function useJournalVideoCapture(options: UseJournalVideoCaptureOptions = 
     recordingBytes,
     recordingRemainingMs: journalVideoEffectiveRemainingMs(recordingElapsedMs, recordingBytes),
     maxDurationMs: JOURNAL_VIDEO_MAX_DURATION_MS,
+    previewStream,
+    facingMode,
+    deviceId,
+    chapters,
+    settings,
     bindPreview,
     openPreview,
     beginCountdown,
+    skipCountdown,
     startRecording,
     pauseRecording,
     resumeRecording,
     stopRecording,
     cancel,
+    switchFacing,
+    selectDevice,
+    markChapter,
+    setBubbleLayout,
+    patchSettings,
   };
 }

@@ -24,6 +24,7 @@ import {
   SettingsReaderSection,
 } from "@/components/settings/SettingsSections";
 import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
+import { StorageSettingsSection } from "@/components/settings/StorageUsageSection";
 import { JournalEncryptionSection } from "@/components/settings/JournalEncryptionSection";
 import { SettingsLegalFooter } from "@/components/legal/LegalPageLayout";
 
@@ -130,6 +131,8 @@ export default function SettingsPage() {
               <YouTubeSubscriptionsSection embedded />
             </div>
           ) : null}
+
+          {activeSection === "storage" ? <StorageSettingsSection embedded /> : null}
 
           {activeSection === "ai" ? <AiUsageSection userId={user?.id} embedded /> : null}
 

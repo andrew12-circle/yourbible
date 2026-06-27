@@ -1,14 +1,34 @@
 import {
   buildJournalVideoConstraints,
-  pickJournalVideoMimeType,
+  type JournalVideoConstraintOptions,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
+import type { BubbleCorner, BubbleSize } from "@/lib/journal/journalVideoCaptureSettings";
 
 export type JournalVideoCaptureMode = "camera" | "screen";
+
+export type ScreenBubbleLayout = {
+  corner: BubbleCorner;
+  size: BubbleSize;
+  visible: boolean;
+};
+
+export const DEFAULT_SCREEN_BUBBLE_LAYOUT: ScreenBubbleLayout = {
+  corner: "bottom-left",
+  size: "md",
+  visible: true,
+};
+
+const BUBBLE_WIDTH_SCALE: Record<BubbleSize, number> = {
+  sm: 0.14,
+  md: 0.18,
+  lg: 0.24,
+};
 
 export type ScreenCompositeSession = {
   compositeStream: MediaStream;
   stop: () => void;
+  setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
 };
 
 export function screenCaptureSupported(): boolean {
@@ -46,23 +66,52 @@ async function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
 
 export type CreateScreenCompositeOptions = {
   onScreenShareEnded?: () => void;
+  includeSystemAudio?: boolean;
+  cameraOptions?: JournalVideoConstraintOptions;
+  initialBubble?: Partial<ScreenBubbleLayout>;
 };
 
-/** Screen recording with a Loom-style webcam bubble (bottom-left). */
+/** Bubble layout helpers for tests. */
+export function bubbleLayout(
+  canvasW: number,
+  canvasH: number,
+  layout: ScreenBubbleLayout,
+  camAspect = 0.75,
+) {
+  const bubbleW = canvasW * BUBBLE_WIDTH_SCALE[layout.size];
+  const bubbleH = bubbleW * camAspect;
+  const pad = canvasW * 0.025;
+  let x = pad;
+  let y = canvasH - bubbleH - pad;
+  if (layout.corner === "bottom-right") {
+    x = canvasW - bubbleW - pad;
+    y = canvasH - bubbleH - pad;
+  } else if (layout.corner === "top-left") {
+    x = pad;
+    y = pad;
+  } else if (layout.corner === "top-right") {
+    x = canvasW - bubbleW - pad;
+    y = pad;
+  }
+  return { x, y, bubbleW, bubbleH };
+}
+
+/** Screen recording with a Loom-style webcam bubble. */
 export async function createScreenCompositeSession(
   options: CreateScreenCompositeOptions = {},
 ): Promise<ScreenCompositeSession> {
+  const includeSystemAudio = options.includeSystemAudio !== false;
   const screenStream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: 30 },
-    audio: true,
+    audio: includeSystemAudio,
   });
 
-  const screenHasAudio = screenStream.getAudioTracks().length > 0;
+  const screenHasAudio = includeSystemAudio && screenStream.getAudioTracks().length > 0;
   const cameraStream = await navigator.mediaDevices.getUserMedia({
-    video: buildJournalVideoConstraints().video ?? true,
+    video: buildJournalVideoConstraints(options.cameraOptions ?? {}).video ?? true,
     audio: !screenHasAudio,
   });
-  await tuneJournalVideoStream(cameraStream);
+  await tuneJournalVideoStream(cameraStream, options.cameraOptions?.quality);
 
   const screenVideo = document.createElement("video");
   screenVideo.srcObject = screenStream;
@@ -84,6 +133,11 @@ export async function createScreenCompositeSession(
     cameraStream.getTracks().forEach((t) => t.stop());
     throw new Error("Canvas is not available for screen recording.");
   }
+
+  let bubbleLayoutState: ScreenBubbleLayout = {
+    ...DEFAULT_SCREEN_BUBBLE_LAYOUT,
+    ...options.initialBubble,
+  };
 
   const syncCanvasSize = () => {
     const srcW = screenVideo.videoWidth || 1280;
@@ -110,13 +164,18 @@ export async function createScreenCompositeSession(
     syncCanvasSize();
     ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
 
-    if (cameraVideo.readyState >= 2 && cameraVideo.videoWidth > 0) {
-      const bubbleW = canvas.width * 0.18;
+    if (
+      bubbleLayoutState.visible &&
+      cameraVideo.readyState >= 2 &&
+      cameraVideo.videoWidth > 0
+    ) {
       const aspect = cameraVideo.videoHeight / cameraVideo.videoWidth || 0.75;
-      const bubbleH = bubbleW * aspect;
-      const pad = canvas.width * 0.025;
-      const x = pad;
-      const y = canvas.height - bubbleH - pad;
+      const { x, y, bubbleW, bubbleH } = bubbleLayout(
+        canvas.width,
+        canvas.height,
+        bubbleLayoutState,
+        aspect,
+      );
       const radius = bubbleW * 0.14;
 
       ctx.save();
@@ -161,13 +220,11 @@ export async function createScreenCompositeSession(
     cameraVideo.srcObject = null;
   };
 
-  return { compositeStream, stop };
-}
-
-/** Bubble layout helpers for tests. */
-export function bubbleLayout(canvasW: number, canvasH: number, camAspect = 0.75) {
-  const bubbleW = canvasW * 0.18;
-  const bubbleH = bubbleW * camAspect;
-  const pad = canvasW * 0.025;
-  return { x: pad, y: canvasH - bubbleH - pad, bubbleW, bubbleH };
+  return {
+    compositeStream,
+    stop,
+    setBubbleLayout: (patch) => {
+      bubbleLayoutState = { ...bubbleLayoutState, ...patch };
+    },
+  };
 }

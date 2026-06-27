@@ -45,6 +45,9 @@ verify_jwt = true
 [functions.journal-suggest-title]
 verify_jwt = true
 
+[functions.journal-suggest-summary]
+verify_jwt = true
+
 [functions.journal-voice-to-text]
 verify_jwt = true
 
@@ -64,6 +67,21 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.youtube-oauth-disconnect]
+verify_jwt = true
+
+[functions.google-drive-oauth-start]
+verify_jwt = true
+
+[functions.google-drive-oauth-callback]
+verify_jwt = false
+
+[functions.google-drive-oauth-status]
+verify_jwt = true
+
+[functions.google-drive-oauth-disconnect]
+verify_jwt = true
+
+[functions.google-drive-sync]
 verify_jwt = true
 
 [functions.youtube-channel-subscribe]

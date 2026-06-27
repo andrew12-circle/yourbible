@@ -5,14 +5,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import JournalVideoCaptureDialog from "@/components/journal/JournalVideoCaptureDialog";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { toast } from "@/hooks/use-toast";
-import {
-  insertEntryVideo,
-  journalVideoCaptureSupported,
-  journalVideoTranscriptEmptyMessage,
-  transcribeJournalVideo,
-  updateEntryVideoTranscript,
-  uploadEntryVideo,
-} from "@/lib/journal/videos";
+import { journalVideoCaptureSupported, journalVideoTranscriptEmptyMessage } from "@/lib/journal/videos";
+import { enqueueJournalVideoUpload } from "@/lib/journal/journalVideoUploadQueue";
+import { saveJournalVideoCapture } from "@/lib/journal/journalVideoUploadProcessor";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -64,35 +59,57 @@ export default function JournalVideoCaptureButton({
     const anchorOffset = anchorRef.current;
     setUploading(true);
     try {
-      const uploaded = await uploadEntryVideo(userId, entryId, result.video, durationMs);
-      const row = await insertEntryVideo(userId, entryId, uploaded, { anchor_offset: anchorOffset });
-      if (!row) throw new Error("Could not attach video to entry");
-
-      setUploading(false);
-      setTranscribing(true);
-      const stt = await transcribeJournalVideo(uploaded.storage_path, {
+      const saved = await saveJournalVideoCapture(
         userId,
-        audioBlob: result.audio,
-        liveTranscript: result.liveTranscript,
-      });
-      const transcript = stt.text;
-      if (transcript) {
-        await updateEntryVideoTranscript(row.id, transcript);
-      }
+        entryId,
+        result.video,
+        result.audio,
+        durationMs,
+        anchorOffset,
+        result.liveTranscript,
+        result.chapters,
+      );
 
-      onVideoSaved({ transcript, anchorOffset });
+      onVideoSaved(saved);
       toast({
-        title: transcript ? "Video and transcript saved" : "Video saved",
-        description: transcript
+        title: saved.transcript ? "Video and transcript saved" : "Video saved",
+        description: saved.transcript
           ? undefined
           : journalVideoTranscriptEmptyMessage({
-              sttError: stt.error,
+              sttError: saved.sttError,
               hadLiveCaption: Boolean(result.liveTranscript.trim()),
               hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
             }),
       });
       setOpen(false);
     } catch (e) {
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline || /network|fetch|failed/i.test(e instanceof Error ? e.message : "")) {
+        try {
+          await enqueueJournalVideoUpload(
+            {
+              id: crypto.randomUUID(),
+              userId,
+              entryId,
+              anchorOffset,
+              durationMs,
+              liveTranscript: result.liveTranscript,
+              createdAt: new Date().toISOString(),
+            },
+            result.video,
+            result.audio,
+            result.chapters,
+          );
+          toast({
+            title: "Video queued for upload",
+            description: "We'll retry when you're back online.",
+          });
+          setOpen(false);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
       toast({
         title: "Couldn't save video",
         description: e instanceof Error ? e.message : "Please try again.",
@@ -154,6 +171,7 @@ export default function JournalVideoCaptureButton({
           defaultMode="camera"
           onRecordingStart={onRecordingStart}
           onLiveTranscript={onLiveTranscript}
+          reviewBeforeUpload
         />
       ) : null}
     </>

@@ -104,7 +104,19 @@ export function entryDisplayPreview(entry: EntryDisplayInput): string {
 }
 
 const PLACEHOLDER_ENTRY_TITLES =
-  /^(entry|untitled|new\s+(journal|entry)(?:\s+entry)?|journal\s+entry)$/i;
+  /^(entry|untitled|new\s+(journal|entry)(?:\s+entry)?|journal\s+entry|title)$/i;
+
+const VIDEO_JOURNAL_STAMP = /^Video journal\s·/i;
+
+export function isPlaceholderJournalTitle(title: string | null | undefined): boolean {
+  const t = title?.trim() ?? "";
+  return !t || PLACEHOLDER_ENTRY_TITLES.test(t);
+}
+
+export function isVideoJournalStampTitle(title: string | null | undefined): boolean {
+  const t = title?.trim() ?? "";
+  return VIDEO_JOURNAL_STAMP.test(t);
+}
 
 export function shouldSuggestJournalTitle(
   title: string | null | undefined,
@@ -112,6 +124,6 @@ export function shouldSuggestJournalTitle(
   summary?: string | null,
 ): boolean {
   const t = title?.trim() ?? "";
-  if (t && !PLACEHOLDER_ENTRY_TITLES.test(t)) return false;
+  if (t && !isPlaceholderJournalTitle(t) && !isVideoJournalStampTitle(t)) return false;
   return extractReadableProse(body, summary).length >= 40;
 }

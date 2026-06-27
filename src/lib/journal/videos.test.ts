@@ -86,6 +86,19 @@ describe("buildJournalVideoConstraints", () => {
     expect(c.video).not.toHaveProperty("facingMode");
     expect(c.audio).toBe(true);
   });
+
+  it("uses 1080p when requested", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      maxTouchPoints: 0,
+    });
+    vi.stubGlobal("window", { innerWidth: 1440 });
+    const c = buildJournalVideoConstraints({ quality: "1080p" });
+    expect(c.video).toMatchObject({
+      width: { ideal: 1920, max: 1920 },
+      height: { ideal: 1080, max: 1080 },
+    });
+  });
 });
 
 describe("createJournalAudioSidecarRecorder", () => {

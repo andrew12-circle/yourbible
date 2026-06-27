@@ -7,7 +7,7 @@ import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { Label } from "@/components/ui/label";
 import { ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { SpiritListeningQuestionBank } from "@/components/journal/SpiritListeningQuestionBank";
-import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
+import { JournalEntrySummaryBlock } from "@/components/journal/JournalEntrySummaryBlock";
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import type { JournalVideoRow } from "@/lib/journal/videos";
 import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } from "@/lib/journal/listeningEntry";
@@ -30,6 +30,9 @@ interface NewJournalEntryBodyEditorProps {
   showLocationMap?: boolean;
   body: string;
   onBodyChange: (value: string, cursor?: number) => void;
+  summary?: string;
+  onSummaryChange?: (value: string) => void;
+  videoSummarizing?: boolean;
   onBodyKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onBodySelect?: (e: React.SyntheticEvent<HTMLTextAreaElement>) => void;
   bodyPlaceholder: string;
@@ -78,6 +81,9 @@ export function NewJournalEntryBodyEditor({
   showLocationMap = false,
   body,
   onBodyChange,
+  summary = "",
+  onSummaryChange,
+  videoSummarizing = false,
   onBodyKeyDown,
   onBodySelect,
   bodyPlaceholder,
@@ -186,6 +192,13 @@ export function NewJournalEntryBodyEditor({
 
   return (
     <>
+      <JournalEntrySummaryBlock
+        summary={summary}
+        onSummaryChange={onSummaryChange}
+        summarizing={videoSummarizing}
+        showFullTextLabel={Boolean(summary.trim())}
+        className="mb-3"
+      />
       <div
         className={cn(
           "relative",

@@ -12,7 +12,9 @@ import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
+import { JournalVideoLaunchProvider } from "@/contexts/JournalVideoLaunchContext";
 import { LifeWeekReviewGate } from "@/components/life/LifeWeekReviewGate";
+import { JournalVideoUploadRetry } from "@/components/journal/JournalVideoUploadRetry";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
@@ -102,6 +104,7 @@ const App = () => (
           <AppOfflineBanner />
           <AuthProvider>
             <LifeWeekReviewProvider>
+            <JournalVideoLaunchProvider>
             <ThemeSwitcher />
             <Suspense fallback={<AppRouteFallback />}>
               <Routes>
@@ -214,7 +217,9 @@ const App = () => (
               <GlobalJournalQuickCapture />
               <GlobalArtifactVideoPip />
               <LifeWeekReviewGate />
+              <JournalVideoUploadRetry />
             </Suspense>
+            </JournalVideoLaunchProvider>
             </LifeWeekReviewProvider>
           </AuthProvider>
         </BrowserRouter>

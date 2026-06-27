@@ -2,6 +2,7 @@ import {
   BarChart3,
   BookOpen,
   Database,
+  HardDrive,
   HeartHandshake,
   LayoutGrid,
   Palette,
@@ -18,6 +19,7 @@ export type SettingsSectionId =
   | "home"
   | "partner"
   | "integrations"
+  | "storage"
   | "ai"
   | "knowledge"
   | "privacy";
@@ -72,6 +74,13 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "YouTube transcripts and subscriptions",
     icon: Plug,
     accent: "text-orange-500",
+  },
+  {
+    id: "storage",
+    label: "Storage",
+    description: "Usage meter and Google Drive backup",
+    icon: HardDrive,
+    accent: "text-sky-500",
   },
   {
     id: "ai",

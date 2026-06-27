@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Film, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { parseFamilyFromLayout, familyMemberById } from "@/lib/lifeWeeksFamily";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { useJournalVideoLaunch } from "@/contexts/JournalVideoLaunchContext";
+import { journalVideoCaptureSupported } from "@/lib/journal/videos";
 
 type Props = {
   open: boolean;
@@ -41,6 +43,7 @@ function gridLabel(pending: PendingLifeWeekReview): string {
 
 export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, onComplete }: Props) {
   const { user, profile } = useAuth();
+  const { launch: launchVideo } = useJournalVideoLaunch();
   const [checked, setChecked] = useState(false);
   const [reflection, setReflection] = useState("");
   const [dictInterim, setDictInterim] = useState("");
@@ -148,22 +151,52 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
                 {reflectionPrompt}
               </Label>
 
-              <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
-                <DictateButton
-                  ref={dictateRef}
-                  userId={user?.id}
-                  size="md"
-                  className="h-11 w-11 shrink-0 rounded-full border border-border bg-background shadow-sm"
-                  onAppend={(chunk) => setReflection((r) => mergeDictatedText(r, chunk))}
-                  onInterim={setDictInterim}
-                />
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                    <Mic className="h-4 w-4 text-primary" aria-hidden />
-                    Tap mic · speak your reflection
-                  </p>
-                  <p className="text-xs text-muted-foreground">Tap again when you&apos;re done talking.</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-1 items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
+                  <DictateButton
+                    ref={dictateRef}
+                    userId={user?.id}
+                    size="md"
+                    className="h-11 w-11 shrink-0 rounded-full border border-border bg-background shadow-sm"
+                    onAppend={(chunk) => setReflection((r) => mergeDictatedText(r, chunk))}
+                    onInterim={setDictInterim}
+                  />
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Mic className="h-4 w-4 text-primary" aria-hidden />
+                      Tap mic · speak your reflection
+                    </p>
+                    <p className="text-xs text-muted-foreground">Tap again when you&apos;re done talking.</p>
+                  </div>
                 </div>
+
+                {journalVideoCaptureSupported() ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto shrink-0 flex-col gap-1.5 px-4 py-3"
+                    onClick={() => {
+                      dictateRef.current?.stop();
+                      launchVideo({
+                        teleprompter: reflectionPrompt,
+                        defaultMode: "camera",
+                        onLiveTranscript: (text) => {
+                          setDictInterim("");
+                          setReflection(text);
+                        },
+                        onComplete: (result) => {
+                          const spoken = result.liveTranscript.trim();
+                          if (spoken) {
+                            setReflection((r) => mergeDictatedText(r, spoken));
+                          }
+                        },
+                      });
+                    }}
+                  >
+                    <Film className="h-5 w-5" />
+                    <span className="text-xs font-medium">Record video</span>
+                  </Button>
+                ) : null}
               </div>
 
               <Textarea

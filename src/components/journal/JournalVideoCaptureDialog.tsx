@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Monitor, Pause, Play, Square, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
+import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
+import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
 import { LiveTranscriptTicker } from "@/components/journal/LiveTranscriptTicker";
 import {
   useJournalVideoCapture,
@@ -15,6 +19,8 @@ import {
   type JournalVideoCaptureResult,
 } from "@/hooks/useJournalVideoCapture";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSilenceAutoPause } from "@/hooks/useSilenceAutoPause";
+import { useMicLevel } from "@/hooks/useMicLevel";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
 import {
   formatJournalVideoClock,
@@ -31,12 +37,19 @@ type Props = {
   onComplete: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
   uploading?: boolean;
   transcribing?: boolean;
-  /** Skip the Camera vs Screen picker (e.g. when the toolbar Video button is tapped). */
+  transcribingLabel?: string;
   defaultMode?: JournalVideoCaptureMode;
-  /** Fires when recording actually starts (after countdown). */
   onRecordingStart?: () => void;
-  /** Live speech-to-text while recording — use to fill the journal behind the dialog. */
   onLiveTranscript?: (text: string) => void;
+  /** One-line prompt shown above the live transcript while recording. */
+  teleprompter?: string;
+  /** Show retake / confirm step before calling onComplete. */
+  reviewBeforeUpload?: boolean;
+};
+
+type PendingReview = {
+  result: JournalVideoCaptureResult;
+  durationMs: number;
 };
 
 export default function JournalVideoCaptureDialog({
@@ -45,15 +58,20 @@ export default function JournalVideoCaptureDialog({
   onComplete,
   uploading = false,
   transcribing = false,
+  transcribingLabel,
   defaultMode,
   onRecordingStart,
   onLiveTranscript,
+  teleprompter,
+  reviewBeforeUpload = true,
 }: Props) {
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const bindPreviewRef = useRef<(el: HTMLVideoElement | null) => void>(() => {});
   const stopOnMaxRef = useRef<() => void>(() => {});
   const [pickMode, setPickMode] = useState<JournalVideoCaptureMode | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
 
   const capture = useJournalVideoCapture({
     onMaxDuration: () => {
@@ -69,17 +87,35 @@ export default function JournalVideoCaptureDialog({
   beginCountdownRef.current = capture.beginCountdown;
   bindPreviewRef.current = capture.bindPreview;
 
+  const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording");
+  useSilenceAutoPause({
+    enabled:
+      capture.settings.silenceAutoPause &&
+      capture.phase === "recording" &&
+      capture.mode === "camera",
+    level: micLevel,
+    onSilence: () => capture.pauseRecording(),
+  });
+
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
     bindPreviewRef.current(el);
   }, []);
+
+  const floating =
+    !isMobile &&
+    capture.settings.floatingRecorder &&
+    capture.mode === "camera" &&
+    pickMode === "camera" &&
+    !pendingReview;
 
   useEffect(() => {
     if (!open) {
       setPickMode(null);
+      setPendingReview(null);
       countdownStartedRef.current = false;
       return;
     }
-    // Mobile has no screen-share workflow — open the front camera immediately.
     if (isMobile || defaultMode) {
       setPickMode(defaultMode ?? "camera");
     }
@@ -90,17 +126,22 @@ export default function JournalVideoCaptureDialog({
   }, [open, isMobile, defaultMode]);
 
   useEffect(() => {
-    if (!open || !pickMode) return;
+    if (!open || !pickMode || pendingReview) return;
     countdownStartedRef.current = false;
     void openPreviewRef.current(pickMode);
-  }, [open, pickMode]);
+  }, [open, pickMode, pendingReview]);
 
   useEffect(() => {
-    if (capture.phase === "preview" && !countdownStartedRef.current && pickMode) {
+    if (
+      capture.phase === "preview" &&
+      !countdownStartedRef.current &&
+      pickMode &&
+      !pendingReview
+    ) {
       countdownStartedRef.current = true;
       beginCountdownRef.current();
     }
-  }, [capture.phase, pickMode]);
+  }, [capture.phase, pickMode, pendingReview]);
 
   useEffect(() => {
     if (capture.phase === "recording") {
@@ -111,7 +152,16 @@ export default function JournalVideoCaptureDialog({
   const handleClose = () => {
     capture.cancel();
     setPickMode(null);
+    setPendingReview(null);
     onOpenChange(false);
+  };
+
+  const finishCapture = async (result: JournalVideoCaptureResult, durationMs: number) => {
+    if (reviewBeforeUpload) {
+      setPendingReview({ result, durationMs });
+      return;
+    }
+    await onComplete(result, durationMs);
   };
 
   const handleStop = async () => {
@@ -121,11 +171,24 @@ export default function JournalVideoCaptureDialog({
       handleClose();
       return;
     }
-    await onComplete(result, durationMs);
+    await finishCapture(result, durationMs);
   };
 
   stopOnMaxRef.current = () => {
     void handleStop();
+  };
+
+  const handleRetake = () => {
+    setPendingReview(null);
+    countdownStartedRef.current = false;
+    void capture.openPreview(pickMode ?? defaultMode ?? "camera");
+  };
+
+  const handleConfirmReview = async () => {
+    if (!pendingReview) return;
+    await onComplete(pendingReview.result, pendingReview.durationMs);
+    setPendingReview(null);
+    onOpenChange(false);
   };
 
   const recording = capture.phase === "recording";
@@ -135,7 +198,8 @@ export default function JournalVideoCaptureDialog({
   const ready = capture.phase === "preview" || capture.phase === "countdown" || active;
   const starting = open && pickMode !== null && capture.phase === "idle" && !capture.error;
   const showCountdown = capture.phase === "countdown" && capture.countdown != null;
-  const showPicker = open && pickMode === null && !processing && !isMobile && !defaultMode;
+  const showPicker =
+    open && pickMode === null && !processing && !pendingReview && !isMobile && !defaultMode;
   const isScreen = capture.mode === "screen";
   const remainingClock = formatJournalVideoClock(capture.recordingRemainingMs);
   const sizeLabel = formatJournalVideoSizeMb(capture.recordingBytes, 0);
@@ -147,15 +211,254 @@ export default function JournalVideoCaptureDialog({
     journalVideoEffectiveRemainingMs(capture.recordingElapsedMs, capture.recordingBytes) <
       journalVideoRemainingMs(capture.recordingElapsedMs);
 
+  const captureBody = (
+    <div
+      className={cn(
+        "relative flex w-full items-center justify-center bg-black",
+        floating
+          ? "aspect-video"
+          : isMobile
+            ? "h-full min-h-0 flex-1"
+            : isScreen
+              ? "min-h-[50vh] flex-1 sm:min-h-[360px]"
+              : "aspect-video max-h-[min(72vh,810px)]",
+      )}
+    >
+      <video
+        ref={setVideoRef}
+        autoPlay
+        playsInline
+        muted
+        className={cn(
+          "h-full w-full object-contain",
+          !isScreen && "[transform:scaleX(-1)]",
+          !ready && "invisible",
+        )}
+      />
+
+      {starting ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
+          <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+          <p className="text-sm text-white/70">
+            {pickMode === "screen" ? "Choose what to share…" : "Connecting camera…"}
+          </p>
+        </div>
+      ) : null}
+
+      {showCountdown ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <span className="text-7xl font-bold tabular-nums text-white animate-pulse">
+            {capture.countdown}
+          </span>
+        </div>
+      ) : null}
+
+      {active ? (
+        <div className="absolute left-3 top-3 flex flex-col gap-1.5 sm:left-4 sm:top-4">
+          <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur-sm">
+            <span
+              className={cn("h-2.5 w-2.5 rounded-full bg-red-500", recording && "animate-pulse")}
+              aria-hidden
+            />
+            {paused ? "Paused" : isScreen ? "Recording screen" : "Recording"}
+          </div>
+          <div
+            className={cn(
+              "rounded-full bg-black/50 px-3 py-1 text-sm font-medium tabular-nums text-white backdrop-blur-sm",
+              lowTime && "text-amber-300",
+            )}
+            aria-live="polite"
+          >
+            {remainingClock}
+            <span className="mx-1.5 text-white/40" aria-hidden>
+              ·
+            </span>
+            <span className="text-[11px] font-normal text-white/75">
+              {sizeLabel}/{sizeCapLabel}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {!floating ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+          onClick={handleClose}
+          disabled={processing}
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+          onClick={handleClose}
+          disabled={processing}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 sm:px-4 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-10">
+        {teleprompter?.trim() ? (
+          <p className="mb-2 line-clamp-2 text-center text-xs font-medium text-white/80 sm:text-sm">
+            {teleprompter.trim()}
+          </p>
+        ) : null}
+
+        <LiveTranscriptTicker text={capture.interim} className="mb-2 text-sm italic text-white/90" />
+
+        <div className="mb-3 flex justify-center">
+          <JournalVideoCaptureToolbar
+            capture={capture}
+            isMobile={isMobile}
+            videoRef={videoRef}
+          />
+        </div>
+
+        {capture.error ? (
+          <div className="mb-3 flex flex-col items-center gap-2">
+            <p className="text-center text-sm text-red-300">{capture.error}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                capture.cancel();
+                setPickMode(isMobile || defaultMode ? (defaultMode ?? "camera") : null);
+              }}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-center gap-4">
+          {processing ? (
+            <div className="flex flex-col items-center gap-1 text-sm text-white/90">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {transcribing ? (transcribingLabel ?? "Transcribing…") : "Saving video…"}
+            </div>
+          ) : active ? (
+            <>
+              <Button
+                type="button"
+                size="lg"
+                variant="secondary"
+                className="h-12 w-12 rounded-full p-0 sm:h-14 sm:w-14"
+                onClick={paused ? capture.resumeRecording : capture.pauseRecording}
+                aria-label={paused ? "Resume recording" : "Pause recording"}
+              >
+                {paused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                variant="destructive"
+                className="h-12 w-12 rounded-full p-0 sm:h-14 sm:w-14"
+                onClick={() => void handleStop()}
+                aria-label="Stop recording"
+              >
+                <Square className="h-6 w-6 fill-current" />
+              </Button>
+            </>
+          ) : null}
+        </div>
+
+        <p className="mt-2 text-center text-[11px] text-white/60 sm:mt-3 sm:text-xs">
+          {active
+            ? paused
+              ? "Paused — tap play to continue or stop to save."
+              : lowTime
+                ? sizeLimited
+                  ? "Almost at the upload size limit — recording stops automatically."
+                  : "Less than a minute left — recording stops automatically at 0:00."
+                : isScreen
+                  ? "Your screen is recording with your camera in the corner."
+                  : "Talk naturally. Tap pause if you need a moment."
+            : showCountdown
+              ? "Get ready… or tap Start now."
+              : capture.settings.countdown === 0
+                ? "Recording starts when the camera is ready."
+                : "Recording starts after the countdown."}
+        </p>
+      </div>
+    </div>
+  );
+
+  const picker = (
+    <div className="flex min-h-[320px] flex-col items-center justify-center gap-6 bg-background px-6 py-10">
+      <div className="text-center">
+        <p className="text-lg font-semibold">How do you want to record?</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Camera only, or screen share with you in a corner — like Loom.
+        </p>
+      </div>
+      <div className="flex w-full max-w-sm flex-col gap-3 sm:flex-row">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-auto flex-1 flex-col gap-2 py-5"
+          onClick={() => setPickMode("camera")}
+        >
+          <Video className="h-8 w-8" />
+          <span className="font-medium">Camera</span>
+          <span className="text-xs font-normal text-muted-foreground">Mirror-style selfie</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-auto flex-1 flex-col gap-2 py-5"
+          disabled={!screenCaptureSupported()}
+          onClick={() => setPickMode("screen")}
+        >
+          <Monitor className="h-8 w-8" />
+          <span className="font-medium">Screen + me</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {screenCaptureSupported() ? "You in a corner bubble" : "Desktop browsers only"}
+          </span>
+        </Button>
+      </div>
+      <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
+        Cancel
+      </Button>
+    </div>
+  );
+
+  const reviewPanel = pendingReview ? (
+    <JournalVideoCaptureReview
+      result={pendingReview.result}
+      durationMs={pendingReview.durationMs}
+      onRetake={handleRetake}
+      onConfirm={() => void handleConfirmReview()}
+      confirming={uploading || transcribing}
+    />
+  ) : null;
+
+  if (!open) return null;
+
+  if (floating && !showPicker && !pendingReview) {
+    return createPortal(
+      <JournalVideoFloatingShell enabled>{captureBody}</JournalVideoFloatingShell>,
+      document.body,
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
       <DialogContent
         className={cn(
           "gap-0 overflow-hidden p-0",
-          isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
-          // Full-screen on mobile — reset centered transform so portrait fits the viewport.
-          "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
-          // Capture UI provides its own close control.
+          pendingReview ? "sm:max-w-lg" : isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
+          !pendingReview &&
+            "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
           "[&>button.absolute]:hidden",
         )}
       >
@@ -164,200 +467,7 @@ export default function JournalVideoCaptureDialog({
           <DialogDescription>Record yourself or your screen with a camera bubble.</DialogDescription>
         </DialogHeader>
 
-        {showPicker ? (
-          <div className="flex min-h-[320px] flex-col items-center justify-center gap-6 bg-background px-6 py-10">
-            <div className="text-center">
-              <p className="text-lg font-semibold">How do you want to record?</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Camera only, or screen share with you in a corner — like Loom.
-              </p>
-            </div>
-            <div className="flex w-full max-w-sm flex-col gap-3 sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto flex-1 flex-col gap-2 py-5"
-                onClick={() => setPickMode("camera")}
-              >
-                <Video className="h-8 w-8" />
-                <span className="font-medium">Camera</span>
-                <span className="text-xs font-normal text-muted-foreground">Mirror-style selfie</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto flex-1 flex-col gap-2 py-5"
-                disabled={!screenCaptureSupported()}
-                onClick={() => setPickMode("screen")}
-              >
-                <Monitor className="h-8 w-8" />
-                <span className="font-medium">Screen + me</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {screenCaptureSupported() ? "You in bottom-left bubble" : "Desktop browsers only"}
-                </span>
-              </Button>
-            </div>
-            <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "relative flex w-full items-center justify-center bg-black",
-              isMobile
-                ? "h-full min-h-0 flex-1"
-                : isScreen
-                  ? "min-h-[50vh] flex-1 sm:min-h-[360px]"
-                  : "aspect-video max-h-[min(72vh,810px)]",
-            )}
-          >
-            <video
-              ref={setVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className={cn(
-                "h-full w-full",
-                "object-contain",
-                !isScreen && "[transform:scaleX(-1)]",
-                !ready && "invisible",
-              )}
-            />
-
-            {starting ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
-                <Loader2 className="h-8 w-8 animate-spin text-white/80" />
-                <p className="text-sm text-white/70">
-                  {pickMode === "screen" ? "Choose what to share…" : "Connecting camera…"}
-                </p>
-              </div>
-            ) : null}
-
-            {showCountdown ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <span className="text-7xl font-bold tabular-nums text-white animate-pulse">
-                  {capture.countdown}
-                </span>
-              </div>
-            ) : null}
-
-            {active ? (
-              <div className="absolute left-4 top-4 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur-sm">
-                  <span
-                    className={cn(
-                      "h-2.5 w-2.5 rounded-full bg-red-500",
-                      recording && "animate-pulse",
-                    )}
-                    aria-hidden
-                  />
-                  {paused ? "Paused" : isScreen ? "Recording screen" : "Recording"}
-                </div>
-                <div
-                  className={cn(
-                    "rounded-full bg-black/50 px-3 py-1 text-sm font-medium tabular-nums text-white backdrop-blur-sm",
-                    lowTime && "text-amber-300",
-                  )}
-                  aria-live="polite"
-                  aria-label={`${remainingClock} remaining, ${sizeLabel} of ${sizeCapLabel} used`}
-                >
-                  {remainingClock}
-                  <span className="mx-1.5 text-white/40" aria-hidden>
-                    ·
-                  </span>
-                  <span className="text-[11px] font-normal text-white/75">
-                    {sizeLabel}/{sizeCapLabel}
-                  </span>
-                </div>
-              </div>
-            ) : null}
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
-              onClick={handleClose}
-              disabled={processing}
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-10">
-              <LiveTranscriptTicker
-                text={capture.interim}
-                className="mb-3 text-sm italic text-white/90"
-              />
-
-              {capture.error ? (
-                <div className="mb-3 flex flex-col items-center gap-2">
-                  <p className="text-center text-sm text-red-300">{capture.error}</p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      capture.cancel();
-                      setPickMode(isMobile || defaultMode ? (defaultMode ?? "camera") : null);
-                    }}
-                  >
-                    Try again
-                  </Button>
-                </div>
-              ) : null}
-
-              <div className="flex items-center justify-center gap-4">
-                {processing ? (
-                  <div className="flex flex-col items-center gap-1 text-sm text-white/90">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    {transcribing ? "Transcribing…" : "Saving video…"}
-                  </div>
-                ) : active ? (
-                  <>
-                    <Button
-                      type="button"
-                      size="lg"
-                      variant="secondary"
-                      className="h-14 w-14 rounded-full p-0"
-                      onClick={paused ? capture.resumeRecording : capture.pauseRecording}
-                      aria-label={paused ? "Resume recording" : "Pause recording"}
-                    >
-                      {paused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="lg"
-                      variant="destructive"
-                      className="h-14 w-14 rounded-full p-0"
-                      onClick={() => void handleStop()}
-                      aria-label="Stop recording"
-                    >
-                      <Square className="h-6 w-6 fill-current" />
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-
-              <p className="mt-3 text-center text-xs text-white/60">
-                {active
-                  ? paused
-                    ? "Paused — tap play to continue or stop to save."
-                    : lowTime
-                      ? sizeLimited
-                        ? "Almost at the upload size limit — recording stops automatically."
-                        : "Less than a minute left — recording stops automatically at 0:00."
-                      : isScreen
-                        ? "Your screen is recording with your camera in the corner."
-                        : "Talk naturally. Tap pause if you need a moment."
-                  : showCountdown
-                    ? "Get ready…"
-                    : "Recording starts automatically after the countdown."}
-              </p>
-            </div>
-          </div>
-        )}
+        {pendingReview ? reviewPanel : showPicker ? picker : captureBody}
       </DialogContent>
     </Dialog>
   );

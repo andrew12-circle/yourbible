@@ -172,6 +172,8 @@ export function entryListPreview(
 ): string {
   const chatSnippet = getChatJournalPreview(body, summary);
   if (chatSnippet) return chatSnippet;
+  const summarySnippet = summary?.trim().replace(/\s+/g, " ");
+  if (summarySnippet) return summarySnippet.slice(0, 200);
   if (title) return body.replace(/\s+/g, " ").slice(0, 200);
   const lines = (body || "").split("\n").map((l) => l.trim()).filter(Boolean);
   const readable = lines.find(

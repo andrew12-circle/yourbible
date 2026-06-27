@@ -83,6 +83,7 @@ import {
   type ComposePersistenceSnapshot,
 } from "@/hooks/useJournalComposePersistence";
 import { hasMeaningfulComposeContent } from "@/lib/journal/composeEntryDraft";
+import { useVideoJournalAutoTitle } from "@/hooks/useVideoJournalAutoTitle";
 
 interface BeliefOpt {
   id: string;
@@ -101,6 +102,7 @@ export function useNewJournalEntryPage() {
   const isMobile = useIsMobile();
 
   const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -148,6 +150,7 @@ export function useNewJournalEntryPage() {
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoTranscribing, setVideoTranscribing] = useState(false);
+  const [videoSummarizing, setVideoSummarizing] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [journalName, setJournalName] = useState<string>("Journal");
@@ -429,6 +432,7 @@ export function useNewJournalEntryPage() {
       const data = await fetchJournalEntryDetail(editId);
       if (!data) return;
       setTitle(data.title ?? "");
+      setSummary((data as { summary?: string | null }).summary ?? "");
       const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
       const prose =
         parsedBody.kind === "plain" ? (data.body ?? "") : parsedBody.summary;
@@ -630,6 +634,15 @@ export function useNewJournalEntryPage() {
 
   const bodyRef = useRef(body);
   bodyRef.current = body;
+
+  const videoAutoTitle = useVideoJournalAutoTitle({
+    title,
+    setTitle,
+    entryAt,
+    entryId: editId ?? inlineEntryId,
+    onSummary: setSummary,
+    onSummarizingChange: setVideoSummarizing,
+  });
 
   const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
     useDictationAutoFormat({
@@ -919,6 +932,7 @@ export function useNewJournalEntryPage() {
       user_id: user.id,
       journal_id: journalId,
       title: title.trim() || null,
+      summary: summary.trim() || null,
       body: composedBody,
       mood,
       tags: mergeInlineTags(composedBody, tags),
@@ -1197,15 +1211,18 @@ export function useNewJournalEntryPage() {
       body: bodyRef.current,
       anchor: getVideoAnchorOffset(),
     };
-  }, [getVideoAnchorOffset]);
+    videoAutoTitle.onRecordingStart();
+  }, [getVideoAnchorOffset, videoAutoTitle]);
 
   const handleVideoLiveTranscript = useCallback(
     (live: string) => {
       const snap = videoLiveSnapRef.current;
       if (!snap) return;
-      handleBodyChange(bodyWithLiveVideoTranscript(snap.body, snap.anchor, live));
+      const nextBody = bodyWithLiveVideoTranscript(snap.body, snap.anchor, live);
+      handleBodyChange(nextBody);
+      videoAutoTitle.onLiveTranscriptBody(nextBody);
     },
-    [handleBodyChange],
+    [handleBodyChange, videoAutoTitle],
   );
 
   const handleVideoRecordingCancelled = useCallback(() => {
@@ -1320,17 +1337,25 @@ export function useNewJournalEntryPage() {
 
         await reloadVideos();
         const prepared = prepareVideoJournalTranscript(transcript);
+        let enrichResult: { summary?: string } | void;
         if (prepared.trim()) {
           const snap = videoLiveSnapRef.current;
           const base = snap?.body ?? bodyRef.current;
           const anchor = snap?.anchor ?? clampAnchorOffset(base, anchorOffset);
-          handleBodyChange(insertTranscriptAtAnchor(base, anchor, prepared));
+          const nextBody = insertTranscriptAtAnchor(base, anchor, prepared);
+          handleBodyChange(nextBody);
+          setVideoTranscribing(false);
+          enrichResult = await videoAutoTitle.onRecordingComplete(nextBody);
+        } else {
+          enrichResult = await videoAutoTitle.onRecordingComplete(bodyRef.current);
         }
         videoLiveSnapRef.current = null;
         toast({
           title: prepared ? "Video and transcript saved" : "Video saved",
           description: prepared
-            ? undefined
+            ? enrichResult?.summary
+              ? "Summary and full transcript are in your entry."
+              : undefined
             : journalVideoTranscriptEmptyMessage({
                 sttError: stt.error,
                 hadLiveCaption: Boolean(result.liveTranscript.trim()),
@@ -1350,7 +1375,7 @@ export function useNewJournalEntryPage() {
         setVideoTranscribing(false);
       }
     },
-    [user?.id, editId, inlineEntryId, reloadVideos, handleBodyChange],
+    [user?.id, editId, inlineEntryId, reloadVideos, handleBodyChange, videoAutoTitle],
   );
 
   const scoreNow = useCallback(async () => {
@@ -1435,6 +1460,7 @@ export function useNewJournalEntryPage() {
         }
         if (r.body) setBody(r.body);
         if (r.title) setTitle(r.title);
+        if (r.summary) setSummary(r.summary);
         toast({
           title: r.title ? "Entry named and transcribed" : "Handwritten note transcribed",
           description: r.title
@@ -1475,6 +1501,9 @@ export function useNewJournalEntryPage() {
     focusBodyEditor,
     title,
     setTitle,
+    summary,
+    setSummary,
+    markTitleEdited: videoAutoTitle.markTitleEdited,
     body,
     setBody,
     mood,
@@ -1561,6 +1590,7 @@ export function useNewJournalEntryPage() {
     setVideoOpen,
     videoUploading,
     videoTranscribing,
+    videoSummarizing,
     handleVideoComplete,
     handleVideoRecordingStart,
     handleVideoLiveTranscript,

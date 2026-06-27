@@ -2602,6 +2602,10 @@ export type Database = {
           peer_library_count: number
         }[]
       }
+      get_my_storage_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       match_corpus_peers_for_artifact: {
         Args: {
           match_count?: number

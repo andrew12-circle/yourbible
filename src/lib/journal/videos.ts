@@ -4,6 +4,9 @@ import {
   journalVideoUploadTooLargeMessage,
 } from "@/lib/journal/journalVideoLimits";
 import { fixJournalVideoBlob } from "@/lib/journal/fixJournalVideoBlob";
+import type { JournalVideoQuality } from "@/lib/journal/journalVideoCaptureSettings";
+import { qualityDimensions } from "@/lib/journal/journalVideoCaptureSettings";
+import type { CameraFacing } from "@/lib/journal/journalVideoDevices";
 import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface JournalVideoRow {
@@ -143,36 +146,56 @@ function isMobileVideoCapture(): boolean {
 /** HD widescreen — matches typical webcam output (16:9). */
 export const JOURNAL_VIDEO_ASPECT_RATIO = 16 / 9;
 
-function journalVideoTrackConstraints(mobile: boolean): MediaTrackConstraints {
-  return {
-    ...(mobile ? { facingMode: "user" as const } : {}),
+export type JournalVideoConstraintOptions = {
+  quality?: JournalVideoQuality;
+  facingMode?: CameraFacing;
+  deviceId?: string | null;
+};
+
+function journalVideoTrackConstraints(
+  mobile: boolean,
+  options: JournalVideoConstraintOptions = {},
+): MediaTrackConstraints {
+  const { width, height } = qualityDimensions(options.quality ?? "720p");
+  const video: MediaTrackConstraints = {
     aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
-    width: { ideal: 1280, max: 1280 },
-    height: { ideal: 720, max: 720 },
+    width: { ideal: width, max: width },
+    height: { ideal: height, max: height },
     frameRate: mobile ? { ideal: 24, max: 30 } : { ideal: 30, max: 30 },
   };
+  if (options.deviceId) {
+    video.deviceId = { exact: options.deviceId };
+  } else if (mobile || options.facingMode) {
+    video.facingMode = options.facingMode ?? (mobile ? "user" : undefined);
+  }
+  return video;
 }
 
-/** Front camera on phones; default webcam on desktop — both 720p 16:9. */
-export function buildJournalVideoConstraints(): MediaStreamConstraints {
+/** Front camera on phones; default webcam on desktop — 16:9 HD or Full HD. */
+export function buildJournalVideoConstraints(
+  options: JournalVideoConstraintOptions = {},
+): MediaStreamConstraints {
   const mobile = isMobileVideoCapture();
   return {
     audio: true,
-    video: journalVideoTrackConstraints(mobile),
+    video: journalVideoTrackConstraints(mobile, options),
   };
 }
 
 /** Tighten an acquired stream (iOS often ignores initial constraints). */
-export async function tuneJournalVideoStream(stream: MediaStream): Promise<void> {
+export async function tuneJournalVideoStream(
+  stream: MediaStream,
+  quality: JournalVideoQuality = "720p",
+): Promise<void> {
   const track = stream.getVideoTracks()[0];
   if (!track) return;
-  const mobile = isMobileVideoCapture();
+  const { width, height } = qualityDimensions(quality);
   try {
     await track.applyConstraints({
       aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
-      width: { max: 1280 },
-      height: { max: 720 },
-      frameRate: { max: mobile ? 30 : 30 },
+      width: { max: width },
+      height: { max: height },
+      frameRate: { max: 30 },
     });
   } catch {
     /* best effort */

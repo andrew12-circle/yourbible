@@ -194,7 +194,10 @@ export default function NewJournalEntryPage() {
           ) : null}
           <PrivacyBlurInput
             value={p.title}
-            onChange={(e) => p.setTitle(e.target.value)}
+            onChange={(e) => {
+              p.markTitleEdited();
+              p.setTitle(e.target.value);
+            }}
             aria-label="Title"
             className={cn(
               journalEntryTitleInputClass,
@@ -213,6 +216,9 @@ export default function NewJournalEntryPage() {
           showLocationMap={showComposeMap}
           body={p.body}
           onBodyChange={p.handleBodyChange}
+          summary={p.summary}
+          onSummaryChange={p.setSummary}
+          videoSummarizing={p.videoSummarizing}
           onBodyKeyDown={p.handleBodyKeyDown}
           onBodySelect={p.handleBodySelect}
           bodyPlaceholder={p.bodyPlaceholder}
@@ -500,14 +506,15 @@ export default function NewJournalEntryPage() {
         <JournalVideoCaptureDialog
           open={p.videoOpen}
           onOpenChange={(open) => {
-            if (!open && !p.videoUploading && !p.videoTranscribing) {
+            if (!open && !p.videoUploading && !p.videoTranscribing && !p.videoSummarizing) {
               p.handleVideoRecordingCancelled();
             }
             p.setVideoOpen(open);
           }}
           onComplete={p.handleVideoComplete}
           uploading={p.videoUploading}
-          transcribing={p.videoTranscribing}
+          transcribing={p.videoTranscribing || p.videoSummarizing}
+          transcribingLabel={p.videoSummarizing ? "Summarizing…" : undefined}
           defaultMode="camera"
           onRecordingStart={p.handleVideoRecordingStart}
           onLiveTranscript={p.handleVideoLiveTranscript}
