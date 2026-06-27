@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyWithLiveVideoTranscript,
   composeVideoLiveTranscript,
   insertTranscriptAtAnchor,
+  liveTranscriptTickerLine,
   prepareVideoJournalTranscript,
   resolveVideoAnchorOffset,
   effectiveVideoAnchor,
@@ -67,5 +69,23 @@ describe("effectiveVideoAnchor", () => {
 
   it("keeps intentional sentence-boundary anchors", () => {
     expect(effectiveVideoAnchor("Before. After.", 7)).toBe(7);
+  });
+});
+
+describe("liveTranscriptTickerLine", () => {
+  it("keeps a single line by showing the tail of long text", () => {
+    const long = "one two three four five six seven eight nine ten eleven twelve";
+    const line = liveTranscriptTickerLine(long, 24);
+    expect(line.split("\n")).toHaveLength(1);
+    expect(line.startsWith("…")).toBe(true);
+    expect(line.endsWith("twelve")).toBe(true);
+  });
+});
+
+describe("bodyWithLiveVideoTranscript", () => {
+  it("inserts live speech at anchor from a frozen base body", () => {
+    expect(bodyWithLiveVideoTranscript("Start. End.", 7, "spoken words")).toBe(
+      "Start.\n\nspoken words\n\nEnd.",
+    );
   });
 });

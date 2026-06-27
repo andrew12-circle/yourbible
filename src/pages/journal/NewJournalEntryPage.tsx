@@ -499,11 +499,18 @@ export default function NewJournalEntryPage() {
       {p.videoOpen ? (
         <JournalVideoCaptureDialog
           open={p.videoOpen}
-          onOpenChange={p.setVideoOpen}
+          onOpenChange={(open) => {
+            if (!open && !p.videoUploading && !p.videoTranscribing) {
+              p.handleVideoRecordingCancelled();
+            }
+            p.setVideoOpen(open);
+          }}
           onComplete={p.handleVideoComplete}
           uploading={p.videoUploading}
           transcribing={p.videoTranscribing}
           defaultMode="camera"
+          onRecordingStart={p.handleVideoRecordingStart}
+          onLiveTranscript={p.handleVideoLiveTranscript}
         />
       ) : null}
 

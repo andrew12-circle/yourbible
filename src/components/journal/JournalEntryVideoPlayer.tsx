@@ -96,7 +96,7 @@ export default function JournalEntryVideoPlayer({ url, durationMs, mimeType, cla
         playsInline
         preload="metadata"
         onLoadedMetadata={onLoadedMetadata}
-        className="w-full max-h-[min(70vh,480px)] object-contain bg-black"
+        className="aspect-video w-full max-h-[min(70vh,720px)] object-contain bg-black"
       />
     </div>
   );

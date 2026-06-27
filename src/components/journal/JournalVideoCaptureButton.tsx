@@ -20,6 +20,9 @@ type Props = {
   entryId: string | null;
   getAnchorOffset: () => number;
   onVideoSaved: (payload: { transcript: string; anchorOffset: number }) => void;
+  onRecordingStart?: () => void;
+  onLiveTranscript?: (text: string) => void;
+  onRecordingCancelled?: () => void;
   size?: "sm" | "md";
   className?: string;
 };
@@ -29,6 +32,9 @@ export default function JournalVideoCaptureButton({
   entryId,
   getAnchorOffset,
   onVideoSaved,
+  onRecordingStart,
+  onLiveTranscript,
+  onRecordingCancelled,
   size = "sm",
   className,
 }: Props) {
@@ -136,11 +142,18 @@ export default function JournalVideoCaptureButton({
       {open ? (
         <JournalVideoCaptureDialog
           open={open}
-          onOpenChange={setOpen}
+          onOpenChange={(next) => {
+            if (!next && !uploading && !transcribing) {
+              onRecordingCancelled?.();
+            }
+            setOpen(next);
+          }}
           onComplete={handleComplete}
           uploading={uploading}
           transcribing={transcribing}
           defaultMode="camera"
+          onRecordingStart={onRecordingStart}
+          onLiveTranscript={onLiveTranscript}
         />
       ) : null}
     </>

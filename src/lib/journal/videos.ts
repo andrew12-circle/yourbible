@@ -140,19 +140,25 @@ function isMobileVideoCapture(): boolean {
   );
 }
 
-/** Front camera on phones; default webcam on desktop. Mobile uses 480p to stay under upload caps. */
+/** HD widescreen — matches typical webcam output (16:9). */
+export const JOURNAL_VIDEO_ASPECT_RATIO = 16 / 9;
+
+function journalVideoTrackConstraints(mobile: boolean): MediaTrackConstraints {
+  return {
+    ...(mobile ? { facingMode: "user" as const } : {}),
+    aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
+    width: { ideal: 1280, max: 1280 },
+    height: { ideal: 720, max: 720 },
+    frameRate: mobile ? { ideal: 24, max: 30 } : { ideal: 30, max: 30 },
+  };
+}
+
+/** Front camera on phones; default webcam on desktop — both 720p 16:9. */
 export function buildJournalVideoConstraints(): MediaStreamConstraints {
   const mobile = isMobileVideoCapture();
   return {
     audio: true,
-    video: mobile
-      ? {
-          facingMode: "user",
-          width: { ideal: 480, max: 640 },
-          height: { ideal: 480, max: 640 },
-          frameRate: { ideal: 20, max: 24 },
-        }
-      : { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { max: 30 } },
+    video: journalVideoTrackConstraints(mobile),
   };
 }
 
@@ -162,19 +168,12 @@ export async function tuneJournalVideoStream(stream: MediaStream): Promise<void>
   if (!track) return;
   const mobile = isMobileVideoCapture();
   try {
-    await track.applyConstraints(
-      mobile
-        ? {
-            width: { max: 640 },
-            height: { max: 640 },
-            frameRate: { max: 24 },
-          }
-        : {
-            width: { max: 1280 },
-            height: { max: 720 },
-            frameRate: { max: 30 },
-          },
-    );
+    await track.applyConstraints({
+      aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
+      width: { max: 1280 },
+      height: { max: 720 },
+      frameRate: { max: mobile ? 30 : 30 },
+    });
   } catch {
     /* best effort */
   }

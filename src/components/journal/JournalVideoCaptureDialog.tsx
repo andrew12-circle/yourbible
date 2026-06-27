@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DictInterimPreview } from "@/components/journal/DictInterimPreview";
+import { LiveTranscriptTicker } from "@/components/journal/LiveTranscriptTicker";
 import {
   useJournalVideoCapture,
   type JournalVideoCaptureMode,
@@ -33,6 +33,10 @@ type Props = {
   transcribing?: boolean;
   /** Skip the Camera vs Screen picker (e.g. when the toolbar Video button is tapped). */
   defaultMode?: JournalVideoCaptureMode;
+  /** Fires when recording actually starts (after countdown). */
+  onRecordingStart?: () => void;
+  /** Live speech-to-text while recording — use to fill the journal behind the dialog. */
+  onLiveTranscript?: (text: string) => void;
 };
 
 export default function JournalVideoCaptureDialog({
@@ -42,6 +46,8 @@ export default function JournalVideoCaptureDialog({
   uploading = false,
   transcribing = false,
   defaultMode,
+  onRecordingStart,
+  onLiveTranscript,
 }: Props) {
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
@@ -53,6 +59,7 @@ export default function JournalVideoCaptureDialog({
     onMaxDuration: () => {
       stopOnMaxRef.current();
     },
+    onInterim: onLiveTranscript,
   });
   const openPreviewRef = useRef(capture.openPreview);
   const cancelRef = useRef(capture.cancel);
@@ -94,6 +101,12 @@ export default function JournalVideoCaptureDialog({
       beginCountdownRef.current();
     }
   }, [capture.phase, pickMode]);
+
+  useEffect(() => {
+    if (capture.phase === "recording") {
+      onRecordingStart?.();
+    }
+  }, [capture.phase, onRecordingStart]);
 
   const handleClose = () => {
     capture.cancel();
@@ -139,7 +152,7 @@ export default function JournalVideoCaptureDialog({
       <DialogContent
         className={cn(
           "gap-0 overflow-hidden p-0",
-          isScreen ? "sm:max-w-4xl" : "sm:max-w-lg",
+          isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
           // Full-screen on mobile — reset centered transform so portrait fits the viewport.
           "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
           // Capture UI provides its own close control.
@@ -191,12 +204,12 @@ export default function JournalVideoCaptureDialog({
         ) : (
           <div
             className={cn(
-              "relative flex min-h-0 flex-1 flex-col bg-black",
+              "relative flex w-full items-center justify-center bg-black",
               isMobile
-                ? "h-full"
+                ? "h-full min-h-0 flex-1"
                 : isScreen
-                  ? "min-h-[50vh] sm:min-h-[360px]"
-                  : "min-h-[50vh] sm:min-h-[420px]",
+                  ? "min-h-[50vh] flex-1 sm:min-h-[360px]"
+                  : "aspect-video max-h-[min(72vh,810px)]",
             )}
           >
             <video
@@ -205,13 +218,8 @@ export default function JournalVideoCaptureDialog({
               playsInline
               muted
               className={cn(
-                "min-h-0 w-full flex-1",
-                isMobile ? "h-full object-cover" : "h-full",
-                !isMobile && isScreen
-                  ? "min-h-[50vh] object-contain sm:min-h-[360px]"
-                  : !isMobile
-                    ? "min-h-[50vh] object-cover sm:min-h-[420px]"
-                    : null,
+                "h-full w-full",
+                "object-contain",
                 !isScreen && "[transform:scaleX(-1)]",
                 !ready && "invisible",
               )}
@@ -277,10 +285,10 @@ export default function JournalVideoCaptureDialog({
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-16">
-              <DictInterimPreview
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-10">
+              <LiveTranscriptTicker
                 text={capture.interim}
-                className="mb-4 min-h-[1.5rem] text-center text-sm italic leading-relaxed text-white/90"
+                className="mb-3 text-sm italic text-white/90"
               />
 
               {capture.error ? (

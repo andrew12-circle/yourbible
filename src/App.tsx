@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AppRouteFallback from "@/components/AppRouteFallback";
 import OfflineBanner from "@/components/OfflineBanner";
+import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
@@ -96,6 +97,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PwaUpdatePrompt />
         <BrowserRouter>
           <AppOfflineBanner />
           <AuthProvider>

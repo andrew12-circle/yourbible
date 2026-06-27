@@ -64,6 +64,7 @@ import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import {
+  bodyWithLiveVideoTranscript,
   clampAnchorOffset,
   insertTranscriptAtAnchor,
   prepareVideoJournalTranscript,
@@ -161,6 +162,7 @@ export function useNewJournalEntryPage() {
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyCaretRef = useRef<number | null>(null);
   const videoAnchorRef = useRef(0);
+  const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
@@ -1190,6 +1192,28 @@ export function useNewJournalEntryPage() {
     return resolveVideoAnchorOffset(cur, { caret, bodyEditorFocused: editorFocused });
   }, []);
 
+  const handleVideoRecordingStart = useCallback(() => {
+    videoLiveSnapRef.current = {
+      body: bodyRef.current,
+      anchor: getVideoAnchorOffset(),
+    };
+  }, [getVideoAnchorOffset]);
+
+  const handleVideoLiveTranscript = useCallback(
+    (live: string) => {
+      const snap = videoLiveSnapRef.current;
+      if (!snap) return;
+      handleBodyChange(bodyWithLiveVideoTranscript(snap.body, snap.anchor, live));
+    },
+    [handleBodyChange],
+  );
+
+  const handleVideoRecordingCancelled = useCallback(() => {
+    const snap = videoLiveSnapRef.current;
+    if (snap) handleBodyChange(snap.body);
+    videoLiveSnapRef.current = null;
+  }, [handleBodyChange]);
+
   const ensureDraftEntry = useCallback(async (): Promise<string | null> => {
     if (!user) return null;
     const existing = editId ?? inlineEntryId;
@@ -1297,10 +1321,12 @@ export function useNewJournalEntryPage() {
         await reloadVideos();
         const prepared = prepareVideoJournalTranscript(transcript);
         if (prepared.trim()) {
-          const cur = bodyRef.current;
-          const anchor = clampAnchorOffset(cur, anchorOffset);
-          handleBodyChange(insertTranscriptAtAnchor(cur, anchor, prepared));
+          const snap = videoLiveSnapRef.current;
+          const base = snap?.body ?? bodyRef.current;
+          const anchor = snap?.anchor ?? clampAnchorOffset(base, anchorOffset);
+          handleBodyChange(insertTranscriptAtAnchor(base, anchor, prepared));
         }
+        videoLiveSnapRef.current = null;
         toast({
           title: prepared ? "Video and transcript saved" : "Video saved",
           description: prepared
@@ -1536,6 +1562,9 @@ export function useNewJournalEntryPage() {
     videoUploading,
     videoTranscribing,
     handleVideoComplete,
+    handleVideoRecordingStart,
+    handleVideoLiveTranscript,
+    handleVideoRecordingCancelled,
     videoCaptureSupported: journalVideoCaptureSupported(),
     handleCaretChange,
     removeExistingPhoto,

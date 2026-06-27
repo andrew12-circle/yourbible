@@ -62,7 +62,12 @@ describe("buildJournalVideoConstraints", () => {
     });
     vi.stubGlobal("window", { innerWidth: 390 });
     const c = buildJournalVideoConstraints();
-    expect(c.video).toMatchObject({ facingMode: "user", width: { ideal: 480, max: 640 } });
+    expect(c.video).toMatchObject({
+      facingMode: "user",
+      aspectRatio: { ideal: 16 / 9 },
+      width: { ideal: 1280, max: 1280 },
+      height: { ideal: 720, max: 720 },
+    });
     expect(c.audio).toBe(true);
   });
 
@@ -73,6 +78,11 @@ describe("buildJournalVideoConstraints", () => {
     });
     vi.stubGlobal("window", { innerWidth: 1440 });
     const c = buildJournalVideoConstraints();
+    expect(c.video).toMatchObject({
+      aspectRatio: { ideal: 16 / 9 },
+      width: { ideal: 1280, max: 1280 },
+      height: { ideal: 720, max: 720 },
+    });
     expect(c.video).not.toHaveProperty("facingMode");
     expect(c.audio).toBe(true);
   });

@@ -37,6 +37,25 @@ export function composeVideoLiveTranscript(finalized: string, interimPartial: st
   return mergeDictatedText(finalized, interimPartial);
 }
 
+/** One-line overlay: most recent words only (keeps the camera visible). */
+export function liveTranscriptTickerLine(text: string, maxChars = 96): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxChars) return normalized;
+  return `…${normalized.slice(-(maxChars - 1))}`;
+}
+
+/** Preview journal body while recording — always from the snapshot taken at record start. */
+export function bodyWithLiveVideoTranscript(
+  baseBody: string,
+  anchorOffset: number,
+  liveTranscript: string,
+): string {
+  const t = liveTranscript.trim();
+  if (!t) return baseBody;
+  return insertTranscriptAtAnchor(baseBody, anchorOffset, t);
+}
+
 /** Clean up raw speech-to-text before inserting into the journal body. */
 export function prepareVideoJournalTranscript(raw: string): string {
   const trimmed = raw.trim();

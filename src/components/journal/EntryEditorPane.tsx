@@ -10,7 +10,7 @@ import {
 import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureButton";
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
-import { clampAnchorOffset, insertTranscriptAtAnchor, prepareVideoJournalTranscript, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
+import { clampAnchorOffset, bodyWithLiveVideoTranscript, insertTranscriptAtAnchor, prepareVideoJournalTranscript, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -135,6 +135,7 @@ export default function EntryEditorPane({
   const saveGenerationRef = useRef(0);
   const entryRef = useRef<EntryRow | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState(false);
@@ -574,14 +575,58 @@ export default function EntryEditorPane({
     [handleBodyChange, inlineChatMode],
   );
 
+  const resolveBodyVideoAnchor = useCallback((): number => {
+    const cur = entryRef.current;
+    const body = cur?.body ?? "";
+    const el = bodyRef.current;
+    const editorFocused = Boolean(el && document.activeElement === el);
+    const caret = editorFocused
+      ? (el!.selectionStart ?? bodyCaretRef.current)
+      : bodyCaretRef.current;
+    return resolveVideoAnchorOffset(body, {
+      caret,
+      bodyEditorFocused: editorFocused,
+    });
+  }, []);
+
+  const handleVideoRecordingStart = useCallback(() => {
+    const cur = entryRef.current;
+    if (!cur) return;
+    videoLiveSnapRef.current = {
+      body: cur.body,
+      anchor: resolveBodyVideoAnchor(),
+    };
+  }, [resolveBodyVideoAnchor]);
+
+  const handleVideoLiveTranscript = useCallback(
+    (live: string) => {
+      const snap = videoLiveSnapRef.current;
+      if (!snap) return;
+      handleBodyChange(bodyWithLiveVideoTranscript(snap.body, snap.anchor, live));
+    },
+    [handleBodyChange],
+  );
+
+  const handleVideoRecordingCancelled = useCallback(() => {
+    const snap = videoLiveSnapRef.current;
+    if (snap) handleBodyChange(snap.body);
+    videoLiveSnapRef.current = null;
+  }, [handleBodyChange]);
+
   const handleVideoSaved = useCallback(
     ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
       void reloadVideos();
       const cur = entryRef.current;
       const prepared = prepareVideoJournalTranscript(transcript);
-      if (!cur || !prepared) return;
-      const anchor = clampAnchorOffset(cur.body, anchorOffset);
-      handleBodyChange(insertTranscriptAtAnchor(cur.body, anchor, prepared));
+      if (!cur || !prepared) {
+        videoLiveSnapRef.current = null;
+        return;
+      }
+      const snap = videoLiveSnapRef.current;
+      const baseBody = snap?.body ?? cur.body;
+      const anchor = snap?.anchor ?? clampAnchorOffset(baseBody, anchorOffset);
+      handleBodyChange(insertTranscriptAtAnchor(baseBody, anchor, prepared));
+      videoLiveSnapRef.current = null;
     },
     [handleBodyChange, reloadVideos],
   );
@@ -946,19 +991,10 @@ export default function EntryEditorPane({
           <JournalVideoCaptureButton
             userId={user?.id}
             entryId={entry?.id ?? null}
-            getAnchorOffset={() => {
-              const cur = entryRef.current;
-              const body = cur?.body ?? "";
-              const el = bodyRef.current;
-              const editorFocused = Boolean(el && document.activeElement === el);
-              const caret = editorFocused
-                ? (el!.selectionStart ?? bodyCaretRef.current)
-                : bodyCaretRef.current;
-              return resolveVideoAnchorOffset(body, {
-                caret,
-                bodyEditorFocused: editorFocused,
-              });
-            }}
+            getAnchorOffset={resolveBodyVideoAnchor}
+            onRecordingStart={handleVideoRecordingStart}
+            onLiveTranscript={handleVideoLiveTranscript}
+            onRecordingCancelled={handleVideoRecordingCancelled}
             onVideoSaved={handleVideoSaved}
           />
         ) : null}
