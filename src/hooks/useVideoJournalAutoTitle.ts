@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
-import { extractReadableProse, isPlaceholderJournalTitle } from "@/lib/journal/entryDisplay";
-import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
+import { useCallback, useRef } from "react";
+import { extractReadableProse } from "@/lib/journal/entryDisplay";
 import { enrichVideoJournalEntry, type VideoJournalEnrichResult } from "@/lib/journal/videoJournalEnrich";
-import {
-  formatVideoJournalStamp,
-  pickLiveVideoJournalTitle,
-} from "@/lib/journal/videoJournalTitle";
+import { canAutoManageVideoJournalTitle, formatVideoJournalStamp } from "@/lib/journal/videoJournalTitle";
 
 type UseVideoJournalAutoTitleOptions = {
   title: string;
@@ -18,7 +14,7 @@ type UseVideoJournalAutoTitleOptions = {
   onSummarizingChange?: (summarizing: boolean) => void;
 };
 
-/** Auto-titles video journal entries: stamp at record start, then transcript excerpt, then AI polish. */
+/** Auto-titles video journal entries with a date stamp at record start unless the user edits the title. */
 export function useVideoJournalAutoTitle({
   title,
   setTitle,
@@ -31,15 +27,8 @@ export function useVideoJournalAutoTitle({
   const lockedRef = useRef(false);
   const titleRef = useRef(title);
   titleRef.current = title;
-  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryIdRef = useRef(entryId);
   entryIdRef.current = entryId;
-
-  useEffect(() => {
-    return () => {
-      if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-    };
-  }, []);
 
   const applyAutoTitle = useCallback(
     (next: string) => {
@@ -52,10 +41,6 @@ export function useVideoJournalAutoTitle({
 
   const markTitleEdited = useCallback(() => {
     lockedRef.current = true;
-    if (suggestTimerRef.current) {
-      clearTimeout(suggestTimerRef.current);
-      suggestTimerRef.current = null;
-    }
   }, []);
 
   const stampForEntry = useCallback(
@@ -66,34 +51,10 @@ export function useVideoJournalAutoTitle({
   const onRecordingStart = useCallback(() => {
     if (lockedRef.current) return;
     const stamp = stampForEntry();
-    if (isPlaceholderJournalTitle(titleRef.current)) {
+    if (canAutoManageVideoJournalTitle(titleRef.current)) {
       applyAutoTitle(stamp);
     }
   }, [applyAutoTitle, stampForEntry]);
-
-  const onLiveTranscriptBody = useCallback(
-    (body: string) => {
-      if (lockedRef.current) return;
-      const next = pickLiveVideoJournalTitle(titleRef.current, body, stampForEntry());
-      if (next) applyAutoTitle(next);
-    },
-    [applyAutoTitle, stampForEntry],
-  );
-
-  const scheduleAiTitle = useCallback(
-    (body: string) => {
-      if (lockedRef.current || entryIdRef.current) return;
-      if (extractReadableProse(body).length < 40) return;
-      if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-      suggestTimerRef.current = setTimeout(() => {
-        void suggestJournalEntryTitle({ body }).then((res) => {
-          if (lockedRef.current || !res.ok || !res.title) return;
-          applyAutoTitle(res.title);
-        });
-      }, 1500);
-    },
-    [applyAutoTitle],
-  );
 
   const enrichAfterRecording = useCallback(
     async (body: string): Promise<VideoJournalEnrichResult> => {
@@ -105,31 +66,27 @@ export function useVideoJournalAutoTitle({
       try {
         const result = await enrichVideoJournalEntry({ entryId: id, body });
         if (lockedRef.current) return result;
-        if (result.title) applyAutoTitle(result.title);
         if (result.summary) onSummary?.(result.summary);
         return result;
       } finally {
         onSummarizingChange?.(false);
       }
     },
-    [applyAutoTitle, onSummary, onSummarizingChange],
+    [onSummary, onSummarizingChange],
   );
 
   const onRecordingComplete = useCallback(
     async (body: string): Promise<VideoJournalEnrichResult | void> => {
-      onLiveTranscriptBody(body);
       if (entryIdRef.current) {
         return await enrichAfterRecording(body);
       }
-      scheduleAiTitle(body);
     },
-    [onLiveTranscriptBody, enrichAfterRecording, scheduleAiTitle],
+    [enrichAfterRecording],
   );
 
   return {
     markTitleEdited,
     onRecordingStart,
-    onLiveTranscriptBody,
     onRecordingComplete,
   };
 }

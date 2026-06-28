@@ -3,6 +3,7 @@ import {
   appendVideoSpeechFinal,
   bodyWithLiveVideoTranscript,
   composeVideoLiveTranscript,
+  finalizeVideoJournalBody,
   insertTranscriptAtAnchor,
   liveTranscriptTickerLine,
   prepareVideoJournalTranscript,
@@ -117,6 +118,20 @@ describe("appendVideoSpeechFinal", () => {
     const first = appendVideoSpeechFinal("", "good morning");
     const second = appendVideoSpeechFinal(first.text, "good morning", first.lastFinal, first.lastFinal.at + 2000);
     expect(second.text).toBe("good morning good morning ");
+  });
+});
+
+describe("finalizeVideoJournalBody", () => {
+  it("inserts from the frozen pre-record body when a snap exists", () => {
+    expect(
+      finalizeVideoJournalBody({ body: "Morning notes.", anchor: 14 }, "Morning notes.\n\nlive words", 14, "Final transcript."),
+    ).toBe("Morning notes.\n\nFinal transcript.");
+  });
+
+  it("replaces live preview text when the snap was lost", () => {
+    expect(
+      finalizeVideoJournalBody(null, "live words only", 0, "Final transcript."),
+    ).toBe("Final transcript.");
   });
 });
 

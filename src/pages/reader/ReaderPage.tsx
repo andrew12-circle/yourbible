@@ -40,7 +40,6 @@ import {
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
-import { platesForChapter } from "@/lib/bible/biblePlates";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
@@ -102,7 +101,10 @@ import {
   findSpreadPageForVerse,
   interimSpreadDisplaySplits,
   isSpreadDoubleColumnSplitsReady,
+  isStreamSplitsReady,
   sliceReaderSpreadPane,
+  sliceReaderStreamRange,
+  spreadPaneStreamRanges,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
 } from "@/lib/bible/readerStream";
@@ -129,6 +131,7 @@ import {
 import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
 import {
   readReaderColumnLayout,
+  READER_SPREAD_COLUMNS_CLASS,
   readerColumnLayoutLabel,
   writeReaderColumnLayout,
   type ReaderColumnLayout,
@@ -140,6 +143,7 @@ import {
   readerColumnContentHeightPx,
   readerPageContentLimitPx,
   READER_LIVE_COLUMN_SAFETY_PX,
+  scriptureColumnWrapperStyle,
 } from "@/lib/bible/readerColumnMeasure";
 import {
   renderScriptureParagraphNodes,
@@ -160,6 +164,7 @@ import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock"
 import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
 import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
 import { useReaderPagination } from "@/hooks/useReaderPagination";
+import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
 import { ReaderNotesPanel } from "@/pages/reader/ReaderNotesPanel";
 import { ReaderCompanionColumn } from "@/pages/reader/ReaderCompanionColumn";
@@ -264,6 +269,13 @@ export default function ReaderPage() {
   const { data: bookIntro } = useBookIntroduction(bibleId, book.abbr, chapter);
   const showCachedHint = !online || (passageError && !!passage);
   const [searchOpen, setSearchOpen] = useState(false);
+  const {
+    chapterContextOpen,
+    setChapterContextOpen,
+    chapterCtx,
+    showChapterContext,
+    hasInlinePlates,
+  } = useReaderChapterMedia(book.abbr, chapter);
   const readerAudio = useReaderAudio(reference, passage);
   useRecordReadingActivity(user?.id, book.abbr, chapter);
 
@@ -695,11 +707,6 @@ export default function ReaderPage() {
     setSplits([0]);
     setStreamSplits([0]);
   }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, studyLayoutPreference, PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION]);
-  const chapterPlates = useMemo(
-    () => platesForChapter(book.abbr, chapter),
-    [book.abbr, chapter],
-  );
-  const hasChapterPlates = chapterPlates.length > 0;
   const streamChapters = useMemo(
     () => {
       if (readerSpread) {
@@ -723,7 +730,7 @@ export default function ReaderPage() {
           adjacentPassages.next,
         );
       }
-      if (hasChapterPlates && passage) {
+      if (hasInlinePlates && passage) {
         return [
           {
             bookAbbr: book.abbr,
@@ -740,7 +747,7 @@ export default function ReaderPage() {
     },
     [
       readerSpread,
-      hasChapterPlates,
+      hasInlinePlates,
       adjacentPassages.prevRef,
       adjacentPassages.prev,
       adjacentPassages.current,
@@ -808,7 +815,7 @@ export default function ReaderPage() {
   const totalPagesInChapter = pageCountFromSplits(splits, verses.length);
   const splitsReady = isPageSplitsReady(splits, verses.length);
   const useBookSpread = readerSpread && !scrollMode && verses.length > 0;
-  const useStreamReader = useBookSpread || (hasChapterPlates && !!passage);
+  const useStreamReader = useBookSpread || (hasInlinePlates && !!passage);
   const useSpreadDoubleColumn = readerLayout.useSpreadPaginatorMeasure && useStreamReader;
   const { navStreamSplits, streamSplitsReady, totalStreamPages } = useReaderPagination({
     useBookSpread,
@@ -817,13 +824,17 @@ export default function ReaderPage() {
     streamSplits,
     readerStream,
   });
-  const displayStreamSplits = useMemo(
-    () =>
-      useSpreadDoubleColumn && useBookSpread
-        ? interimSpreadDisplaySplits(navStreamSplits, readerStream)
-        : navStreamSplits,
-    [useSpreadDoubleColumn, useBookSpread, navStreamSplits, readerStream],
-  );
+  const displayStreamSplits = useMemo(() => {
+    if (!useSpreadDoubleColumn || !useBookSpread) return navStreamSplits;
+    if (streamSplitsReady) return navStreamSplits;
+    return interimSpreadDisplaySplits(navStreamSplits, readerStream);
+  }, [
+    useSpreadDoubleColumn,
+    useBookSpread,
+    streamSplitsReady,
+    navStreamSplits,
+    readerStream,
+  ]);
   const spreadPanesRenderable =
     !useSpreadDoubleColumn ||
     !useBookSpread ||
@@ -881,8 +892,16 @@ export default function ReaderPage() {
   useEffect(() => {
     if (lastStreamCompositionKeyRef.current === streamCompositionKey) return;
     lastStreamCompositionKeyRef.current = streamCompositionKey;
+    setStreamSplits([0]);
     lastSpreadAnchorKeyRef.current = "";
   }, [streamCompositionKey]);
+
+  useEffect(() => {
+    if (readerStream.length === 0) return;
+    if (!isStreamSplitsReady(streamSplits, readerStream.length)) {
+      setStreamSplits((prev) => (prev.length === 1 && prev[0] === 0 ? prev : [0]));
+    }
+  }, [readerStream.length, streamCompositionKey, streamSplits]);
 
   useEffect(() => {
     if (!useBookSpread || !streamSplitsReady || !spreadReadingAnchorRef.current) return;
@@ -1410,6 +1429,21 @@ export default function ReaderPage() {
             : null
           : sliceReaderPage(readerStream, splitsForPage, pageIdx)
         : null;
+    const spreadRanges =
+      useSpreadDoubleColumn && useBookSpread && splitsForPage
+        ? spreadPaneStreamRanges(splitsForPage, spreadPageIdx, readerStream.length)
+        : null;
+    const continuousSpreadSlice =
+      spreadRanges &&
+      spreadRanges.left.end > spreadRanges.left.start &&
+      spreadRanges.right.end > spreadRanges.left.start
+        ? sliceReaderStreamRange(
+            readerStream,
+            spreadRanges.left.start,
+            spreadRanges.right.end,
+            spreadPageIdx,
+          )
+        : null;
     const slice =
       scrollMode || useStreamReader || pageOutOfRange || !splitsForPage
         ? null
@@ -1894,6 +1928,8 @@ export default function ReaderPage() {
           persistBibleSelection(id, displayBibles.find((b) => b.id === id)?.abbreviation);
         }}
         onSearch={() => setSearchOpen(true)}
+        onChapterContext={() => setChapterContextOpen(true)}
+        showChapterContext={showChapterContext}
         onToggleAudio={() => void readerAudio.toggle()}
         audioPlaying={readerAudio.playing}
         audioLoading={readerAudio.loading}
@@ -2191,6 +2227,9 @@ export default function ReaderPage() {
         toast={toast}
         anchorBelief={anchorBelief}
         showReaderDock={showReaderDock}
+        chapterContextOpen={chapterContextOpen}
+        setChapterContextOpen={setChapterContextOpen}
+        chapterCtx={chapterCtx}
       />
 
       {/* Live pencil underline that tracks the current text selection */}

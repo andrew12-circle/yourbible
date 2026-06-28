@@ -86,6 +86,8 @@ interface Props {
   returnTo?: string;
   returnLabel?: string;
   onReturn?: () => void;
+  onChapterContext?: () => void;
+  showChapterContext?: boolean;
 }
 
 type PickerStep = "book" | "chapter" | "verse";
@@ -134,6 +136,8 @@ export function TopBar({
   returnTo,
   returnLabel = "Back",
   onReturn,
+  onChapterContext,
+  showChapterContext = false,
 }: Props) {
   const overlayPos = readerOverlayPosition(containedInHub);
   const books = booksProp ?? getBooks();
@@ -240,6 +244,8 @@ export function TopBar({
     settingsDropdownOpen,
     onSettingsDropdownOpenChange: setSettingsDropdownOpen,
     compact: singlePage,
+    onChapterContext,
+    showChapterContext,
   };
 
   return (

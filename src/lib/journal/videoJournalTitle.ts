@@ -28,27 +28,15 @@ export function canAutoManageVideoJournalTitle(title: string | null | undefined)
   return isPlaceholderJournalTitle(t) || isVideoJournalStampTitle(t);
 }
 
-/** Pick the next auto title while live transcript grows. */
+/** Pick the next auto title while recording — stamp only, never transcript text. */
 export function pickLiveVideoJournalTitle(
   currentTitle: string,
-  body: string,
+  _body: string,
   stamp: string,
 ): string | null {
   const current = currentTitle.trim();
-  const fromBody = deriveVideoJournalTitleFromBody(body);
-
-  if (fromBody) {
-    if (canAutoManageVideoJournalTitle(current)) {
-      return fromBody !== current ? fromBody : null;
-    }
-    if (fromBody.length > current.length && fromBody.startsWith(current.replace(/\.\.\.$/, ""))) {
-      return fromBody;
-    }
-  }
-
-  if (isPlaceholderJournalTitle(current) && stamp !== current) {
+  if (canAutoManageVideoJournalTitle(current) && stamp !== current) {
     return stamp;
   }
-
   return null;
 }

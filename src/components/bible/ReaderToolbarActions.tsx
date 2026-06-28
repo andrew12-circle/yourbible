@@ -9,6 +9,7 @@ import {
   Minus,
   Moon,
   Network,
+  Palette,
   Pause,
   PenLine,
   Plus,
@@ -89,6 +90,8 @@ export interface ReaderToolbarActionsProps {
   onStudyLayoutPreferenceChange?: (next: ReaderStudyLayoutPreference) => void;
   /** Tighter spacing for phone / tablet portrait header. */
   compact?: boolean;
+  onChapterContext?: () => void;
+  showChapterContext?: boolean;
 }
 
 export function ReaderToolbarActions({
@@ -121,6 +124,8 @@ export function ReaderToolbarActions({
   studyLayoutPreference = "inline",
   onStudyLayoutPreferenceChange,
   compact = false,
+  onChapterContext,
+  showChapterContext = false,
 }: ReaderToolbarActionsProps) {
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const current = bibles.find((b) => b.id === bibleId);
@@ -253,6 +258,16 @@ export function ReaderToolbarActions({
           disabled={!online}
         >
           <Search className="w-[18px] h-[18px]" strokeWidth={2} />
+        </ReaderIconButton>
+      ) : null}
+
+      {showChapterContext && onChapterContext ? (
+        <ReaderIconButton
+          onClick={onChapterContext}
+          title="Art, maps & context for this chapter"
+          active={false}
+        >
+          <Palette className="w-[18px] h-[18px]" strokeWidth={2} />
         </ReaderIconButton>
       ) : null}
 

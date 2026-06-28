@@ -103,6 +103,28 @@ export function prepareVideoJournalTranscript(raw: string): string {
   return formatDictationForJournal(trimmed);
 }
 
+export type VideoJournalBodySnap = { body: string; anchor: number };
+
+/**
+ * Merge the final transcript into the entry body without duplicating live captions.
+ * Uses the frozen pre-record body when available; otherwise replaces any live preview text.
+ */
+export function finalizeVideoJournalBody(
+  snap: VideoJournalBodySnap | null,
+  currentBody: string,
+  fallbackAnchor: number,
+  transcript: string,
+): string {
+  const prepared = prepareVideoJournalTranscript(transcript);
+  if (!prepared.trim()) return currentBody;
+
+  const anchor = snap?.anchor ?? clampAnchorOffset(currentBody, fallbackAnchor);
+  if (snap) {
+    return insertTranscriptAtAnchor(snap.body, anchor, prepared);
+  }
+  return replaceTranscriptBeforeVideo(currentBody, anchor, prepared);
+}
+
 /** Insert spoken transcript at the anchor where video recording started. */
 export function insertTranscriptAtAnchor(body: string, anchorOffset: number, transcript: string): string {
   const t = transcript.trim();

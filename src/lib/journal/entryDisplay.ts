@@ -124,6 +124,6 @@ export function shouldSuggestJournalTitle(
   summary?: string | null,
 ): boolean {
   const t = title?.trim() ?? "";
-  if (t && !isPlaceholderJournalTitle(t) && !isVideoJournalStampTitle(t)) return false;
+  if (t && !isPlaceholderJournalTitle(t)) return false;
   return extractReadableProse(body, summary).length >= 40;
 }

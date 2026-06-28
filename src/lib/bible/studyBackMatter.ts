@@ -24,6 +24,14 @@ export interface StudyMapEntry {
 
 export const STUDY_MAPS: StudyMapEntry[] = [
   {
+    id: "abraham",
+    title: "Abraham's Journey",
+    caption: "Patriarchal routes in Canaan and Egypt (approximate).",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Abraham_journey_map.svg/960px-Abraham_journey_map.svg.png",
+    alt: "Map of Abraham's journeys in the Near East",
+  },
+  {
     id: "exodus",
     title: "The Exodus from Egypt",
     caption: "General route of the Exodus toward Sinai (historic reconstructions vary).",
@@ -86,7 +94,7 @@ const FEATURES_HTML = `
 <ul>
   <li><strong>Inline study notes</strong> — footnotes appear with each verse (recommended).</li>
   <li><strong>Holman layout (beta)</strong> — footnotes at the page bottom, like a printed Holman study Bible.</li>
-  <li><strong>Illustrations</strong> — classic public-domain plates at key passages; maps and charts in back matter.</li>
+  <li><strong>Illustrations</strong> — classic public-domain plates (Doré, Tissot) at key passages; tap the palette icon for the full chapter gallery, maps, and timeline.</li>
   <li><strong>Word study</strong> — highlight a word, tap the languages icon for concordance, Hebrew (OT), and Strong&apos;s lookup.</li>
   <li><strong>Book introductions</strong> — when your translation provides them, an introduction appears before chapter 1.</li>
 </ul>

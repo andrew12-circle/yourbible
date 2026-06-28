@@ -32,9 +32,9 @@ describe("pickLiveVideoJournalTitle", () => {
     expect(pickLiveVideoJournalTitle("", "", stamp)).toBe(stamp);
   });
 
-  it("upgrades stamp to body excerpt when enough transcript exists", () => {
+  it("keeps the video journal stamp when transcript grows", () => {
     const body = "Grateful for how God showed up in my morning prayer time today.";
-    expect(pickLiveVideoJournalTitle(stamp, body, stamp)).toMatch(/^Grateful for how God/);
+    expect(pickLiveVideoJournalTitle(stamp, body, stamp)).toBeNull();
   });
 
   it("keeps a user-written title", () => {

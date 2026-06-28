@@ -5,6 +5,8 @@ import { NoteDialog } from "@/components/bible/NoteDialog";
 import { BookmarkDialog } from "@/components/bible/BookmarkDialog";
 import { CompanionPane } from "@/components/reader/CompanionPane";
 import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
+import type { ChapterContextBundle } from "@/data/biblePlates/types";
+import { ChapterContextSheet } from "@/components/bible/ChapterContextSheet";
 import type { Book } from "@/data/books";
 import type { PassageVerse } from "@/lib/bible/api";
 
@@ -41,6 +43,9 @@ type Props = {
   toast: (opts: { title: string; description?: string }) => void;
   anchorBelief: { id: string; statement: string } | null | undefined;
   showReaderDock: boolean;
+  chapterContextOpen: boolean;
+  setChapterContextOpen: (open: boolean) => void;
+  chapterCtx: ChapterContextBundle;
 };
 
 export function ReaderPageOverlays({
@@ -66,6 +71,9 @@ export function ReaderPageOverlays({
   toast,
   anchorBelief,
   showReaderDock,
+  chapterContextOpen,
+  setChapterContextOpen,
+  chapterCtx,
 }: Props) {
   const navigate = useNavigate();
 
@@ -138,6 +146,13 @@ export function ReaderPageOverlays({
       {showReaderDock ? (
         <ReaderFloatingTabBar bibleTo={`/read/${book.abbr}/${chapter}`} />
       ) : null}
+
+      <ChapterContextSheet
+        open={chapterContextOpen}
+        onOpenChange={setChapterContextOpen}
+        context={chapterCtx}
+        bookName={book.name}
+      />
     </>
   );
 }

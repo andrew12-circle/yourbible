@@ -1,5 +1,5 @@
 import type { PassageHeading, PassageVerse, PoetryBlock } from "@/lib/bible/api";
-import { platesForChapter } from "@/lib/bible/biblePlates";
+import { inlinePlatesForChapter } from "@/lib/bible/biblePlates";
 import type { BiblePlate } from "@/lib/bible/biblePlates";
 
 /** Chapter title block above the article on pages where a chapter begins. */
@@ -35,7 +35,7 @@ export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStrea
   const stream: ReaderStreamUnit[] = [];
   for (const ch of chapters) {
     if (ch.verses.length === 0) continue;
-    const plates = platesForChapter(ch.bookAbbr, ch.chapter);
+    const plates = inlinePlatesForChapter(ch.bookAbbr, ch.chapter);
     for (const plate of plates.filter((p) => p.beforeVerse === 1)) {
       stream.push({
         kind: "plate",
@@ -84,7 +84,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 9;
+export const READER_PAGINATOR_SPLIT_REVISION = 11;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -203,6 +203,22 @@ export function spreadSplitsNeedPagePairRepair(
   return false;
 }
 
+/** True when splits already alternate left/right boundaries ([0, left, spreadEnd, left, spreadEnd, …]). */
+export function spreadSplitsAlreadyPaired(
+  splits: number[],
+  streamLength: number,
+): boolean {
+  if (splits.length < 4 || splits.length % 2 !== 0) return false;
+  if (!isStreamSplitsReady(splits, streamLength)) return false;
+  for (let spreadIdx = 0; spreadIdx + 2 < splits.length; spreadIdx += 2) {
+    const leftStart = splits[spreadIdx]!;
+    const leftEnd = splits[spreadIdx + 1]!;
+    const spreadEnd = splits[spreadIdx + 2]!;
+    if (leftEnd <= leftStart || spreadEnd <= leftEnd) return false;
+  }
+  return true;
+}
+
 /**
  * Expand spread-only boundaries ([0, spreadEnd1, spreadEnd2, …]) into measured-style
  * left/right page pairs so each spread turn shows a continuation, not the next spread.
@@ -212,6 +228,7 @@ export function repairSpreadPagePairSplits(
   stream: ReaderStreamUnit[],
 ): number[] {
   if (!isStreamSplitsReady(splits, stream.length) || splits.length < 3) return splits;
+  if (spreadSplitsAlreadyPaired(splits, stream.length)) return splits;
   if (!spreadSplitsNeedPagePairRepair(stream, splits)) return splits;
 
   const spreadEnds = splits.slice(1);
@@ -315,6 +332,10 @@ export function interimSpreadDisplaySplits(
   const streamLength = stream.length;
   if (streamLength === 0) return splits;
   if (isSpreadDoubleColumnSplitsReady(splits, streamLength)) return splits;
+  // Never fabricate a split across prev/current/next chapters — it puts the wrong
+  // verses on the right pane (e.g. Joshua 15 on the right while Joshua 13:14 is on the left).
+  const chapterHeaders = stream.filter((u) => u.kind === "chapter-header").length;
+  if (chapterHeaders !== 1) return splits;
   const wholeStream = [0, streamLength];
   if (!isStreamSplitsReady(wholeStream, streamLength)) return splits;
   return ensureSpreadPageSplits(wholeStream, stream);

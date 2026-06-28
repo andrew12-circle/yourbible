@@ -4,8 +4,8 @@ import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
   readerPageContentLimitPx,
+  READER_LIVE_COLUMN_SAFETY_PX,
   scriptureContentFitsPage,
-  SPREAD_MEASURE_GAP_PX,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
 import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
@@ -13,7 +13,6 @@ import {
   type ReaderChapterPassage,
   type ReaderStreamUnit,
   buildReaderStream,
-  synthesizeSpreadLeftBoundaryInRange,
   READER_PAGINATOR_SPLIT_REVISION,
 } from "@/lib/bible/readerStream";
 import {
@@ -82,7 +81,7 @@ export function BookPaginator({
   );
 
   const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
-  const spreadMeasureWidth = pageWidth * 2 + SPREAD_MEASURE_GAP_PX;
+  const spreadMeasureWidth = pageWidth * 2;
 
   useEffect(() => {
     lastSplitsRef.current = "";
@@ -158,7 +157,10 @@ export function BookPaginator({
           footerGuardPx: footerHeight,
         });
         const spreadLimit = Math.min(leftLimit, rightLimit);
-        let leftPageEnd = findStreamSliceEnd(
+        const leftMeasureLimit = paginatorMeasureLimitPx(leftLimit);
+        const rightMeasureLimit = paginatorMeasureLimitPx(rightLimit);
+        const spreadMeasureLimit = paginatorMeasureLimitPx(spreadLimit);
+        const leftOnlyEnd = findStreamSliceEnd(
           node,
           stream,
           spreadStart,
@@ -166,27 +168,24 @@ export function BookPaginator({
           chapters,
           redByChapter,
           columnsClassName,
-          leftLimit,
+          leftMeasureLimit,
           studyLayout,
           spreadMeasureOpts2,
         );
-        if (leftPageEnd <= spreadStart) {
-          leftPageEnd = spreadStart + 1;
-        }
         let sequentialSpreadEnd = findStreamSliceEnd(
           node,
           stream,
-          leftPageEnd,
+          leftOnlyEnd,
           stream.length,
           chapters,
           redByChapter,
           columnsClassName,
-          rightLimit,
+          rightMeasureLimit,
           studyLayout,
           spreadMeasureOpts2,
         );
-        if (sequentialSpreadEnd <= leftPageEnd) {
-          sequentialSpreadEnd = leftPageEnd + 1;
+        if (sequentialSpreadEnd <= leftOnlyEnd) {
+          sequentialSpreadEnd = leftOnlyEnd + 1;
         }
         const spreadCap4 = findStreamSliceEnd(
           node,
@@ -196,7 +195,7 @@ export function BookPaginator({
           chapters,
           redByChapter,
           READER_SPREAD_COLUMNS_CLASS,
-          spreadLimit,
+          spreadMeasureLimit,
           studyLayout,
           spreadMeasureOpts4,
         );
@@ -210,31 +209,19 @@ export function BookPaginator({
           pageIndex += 1;
           continue;
         }
-        leftPageEnd = findStreamSliceEnd(
+        const leftPageEnd = findSpreadLeftPageEnd(
           node,
           stream,
           spreadStart,
           spreadEnd,
+          leftMeasureLimit,
+          rightMeasureLimit,
           chapters,
           redByChapter,
           columnsClassName,
-          leftLimit,
           studyLayout,
           spreadMeasureOpts2,
         );
-        if (leftPageEnd <= spreadStart) {
-          leftPageEnd = spreadStart + 1;
-        }
-        if (leftPageEnd >= spreadEnd) {
-          leftPageEnd = synthesizeSpreadLeftBoundaryInRange(
-            spreadStart,
-            spreadEnd,
-            stream,
-          );
-        }
-        if (leftPageEnd <= spreadStart) {
-          leftPageEnd = spreadStart + 1;
-        }
         splits.push(leftPageEnd);
         splits.push(spreadEnd);
         i = spreadEnd;
@@ -296,6 +283,99 @@ export function BookPaginator({
       />
     </div>
   );
+}
+
+/** Match live reader column slack so paginator never assigns more than fits on screen. */
+function paginatorMeasureLimitPx(contentHeightPx: number): number {
+  return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
+}
+
+function streamSliceFitsPage(
+  node: HTMLDivElement,
+  stream: ReaderStreamUnit[],
+  start: number,
+  end: number,
+  chapters: ReaderChapterPassage[],
+  redByChapter: Map<string, Map<number, Segment[]>>,
+  columnsClassName: string | undefined,
+  contentHeightPx: number,
+  studyLayout: ResolvedStudyLayout,
+  measureOptions?: ScriptureColumnMeasureOptions,
+): boolean {
+  if (start >= end) return true;
+  renderStreamSlice(
+    node,
+    stream.slice(start, end),
+    chapters,
+    redByChapter,
+    columnsClassName,
+    contentHeightPx,
+    studyLayout,
+    measureOptions,
+  );
+  return scriptureContentFitsPage(node, contentHeightPx, columnsClassName);
+}
+
+/**
+ * Largest stream index for the left page where both panes of a spread fit.
+ * Never uses a percentage guess — both sides are measured independently.
+ */
+function findSpreadLeftPageEnd(
+  node: HTMLDivElement,
+  stream: ReaderStreamUnit[],
+  spreadStart: number,
+  spreadEnd: number,
+  leftLimit: number,
+  rightLimit: number,
+  chapters: ReaderChapterPassage[],
+  redByChapter: Map<string, Map<number, Segment[]>>,
+  columnsClassName: string | undefined,
+  studyLayout: ResolvedStudyLayout,
+  measureOptions: ScriptureColumnMeasureOptions,
+): number {
+  if (spreadEnd <= spreadStart + 1) return spreadStart + 1;
+
+  let lo = spreadStart + 1;
+  let hi = spreadEnd - 1;
+  let best = spreadStart + 1;
+
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const leftFits = streamSliceFitsPage(
+      node,
+      stream,
+      spreadStart,
+      mid,
+      chapters,
+      redByChapter,
+      columnsClassName,
+      leftLimit,
+      studyLayout,
+      measureOptions,
+    );
+    const rightFits = streamSliceFitsPage(
+      node,
+      stream,
+      mid,
+      spreadEnd,
+      chapters,
+      redByChapter,
+      columnsClassName,
+      rightLimit,
+      studyLayout,
+      measureOptions,
+    );
+    if (leftFits && rightFits) {
+      best = mid;
+      lo = mid + 1;
+    } else if (!leftFits) {
+      hi = mid - 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return best;
 }
 
 function findStreamSliceEnd(

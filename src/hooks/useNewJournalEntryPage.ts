@@ -65,8 +65,7 @@ import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import {
   bodyWithLiveVideoTranscript,
-  clampAnchorOffset,
-  insertTranscriptAtAnchor,
+  finalizeVideoJournalBody,
   prepareVideoJournalTranscript,
   resolveVideoAnchorOffset,
 } from "@/lib/journal/journalVideoBody";
@@ -1340,9 +1339,12 @@ export function useNewJournalEntryPage() {
         let enrichResult: { summary?: string } | void;
         if (prepared.trim()) {
           const snap = videoLiveSnapRef.current;
-          const base = snap?.body ?? bodyRef.current;
-          const anchor = snap?.anchor ?? clampAnchorOffset(base, anchorOffset);
-          const nextBody = insertTranscriptAtAnchor(base, anchor, prepared);
+          const nextBody = finalizeVideoJournalBody(
+            snap,
+            bodyRef.current,
+            anchorOffset,
+            transcript,
+          );
           handleBodyChange(nextBody);
           setVideoTranscribing(false);
           enrichResult = await videoAutoTitle.onRecordingComplete(nextBody);

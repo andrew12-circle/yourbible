@@ -1266,6 +1266,18 @@
   .scripture-plate-measure .scripture-plate-image {
     max-height: 72vh;
   }
+  .scripture-plate--compact .scripture-plate-image-wrap {
+    padding: 0;
+  }
+  .scripture-plate--compact .scripture-plate-image {
+    width: 100%;
+    max-height: none;
+  }
+  .scripture-plate--compact .scripture-plate-caption {
+    text-align: left;
+    font-size: 0.85em;
+    padding: 0.5rem 0.75rem;
+  }
 
   .font-hebrew {
     font-family: "Noto Sans Hebrew", "Segoe UI Hebrew", "David", "Times New Roman", serif;

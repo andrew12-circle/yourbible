@@ -1,21 +1,18 @@
-import { BIBLE_PLATES, type BiblePlate } from "@/data/biblePlates";
+import { platesBeforeVerse } from "@/lib/bible/chapterContext";
 
-export type { BiblePlate };
+export type { BiblePlate, ChapterContextBundle } from "@/data/biblePlates/types";
 
-export function platesForChapter(bookAbbr: string, chapter: number): BiblePlate[] {
-  return BIBLE_PLATES.filter(
-    (p) => p.bookAbbr === bookAbbr && p.chapter === chapter,
-  ).sort((a, b) => a.beforeVerse - b.beforeVerse);
-}
+export {
+  chapterContext,
+  hasChapterMedia,
+  inlinePlatesForChapter,
+  mapsForChapter,
+  platesBeforeVerse,
+  platesForChapter,
+  relatedPassagesForChapter,
+  timelineForChapter,
+} from "@/lib/bible/chapterContext";
 
-export function platesBeforeVerse(
-  bookAbbr: string,
-  chapter: number,
-  verse: number,
-): BiblePlate[] {
-  return platesForChapter(bookAbbr, chapter).filter((p) => p.beforeVerse === verse);
-}
-
-export function openingPlatesForChapter(bookAbbr: string, chapter: number): BiblePlate[] {
+export function openingPlatesForChapter(bookAbbr: string, chapter: number) {
   return platesBeforeVerse(bookAbbr, chapter, 1);
 }

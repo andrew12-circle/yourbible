@@ -14,6 +14,8 @@ import {
   sliceReaderStreamRange,
   spreadPaneStreamRanges,
   interimSpreadDisplaySplits,
+  repairSpreadPagePairSplits,
+  spreadSplitsAlreadyPaired,
   spreadPageForChapterStart,
   spreadStreamRange,
   streamPageCount,
@@ -472,6 +474,63 @@ describe("readerStream", () => {
     const right = sliceReaderSpreadPane(stream, interim, 0, "right", stream.length);
     expect(left?.verseGroups.length).toBeGreaterThan(0);
     expect(right?.verseGroups.length).toBeGreaterThan(0);
+  });
+
+  it("interimSpreadDisplaySplits does not guess across adjacent chapters", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 12,
+        verses: verses(Array.from({ length: 24 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 13,
+        verses: verses(Array.from({ length: 33 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 14,
+        verses: verses(Array.from({ length: 15 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const interim = interimSpreadDisplaySplits([0], stream);
+    expect(interim).toEqual([0]);
+    expect(isSpreadDoubleColumnSplitsReady(interim, stream.length)).toBe(false);
+  });
+
+  it("repairSpreadPagePairSplits leaves already-paired BookPaginator-style splits alone", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jos",
+        bookName: "Joshua",
+        chapter: 13,
+        verses: verses(Array.from({ length: 33 }, (_, i) => i + 1)),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const paired = [0, 15, 29, stream.length];
+    expect(spreadSplitsAlreadyPaired(paired, stream.length)).toBe(true);
+    expect(repairSpreadPagePairSplits(paired, stream)).toEqual(paired);
+    const left = sliceReaderSpreadPane(stream, paired, 0, "left", stream.length);
+    const right = sliceReaderSpreadPane(stream, paired, 0, "right", stream.length);
+    const leftLast = left!.verseGroups.at(-1)!.verses.at(-1)!.number;
+    const rightFirst = right!.verseGroups[0]!.verses[0]!.number;
+    expect(rightFirst).toBeGreaterThan(leftLast);
   });
 
   it("spreadPaneStreamRanges returns empty panes when splits are incomplete", () => {
