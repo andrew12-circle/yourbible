@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
 import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
+import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
 import { JournalVideoPausedOverlay, type JournalVideoPauseReason } from "@/components/journal/JournalVideoPausedOverlay";
 import { LiveTranscriptTicker } from "@/components/journal/LiveTranscriptTicker";
 import {
