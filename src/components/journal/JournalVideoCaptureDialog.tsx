@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
 import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
-import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
+import { JournalVideoPausedOverlay, type JournalVideoPauseReason } from "@/components/journal/JournalVideoPausedOverlay";
 import { LiveTranscriptTicker } from "@/components/journal/LiveTranscriptTicker";
 import {
   useJournalVideoCapture,
@@ -72,6 +72,7 @@ export default function JournalVideoCaptureDialog({
   const stopOnMaxRef = useRef<() => void>(() => {});
   const [pickMode, setPickMode] = useState<JournalVideoCaptureMode | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [pauseReason, setPauseReason] = useState<JournalVideoPauseReason | null>(null);
 
   const capture = useJournalVideoCapture({
     onMaxDuration: () => {
@@ -86,6 +87,10 @@ export default function JournalVideoCaptureDialog({
   cancelRef.current = capture.cancel;
   beginCountdownRef.current = capture.beginCountdown;
   bindPreviewRef.current = capture.bindPreview;
+  const pauseRecordingRef = useRef(capture.pauseRecording);
+  pauseRecordingRef.current = capture.pauseRecording;
+  const resumeRecordingRef = useRef(capture.resumeRecording);
+  resumeRecordingRef.current = capture.resumeRecording;
 
   const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording");
   useSilenceAutoPause({
@@ -94,8 +99,21 @@ export default function JournalVideoCaptureDialog({
       capture.phase === "recording" &&
       capture.mode === "camera",
     level: micLevel,
-    onSilence: () => capture.pauseRecording(),
+    onSilence: () => {
+      setPauseReason("silence");
+      pauseRecordingRef.current();
+    },
   });
+
+  const handleResumeRecording = useCallback(() => {
+    setPauseReason(null);
+    resumeRecordingRef.current();
+  }, []);
+
+  const handlePauseRecording = useCallback(() => {
+    setPauseReason("manual");
+    pauseRecordingRef.current();
+  }, []);
 
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
@@ -113,6 +131,7 @@ export default function JournalVideoCaptureDialog({
     if (!open) {
       setPickMode(null);
       setPendingReview(null);
+      setPauseReason(null);
       countdownStartedRef.current = false;
       return;
     }
@@ -143,8 +162,19 @@ export default function JournalVideoCaptureDialog({
     }
   }, [capture.phase, pickMode, pendingReview]);
 
+  const recordingStartHandledRef = useRef(false);
+
   useEffect(() => {
-    if (capture.phase === "recording") {
+    if (
+      capture.phase === "idle" ||
+      capture.phase === "preview" ||
+      capture.phase === "countdown"
+    ) {
+      recordingStartHandledRef.current = false;
+      return;
+    }
+    if (capture.phase === "recording" && !recordingStartHandledRef.current) {
+      recordingStartHandledRef.current = true;
       onRecordingStart?.();
     }
   }, [capture.phase, onRecordingStart]);
@@ -153,6 +183,7 @@ export default function JournalVideoCaptureDialog({
     capture.cancel();
     setPickMode(null);
     setPendingReview(null);
+    setPauseReason(null);
     onOpenChange(false);
   };
 
@@ -279,6 +310,13 @@ export default function JournalVideoCaptureDialog({
         </div>
       ) : null}
 
+      {paused ? (
+        <JournalVideoPausedOverlay
+          reason={pauseReason ?? "manual"}
+          onResume={handleResumeRecording}
+        />
+      ) : null}
+
       {!floating ? (
         <Button
           type="button"
@@ -324,7 +362,7 @@ export default function JournalVideoCaptureDialog({
             processing={processing}
             onPauseResume={
               active && !processing
-                ? () => (paused ? capture.resumeRecording() : capture.pauseRecording())
+                ? () => (paused ? handleResumeRecording() : handlePauseRecording())
                 : undefined
             }
             onStop={active && !processing ? () => void handleStop() : undefined}

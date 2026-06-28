@@ -49,8 +49,25 @@ export function appendVideoSpeechFinal(
   if (lastFinal && addition === lastFinal.text && now - lastFinal.at < 1500) {
     return { text: current, lastFinal };
   }
-  const base = current.trimEnd();
-  const next = !base ? `${addition} ` : `${mergeDictatedText(base, addition)} `;
+
+  const base = normalizeLiveVideoTranscript(current);
+  const addNorm = normalizeLiveVideoTranscript(addition);
+  if (!base) {
+    return { text: `${addNorm} `, lastFinal: { text: addition, at: now } };
+  }
+  if (addNorm === base || base.endsWith(addNorm)) {
+    return { text: `${base} `, lastFinal: { text: addition, at: now } };
+  }
+  // Speech API restarts often send cumulative finals — replace, don't append.
+  if (addNorm.startsWith(base)) {
+    return { text: `${addNorm} `, lastFinal: { text: addition, at: now } };
+  }
+  if (base.includes(addNorm)) {
+    return { text: `${base} `, lastFinal: { text: addition, at: now } };
+  }
+
+  const merged = composeVideoLiveTranscript(base, addNorm);
+  const next = merged.endsWith(" ") ? merged : `${merged} `;
   return { text: next, lastFinal: { text: addition, at: now } };
 }
 

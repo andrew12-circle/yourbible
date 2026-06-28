@@ -114,10 +114,32 @@ describe("appendVideoSpeechFinal", () => {
     expect(second.text).toBe("good morning ");
   });
 
-  it("allows the same phrase again after a pause", () => {
+  it("does not repeat an identical phrase after a long pause", () => {
     const first = appendVideoSpeechFinal("", "good morning");
     const second = appendVideoSpeechFinal(first.text, "good morning", first.lastFinal, first.lastFinal.at + 2000);
-    expect(second.text).toBe("good morning good morning ");
+    expect(second.text).toBe("good morning ");
+  });
+
+  it("replaces with cumulative finals from speech API restarts", () => {
+    const first = appendVideoSpeechFinal("", "sleep schedules so");
+    const second = appendVideoSpeechFinal(
+      first.text,
+      "sleep schedules so I was going from like 3:00 p.m.",
+      first.lastFinal,
+      first.lastFinal.at + 3000,
+    );
+    expect(second.text).toBe("sleep schedules so I was going from like 3:00 p.m. ");
+  });
+
+  it("skips finals already contained in the transcript", () => {
+    const first = appendVideoSpeechFinal("", "sleep schedules so I was going");
+    const second = appendVideoSpeechFinal(
+      first.text,
+      "sleep schedules",
+      first.lastFinal,
+      first.lastFinal.at + 3000,
+    );
+    expect(second.text).toBe("sleep schedules so I was going ");
   });
 });
 
