@@ -7,6 +7,7 @@ import { fixJournalVideoBlob } from "@/lib/journal/fixJournalVideoBlob";
 import type { JournalVideoQuality } from "@/lib/journal/journalVideoCaptureSettings";
 import { qualityDimensions } from "@/lib/journal/journalVideoCaptureSettings";
 import type { CameraFacing } from "@/lib/journal/journalVideoDevices";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface JournalVideoRow {
@@ -301,6 +302,8 @@ export type TranscribeJournalVideoOptions = {
   audioBlob?: Blob | null;
   /** Live speech captions shown during recording (fallback when server STT fails). */
   liveTranscript?: string;
+  /** Longest live caption string seen during recording (includes speech while paused). */
+  peakLiveTranscript?: string;
 };
 
 export type TranscribeJournalVideoResult = {
@@ -343,7 +346,7 @@ export async function transcribeJournalVideo(
   storagePath: string,
   opts: TranscribeJournalVideoOptions = {},
 ): Promise<TranscribeJournalVideoResult> {
-  const live = opts.liveTranscript?.trim() ?? "";
+  const live = pickBestVideoJournalTranscript(opts.liveTranscript, opts.peakLiveTranscript);
   let lastError: string | undefined;
   const audio = opts.audioBlob;
   const candidates: TranscriptCandidate[] = [];

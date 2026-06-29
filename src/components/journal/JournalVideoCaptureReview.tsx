@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, RotateCcw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 import { captureVideoThumbnail } from "@/lib/journal/journalVideoThumbnail";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,10 @@ export function JournalVideoCaptureReview({
   }, [result.video]);
 
   const clock = formatClock(durationMs);
+  const previewTranscript = pickBestVideoJournalTranscript(
+    result.liveTranscript,
+    result.peakLiveTranscript,
+  );
 
   return (
     <div className={cn("flex flex-col gap-4 bg-background p-4 sm:p-6", className)}>
@@ -59,9 +64,9 @@ export function JournalVideoCaptureReview({
         )}
       </div>
 
-      {result.liveTranscript.trim() ? (
+      {previewTranscript ? (
         <p className="line-clamp-3 text-sm italic text-muted-foreground">
-          &ldquo;{result.liveTranscript.trim()}&rdquo;
+          &ldquo;{previewTranscript}&rdquo;
         </p>
       ) : null}
 

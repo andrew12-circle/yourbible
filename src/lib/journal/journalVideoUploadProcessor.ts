@@ -13,6 +13,7 @@ import {
   updateEntryVideoTranscript,
   uploadEntryVideo,
 } from "@/lib/journal/videos";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 
 export type ProcessJournalVideoUploadResult = {
   processed: number;
@@ -64,17 +65,20 @@ export async function saveJournalVideoCapture(
   anchorOffset: number,
   liveTranscript: string,
   chapters: JournalVideoChapter[] = [],
-): Promise<{ transcript: string; anchorOffset: number; sttError: string | null }> {
+  peakLiveTranscript = "",
+): Promise<{ transcript: string; anchorOffset: number; sttError: string | null; liveTranscript: string; peakLiveTranscript: string }> {
   const uploaded = await uploadEntryVideo(userId, entryId, video, durationMs);
   const row = await insertEntryVideo(userId, entryId, uploaded, { anchor_offset: anchorOffset });
   if (!row) throw new Error("Could not attach video to entry");
 
+  const liveCaptions = pickBestVideoJournalTranscript(liveTranscript, peakLiveTranscript);
   const stt = await transcribeJournalVideo(uploaded.storage_path, {
     userId,
     audioBlob: audio,
-    liveTranscript,
+    liveTranscript: liveCaptions,
+    peakLiveTranscript,
   });
-  let transcript = stt.text || liveTranscript.trim();
+  let transcript = pickBestVideoJournalTranscript(stt.text, liveCaptions);
   if (transcript && chapters.length > 0) {
     transcript = applyVideoChaptersToTranscript(transcript, chapters);
   }
@@ -82,5 +86,5 @@ export async function saveJournalVideoCapture(
     await updateEntryVideoTranscript(row.id, transcript);
   }
 
-  return { transcript, anchorOffset, sttError: stt.error ?? null };
+  return { transcript, anchorOffset, sttError: stt.error ?? null, liveTranscript, peakLiveTranscript: liveCaptions };
 }

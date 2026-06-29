@@ -4,6 +4,9 @@ import {
   bodyWithLiveVideoTranscript,
   composeVideoLiveTranscript,
   finalizeVideoJournalBody,
+  pickBestVideoJournalTranscript,
+  extractLiveTranscriptFromSnapBody,
+  resolveVideoJournalTranscript,
   insertTranscriptAtAnchor,
   liveTranscriptTickerLine,
   prepareVideoJournalTranscript,
@@ -140,6 +143,39 @@ describe("appendVideoSpeechFinal", () => {
       first.lastFinal.at + 3000,
     );
     expect(second.text).toBe("sleep schedules so I was going ");
+  });
+});
+
+describe("pickBestVideoJournalTranscript", () => {
+  it("returns the longest transcript source", () => {
+    expect(
+      pickBestVideoJournalTranscript("short clip", "much longer live caption text from the session"),
+    ).toBe("much longer live caption text from the session");
+  });
+});
+
+describe("extractLiveTranscriptFromSnapBody", () => {
+  it("reads live preview text from the editor body", () => {
+    const snap = { body: "", anchor: 0 };
+    const body =
+      "Okay Charlotte came over and we talked about Dad for a while before I got tired.";
+    expect(extractLiveTranscriptFromSnapBody(snap, body)).toBe(body);
+  });
+});
+
+describe("resolveVideoJournalTranscript", () => {
+  it("prefers the longest of server, live, peak, and editor preview", () => {
+    const snap = { body: "", anchor: 0 };
+    const body = "Long editor preview from live captions while recording.";
+    expect(
+      resolveVideoJournalTranscript({
+        serverTranscript: "Short server result.",
+        liveTranscript: "Medium live at stop.",
+        peakLiveTranscript: "Longest peak seen during pauses and recording.",
+        snap,
+        body,
+      }),
+    ).toBe("Long editor preview from live captions while recording.");
   });
 });
 

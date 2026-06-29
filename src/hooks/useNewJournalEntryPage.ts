@@ -66,7 +66,7 @@ import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import {
   bodyWithLiveVideoTranscript,
   finalizeVideoJournalBody,
-  prepareVideoJournalTranscript,
+  resolveVideoJournalTranscript,
   resolveVideoAnchorOffset,
 } from "@/lib/journal/journalVideoBody";
 import {
@@ -1330,21 +1330,22 @@ export function useNewJournalEntryPage() {
           userId: user.id,
           audioBlob: result.audio,
           liveTranscript: result.liveTranscript,
+          peakLiveTranscript: result.peakLiveTranscript,
         });
-        const transcript = stt.text;
-        if (transcript) await updateEntryVideoTranscript(row.id, transcript);
+        const snap = videoLiveSnapRef.current;
+        const best = resolveVideoJournalTranscript({
+          serverTranscript: stt.text,
+          liveTranscript: result.liveTranscript,
+          peakLiveTranscript: result.peakLiveTranscript,
+          snap,
+          body: bodyRef.current,
+        });
+        if (best) await updateEntryVideoTranscript(row.id, best);
 
         await reloadVideos();
-        const prepared = prepareVideoJournalTranscript(transcript);
         let enrichResult: { summary?: string } | void;
-        if (prepared.trim()) {
-          const snap = videoLiveSnapRef.current;
-          const nextBody = finalizeVideoJournalBody(
-            snap,
-            bodyRef.current,
-            anchorOffset,
-            transcript,
-          );
+        if (best.trim()) {
+          const nextBody = finalizeVideoJournalBody(snap, bodyRef.current, anchorOffset, best);
           handleBodyChange(nextBody);
           setVideoTranscribing(false);
           enrichResult = await videoAutoTitle.onRecordingComplete(nextBody);
@@ -1353,14 +1354,16 @@ export function useNewJournalEntryPage() {
         }
         videoLiveSnapRef.current = null;
         toast({
-          title: prepared ? "Video and transcript saved" : "Video saved",
-          description: prepared
+          title: best ? "Video and transcript saved" : "Video saved",
+          description: best
             ? enrichResult?.summary
               ? "Summary and full transcript are in your entry."
               : undefined
             : journalVideoTranscriptEmptyMessage({
                 sttError: stt.error,
-                hadLiveCaption: Boolean(result.liveTranscript.trim()),
+                hadLiveCaption: Boolean(
+                  result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
+                ),
                 hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
               }),
         });

@@ -120,6 +120,51 @@ export function prepareVideoJournalTranscript(raw: string): string {
   return formatDictationForJournal(trimmed);
 }
 
+/** Pick the longest non-empty transcript from live captions, server STT, or editor preview. */
+export function pickBestVideoJournalTranscript(...sources: (string | null | undefined)[]): string {
+  let best = "";
+  for (const raw of sources) {
+    const t = normalizeLiveVideoTranscript(raw ?? "");
+    if (t.length > best.length) best = t;
+  }
+  return best;
+}
+
+/** Live caption text currently shown in the editor during an in-progress recording. */
+export function extractLiveTranscriptFromSnapBody(snap: VideoJournalBodySnap, body: string): string {
+  if (!body.trim() || body === snap.body) return "";
+  const anchor = clampAnchorOffset(snap.body, snap.anchor);
+  const before = snap.body.slice(0, anchor).trimEnd();
+  const after = snap.body.slice(anchor).trimStart();
+  let middle = body.trim();
+  if (before && middle.startsWith(before)) {
+    middle = middle.slice(before.length).trimStart();
+  } else if (snap.body.trim() && middle.startsWith(snap.body.trim())) {
+    middle = middle.slice(snap.body.trim().length).trimStart();
+  }
+  if (after && middle.endsWith(after)) {
+    middle = middle.slice(0, middle.length - after.length).trimEnd();
+  }
+  return normalizeLiveVideoTranscript(middle);
+}
+
+export function resolveVideoJournalTranscript(opts: {
+  serverTranscript?: string | null;
+  liveTranscript?: string | null;
+  peakLiveTranscript?: string | null;
+  snap?: VideoJournalBodySnap | null;
+  body?: string;
+}): string {
+  const liveFromBody =
+    opts.snap && opts.body ? extractLiveTranscriptFromSnapBody(opts.snap, opts.body) : "";
+  return pickBestVideoJournalTranscript(
+    opts.serverTranscript,
+    opts.liveTranscript,
+    opts.peakLiveTranscript,
+    liveFromBody,
+  );
+}
+
 export type VideoJournalBodySnap = { body: string; anchor: number };
 
 /**

@@ -14,7 +14,12 @@ type Props = {
   userId: string | undefined;
   entryId: string | null;
   getAnchorOffset: () => number;
-  onVideoSaved: (payload: { transcript: string; anchorOffset: number }) => void;
+  onVideoSaved: (payload: {
+    transcript: string;
+    anchorOffset: number;
+    liveTranscript?: string;
+    peakLiveTranscript?: string;
+  }) => void;
   onRecordingStart?: () => void;
   onLiveTranscript?: (text: string) => void;
   onRecordingCancelled?: () => void;
@@ -69,6 +74,7 @@ export default function JournalVideoCaptureButton({
         anchorOffset,
         result.liveTranscript,
         result.chapters,
+        result.peakLiveTranscript,
       );
 
       onVideoSaved(saved);
@@ -78,7 +84,9 @@ export default function JournalVideoCaptureButton({
           ? undefined
           : journalVideoTranscriptEmptyMessage({
               sttError: saved.sttError,
-              hadLiveCaption: Boolean(result.liveTranscript.trim()),
+              hadLiveCaption: Boolean(
+                result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
+              ),
               hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
             }),
       });

@@ -11,7 +11,7 @@ import JournalVideoCaptureButton from "@/components/journal/JournalVideoCaptureB
 import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import { retranscribeJournalEntryVideo, updateEntryVideoTranscript } from "@/lib/journal/videos";
-import { bodyWithLiveVideoTranscript, finalizeVideoJournalBody, prepareVideoJournalTranscript, replaceTranscriptBeforeVideo, resolveVideoAnchorOffset } from "@/lib/journal/journalVideoBody";
+import { bodyWithLiveVideoTranscript, finalizeVideoJournalBody, prepareVideoJournalTranscript, replaceTranscriptBeforeVideo, resolveVideoAnchorOffset, resolveVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -630,17 +630,34 @@ export default function EntryEditorPane({
   }, [handleBodyChange]);
 
   const handleVideoSaved = useCallback(
-    async ({ transcript, anchorOffset }: { transcript: string; anchorOffset: number }) => {
+    async ({
+      transcript,
+      anchorOffset,
+      liveTranscript,
+      peakLiveTranscript,
+    }: {
+      transcript: string;
+      anchorOffset: number;
+      liveTranscript?: string;
+      peakLiveTranscript?: string;
+    }) => {
       await reloadVideos();
       const cur = entryRef.current;
-      const prepared = prepareVideoJournalTranscript(transcript);
-      if (!cur || !prepared) {
+      const snap = videoLiveSnapRef.current;
+      const best = resolveVideoJournalTranscript({
+        serverTranscript: transcript,
+        liveTranscript,
+        peakLiveTranscript,
+        snap,
+        body: cur?.body,
+      });
+      if (!cur || !best) {
         videoLiveSnapRef.current = null;
+        if (snap) handleBodyChange(snap.body);
         if (cur) await videoAutoTitle.onRecordingComplete(cur.body);
         return;
       }
-      const snap = videoLiveSnapRef.current;
-      const nextBody = finalizeVideoJournalBody(snap, cur.body, anchorOffset, transcript);
+      const nextBody = finalizeVideoJournalBody(snap, cur.body, anchorOffset, best);
       handleBodyChange(nextBody);
       await videoAutoTitle.onRecordingComplete(nextBody);
       videoLiveSnapRef.current = null;
