@@ -3,8 +3,8 @@ import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter"
 import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
+  paginatorMeasureLimitPx,
   readerPageContentLimitPx,
-  READER_LIVE_COLUMN_SAFETY_PX,
   scriptureContentFitsPage,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
@@ -245,7 +245,7 @@ export function BookPaginator({
         chapters,
         redByChapter,
         columnsClassName,
-        limit,
+        paginatorMeasureLimitPx(limit),
         studyLayout,
       );
       splits.push(lastFit);
@@ -283,11 +283,6 @@ export function BookPaginator({
       />
     </div>
   );
-}
-
-/** Match live reader column slack so paginator never assigns more than fits on screen. */
-function paginatorMeasureLimitPx(contentHeightPx: number): number {
-  return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
 }
 
 function streamSliceFitsPage(

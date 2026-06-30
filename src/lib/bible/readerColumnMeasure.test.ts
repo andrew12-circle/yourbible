@@ -3,6 +3,7 @@ import { buildHolmanConnectionsMeasureHtml, buildHolmanPageFootnotesMeasureHtml 
 import {
   applyHolmanStudyMeasureHtml,
   applyScriptureColumnMeasureHtml,
+  paginatorMeasureLimitPx,
   readerColumnContentHeightPx,
   readerPageContentLimitPx,
   scriptureColumnWrapperStyle,
@@ -110,6 +111,23 @@ describe("readerColumnMeasure", () => {
     ).toBe(496);
   });
 
+  it("paginatorMeasureLimitPx reserves live column safety slack", () => {
+    expect(paginatorMeasureLimitPx(568)).toBe(544);
+  });
+
+  it("readerColumnContentHeightPx deducts live column safety when set", () => {
+    expect(
+      readerColumnContentHeightPx({
+        columnLayoutActive: true,
+        pageIndex: 1,
+        startsWithChapterHeader: false,
+        firstPageHeight: 520,
+        pageHeight: 600,
+        liveColumnSafetyPx: 24,
+      }),
+    ).toBe(544);
+  });
+
   it("scriptureColumnWrapperStyle sets pixel height for column-fill auto", () => {
     expect(scriptureColumnWrapperStyle(240)).toMatchObject({
       height: 240,
@@ -176,6 +194,36 @@ describe("readerColumnMeasure", () => {
     Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 120 });
 
     expect(scriptureContentFitsPage(node, 120, "scripture-columns-spread")).toBe(false);
+  });
+
+  it("scriptureContentFitsPage rejects clipped block geometry in columns", () => {
+    applyScriptureColumnMeasureHtml(
+      node,
+      "<p class='scripture-paragraph'>alpha</p><p class='scripture-paragraph'>beta</p>",
+      "scripture-columns-2",
+      80,
+    );
+    const col = node.firstElementChild as HTMLElement;
+    Object.defineProperty(col, "scrollWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(col, "clientWidth", { configurable: true, get: () => 320 });
+    Object.defineProperty(col, "scrollHeight", { configurable: true, get: () => 80 });
+    Object.defineProperty(col, "clientHeight", { configurable: true, get: () => 80 });
+    Object.defineProperty(col, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 0, right: 320, bottom: 80, width: 320, height: 80 }),
+    });
+    const paragraphs = col.querySelectorAll(".scripture-paragraph");
+    paragraphs.forEach((p, i) => {
+      Object.defineProperty(p, "getBoundingClientRect", {
+        configurable: true,
+        value: () =>
+          i === 0
+            ? { top: 0, left: 0, right: 320, bottom: 40, width: 320, height: 40 }
+            : { top: 40, left: 0, right: 320, bottom: 92, width: 320, height: 52 },
+      });
+    });
+
+    expect(scriptureContentFitsPage(node, 80, "scripture-columns-2")).toBe(false);
   });
 
   it("applyScriptureColumnMeasureHtml can render four columns for spread measurement", () => {

@@ -17,7 +17,12 @@ export interface ScriptureColumnMeasureOptions {
  */
 
 /** Extra slack on live column wrappers so the last line is never clipped vs paginator. */
-export const READER_LIVE_COLUMN_SAFETY_PX = 12;
+export const READER_LIVE_COLUMN_SAFETY_PX = 24;
+
+/** Paginator measure height — must stay in sync with live `liveColumnSafetyPx`. */
+export function paginatorMeasureLimitPx(contentHeightPx: number): number {
+  return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
+}
 
 /** Default slack reserved in paginator fit tests (must match ReaderPage). */
 export const READER_COLUMN_FOOTER_GUARD_PX = 32;
@@ -216,9 +221,34 @@ export function applyScriptureColumnMeasureHtml(
     `${bodyHtml}</div>`;
 }
 
+/** True when block content extends past the column box (vertical clip at page bottom). */
+function scriptureColumnsHaveClippedOverflow(columns: HTMLElement): boolean {
+  if (columns.scrollWidth > columns.clientWidth + 2) return true;
+  if (columns.scrollHeight > columns.clientHeight + 1) return true;
+
+  const box = columns.getBoundingClientRect();
+  if (box.height <= 0) return false;
+
+  const blocks = columns.querySelectorAll(
+    ".scripture-paragraph, .scripture-heading, .scripture-plate",
+  );
+  for (let i = 0; i < blocks.length; i++) {
+    const rect = blocks[i]!.getBoundingClientRect();
+    if (rect.height <= 0 && rect.width <= 0) continue;
+    if (rect.bottom > box.bottom + 1) return true;
+  }
+  return false;
+}
+
+function resetColumnMeasureStyles(col: HTMLElement): void {
+  col.style.height = "";
+  col.style.maxHeight = "";
+  col.style.overflow = "";
+}
+
 /**
  * True when rendered content fits within the page text area (incl. multi-column flow).
- * Detects clipped overflow columns via scrollWidth and natural column height.
+ * Detects clipped overflow columns via scrollWidth and block geometry.
  */
 export function scriptureContentFitsPage(
   node: HTMLDivElement,
@@ -236,8 +266,7 @@ export function scriptureContentFitsPage(
     const columns = studyStackScriptureColumnsEl(studyStack);
     if (columns && fits) {
       if (columns.clientHeight <= 0) fits = false;
-      if (columns.scrollHeight > columns.clientHeight + 1) fits = false;
-      if (columns.scrollWidth > columns.clientWidth + 2) fits = false;
+      if (scriptureColumnsHaveClippedOverflow(columns)) fits = false;
     }
     const connections = studyStack.querySelector(".scripture-connections-row") as HTMLElement | null;
     if (connections && fits) {
@@ -267,19 +296,9 @@ export function scriptureContentFitsPage(
   col.style.maxHeight = `${limit}px`;
   col.style.overflow = "hidden";
 
-  // Extra implicit columns widen the scroll box beyond the declared column count.
-  if (col.scrollWidth > col.clientWidth + 2) {
-    return false;
+  try {
+    return !scriptureColumnsHaveClippedOverflow(col);
+  } finally {
+    resetColumnMeasureStyles(col);
   }
-  // Clipped vertical overflow (common when column-fill:auto exhausts column height).
-  if (col.scrollHeight > limit + 1) {
-    return false;
-  }
-
-  col.style.height = "auto";
-  col.style.maxHeight = "none";
-  col.style.overflow = "visible";
-  const naturalHeight = col.scrollHeight;
-
-  return naturalHeight <= limit + 1;
 }
