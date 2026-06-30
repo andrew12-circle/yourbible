@@ -13,7 +13,7 @@ type Options = {
 export function useSilenceAutoPause({
   enabled,
   level,
-  silenceSeconds = 4,
+  silenceSeconds = 30,
   threshold = 0.04,
   onSilence,
 }: Options): void {

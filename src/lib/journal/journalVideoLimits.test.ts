@@ -31,9 +31,23 @@ describe("journalVideoRemainingMs", () => {
 });
 
 describe("journalVideoEffectiveRemainingMs", () => {
-  it("uses the tighter of time and observed file size", () => {
+  it("uses the tighter of time and target-bitrate size estimate", () => {
     const elapsed = 60_000;
     const bytes = JOURNAL_VIDEO_RECORD_STOP_BYTES / 2;
+    expect(journalVideoEffectiveRemainingMs(elapsed, bytes)).toBeLessThan(
+      journalVideoRemainingMs(elapsed),
+    );
+  });
+
+  it("is stable for repeated calls with the same inputs", () => {
+    const a = journalVideoEffectiveRemainingMs(120_000, 2_000_000);
+    const b = journalVideoEffectiveRemainingMs(120_000, 2_000_000);
+    expect(a).toBe(b);
+  });
+
+  it("limits by upload size at high byte counts", () => {
+    const elapsed = 5 * 60_000;
+    const bytes = 40 * 1024 * 1024;
     expect(journalVideoEffectiveRemainingMs(elapsed, bytes)).toBeLessThan(
       journalVideoRemainingMs(elapsed),
     );

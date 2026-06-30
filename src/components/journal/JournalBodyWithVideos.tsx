@@ -1,9 +1,44 @@
-import { useMemo } from "react";
+import { useMemo, useRef, type ChangeEvent, type FocusEvent, type SyntheticEvent } from "react";
 import type { JournalVideoRow } from "@/lib/journal/videos";
 import { buildJournalBodySegments } from "@/lib/journal/journalVideoBody";
 import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
 import { cn } from "@/lib/utils";
+
+function JournalBodyTextSegment({
+  slice,
+  polishResetKey,
+  bodyClassName,
+  isLast,
+  onChange,
+  onSelect,
+  onFocus,
+}: {
+  slice: string;
+  polishResetKey?: string;
+  bodyClassName?: string;
+  isLast: boolean;
+  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
+  onSelect: (e: SyntheticEvent<HTMLTextAreaElement>) => void;
+  onFocus: (e: FocusEvent<HTMLTextAreaElement>) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useJournalEntryTextareaAutosize(ref, slice, true);
+
+  return (
+    <PolishedTextarea
+      ref={ref}
+      polishResetKey={polishResetKey}
+      value={slice}
+      onChange={onChange}
+      onSelect={onSelect}
+      onFocus={onFocus}
+      placeholder={isLast ? "What happened today? Type #tag or @journal name to organize." : undefined}
+      className={cn(bodyClassName, !isLast && "min-h-[4rem]")}
+    />
+  );
+}
 
 type Props = {
   body: string;
@@ -52,10 +87,12 @@ export default function JournalBodyWithVideos({
         const slice = body.slice(seg.start, seg.end);
         const isLast = i === segments.length - 1;
         return (
-          <PolishedTextarea
+          <JournalBodyTextSegment
             key={`text-${seg.start}-${seg.end}`}
+            slice={slice}
             polishResetKey={polishResetKey}
-            value={slice}
+            bodyClassName={bodyClassName}
+            isLast={isLast}
             onChange={(e) => {
               patchText(seg.start, seg.end, e.target.value);
               onCaretChange?.(seg.start + (e.target.selectionStart ?? e.target.value.length));
@@ -66,8 +103,6 @@ export default function JournalBodyWithVideos({
             onFocus={(e) => {
               onCaretChange?.(seg.start + (e.currentTarget.selectionStart ?? e.currentTarget.value.length));
             }}
-            placeholder={isLast ? "What happened today? Type #tag or @journal name to organize." : undefined}
-            className={cn(bodyClassName, !isLast && "min-h-[4rem]")}
           />
         );
       })}

@@ -23,6 +23,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSilenceAutoPause } from "@/hooks/useSilenceAutoPause";
 import { useMicLevel } from "@/hooks/useMicLevel";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
+import { JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS } from "@/lib/journal/journalVideoCaptureSettings";
 import {
   formatJournalVideoClock,
   formatJournalVideoSizeMb,
@@ -100,6 +101,7 @@ export default function JournalVideoCaptureDialog({
       capture.phase === "recording" &&
       capture.mode === "camera",
     level: micLevel,
+    silenceSeconds: JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS,
     onSilence: () => {
       setPauseReason("silence");
       pauseRecordingRef.current();
@@ -232,7 +234,7 @@ export default function JournalVideoCaptureDialog({
   const showPicker =
     open && pickMode === null && !processing && !pendingReview && !isMobile && !defaultMode;
   const isScreen = capture.mode === "screen";
-  const remainingClock = formatJournalVideoClock(capture.recordingRemainingMs);
+  const elapsedClock = formatJournalVideoClock(capture.recordingElapsedMs);
   const sizeLabel = formatJournalVideoSizeMb(capture.recordingBytes, 0);
   const sizeCapLabel = formatJournalVideoSizeMb(JOURNAL_VIDEO_MAX_UPLOAD_BYTES, 0);
   const lowTime = active && capture.recordingRemainingMs <= 60_000;
@@ -300,7 +302,7 @@ export default function JournalVideoCaptureDialog({
             )}
             aria-live="polite"
           >
-            {remainingClock}
+            {elapsedClock}
             <span className="mx-1.5 text-white/40" aria-hidden>
               ·
             </span>
@@ -398,7 +400,7 @@ export default function JournalVideoCaptureDialog({
               : lowTime
                 ? sizeLimited
                   ? "Almost at the upload size limit — recording stops automatically."
-                  : "Less than a minute left — recording stops automatically at 0:00."
+                  : "Less than a minute left — recording stops automatically at the limit."
                 : isScreen
                   ? "Your screen is recording with your camera in the corner."
                   : "Talk naturally. Tap pause if you need a moment."

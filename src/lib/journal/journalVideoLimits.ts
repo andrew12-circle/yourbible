@@ -39,14 +39,17 @@ export function journalVideoRemainingMs(elapsedMs: number): number {
   return Math.max(0, JOURNAL_VIDEO_MAX_DURATION_MS - elapsedMs);
 }
 
-/** Remaining record time — limited by both duration cap and observed file size. */
+/** Target upload rate in bytes/ms — stable estimate for the on-screen countdown. */
+export function journalVideoTargetBytesPerMs(): number {
+  return JOURNAL_VIDEO_TARGET_BITS_PER_SECOND / 8 / 1000;
+}
+
+/** Remaining record time — limited by duration cap and upload size at the target bitrate. */
 export function journalVideoEffectiveRemainingMs(elapsedMs: number, bytes: number): number {
   const byTime = journalVideoRemainingMs(elapsedMs);
-  if (bytes <= 0 || elapsedMs < 2_000) return byTime;
-  const bytesPerMs = bytes / elapsedMs;
-  if (bytesPerMs <= 0) return byTime;
   const bytesLeft = Math.max(0, JOURNAL_VIDEO_RECORD_STOP_BYTES - bytes);
-  return Math.min(byTime, bytesLeft / bytesPerMs);
+  const bySize = bytesLeft / journalVideoTargetBytesPerMs();
+  return Math.min(byTime, bySize);
 }
 
 export function shouldStopJournalVideoRecording(bytes: number, elapsedMs: number): boolean {

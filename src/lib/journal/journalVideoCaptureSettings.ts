@@ -16,6 +16,9 @@ export interface JournalVideoCaptureSettings {
   bubbleVisible: boolean;
 }
 
+/** Quiet mic level must hold this long before auto-pause (camera mode). */
+export const JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS = 30;
+
 export const DEFAULT_JOURNAL_VIDEO_CAPTURE_SETTINGS: JournalVideoCaptureSettings = {
   quality: "720p",
   countdown: 3,
