@@ -139,6 +139,57 @@ export function readerColumnContentHeightPx(
   return readerScriptureColumnsHeightPx(stackLimit);
 }
 
+export interface ReaderPageHeightsOptions {
+  pageContentReady: boolean;
+  hasStreamSlice: boolean;
+  scrollMode: boolean;
+  columnLayoutActive: boolean;
+  pageIndex: number;
+  startsWithChapterHeader: boolean;
+  firstPageHeight: number;
+  pageHeight: number;
+  footerGuardPx?: number;
+  chapterHeaderReservePx?: number;
+  reserveFootnotesBand: boolean;
+  liveColumnSafetyPx?: number;
+}
+
+/** Live stack + column heights for one rendered reader page (undefined when not measurable). */
+export function readerPageHeightsPx(options: ReaderPageHeightsOptions): {
+  stackContentHeightPx: number | undefined;
+  scriptureColumnHeightPx: number | undefined;
+} {
+  const canMeasure =
+    !options.scrollMode && (options.pageContentReady || options.hasStreamSlice);
+  const stackContentHeightPx = canMeasure
+    ? readerPageContentLimitPx({
+        pageIndex: options.pageIndex,
+        startsWithChapterHeader: options.startsWithChapterHeader,
+        firstPageHeight: options.firstPageHeight,
+        pageHeight: options.pageHeight,
+        footerGuardPx: options.footerGuardPx,
+        chapterHeaderReservePx: options.chapterHeaderReservePx,
+      })
+    : undefined;
+  const scriptureColumnHeightPx =
+    stackContentHeightPx != null
+      ? readerColumnContentHeightPx({
+          columnLayoutActive: options.columnLayoutActive,
+          pageIndex: options.pageIndex,
+          startsWithChapterHeader: options.startsWithChapterHeader,
+          firstPageHeight: options.firstPageHeight,
+          pageHeight: options.pageHeight,
+          footerGuardPx: options.footerGuardPx,
+          chapterHeaderReservePx: options.chapterHeaderReservePx,
+          holmanChromeBelowColumnsPx: options.reserveFootnotesBand
+            ? holmanChromeBelowColumnsPx({ hasFootnotes: true, hasConnections: false })
+            : undefined,
+          liveColumnSafetyPx: options.liveColumnSafetyPx,
+        })
+      : undefined;
+  return { stackContentHeightPx, scriptureColumnHeightPx };
+}
+
 /** Stack height for Holman pages (columns + footnotes band). */
 export function readerHolmanStackContentHeightPx(
   options: ReaderColumnContentHeightOptions & {

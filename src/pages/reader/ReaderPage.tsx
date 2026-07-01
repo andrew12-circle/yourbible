@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   startTransition,
-  type ReactNode,
 } from "react";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,7 +38,8 @@ import {
 } from "@/lib/bible/readerFontScale";
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
-import { ScripturePlate } from "@/components/bible/ScripturePlate";
+import { ReaderPageHeader, ReaderPageFooter, ReaderPageBodyPlaceholder } from "@/pages/reader/ReaderPageChrome";
+import { renderReaderPageScripture } from "@/pages/reader/renderReaderPageScripture";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
 import { SelectionPencilOverlay } from "@/components/bible/SelectionPencilOverlay";
 import { MarkerSvgFilter } from "@/components/bible/MarkerSvgFilter";
@@ -60,7 +60,6 @@ import { BibleSearchDialog } from "@/components/bible/BibleSearchDialog";
 import OfflineBanner from "@/components/OfflineBanner";
 import { getPalette } from "@/lib/bible/palettes";
 import { useReaderSpread, useReaderCompactChrome, useIsTabletPortrait, useCompactInkLayout } from "@/hooks/use-reader-layout";
-import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -94,18 +93,13 @@ import { buildAdjacentStreamChapters, passageToStreamChapter, streamChapterCompo
 import {
   areSameStreamSplits,
   buildReaderStream,
-  headingsForChapter,
   READER_PAGINATOR_SPLIT_REVISION,
-  paragraphStartsForChapter,
-  poetryBlocksForChapter,
   sliceReaderPage,
   findSpreadPageForVerse,
   interimSpreadDisplaySplits,
   isSpreadDoubleColumnSplitsReady,
   isStreamSplitsReady,
   sliceReaderSpreadPane,
-  sliceReaderStreamRange,
-  spreadPaneStreamRanges,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
   spreadPageForChapterStartLeftPane,
@@ -133,7 +127,6 @@ import {
 import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
 import {
   readReaderColumnLayout,
-  READER_SPREAD_COLUMNS_CLASS,
   readerColumnLayoutLabel,
   writeReaderColumnLayout,
   type ReaderColumnLayout,
@@ -141,24 +134,12 @@ import {
 import { deriveReaderLayout } from "@/lib/bible/readerLayout";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
 import {
-  holmanChromeBelowColumnsPx,
-  readerColumnContentHeightPx,
-  readerPageContentLimitPx,
+  readerPageHeightsPx,
   READER_LIVE_COLUMN_SAFETY_PX,
-  scriptureColumnWrapperStyle,
 } from "@/lib/bible/readerColumnMeasure";
-import {
-  renderScriptureParagraphNodes,
-  wrapScriptureColumns,
-  wrapHolmanStudyContent,
-  HolmanPageFootnotes,
-  type HolmanVerseGroup,
-} from "@/lib/bible/readerScriptureRender";
+import { type HolmanVerseGroup } from "@/lib/bible/readerScriptureRender";
 import { resolveStudyLayout, readReaderStudyLayout, writeReaderStudyLayout, isStudyBibleEdition, type ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
-import {
-  formatReaderSourceLine,
-  readerEditionAbbreviation,
-} from "@/lib/bible/readerEditionAttribution";
+import { formatReaderSourceLine } from "@/lib/bible/readerEditionAttribution";
 import { holmanVerseGroupsForRenderedPage, versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
@@ -170,7 +151,6 @@ import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
 import { ReaderNotesPanel } from "@/pages/reader/ReaderNotesPanel";
 import { ReaderCompanionColumn } from "@/pages/reader/ReaderCompanionColumn";
-import { ScriptureVirtualChapter, ScriptureDocumentBlocks } from "@/components/scripture";
 import { buildDocumentBlocks } from "@/lib/bible/documentModel";
 import { passageToCanonicalChapter } from "@/lib/bible/canonical/passageToCanonical";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
@@ -496,7 +476,7 @@ export default function ReaderPage() {
   }, [book.abbr, chapter]);
 
   // Total chapters across the canon → progress through the Bible
-  const { progress, chaptersBefore, totalChapters: _totalChapters } = useMemo(() => {
+  const { progress } = useMemo(() => {
     const total = canonBooks.reduce((s, b) => s + b.chapters, 0);
     let before = 0;
     for (const b of canonBooks) {
@@ -505,8 +485,6 @@ export default function ReaderPage() {
     }
     return {
       progress: Math.max(0, Math.min(1, (before + chapter - 1) / Math.max(1, total - 1))),
-      chaptersBefore: before,
-      totalChapters: total,
     };
   }, [book.abbr, chapter, canonBooks]);
 
@@ -1420,20 +1398,6 @@ export default function ReaderPage() {
   );
 
   const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
-  const scriptureNodes = (
-    groups: { bookAbbr: string; chapter: number; verses: PassageVerse[] }[],
-    resolveParagraphStarts: (bookAbbr: string, chapter: number) => Set<number>,
-    resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
-    resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => import("@/lib/bible/api").PoetryBlock[],
-  ) =>
-    renderScriptureParagraphNodes(
-      groups,
-      resolveParagraphStarts,
-      resolveHeading,
-      renderVerse,
-      resolvePoetryBlocks,
-      { studyLayout: activeStudyLayout },
-    );
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
@@ -1457,21 +1421,6 @@ export default function ReaderPage() {
               )
             : null
           : sliceReaderPage(readerStream, splitsForPage, pageIdx)
-        : null;
-    const spreadRanges =
-      useSpreadDoubleColumn && useBookSpread && splitsForPage
-        ? spreadPaneStreamRanges(splitsForPage, spreadPageIdx, readerStream.length)
-        : null;
-    const continuousSpreadSlice =
-      spreadRanges &&
-      spreadRanges.left.end > spreadRanges.left.start &&
-      spreadRanges.right.end > spreadRanges.left.start
-        ? sliceReaderStreamRange(
-            readerStream,
-            spreadRanges.left.start,
-            spreadRanges.right.end,
-            spreadPageIdx,
-          )
         : null;
     const slice =
       scrollMode || useStreamReader || pageOutOfRange || !splitsForPage
@@ -1545,63 +1494,28 @@ export default function ReaderPage() {
     const showPageFootnotes =
       versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
     const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
-    const pageScriptureNodes = (
-      groups: { bookAbbr: string; chapter: number; verses: PassageVerse[] }[],
-      resolveParagraphStarts: (bookAbbr: string, chapter: number) => Set<number>,
-      resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
-      resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => import("@/lib/bible/api").PoetryBlock[],
-    ) =>
-      renderScriptureParagraphNodes(
-        groups,
-        resolveParagraphStarts,
-        resolveHeading,
-        (v, ctx) =>
-          renderVerse(v, {
-            ...ctx,
-            showChapterDropCap:
-              useStreamReader && !scrollMode ? pageStartsWithChapterHeader : undefined,
-          }),
-        resolvePoetryBlocks,
-        { studyLayout: activeStudyLayout },
-      );
-    const headingsFromVerseOnPage = (bookAbbr: string, ch: number) => {
-      const firstVerse =
-        streamSlice?.verseGroups.find((g) => g.bookAbbr === bookAbbr && g.chapter === ch)
-          ?.verses[0]?.number ?? 1;
-      return new Map(
-        headingsForChapter(streamChapters, bookAbbr, ch)
-          .filter((h) => h.beforeVerse >= firstVerse)
-          .map((h) => [h.beforeVerse, h.text]),
-      );
+    const { stackContentHeightPx, scriptureColumnHeightPx } = readerPageHeightsPx({
+      pageContentReady,
+      hasStreamSlice: streamSlice != null,
+      scrollMode,
+      columnLayoutActive: Boolean(columnClassName),
+      pageIndex: paginatorPageIndex,
+      startsWithChapterHeader: pageStartsWithChapterHeader,
+      firstPageHeight,
+      pageHeight: pageBox.h,
+      footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
+      chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
+      reserveFootnotesBand: useStudyPageStack && showPageFootnotes,
+      liveColumnSafetyPx: READER_LIVE_COLUMN_SAFETY_PX,
+    });
+    const articleStyle = {
+      ...readerScriptureTypographyStyle(fontChoice, fontScale, {
+        desktopSpread: readerSpread,
+        compactChrome,
+      }),
+      fontFamily: scriptureFont,
+      ["--reader-scripture-font-family" as string]: scriptureFont,
     };
-    const stackContentHeightPx =
-      pageContentReady || (streamSlice != null && !scrollMode)
-        ? readerPageContentLimitPx({
-          pageIndex: paginatorPageIndex,
-          startsWithChapterHeader: pageStartsWithChapterHeader,
-          firstPageHeight,
-          pageHeight: pageBox.h,
-          footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
-          chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
-        })
-        : undefined;
-    const scriptureColumnHeightPx =
-      stackContentHeightPx != null && !scrollMode
-        ? readerColumnContentHeightPx({
-          columnLayoutActive: Boolean(columnClassName),
-          pageIndex: paginatorPageIndex,
-          startsWithChapterHeader: pageStartsWithChapterHeader,
-          firstPageHeight,
-          pageHeight: pageBox.h,
-          footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
-          chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
-          holmanChromeBelowColumnsPx:
-            useStudyPageStack && showPageFootnotes
-              ? holmanChromeBelowColumnsPx({ hasFootnotes: true, hasConnections: false })
-              : undefined,
-          liveColumnSafetyPx: READER_LIVE_COLUMN_SAFETY_PX,
-        })
-        : undefined;
     return (
       <div
         className={cn(
@@ -1617,68 +1531,25 @@ export default function ReaderPage() {
             inkMode && "pointer-events-none",
           )}
         >
-          {side === "right" && !scrollMode && !compactChrome ? (
-            <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
-              {globalPage}
-            </span>
-          ) : (
-            <span className="w-0 shrink-0" aria-hidden />
-          )}
-          <div
-            className={cn(
-              "min-w-0 flex-1",
-              !effectiveSpread || side === "left" ? "text-left" : "text-right",
-            )}
-          >
-            <button
-              type="button"
-              onClick={openReaderSettings}
-              className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
-              aria-label={`${pageBookName} — open reader settings`}
-            >
-              {pageBookName}
-            </button>
-            {side === "left" && readerSourceLine ? (
-              <p
-                className="mt-0.5 max-w-[18rem] text-[9px] leading-snug text-muted-foreground/50 font-system"
-                title={readerSourceLine}
-              >
-                {readerSourceLine}
-              </p>
-            ) : null}
-          </div>
-          {side === "left" && !scrollMode && !compactChrome ? (
-            <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
-              {globalPage}
-            </span>
-          ) : (
-            <span className="w-0 shrink-0" aria-hidden />
-          )}
+          <ReaderPageHeader
+            side={side}
+            scrollMode={scrollMode}
+            compactChrome={compactChrome}
+            effectiveSpread={effectiveSpread}
+            globalPage={globalPage}
+            pageBookName={pageBookName}
+            readerSourceLine={readerSourceLine}
+            onOpenSettings={openReaderSettings}
+          />
         </div>
-        {pageLoading ? (
-          <div className="flex flex-1 justify-center items-center">
-            <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
-          </div>
-        ) : pageOutOfRange ? (
-          effectiveSpread && measuresRestPage ? (
-            <div className="flex flex-1 min-h-0 min-w-0" aria-hidden>
-              <article
-                ref={onMeasureRestRef}
-                data-reading-area
-                className={cn("h-full min-h-0 w-full overflow-hidden", scriptureTypoClass)}
-                style={{
-                  ...readerScriptureTypographyStyle(fontChoice, fontScale, {
-                    desktopSpread: readerSpread,
-                    compactChrome,
-                  }),
-                  fontFamily: scriptureFont,
-                  ["--reader-scripture-font-family" as string]: scriptureFont,
-                }}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-1 min-h-0" aria-hidden />
-          )
+        {pageLoading || pageOutOfRange ? (
+          <ReaderPageBodyPlaceholder
+            pageLoading={pageLoading}
+            showMeasureArticle={effectiveSpread && measuresRestPage}
+            measureRestRef={onMeasureRestRef}
+            scriptureTypoClass={scriptureTypoClass}
+            articleStyle={articleStyle}
+          />
         ) : (
           <div
             ref={getInkAnchorRef(inkLayerId)}
@@ -1707,130 +1578,39 @@ export default function ReaderPage() {
                 showPageFootnotes && "reader-page-footnotes",
                 inkMode ? "!select-none" : "selectable-text",
               )}
-              style={{
-                ...readerScriptureTypographyStyle(fontChoice, fontScale, {
-                  desktopSpread: readerSpread,
-                  compactChrome,
-                }),
-                fontFamily: scriptureFont,
-                ["--reader-scripture-font-family" as string]: scriptureFont,
-              }}
+              style={articleStyle}
             >
               {showBookIntro ? (
                 <BookIntroductionBlock title={bookIntro!.title} html={bookIntro!.html} />
               ) : null}
-              {(() => {
-                const scriptureContent =
-                  scrollMode && useStreamReader && streamChapters.length > 0 ? (
-                    <>
-                      {inlineChapterPlates.length > 0
-                        ? inlineChapterPlates
-                            .filter((p) => p.beforeVerse === 1)
-                            .map((plate) => (
-                              <ScripturePlate key={plate.id} plate={plate} compact />
-                            ))
-                        : null}
-                      {scriptureNodes(
-                        streamChapters.map((ch) => ({
-                          bookAbbr: ch.bookAbbr,
-                          chapter: ch.chapter,
-                          verses: ch.verses,
-                        })),
-                        (bookAbbr, ch) =>
-                          new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                        (bookAbbr, ch) =>
-                          new Map(
-                            headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                              h.beforeVerse,
-                              h.text,
-                            ]),
-                          ),
-                        (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                      )}
-                    </>
-                  ) : scrollMode && scrollDocumentBlocks.length > 0 ? (
-                    <ScriptureVirtualChapter
-                      blocks={scrollDocumentBlocks}
-                      className="h-full min-h-0"
-                      renderBlock={(block) => (
-                        <ScriptureDocumentBlocks
-                          blocks={[block]}
-                          renderVerse={(v, ctx) =>
-                            renderVerse(
-                              {
-                                number: v.number,
-                                text: v.text,
-                                parts: v.parts,
-                                crossRefs: v.crossRefs,
-                                footnotes: v.footnotes,
-                              },
-                              ctx,
-                            )
-                          }
-                        />
-                      )}
-                    />
-                  ) : scrollMode && verses.length > 0 ? (
-                    scriptureNodes(
-                      [{ bookAbbr: book.abbr, chapter, verses }],
-                      () => paragraphStarts,
-                      () => headingByVerse,
-                      () => passage?.poetryBlocks ?? [],
-                    )
-                  ) : streamSlice?.isPlatePage && pageContentReady ? (
-                    streamSlice.plates.map((plate) => (
-                      <ScripturePlate key={plate.id} plate={plate} />
-                    ))
-                  ) : useStreamReader && streamSlice && pageContentReady ? (
-                    <>
-                      {streamSlice.plates.length > 0
-                        ? streamSlice.plates.map((plate) => (
-                            <ScripturePlate key={plate.id} plate={plate} compact />
-                          ))
-                        : null}
-                      {pageScriptureNodes(
-                        streamSlice.verseGroups.map((verseGroup) => ({
-                          bookAbbr: verseGroup.bookAbbr,
-                          chapter: verseGroup.chapter,
-                          verses: verseGroup.verses,
-                        })),
-                        (bookAbbr, ch) =>
-                          new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                        headingsFromVerseOnPage,
-                        (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                      )}
-                    </>
-                  ) : slice && slice.length > 0 ? (
-                    scriptureNodes(
-                      [{ bookAbbr: book.abbr, chapter, verses: slice }],
-                      () => paragraphStarts,
-                      () => headingByVerse,
-                      () => passage?.poetryBlocks ?? [],
-                    )
-                  ) : null;
-
-                if (useStudyPageStack) {
-                  return wrapHolmanStudyContent(
-                    spreadColumnLayout,
-                    scrollMode,
-                    scriptureContent,
-                    holmanVerseGroups,
-                    showPageFootnotes ? (
-                      <HolmanPageFootnotes verses={holmanFootnoteVerses} />
-                    ) : null,
-                    showHolmanConnections,
-                    scrollMode ? undefined : stackContentHeightPx,
-                    holmanNavigateRef,
-                  );
-                }
-
-                return wrapScriptureColumns(
-                  spreadColumnLayout,
-                  scrollMode,
-                  scriptureContent,
-                  scriptureColumnHeightPx,
-                );
-              })()}
+              {renderReaderPageScripture({
+                scrollMode,
+                useStreamReader,
+                streamChapters,
+                scrollDocumentBlocks,
+                verses,
+                slice,
+                book: { abbr: book.abbr, name: book.name },
+                chapter,
+                paragraphStarts,
+                headingByVerse,
+                passagePoetryBlocks: passage?.poetryBlocks ?? [],
+                streamSlice,
+                pageContentReady,
+                inlineChapterPlates,
+                renderVerse,
+                activeStudyLayout,
+                pageStartsWithChapterHeader,
+                useStudyPageStack,
+                spreadColumnLayout,
+                holmanVerseGroups,
+                showPageFootnotes,
+                holmanFootnoteVerses,
+                showHolmanConnections,
+                stackContentHeightPx,
+                scriptureColumnHeightPx,
+                holmanNavigateRef,
+              })}
             </article>
           </div>
         )}
@@ -1855,47 +1635,15 @@ export default function ReaderPage() {
           />
         ) : null}
         {!focusMode && !scrollMode && !compactChrome ? (
-          <div
-            data-page-footer
-            className={cn(
-              "flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest",
-              inkMode && "relative z-[21] pointer-events-none opacity-60",
-            )}
-          >
-            <button
-              onClick={() => goPage(-1)}
-              aria-label="Previous page"
-              className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <span className="inline-flex items-center gap-1 flex-wrap justify-center">
-              <button
-                type="button"
-                onClick={openReaderSettings}
-                className="hover:text-muted-foreground transition-colors"
-                aria-label={`${pageBookName} — open reader settings`}
-              >
-                {pageBookName}
-              </button>
-              {readerEditionAbbreviation(currentBible) ? (
-                <>
-                  <span aria-hidden>·</span>
-                  <span title={currentBible?.name}>{readerEditionAbbreviation(currentBible)}</span>
-                </>
-              ) : null}
-              <span aria-hidden className="reader-page-number">
-                · p. {globalPage}
-              </span>
-            </span>
-            <button
-              onClick={() => goPage(1)}
-              aria-label="Next page"
-              className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <ReaderPageFooter
+            inkMode={inkMode}
+            pageBookName={pageBookName}
+            globalPage={globalPage}
+            currentBible={currentBible}
+            onOpenSettings={openReaderSettings}
+            onPrevPage={() => goPage(-1)}
+            onNextPage={() => goPage(1)}
+          />
         ) : null}
       </div>
     );

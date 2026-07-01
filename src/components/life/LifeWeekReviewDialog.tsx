@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Film, Loader2, Mic } from "lucide-react";
+import { Film, Loader2, Mic, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +32,7 @@ type Props = {
   saving: boolean;
   remainingCount: number;
   onComplete: (reflection: string) => Promise<void>;
+  onDismiss: () => void;
 };
 
 function gridLabel(pending: PendingLifeWeekReview): string {
@@ -41,7 +42,14 @@ function gridLabel(pending: PendingLifeWeekReview): string {
   return "your life grid";
 }
 
-export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, onComplete }: Props) {
+export function LifeWeekReviewDialog({
+  open,
+  pending,
+  saving,
+  remainingCount,
+  onComplete,
+  onDismiss,
+}: Props) {
   const { user, profile } = useAuth();
   const { launch: launchVideo } = useJournalVideoLaunch();
   const [checked, setChecked] = useState(false);
@@ -105,6 +113,17 @@ export function LifeWeekReviewDialog({ open, pending, saving, remainingCount, on
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4 h-8 w-8"
+          onClick={onDismiss}
+          aria-label="Close week review"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+
         <DialogHeader>
           <DialogTitle>
             {pending.subject === "self"

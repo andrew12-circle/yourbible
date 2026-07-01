@@ -10,7 +10,12 @@ import {
   type LifeWeekReviewSubject,
   type PendingLifeWeekReview,
 } from "@/lib/lifeWeekReview";
-import { localListClosedLifeWeekIndicesBySubject } from "@/lib/lifeWeekReviewLocalStore";
+import {
+  lifeWeekReviewDismissKey,
+  localDismissLifeWeekReview,
+  localListClosedLifeWeekIndicesBySubject,
+  localListDismissedLifeWeekReviewKeys,
+} from "@/lib/lifeWeekReviewLocalStore";
 import { syncLifeWeekReviewToJournal } from "@/lib/lifeWeekReviewJournal";
 import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 
@@ -22,6 +27,7 @@ type LifeWeekReviewContextValue = {
   pendingReview: PendingLifeWeekReview | null;
   pendingReviewCount: number;
   completeReview: (reflection: string) => Promise<void>;
+  dismissPendingReview: () => void;
   saving: boolean;
   refresh: () => Promise<void>;
 };
@@ -41,6 +47,9 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   const [closedWeekIndicesBySubject, setClosedWeekIndicesBySubject] = useState<
     Record<LifeWeekReviewSubject, Set<number>>
   >(emptyClosedWeekIndicesBySubject);
+  const [dismissedReviewKeys, setDismissedReviewKeys] = useState<Set<string>>(() =>
+    userId ? localListDismissedLifeWeekReviewKeys(userId) : new Set(),
+  );
 
   const refresh = useCallback(async () => {
     if (!userId || !enabled) {
@@ -62,6 +71,27 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!userId) {
+      setDismissedReviewKeys(new Set());
+      return;
+    }
+    setDismissedReviewKeys(localListDismissedLifeWeekReviewKeys(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [enabled, refresh]);
+
   const reviewPeople = useMemo((): LifeWeekReviewPerson[] => {
     const people: LifeWeekReviewPerson[] = [];
     if (birthIso?.trim()) {
@@ -80,8 +110,10 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
 
   const pendingReviews = useMemo(() => {
     if (!enabled || loading || reviewPeople.length === 0) return [];
-    return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject);
-  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject]);
+    return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject).filter(
+      (review) => !dismissedReviewKeys.has(lifeWeekReviewDismissKey(review.subject, review.weekIndex)),
+    );
+  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject, dismissedReviewKeys]);
 
   const pendingReview = pendingReviews[0] ?? null;
 
@@ -121,6 +153,13 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     [userId, pendingReview],
   );
 
+  const dismissPendingReview = useCallback(() => {
+    if (!userId || !pendingReview) return;
+    localDismissLifeWeekReview(userId, pendingReview.subject, pendingReview.weekIndex);
+    const key = lifeWeekReviewDismissKey(pendingReview.subject, pendingReview.weekIndex);
+    setDismissedReviewKeys((prev) => new Set([...prev, key]));
+  }, [userId, pendingReview]);
+
   const value = useMemo(
     () => ({
       loading,
@@ -129,6 +168,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       pendingReview,
       pendingReviewCount: pendingReviews.length,
       completeReview,
+      dismissPendingReview,
       saving,
       refresh,
     }),
@@ -138,6 +178,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       pendingReview,
       pendingReviews.length,
       completeReview,
+      dismissPendingReview,
       saving,
       refresh,
     ],

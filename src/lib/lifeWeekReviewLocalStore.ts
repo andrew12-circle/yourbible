@@ -6,6 +6,7 @@ import type { LifeWeekReviewRow, LifeWeekReviewSubject } from "@/lib/lifeWeekRev
 import { emptyClosedWeekIndicesBySubject } from "@/lib/lifeWeekReview";
 
 const STORAGE_KEY = "yb_life_week_reviews_local_v1";
+const DISMISS_KEY = "yb_life_week_review_dismissed_v1";
 const NOTIFY_KEY = "yb_life_week_reviews_local_notified";
 
 interface LocalReview {
@@ -91,6 +92,47 @@ export function localListAllLifeWeekReviews(userId: string): LifeWeekReviewRow[]
     completed_at: review.completed_at,
     created_at: review.completed_at,
   }));
+}
+
+export function lifeWeekReviewDismissKey(
+  subject: LifeWeekReviewSubject,
+  weekIndex: number,
+): string {
+  return `${subject}:${weekIndex}`;
+}
+
+function readDismissedAll(): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDismissedAll(data: Record<string, string[]>): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
+}
+
+export function localListDismissedLifeWeekReviewKeys(userId: string): Set<string> {
+  return new Set(readDismissedAll()[userId] ?? []);
+}
+
+export function localDismissLifeWeekReview(
+  userId: string,
+  subject: LifeWeekReviewSubject,
+  weekIndex: number,
+): void {
+  const key = lifeWeekReviewDismissKey(subject, weekIndex);
+  const all = readDismissedAll();
+  const keys = new Set(all[userId] ?? []);
+  keys.add(key);
+  all[userId] = [...keys];
+  writeDismissedAll(all);
 }
 
 export function localSaveLifeWeekReview(

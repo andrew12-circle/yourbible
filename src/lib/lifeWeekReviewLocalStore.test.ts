@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  lifeWeekReviewDismissKey,
+  localDismissLifeWeekReview,
   localListClosedLifeWeekIndicesBySubject,
+  localListDismissedLifeWeekReviewKeys,
   localSaveLifeWeekReview,
 } from "@/lib/lifeWeekReviewLocalStore";
 
@@ -27,5 +30,12 @@ describe("lifeWeekReviewLocalStore", () => {
     const again = localListClosedLifeWeekIndicesBySubject(USER);
     expect(again.self.has(2026)).toBe(true);
     expect(again.lilly.has(216)).toBe(true);
+  });
+
+  it("persists dismissed week review keys per user", () => {
+    expect(lifeWeekReviewDismissKey("lilly", 216)).toBe("lilly:216");
+    localDismissLifeWeekReview(USER, "lilly", 216);
+    expect(localListDismissedLifeWeekReviewKeys(USER).has("lilly:216")).toBe(true);
+    expect(localListDismissedLifeWeekReviewKeys("other-user").size).toBe(0);
   });
 });
