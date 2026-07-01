@@ -3,11 +3,13 @@ import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter"
 import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
-  paginatorMeasureLimitPx,
+  measureNodeScriptureColumnsEl,
   readerPageContentLimitPx,
   scriptureContentFitsPage,
+  scriptureSpreadLeftPaneFits,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
+import { versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
   type ReaderChapterPassage,
@@ -157,9 +159,6 @@ export function BookPaginator({
           footerGuardPx: footerHeight,
         });
         const spreadLimit = Math.min(leftLimit, rightLimit);
-        const leftMeasureLimit = paginatorMeasureLimitPx(leftLimit);
-        const rightMeasureLimit = paginatorMeasureLimitPx(rightLimit);
-        const spreadMeasureLimit = paginatorMeasureLimitPx(spreadLimit);
         const leftOnlyEnd = findStreamSliceEnd(
           node,
           stream,
@@ -168,7 +167,7 @@ export function BookPaginator({
           chapters,
           redByChapter,
           columnsClassName,
-          leftMeasureLimit,
+          leftLimit,
           studyLayout,
           spreadMeasureOpts2,
         );
@@ -180,7 +179,7 @@ export function BookPaginator({
           chapters,
           redByChapter,
           columnsClassName,
-          rightMeasureLimit,
+          rightLimit,
           studyLayout,
           spreadMeasureOpts2,
         );
@@ -195,7 +194,7 @@ export function BookPaginator({
           chapters,
           redByChapter,
           READER_SPREAD_COLUMNS_CLASS,
-          spreadMeasureLimit,
+          spreadLimit,
           studyLayout,
           spreadMeasureOpts4,
         );
@@ -214,13 +213,15 @@ export function BookPaginator({
           stream,
           spreadStart,
           spreadEnd,
-          leftMeasureLimit,
-          rightMeasureLimit,
+          leftLimit,
+          rightLimit,
+          pageWidth,
           chapters,
           redByChapter,
           columnsClassName,
           studyLayout,
           spreadMeasureOpts2,
+          spreadMeasureOpts4,
         );
         splits.push(leftPageEnd);
         splits.push(spreadEnd);
@@ -245,7 +246,7 @@ export function BookPaginator({
         chapters,
         redByChapter,
         columnsClassName,
-        paginatorMeasureLimitPx(limit),
+        limit,
         studyLayout,
       );
       splits.push(lastFit);
@@ -313,7 +314,7 @@ function streamSliceFitsPage(
 
 /**
  * Largest stream index for the left page where both panes of a spread fit.
- * Never uses a percentage guess — both sides are measured independently.
+ * Left pane must fit in two columns and stay out of the right page in 4-col flow.
  */
 function findSpreadLeftPageEnd(
   node: HTMLDivElement,
@@ -322,11 +323,13 @@ function findSpreadLeftPageEnd(
   spreadEnd: number,
   leftLimit: number,
   rightLimit: number,
+  pageWidth: number,
   chapters: ReaderChapterPassage[],
   redByChapter: Map<string, Map<number, Segment[]>>,
   columnsClassName: string | undefined,
   studyLayout: ResolvedStudyLayout,
-  measureOptions: ScriptureColumnMeasureOptions,
+  pageMeasureOptions: ScriptureColumnMeasureOptions,
+  spreadMeasureOptions: ScriptureColumnMeasureOptions,
 ): number {
   if (spreadEnd <= spreadStart + 1) return spreadStart + 1;
 
@@ -336,7 +339,7 @@ function findSpreadLeftPageEnd(
 
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
-    const leftFits = streamSliceFitsPage(
+    const leftFits = spreadLeftPaneFits(
       node,
       stream,
       spreadStart,
@@ -345,8 +348,10 @@ function findSpreadLeftPageEnd(
       redByChapter,
       columnsClassName,
       leftLimit,
+      pageWidth,
       studyLayout,
-      measureOptions,
+      pageMeasureOptions,
+      spreadMeasureOptions,
     );
     const rightFits = streamSliceFitsPage(
       node,
@@ -358,7 +363,7 @@ function findSpreadLeftPageEnd(
       columnsClassName,
       rightLimit,
       studyLayout,
-      measureOptions,
+      pageMeasureOptions,
     );
     if (leftFits && rightFits) {
       best = mid;
@@ -366,11 +371,56 @@ function findSpreadLeftPageEnd(
     } else if (!leftFits) {
       hi = mid - 1;
     } else {
-      hi = mid - 1;
+      lo = mid + 1;
     }
   }
 
   return best;
+}
+
+function spreadLeftPaneFits(
+  node: HTMLDivElement,
+  stream: ReaderStreamUnit[],
+  spreadStart: number,
+  mid: number,
+  chapters: ReaderChapterPassage[],
+  redByChapter: Map<string, Map<number, Segment[]>>,
+  columnsClassName: string | undefined,
+  leftLimit: number,
+  pageWidth: number,
+  studyLayout: ResolvedStudyLayout,
+  pageMeasureOptions: ScriptureColumnMeasureOptions,
+  spreadMeasureOptions: ScriptureColumnMeasureOptions,
+): boolean {
+  if (
+    !streamSliceFitsPage(
+      node,
+      stream,
+      spreadStart,
+      mid,
+      chapters,
+      redByChapter,
+      columnsClassName,
+      leftLimit,
+      studyLayout,
+      pageMeasureOptions,
+    )
+  ) {
+    return false;
+  }
+  renderStreamSlice(
+    node,
+    stream.slice(spreadStart, mid),
+    chapters,
+    redByChapter,
+    READER_SPREAD_COLUMNS_CLASS,
+    leftLimit,
+    studyLayout,
+    spreadMeasureOptions,
+  );
+  const columns = measureNodeScriptureColumnsEl(node);
+  if (!columns) return false;
+  return scriptureSpreadLeftPaneFits(columns, pageWidth);
 }
 
 function findStreamSliceEnd(
@@ -448,7 +498,9 @@ function renderStreamSlice(
     studyLayout,
   );
   const footnotesHtml = buildStreamSliceFootnotesMeasureHtml(slice);
-  if (studyLayout === "holman" || footnotesHtml) {
+  const sliceVerses = slice.flatMap((unit) => (unit.kind === "verse" ? [unit.verse] : []));
+  const hasPageFootnotes = versesHavePageFootnotes(sliceVerses);
+  if (studyLayout === "holman" || hasPageFootnotes) {
     applyHolmanStudyMeasureHtml(
       node,
       scriptureHtml,

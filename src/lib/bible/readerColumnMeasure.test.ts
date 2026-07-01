@@ -50,7 +50,7 @@ describe("readerColumnMeasure", () => {
     ).toBe(568);
   });
 
-  it("readerColumnContentHeightPx matches paginator content limits", () => {
+  it("readerColumnContentHeightPx reserves column safety slack", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -59,7 +59,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(488);
+    ).toBe(464);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -68,7 +68,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(472);
+    ).toBe(448);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -77,7 +77,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(472);
+    ).toBe(448);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -86,7 +86,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(568);
+    ).toBe(544);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: false,
@@ -98,7 +98,7 @@ describe("readerColumnMeasure", () => {
     ).toBeUndefined();
   });
 
-  it("scriptureColumnAreaHeightPx deducts Holman chrome below columns", () => {
+  it("readerColumnContentHeightPx deducts Holman chrome below columns", () => {
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -108,24 +108,11 @@ describe("readerColumnMeasure", () => {
         pageHeight: 600,
         holmanChromeBelowColumnsPx: 72,
       }),
-    ).toBe(496);
+    ).toBe(472);
   });
 
   it("paginatorMeasureLimitPx reserves live column safety slack", () => {
     expect(paginatorMeasureLimitPx(568)).toBe(544);
-  });
-
-  it("readerColumnContentHeightPx deducts live column safety when set", () => {
-    expect(
-      readerColumnContentHeightPx({
-        columnLayoutActive: true,
-        pageIndex: 1,
-        startsWithChapterHeader: false,
-        firstPageHeight: 520,
-        pageHeight: 600,
-        liveColumnSafetyPx: 24,
-      }),
-    ).toBe(544);
   });
 
   it("scriptureColumnWrapperStyle sets pixel height for column-fill auto", () => {
@@ -146,7 +133,7 @@ describe("readerColumnMeasure", () => {
     );
     const col = node.firstElementChild as HTMLElement;
     expect(col.className).toBe("scripture-columns-2");
-    expect(col.style.height).toBe("120px");
+    expect(col.style.height).toBe("96px");
     expect(col.style.overflow).toBe("hidden");
   });
 

@@ -22,7 +22,7 @@ import {
 } from "@/lib/bible/readerColumnLayout";
 import {
   holmanChromeBelowColumnsPx,
-  scriptureColumnAreaHeightPx,
+  readerScriptureColumnsHeightPx,
   scriptureColumnWrapperStyle,
 } from "@/lib/bible/readerColumnMeasure";
 import { versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
@@ -163,7 +163,7 @@ export function wrapHolmanStudyContent(
       : undefined;
   const columnHeightPx =
     !scrollMode && contentHeightPx != null && contentHeightPx > 0
-      ? scriptureColumnAreaHeightPx(contentHeightPx, chromeBelow)
+      ? readerScriptureColumnsHeightPx(contentHeightPx, chromeBelow)
       : undefined;
   const columnsStyle: CSSProperties | undefined =
     !scrollMode && hasColumns

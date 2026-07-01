@@ -24,6 +24,17 @@ export function paginatorMeasureLimitPx(contentHeightPx: number): number {
   return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
 }
 
+/** Pixel height for scripture column boxes — shared by paginator and live reader. */
+export function readerScriptureColumnsHeightPx(
+  stackContentHeightPx: number,
+  holmanChromeBelowColumnsPx = 0,
+): number {
+  return Math.max(
+    1,
+    Math.round(stackContentHeightPx - holmanChromeBelowColumnsPx - READER_LIVE_COLUMN_SAFETY_PX),
+  );
+}
+
 /** Default slack reserved in paginator fit tests (must match ReaderPage). */
 export const READER_COLUMN_FOOTER_GUARD_PX = 32;
 
@@ -120,9 +131,9 @@ export function readerColumnContentHeightPx(
   const chrome = options.holmanChromeBelowColumnsPx ?? 0;
   const liveSafety = options.liveColumnSafetyPx ?? 0;
   if (chrome > 0 || liveSafety > 0) {
-    return scriptureColumnAreaHeightPx(stackLimit, chrome + liveSafety);
+    return readerScriptureColumnsHeightPx(stackLimit, chrome);
   }
-  return stackLimit;
+  return readerScriptureColumnsHeightPx(stackLimit);
 }
 
 /** Stack height for Holman pages (columns + footnotes band). */
@@ -177,7 +188,7 @@ export function applyHolmanStudyMeasureHtml(
   const h = Math.max(1, Math.round(contentHeightPx));
   const chromeBelow = (connectionsHtml ? READER_HOLMAN_CONNECTIONS_BAND_PX : 0)
     + (footnotesHtml ? READER_HOLMAN_FOOTNOTES_BAND_PX : 0);
-  const columnH = scriptureColumnAreaHeightPx(h, chromeBelow);
+  const columnH = readerScriptureColumnsHeightPx(h, chromeBelow);
   if (!connectionsHtml && !footnotesHtml) {
     applyScriptureColumnMeasureHtml(node, scriptureHtml, columnsClassName, contentHeightPx, options);
     return;
@@ -210,14 +221,14 @@ export function applyScriptureColumnMeasureHtml(
     node.innerHTML = bodyHtml;
     return;
   }
-  const h = Math.max(1, Math.round(contentHeightPx));
+  const columnH = readerScriptureColumnsHeightPx(contentHeightPx);
   const columnCount = options?.columnCount ?? 2;
   const width =
     options?.measureWidthPx != null && options.measureWidthPx > 0
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
   node.innerHTML =
-    `<div class="${columnsClassName}" style="height:${h}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">` +
+    `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">` +
     `${bodyHtml}</div>`;
 }
 
@@ -244,6 +255,23 @@ function resetColumnMeasureStyles(col: HTMLElement): void {
   col.style.height = "";
   col.style.maxHeight = "";
   col.style.overflow = "";
+}
+
+/** True when a spread slice stays in the left page's two columns (not col 3+). */
+export function scriptureSpreadLeftPaneFits(
+  columns: HTMLElement,
+  pageWidthPx: number,
+): boolean {
+  if (pageWidthPx > 0 && columns.scrollWidth > pageWidthPx + 8) return false;
+  return !scriptureColumnsHaveClippedOverflow(columns);
+}
+
+export function measureNodeScriptureColumnsEl(node: HTMLDivElement): HTMLElement | null {
+  const studyStack = node.querySelector(".scripture-page-stack, .holman-study-stack") as HTMLElement | null;
+  if (studyStack) {
+    return studyStack.querySelector('[class*="scripture-columns"]') as HTMLElement | null;
+  }
+  return node.firstElementChild as HTMLElement | null;
 }
 
 /**
@@ -292,8 +320,9 @@ export function scriptureContentFitsPage(
   const col = node.firstElementChild as HTMLElement | null;
   if (!col) return true;
 
-  col.style.height = `${limit}px`;
-  col.style.maxHeight = `${limit}px`;
+  const columnLimit = readerScriptureColumnsHeightPx(limit);
+  col.style.height = `${columnLimit}px`;
+  col.style.maxHeight = `${columnLimit}px`;
   col.style.overflow = "hidden";
 
   try {

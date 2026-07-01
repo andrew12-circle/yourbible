@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
-  paginatorMeasureLimitPx,
   scriptureContentFitsPage,
 } from "@/lib/bible/readerColumnMeasure";
 import {
@@ -140,7 +139,6 @@ export function Paginator({
     while (i < verses.length) {
       const baseHeight = isFirstPage ? resolvedFirstPageHeight : pageHeight;
       const pageLimit = baseHeight - footerHeight;
-      const measureLimit = paginatorMeasureLimitPx(pageLimit);
       // Add verses one at a time until we overflow
       let lastFit = i;
       let lo = i + 1;
@@ -157,10 +155,10 @@ export function Paginator({
           bookAbbr,
           chapter,
           columnsClassName,
-          measureLimit,
+          pageLimit,
           studyLayout,
         );
-        if (scriptureContentFitsPage(node, measureLimit, columnsClassName)) {
+        if (scriptureContentFitsPage(node, pageLimit, columnsClassName)) {
           lastFit = i + n;
           n *= 2;
         } else {
@@ -181,10 +179,10 @@ export function Paginator({
           bookAbbr,
           chapter,
           columnsClassName,
-          measureLimit,
+          pageLimit,
           studyLayout,
         );
-        if (scriptureContentFitsPage(node, measureLimit, columnsClassName)) {
+        if (scriptureContentFitsPage(node, pageLimit, columnsClassName)) {
           lastFit = mid;
           lo = mid + 1;
         } else {
