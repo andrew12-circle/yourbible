@@ -43,6 +43,11 @@ export function bookStartPageNumber(bookAbbr: string): number {
   return Math.max(1, Math.round(chaptersBeforeBook(bookAbbr) * PRINT_PAGE_SCALE) + 1);
 }
 
+/** Printed-style page number for a chapter (per book, not route chapter). */
+export function readerChapterPageNumber(bookAbbr: string, chapter: number): number {
+  return Math.max(1, Math.round(chaptersBeforeBook(bookAbbr) * PRINT_PAGE_SCALE) + chapter);
+}
+
 export function bookToContentsRow(book: BibleBook): ContentsRow {
   return {
     id: book.abbr,

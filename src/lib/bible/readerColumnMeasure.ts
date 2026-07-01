@@ -19,6 +19,9 @@ export interface ScriptureColumnMeasureOptions {
 /** Extra slack on live column wrappers so the last line is never clipped vs paginator. */
 export const READER_LIVE_COLUMN_SAFETY_PX = 24;
 
+/** Horizontal inset applied to column boxes (must match CSS padding-inline on columns). */
+export const READER_COLUMN_EDGE_INSET_EM = 0.35;
+
 /** Paginator measure height — must stay in sync with live `liveColumnSafetyPx`. */
 export function paginatorMeasureLimitPx(contentHeightPx: number): number {
   return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));

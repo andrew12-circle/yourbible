@@ -84,7 +84,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 13;
+export const READER_PAGINATOR_SPLIT_REVISION = 14;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -426,6 +426,41 @@ export function spreadPageForChapterStart(
     }
   }
   return pageIdx % 2 === 0 ? pageIdx : Math.max(0, pageIdx - 1);
+}
+
+/**
+ * Spread anchor when each facing spread uses left/right panes (double-column mode).
+ * Lands on the first spread whose left pane contains the chapter opening — not the
+ * prior book on the left with the new chapter only on the right.
+ */
+export function spreadPageForChapterStartLeftPane(
+  stream: ReaderStreamUnit[],
+  splits: number[],
+  bookAbbr: string,
+  chapter: number,
+): number {
+  if (!isStreamSplitsReady(splits, stream.length)) return 0;
+  const headerIdx = findChapterStartStreamIndex(stream, bookAbbr, chapter);
+  if (headerIdx < 0) return 0;
+
+  if (isSpreadDoubleColumnSplitsReady(splits, stream.length)) {
+    for (let spreadIdx = 0; spreadIdx < splits.length - 1; spreadIdx += 2) {
+      const { left } = spreadPaneStreamRanges(splits, spreadIdx, stream.length);
+      if (left.end <= left.start) continue;
+      if (headerIdx >= left.start && headerIdx < left.end) {
+        return spreadIdx;
+      }
+    }
+    for (let spreadIdx = 0; spreadIdx < splits.length - 1; spreadIdx += 2) {
+      const left = sliceReaderSpreadPane(stream, splits, spreadIdx, "left", stream.length);
+      const opensChapter = left?.verseGroups.some(
+        (g) => g.bookAbbr === bookAbbr && g.chapter === chapter,
+      );
+      if (opensChapter) return spreadIdx;
+    }
+  }
+
+  return spreadPageForChapterStart(stream, splits, bookAbbr, chapter);
 }
 
 /** Spread anchor showing the final page of a chapter (used when paging backward into a chapter). */

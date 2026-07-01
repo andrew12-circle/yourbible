@@ -17,6 +17,7 @@ import {
   repairSpreadPagePairSplits,
   spreadSplitsAlreadyPaired,
   spreadPageForChapterStart,
+  spreadPageForChapterStartLeftPane,
   spreadStreamRange,
   streamPageCount,
   synthesizeSpreadLeftBoundaryInRange,
@@ -454,6 +455,35 @@ describe("readerStream", () => {
     const splits = [0, 3, stream.length];
     expect(spreadPageForChapterStart(stream, splits, "Psa", 6)).toBe(0);
     expect(spreadPageForChapterStart(stream, splits, "Psa", 5)).toBe(0);
+  });
+
+  it("spreadPageForChapterStartLeftPane opens on left pane after a book boundary", () => {
+    const stream = buildReaderStream([
+      {
+        bookAbbr: "Jhn",
+        bookName: "John",
+        chapter: 21,
+        verses: verses([1, 2, 3, 4]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Act",
+        bookName: "Acts",
+        chapter: 1,
+        verses: verses([1, 2]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ]);
+    const splits = [0, 5, 7, stream.length];
+    expect(spreadPageForChapterStart(stream, splits, "Act", 1)).toBe(0);
+    expect(spreadPageForChapterStartLeftPane(stream, splits, "Act", 1)).toBe(2);
+    const left = sliceReaderSpreadPane(stream, splits, 2, "left", stream.length);
+    expect(left?.verseGroups.some((g) => g.bookAbbr === "Act" && g.chapter === 1)).toBe(true);
+    expect(left?.verseGroups.some((g) => g.bookAbbr === "Jhn")).toBe(false);
   });
 
   it("interimSpreadDisplaySplits fabricates left/right boundaries while measuring", () => {

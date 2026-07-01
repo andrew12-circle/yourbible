@@ -88,6 +88,7 @@ import {
   pageCountFromSplits,
   pageVerseSlice,
 } from "@/lib/bible/pageSplits";
+import { readerChapterPageNumber } from "@/lib/bible/bibleContents";
 import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
 import { buildAdjacentStreamChapters, passageToStreamChapter, streamChapterCompositionKey } from "@/lib/bible/readerStreamChapters";
 import {
@@ -107,6 +108,7 @@ import {
   spreadPaneStreamRanges,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
+  spreadPageForChapterStartLeftPane,
 } from "@/lib/bible/readerStream";
 import { useAdjacentPassages } from "@/hooks/useAdjacentPassages";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -990,7 +992,23 @@ export default function ReaderPage() {
       if (!streamSplitsReady) return;
       let target = 0;
       if (useBookSpread && useSpreadDoubleColumn) {
+        let leftPaneTarget = -1;
+        let anyTarget = 0;
         for (let p = 0; p < navStreamSplits.length - 1; p += 2) {
+          const left = sliceReaderSpreadPane(
+            readerStream,
+            navStreamSplits,
+            p,
+            "left",
+            readerStream.length,
+          );
+          const onLeft = left?.verseGroups.some(
+            (g) =>
+              g.bookAbbr === book.abbr &&
+              g.chapter === chapter &&
+              g.verses.some((v) => v.number === pendingVerse),
+          );
+          if (onLeft && leftPaneTarget < 0) leftPaneTarget = p;
           for (const side of ["left", "right"] as const) {
             const slice = sliceReaderSpreadPane(
               readerStream,
@@ -1005,10 +1023,11 @@ export default function ReaderPage() {
                 g.chapter === chapter &&
                 g.verses.some((v) => v.number === pendingVerse),
             );
-            if (containsVerse) target = p;
+            if (containsVerse) anyTarget = p;
           }
         }
-      } else {
+        target = leftPaneTarget >= 0 ? leftPaneTarget : anyTarget;
+      } else if (useBookSpread) {
         for (let p = 0; p < navStreamSplits.length - 1; p++) {
           const slice = sliceReaderPage(readerStream, navStreamSplits, p);
           const containsVerse = slice?.verseGroups.some(
@@ -1054,6 +1073,7 @@ export default function ReaderPage() {
     const needsAnchor = lastSpreadAnchorKeyRef.current !== anchorKey;
     if (!needsAnchor) return;
     lastSpreadAnchorKeyRef.current = anchorKey;
+    spreadReadingAnchorRef.current = null;
     if (useBookSpread && pendingSpreadEnd) {
       setSpreadPageIdx(
         spreadPageForChapterEnd(readerStream, navStreamSplits, book.abbr, chapter),
@@ -1061,12 +1081,19 @@ export default function ReaderPage() {
       setPendingSpreadEnd(false);
       return;
     }
-    const startPage = spreadPageForChapterStart(
-      readerStream,
-      navStreamSplits,
-      book.abbr,
-      chapter,
-    );
+    const startPage = useSpreadDoubleColumn
+      ? spreadPageForChapterStartLeftPane(
+          readerStream,
+          navStreamSplits,
+          book.abbr,
+          chapter,
+        )
+      : spreadPageForChapterStart(
+          readerStream,
+          navStreamSplits,
+          book.abbr,
+          chapter,
+        );
     if (useBookSpread) setSpreadPageIdx(startPage);
     else setChapterPage(startPage);
   }, [
@@ -1079,6 +1106,7 @@ export default function ReaderPage() {
     chapter,
     pendingSpreadEnd,
     pendingVerse,
+    useSpreadDoubleColumn,
   ]);
 
   // Spread shows two consecutive pages; portrait mobile shows one page per turn.
@@ -1475,7 +1503,7 @@ export default function ReaderPage() {
     const measuresRestPage =
       isOpeningRightPage ||
       (isCurrentLeftPage && !measuresFirstPage);
-    const globalPage = chaptersBefore + pageChapter;
+    const globalPage = readerChapterPageNumber(pageBookAbbr, pageChapter);
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
