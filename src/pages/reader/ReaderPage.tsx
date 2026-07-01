@@ -277,6 +277,7 @@ export default function ReaderPage() {
     chapterCtx,
     showChapterContext,
     hasInlinePlates,
+    inlineChapterPlates,
   } = useReaderChapterMedia(book.abbr, chapter);
   const readerAudio = useReaderAudio(reference, passage);
   useRecordReadingActivity(user?.id, book.abbr, chapter);
@@ -1721,23 +1722,32 @@ export default function ReaderPage() {
               {(() => {
                 const scriptureContent =
                   scrollMode && useStreamReader && streamChapters.length > 0 ? (
-                    scriptureNodes(
-                      streamChapters.map((ch) => ({
-                        bookAbbr: ch.bookAbbr,
-                        chapter: ch.chapter,
-                        verses: ch.verses,
-                      })),
-                      (bookAbbr, ch) =>
-                        new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                      (bookAbbr, ch) =>
-                        new Map(
-                          headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                            h.beforeVerse,
-                            h.text,
-                          ]),
-                        ),
-                      (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                    )
+                    <>
+                      {inlineChapterPlates.length > 0
+                        ? inlineChapterPlates
+                            .filter((p) => p.beforeVerse === 1)
+                            .map((plate) => (
+                              <ScripturePlate key={plate.id} plate={plate} compact />
+                            ))
+                        : null}
+                      {scriptureNodes(
+                        streamChapters.map((ch) => ({
+                          bookAbbr: ch.bookAbbr,
+                          chapter: ch.chapter,
+                          verses: ch.verses,
+                        })),
+                        (bookAbbr, ch) =>
+                          new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                        (bookAbbr, ch) =>
+                          new Map(
+                            headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
+                              h.beforeVerse,
+                              h.text,
+                            ]),
+                          ),
+                        (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
+                      )}
+                    </>
                   ) : scrollMode && scrollDocumentBlocks.length > 0 ? (
                     <ScriptureVirtualChapter
                       blocks={scrollDocumentBlocks}
@@ -1772,17 +1782,24 @@ export default function ReaderPage() {
                       <ScripturePlate key={plate.id} plate={plate} />
                     ))
                   ) : useStreamReader && streamSlice && pageContentReady ? (
-                    pageScriptureNodes(
-                      streamSlice.verseGroups.map((verseGroup) => ({
-                        bookAbbr: verseGroup.bookAbbr,
-                        chapter: verseGroup.chapter,
-                        verses: verseGroup.verses,
-                      })),
-                      (bookAbbr, ch) =>
-                        new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-                      headingsFromVerseOnPage,
-                      (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-                    )
+                    <>
+                      {streamSlice.plates.length > 0
+                        ? streamSlice.plates.map((plate) => (
+                            <ScripturePlate key={plate.id} plate={plate} compact />
+                          ))
+                        : null}
+                      {pageScriptureNodes(
+                        streamSlice.verseGroups.map((verseGroup) => ({
+                          bookAbbr: verseGroup.bookAbbr,
+                          chapter: verseGroup.chapter,
+                          verses: verseGroup.verses,
+                        })),
+                        (bookAbbr, ch) =>
+                          new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
+                        headingsFromVerseOnPage,
+                        (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
+                      )}
+                    </>
                   ) : slice && slice.length > 0 ? (
                     scriptureNodes(
                       [{ bookAbbr: book.abbr, chapter, verses: slice }],

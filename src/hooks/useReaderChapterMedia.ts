@@ -17,5 +17,6 @@ export function useReaderChapterMedia(bookAbbr: string, chapter: number) {
     chapterCtx,
     showChapterContext,
     hasInlinePlates,
+    inlineChapterPlates,
   };
 }
