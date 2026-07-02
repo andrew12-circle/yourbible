@@ -85,7 +85,10 @@ export default function StudyBackMatterPage() {
         </span>
       </div>
       <article
-        className="study-back-matter-page font-scripture selectable-text relative block flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide"
+        className={cn(
+          "study-back-matter-page font-scripture selectable-text relative block flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain mt-2 scrollbar-hide",
+          studySection.id === "artwork" && "study-back-matter-page--artwork",
+        )}
         data-bible-scroll
       >
         <h1 className="study-back-matter-title">{studySection.title}</h1>

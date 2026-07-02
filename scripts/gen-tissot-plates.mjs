@@ -28,7 +28,12 @@ const plates = discovered.resolved.map((entry) => ({
   source: entry.brooklyn ? "brooklyn" : "wikimedia",
   sourceUrl: entry.sourceUrl,
   license: "pd",
-  priority: entry.bookAbbr === "Mat" && entry.title.match(/crucifixion/i) ? 3 : 5,
+  priority:
+    /crucifixion|raising of the cross|death of jesus|élévation de la croix/i.test(entry.title)
+      ? 3
+      : entry.brooklyn
+        ? 4
+        : 5,
 }));
 
 writeFileSync(OUT, JSON.stringify(plates, null, 2) + "\n");

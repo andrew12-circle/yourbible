@@ -193,6 +193,10 @@ async function main() {
   };
 
   writeFileSync(OUT, JSON.stringify(out, null, 2));
+  writeFileSync(
+    join(__dirname, "data", "tissot-metadata-cache.json"),
+    JSON.stringify({ candidates, metaByFile }, null, 2),
+  );
   console.log(`\n${resolved.length} plates resolved → ${OUT}`);
   console.log(`${unresolved.length} unresolved (see JSON for samples).`);
 }

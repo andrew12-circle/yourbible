@@ -29,7 +29,7 @@ function extractImageUrls(relPath) {
 
 const sources = [
   "src/data/biblePlates/dorePlates.json",
-  "src/data/biblePlates/tissotPlates.ts",
+  "src/data/biblePlates/tissotPlates.json",
   "src/data/biblePlates/extraPlates.ts",
   "src/lib/bible/studyBackMatter.ts",
 ];

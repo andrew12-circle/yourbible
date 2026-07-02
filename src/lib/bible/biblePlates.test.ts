@@ -40,6 +40,13 @@ describe("biblePlates", () => {
     expect(hasChapterMedia("Exo", 14)).toBe(true);
   });
 
+  it("includes full-color Tissot plates that beat Doré inline at the same verse", () => {
+    const inline = inlinePlatesForChapter("Mat", 5);
+    const tissot = inline.find((p) => p.artist === "James Tissot");
+    expect(tissot).toBeDefined();
+    expect(tissot?.priority ?? 10).toBeLessThan(10);
+  });
+
   it("links maps for genesis patriarchs", () => {
     expect(mapsForChapter("Gen", 22).map((m) => m.id)).toContain("abraham");
   });

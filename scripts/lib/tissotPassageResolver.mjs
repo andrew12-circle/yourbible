@@ -93,6 +93,46 @@ const RULES = [
   { re: /healing.*blind|blind.*bartimaeus/i, bookAbbr: "Mat", chapter: 20, beforeVerse: 30 },
   { re: /zaccheus/i, bookAbbr: "Luk", chapter: 19, beforeVerse: 2 },
   { re: /pharisee.*publican|tax collector.*prayer/i, bookAbbr: "Luk", chapter: 18, beforeVerse: 10 },
+  { re: /sleeping during the tempest|dormant pendant la tempête/i, bookAbbr: "Mat", chapter: 8, beforeVerse: 24 },
+  { re: /in the sepulchre|dans le sépulcre/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 59 },
+  { re: /leaves the praetorium|quitte le pretoire/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 11 },
+  { re: /led from caiaphas|caiaphas to pilate|conduit de caïphe/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 2 },
+  { re: /led from herod|hérode à pilate/i, bookAbbr: "Luk", chapter: 23, beforeVerse: 11 },
+  { re: /meets his mother|rencontre sa mère/i, bookAbbr: "Luk", chapter: 23, beforeVerse: 27 },
+  { re: /ministered to by angels|assisté par les anges/i, bookAbbr: "Mat", chapter: 4, beforeVerse: 11 },
+  { re: /preaches in a ship|prèche dans une barque|seashore and preaches|bord de la mer/i, bookAbbr: "Mat", chapter: 13, beforeVerse: 1 },
+  { re: /heals the blind and lame|guérit les aveugles/i, bookAbbr: "Mat", chapter: 15, beforeVerse: 30 },
+  { re: /heals a mute possessed|guérit un possédé muet/i, bookAbbr: "Mat", chapter: 9, beforeVerse: 32 },
+  { re: /martha at bethany|marie madeleine et marthe|mary magdalene.*martha/i, bookAbbr: "Jhn", chapter: 11, beforeVerse: 1 },
+  { re: /stripped of his clothing|dépouillé/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 28 },
+  { re: /holy woman wipes|essuie le visage/i, bookAbbr: "Luk", chapter: 23, beforeVerse: 27 },
+  { re: /magi arrive|arrivée des mages|adore the infant|adorent l'enfant/i, bookAbbr: "Mat", chapter: 2, beforeVerse: 11 },
+  { re: /massacre of the innocents|massacre des innocents/i, bookAbbr: "Mat", chapter: 2, beforeVerse: 16 },
+  { re: /presentation in the temple|présentation au temple/i, bookAbbr: "Luk", chapter: 2, beforeVerse: 22 },
+  { re: /finding in the temple|trouvé au temple/i, bookAbbr: "Luk", chapter: 2, beforeVerse: 46 },
+  { re: /calling.*apostles|choix des apôtres|fishers of men|pêcheurs d'hommes/i, bookAbbr: "Mat", chapter: 4, beforeVerse: 18 },
+  { re: /healing.*leper|guérison.*lépreux/i, bookAbbr: "Mat", chapter: 8, beforeVerse: 1 },
+  { re: /healing.*servant.*centurion|centurion/i, bookAbbr: "Mat", chapter: 8, beforeVerse: 5 },
+  { re: /widow.*nain|veuve de naïn/i, bookAbbr: "Luk", chapter: 7, beforeVerse: 12 },
+  { re: /sends out.*apostles|envoie les apôtres/i, bookAbbr: "Mat", chapter: 10, beforeVerse: 5 },
+  { re: /feeds.*four thousand|quatre mille/i, bookAbbr: "Mat", chapter: 15, beforeVerse: 32 },
+  { re: /transfiguration/i, bookAbbr: "Mat", chapter: 17, beforeVerse: 1 },
+  { re: /children.*bless|petits enfants/i, bookAbbr: "Mat", chapter: 19, beforeVerse: 13 },
+  { re: /rich young man|jeune homme riche/i, bookAbbr: "Mat", chapter: 19, beforeVerse: 16 },
+  { re: /cleansing.*temple|expulse.*temple/i, bookAbbr: "Mat", chapter: 21, beforeVerse: 12 },
+  { re: /widow.*mite|veuve.*obole/i, bookAbbr: "Luk", chapter: 21, beforeVerse: 1 },
+  { re: /institution.*eucharist|institution.*sacrament/i, bookAbbr: "Mat", chapter: 26, beforeVerse: 26 },
+  { re: /agony in the garden|agonie.*jardin|gethsemane/i, bookAbbr: "Mat", chapter: 26, beforeVerse: 36 },
+  { re: /mocked by soldiers|soldats.*moquent/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 27 },
+  { re: /crown of thorns|couronne d'épines/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 29 },
+  { re: /road to calvary|montée au calvaire|fall under the cross/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 32 },
+  { re: /entombment|mise au tombeau/i, bookAbbr: "Mat", chapter: 27, beforeVerse: 57 },
+  { re: /women at the tomb|femmes au tombeau/i, bookAbbr: "Mat", chapter: 28, beforeVerse: 1 },
+  { re: /appearance.*disciples|apparition.*disciples|upper room/i, bookAbbr: "Jhn", chapter: 20, beforeVerse: 19 },
+  { re: /breakfast.*shore|petit déjeuner.*rivage|charcoal fire/i, bookAbbr: "Jhn", chapter: 21, beforeVerse: 9 },
+  { re: /healing.*paralytic.*roof|paralytique.*toit/i, bookAbbr: "Mrk", chapter: 2, beforeVerse: 3 },
+  { re: /healing.*man.*hand|main desséchée/i, bookAbbr: "Mrk", chapter: 3, beforeVerse: 1 },
+  { re: /still.*storm|tempête.*apais/i, bookAbbr: "Mrk", chapter: 4, beforeVerse: 39 },
 
   // —— Old Testament (English / Google Art titles) ——
   { re: /adam and eve.*paradise|driven from paradise|expulsion.*eden/i, bookAbbr: "Gen", chapter: 3, beforeVerse: 23 },
@@ -110,6 +150,36 @@ const RULES = [
   { re: /david returns to achish/i, bookAbbr: "1Sa", chapter: 27, beforeVerse: 1 },
   { re: /jephthah.*daughter/i, bookAbbr: "Jdg", chapter: 11, beforeVerse: 34 },
   { re: /hosea/i, bookAbbr: "Hos", chapter: 1, beforeVerse: 1 },
+  { re: /lot.*daughter|filles de lot/i, bookAbbr: "Gen", chapter: 19, beforeVerse: 30 },
+  { re: /hagar.*abraham|agar quitte/i, bookAbbr: "Gen", chapter: 21, beforeVerse: 14 },
+  { re: /ishmael.*bow|ismaël.*arc/i, bookAbbr: "Gen", chapter: 21, beforeVerse: 20 },
+  { re: /isaac.*wood|isaac porte le bois/i, bookAbbr: "Gen", chapter: 22, beforeVerse: 6 },
+  { re: /sacrifice.*abraham|sacrifice d'abraham/i, bookAbbr: "Gen", chapter: 22, beforeVerse: 9 },
+  { re: /servant.*rebecca|rébecca.*serviteur/i, bookAbbr: "Gen", chapter: 24, beforeVerse: 17 },
+  { re: /rebecca.*isaac|rébecca.*isaac/i, bookAbbr: "Gen", chapter: 24, beforeVerse: 65 },
+  { re: /isaac.*esau|esau.*isaac|jacob.*esau/i, bookAbbr: "Gen", chapter: 27, beforeVerse: 21 },
+  { re: /jacob.*ladder|échelle.*jacob|songe de jacob/i, bookAbbr: "Gen", chapter: 28, beforeVerse: 12 },
+  { re: /joseph.*brothers|joseph.*frères|joseph sold/i, bookAbbr: "Gen", chapter: 37, beforeVerse: 28 },
+  { re: /pharaoh.*dream|songe.*pharaon|vaches.*épis/i, bookAbbr: "Gen", chapter: 41, beforeVerse: 1 },
+  { re: /moses.*basket|moïse.*panier|moise.*panier/i, bookAbbr: "Exo", chapter: 2, beforeVerse: 3 },
+  { re: /burning bush|buisson ardent/i, bookAbbr: "Exo", chapter: 3, beforeVerse: 2 },
+  { re: /passover|pâque/i, bookAbbr: "Exo", chapter: 12, beforeVerse: 1 },
+  { re: /crossing.*red sea|mer rouge/i, bookAbbr: "Exo", chapter: 14, beforeVerse: 21 },
+  { re: /ten commandments|décalogue|tables.*loi/i, bookAbbr: "Exo", chapter: 20, beforeVerse: 1 },
+  { re: /golden calf|veau d'or/i, bookAbbr: "Exo", chapter: 32, beforeVerse: 1 },
+  { re: /spies.*canaan|espions.*canaan/i, bookAbbr: "Num", chapter: 13, beforeVerse: 17 },
+  { re: /brazen serpent|serpent d'airain/i, bookAbbr: "Num", chapter: 21, beforeVerse: 9 },
+  { re: /balaam|balaam/i, bookAbbr: "Num", chapter: 22, beforeVerse: 1 },
+  { re: /ruth.*boaz|ruth.*glan/i, bookAbbr: "Rut", chapter: 2, beforeVerse: 1 },
+  { re: /samuel.*eli|samuel.*temple/i, bookAbbr: "1Sa", chapter: 3, beforeVerse: 1 },
+  { re: /david.*goliath|goliath/i, bookAbbr: "1Sa", chapter: 17, beforeVerse: 48 },
+  { re: /david.*bathsheba|bethsabée/i, bookAbbr: "2Sa", chapter: 11, beforeVerse: 2 },
+  { re: /solomon.*judgment|jugement.*salomon/i, bookAbbr: "1Ki", chapter: 3, beforeVerse: 16 },
+  { re: /elijah.*carmel|carmel/i, bookAbbr: "1Ki", chapter: 18, beforeVerse: 20 },
+  { re: /elijah.*ravens|corbeaux/i, bookAbbr: "1Ki", chapter: 17, beforeVerse: 4 },
+  { re: /fiery furnace|fournaise/i, bookAbbr: "Dan", chapter: 3, beforeVerse: 19 },
+  { re: /daniel.*lions|fosse aux lions/i, bookAbbr: "Dan", chapter: 6, beforeVerse: 16 },
+  { re: /jonah.*whale|jonas.*baleine|jonah.*fish/i, bookAbbr: "Jon", chapter: 1, beforeVerse: 17 },
 ];
 
 const SKIP_RE =
@@ -145,7 +215,13 @@ export function parseParentheticalReference(text) {
   return { bookAbbr, chapter, beforeVerse };
 }
 
-export function resolveTissotPassage(filename, objectName = "") {
+export function resolveTissotPassage(filename, objectName = "", credit = "") {
+  const accession = extractBrooklynAccession(credit, filename);
+  if (accession != null) {
+    const brooklyn = passageForBrooklynAccession(accession);
+    if (brooklyn) return brooklyn;
+  }
+
   const haystack = `${filename} ${objectName}`.toLowerCase();
 
   const parsed = parseParentheticalReference(filename);
@@ -172,10 +248,13 @@ export function slugify(text) {
     .slice(0, 48);
 }
 
-export function parseBrooklynAccession(credit) {
-  if (!credit) return null;
-  const m = credit.match(/(00\.\d+\.\d+)_PS\d\.jpg/i);
-  return m?.[1] ?? null;
+import {
+  extractBrooklynAccession,
+  passageForBrooklynAccession,
+} from "./brooklynAccessionPassage.mjs";
+
+export function parseBrooklynAccession(credit, filename = "") {
+  return extractBrooklynAccession(credit, filename);
 }
 
 export function bookReferenceLabel(bookAbbr, chapter, beforeVerse) {

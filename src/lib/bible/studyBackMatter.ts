@@ -173,7 +173,7 @@ export const STUDY_BACK_MATTER_SECTIONS: StudyBackMatterSection[] = [
   {
     id: "artwork",
     title: "Artwork",
-    bodyHtml: `<p>Classic public-domain illustrations (Doré, Tissot, and related plates) linked to Scripture passages.</p>`,
+    bodyHtml: `<p>Classic public-domain illustrations — full-color James Tissot watercolors (Brooklyn Museum) and related plates linked to Scripture passages. Doré engravings appear in the reading stream where no color plate is mapped.</p>`,
   },
   {
     id: "maps",
