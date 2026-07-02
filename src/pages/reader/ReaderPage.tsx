@@ -135,6 +135,7 @@ import { deriveReaderLayout } from "@/lib/bible/readerLayout";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
 import {
   readerPageHeightsPx,
+  READER_COLUMN_FOOTER_GUARD_PX,
   READER_LIVE_COLUMN_SAFETY_PX,
 } from "@/lib/bible/readerColumnMeasure";
 import { type HolmanVerseGroup } from "@/lib/bible/readerScriptureRender";
@@ -166,8 +167,6 @@ import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
-/** Extra slack so two-column pages do not clip the last line or footnote band. */
-const PAGINATOR_OVERFLOW_GUARD_PX = 32;
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -825,7 +824,7 @@ export default function ReaderPage() {
     !useBookSpread ||
     isSpreadDoubleColumnSplitsReady(displayStreamSplits, readerStream.length);
   /** Article measurement already excludes the page footer; only reserve clip slack. */
-  const paginatorFooterHeight = PAGINATOR_OVERFLOW_GUARD_PX;
+  const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
   // Pre-compute red-letter segmentation for the whole chapter so multi-verse
@@ -1508,7 +1507,7 @@ export default function ReaderPage() {
       startsWithChapterHeader: pageStartsWithChapterHeader,
       firstPageHeight,
       pageHeight: pageBox.h,
-      footerGuardPx: PAGINATOR_OVERFLOW_GUARD_PX,
+      footerGuardPx: READER_COLUMN_FOOTER_GUARD_PX,
       chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
       reserveFootnotesBand: useStudyPageStack && showPageFootnotes,
       liveColumnSafetyPx: READER_LIVE_COLUMN_SAFETY_PX,
@@ -1641,15 +1640,23 @@ export default function ReaderPage() {
           />
         ) : null}
         {!focusMode && !scrollMode && !compactChrome ? (
-          <ReaderPageFooter
-            inkMode={inkMode}
-            pageBookName={pageBookName}
-            globalPage={globalPage}
-            currentBible={currentBible}
-            onOpenSettings={openReaderSettings}
-            onPrevPage={() => goPage(-1)}
-            onNextPage={() => goPage(1)}
-          />
+          pageLoading || !ready ? (
+            <div
+              aria-hidden
+              data-page-footer
+              className="flex-shrink-0 h-10 border-t border-border/25"
+            />
+          ) : (
+            <ReaderPageFooter
+              inkMode={inkMode}
+              pageBookName={pageBookName}
+              globalPage={globalPage}
+              currentBible={currentBible}
+              onOpenSettings={openReaderSettings}
+              onPrevPage={() => goPage(-1)}
+              onNextPage={() => goPage(1)}
+            />
+          )
         ) : null}
       </div>
     );

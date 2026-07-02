@@ -36,7 +36,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(488);
+    ).toBe(464);
     expect(
       readerPageContentLimitPx({
         pageIndex: 1,
@@ -44,7 +44,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(472);
+    ).toBe(448);
     expect(
       readerPageContentLimitPx({
         pageIndex: 1,
@@ -52,7 +52,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(568);
+    ).toBe(544);
   });
 
   it("readerColumnContentHeightPx reserves column safety slack", () => {
@@ -64,7 +64,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(464);
+    ).toBe(440);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -73,7 +73,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(448);
+    ).toBe(424);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -82,7 +82,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(448);
+    ).toBe(424);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: true,
@@ -91,7 +91,7 @@ describe("readerColumnMeasure", () => {
         firstPageHeight: 520,
         pageHeight: 600,
       }),
-    ).toBe(544);
+    ).toBe(520);
     expect(
       readerColumnContentHeightPx({
         columnLayoutActive: false,
@@ -113,7 +113,7 @@ describe("readerColumnMeasure", () => {
         pageHeight: 600,
         holmanChromeBelowColumnsPx: 72,
       }),
-    ).toBe(472);
+    ).toBe(448);
   });
 
   it("paginatorMeasureLimitPx reserves live column safety slack", () => {
@@ -249,7 +249,7 @@ describe("readerColumnMeasure", () => {
       reserveFootnotesBand: true,
       spreadPane: true,
     });
-    expect(spread.stackContentHeightPx).toBe(paginatorSpreadPaneLimitPx(568));
+    expect(spread.stackContentHeightPx).toBe(paginatorSpreadPaneLimitPx(544));
     expect(spread.scriptureColumnHeightPx).toBe(
       readerScriptureColumnsHeightPx(spread.stackContentHeightPx!, 88),
     );

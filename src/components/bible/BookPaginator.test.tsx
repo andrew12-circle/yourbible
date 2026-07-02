@@ -48,7 +48,7 @@ describe("BookPaginator spread mode", () => {
         pageHeight={520}
         firstPageHeight={480}
         columnsClassName="scripture-columns-2"
-        footerHeight={32}
+        footerHeight={56}
         spreadMode
         onSplitsChange={onSplitsChange}
       />,
@@ -76,7 +76,7 @@ describe("BookPaginator spread mode", () => {
         pageHeight={520}
         firstPageHeight={480}
         columnsClassName="scripture-columns-2"
-        footerHeight={32}
+        footerHeight={56}
         spreadMode
         onSplitsChange={onSplitsChange}
       />,

@@ -25,7 +25,6 @@ import {
   readerScriptureColumnsHeightPx,
   scriptureColumnWrapperStyle,
 } from "@/lib/bible/readerColumnMeasure";
-import { versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
   ScriptureHeading,
@@ -147,10 +146,11 @@ export function wrapHolmanStudyContent(
 ): ReactNode {
   const columnsClass = readerColumnClassName(columnLayout);
   const hasColumns = Boolean(columnsClass);
-  const flatVerses = verseGroups.flatMap((g) => g.verses);
-  const hasFootnotes = versesHavePageFootnotes(flatVerses) || footnotes != null;
   const chromeBelow = !scrollMode
-    ? holmanChromeBelowColumnsPx({ hasFootnotes, hasConnections: showConnections })
+    ? holmanChromeBelowColumnsPx({
+        hasFootnotes: footnotes != null,
+        hasConnections: showConnections,
+      })
     : 0;
   const stackStyle: CSSProperties | undefined =
     !scrollMode && contentHeightPx != null && contentHeightPx > 0

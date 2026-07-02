@@ -46,8 +46,18 @@ export function readerScriptureColumnsHeightPx(
   );
 }
 
-/** Default slack reserved in paginator fit tests (must match ReaderPage). */
-export const READER_COLUMN_FOOTER_GUARD_PX = 32;
+/** Clip slack for the last line / descenders inside a column box. */
+export const READER_COLUMN_CLIP_GUARD_PX = 32;
+
+/** Breathing room between the last scripture line and the page nav bar. */
+export const READER_PAGE_NAV_CLEARANCE_PX = 24;
+
+/** ReaderPageFooter height (h-10) + top border — reserved when layout may measure before footer mounts. */
+export const READER_PAGE_NAV_FOOTER_PX = 48;
+
+/** Default bottom guard for paginator fit tests + live column limits (must match ReaderPage). */
+export const READER_COLUMN_FOOTER_GUARD_PX =
+  READER_COLUMN_CLIP_GUARD_PX + READER_PAGE_NAV_CLEARANCE_PX;
 
 /** Chapter title block reserved above the text area on non-opening pages. */
 export const READER_CHAPTER_HEADER_RESERVE_PX = 96;
