@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -153,6 +152,7 @@ import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock"
 import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
 import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
 import { useReaderPagination } from "@/hooks/useReaderPagination";
+import { useReaderPageMeasurement } from "@/hooks/useReaderPageMeasurement";
 import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
 import { ReaderNotesPanel } from "@/pages/reader/ReaderNotesPanel";
@@ -538,11 +538,16 @@ export default function ReaderPage() {
   // (long-press highlight removed — we now use native drag-selection)
 
   // ---- Page measurement ----
-  // We measure the *actual* rendered page article so pagination matches
-  // exactly what the reader sees on any screen size. The page surface
-  // registers itself via the ref callback below.
-  const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [firstPageHeight, setFirstPageHeight] = useState(0);
+  const {
+    pageBox,
+    firstPageHeight,
+    subsequentPageHeight,
+    paginatorFirstPageHeight,
+    paginatorReady,
+    onMeasureFirstRef,
+    onMeasureRestRef,
+    lockPageFlip,
+  } = useReaderPageMeasurement(book.abbr, chapter);
   const layoutFingerprint = useMemo(
     () =>
       computeReaderLayoutFingerprint({
@@ -562,108 +567,6 @@ export default function ReaderPage() {
   useEffect(() => {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
-  const articleRoRef = useRef<ResizeObserver | null>(null);
-  const measureRafRef = useRef<number | null>(null);
-  const articleElsRef = useRef<{ first: HTMLElement | null; rest: HTMLElement | null }>({
-    first: null,
-    rest: null,
-  });
-  const measureFirstRef = useRef<(el: HTMLElement | null) => void>(() => {});
-  const measureRestRef = useRef<(el: HTMLElement | null) => void>(() => {});
-  const flipLockUntil = useRef(0);
-  const PAGE_BOX_QUANT = 12;
-  const quantizePageBox = useCallback((width: number, height: number) => {
-    const w = Math.round(width / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
-    const h = Math.round(height / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
-    return { w, h };
-  }, []);
-  const syncPageMeasurements = useCallback(() => {
-    if (performance.now() < flipLockUntil.current) return;
-    const firstEl = articleElsRef.current.first;
-    const restEl = articleElsRef.current.rest;
-    const nextFirst = firstEl
-      ? quantizePageBox(firstEl.clientWidth, firstEl.clientHeight).h
-      : 0;
-    const restBox = restEl
-      ? quantizePageBox(restEl.clientWidth, restEl.clientHeight)
-      : null;
-    if (nextFirst > 0) {
-      setFirstPageHeight((prev) => (prev === nextFirst ? prev : nextFirst));
-    }
-    if (restBox && restBox.w > 0 && restBox.h > 0) {
-      setPageBox((prev) =>
-        prev.w === restBox.w && prev.h === restBox.h ? prev : restBox,
-      );
-    } else if (firstEl) {
-      // Portrait single-page: only the first (header) page is visible at chapter
-      // start, so rest never mounts — still capture width so Paginator can run.
-      const firstBox = quantizePageBox(firstEl.clientWidth, firstEl.clientHeight);
-      if (firstBox.w > 0) {
-        setPageBox((prev) =>
-          prev.w === firstBox.w ? prev : { w: firstBox.w, h: prev.h },
-        );
-      }
-    }
-  }, [quantizePageBox]);
-  const scheduleSyncPageMeasurements = useCallback(() => {
-    if (measureRafRef.current != null) return;
-    measureRafRef.current = requestAnimationFrame(() => {
-      measureRafRef.current = null;
-      syncPageMeasurements();
-    });
-  }, [syncPageMeasurements]);
-  const attachArticleObservers = useCallback(() => {
-    if (articleRoRef.current) {
-      articleRoRef.current.disconnect();
-      articleRoRef.current = null;
-    }
-    const { first, rest } = articleElsRef.current;
-    if (!first && !rest) return;
-    const ro = new ResizeObserver(() => scheduleSyncPageMeasurements());
-    if (first) {
-      ro.observe(first);
-      if (first.parentElement) ro.observe(first.parentElement);
-    }
-    if (rest) {
-      ro.observe(rest);
-      if (rest.parentElement) ro.observe(rest.parentElement);
-    }
-    articleRoRef.current = ro;
-    scheduleSyncPageMeasurements();
-  }, [scheduleSyncPageMeasurements]);
-  const bindArticleMeasure = useCallback(
-    (role: "first" | "rest") => (el: HTMLElement | null) => {
-      if (articleElsRef.current[role] === el) return;
-      articleElsRef.current[role] = el;
-      attachArticleObservers();
-    },
-    [attachArticleObservers],
-  );
-  measureFirstRef.current = bindArticleMeasure("first");
-  measureRestRef.current = bindArticleMeasure("rest");
-  const onMeasureFirstRef = useCallback((el: HTMLElement | null) => {
-    measureFirstRef.current(el);
-  }, []);
-  const onMeasureRestRef = useCallback((el: HTMLElement | null) => {
-    measureRestRef.current(el);
-  }, []);
-  // Recompute on viewport changes too (orientation/resize/zoom).
-  useEffect(() => {
-    const onResize = () => scheduleSyncPageMeasurements();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-      vv?.removeEventListener("resize", onResize);
-      if (measureRafRef.current != null) {
-        cancelAnimationFrame(measureRafRef.current);
-        measureRafRef.current = null;
-      }
-    };
-  }, [scheduleSyncPageMeasurements]);
 
   // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
@@ -674,14 +577,6 @@ export default function ReaderPage() {
   const handleStreamSplitsChange = useCallback((next: number[]) => {
     setStreamSplits((prev) => (areSameStreamSplits(prev, next) ? prev : next));
   }, []);
-  useLayoutEffect(() => {
-    articleElsRef.current = { first: null, rest: null };
-    articleRoRef.current?.disconnect();
-    articleRoRef.current = null;
-  }, [book.abbr, chapter]);
-  useEffect(() => {
-    scheduleSyncPageMeasurements();
-  }, [book.abbr, chapter, scheduleSyncPageMeasurements]);
   const verses = passage?.verses ?? [];
   const activeStudyLayout = useMemo(
     () => (chapterStudyParseReliable(verses) ? effectiveStudyLayout : "inline"),
@@ -1096,7 +991,7 @@ export default function ReaderPage() {
   const pagesPerTurn = effectiveSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
-    flipLockUntil.current = performance.now() + 420;
+    lockPageFlip();
     const sel = window.getSelection();
     if (sel) sel.removeAllRanges();
     tbSelRef.current = null;
@@ -1641,23 +1536,15 @@ export default function ReaderPage() {
           />
         ) : null}
         {!focusMode && !scrollMode && !compactChrome ? (
-          pageLoading || !ready ? (
-            <div
-              aria-hidden
-              data-page-footer
-              className="flex-shrink-0 h-10 border-t border-border/25"
-            />
-          ) : (
-            <ReaderPageFooter
-              inkMode={inkMode}
-              pageBookName={pageBookName}
-              globalPage={globalPage}
-              currentBible={currentBible}
-              onOpenSettings={openReaderSettings}
-              onPrevPage={() => goPage(-1)}
-              onNextPage={() => goPage(1)}
-            />
-          )
+          <ReaderPageFooter
+            inkMode={inkMode}
+            pageBookName={pageBookName}
+            globalPage={globalPage}
+            currentBible={currentBible}
+            onOpenSettings={openReaderSettings}
+            onPrevPage={() => goPage(-1)}
+            onNextPage={() => goPage(1)}
+          />
         ) : null}
       </div>
     );
@@ -1667,12 +1554,6 @@ export default function ReaderPage() {
   const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
   const leftIdx = activePageIdx;
   const rightIdx = useSpreadDoubleColumn ? activePageIdx : activePageIdx + 1;
-  const subsequentPageHeight = pageBox.h > 0 ? pageBox.h : 0;
-  const paginatorFirstPageHeight =
-    firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
-  const paginatorReady =
-    (pageBox.w > 0 || firstPageHeight > 0) &&
-    Math.max(subsequentPageHeight, paginatorFirstPageHeight, firstPageHeight) > 0;
 
   const atFirstPage = activePageIdx <= 0;
   const atLastPage = activePageIdx >= Math.max(0, totalPagesForNav - pagesPerTurn);
@@ -1953,7 +1834,7 @@ export default function ReaderPage() {
       {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
           chapters={streamChapters}
-          pageWidth={pageBox.w}
+          pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight || paginatorFirstPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight || subsequentPageHeight)}
           className={scriptureTypoClass}
