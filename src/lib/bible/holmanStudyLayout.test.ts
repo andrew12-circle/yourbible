@@ -6,6 +6,7 @@ import {
   crossRefLetterAt,
   formatHolmanXrefBlockLines,
   holmanVerseGroupsForRenderedPage,
+  readerPageFootnotesEnabled,
   splitHolmanVerseGroupsByColumn,
   versesHavePageFootnotes,
 } from "@/lib/bible/holmanStudyLayout";
@@ -106,6 +107,11 @@ describe("holmanStudyLayout", () => {
     ]);
     expect(versesHavePageFootnotes(verses)).toBe(true);
     expect(versesHavePageFootnotes([{ number: 1, text: "Plain" }])).toBe(false);
+  });
+
+  it("readerPageFootnotesEnabled is scroll-only", () => {
+    expect(readerPageFootnotesEnabled(true)).toBe(true);
+    expect(readerPageFootnotesEnabled(false)).toBe(false);
   });
 
   it("wraps letters after z", () => {

@@ -10,7 +10,6 @@ import {
   scriptureSpreadLeftPaneFits,
   type ScriptureColumnMeasureOptions,
 } from "@/lib/bible/readerColumnMeasure";
-import { versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
 import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
   type ReaderChapterPassage,
@@ -19,7 +18,6 @@ import {
   READER_PAGINATOR_SPLIT_REVISION,
 } from "@/lib/bible/readerStream";
 import {
-  buildStreamSliceFootnotesMeasureHtml,
   buildStreamSliceMeasureHtml,
 } from "@/lib/bible/streamSliceMeasureHtml";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
@@ -536,15 +534,12 @@ function renderStreamSlice(
     redByChapter,
     studyLayout,
   );
-  const footnotesHtml = buildStreamSliceFootnotesMeasureHtml(slice);
-  const sliceVerses = slice.flatMap((unit) => (unit.kind === "verse" ? [unit.verse] : []));
-  const hasPageFootnotes = versesHavePageFootnotes(sliceVerses);
-  if (studyLayout === "holman" || hasPageFootnotes) {
+  if (studyLayout === "holman") {
     applyHolmanStudyMeasureHtml(
       node,
       scriptureHtml,
       "",
-      footnotesHtml,
+      "",
       columnsClassName,
       contentHeightPx,
       measureOptions,

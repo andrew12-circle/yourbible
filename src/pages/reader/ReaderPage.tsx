@@ -140,7 +140,11 @@ import {
 import { type HolmanVerseGroup } from "@/lib/bible/readerScriptureRender";
 import { resolveStudyLayout, readReaderStudyLayout, writeReaderStudyLayout, isStudyBibleEdition, type ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
 import { formatReaderSourceLine } from "@/lib/bible/readerEditionAttribution";
-import { holmanVerseGroupsForRenderedPage, versesHavePageFootnotes } from "@/lib/bible/holmanStudyLayout";
+import {
+  holmanVerseGroupsForRenderedPage,
+  readerPageFootnotesEnabled,
+  versesHavePageFootnotes,
+} from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
 import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
@@ -1492,7 +1496,8 @@ export default function ReaderPage() {
     const holmanFootnoteVerses = holmanVerseGroups.flatMap((group) => group.verses);
     const showHolmanConnections = false;
     const showPageFootnotes =
-      versesHavePageFootnotes(holmanFootnoteVerses) && (scrollMode || pageContentReady);
+      readerPageFootnotesEnabled(scrollMode) &&
+      versesHavePageFootnotes(holmanFootnoteVerses);
     const useStudyPageStack = activeStudyLayout === "holman" || showPageFootnotes;
     const { stackContentHeightPx, scriptureColumnHeightPx } = readerPageHeightsPx({
       pageContentReady,

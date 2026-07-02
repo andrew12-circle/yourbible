@@ -118,6 +118,11 @@ export function versesHavePageFootnotes(verses: PassageVerse[]): boolean {
   return collectPageFootnotes(verses).length > 0;
 }
 
+/** Bottom-of-page footnote band — scroll mode only; paginated spreads use full column height. */
+export function readerPageFootnotesEnabled(scrollMode: boolean): boolean {
+  return scrollMode;
+}
+
 export function collectPageFootnotes(verses: PassageVerse[]): PassageFootnote[] {
   const seen = new Set<number>();
   const out: PassageFootnote[] = [];

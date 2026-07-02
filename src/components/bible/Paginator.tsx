@@ -4,7 +4,6 @@ import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
   buildHolmanHeadingMeasureHtml,
-  buildHolmanPageFootnotesMeasureHtml,
 } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { cn } from "@/lib/utils";
@@ -276,26 +275,11 @@ function renderInto(
     })
     .join("");
   if (studyLayout === "holman") {
-    const verseGroups = [{ chapter, verses }];
-    const connectionsHtml = "";
-    const footnotesHtml = buildHolmanPageFootnotesMeasureHtml(verseGroups, escapeHtml);
-    applyHolmanStudyMeasureHtml(
-      node,
-      bodyHtml,
-      connectionsHtml,
-      footnotesHtml,
-      columnsClassName,
-      contentHeightPx,
-    );
-    return;
-  }
-  const footnotesHtml = buildHolmanPageFootnotesMeasureHtml([{ chapter, verses }], escapeHtml);
-  if (footnotesHtml) {
     applyHolmanStudyMeasureHtml(
       node,
       bodyHtml,
       "",
-      footnotesHtml,
+      "",
       columnsClassName,
       contentHeightPx,
     );
