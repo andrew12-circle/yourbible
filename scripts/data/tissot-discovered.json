@@ -1,0 +1,1644 @@
+{
+  "generatedAt": "2026-07-02T20:40:05.447Z",
+  "resolvedCount": 95,
+  "unresolvedCount": 494,
+  "resolved": [
+    {
+      "id": "tissot-1sa-27-1-david-returns-to-achish",
+      "bookAbbr": "1Sa",
+      "chapter": 27,
+      "beforeVerse": 1,
+      "title": "David returns to Achish",
+      "referenceLabel": "1Sa 27:1",
+      "filename": "David returns to Achish.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e0/David_returns_to_Achish.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:David_returns_to_Achish.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-2sa-13-1-david-mourns-his-son-amnon",
+      "bookAbbr": "2Sa",
+      "chapter": 13,
+      "beforeVerse": 1,
+      "title": "David Mourns His Son Amnon",
+      "referenceLabel": "2Sa 13:1",
+      "filename": "David Mourns His Son Amnon by J.Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/1/14/David_Mourns_His_Son_Amnon_by_J.Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:David_Mourns_His_Son_Amnon_by_J.Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-act-1-9-the-ascension",
+      "bookAbbr": "Act",
+      "chapter": 1,
+      "beforeVerse": 9,
+      "title": "The Ascension",
+      "referenceLabel": "Act 1:9",
+      "filename": "Brooklyn Museum - The Ascension (L'Ascension) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Brooklyn_Museum_-_The_Ascension_%28L%27Ascension%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Ascension_(L'Ascension)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-gen-2-25-adam-et-ve-dans-le-paradis-terrestre-genesis-2-2",
+      "bookAbbr": "Gen",
+      "chapter": 2,
+      "beforeVerse": 25,
+      "title": "Adam et Éve dans le Paradis terrestre (Genesis 2 25) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 2:25",
+      "filename": "Adam et Éve dans le Paradis terrestre (Genesis 2 25) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Adam_et_%C3%89ve_dans_le_Paradis_terrestre_%28Genesis_2_25%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Adam_et_%C3%89ve_dans_le_Paradis_terrestre_(Genesis_2_25)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-1-tentation-d-ve-par-le-serpent-genesis-3-1-inveni",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 1,
+      "title": "Tentation d'Éve par le serpent (Genesis 3 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 3:1",
+      "filename": "Tentation d'Éve par le serpent (Genesis 3 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Tentation_d%27%C3%89ve_par_le_serpent_%28Genesis_3_1%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tentation_d'%C3%89ve_par_le_serpent_(Genesis_3_1)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-6-tentation-d-adam-par-ve-genesis-3-6-invenit-jame",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 6,
+      "title": "Tentation d'Adam par Éve (Genesis 3 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 3:6",
+      "filename": "Tentation d'Adam par Éve (Genesis 3 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Tentation_d%27Adam_par_%C3%89ve_%28Genesis_3_6%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tentation_d'Adam_par_%C3%89ve_(Genesis_3_6)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-7-adam-et-ve-s-aper-oivent-qu-ils-sont-nus-genesis",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 7,
+      "title": "Adam et Éve s'aperçoivent qu'ils sont nus (Genesis 3 7) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 3:7",
+      "filename": "Adam et Éve s'aperçoivent qu'ils sont nus (Genesis 3 7) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Adam_et_%C3%89ve_s%27aper%C3%A7oivent_qu%27ils_sont_nus_%28Genesis_3_7%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Adam_et_%C3%89ve_s'aper%C3%A7oivent_qu'ils_sont_nus_(Genesis_3_7)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-16-remontrances-de-dieu-genesis-3-16-invenit-james-",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 16,
+      "title": "Remontrances de Dieu (Genesis 3 16) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 3:16",
+      "filename": "Remontrances de Dieu (Genesis 3 16) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Remontrances_de_Dieu_%28Genesis_3_16%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Remontrances_de_Dieu_(Genesis_3_16)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-23-adam-and-eve-driven-from-paradisetitle-qs-p1476-",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 23,
+      "title": "Adam and Eve Driven From Paradisetitle QS:P1476,en:\"Adam and Eve Driven From Paradise\"label QS:Len,\"Adam and Eve Driven From Paradise\"",
+      "referenceLabel": "Gen 3:23",
+      "filename": "James Jacques Joseph Tissot - Adam and Eve Driven From Paradise - Google Art Project.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/James_Jacques_Joseph_Tissot_-_Adam_and_Eve_Driven_From_Paradise_-_Google_Art_Project.jpg/960px-James_Jacques_Joseph_Tissot_-_Adam_and_Eve_Driven_From_Paradise_-_Google_Art_Project.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:James_Jacques_Joseph_Tissot_-_Adam_and_Eve_Driven_From_Paradise_-_Google_Art_Project.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-3-24-adam-et-ve-chass-s-du-paradis-terrestre-genesis-",
+      "bookAbbr": "Gen",
+      "chapter": 3,
+      "beforeVerse": 24,
+      "title": "Adam et Éve chassés du Paradis terrestre (Genesis 3 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 3:24",
+      "filename": "Adam et Éve chassés du Paradis terrestre (Genesis 3 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Adam_et_%C3%89ve_chass%C3%A9s_du_Paradis_terrestre_%28Genesis_3_24%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Adam_et_%C3%89ve_chass%C3%A9s_du_Paradis_terrestre_(Genesis_3_24)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-4-8-ca-n-entra-ne-abel-genesis-4-8-invenit-james-tis",
+      "bookAbbr": "Gen",
+      "chapter": 4,
+      "beforeVerse": 8,
+      "title": "Caïn entraîne Abel (Genesis 4 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 4:8",
+      "filename": "Caïn entraîne Abel (Genesis 4 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Ca%C3%AFn_entra%C3%AEne_Abel_%28Genesis_4_8%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ca%C3%AFn_entra%C3%AEne_Abel_(Genesis_4_8)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-4-13-ch-timent-de-ca-n-genesis-4-13-invenit-james-tis",
+      "bookAbbr": "Gen",
+      "chapter": 4,
+      "beforeVerse": 13,
+      "title": "Châtiment de Caïn (Genesis 4 13) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 4:13",
+      "filename": "Châtiment de Caïn (Genesis 4 13) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Ch%C3%A2timent_de_Ca%C3%AFn_%28Genesis_4_13%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ch%C3%A2timent_de_Ca%C3%AFn_(Genesis_4_13)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-4-22-tubalca-n-genesis-4-22-invenit-james-tissot-pinx",
+      "bookAbbr": "Gen",
+      "chapter": 4,
+      "beforeVerse": 22,
+      "title": "Tubalcaïn (Genesis 4 22) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 4:22",
+      "filename": "Tubalcaïn (Genesis 4 22) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Tubalca%C3%AFn_%28Genesis_4_22%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tubalca%C3%AFn_(Genesis_4_22)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-5-20-naissance-de-no-genesis-5-20-invenit-james-tisso",
+      "bookAbbr": "Gen",
+      "chapter": 5,
+      "beforeVerse": 20,
+      "title": "Naissance de Noé (Genesis 5 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 5:20",
+      "filename": "Naissance de Noé (Genesis 5 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Naissance_de_No%C3%A9_%28Genesis_5_20%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Naissance_de_No%C3%A9_(Genesis_5_20)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-5-32-birth-of-noah",
+      "bookAbbr": "Gen",
+      "chapter": 5,
+      "beforeVerse": 32,
+      "title": "Birth of Noah",
+      "referenceLabel": "Gen 5:32",
+      "filename": "Birth of Noah.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Birth_of_Noah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Birth_of_Noah.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-6-9-no-genesis-6-9-invenit-james-tissot-pinxit-james",
+      "bookAbbr": "Gen",
+      "chapter": 6,
+      "beforeVerse": 9,
+      "title": "Noé (Genesis 6 9) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 6:9",
+      "filename": "Noé (Genesis 6 9) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/No%C3%A9_%28Genesis_6_9%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-No%C3%A9_%28Genesis_6_9%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:No%C3%A9_(Genesis_6_9)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-6-14-apparition-de-dieu-no-genesis-6-14-invenit-james",
+      "bookAbbr": "Gen",
+      "chapter": 6,
+      "beforeVerse": 14,
+      "title": "Apparition de Dieu à Noé (Genesis 6 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 6:14",
+      "filename": "Apparition de Dieu à Noé (Genesis 6 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Apparition_de_Dieu_%C3%A0_No%C3%A9_%28Genesis_6_14%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Apparition_de_Dieu_%C3%A0_No%C3%A9_(Genesis_6_14)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-7-23-le-d-luge-genesis-7-23-invenit-james-tissot-pinx",
+      "bookAbbr": "Gen",
+      "chapter": 7,
+      "beforeVerse": 23,
+      "title": "Le Déluge (Genesis 7 23) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 7:23",
+      "filename": "Le Déluge (Genesis 7 23) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Le_D%C3%A9luge_%28Genesis_7_23%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Le_D%C3%A9luge_(Genesis_7_23)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-8-20-le-sacrifice-de-l-arc-en-ciel-genesis-8-20-inven",
+      "bookAbbr": "Gen",
+      "chapter": 8,
+      "beforeVerse": 20,
+      "title": "Le sacrifice de l'arc-en-ciel (Genesis 8 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 8:20",
+      "filename": "Le sacrifice de l'arc-en-ciel (Genesis 8 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Le_sacrifice_de_l%27arc-en-ciel_%28Genesis_8_20%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Le_sacrifice_de_l'arc-en-ciel_(Genesis_8_20)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-9-18-sem-cham-et-japhet-genesis-9-18-invenit-james-ti",
+      "bookAbbr": "Gen",
+      "chapter": 9,
+      "beforeVerse": 18,
+      "title": "Sem, Cham et Japhet (Genesis 9 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 9:18",
+      "filename": "Sem, Cham et Japhet (Genesis 9 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Sem%2C_Cham_et_Japhet_%28Genesis_9_18%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sem%2C_Cham_et_Japhet_(Genesis_9_18)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-9-23-l-ivresse-de-no-genesis-9-23-invenit-james-tisso",
+      "bookAbbr": "Gen",
+      "chapter": 9,
+      "beforeVerse": 23,
+      "title": "L'ivresse de Noé (Genesis 9 23) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 9:23",
+      "filename": "L'ivresse de Noé (Genesis 9 23) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/L%27ivresse_de_No%C3%A9_%28Genesis_9_23%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:L'ivresse_de_No%C3%A9_(Genesis_9_23)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-10-8-nemrod-genesis-10-8-invenit-james-tissot-pinxit-",
+      "bookAbbr": "Gen",
+      "chapter": 10,
+      "beforeVerse": 8,
+      "title": "Nemrod (Genesis 10 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 10:8",
+      "filename": "Nemrod (Genesis 10 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Nemrod_%28Genesis_10_8%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-Nemrod_%28Genesis_10_8%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nemrod_(Genesis_10_8)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-11-4-la-tour-de-babel-genesis-11-4-invenit-james-tiss",
+      "bookAbbr": "Gen",
+      "chapter": 11,
+      "beforeVerse": 4,
+      "title": "La tour de Babel (Genesis 11 4) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 11:4",
+      "filename": "La tour de Babel (Genesis 11 4) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/La_tour_de_Babel_%28Genesis_11_4%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:La_tour_de_Babel_(Genesis_11_4)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-12-1-james-tissot-caravan-of-abram-circa-1900",
+      "bookAbbr": "Gen",
+      "chapter": 12,
+      "beforeVerse": 1,
+      "title": "James Tissot Caravan of Abram circa 1900",
+      "referenceLabel": "Gen 12:1",
+      "filename": "James Tissot Caravan of Abram circa 1900.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bb/James_Tissot_Caravan_of_Abram_circa_1900.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:James_Tissot_Caravan_of_Abram_circa_1900.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-12-6-la-caravane-d-abram-genesis-12-6-invenit-james-t",
+      "bookAbbr": "Gen",
+      "chapter": 12,
+      "beforeVerse": 6,
+      "title": "La caravane d'Abram (Genesis 12 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 12:6",
+      "filename": "La caravane d'Abram (Genesis 12 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/La_caravane_d%27Abram_%28Genesis_12_6%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:La_caravane_d'Abram_(Genesis_12_6)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-12-14-les-gyptiens-trouvent-sara-belle-genesis-12-14-i",
+      "bookAbbr": "Gen",
+      "chapter": 12,
+      "beforeVerse": 14,
+      "title": "Les Égyptiens trouvent Saraï belle (Genesis 12 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 12:14",
+      "filename": "Les Égyptiens trouvent Saraï belle (Genesis 12 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Les_%C3%89gyptiens_trouvent_Sara%C3%AF_belle_%28Genesis_12_14%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Les_%C3%89gyptiens_trouvent_Sara%C3%AF_belle_(Genesis_12_14)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-12-15-l-ambassade-des-gyptiens-sara-genesis-12-15-inve",
+      "bookAbbr": "Gen",
+      "chapter": 12,
+      "beforeVerse": 15,
+      "title": "L'ambassade des Égyptiens à Saraï (Genesis 12 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 12:15",
+      "filename": "L'ambassade des Égyptiens à Saraï (Genesis 12 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/L%27ambassade_des_%C3%89gyptiens_%C3%A0_Sara%C3%AF_%28Genesis_12_15%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:L'ambassade_des_%C3%89gyptiens_%C3%A0_Sara%C3%AF_(Genesis_12_15)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-14-1-les-cinq-rois-de-la-pentapole-genesis-14-1-inven",
+      "bookAbbr": "Gen",
+      "chapter": 14,
+      "beforeVerse": 1,
+      "title": "Les cinq rois de la Pentapole (Genesis 14 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 14:1",
+      "filename": "Les cinq rois de la Pentapole (Genesis 14 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Les_cinq_rois_de_la_Pentapole_%28Genesis_14_1%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Les_cinq_rois_de_la_Pentapole_(Genesis_14_1)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-14-18-l-offrande-de-melchis-dech-genesis-14-18-invenit",
+      "bookAbbr": "Gen",
+      "chapter": 14,
+      "beforeVerse": 18,
+      "title": "L'offrande de Melchisédech (Genesis 14 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 14:18",
+      "filename": "L'offrande de Melchisédech (Genesis 14 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/L%27offrande_de_Melchis%C3%A9dech_%28Genesis_14_18%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:L'offrande_de_Melchis%C3%A9dech_(Genesis_14_18)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-15-11-abram-chasse-les-oiseaux-de-proie-genesis-15-11-",
+      "bookAbbr": "Gen",
+      "chapter": 15,
+      "beforeVerse": 11,
+      "title": "Abram chasse les oiseaux de proie (Genesis 15 11) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 15:11",
+      "filename": "Abram chasse les oiseaux de proie (Genesis 15 11) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Abram_chasse_les_oiseaux_de_proie_%28Genesis_15_11%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abram_chasse_les_oiseaux_de_proie_(Genesis_15_11)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-16-6-dispute-de-sara-et-d-agar-genesis-16-6-invenit-j",
+      "bookAbbr": "Gen",
+      "chapter": 16,
+      "beforeVerse": 6,
+      "title": "Dispute de Saraï et d'Agar (Genesis 16 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 16:6",
+      "filename": "Dispute de Saraï et d'Agar (Genesis 16 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Dispute_de_Sara%C3%AF_et_d%27Agar_%28Genesis_16_6%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dispute_de_Sara%C3%AF_et_d'Agar_(Genesis_16_6)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-17-19-nouvelles-promesses-de-dieu-abraham-genesis-17-1",
+      "bookAbbr": "Gen",
+      "chapter": 17,
+      "beforeVerse": 19,
+      "title": "Nouvelles promesses de Dieu à Abraham (Genesis 17 19) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 17:19",
+      "filename": "Nouvelles promesses de Dieu à Abraham (Genesis 17 19) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Nouvelles_promesses_de_Dieu_%C3%A0_Abraham_%28Genesis_17_19%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nouvelles_promesses_de_Dieu_%C3%A0_Abraham_(Genesis_17_19)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-18-2-abraham-et-les-trois-anges-genesis-18-2-invenit-",
+      "bookAbbr": "Gen",
+      "chapter": 18,
+      "beforeVerse": 2,
+      "title": "Abraham et les trois Anges (Genesis 18 2) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 18:2",
+      "filename": "Abraham et les trois Anges (Genesis 18 2) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Abraham_et_les_trois_Anges_%28Genesis_18_2%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abraham_et_les_trois_Anges_(Genesis_18_2)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-18-10-sara-rit-en-coutant-genesis-18-10-invenit-james-",
+      "bookAbbr": "Gen",
+      "chapter": 18,
+      "beforeVerse": 10,
+      "title": "Sara rit en écoutant (Genesis 18 10) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 18:10",
+      "filename": "Sara rit en écoutant (Genesis 18 10) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Sara_rit_en_%C3%A9coutant_%28Genesis_18_10%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sara_rit_en_%C3%A9coutant_(Genesis_18_10)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-19-5-les-sodomites-genesis-19-5-invenit-james-tissot-",
+      "bookAbbr": "Gen",
+      "chapter": 19,
+      "beforeVerse": 5,
+      "title": "Les Sodomites (Genesis 19 5) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 19:5",
+      "filename": "Les Sodomites (Genesis 19 5) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Les_Sodomites_%28Genesis_19_5%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Les_Sodomites_(Genesis_19_5)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-19-28-abram-voit-sodome-en-flammes-genesis-19-28-inven",
+      "bookAbbr": "Gen",
+      "chapter": 19,
+      "beforeVerse": 28,
+      "title": "Abram voit Sodome en flammes (Genesis 19 28) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.",
+      "referenceLabel": "Gen 19:28",
+      "filename": "Abram voit Sodome en flammes (Genesis 19 28) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst..jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Abram_voit_Sodome_en_flammes_%28Genesis_19_28%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abram_voit_Sodome_en_flammes_(Genesis_19_28)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst..jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-19-30-038-3-403-les-filles-de-lot-genesis-19-30-inveni",
+      "bookAbbr": "Gen",
+      "chapter": 19,
+      "beforeVerse": 30,
+      "title": "038.3 403 Les filles de Lot (Genesis 19 30) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 19:30",
+      "filename": "038.3 403 Les filles de Lot (Genesis 19 30) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/038.3_403_Les_filles_de_Lot_%28Genesis_19_30%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:038.3_403_Les_filles_de_Lot_(Genesis_19_30)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-21-14-040-3-402-agar-quitte-abraham-genesis-21-14-inve",
+      "bookAbbr": "Gen",
+      "chapter": 21,
+      "beforeVerse": 14,
+      "title": "040.3 402 Agar quitte Abraham (Genesis 21 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 21:14",
+      "filename": "040.3 402 Agar quitte Abraham (Genesis 21 14) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/040.3_402_Agar_quitte_Abraham_%28Genesis_21_14%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:040.3_402_Agar_quitte_Abraham_(Genesis_21_14)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-21-20-041-3-402-isma-l-tire-de-l-arc-genesis-21-20-inv",
+      "bookAbbr": "Gen",
+      "chapter": 21,
+      "beforeVerse": 20,
+      "title": "041.3 402 Ismaël tire de l'arc (Genesis 21 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 21:20",
+      "filename": "041.3 402 Ismaël tire de l'arc (Genesis 21 20) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/041.3_402_Isma%C3%ABl_tire_de_l%27arc_%28Genesis_21_20%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:041.3_402_Isma%C3%ABl_tire_de_l'arc_(Genesis_21_20)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-22-6-042-3-402-isaac-porte-le-bois-pour-son-sacrifice",
+      "bookAbbr": "Gen",
+      "chapter": 22,
+      "beforeVerse": 6,
+      "title": "042.3 402 Isaac porte le bois pour son sacrifice (Genesis 22 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 22:6",
+      "filename": "042.3 402 Isaac porte le bois pour son sacrifice (Genesis 22 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/042.3_402_Isaac_porte_le_bois_pour_son_sacrifice_%28Genesis_22_6%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:042.3_402_Isaac_porte_le_bois_pour_son_sacrifice_(Genesis_22_6)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-22-12-043-3-403-le-sacrifice-d-abraham-genesis-22-12-i",
+      "bookAbbr": "Gen",
+      "chapter": 22,
+      "beforeVerse": 12,
+      "title": "043.3 403 Le sacrifice d'Abraham (Genesis 22 12) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 22:12",
+      "filename": "043.3 403 Le sacrifice d'Abraham (Genesis 22 12) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/043.3_403_Le_sacrifice_d%27Abraham_%28Genesis_22_12%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:043.3_403_Le_sacrifice_d'Abraham_(Genesis_22_12)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-24-17-044-3-402-le-serviteur-d-abraham-rencontre-r-bec",
+      "bookAbbr": "Gen",
+      "chapter": 24,
+      "beforeVerse": 17,
+      "title": "044.3 402 Le serviteur d'Abraham rencontre Rébecca (Genesis 24 17) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 24:17",
+      "filename": "044.3 402 Le serviteur d'Abraham rencontre Rébecca (Genesis 24 17) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/044.3_402_Le_serviteur_d%27Abraham_rencontre_R%C3%A9becca_%28Genesis_24_17%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:044.3_402_Le_serviteur_d'Abraham_rencontre_R%C3%A9becca_(Genesis_24_17)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-24-65-rebecca-meets-isaac-by-the-waytitle-qs-p1476-en-",
+      "bookAbbr": "Gen",
+      "chapter": 24,
+      "beforeVerse": 65,
+      "title": "Rebecca Meets Isaac by the Waytitle QS:P1476,en:\"Rebecca Meets Isaac by the Way\"label QS:Len,\"Rebecca Meets Isaac by the Way\"",
+      "referenceLabel": "Gen 24:65",
+      "filename": "James Jacques Joseph Tissot - Rebecca Meets Isaac by the Way - Google Art Project.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/James_Jacques_Joseph_Tissot_-_Rebecca_Meets_Isaac_by_the_Way_-_Google_Art_Project.jpg/960px-James_Jacques_Joseph_Tissot_-_Rebecca_Meets_Isaac_by_the_Way_-_Google_Art_Project.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:James_Jacques_Joseph_Tissot_-_Rebecca_Meets_Isaac_by_the_Way_-_Google_Art_Project.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-27-21-048-3-402-recommandations-d-isaac-esa-genesis-27",
+      "bookAbbr": "Gen",
+      "chapter": 27,
+      "beforeVerse": 21,
+      "title": "048.3 402 Recommandations d'Isaac à Esaü (Genesis 27 21) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 27:21",
+      "filename": "048.3 402 Recommandations d'Isaac à Esaü (Genesis 27 21) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/048.3_402_Recommandations_d%27Isaac_%C3%A0_Esa%C3%BC_%28Genesis_27_21%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:048.3_402_Recommandations_d'Isaac_%C3%A0_Esa%C3%BC_(Genesis_27_21)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-28-12-050-3-402-le-songe-de-jacob-genesis-28-12-inveni",
+      "bookAbbr": "Gen",
+      "chapter": 28,
+      "beforeVerse": 12,
+      "title": "050.3 402 Le songe de Jacob (Genesis 28 12) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 28:12",
+      "filename": "050.3 402 Le songe de Jacob (Genesis 28 12) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/050.3_402_Le_songe_de_Jacob_%28Genesis_28_12%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:050.3_402_Le_songe_de_Jacob_(Genesis_28_12)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-29-9-051-3-402-jacob-et-rachel-la-fontaine-genesis-29",
+      "bookAbbr": "Gen",
+      "chapter": 29,
+      "beforeVerse": 9,
+      "title": "051.3 402 Jacob et Rachel à la fontaine (Genesis 29 9) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 29:9",
+      "filename": "051.3 402 Jacob et Rachel à la fontaine (Genesis 29 9) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/051.3_402_Jacob_et_Rachel_%C3%A0_la_fontaine_%28Genesis_29_9%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:051.3_402_Jacob_et_Rachel_%C3%A0_la_fontaine_(Genesis_29_9)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-29-16-052-3-402-rachel-et-lia-genesis-29-16-invenit-ja",
+      "bookAbbr": "Gen",
+      "chapter": 29,
+      "beforeVerse": 16,
+      "title": "052.3 402 Rachel et Lia (Genesis 29 16) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 29:16",
+      "filename": "052.3 402 Rachel et Lia (Genesis 29 16) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/052.3_402_Rachel_et_Lia_%28Genesis_29_16%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:052.3_402_Rachel_et_Lia_(Genesis_29_16)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-32-24-053-3-402-la-lutte-de-l-ange-avec-jacob-genesis-",
+      "bookAbbr": "Gen",
+      "chapter": 32,
+      "beforeVerse": 24,
+      "title": "053.3 402 La lutte de l'Ange avec Jacob (Genesis 32 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 32:24",
+      "filename": "053.3 402 La lutte de l'Ange avec Jacob (Genesis 32 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/053.3_402_La_lutte_de_l%27Ange_avec_Jacob_%28Genesis_32_24%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:053.3_402_La_lutte_de_l'Ange_avec_Jacob_(Genesis_32_24)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-33-1-054-3-402-jacob-voit-venir-lui-esa-genesis-33-1-",
+      "bookAbbr": "Gen",
+      "chapter": 33,
+      "beforeVerse": 1,
+      "title": "054.3 402 Jacob voit venir à lui Esaü (Genesis 33 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 33:1",
+      "filename": "054.3 402 Jacob voit venir à lui Esaü (Genesis 33 1) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/054.3_402_Jacob_voit_venir_%C3%A0_lui_Esa%C3%BC_%28Genesis_33_1%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:054.3_402_Jacob_voit_venir_%C3%A0_lui_Esa%C3%BC_(Genesis_33_1)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-33-4-055-3-402-la-rencontre-d-esa-et-de-jacob-genesis",
+      "bookAbbr": "Gen",
+      "chapter": 33,
+      "beforeVerse": 4,
+      "title": "055.3 402 La rencontre d'Esaü et de Jacob (Genesis 33 4) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 33:4",
+      "filename": "055.3 402 La rencontre d'Esaü et de Jacob (Genesis 33 4) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/055.3_402_La_rencontre_d%27Esa%C3%BC_et_de_Jacob_%28Genesis_33_4%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:055.3_402_La_rencontre_d'Esa%C3%BC_et_de_Jacob_(Genesis_33_4)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-34-1-the-seduction-of-dinah-daughter-of-leah",
+      "bookAbbr": "Gen",
+      "chapter": 34,
+      "beforeVerse": 1,
+      "title": "The Seduction of Dinah, Daughter of Leah",
+      "referenceLabel": "Gen 34:1",
+      "filename": "Dinah tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Dinah_tissot.jpg/960px-Dinah_tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dinah_tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-34-2-056-3-402-enl-vement-de-dinah-fille-de-lia-genes",
+      "bookAbbr": "Gen",
+      "chapter": 34,
+      "beforeVerse": 2,
+      "title": "056.3 402 Enlèvement de Dinah, fille de Lia (Genesis 34 2) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 34:2",
+      "filename": "056.3 402 Enlèvement de Dinah, fille de Lia (Genesis 34 2) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/056.3_402_Enl%C3%A8vement_de_Dinah%2C_fille_de_Lia_%28Genesis_34_2%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:056.3_402_Enl%C3%A8vement_de_Dinah%2C_fille_de_Lia_(Genesis_34_2)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-35-5-057-3-402-le-massacre-des-sich-mites-genesis-35-",
+      "bookAbbr": "Gen",
+      "chapter": 35,
+      "beforeVerse": 5,
+      "title": "057.3 402 Le massacre des Sichémites (Genesis 35 5) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 35:5",
+      "filename": "057.3 402 Le massacre des Sichémites (Genesis 35 5) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/057.3_402_Le_massacre_des_Sich%C3%A9mites_%28Genesis_35_5%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:057.3_402_Le_massacre_des_Sich%C3%A9mites_(Genesis_35_5)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-37-8-058-403-joseph-raconte-ses-songes-genesis-37-8-i",
+      "bookAbbr": "Gen",
+      "chapter": 37,
+      "beforeVerse": 8,
+      "title": "058 403 Joseph raconte ses songes (Genesis 37 8) • invenit James Tissot • pinxit James Tissot et alia • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 37:8",
+      "filename": "058 403 Joseph raconte ses songes (Genesis 37 8) • invenit James Tissot • pinxit James Tissot et alia • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/058_403_Joseph_raconte_ses_songes_%28Genesis_37_8%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_et_alia_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:058_403_Joseph_raconte_ses_songes_(Genesis_37_8)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_et_alia_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-37-15-059-3-402-joseph-cherche-ses-fr-res-genesis-37-1",
+      "bookAbbr": "Gen",
+      "chapter": 37,
+      "beforeVerse": 15,
+      "title": "059.3 402 Joseph cherche ses frères (Genesis 37 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 37:15",
+      "filename": "059.3 402 Joseph cherche ses frères (Genesis 37 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/059.3_402_Joseph_cherche_ses_fr%C3%A8res_%28Genesis_37_15%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:059.3_402_Joseph_cherche_ses_fr%C3%A8res_(Genesis_37_15)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-37-24-060-3-402-joseph-descendu-dans-la-citerne-genesi",
+      "bookAbbr": "Gen",
+      "chapter": 37,
+      "beforeVerse": 24,
+      "title": "060.3 402 Joseph descendu dans la citerne (Genesis 37 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 37:24",
+      "filename": "060.3 402 Joseph descendu dans la citerne (Genesis 37 24) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/060.3_402_Joseph_descendu_dans_la_citerne_%28Genesis_37_24%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:060.3_402_Joseph_descendu_dans_la_citerne_(Genesis_37_24)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-37-35-061-3-402-la-douleur-de-jacob-genesis-37-35-inve",
+      "bookAbbr": "Gen",
+      "chapter": 37,
+      "beforeVerse": 35,
+      "title": "061.3 402 La douleur de Jacob (Genesis 37 35) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 37:35",
+      "filename": "061.3 402 La douleur de Jacob (Genesis 37 35) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/061.3_402_La_douleur_de_Jacob_%28Genesis_37_35%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:061.3_402_La_douleur_de_Jacob_(Genesis_37_35)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-38-1-the-meeting-of-tamar-and-judah",
+      "bookAbbr": "Gen",
+      "chapter": 38,
+      "beforeVerse": 1,
+      "title": "The Meeting of Tamar and Judah",
+      "referenceLabel": "Gen 38:1",
+      "filename": "Judah and Tamar by J.Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Judah_and_Tamar_by_J.Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Judah_and_Tamar_by_J.Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-38-18-062-3-402-thamar-et-juda-se-rencontrent-genesis-",
+      "bookAbbr": "Gen",
+      "chapter": 38,
+      "beforeVerse": 18,
+      "title": "062.3 402 Thamar et Juda se rencontrent (Genesis 38 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 38:18",
+      "filename": "062.3 402 Thamar et Juda se rencontrent (Genesis 38 18) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/062.3_402_Thamar_et_Juda_se_rencontrent_%28Genesis_38_18%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:062.3_402_Thamar_et_Juda_se_rencontrent_(Genesis_38_18)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-39-1-joseph-dwelleth-in-egypttitle-qs-p1476-en-joseph",
+      "bookAbbr": "Gen",
+      "chapter": 39,
+      "beforeVerse": 1,
+      "title": "Joseph Dwelleth in Egypttitle QS:P1476,en:\"Joseph Dwelleth in Egypt\"label QS:Len,\"Joseph Dwelleth in Egypt\"",
+      "referenceLabel": "Gen 39:1",
+      "filename": "James Jacques Joseph Tissot - Joseph Dwelleth in Egypt - Google Art Project.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/James_Jacques_Joseph_Tissot_-_Joseph_Dwelleth_in_Egypt_-_Google_Art_Project.jpg/960px-James_Jacques_Joseph_Tissot_-_Joseph_Dwelleth_in_Egypt_-_Google_Art_Project.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:James_Jacques_Joseph_Tissot_-_Joseph_Dwelleth_in_Egypt_-_Google_Art_Project.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-39-6-064-3-402-joseph-jeune-genesis-39-6-invenit-jame",
+      "bookAbbr": "Gen",
+      "chapter": 39,
+      "beforeVerse": 6,
+      "title": "064.3 402 Joseph jeune (Genesis 39 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 39:6",
+      "filename": "064.3 402 Joseph jeune (Genesis 39 6) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/064.3_402_Joseph_jeune_%28Genesis_39_6%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:064.3_402_Joseph_jeune_(Genesis_39_6)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-39-7-065-3-402-joseph-et-la-femme-de-putiphar-genesis",
+      "bookAbbr": "Gen",
+      "chapter": 39,
+      "beforeVerse": 7,
+      "title": "065.3 402 Joseph et la Femme de Putiphar (Genesis 39 7) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 39:7",
+      "filename": "065.3 402 Joseph et la Femme de Putiphar (Genesis 39 7) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/065.3_402_Joseph_et_la_Femme_de_Putiphar_%28Genesis_39_7%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:065.3_402_Joseph_et_la_Femme_de_Putiphar_(Genesis_39_7)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-39-22-066-3-402-joseph-distribue-du-pain-dans-le-priso",
+      "bookAbbr": "Gen",
+      "chapter": 39,
+      "beforeVerse": 22,
+      "title": "066.3 402 Joseph distribue du pain dans le prison (Genesis 39 22) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 39:22",
+      "filename": "066.3 402 Joseph distribue du pain dans le prison (Genesis 39 22) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/066.3_402_Joseph_distribue_du_pain_dans_le_prison_%28Genesis_39_22%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:066.3_402_Joseph_distribue_du_pain_dans_le_prison_(Genesis_39_22)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-40-8-067-3-402-joseph-explique-des-songes-dans-le-pri",
+      "bookAbbr": "Gen",
+      "chapter": 40,
+      "beforeVerse": 8,
+      "title": "067.3 402 Joseph explique des songes dans le prison (Genesis 40 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 40:8",
+      "filename": "067.3 402 Joseph explique des songes dans le prison (Genesis 40 8) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/067.3_402_Joseph_explique_des_songes_dans_le_prison_%28Genesis_40_8%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:067.3_402_Joseph_explique_des_songes_dans_le_prison_(Genesis_40_8)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-41-2-069-3-402-le-songe-des-vaches-le-songe-des-pis-g",
+      "bookAbbr": "Gen",
+      "chapter": 41,
+      "beforeVerse": 2,
+      "title": "069.3 402 Le songe des vaches, le songe des épis (Genesis 41 2,5)• invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 41:2",
+      "filename": "069.3 402 Le songe des vaches, le songe des épis (Genesis 41 2,5)• invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/069.3_402_Le_songe_des_vaches%2C_le_songe_des_%C3%A9pis_%28Genesis_41_2%2C5%29%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:069.3_402_Le_songe_des_vaches%2C_le_songe_des_%C3%A9pis_(Genesis_41_2%2C5)%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-41-15-068-3-402-joseph-explique-les-songes-pharaon-gen",
+      "bookAbbr": "Gen",
+      "chapter": 41,
+      "beforeVerse": 15,
+      "title": "068.3 402 Joseph explique les songes à Pharaon (Genesis 41 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 41:15",
+      "filename": "068.3 402 Joseph explique les songes à Pharaon (Genesis 41 15) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/068.3_402_Joseph_explique_les_songes_%C3%A0_Pharaon_%28Genesis_41_15%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:068.3_402_Joseph_explique_les_songes_%C3%A0_Pharaon_(Genesis_41_15)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-gen-41-46-070-3-402-gloire-de-joseph-genesis-41-46-invenit",
+      "bookAbbr": "Gen",
+      "chapter": 41,
+      "beforeVerse": 46,
+      "title": "070.3 402 Gloire de Joseph (Genesis 41 46) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst",
+      "referenceLabel": "Gen 41:46",
+      "filename": "070.3 402 Gloire de Joseph (Genesis 41 46) • invenit James Tissot • pinxit James Tissot • excudit Maurice de Brunoff apud Philip de Vere • praesentat Phillip Medhurst.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/070.3_402_Gloire_de_Joseph_%28Genesis_41_46%29_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg/960px-thumbnail.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:070.3_402_Gloire_de_Joseph_(Genesis_41_46)_%E2%80%A2_invenit_James_Tissot_%E2%80%A2_pinxit_James_Tissot_%E2%80%A2_excudit_Maurice_de_Brunoff_apud_Philip_de_Vere_%E2%80%A2_praesentat_Phillip_Medhurst.jpg",
+      "artist": "Phillip Medhurst",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-hos-1-1-hosea-by-james-tissot",
+      "bookAbbr": "Hos",
+      "chapter": 1,
+      "beforeVerse": 1,
+      "title": "Hosea by James Tissot",
+      "referenceLabel": "Hos 1:1",
+      "filename": "Hosea by James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/1/18/Hosea_by_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hosea_by_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-jdg-11-34-jephthah-s-daughter-by-james-tissot",
+      "bookAbbr": "Jdg",
+      "chapter": 11,
+      "beforeVerse": 34,
+      "title": "Jephthah’s Daughter by James Tissot",
+      "referenceLabel": "Jdg 11:34",
+      "filename": "Jephthah’s Daughter by James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Jephthah%E2%80%99s_Daughter_by_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jephthah%E2%80%99s_Daughter_by_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-jhn-2-1-the-marriage-at-cana",
+      "bookAbbr": "Jhn",
+      "chapter": 2,
+      "beforeVerse": 1,
+      "title": "The Marriage at Cana",
+      "referenceLabel": "Jhn 2:1",
+      "filename": "Brooklyn Museum - The Marriage at Cana (Les noces de Cana) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/0/05/Brooklyn_Museum_-_The_Marriage_at_Cana_%28Les_noces_de_Cana%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Marriage_at_Cana_(Les_noces_de_Cana)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-jhn-4-7-the-woman-of-samaria-at-the-well",
+      "bookAbbr": "Jhn",
+      "chapter": 4,
+      "beforeVerse": 7,
+      "title": "The Woman of Samaria at the Well",
+      "referenceLabel": "Jhn 4:7",
+      "filename": "Brooklyn Museum - The Woman of Samaria at the Well (La Samaritaine à la fontaine) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/7/78/Brooklyn_Museum_-_The_Woman_of_Samaria_at_the_Well_%28La_Samaritaine_%C3%A0_la_fontaine%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Woman_of_Samaria_at_the_Well_(La_Samaritaine_%C3%A0_la_fontaine)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-jhn-11-43-lazarus",
+      "bookAbbr": "Jhn",
+      "chapter": 11,
+      "beforeVerse": 43,
+      "title": "Lazarus",
+      "referenceLabel": "Jhn 11:43",
+      "filename": "Brooklyn Museum - Lazarus (Lazare) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Brooklyn_Museum_-_Lazarus_%28Lazare%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Lazarus_(Lazare)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-jos-3-14-the-ark-passes-over-the-jordantitle-qs-p1476-en-",
+      "bookAbbr": "Jos",
+      "chapter": 3,
+      "beforeVerse": 14,
+      "title": "The Ark Passes Over the Jordantitle QS:P1476,en:\"The Ark Passes Over the Jordan\"label QS:Len,\"The Ark Passes Over the Jordan\"",
+      "referenceLabel": "Jos 3:14",
+      "filename": "James Jacques Joseph Tissot - The Ark Passes Over the Jordan - Google Art Project.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/James_Jacques_Joseph_Tissot_-_The_Ark_Passes_Over_the_Jordan_-_Google_Art_Project.jpg/960px-James_Jacques_Joseph_Tissot_-_The_Ark_Passes_Over_the_Jordan_-_Google_Art_Project.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:James_Jacques_Joseph_Tissot_-_The_Ark_Passes_Over_the_Jordan_-_Google_Art_Project.jpg",
+      "artist": "James Tissot",
+      "brooklyn": false
+    },
+    {
+      "id": "tissot-luk-1-26-the-annunciation",
+      "bookAbbr": "Luk",
+      "chapter": 1,
+      "beforeVerse": 26,
+      "title": "The Annunciation",
+      "referenceLabel": "Luk 1:26",
+      "filename": "Brooklyn Museum - The Annunciation (L'annonciation) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/9/93/Brooklyn_Museum_-_The_Annunciation_%28L%27annonciation%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Annunciation_(L'annonciation)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-luk-1-39-the-visitation",
+      "bookAbbr": "Luk",
+      "chapter": 1,
+      "beforeVerse": 39,
+      "title": "The Visitation",
+      "referenceLabel": "Luk 1:39",
+      "filename": "Brooklyn Museum - The Visitation (La visitation) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/6/6a/Brooklyn_Museum_-_The_Visitation_%28La_visitation%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Visitation_(La_visitation)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-luk-10-33-the-good-samaritan",
+      "bookAbbr": "Luk",
+      "chapter": 10,
+      "beforeVerse": 33,
+      "title": "The Good Samaritan",
+      "referenceLabel": "Luk 10:33",
+      "filename": "Brooklyn Museum - The Good Samaritan (Le bon samaritain) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Brooklyn_Museum_-_The_Good_Samaritan_%28Le_bon_samaritain%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Good_Samaritan_(Le_bon_samaritain)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-luk-15-20-the-prodigal-son-begging",
+      "bookAbbr": "Luk",
+      "chapter": 15,
+      "beforeVerse": 20,
+      "title": "The Prodigal Son Begging",
+      "referenceLabel": "Luk 15:20",
+      "filename": "Brooklyn Museum - The Prodigal Son Begging (L'enfant prodigue mendiant) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/3/33/Brooklyn_Museum_-_The_Prodigal_Son_Begging_%28L%27enfant_prodigue_mendiant%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Prodigal_Son_Begging_(L'enfant_prodigue_mendiant)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-luk-24-13-french-les-p-lerins-d-emma-s-en-chemin-the-pilgr",
+      "bookAbbr": "Luk",
+      "chapter": 24,
+      "beforeVerse": 13,
+      "title": "French:  Les pèlerins d'Emmaüs en chemin The Pilgrims of Emmaus on the Roadtitle QS:P1476,fr:\"Les pèlerins d'Emmaüs en chemin \"label QS:Lfr,\"Les pèlerins d'Emmaüs en chemin \"label QS:Len,\"The Pilgrims of Emmaus on the Road\"",
+      "referenceLabel": "Luk 24:13",
+      "filename": "Brooklyn Museum - The Pilgrims of Emmaus on the Road (Les pèlerins d'Emmaüs en chemin) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Brooklyn_Museum_-_The_Pilgrims_of_Emmaus_on_the_Road_%28Les_p%C3%A8lerins_d%27Emma%C3%BCs_en_chemin%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Pilgrims_of_Emmaus_on_the_Road_(Les_p%C3%A8lerins_d'Emma%C3%BCs_en_chemin)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-2-1-the-adoration-of-the-magi",
+      "bookAbbr": "Mat",
+      "chapter": 2,
+      "beforeVerse": 1,
+      "title": "The Adoration of the Magi",
+      "referenceLabel": "Mat 2:1",
+      "filename": "Brooklyn Museum - The Adoration of the Magi (L'adoration des mages) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Brooklyn_Museum_-_The_Adoration_of_the_Magi_%28L%27adoration_des_mages%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Adoration_of_the_Magi_(L'adoration_des_mages)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-2-13-the-flight-into-egypt",
+      "bookAbbr": "Mat",
+      "chapter": 2,
+      "beforeVerse": 13,
+      "title": "The Flight into Egypt",
+      "referenceLabel": "Mat 2:13",
+      "filename": "Brooklyn Museum - The Flight into Egypt (La fuite en Égypte) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9b/Brooklyn_Museum_-_The_Flight_into_Egypt_%28La_fuite_en_%C3%89gypte%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Flight_into_Egypt_(La_fuite_en_%C3%89gypte)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-3-16-the-baptism-of-jesuslabel-qs-lfr-bapt-me-de-j-su",
+      "bookAbbr": "Mat",
+      "chapter": 3,
+      "beforeVerse": 16,
+      "title": "The Baptism of Jesuslabel QS:Lfr,\"Baptême de Jésus\"label QS:Len,\"The Baptism of Jesus\"",
+      "referenceLabel": "Mat 3:16",
+      "filename": "Brooklyn Museum - The Baptism of Jesus (Baptême de Jésus) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/c/ca/Brooklyn_Museum_-_The_Baptism_of_Jesus_%28Bapt%C3%AAme_de_J%C3%A9sus%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Baptism_of_Jesus_(Bapt%C3%AAme_de_J%C3%A9sus)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-5-1-the-sermon-of-the-beatitudes",
+      "bookAbbr": "Mat",
+      "chapter": 5,
+      "beforeVerse": 1,
+      "title": "The Sermon of the Beatitudes",
+      "referenceLabel": "Mat 5:1",
+      "filename": "Brooklyn Museum - The Sermon of the Beatitudes (La sermon des béatitudes) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Brooklyn_Museum_-_The_Sermon_of_the_Beatitudes_%28La_sermon_des_b%C3%A9atitudes%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Sermon_of_the_Beatitudes_(La_sermon_des_b%C3%A9atitudes)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-8-24-jesus-stilling-the-tempestlabel-qs-len-jesus-sti",
+      "bookAbbr": "Mat",
+      "chapter": 8,
+      "beforeVerse": 24,
+      "title": "Jesus Stilling the Tempestlabel QS:Len,\"Jesus Stilling the Tempest\"label QS:Lfr,\"Jésus calmant la tempête\"",
+      "referenceLabel": "Mat 8:24",
+      "filename": "Brooklyn Museum - Jesus Stilling the Tempest (Jésus calmant la tempête) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/1/16/Brooklyn_Museum_-_Jesus_Stilling_the_Tempest_%28J%C3%A9sus_calmant_la_temp%C3%AAte%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Jesus_Stilling_the_Tempest_(J%C3%A9sus_calmant_la_temp%C3%AAte)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-9-9-the-calling-of-saint-matthew",
+      "bookAbbr": "Mat",
+      "chapter": 9,
+      "beforeVerse": 9,
+      "title": "The Calling of Saint Matthew",
+      "referenceLabel": "Mat 9:9",
+      "filename": "Brooklyn Museum - The Calling of Saint Matthew (Vocation de Saint Mathieu) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Brooklyn_Museum_-_The_Calling_of_Saint_Matthew_%28Vocation_de_Saint_Mathieu%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Calling_of_Saint_Matthew_(Vocation_de_Saint_Mathieu)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-9-18-the-daughter-of-jairus",
+      "bookAbbr": "Mat",
+      "chapter": 9,
+      "beforeVerse": 18,
+      "title": "The Daughter of Jairus",
+      "referenceLabel": "Mat 9:18",
+      "filename": "Brooklyn Museum - The Daughter of Jairus (La fille de Zäire) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Brooklyn_Museum_-_The_Daughter_of_Jairus_%28La_fille_de_Z%C3%A4ire%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Daughter_of_Jairus_(La_fille_de_Z%C3%A4ire)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-14-19-the-miracle-of-the-loaves-and-fishes",
+      "bookAbbr": "Mat",
+      "chapter": 14,
+      "beforeVerse": 19,
+      "title": "The Miracle of the Loaves and Fishes",
+      "referenceLabel": "Mat 14:19",
+      "filename": "Brooklyn Museum - The Miracle of the Loaves and Fishes (La multiplication des pains) by James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Brooklyn_Museum_-_The_Miracle_of_the_Loaves_and_Fishes_%28La_multiplication_des_pains%29_by_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Miracle_of_the_Loaves_and_Fishes_(La_multiplication_des_pains)_by_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-14-25-jesus-walks-on-the-sea",
+      "bookAbbr": "Mat",
+      "chapter": 14,
+      "beforeVerse": 25,
+      "title": "Jesus Walks on the Sea",
+      "referenceLabel": "Mat 14:25",
+      "filename": "Brooklyn Museum - Jesus Walks on the Sea (Jésus marche sur la mer) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f9/Brooklyn_Museum_-_Jesus_Walks_on_the_Sea_%28J%C3%A9sus_marche_sur_la_mer%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Jesus_Walks_on_the_Sea_(J%C3%A9sus_marche_sur_la_mer)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-17-1-the-transfiguration",
+      "bookAbbr": "Mat",
+      "chapter": 17,
+      "beforeVerse": 1,
+      "title": "The Transfiguration",
+      "referenceLabel": "Mat 17:1",
+      "filename": "Brooklyn Museum - The Transfiguration (La transfiguration) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Brooklyn_Museum_-_The_Transfiguration_%28La_transfiguration%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Transfiguration_(La_transfiguration)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-26-26-judas-leaves-the-cenacle",
+      "bookAbbr": "Mat",
+      "chapter": 26,
+      "beforeVerse": 26,
+      "title": "Judas Leaves the Cenacle",
+      "referenceLabel": "Mat 26:26",
+      "filename": "Brooklyn Museum - Judas Leaves the Cenacle (Judas quitte le Cénacle) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Brooklyn_Museum_-_Judas_Leaves_the_Cenacle_%28Judas_quitte_le_C%C3%A9nacle%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Judas_Leaves_the_Cenacle_(Judas_quitte_le_C%C3%A9nacle)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-26-36-the-bridge-of-kedron-coming-from-gethsemane",
+      "bookAbbr": "Mat",
+      "chapter": 26,
+      "beforeVerse": 36,
+      "title": "The Bridge of Kedron Coming from Gethsemane",
+      "referenceLabel": "Mat 26:36",
+      "filename": "Brooklyn Museum - The Bridge of Kedron Coming from Gethsemane (Le pont de Cédron, venant de Getsemani) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Brooklyn_Museum_-_The_Bridge_of_Kedron_Coming_from_Gethsemane_%28Le_pont_de_C%C3%A9dron%2C_venant_de_Getsemani%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Bridge_of_Kedron_Coming_from_Gethsemane_(Le_pont_de_C%C3%A9dron%2C_venant_de_Getsemani)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-26-48-french-le-baiser-de-judas-the-kiss-of-judastitle",
+      "bookAbbr": "Mat",
+      "chapter": 26,
+      "beforeVerse": 48,
+      "title": "French:  Le baiser de Judas The Kiss of Judastitle QS:P1476,fr:\"Le baiser de Judas \"label QS:Lfr,\"Le baiser de Judas \"label QS:Len,\"The Kiss of Judas\"",
+      "referenceLabel": "Mat 26:48",
+      "filename": "Brooklyn Museum - The Kiss of Judas (Le baiser de Judas) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Brooklyn_Museum_-_The_Kiss_of_Judas_%28Le_baiser_de_Judas%29_-_James_Tissot.jpg/960px-Brooklyn_Museum_-_The_Kiss_of_Judas_%28Le_baiser_de_Judas%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Kiss_of_Judas_(Le_baiser_de_Judas)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-26-69-the-cock-crowed",
+      "bookAbbr": "Mat",
+      "chapter": 26,
+      "beforeVerse": 69,
+      "title": "The Cock Crowed",
+      "referenceLabel": "Mat 26:69",
+      "filename": "Brooklyn Museum - The Cock Crowed (Le coq chanta) - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/5/52/Brooklyn_Museum_-_The_Cock_Crowed_%28Le_coq_chanta%29_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Cock_Crowed_(Le_coq_chanta)_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-27-15-barabbas",
+      "bookAbbr": "Mat",
+      "chapter": 27,
+      "beforeVerse": 15,
+      "title": "Barabbas",
+      "referenceLabel": "Mat 27:15",
+      "filename": "Brooklyn Museum - Barabbas - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Brooklyn_Museum_-_Barabbas_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Barabbas_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-27-32-the-torn-cloak-jesus-condemned-to-death-by-the-j",
+      "bookAbbr": "Mat",
+      "chapter": 27,
+      "beforeVerse": 32,
+      "title": "The Torn Cloak--Jesus Condemned to Death by the Jews",
+      "referenceLabel": "Mat 27:32",
+      "filename": "Brooklyn Museum - The Torn Cloak--Jesus Condemned to Death by the Jews - James Tissot.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/5/58/Brooklyn_Museum_-_The_Torn_Cloak--Jesus_Condemned_to_Death_by_the_Jews_-_James_Tissot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Torn_Cloak--Jesus_Condemned_to_Death_by_the_Jews_-_James_Tissot.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    },
+    {
+      "id": "tissot-mat-28-5-the-resurrection-of-the-widow-s-son-at-nain",
+      "bookAbbr": "Mat",
+      "chapter": 28,
+      "beforeVerse": 5,
+      "title": "The Resurrection of the Widow's Son at Nain",
+      "referenceLabel": "Mat 28:5",
+      "filename": "Brooklyn Museum - The Resurrection of the Widow's Son at Nain (La résurrection du fils de la veuve de Naïm) - James Tissot - overall.jpg",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/6/65/Brooklyn_Museum_-_The_Resurrection_of_the_Widow%27s_Son_at_Nain_%28La_r%C3%A9surrection_du_fils_de_la_veuve_de_Na%C3%AFm%29_-_James_Tissot_-_overall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Resurrection_of_the_Widow's_Son_at_Nain_(La_r%C3%A9surrection_du_fils_de_la_veuve_de_Na%C3%AFm)_-_James_Tissot_-_overall.jpg",
+      "artist": "James Tissot",
+      "brooklyn": true
+    }
+  ],
+  "unresolved": [
+    {
+      "filename": "Brooklyn Museum - A Holy Woman Wipes the Face of Jesus (Une sainte femme essuie le visage de Jésus) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "A Holy Woman Wipes the Face of Jesus"
+    },
+    {
+      "filename": "Brooklyn Museum - A Woman Cries Out in a Crowd (Une femme crie dans en foule) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "A Woman Cries Out in a Crowd"
+    },
+    {
+      "filename": "Brooklyn Museum - Address to Saint Philip (Allocution à Saint Philippe) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Address to Saint Philip"
+    },
+    {
+      "filename": "Brooklyn Museum - Agnus-Dei The Scapegoat (Agnus-Dei. Le bouc émissaire.) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Agnus-Dei: The Scapegoat"
+    },
+    {
+      "filename": "Brooklyn Museum - All the City Was Gathered at His Door (Toute la ville étant à sa porte) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "All the City Was Gathered at His Door"
+    },
+    {
+      "filename": "Brooklyn Museum - Angels Holding a Dial Indicating the Different Hours of the Acts of the Passion - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Angels Holding a Dial Indicating the Different Hours of the Acts of the Passion"
+    },
+    {
+      "filename": "Brooklyn Museum - Annas and Caiaphas (Anne et Caïphe) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Annas and Caiaphas"
+    },
+    {
+      "filename": "Brooklyn Museum - Apparition of Our Lord to Saint Peter (Apparition de Notre-Seigneur à St-Pierre) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Apparition of Our Lord to Saint Peter"
+    },
+    {
+      "filename": "Brooklyn Museum - Behold the Man (Ecce Homo) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Behold the Man"
+    },
+    {
+      "filename": "Brooklyn Museum - But No Man Laid Hands Upon Him (Les satellites ne prirent point Jésus) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "But No Man Laid Hands Upon Him"
+    },
+    {
+      "filename": "Brooklyn Museum - Christ Appears on the Shore of Lake Tiberias (Apparition du Christ sur les bords du lac de Tibériade) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Christ Appears on the Shore of Lake Tiberias"
+    },
+    {
+      "filename": "Brooklyn Museum - Christ Retreats to the Mountain at Night (Jésus se retira la nuit sur la montagne) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Christ Retreats to the Mountain at Night"
+    },
+    {
+      "filename": "Brooklyn Museum - Column Jerusalem - James Tissot - 2.jpg",
+      "reason": "no-passage",
+      "title": "Column, Jerusalem"
+    },
+    {
+      "filename": "Brooklyn Museum - Column Jerusalem - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Column, Jerusalem"
+    },
+    {
+      "filename": "Brooklyn Museum - Conspiracy of the Jews (Conspiration des juifs) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Conspiracy of the Jews"
+    },
+    {
+      "filename": "Brooklyn Museum - Curses Against the Pharisees (Imprécations contre les pharisiens) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Curses Against the Pharisees"
+    },
+    {
+      "filename": "Brooklyn Museum - Esplanade of the Haram (Esplanade du Haram) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Esplanade of the Haram"
+    },
+    {
+      "filename": "Brooklyn Museum - Feed My Lambs (Pais mes brebis) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Feed My Lambs"
+    },
+    {
+      "filename": "Brooklyn Museum - Fig-tree Valley of Hinnom - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Fig-tree, Valley of Hinnom"
+    },
+    {
+      "filename": "Brooklyn Museum - Garden of the Citadel Caire (Jardin de la citadelle Caire) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Garden of the Citadel, Caire"
+    },
+    {
+      "filename": "Brooklyn Museum - Get Thee Behind Me Satan (Rétire-toi Satan) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Get Thee Behind Me, Satan"
+    },
+    {
+      "filename": "Brooklyn Museum - Good Friday Morning Jesus in Prison (Le matin Vendredi Saint Jésus en prison) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Good Friday Morning: Jesus in Prison"
+    },
+    {
+      "filename": "Brooklyn Museum - He Did No Miracles But He Healed Them (Il ne fit pas des miracles mais il guérit) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Did No Miracles But He Healed Them"
+    },
+    {
+      "filename": "Brooklyn Museum - He Heals the Lame (Il guérit les boiteux) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Heals the Lame"
+    },
+    {
+      "filename": "Brooklyn Museum - He Sent them out Two by Two (Il les envoya deux à deux) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "He Sent them out Two by Two"
+    },
+    {
+      "filename": "Brooklyn Museum - He Vanished from Their Sight (Il disparut à leurs yeux) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Vanished from Their Sight"
+    },
+    {
+      "filename": "Brooklyn Museum - He Went on His Way to Ephraim (Il s'en alla à Ephrem) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Went on His Way to Ephraim"
+    },
+    {
+      "filename": "Brooklyn Museum - He Went Through the Villages on the Way to Jerusalem (Il allait par les villages en route pour Jérusalem) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "He Went Through the Villages on the Way to Jerusalem"
+    },
+    {
+      "filename": "Brooklyn Museum - He Who is of God Hears the Word of God (Celui de Dieu entend la parole de Dieu) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Who is of God Hears the Word of God"
+    },
+    {
+      "filename": "Brooklyn Museum - He Who Winnows His Wheat (Celui qui vane le blé) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "He Who Winnows His Wheat"
+    },
+    {
+      "filename": "Brooklyn Museum - Healing of the Lepers at Capernaum (Guérison des lépreux à Capernaum) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Healing of the Lepers at Capernaum"
+    },
+    {
+      "filename": "Brooklyn Museum - Herod (Hérode) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Herod"
+    },
+    {
+      "filename": "Brooklyn Museum - In Old Cairo (Au vieux Caire) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "In Old Cairo"
+    },
+    {
+      "filename": "Brooklyn Museum - In the Villages the Sick Were Presented to Him (Dans les villages on lui présentait des malades) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "In the Villages the Sick Were Presented to Him"
+    },
+    {
+      "filename": "Brooklyn Museum - Indiciphered Drawing - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Indiciphered Drawing"
+    },
+    {
+      "filename": "Brooklyn Museum - Interview between Jesus and Nicodemus (Entretien de Jésus et de Nicodème) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Interview between Jesus and Nicodemus"
+    },
+    {
+      "filename": "Brooklyn Museum - It Is Finished (Consummatum Est) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "It Is Finished"
+    },
+    {
+      "filename": "Brooklyn Museum - Jerusalem Jerusalem (Jérusalem Jérusalem) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jerusalem Jerusalem"
+    },
+    {
+      "filename": "Brooklyn Museum - Jerusalem Seen from the Mount of Olives - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jerusalem Seen from the Mount of Olives"
+    },
+    {
+      "filename": "Brooklyn Museum - Jerusalem South-East Corner Taken from the Road to Bethany - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jerusalem, South-East Corner, Taken from the Road to Bethany"
+    },
+    {
+      "filename": "Brooklyn Museum - Jerusalem Taken from the Mount of Evil Counsel (Jérusalem vue prise du mont du Mauvais-Conseil) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jerusalem Taken from the Mount of Evil Counsel"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Alone on the Cross (Jésus seul sur la Croix) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Alone on the Cross"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Among the Doctors (Jésus parmi les docteurs) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Among the Doctors"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus and his Mother at the Fountain (Jésus et sa mère à la fontaine) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus and his Mother at the Fountain"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus and the Little Child (Jésus et le petit enfant) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus and the Little Child"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Appears to Mary Magdalene (Apparition de Jésus à Madeleine) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Appears to Mary Magdalene"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Appears to the Holy Women (Apparition de Jésus aux saintes femmes) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Appears to the Holy Women"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Bearing the Cross (Jésus chargé de la Croix) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Bearing the Cross"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Before Herod (Jésus devant Hérode) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Before Herod"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Before Pilate First Interview (Jésus devant Pilate. Premier entretien). - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Before Pilate, First Interview (Jésus devant Pilate. Premier entretien)."
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Before Pilate Second Interview (Jésus devant Pilate. Deuxième entretien) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Before Pilate, Second Interview"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Carried to the Tomb (Jésus porté au tombeau) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Carried to the Tomb"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Carried up to a Pinnacle of the Temple (Jésus porté sur le pinacle du Temple) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Carried up to a Pinnacle of the Temple"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Chases a Possessed Man from the Synagogue (Jésus chasse un possédé de la synagogue) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Chases a Possessed Man from the Synagogue"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Commands the Apostles to Rest (Jésus engage les apôtres à se reposer) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Commands the Apostles to Rest"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Discourses with His Disciples (Jésus s'entretient avec ses disciples) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Discourses with His Disciples"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Falls Beneath the Cross (Jésus tombe sous la Croix) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Falls Beneath the Cross"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Forbids the Carrying of Loads in the Forecourt of the Temple - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Forbids the Carrying of Loads in the Forecourt of the Temple"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Found in the Temple (Jesus retrouvé dans le temple) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Found in the Temple"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Goes in the Evening to Bethany (Jésus va le soir à Béthanie) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Goes in the Evening to Bethany"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Goes Up Alone onto a Mountain to Pray (Jésus monte seul sur une montagne pour prier) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Goes Up Alone onto a Mountain to Pray"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Heals a Mute Possessed Man (Jésus guérit un possédé muet) - James Tissot (cropped).jpg",
+      "reason": "no-passage",
+      "title": "Jesus Heals a Mute Possessed Man"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Heals a Mute Possessed Man (Jésus guérit un possédé muet) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Heals a Mute Possessed Man"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Heals the Blind and Lame on the Mountain (Sur la montagne Jésus guérit les aveugles et les boiteux) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Heals the Blind and Lame on the Mountain"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus in the Sepulchre (Jésus dans le sépulcre) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus in the Sepulchre"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Leaves the Praetorium (Jésus quitte le pretoire) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Leaves the Praetorium"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Led from Caiaphas to Pilate (Jésus conduit de Caïphe à Pilate) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Led from Caiaphas to Pilate"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Led from Herod to Pilate (Jésus emmené de Hérode à Pilate) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Led from Herod to Pilate"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Looking through a Lattice (Jésus regardant à travers le treillis) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Looking through a Lattice"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Mary Magdalene and Martha at Bethany (Jésus à Bethanie Marie Madeleine et Marthe) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus, Mary Magdalene, and Martha at Bethany"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Meets His Mother (Jésus rencontre sa mère) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Meets His Mother"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Ministered to by Angels (Jésus assisté par les anges) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Ministered to by Angels"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Ministered to by Angels (Jésus assisté par les anges) - James Tissot - overallFXD.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Ministered to by Angels"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Preaches in a Ship (Jésus prèche dans une barque) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Preaches in a Ship"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Sits by the Seashore and Preaches (Jésus s'assied au bord de la mer et prêche) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Sits by the Seashore and Preaches"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Sleeping During the Tempest (Jésus dormant pendant la tempête) - James Tissot - overall.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Sleeping During the Tempest"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Speaks Near the Treasury (Jésus parle près du trésor) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Speaks Near the Treasury"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Stripped of His Clothing (Jésus dépouillé des ses vêtements) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Stripped of His Clothing"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Taken from the Cistern (Jésus tiré de la citerne) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Taken from the Cistern"
+    },
+    {
+      "filename": "Brooklyn Museum - Jesus Teaches in the Synagogues (Jésus enseigne dans les synagogues) - James Tissot.jpg",
+      "reason": "no-passage",
+      "title": "Jesus Teaches in the Synagogues"
+    }
+  ]
+}

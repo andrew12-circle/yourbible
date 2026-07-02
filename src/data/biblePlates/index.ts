@@ -1,11 +1,12 @@
 import dorePlatesJson from "./dorePlates.json";
 import { EXTRA_PLATES } from "./extraPlates";
-import { TISSOT_PLATES } from "./tissotPlates";
+import tissotPlatesJson from "./tissotPlates.json";
 import type { BiblePlate } from "./types";
 
 export type { BiblePlate, BiblePlateKind, BiblePlateLicense, BiblePlateSource, ChapterContextBundle, ChapterTimelineEvent } from "./types";
 
 export const DORE_PLATES = dorePlatesJson as BiblePlate[];
+export const TISSOT_PLATES = tissotPlatesJson as BiblePlate[];
 
 /** All chapter-linked plates, sorted by priority then verse slot. */
 export const BIBLE_PLATES: BiblePlate[] = [...DORE_PLATES, ...TISSOT_PLATES, ...EXTRA_PLATES].sort((a, b) => {
