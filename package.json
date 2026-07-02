@@ -21,6 +21,7 @@
     "generate:wlc": "node scripts/gen-hebrew-wlc.mjs",
     "generate:sblgnt": "node scripts/gen-greek-sblgnt.mjs",
     "generate:bible-plates": "node scripts/gen-bible-plates.mjs",
+    "validate:bible-plates": "node scripts/validate-bible-plates.mjs",
     "ingest:csb": "npx tsx scripts/ingest-csb.ts"
   },
   "dependencies": {

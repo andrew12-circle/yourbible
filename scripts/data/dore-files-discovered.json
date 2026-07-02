@@ -1,0 +1,1732 @@
+[
+  {
+    "n": 1,
+    "b": "Gen",
+    "c": 1,
+    "v": 1,
+    "r": "Genesis 1:3",
+    "t": "The Creation of Light",
+    "filename": "001.The Creation of Light.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 2,
+    "b": "Gen",
+    "c": 2,
+    "v": 1,
+    "r": "Genesis 2:21",
+    "t": "The Creation of Eve",
+    "filename": "002.The Creation of Eve.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 3,
+    "b": "Gen",
+    "c": 3,
+    "v": 1,
+    "r": "Genesis 3:23",
+    "t": "Adam and Eve Are Driven out of Eden",
+    "filename": "003.Adam and Eve Are Driven out of Eden.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 4,
+    "b": "Gen",
+    "c": 4,
+    "v": 1,
+    "r": "Genesis 4:3",
+    "t": "Cain and Abel Offer Their Sacrifices",
+    "filename": "004.Cain and Abel Offer Their Sacrifices.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 5,
+    "b": "Gen",
+    "c": 4,
+    "v": 8,
+    "r": "Genesis 4:8",
+    "t": "Cain Slays Abel",
+    "filename": "005.Cain Slays Abel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 6,
+    "b": "Gen",
+    "c": 6,
+    "v": 1,
+    "r": "Genesis 6:13",
+    "t": "The World Is Destroyed by Water",
+    "filename": "006.The World Is Destroyed by Water.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 7,
+    "b": "Gen",
+    "c": 7,
+    "v": 1,
+    "r": "Genesis 7:17",
+    "t": "The Great Flood",
+    "filename": "007.The Great Flood.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 8,
+    "b": "Gen",
+    "c": 8,
+    "v": 8,
+    "r": "Genesis 8:8",
+    "t": "A Dove Is Sent Forth from the Ark",
+    "filename": "008.A Dove Is Sent Forth from the Ark.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 9,
+    "b": "Gen",
+    "c": 9,
+    "v": 1,
+    "r": "Genesis 9:25",
+    "t": "Noah Curses Ham and Canaan",
+    "filename": "009.Noah Curses Ham and Canaan.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 10,
+    "b": "Gen",
+    "c": 11,
+    "v": 1,
+    "r": "Genesis 11:4",
+    "t": "The Tower of Babel",
+    "filename": "010.The Tower of Babel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 11,
+    "b": "Gen",
+    "c": 12,
+    "v": 1,
+    "r": "Genesis 12:5",
+    "t": "Abraham Goes to the Land of Canaan",
+    "filename": "011.Abraham Goes to the Land of Canaan.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 12,
+    "b": "Gen",
+    "c": 18,
+    "v": 1,
+    "r": "Genesis 18:2",
+    "t": "Abraham and the Three Angels",
+    "filename": "012.Abraham and the Three Angels.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 13,
+    "b": "Gen",
+    "c": 19,
+    "v": 15,
+    "r": "Genesis 19:24",
+    "t": "Lot Flees as Sodom and Gomorrah Burn",
+    "filename": "013.Lot Flees as Sodom and Gomorrah Burn.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 14,
+    "b": "Gen",
+    "c": 21,
+    "v": 14,
+    "r": "Genesis 21:14",
+    "t": "Abraham Sends Hagar and Ishmael Away",
+    "filename": "014.Abraham Sends Hagar and Ishmael Away.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 15,
+    "b": "Gen",
+    "c": 21,
+    "v": 15,
+    "r": "Genesis 21:16",
+    "t": "Hagar and Ishmael in the Wilderness",
+    "filename": "015.Hagar and Ishmael in the Wilderness.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 16,
+    "b": "Gen",
+    "c": 22,
+    "v": 1,
+    "r": "Genesis 22:9",
+    "t": "The Testing of Abraham's Faith",
+    "filename": "016.The Testing of Abraham's Faith.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 17,
+    "b": "Gen",
+    "c": 23,
+    "v": 1,
+    "r": "Genesis 23:19",
+    "t": "The Burial of Sarah",
+    "filename": "017.The Burial of Sarah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 18,
+    "b": "Gen",
+    "c": 24,
+    "v": 11,
+    "r": "Genesis 24:15",
+    "t": "Eliezer and Rebekah at the Well",
+    "filename": "018.Eliezer and Rebekah at the Well.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 19,
+    "b": "Gen",
+    "c": 24,
+    "v": 62,
+    "r": "Genesis 24:62",
+    "t": "The Meeting of Isaac and Rebekah",
+    "filename": "019.The Meeting of Isaac and Rebekah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 20,
+    "b": "Gen",
+    "c": 27,
+    "v": 1,
+    "r": "Genesis 27:27",
+    "t": "Isaac Blesses Jacob",
+    "filename": "020.Isaac Blesses Jacob.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 21,
+    "b": "Gen",
+    "c": 28,
+    "v": 12,
+    "r": "Genesis 28:12",
+    "t": "Jacob's Dream",
+    "filename": "021.Jacob's Dream.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 22,
+    "b": "Gen",
+    "c": 29,
+    "v": 1,
+    "r": "Genesis 29:10",
+    "t": "Jacob Tends Laban's Flocks and Meets Rachel",
+    "filename": "022.Jacob Tends Laban's Flocks and Meets Rachel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 23,
+    "b": "Gen",
+    "c": 32,
+    "v": 9,
+    "r": "Genesis 32:9",
+    "t": "Jacob Prays for Protection",
+    "filename": "023.Jacob Prays for Protection.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 24,
+    "b": "Gen",
+    "c": 32,
+    "v": 24,
+    "r": "Genesis 32:24",
+    "t": "Jacob Wrestles with the Angel",
+    "filename": "024.Jacob Wrestles with the Angel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 25,
+    "b": "Gen",
+    "c": 33,
+    "v": 1,
+    "r": "Genesis 33:4",
+    "t": "Jacob and Esau Meet",
+    "filename": "025.Jacob and Esau Meet.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 26,
+    "b": "Gen",
+    "c": 37,
+    "v": 28,
+    "r": "Genesis 37:28",
+    "t": "Joseph Is Sold by His Brothers",
+    "filename": "026.Joseph Is Sold by His Brothers.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 27,
+    "b": "Gen",
+    "c": 41,
+    "v": 1,
+    "r": "Genesis 41:25",
+    "t": "Joseph Interprets Pharaoh's Dream",
+    "filename": "027.Joseph Interprets Pharaoh's Dream.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 28,
+    "b": "Gen",
+    "c": 45,
+    "v": 1,
+    "r": "Genesis 45:1",
+    "t": "Joseph Reveals Himself to His Brothers",
+    "filename": "028.Joseph Reveals Himself to His Brothers.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 29,
+    "b": "Gen",
+    "c": 46,
+    "v": 1,
+    "r": "Genesis 46:5",
+    "t": "Jacob Goes to Egypt",
+    "filename": "029.Jacob Goes to Egypt.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 30,
+    "b": "Exo",
+    "c": 2,
+    "v": 3,
+    "r": "Exodus 2:3",
+    "t": "The Child Moses on the Nile",
+    "filename": "030.The Child Moses on the Nile.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 31,
+    "b": "Exo",
+    "c": 2,
+    "v": 5,
+    "r": "Exodus 2:5",
+    "t": "The Finding of Moses",
+    "filename": "031.The Finding of Moses.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 32,
+    "b": "Exo",
+    "c": 5,
+    "v": 1,
+    "r": "Exodus 5:1",
+    "t": "Moses and Aaron Appear before Pharaoh",
+    "filename": "032.Moses and Aaron Appear before Pharaoh.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 33,
+    "b": "Exo",
+    "c": 9,
+    "v": 1,
+    "r": "Exodus 9:3",
+    "t": "The Fifth Plague. Livestock Disease",
+    "filename": "033.The Fifth Plague. Livestock Disease.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 34,
+    "b": "Exo",
+    "c": 10,
+    "v": 21,
+    "r": "Exodus 10:22",
+    "t": "The Ninth Plague. Darkness",
+    "filename": "034.The Ninth Plague. Darkness.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 35,
+    "b": "Exo",
+    "c": 12,
+    "v": 29,
+    "r": "Exodus 12:29",
+    "t": "The Firstborn of the Egyptians Are Slain",
+    "filename": "035.The Firstborn of the Egyptians Are Slain.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 36,
+    "b": "Exo",
+    "c": 12,
+    "v": 31,
+    "r": "Exodus 12:31",
+    "t": "The Egyptians Ask Moses to Depart",
+    "filename": "036.The Egyptians Ask Moses to Depart.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 37,
+    "b": "Exo",
+    "c": 14,
+    "v": 1,
+    "r": "Exodus 14:23",
+    "t": "The Egyptians Drown in the Sea",
+    "filename": "037.The Egyptians Drown in the Sea.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 38,
+    "b": "Exo",
+    "c": 20,
+    "v": 1,
+    "r": "Exodus 20:1",
+    "t": "The Giving of the Law on Mount Sinai",
+    "filename": "038.The Giving of the Law on Mount Sinai.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 39,
+    "b": "Exo",
+    "c": 32,
+    "v": 15,
+    "r": "Exodus 32:15",
+    "t": "Moses Comes Down from Mount Sinai",
+    "filename": "039.Moses Comes Down from Mount Sinai.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 40,
+    "b": "Num",
+    "c": 16,
+    "v": 1,
+    "r": "Numbers 16:32",
+    "t": "The Death of Korah, Dathan, and Abiram",
+    "filename": "040.The Death of Korah, Dathan, and Abiram.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 41,
+    "b": "Num",
+    "c": 20,
+    "v": 11,
+    "r": "Numbers 20:11",
+    "t": "Moses Strikes the Rock at Horeb",
+    "filename": "041.Moses Strikes the Rock at Horeb.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 42,
+    "b": "Exo",
+    "c": 32,
+    "v": 19,
+    "r": "Exodus 32:19",
+    "t": "Moses Breaks the Tables of the Law",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 43,
+    "b": "Num",
+    "c": 13,
+    "v": 26,
+    "r": "Numbers 13:26",
+    "t": "The Spies Return from the Promised Land",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 44,
+    "b": "Num",
+    "c": 21,
+    "v": 9,
+    "r": "Numbers 21:9",
+    "t": "The Bronze Serpent",
+    "filename": "042.The Bronze Serpent.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 45,
+    "b": "Num",
+    "c": 22,
+    "v": 31,
+    "r": "Numbers 22:31",
+    "t": "An Angel Appears to Balaam",
+    "filename": "043.An Angel Appears to Balaam.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 46,
+    "b": "Jos",
+    "c": 3,
+    "v": 14,
+    "r": "Joshua 3:14",
+    "t": "The Israelites Cross the Jordan River",
+    "filename": "044. The Israelites Cross the Jordan River.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 47,
+    "b": "Jos",
+    "c": 5,
+    "v": 13,
+    "r": "Joshua 5:13",
+    "t": "An Angel Appears to the Israelites",
+    "filename": "045. An Angel Appears to the Israelites.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 48,
+    "b": "Jos",
+    "c": 6,
+    "v": 1,
+    "r": "Joshua 6:20",
+    "t": "The Walls of Jericho Fall Down",
+    "filename": "046.The Walls of Jericho Fall Down.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 49,
+    "b": "Jos",
+    "c": 6,
+    "v": 25,
+    "r": "Joshua 6:25",
+    "t": "Joshua Spares Rahab",
+    "filename": "047.Joshua Spares Rahab.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 50,
+    "b": "Jos",
+    "c": 7,
+    "v": 25,
+    "r": "Joshua 7:25",
+    "t": "Achan Is Stoned to Death",
+    "filename": "048.Achan Is Stoned to Death.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 51,
+    "b": "Jos",
+    "c": 8,
+    "v": 28,
+    "r": "Joshua 8:28",
+    "t": "Joshua Burns the Town of Ai",
+    "filename": "049.Joshua Burns the Town of Ai.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 52,
+    "b": "Jos",
+    "c": 10,
+    "v": 10,
+    "r": "Joshua 10:10",
+    "t": "The Army of the Amorites Is Destroyed",
+    "filename": "050.The Army of the Amorites Is Destroyed.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 53,
+    "b": "Jos",
+    "c": 10,
+    "v": 12,
+    "r": "Joshua 10:12",
+    "t": "Joshua Commands the Sun to Stand Still",
+    "filename": "051.Joshua Commands the Sun to Stand Still.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 54,
+    "b": "Jdg",
+    "c": 4,
+    "v": 21,
+    "r": "Judges 4:21",
+    "t": "Jael Kills Sisera",
+    "filename": "052.Jael Kills Sisera.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 55,
+    "b": "Jdg",
+    "c": 5,
+    "v": 1,
+    "r": "Judges 5:7",
+    "t": "Deborah Praises Jael",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 56,
+    "b": "Jdg",
+    "c": 7,
+    "v": 7,
+    "r": "Judges 7:7",
+    "t": "Gideon Chooses 300 Soldiers",
+    "filename": "054.Gideon Chooses 300 Soldiers.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 57,
+    "b": "Jdg",
+    "c": 7,
+    "v": 21,
+    "r": "Judges 7:21",
+    "t": "The Midianites Are Routed",
+    "filename": "055.The Midianites Are Routed.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 58,
+    "b": "Jdg",
+    "c": 9,
+    "v": 5,
+    "r": "Judges 9:5",
+    "t": "The Death of Gideon's Sons",
+    "filename": "056.The Death of Gideon's Sons.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 59,
+    "b": "Jdg",
+    "c": 9,
+    "v": 53,
+    "r": "Judges 9:53",
+    "t": "The Death of Abimelech",
+    "filename": "057.The Death of Abimelech.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 60,
+    "b": "Jdg",
+    "c": 11,
+    "v": 34,
+    "r": "Judges 11:34",
+    "t": "Jephthah's Daughter Comes to Meet Her Father",
+    "filename": "058.Jephthah's Daughter Comes to Meet Her Father.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 61,
+    "b": "Jdg",
+    "c": 11,
+    "v": 37,
+    "r": "Judges 11:37",
+    "t": "Israelite Women Mourn with Jephthah's Daughter",
+    "filename": "059.Israelite Women Mourn with Jephthah's Daughter.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 62,
+    "b": "Jdg",
+    "c": 14,
+    "v": 6,
+    "r": "Judges 14:6",
+    "t": "Samson Slays a Lion",
+    "filename": "060.Samson Slays a Lion.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 63,
+    "b": "Jdg",
+    "c": 15,
+    "v": 15,
+    "r": "Judges 15:15",
+    "t": "Samson Destroys the Philistines with an Ass' Jawbone",
+    "filename": "061.Samson Destroys the Philistines with an Ass' Jawbone.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 64,
+    "b": "Jdg",
+    "c": 16,
+    "v": 3,
+    "r": "Judges 16:3",
+    "t": "Samson Carries away the Gates of Gaza",
+    "filename": "062.Samson Carries away the Gates of Gaza.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 65,
+    "b": "Jdg",
+    "c": 16,
+    "v": 1,
+    "r": "Judges 16:19",
+    "t": "Samson and Delilah",
+    "filename": "063.Samson and Delilah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 66,
+    "b": "Jdg",
+    "c": 16,
+    "v": 30,
+    "r": "Judges 16:30",
+    "t": "The Death of Samson",
+    "filename": "064.The Death of Samson.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 67,
+    "b": "Jdg",
+    "c": 19,
+    "v": 27,
+    "r": "Judges 19:27",
+    "t": "A Levite Finds a Woman's Corpse",
+    "filename": "065.A Levite Finds a Woman's Corpse.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 68,
+    "b": "Rut",
+    "c": 1,
+    "v": 1,
+    "r": "Ruth 1:8",
+    "t": "Naomi and Her Daughters-in-Law",
+    "filename": "068.Naomi and Her Daughters-in-Law.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 69,
+    "b": "Rut",
+    "c": 2,
+    "v": 1,
+    "r": "Ruth 2:8",
+    "t": "Ruth and Boaz",
+    "filename": "069.Ruth and Boaz.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 70,
+    "b": "1Sa",
+    "c": 6,
+    "v": 13,
+    "r": "1 Samuel 6:13",
+    "t": "The Ark Is Returned to Beth-shemesh",
+    "filename": "070.The Ark Is Returned to Beth-shemesh.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 71,
+    "b": "1Sa",
+    "c": 10,
+    "v": 1,
+    "r": "1 Samuel 10:1",
+    "t": "Samuel Blesses Saul",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 72,
+    "b": "1Sa",
+    "c": 15,
+    "v": 33,
+    "r": "1 Samuel 15:33",
+    "t": "The Death of Agag",
+    "filename": "071.The Death of Agag.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 73,
+    "b": "1Sa",
+    "c": 17,
+    "v": 1,
+    "r": "1 Samuel 17:49",
+    "t": "David Slays Goliath",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 74,
+    "b": "1Sa",
+    "c": 19,
+    "v": 10,
+    "r": "1 Samuel 19:10",
+    "t": "Saul Attempts to Kill David",
+    "filename": "072.Saul Attempts to Kill David.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 75,
+    "b": "1Sa",
+    "c": 19,
+    "v": 12,
+    "r": "1 Samuel 19:12",
+    "t": "David Escapes through a Window",
+    "filename": "073.David Escapes through a Window.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 76,
+    "b": "1Sa",
+    "c": 20,
+    "v": 41,
+    "r": "1 Samuel 20:41",
+    "t": "David and Jonathan",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 77,
+    "b": "1Sa",
+    "c": 24,
+    "v": 10,
+    "r": "1 Samuel 24:10",
+    "t": "David Shows Saul How He Spared His Life",
+    "filename": "074.David Shows Saul How He Spared His Life.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 78,
+    "b": "1Sa",
+    "c": 28,
+    "v": 8,
+    "r": "1 Samuel 28:8",
+    "t": "Saul and the Witch of Endor",
+    "filename": "075.Saul and the Witch of Endor.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 79,
+    "b": "1Sa",
+    "c": 31,
+    "v": 4,
+    "r": "1 Samuel 31:4",
+    "t": "The Death of Saul",
+    "filename": "076.The Death of Saul.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 80,
+    "b": "2Sa",
+    "c": 10,
+    "v": 14,
+    "r": "2 Samuel 10:14",
+    "t": "David Attacks the Ammonites",
+    "filename": "079.David Attacks the Ammonites.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 81,
+    "b": "2Sa",
+    "c": 18,
+    "v": 14,
+    "r": "2 Samuel 18:14",
+    "t": "The Death of Absalom",
+    "filename": "080.The Death of Absalom.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 82,
+    "b": "2Sa",
+    "c": 18,
+    "v": 33,
+    "r": "2 Samuel 18:33",
+    "t": "David Mourns the Death of Absalom",
+    "filename": "081.David Mourns the Death of Absalom.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 83,
+    "b": "2Sa",
+    "c": 21,
+    "v": 16,
+    "r": "2 Samuel 21:16",
+    "t": "Abishai Saves David's Life",
+    "filename": "083.Abishai Saves David's Life.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 84,
+    "b": "1Ki",
+    "c": 3,
+    "v": 16,
+    "r": "1 Kings 3:16",
+    "t": "The Judgment of Solomon",
+    "filename": "084.The Judgment of Solomon.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 85,
+    "b": "1Ki",
+    "c": 5,
+    "v": 1,
+    "r": "1 Kings 5:8",
+    "t": "Cedars Are Cut Down for the Jerusalem Temple",
+    "filename": "085.Cedars Are Cut Down for the Jerusalem Temple.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 86,
+    "b": "1Ki",
+    "c": 10,
+    "v": 1,
+    "r": "1 Kings 10:1",
+    "t": "Solomon Receives the Queen of Sheba",
+    "filename": "086.Solomon Receives the Queen of Sheba.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 87,
+    "b": "1Ki",
+    "c": 11,
+    "v": 1,
+    "r": "1 Kings 11:4",
+    "t": "King Solomon in Old Age",
+    "filename": "087.King Solomon in Old Age.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 88,
+    "b": "1Ki",
+    "c": 13,
+    "v": 24,
+    "r": "1 Kings 13:24",
+    "t": "The Disobedient Prophet Is Slain by a Lion",
+    "filename": "088.The Disobedient Prophet Is Slain by a Lion.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 89,
+    "b": "1Ki",
+    "c": 17,
+    "v": 17,
+    "r": "1 Kings 17:17",
+    "t": "Elijah Raises the Son of the Widow of Zarephath",
+    "filename": "089.Elijah Raises the Son of the Widow of Zarephath.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 90,
+    "b": "1Ki",
+    "c": 18,
+    "v": 40,
+    "r": "1 Kings 18:40",
+    "t": "The Prophets of Baal Are Slaughtered",
+    "filename": "090.The Prophets of Baal Are Slaughtered.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 91,
+    "b": "1Ki",
+    "c": 19,
+    "v": 5,
+    "r": "1 Kings 19:5",
+    "t": "Elijah Is Nourished by an Angel",
+    "filename": "091.Elijah Is Nourished by an Angel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 92,
+    "b": "1Ki",
+    "c": 20,
+    "v": 21,
+    "r": "1 Kings 20:29",
+    "t": "The Israelites Slaughter the Syrians",
+    "filename": "092.The Israelites Slaughter the Syrians.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 93,
+    "b": "1Ki",
+    "c": 22,
+    "v": 34,
+    "r": "1 Kings 22:34",
+    "t": "The Death of Ahab",
+    "filename": "093.The Death of Ahab.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 94,
+    "b": "2Ki",
+    "c": 1,
+    "v": 10,
+    "r": "2 Kings 1:10",
+    "t": "Elijah Destroys the Messengers of Ahaziah",
+    "filename": "094.Elijah Destroys the Messengers of Ahaziah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 95,
+    "b": "2Ki",
+    "c": 2,
+    "v": 11,
+    "r": "2 Kings 2:11",
+    "t": "Elijah Ascends to Heaven in a Chariot of Fire",
+    "filename": "095.Elijah Ascends to Heaven in a Chariot of Fire.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 96,
+    "b": "2Ki",
+    "c": 2,
+    "v": 24,
+    "r": "2 Kings 2:24",
+    "t": "Some Children Are Destroyed by Bears",
+    "filename": "095.Some Children Are Destroyed by Bears.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 97,
+    "b": "2Ki",
+    "c": 6,
+    "v": 25,
+    "r": "2 Kings 6:25",
+    "t": "A Famine in Samaria",
+    "filename": "096.A Famine in Samaria.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 98,
+    "b": "2Ki",
+    "c": 9,
+    "v": 30,
+    "r": "2 Kings 9:33",
+    "t": "The Death of Jezebel",
+    "filename": "097.The Death of Jezebel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 99,
+    "b": "2Ki",
+    "c": 19,
+    "v": 35,
+    "r": "2 Kings 19:35",
+    "t": "Sennacherib's Army Is Destroyed",
+    "filename": "101.Sennacherib's Army Is Destroyed.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 100,
+    "b": "2Ki",
+    "c": 25,
+    "v": 7,
+    "r": "2 Kings 25:7",
+    "t": "Zedekiah's Sons Are Slaughtered before His Eyes",
+    "filename": "102.Zedekiah's Sons Are Slaughtered before His Eyes.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 101,
+    "b": "Ezr",
+    "c": 1,
+    "v": 7,
+    "r": "Ezra 1:7",
+    "t": "Cyrus Restores the Vessels of the Temple",
+    "filename": "104.Cyrus Restores the Vessels of the Temple.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 102,
+    "b": "Ezr",
+    "c": 3,
+    "v": 8,
+    "r": "Ezra 3:8",
+    "t": "The Rebuilding of the Temple Is Begun",
+    "filename": "105.The Rebuilding of the Temple Is Begun.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 103,
+    "b": "Neh",
+    "c": 8,
+    "v": 1,
+    "r": "Nehemiah 8:1",
+    "t": "Ezra Reads the Law to the People",
+    "filename": "109.Ezra Reads the Law to the People.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 104,
+    "b": "Est",
+    "c": 1,
+    "v": 12,
+    "r": "Esther 1:12",
+    "t": "Queen Vashti Refuses to Obey Ahasuerus' Command",
+    "filename": "114.Queen Vashti Refuses to Obey Ahasuerus' Command.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 105,
+    "b": "Est",
+    "c": 5,
+    "v": 1,
+    "r": "Esther 5:1",
+    "t": "Esther Before the King",
+    "filename": "115.Esther Before the King.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 106,
+    "b": "Est",
+    "c": 7,
+    "v": 6,
+    "r": "Esther 7:6",
+    "t": "Esther Accuses Haman",
+    "filename": "117.Esther Accuses Haman.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 107,
+    "b": "Job",
+    "c": 1,
+    "v": 1,
+    "r": "Job 1:13",
+    "t": "Job Hears of His Misfortunes",
+    "filename": "118.Job Hears of His Misfortunes.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 108,
+    "b": "Job",
+    "c": 2,
+    "v": 11,
+    "r": "Job 2:11",
+    "t": "Job Speaks with His Friends",
+    "filename": "119.Job Speaks with His Friends.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 109,
+    "b": "Isa",
+    "c": 1,
+    "v": 1,
+    "r": "Isaiah 1:1",
+    "t": "The Prophet Isaiah",
+    "filename": "120.The Prophet Isaiah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 121,
+    "b": "Isa",
+    "c": 6,
+    "v": 1,
+    "r": "Isaiah 6:1",
+    "t": "Isaiah's Vision of the Destruction of Babylon",
+    "filename": "121.Isaiah's_Vision_of_the_Destruction_of_Babylon.jpg",
+    "method": "override"
+  },
+  {
+    "n": 111,
+    "b": "Jer",
+    "c": 1,
+    "v": 1,
+    "r": "Jeremiah 1:1",
+    "t": "The Prophet Jeremiah",
+    "filename": "123.The Prophet Jeremiah.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 112,
+    "b": "Jer",
+    "c": 52,
+    "v": 1,
+    "r": "Jeremiah 52:12",
+    "t": "People Mourn over the Destruction of Jerusalem",
+    "filename": "124.People Mourn over the Destruction of Jerusalem.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 113,
+    "b": "Ezk",
+    "c": 1,
+    "v": 1,
+    "r": "Ezekiel 1:1",
+    "t": "The Prophet Ezekiel",
+    "filename": "126.The Prophet Ezekiel.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 114,
+    "b": "Ezk",
+    "c": 37,
+    "v": 1,
+    "r": "Ezekiel 37:1",
+    "t": "Ezekiel's Vision of the Valley of Dry Bones",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 115,
+    "b": "Dan",
+    "c": 1,
+    "v": 1,
+    "r": "Daniel 1:1",
+    "t": "Daniel among the Exiles",
+    "filename": "128.Daniel among the Exiles.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 89,
+    "b": "Dan",
+    "c": 3,
+    "v": 1,
+    "r": "Daniel 3:23",
+    "t": "Shadrach, Meshach and Abednego in the Furnace",
+    "filename": "089.Shadrach,_Meshach,_and_Abednego.jpg",
+    "method": "override"
+  },
+  {
+    "n": 117,
+    "b": "Dan",
+    "c": 5,
+    "v": 1,
+    "r": "Daniel 5:5",
+    "t": "Daniel Interprets the Writing on the Wall",
+    "filename": "130.Daniel Interprets the Writing on the Wall.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 118,
+    "b": "Dan",
+    "c": 6,
+    "v": 1,
+    "r": "Daniel 6:16",
+    "t": "Daniel in the Lions' Den",
+    "filename": "131.Daniel in the Lions' Den.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 119,
+    "b": "Dan",
+    "c": 7,
+    "v": 1,
+    "r": "Daniel 7:1",
+    "t": "Daniel's Vision of the Four Beasts",
+    "filename": "132.Daniel's Vision of the Four Beasts.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 78,
+    "b": "Jon",
+    "c": 1,
+    "v": 1,
+    "r": "Jonah 1:15",
+    "t": "Jonah Cast Into the Sea",
+    "filename": "078.Jonah_Cast_Into_the_Sea.jpg",
+    "method": "override"
+  },
+  {
+    "n": 120,
+    "b": "Jon",
+    "c": 2,
+    "v": 10,
+    "r": "Jonah 2:10",
+    "t": "Jonah Is Spewed Forth by the Whale",
+    "filename": "137.Jonah Is Spewed Forth by the Whale.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 122,
+    "b": "Jon",
+    "c": 3,
+    "v": 1,
+    "r": "Jonah 3:4",
+    "t": "Jonah Preaches to the Ninevites",
+    "filename": "138.Jonah Preaches to the Ninevites.jpg",
+    "method": "title-exact"
+  },
+  {
+    "n": 139,
+    "b": "Psa",
+    "c": 23,
+    "v": 1,
+    "r": "Psalm 23",
+    "t": "The Good Shepherd",
+    "filename": "139.The_Good_Shepherd.jpg",
+    "method": "override"
+  },
+  {
+    "n": 140,
+    "b": "Luk",
+    "c": 1,
+    "v": 26,
+    "r": "Luke 1:26",
+    "t": "The Annunciation",
+    "filename": "Gustave Dore - The Annunciation.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 141,
+    "b": "Luk",
+    "c": 2,
+    "v": 1,
+    "r": "Luke 2:7",
+    "t": "The Nativity",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 142,
+    "b": "Mat",
+    "c": 2,
+    "v": 1,
+    "r": "Matthew 2:1",
+    "t": "The Wise Men Guided by the Star",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 143,
+    "b": "Mat",
+    "c": 2,
+    "v": 13,
+    "r": "Matthew 2:13",
+    "t": "The Flight Into Egypt",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 144,
+    "b": "Mat",
+    "c": 2,
+    "v": 16,
+    "r": "Matthew 2:16",
+    "t": "The Massacre of the Innocents",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 145,
+    "b": "Luk",
+    "c": 2,
+    "v": 46,
+    "r": "Luke 2:46",
+    "t": "Jesus With the Doctors",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 146,
+    "b": "Mat",
+    "c": 3,
+    "v": 1,
+    "r": "Matthew 3:1",
+    "t": "John the Baptist Preaching in the Wilderness",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 147,
+    "b": "Mat",
+    "c": 3,
+    "v": 13,
+    "r": "Matthew 3:16",
+    "t": "The Baptism of Jesus",
+    "filename": "Gustave Dore - John the Baptist baptizes Jesus.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 148,
+    "b": "Mat",
+    "c": 4,
+    "v": 1,
+    "r": "Matthew 4:1",
+    "t": "The Temptation of Jesus",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 149,
+    "b": "Jhn",
+    "c": 2,
+    "v": 1,
+    "r": "John 2:1",
+    "t": "The Marriage in Cana",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 150,
+    "b": "Jhn",
+    "c": 2,
+    "v": 15,
+    "r": "John 2:15",
+    "t": "The Buyers and Sellers Driven Out of the Temple",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 151,
+    "b": "Jhn",
+    "c": 4,
+    "v": 7,
+    "r": "John 4:7",
+    "t": "Jesus and the Woman of Samaria",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 152,
+    "b": "Luk",
+    "c": 4,
+    "v": 33,
+    "r": "Luke 4:33",
+    "t": "Jesus Healing the Man Possessed With a Devil",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 153,
+    "b": "Luk",
+    "c": 5,
+    "v": 1,
+    "r": "Luke 5:1",
+    "t": "Jesus Preaching at the Sea of Galilee",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 154,
+    "b": "Mat",
+    "c": 5,
+    "v": 1,
+    "r": "Matthew 5:1",
+    "t": "The Sermon on the Mount",
+    "filename": "Dore Bible Sermon on the Mount.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 155,
+    "b": "Luk",
+    "c": 7,
+    "v": 37,
+    "r": "Luke 7:37",
+    "t": "Mary Magdalene Repentant",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 156,
+    "b": "Mar",
+    "c": 4,
+    "v": 37,
+    "r": "Mark 4:37",
+    "t": "Jesus Stilling the Tempest",
+    "filename": "JesusCalmingtheTempestDore.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 157,
+    "b": "Luk",
+    "c": 8,
+    "v": 41,
+    "r": "Luke 8:41",
+    "t": "Jesus Raising Up the Daughter of Jairus",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 158,
+    "b": "Mat",
+    "c": 14,
+    "v": 8,
+    "r": "Matthew 14:8",
+    "t": "The Daughter of Herod Receiving the Head of John the Baptist",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 159,
+    "b": "Mat",
+    "c": 14,
+    "v": 19,
+    "r": "Matthew 14:19",
+    "t": "Christ Feeding the Multitude",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 160,
+    "b": "Mat",
+    "c": 14,
+    "v": 25,
+    "r": "Matthew 14:25",
+    "t": "Jesus Walking on the Sea",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 161,
+    "b": "Mat",
+    "c": 17,
+    "v": 1,
+    "r": "Matthew 17:1",
+    "t": "The Transfiguration",
+    "filename": "Gustave Dore - The Transfiguration.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 162,
+    "b": "Jhn",
+    "c": 8,
+    "v": 3,
+    "r": "John 8:3",
+    "t": "Jesus and the Woman Taken in Adultery",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 163,
+    "b": "Luk",
+    "c": 10,
+    "v": 33,
+    "r": "Luke 10:33",
+    "t": "The Good Samaritan",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 164,
+    "b": "Luk",
+    "c": 10,
+    "v": 38,
+    "r": "Luke 10:38",
+    "t": "Jesus at the House of Martha and Mary",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 165,
+    "b": "Luk",
+    "c": 15,
+    "v": 1,
+    "r": "Luke 15:11",
+    "t": "The Return of the Prodigal Son",
+    "filename": "Gustave Dore - The prodigal son decides to return to his father.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 166,
+    "b": "Luk",
+    "c": 15,
+    "v": 20,
+    "r": "Luke 15:20",
+    "t": "The Prodigal Son in the Arms of His Father",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 167,
+    "b": "Luk",
+    "c": 16,
+    "v": 19,
+    "r": "Luke 16:19",
+    "t": "Lazarus at the Rich Man's House",
+    "filename": "Gustave Dore Lazarus and the Rich Man.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 168,
+    "b": "Mar",
+    "c": 10,
+    "v": 13,
+    "r": "Mark 10:13",
+    "t": "Jesus Blessing the Little Children",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 169,
+    "b": "Jhn",
+    "c": 11,
+    "v": 1,
+    "r": "John 11:43",
+    "t": "Resurrection of Lazarus",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 170,
+    "b": "Mat",
+    "c": 21,
+    "v": 1,
+    "r": "Matthew 21:7",
+    "t": "Entry of Jesus Into Jerusalem",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 171,
+    "b": "Mat",
+    "c": 26,
+    "v": 26,
+    "r": "Matthew 26:26",
+    "t": "The Last Supper",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 172,
+    "b": "Luk",
+    "c": 22,
+    "v": 44,
+    "r": "Luke 22:44",
+    "t": "The Agony in the Garden",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 173,
+    "b": "Mat",
+    "c": 26,
+    "v": 48,
+    "r": "Matthew 26:48",
+    "t": "The Judas Kiss",
+    "filename": "Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 174,
+    "b": "Mat",
+    "c": 26,
+    "v": 69,
+    "r": "Matthew 26:69",
+    "t": "Peter Denying Christ",
+    "filename": "Gustave Doré, St Peter Denying Christ.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 175,
+    "b": "Mat",
+    "c": 27,
+    "v": 26,
+    "r": "Matthew 27:26",
+    "t": "Jesus Scourged",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 176,
+    "b": "Mat",
+    "c": 27,
+    "v": 29,
+    "r": "Matthew 27:29",
+    "t": "The Crown of Thorns",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 177,
+    "b": "Mat",
+    "c": 27,
+    "v": 1,
+    "r": "Matthew 27:35",
+    "t": "The Crucifixion",
+    "filename": "Gustave_Doré_-_Crucifixion_of_Jesus.jpg",
+    "method": "override"
+  },
+  {
+    "n": 178,
+    "b": "Mat",
+    "c": 27,
+    "v": 57,
+    "r": "Matthew 27:57",
+    "t": "The Descent From the Cross",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 179,
+    "b": "Mat",
+    "c": 27,
+    "v": 60,
+    "r": "Matthew 27:60",
+    "t": "The Burial of Christ",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 180,
+    "b": "Mat",
+    "c": 28,
+    "v": 1,
+    "r": "Matthew 28:5",
+    "t": "The Resurrection",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 181,
+    "b": "Luk",
+    "c": 24,
+    "v": 13,
+    "r": "Luke 24:13",
+    "t": "Jesus and the Disciples Going to Emmaus",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 182,
+    "b": "Act",
+    "c": 1,
+    "v": 9,
+    "r": "Acts 1:9",
+    "t": "The Ascension",
+    "filename": "Gustave Doré - L'Ascension.jpg",
+    "method": "nt-curated"
+  },
+  {
+    "n": 183,
+    "b": "Act",
+    "c": 2,
+    "v": 1,
+    "r": "Acts 2:2",
+    "t": "The Descent of the Spirit",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 184,
+    "b": "Act",
+    "c": 3,
+    "v": 1,
+    "r": "Acts 3:6",
+    "t": "Peter and John at the Beautiful Gate",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 185,
+    "b": "Act",
+    "c": 7,
+    "v": 59,
+    "r": "Acts 7:59",
+    "t": "Martydom of Stephen",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 186,
+    "b": "Act",
+    "c": 9,
+    "v": 3,
+    "r": "Acts 9:3",
+    "t": "Conversion of Saul",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 187,
+    "b": "Act",
+    "c": 19,
+    "v": 19,
+    "r": "Acts 19:19",
+    "t": "Paul at Ephesus",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 188,
+    "b": "Act",
+    "c": 27,
+    "v": 43,
+    "r": "Acts 27:43",
+    "t": "Paul Shipwrecked",
+    "filename": null,
+    "method": "unresolved"
+  },
+  {
+    "n": 966,
+    "b": "Rev",
+    "c": 1,
+    "v": 1,
+    "r": "Revelation 1:12",
+    "t": "Revelation of St John - The 7 Candlesticks, The 7 Stars, and the Son of Man",
+    "filename": "966.Revelation_of_St_John_-_The_7_Candlesticks,_The_7_Stars,_and_the_Son_of_Man.jpg",
+    "method": "override"
+  }
+]
