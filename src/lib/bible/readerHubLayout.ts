@@ -23,8 +23,8 @@ export function readerOverlayPosition(containedInHub: boolean) {
 }
 
 /** Compact top inset for hub shell readers (embedded card or fullscreen overlay). */
-export function readerSceneTopOffsetClass(compactChrome: boolean, hubCompactChrome: boolean): string {
-  if (hubCompactChrome) {
+export function readerSceneTopOffsetClass(compactChrome: boolean, hubInline: boolean): string {
+  if (hubInline) {
     return "top-0";
   }
   if (!compactChrome) {
@@ -34,8 +34,8 @@ export function readerSceneTopOffsetClass(compactChrome: boolean, hubCompactChro
 }
 
 /** Page-turn tap zones track the book scene top inset. */
-export function readerPageTurnTopOffsetClass(compactChrome: boolean, hubCompactChrome: boolean): string {
-  if (hubCompactChrome) {
+export function readerPageTurnTopOffsetClass(compactChrome: boolean, hubInline: boolean): string {
+  if (hubInline) {
     return "top-10";
   }
   if (!compactChrome) {
@@ -44,11 +44,16 @@ export function readerPageTurnTopOffsetClass(compactChrome: boolean, hubCompactC
   return "top-[calc(var(--safe-area-inset-top)+3rem)]";
 }
 
-/** Pull handle / header safe inset — hub shell already reserves the status bar. */
-export function readerChromeTopClass(hubCompactChrome: boolean): string {
-  return hubCompactChrome ? "top-2" : "top-[calc(var(--safe-area-inset-top)+0.35rem)]";
+/** Pull handle / header safe inset — hub card already reserves the status bar. */
+export function readerChromeTopClass(hubInline: boolean): string {
+  return hubInline ? "top-2" : "top-[calc(var(--safe-area-inset-top)+0.35rem)]";
 }
 
-export function readerHeaderSafePaddingClass(hubCompactChrome: boolean): string {
-  return hubCompactChrome ? "pt-2" : "pt-[var(--safe-area-inset-top)]";
+export function readerHeaderSafePaddingClass(hubInline: boolean): string {
+  return hubInline ? "pt-2" : "pt-[var(--safe-area-inset-top)]";
+}
+
+/** Hub card embed (sidebar visible). False in hub fullscreen or standalone reader. */
+export function hubReaderInline(showHubShell: boolean, hubFullscreen: boolean): boolean {
+  return showHubShell && !hubFullscreen;
 }

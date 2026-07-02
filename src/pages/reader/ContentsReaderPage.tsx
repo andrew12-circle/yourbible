@@ -9,6 +9,7 @@ import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
 import { useReaderSpread, useReaderCompactChrome } from "@/hooks/use-reader-layout";
 import {
+  hubReaderInline,
   readReaderHubFullscreen,
   readerOverlayPosition,
   readerPageTurnTopOffsetClass,
@@ -45,7 +46,7 @@ export default function ContentsReaderPage() {
   const compactChrome = useReaderCompactChrome();
   const effectiveSpread = readerSpread && !compactChrome;
   const showReaderDock = !showHubShell && compactChrome;
-  const hubEmbedded = showHubShell && !hubFullscreen;
+  const hubInline = hubReaderInline(showHubShell, hubFullscreen);
 
   const { data: bibles = [] } = useBibles();
   const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
@@ -174,7 +175,7 @@ export default function ContentsReaderPage() {
         }}
         singlePage={compactChrome}
         containedInHub={containedInHub}
-        hubCompactChrome={showHubShell}
+        hubCompactChrome={hubInline}
         hubFullscreen={hubFullscreen}
         onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
       />
@@ -184,7 +185,7 @@ export default function ContentsReaderPage() {
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
           "inset-x-0",
-          readerSceneTopOffsetClass(compactChrome, showHubShell),
+          readerSceneTopOffsetClass(compactChrome, hubInline),
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+env(safe-area-inset-bottom,0px))]"
             : "bottom-0",
@@ -195,7 +196,8 @@ export default function ContentsReaderPage() {
           singlePage={!effectiveSpread}
           tabletPortrait={false}
           fillContainer
-          hubEmbedded={hubEmbedded}
+          fabricSurround={showHubShell}
+          hubInline={hubInline}
           coverStyle={readerCoverStyle}
           coverClassName={readerCoverClass}
           pageClassName={readerPageClass}

@@ -29,7 +29,7 @@ import {
   readerPickerSecondaryButton,
   readerPickerSectionLabel,
 } from "@/lib/bible/readerChromeClasses";
-import { readerOverlayPosition, readerChromeTopClass, readerHeaderSafePaddingClass } from "@/lib/bible/readerHubLayout";
+import { readerOverlayPosition, readerChromeTopClass, readerHeaderSafePaddingClass, hubReaderInline } from "@/lib/bible/readerHubLayout";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnLayout";
 import type { ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
 import type { BibleEntry } from "@/lib/bible/api";

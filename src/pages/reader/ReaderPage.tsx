@@ -107,6 +107,7 @@ import {
 import { useAdjacentPassages } from "@/hooks/useAdjacentPassages";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import {
+  hubReaderInline,
   readReaderHubFullscreen,
   readerOverlayPosition,
   readerPageTurnTopOffsetClass,
@@ -1702,7 +1703,7 @@ export default function ReaderPage() {
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
-  const hubEmbedded = showHubShell && !hubFullscreen;
+  const hubInline = hubReaderInline(showHubShell, hubFullscreen);
 
   return (
     <div
@@ -1783,7 +1784,7 @@ export default function ReaderPage() {
         inkMode={inkMode}
         onToggleInkMode={toggleInkMode}
         containedInHub={containedInHub}
-        hubCompactChrome={showHubShell}
+        hubCompactChrome={hubInline}
         hubFullscreen={hubFullscreen}
         onToggleHubFullscreen={showHubShell ? toggleHubFullscreen : undefined}
         returnTo={readerReturn?.to}
@@ -1829,7 +1830,7 @@ export default function ReaderPage() {
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
           "inset-x-0",
-          readerSceneTopOffsetClass(compactChrome, showHubShell),
+          readerSceneTopOffsetClass(compactChrome, hubInline),
           mobileChromeBottom,
         )}
       >
@@ -1847,7 +1848,8 @@ export default function ReaderPage() {
         singlePage={!effectiveSpread}
         tabletPortrait={tabletPortrait}
         fillContainer
-        hubEmbedded={hubEmbedded}
+        fabricSurround={showHubShell}
+        hubInline={hubInline}
         coverStyle={readerCoverStyle}
         coverClassName={readerCoverClass}
         pageClassName={readerPageClass}
@@ -1919,7 +1921,7 @@ export default function ReaderPage() {
         aria-label="Previous page"
         className={cn(
           overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, showHubShell),
+          readerPageTurnTopOffsetClass(compactChrome, hubInline),
           "left-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
@@ -1934,7 +1936,7 @@ export default function ReaderPage() {
         aria-label="Next page"
         className={cn(
           overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, showHubShell),
+          readerPageTurnTopOffsetClass(compactChrome, hubInline),
           "right-0 w-8 z-[5] opacity-0",
           showReaderDock
             ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"

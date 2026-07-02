@@ -2010,15 +2010,31 @@ body:has(.hub-shell),
   }
 }
 
-/* Hub Bible fullscreen — fabric covers the entire viewport when the reader breaks out of the content card. */
-[data-bible-reader][data-hub-fullscreen] {
-  visibility: visible;
-  background-color: hsl(var(--muted) / 0.4);
+/* Hub Bible fullscreen — fabric covers the entire viewport; hide sidebar and expand content. */
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) {
+  --hub-edge: 0px;
+  --hub-card-gap: 0px;
 }
 
-/* Hide hub chrome behind the reader; do not hide .hub-content-card (the reader lives inside it). */
-.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .peer[data-variant="floating"] > .fixed {
-  visibility: hidden;
+[data-bible-reader][data-hub-fullscreen] {
+  visibility: visible;
+  background-color: transparent;
+}
+
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .peer[data-variant="floating"],
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) [data-sidebar-peek] {
+  display: none !important;
+}
+
+.hub-shell:has([data-bible-reader][data-hub-fullscreen]) .hub-content-card {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  border: none !important;
+  border-radius: 0 !important;
 }
 
 /* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */

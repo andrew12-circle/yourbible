@@ -15,8 +15,10 @@ interface Props {
   tabletPortrait?: boolean;
   /** Fill parent height (hub workspace) instead of viewport height. */
   fillContainer?: boolean;
-  /** Hub embed — transparent surround, fabric shows through behind the leather cover. */
-  hubEmbedded?: boolean;
+  /** Fabric shows through around the leather cover (hub reader). */
+  fabricSurround?: boolean;
+  /** Embedded in hub card beside sidebar — tighter inset, not fullscreen overlay. */
+  hubInline?: boolean;
   ribbons?: ReactNode;
   /** User-selected leather cover (CSS variables). */
   coverStyle?: CSSProperties;
@@ -27,7 +29,7 @@ interface Props {
   spreadNudgeRight?: boolean;
 }
 
-const coverRadiusLeft = (hubEmbedded: boolean) => (hubEmbedded ? "0.5rem" : "0.75rem");
+const coverRadiusLeft = (hubInline: boolean) => (hubInline ? "0.5rem" : "0.75rem");
 
 /**
  * Digital reading layout with a full leather cover frame (top, sides, bottom)
@@ -40,7 +42,8 @@ export function BookScene({
   singlePage = false,
   tabletPortrait = false,
   fillContainer = false,
-  hubEmbedded = false,
+  fabricSurround = false,
+  hubInline = false,
   ribbons,
   coverStyle,
   coverClassName,
@@ -51,12 +54,12 @@ export function BookScene({
   const stackWidths = spreadPageStackWidths(progress);
   const { left: leftStack, right: rightStack } = stackWidths;
 
-  const coverPadX = croppedSpread ? (tabletPortrait ? 14 : hubEmbedded ? 6 : 10) : 14;
-  const coverPadTop = croppedSpread ? (tabletPortrait ? 14 : hubEmbedded ? 4 : 12) : 16;
-  const coverPadBottom = croppedSpread ? (tabletPortrait ? 12 : hubEmbedded ? 4 : 10) : 14;
-  const flushMobile = hubEmbedded || (fillContainer && croppedSpread);
-  const leftInset = spreadCropLeftInsetCss(hubEmbedded, tabletPortrait);
-  const leftRadius = coverRadiusLeft(hubEmbedded);
+  const coverPadX = croppedSpread ? (tabletPortrait ? 14 : hubInline ? 6 : 10) : 14;
+  const coverPadTop = croppedSpread ? (tabletPortrait ? 14 : hubInline ? 4 : 12) : 16;
+  const coverPadBottom = croppedSpread ? (tabletPortrait ? 12 : hubInline ? 4 : 10) : 14;
+  const flushMobile = hubInline || (fillContainer && croppedSpread);
+  const leftInset = spreadCropLeftInsetCss(hubInline, tabletPortrait);
+  const leftRadius = coverRadiusLeft(hubInline);
 
   const coverChrome = (
     <>
@@ -159,14 +162,14 @@ export function BookScene({
         croppedSpread ? "items-stretch overflow-x-hidden" : "items-center",
         fillContainer ? "h-full min-h-0 flex-1" : "h-[100dvh]",
       )}
-      style={{ background: hubEmbedded ? "transparent" : "hsl(0 0% 100%)" }}
+      style={{ background: fabricSurround ? "transparent" : "hsl(0 0% 100%)" }}
     >
       {croppedSpread ? (
         <div
           className={cn(
             "relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-x-hidden",
-            !hubEmbedded && "max-w-none w-screen",
-            hubEmbedded
+            !fabricSurround && "max-w-none w-screen",
+            hubInline
               ? "pb-[env(safe-area-inset-bottom,0px)]"
               : "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
           )}
@@ -178,7 +181,7 @@ export function BookScene({
             )}
             style={{
               ...coverStyle,
-              width: spreadCropWidthCss(SPREAD_RIGHT_PEEK, hubEmbedded, leftInset),
+              width: spreadCropWidthCss(SPREAD_RIGHT_PEEK, hubInline, leftInset),
               marginLeft: leftInset,
               borderTopLeftRadius: leftRadius,
               borderBottomLeftRadius: leftRadius,
@@ -197,19 +200,19 @@ export function BookScene({
           <div
             className={cn(
               "flex flex-col flex-1 min-h-0 w-full",
-              hubEmbedded
+              hubInline
                 ? "pt-0 pb-[env(safe-area-inset-bottom,0px)]"
                 : cn(
                     "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
                     flushMobile ? "pt-1" : "pt-[max(0.5rem,env(safe-area-inset-top))]",
                   ),
-              tabletPortrait ? "px-4" : hubEmbedded ? "px-0" : "px-2 sm:px-3",
+              tabletPortrait ? "px-4" : hubInline ? "px-0" : "px-2 sm:px-3",
             )}
           >
             <div
               className={cn(
                 "reader-leather-cover leather-cover-surface relative flex flex-col flex-1 min-h-0 overflow-hidden",
-                hubEmbedded ? "rounded-lg" : "rounded-xl",
+                hubInline ? "rounded-lg" : "rounded-xl",
                 coverClassName,
               )}
               style={coverStyle}
