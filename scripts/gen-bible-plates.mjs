@@ -2,7 +2,7 @@
  * Generates src/data/biblePlates/dorePlates.generated.ts from scripts/data/doreScenes.js
  * Usage: node scripts/gen-bible-plates.mjs
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import scenes from "./data/doreScenes.js";
@@ -10,10 +10,21 @@ import scenes from "./data/doreScenes.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const OUT_PATH = join(ROOT, "src", "data", "biblePlates", "dorePlates.json");
+const THUMBS_PATH = join(__dirname, "data", "commons-thumbs.json");
 const THUMB_WIDTH = 960;
 
+/** filename -> direct upload.wikimedia.org thumbnail (from resolve-commons-thumbs.mjs). */
+const THUMBS = JSON.parse(readFileSync(THUMBS_PATH, "utf8"));
+
+/**
+ * Prefer the resolved direct CDN thumbnail (no redirect, not rate limited);
+ * fall back to the Special:FilePath redirect if a file is not yet resolved.
+ */
 function commonsThumbUrl(filename) {
-  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${THUMB_WIDTH}`;
+  return (
+    THUMBS[filename] ??
+    `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${THUMB_WIDTH}`
+  );
 }
 
 function commonsPageUrl(filename) {
@@ -54,20 +65,21 @@ const plates = [];
 for (const scene of scenes) {
   const plate = sceneToPlate(scene);
   if (scene.t === "The Crucifixion" || scene.file === CRUCIFIXION_FILE) {
-    for (const abbr of ["Mat", "Mrk", "Luk", "Jhn"]) {
+    const crucifixion = {
+      Mat: { chapter: 27, ref: "Matthew 27:35" },
+      Mrk: { chapter: 15, ref: "Mark 15:24" },
+      Luk: { chapter: 23, ref: "Luke 23:33" },
+      Jhn: { chapter: 19, ref: "John 19:18" },
+    };
+    for (const [abbr, { chapter, ref }] of Object.entries(crucifixion)) {
       plates.push({
         ...plate,
-        id: `dore-crucifixion-${abbr.toLowerCase()}-${scene.c}`,
+        id: `dore-crucifixion-${abbr.toLowerCase()}-${chapter}`,
         bookAbbr: abbr,
+        chapter,
         imageUrl: commonsThumbUrl(CRUCIFIXION_FILE),
-        referenceLabel:
-          abbr === "Mat"
-            ? "Matthew 27:35"
-            : abbr === "Mrk"
-              ? "Mark 15:24"
-              : abbr === "Luk"
-                ? "Luke 23:33"
-                : "John 19:18",
+        referenceLabel: ref,
+        alt: `The Crucifixion — ${ref}`,
       });
     }
     continue;

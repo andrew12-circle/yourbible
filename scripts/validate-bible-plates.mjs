@@ -54,6 +54,34 @@ for (const src of sources) {
   }
 }
 
+/** A Wikimedia thumbnail path embeds the original filename after `/thumb/x/xx/`. */
+function wikimediaFilenameFromThumb(url) {
+  const m = url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\//i);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * Wikimedia throttles bursts with 429s even for valid files. When HEAD is
+ * throttled, confirm the file still exists via the imageinfo API so we only
+ * report genuinely-missing images as failures.
+ */
+async function existsViaApi(filename) {
+  const u = new URL("https://commons.wikimedia.org/w/api.php");
+  u.searchParams.set("action", "query");
+  u.searchParams.set("titles", `File:${filename}`);
+  u.searchParams.set("prop", "imageinfo");
+  u.searchParams.set("iiprop", "url");
+  u.searchParams.set("format", "json");
+  try {
+    const res = await fetch(u, { headers: { "User-Agent": UA } });
+    const j = await res.json();
+    const page = Object.values(j.query?.pages ?? {})[0] ?? {};
+    return page.missing === undefined && !!page.imageinfo;
+  } catch {
+    return false;
+  }
+}
+
 async function check(url, attempt = 0) {
   try {
     const res = await fetch(url, {
@@ -61,9 +89,14 @@ async function check(url, attempt = 0) {
       redirect: "follow",
       headers: { "User-Agent": UA },
     });
-    if (res.status === 429 && attempt < 5) {
-      await sleep(2000 * (attempt + 1));
-      return check(url, attempt + 1);
+    if (res.status === 429) {
+      if (attempt < 4) {
+        await sleep(3000 * (attempt + 1));
+        return check(url, attempt + 1);
+      }
+      // Persistent throttling: fall back to the API to confirm existence.
+      const filename = wikimediaFilenameFromThumb(url);
+      if (filename && (await existsViaApi(filename))) return 200;
     }
     return res.status;
   } catch {
@@ -86,7 +119,7 @@ for (const { src, url } of entries) {
     console.log(`  FAIL [${status}] ${url}`);
   }
   if (i % 20 === 0) console.log(`  ...checked ${i}/${entries.length}`);
-  await sleep(300);
+  await sleep(500);
 }
 
 console.log(`\n${entries.length - failures.length}/${entries.length} URLs OK`);

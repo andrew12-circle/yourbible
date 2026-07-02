@@ -22,8 +22,9 @@ describe("biblePlates", () => {
   });
 
   it("dedupes inline plates to one per verse slot by priority", () => {
-    const all = platesForChapter("Mat", 14);
-    const inline = inlinePlatesForChapter("Mat", 14);
+    // Matthew 5:1 has two plates at the same slot (Tissot + Doré Sermon on the Mount).
+    const all = platesForChapter("Mat", 5);
+    const inline = inlinePlatesForChapter("Mat", 5);
     expect(all.length).toBeGreaterThan(inline.length);
     expect(inline.filter((p) => p.beforeVerse === 1)).toHaveLength(1);
   });

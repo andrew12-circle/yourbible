@@ -118,20 +118,17 @@ export default [
   // Job
   { n: 107, t: "Job Hears of His Misfortunes", b: "Job", c: 1, v: 1, r: "Job 1:13", file: "118.Job Hears of His Misfortunes.jpg" },
   { n: 108, t: "Job Speaks with His Friends", b: "Job", c: 2, v: 11, r: "Job 2:11", file: "119.Job Speaks with His Friends.jpg" },
-  // Psalms
-  { n: 139, t: "The Good Shepherd", b: "Psa", c: 23, v: 1, r: "Psalm 23", file: "139.The_Good_Shepherd.jpg" },
   // Prophets
   { n: 109, t: "The Prophet Isaiah", b: "Isa", c: 1, v: 1, r: "Isaiah 1:1", file: "120.The Prophet Isaiah.jpg" },
-  { n: 121, t: "Isaiah's Vision of the Destruction of Babylon", b: "Isa", c: 6, v: 1, r: "Isaiah 6:1", file: "121.Isaiah's_Vision_of_the_Destruction_of_Babylon.jpg" },
+  { n: 121, t: "Isaiah's Vision of the Destruction of Babylon", b: "Isa", c: 6, v: 1, r: "Isaiah 6:1", file: "121.Isaiah's Vision of the Destruction of Babylon.jpg" },
   { n: 111, t: "The Prophet Jeremiah", b: "Jer", c: 1, v: 1, r: "Jeremiah 1:1", file: "123.The Prophet Jeremiah.jpg" },
   { n: 112, t: "People Mourn over the Destruction of Jerusalem", b: "Jer", c: 52, v: 1, r: "Jeremiah 52:12", file: "124.People Mourn over the Destruction of Jerusalem.jpg" },
   { n: 113, t: "The Prophet Ezekiel", b: "Ezk", c: 1, v: 1, r: "Ezekiel 1:1", file: "126.The Prophet Ezekiel.jpg" },
   { n: 115, t: "Daniel among the Exiles", b: "Dan", c: 1, v: 1, r: "Daniel 1:1", file: "128.Daniel among the Exiles.jpg" },
-  { n: 89, t: "Shadrach, Meshach and Abednego in the Furnace", b: "Dan", c: 3, v: 1, r: "Daniel 3:23", file: "089.Shadrach,_Meshach,_and_Abednego.jpg" },
+  { n: 89, t: "Shadrach, Meshach and Abednego in the Furnace", b: "Dan", c: 3, v: 1, r: "Daniel 3:23", file: "129.Shadrach, Meshach and Abednego in the Furnace.jpg" },
   { n: 117, t: "Daniel Interprets the Writing on the Wall", b: "Dan", c: 5, v: 1, r: "Daniel 5:5", file: "130.Daniel Interprets the Writing on the Wall.jpg" },
   { n: 118, t: "Daniel in the Lions' Den", b: "Dan", c: 6, v: 1, r: "Daniel 6:16", file: "131.Daniel in the Lions' Den.jpg" },
   { n: 119, t: "Daniel's Vision of the Four Beasts", b: "Dan", c: 7, v: 1, r: "Daniel 7:1", file: "132.Daniel's Vision of the Four Beasts.jpg" },
-  { n: 78, t: "Jonah Cast Into the Sea", b: "Jon", c: 1, v: 1, r: "Jonah 1:15", file: "078.Jonah_Cast_Into_the_Sea.jpg" },
   { n: 120, t: "Jonah Is Spewed Forth by the Whale", b: "Jon", c: 2, v: 10, r: "Jonah 2:10", file: "137.Jonah Is Spewed Forth by the Whale.jpg" },
   { n: 122, t: "Jonah Preaches to the Ninevites", b: "Jon", c: 3, v: 1, r: "Jonah 3:4", file: "138.Jonah Preaches to the Ninevites.jpg" },
   // New Testament — Life of Christ
@@ -148,5 +145,5 @@ export default [
   // Acts
   { n: 182, t: "The Ascension", b: "Act", c: 1, v: 9, r: "Acts 1:9", file: "Gustave Doré - L'Ascension.jpg" },
   // Revelation
-  { n: 966, t: "Revelation of St John - The 7 Candlesticks, The 7 Stars, and the Son of Man", b: "Rev", c: 1, v: 1, r: "Revelation 1:12", file: "966.Revelation_of_St_John_-_The_7_Candlesticks,_The_7_Stars,_and_the_Son_of_Man.jpg" },
+  { n: 966, t: "Revelation of St John - The 7 Candlesticks, The 7 Stars, and the Son of Man", b: "Rev", c: 1, v: 1, r: "Revelation 1:12", file: "St.JohnatPatmosDore.jpg" },
 ];

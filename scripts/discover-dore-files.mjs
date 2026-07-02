@@ -28,10 +28,13 @@ const UA = "yourbible-plate-discovery/1.0 (dev script)";
 const CATEGORY = "Category:Doré's English Bible";
 
 /**
- * Hand-verified New Testament Doré engravings (title -> Commons filename).
- * Confirmed genuine via scripts/verify-nt-candidates.mjs. Public-domain only.
+ * Hand-verified Doré filenames that are NOT in the numbered "Doré's English
+ * Bible" category (title -> Commons filename). These cover the New Testament
+ * (uploaded separately, non-numbered) plus a few one-off plates. Every entry is
+ * confirmed genuine and public-domain via scripts/verify-nt-candidates.mjs.
  */
-const NT_CURATED = {
+const CURATED = {
+  // Life of Christ / New Testament
   "The Annunciation": "Gustave Dore - The Annunciation.jpg",
   "The Baptism of Jesus": "Gustave Dore - John the Baptist baptizes Jesus.jpg",
   "The Sermon on the Mount": "Dore Bible Sermon on the Mount.jpg",
@@ -41,7 +44,11 @@ const NT_CURATED = {
   "Lazarus at the Rich Man's House": "Gustave Dore Lazarus and the Rich Man.jpg",
   "The Judas Kiss": "Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg",
   "Peter Denying Christ": "Gustave Doré, St Peter Denying Christ.jpg",
+  "The Crucifixion": "Gustave_Doré_-_Crucifixion_of_Jesus.jpg",
   "The Ascension": "Gustave Doré - L'Ascension.jpg",
+  // Revelation (not in the numbered set)
+  "Revelation of St John - The 7 Candlesticks, The 7 Stars, and the Son of Man":
+    "St.JohnatPatmosDore.jpg",
 };
 
 async function apiJson(params) {
@@ -89,12 +96,9 @@ for (const name of catFiles) {
 }
 
 function resolveScene(scene) {
-  // Explicit override in the scene index always wins.
-  if (scene.file) return { filename: scene.file, method: "override" };
-
-  // New Testament curated set (matched by exact title).
-  const nt = NT_CURATED[scene.t];
-  if (nt) return { filename: nt, method: "nt-curated" };
+  // Hand-verified curated files (NT + one-offs), matched by exact title.
+  const curated = CURATED[scene.t];
+  if (curated) return { filename: curated, method: "curated" };
 
   // OT / Apocrypha: match by title against the authoritative category.
   const want = normalize(scene.t);
