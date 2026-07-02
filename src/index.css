@@ -652,7 +652,8 @@
     overflow: hidden;
     box-sizing: border-box;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
-    padding-inline: max(6px, 0.4em);
+    padding-inline: max(8px, 0.5em);
+    padding-inline-end: max(10px, 0.55em);
     padding-bottom: max(8px, 0.32em);
   }
   .reader-theme-dark .scripture-columns-spread {
@@ -679,7 +680,7 @@
   }
   .scripture-columns-spread .scripture-paragraph {
     break-inside: auto;
-    padding-inline-end: 0.35em;
+    padding-inline-end: max(0.5em, 8px);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -695,7 +696,8 @@
     overflow: hidden;
     box-sizing: border-box;
     column-rule: 1px solid hsl(var(--foreground) / 0.1);
-    padding-inline: max(6px, 0.4em);
+    padding-inline: max(8px, 0.5em);
+    padding-inline-end: max(10px, 0.55em);
     padding-bottom: max(8px, 0.32em);
   }
   .reader-theme-dark .scripture-columns-2 {
@@ -724,7 +726,7 @@
   }
   .scripture-columns-2 .scripture-paragraph {
     break-inside: auto;
-    padding-inline-end: 0.35em;
+    padding-inline-end: max(0.5em, 8px);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -1065,6 +1067,15 @@
   .scripture-page-stack:not(.h-full),
   .holman-study-stack:not(.h-full) {
     height: auto;
+  }
+
+  /* Single-column page mode (no CSS columns) — same fore-edge inset as column boxes. */
+  [data-bible-reader] [data-reading-area] .holman-study-stack > div:first-child:not(:has([class*="scripture-columns"])) {
+    padding-inline-end: max(10px, 0.55em);
+    box-sizing: border-box;
+  }
+  [data-bible-reader] [data-reading-area]:not(:has([data-bible-scroll])) .scripture-paragraph {
+    padding-inline-end: max(0.5em, 8px);
   }
 
   /* Ruled footnote band — classic study-Bible page foot. */

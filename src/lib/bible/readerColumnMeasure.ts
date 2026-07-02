@@ -20,7 +20,7 @@ export interface ScriptureColumnMeasureOptions {
 export const READER_LIVE_COLUMN_SAFETY_PX = 32;
 
 /** Horizontal inset applied to column boxes (must match CSS padding-inline on columns). */
-export const READER_COLUMN_EDGE_INSET_EM = 0.35;
+export const READER_COLUMN_EDGE_INSET_EM = 0.55;
 
 /** Paginator measure height — must stay in sync with live `liveColumnSafetyPx`. */
 export function paginatorMeasureLimitPx(contentHeightPx: number): number {
@@ -321,7 +321,7 @@ function scriptureColumnsHaveClippedOverflow(columns: HTMLElement): boolean {
   if (box.height <= 0) return false;
 
   const clipBottom = box.bottom - READER_LIVE_COLUMN_SAFETY_PX;
-  const clipRight = box.right - 6;
+  const clipRight = box.right - 10;
   const blocks = columns.querySelectorAll(
     ".scripture-paragraph, .scripture-heading, .scripture-plate",
   );
