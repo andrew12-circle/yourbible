@@ -4,6 +4,7 @@ export type StudyBackMatterSectionId =
   | "weights"
   | "abbrev"
   | "concordance"
+  | "artwork"
   | "maps";
 
 export interface StudyBackMatterSection {
@@ -168,6 +169,11 @@ export const STUDY_BACK_MATTER_SECTIONS: StudyBackMatterSection[] = [
     title: "Concordance",
     subtitle: "Search every occurrence of a word in your translation.",
     bodyHtml: `<p>Type a word below to find matching verses. For a specific passage, search like <em>John 3:16</em>.</p>`,
+  },
+  {
+    id: "artwork",
+    title: "Artwork",
+    bodyHtml: `<p>Classic public-domain illustrations (Doré, Tissot, and related plates) linked to Scripture passages.</p>`,
   },
   {
     id: "maps",

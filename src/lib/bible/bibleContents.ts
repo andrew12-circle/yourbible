@@ -106,9 +106,16 @@ export const CONTENTS_BACK_MATTER: ContentsRow[] = [
     studySection: "concordance",
   },
   {
+    id: "artwork",
+    label: "ARTWORK",
+    page: 1578,
+    clickable: true,
+    studySection: "artwork",
+  },
+  {
     id: "maps",
     label: "MAPS AND CHART",
-    page: 1578,
+    page: 1579,
     clickable: true,
     studySection: "maps",
   },

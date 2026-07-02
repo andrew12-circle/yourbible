@@ -2,6 +2,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { BookScene } from "@/components/bible/BookScene";
+import { ArtworkGallery } from "@/components/bible/ArtworkGallery";
 import { StudyConcordanceSearch } from "@/components/bible/StudyConcordanceSearch";
 import { TopBar } from "@/components/bible/TopBar";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
@@ -28,6 +29,7 @@ const VALID_SECTIONS = new Set<string>([
   "weights",
   "abbrev",
   "concordance",
+  "artwork",
   "maps",
 ]);
 
@@ -97,6 +99,7 @@ export default function StudyBackMatterPage() {
         {studySection.id === "concordance" && bibleId ? (
           <StudyConcordanceSearch bibleId={bibleId} />
         ) : null}
+        {studySection.id === "artwork" ? <ArtworkGallery /> : null}
         {studySection.id === "maps" ? (
           <div className="study-maps-grid mt-6">
             {STUDY_MAPS.map((map) => (
