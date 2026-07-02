@@ -4,10 +4,13 @@ import {
   applyHolmanStudyMeasureHtml,
   applyScriptureColumnMeasureHtml,
   paginatorMeasureLimitPx,
+  paginatorSpreadPaneLimitPx,
   readerColumnContentHeightPx,
   readerPageContentLimitPx,
   scriptureColumnWrapperStyle,
   scriptureContentFitsPage,
+  scriptureSpreadLeftPaneFits,
+  READER_SPREAD_PANE_EXTRA_GUARD_PX,
 } from "./readerColumnMeasure";
 
 describe("readerColumnMeasure", () => {
@@ -224,6 +227,66 @@ describe("readerColumnMeasure", () => {
     const col = node.firstElementChild as HTMLElement;
     expect(col.style.columns).toBe("4");
     expect(col.style.width).toBe("640px");
+  });
+
+  it("paginatorSpreadPaneLimitPx reserves extra spread pane guard", () => {
+    expect(paginatorSpreadPaneLimitPx(568)).toBe(568 - READER_SPREAD_PANE_EXTRA_GUARD_PX);
+    expect(paginatorSpreadPaneLimitPx(1)).toBe(1);
+  });
+
+  it("scriptureSpreadLeftPaneFits rejects blocks starting in column 3 of spread measure", () => {
+    const columns = document.createElement("div");
+    columns.className = "scripture-columns-spread";
+    columns.style.width = "800px";
+    document.body.appendChild(columns);
+
+    const leftBlock = document.createElement("p");
+    leftBlock.className = "scripture-paragraph";
+    const rightBlock = document.createElement("p");
+    rightBlock.className = "scripture-paragraph";
+    columns.append(leftBlock, rightBlock);
+
+    Object.defineProperty(columns, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 0, right: 800, bottom: 400, width: 800, height: 400 }),
+    });
+    Object.defineProperty(leftBlock, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 0, right: 380, bottom: 40, width: 380, height: 40 }),
+    });
+    Object.defineProperty(rightBlock, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 410, right: 790, bottom: 40, width: 380, height: 40 }),
+    });
+
+    expect(scriptureSpreadLeftPaneFits(columns, 400)).toBe(false);
+    columns.remove();
+  });
+
+  it("scriptureSpreadLeftPaneFits accepts blocks confined to the left page columns", () => {
+    const columns = document.createElement("div");
+    columns.className = "scripture-columns-spread";
+    document.body.appendChild(columns);
+
+    const block = document.createElement("p");
+    block.className = "scripture-paragraph";
+    columns.append(block);
+
+    Object.defineProperty(columns, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 0, right: 800, bottom: 400, width: 800, height: 400 }),
+    });
+    Object.defineProperty(block, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, left: 20, right: 360, bottom: 40, width: 340, height: 40 }),
+    });
+    Object.defineProperty(columns, "scrollWidth", { configurable: true, get: () => 800 });
+    Object.defineProperty(columns, "clientWidth", { configurable: true, get: () => 800 });
+    Object.defineProperty(columns, "scrollHeight", { configurable: true, get: () => 400 });
+    Object.defineProperty(columns, "clientHeight", { configurable: true, get: () => 400 });
+
+    expect(scriptureSpreadLeftPaneFits(columns, 400)).toBe(true);
+    columns.remove();
   });
 
   it("scriptureContentFitsPage rejects clipped holman scripture above connections", () => {

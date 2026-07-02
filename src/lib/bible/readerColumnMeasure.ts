@@ -27,6 +27,14 @@ export function paginatorMeasureLimitPx(contentHeightPx: number): number {
   return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
 }
 
+/** Extra slack reserved per spread pane during paginator measurement. */
+export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 40;
+
+/** Paginator stack height for one spread pane — tighter than live to avoid clip gaps. */
+export function paginatorSpreadPaneLimitPx(stackLimitPx: number): number {
+  return Math.max(1, Math.round(stackLimitPx - READER_SPREAD_PANE_EXTRA_GUARD_PX));
+}
+
 /** Pixel height for scripture column boxes — shared by paginator and live reader. */
 export function readerScriptureColumnsHeightPx(
   stackContentHeightPx: number,
@@ -294,13 +302,16 @@ function scriptureColumnsHaveClippedOverflow(columns: HTMLElement): boolean {
   const box = columns.getBoundingClientRect();
   if (box.height <= 0) return false;
 
+  const clipBottom = box.bottom - READER_LIVE_COLUMN_SAFETY_PX;
+  const clipRight = box.right - 2;
   const blocks = columns.querySelectorAll(
     ".scripture-paragraph, .scripture-heading, .scripture-plate",
   );
   for (let i = 0; i < blocks.length; i++) {
     const rect = blocks[i]!.getBoundingClientRect();
     if (rect.height <= 0 && rect.width <= 0) continue;
-    if (rect.bottom > box.bottom + 1) return true;
+    if (rect.bottom > clipBottom) return true;
+    if (rect.right > clipRight) return true;
   }
   return false;
 }
@@ -316,8 +327,23 @@ export function scriptureSpreadLeftPaneFits(
   columns: HTMLElement,
   pageWidthPx: number,
 ): boolean {
-  if (pageWidthPx > 0 && columns.scrollWidth > pageWidthPx + 8) return false;
-  return !scriptureColumnsHaveClippedOverflow(columns);
+  if (scriptureColumnsHaveClippedOverflow(columns)) return false;
+  if (pageWidthPx <= 0) return true;
+
+  const box = columns.getBoundingClientRect();
+  if (box.width <= 0) return true;
+
+  // In 4-column spread measure, column 3 begins at the right-page boundary (~pageWidth).
+  const leftPaneRight = box.left + pageWidthPx - 4;
+  const blocks = columns.querySelectorAll(
+    ".scripture-paragraph, .scripture-heading, .scripture-plate",
+  );
+  for (let i = 0; i < blocks.length; i++) {
+    const rect = blocks[i]!.getBoundingClientRect();
+    if (rect.height <= 0 && rect.width <= 0) continue;
+    if (rect.left >= leftPaneRight) return false;
+  }
+  return true;
 }
 
 export function measureNodeScriptureColumnsEl(node: HTMLDivElement): HTMLElement | null {

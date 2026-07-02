@@ -4,6 +4,7 @@ import {
   applyScriptureColumnMeasureHtml,
   applyHolmanStudyMeasureHtml,
   measureNodeScriptureColumnsEl,
+  paginatorSpreadPaneLimitPx,
   readerPageContentLimitPx,
   scriptureContentFitsPage,
   scriptureSpreadLeftPaneFits,
@@ -140,24 +141,28 @@ export function BookPaginator({
       if (useSpreadColumns) {
         const spreadStart = i;
         const spreadStartsWithHeader = stream[i]?.kind === "chapter-header";
-        const leftLimit = readerPageContentLimitPx({
-          pageIndex,
-          startsWithChapterHeader: spreadStartsWithHeader,
-          firstPageHeight: resolvedFirstPageHeight,
-          pageHeight,
-          footerGuardPx: footerHeight,
-        });
+        const leftLimit = paginatorSpreadPaneLimitPx(
+          readerPageContentLimitPx({
+            pageIndex,
+            startsWithChapterHeader: spreadStartsWithHeader,
+            firstPageHeight: resolvedFirstPageHeight,
+            pageHeight,
+            footerGuardPx: footerHeight,
+          }),
+        );
         const rightStartsAtHeader =
           stream[spreadStart + 1]?.kind === "chapter-header" ||
           (stream[spreadStart + 1]?.kind !== "verse" &&
             stream[spreadStart + 2]?.kind === "chapter-header");
-        const rightLimit = readerPageContentLimitPx({
-          pageIndex: pageIndex + 1,
-          startsWithChapterHeader: rightStartsAtHeader,
-          firstPageHeight: resolvedFirstPageHeight,
-          pageHeight,
-          footerGuardPx: footerHeight,
-        });
+        const rightLimit = paginatorSpreadPaneLimitPx(
+          readerPageContentLimitPx({
+            pageIndex: pageIndex + 1,
+            startsWithChapterHeader: rightStartsAtHeader,
+            firstPageHeight: resolvedFirstPageHeight,
+            pageHeight,
+            footerGuardPx: footerHeight,
+          }),
+        );
         const spreadLimit = Math.min(leftLimit, rightLimit);
         const leftOnlyEnd = findStreamSliceEnd(
           node,

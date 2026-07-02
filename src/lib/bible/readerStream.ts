@@ -84,7 +84,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 14;
+export const READER_PAGINATOR_SPLIT_REVISION = 15;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
