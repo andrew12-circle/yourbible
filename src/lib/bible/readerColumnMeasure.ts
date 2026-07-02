@@ -28,7 +28,7 @@ export function paginatorMeasureLimitPx(contentHeightPx: number): number {
 }
 
 /** Extra slack reserved per spread pane during paginator measurement. */
-export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 40;
+export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 64;
 
 /** Paginator stack height for one spread pane — tighter than live to avoid clip gaps. */
 export function paginatorSpreadPaneLimitPx(stackLimitPx: number): number {
@@ -53,7 +53,7 @@ export const READER_COLUMN_FOOTER_GUARD_PX = 32;
 export const READER_CHAPTER_HEADER_RESERVE_PX = 96;
 
 /** Conservative reserve for page footnotes band below scripture columns. */
-export const READER_HOLMAN_FOOTNOTES_BAND_PX = 72;
+export const READER_HOLMAN_FOOTNOTES_BAND_PX = 88;
 
 /** Conservative reserve for cross-reference connections row (when shown). */
 export const READER_HOLMAN_CONNECTIONS_BAND_PX = 48;
@@ -160,6 +160,8 @@ export interface ReaderPageHeightsOptions {
   chapterHeaderReservePx?: number;
   reserveFootnotesBand: boolean;
   liveColumnSafetyPx?: number;
+  /** Match paginator spread pane limits so live columns never exceed measure height. */
+  spreadPane?: boolean;
 }
 
 /** Live stack + column heights for one rendered reader page (undefined when not measurable). */
@@ -169,7 +171,7 @@ export function readerPageHeightsPx(options: ReaderPageHeightsOptions): {
 } {
   const canMeasure =
     !options.scrollMode && (options.pageContentReady || options.hasStreamSlice);
-  const stackContentHeightPx = canMeasure
+  const rawStackLimit = canMeasure
     ? readerPageContentLimitPx({
         pageIndex: options.pageIndex,
         startsWithChapterHeader: options.startsWithChapterHeader,
@@ -179,21 +181,18 @@ export function readerPageHeightsPx(options: ReaderPageHeightsOptions): {
         chapterHeaderReservePx: options.chapterHeaderReservePx,
       })
     : undefined;
+  const stackContentHeightPx =
+    rawStackLimit != null && options.spreadPane
+      ? paginatorSpreadPaneLimitPx(rawStackLimit)
+      : rawStackLimit;
   const scriptureColumnHeightPx =
-    stackContentHeightPx != null
-      ? readerColumnContentHeightPx({
-          columnLayoutActive: options.columnLayoutActive,
-          pageIndex: options.pageIndex,
-          startsWithChapterHeader: options.startsWithChapterHeader,
-          firstPageHeight: options.firstPageHeight,
-          pageHeight: options.pageHeight,
-          footerGuardPx: options.footerGuardPx,
-          chapterHeaderReservePx: options.chapterHeaderReservePx,
-          holmanChromeBelowColumnsPx: options.reserveFootnotesBand
+    stackContentHeightPx != null && options.columnLayoutActive
+      ? readerScriptureColumnsHeightPx(
+          stackContentHeightPx,
+          options.reserveFootnotesBand
             ? holmanChromeBelowColumnsPx({ hasFootnotes: true, hasConnections: false })
-            : undefined,
-          liveColumnSafetyPx: options.liveColumnSafetyPx,
-        })
+            : 0,
+        )
       : undefined;
   return { stackContentHeightPx, scriptureColumnHeightPx };
 }

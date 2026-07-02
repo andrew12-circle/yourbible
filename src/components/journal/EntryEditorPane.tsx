@@ -1236,16 +1236,15 @@ export default function EntryEditorPane({
             )
           ) : (
             <>
-              {!inlineChatMode && entry.summary?.trim() ? (
+              {!inlineChatMode && (entry.summary?.trim() || videoSummarizing || videos.length > 0) ? (
                 <JournalEntrySummaryBlock
-                  summary={entry.summary}
+                  summary={entry.summary ?? ""}
                   onSummaryChange={(next) => queueSaveRef.current({ summary: next || null })}
                   summarizing={videoSummarizing}
-                  showFullTextLabel
+                  alwaysShow={videos.length > 0}
+                  showFullTextLabel={Boolean(entry.summary?.trim())}
                   className="mb-4"
                 />
-              ) : videoSummarizing ? (
-                <JournalEntrySummaryBlock summary="" summarizing className="mb-4" />
               ) : null}
               {!inlineChatMode && videos.length > 0 ? (
                 <JournalBodyWithVideos

@@ -74,11 +74,13 @@ export interface UseJournalVideoCaptureApi {
   previewStream: MediaStream | null;
   facingMode: CameraFacing;
   deviceId: string | null;
+  audioDeviceId: string | null;
   chapters: JournalVideoChapter[];
   settings: JournalVideoCaptureSettings;
   bindPreview: (el: HTMLVideoElement | null) => void;
   openPreview: (mode: JournalVideoCaptureMode) => Promise<void>;
   beginCountdown: () => void;
+  cancelCountdown: () => void;
   skipCountdown: () => void;
   startRecording: () => void;
   pauseRecording: () => void;
@@ -114,6 +116,9 @@ export function useJournalVideoCapture(
   const [recordingBytes, setRecordingBytes] = useState(0);
   const [facingMode, setFacingMode] = useState<CameraFacing>("user");
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [audioDeviceId, setAudioDeviceId] = useState<string | null>(
+    () => readJournalVideoCaptureSettings().audioDeviceId,
+  );
   const [chapters, setChapters] = useState<JournalVideoChapter[]>([]);
   const [settings, setSettings] = useState<JournalVideoCaptureSettings>(
     () => settingsProp ?? readJournalVideoCaptureSettings(),
@@ -146,8 +151,10 @@ export function useJournalVideoCapture(
   const stopRecordingRef = useRef<(() => Promise<JournalVideoCaptureResult | null>) | null>(null);
   const facingRef = useRef<CameraFacing>("user");
   const deviceIdRef = useRef<string | null>(null);
+  const audioDeviceIdRef = useRef<string | null>(audioDeviceId);
   facingRef.current = facingMode;
   deviceIdRef.current = deviceId;
+  audioDeviceIdRef.current = audioDeviceId;
 
   const syncLiveTranscriptDisplay = useCallback(() => {
     const combined = composeVideoLiveTranscript(
@@ -287,6 +294,7 @@ export function useJournalVideoCapture(
             quality: s.quality,
             facingMode: facingRef.current,
             deviceId: deviceIdRef.current,
+            audioDeviceId: audioDeviceIdRef.current,
           },
           initialBubble: {
             corner: s.bubbleCorner,
@@ -306,6 +314,7 @@ export function useJournalVideoCapture(
             quality: s.quality,
             facingMode: facingRef.current,
             deviceId: deviceIdRef.current,
+            audioDeviceId: audioDeviceIdRef.current,
           }),
         );
         await tuneJournalVideoStream(stream, s.quality);
@@ -509,6 +518,12 @@ export function useJournalVideoCapture(
     startRecording();
   }, [phase, clearCountdown, startRecording]);
 
+  const cancelCountdown = useCallback(() => {
+    if (phase !== "countdown") return;
+    clearCountdown();
+    setPhase("preview");
+  }, [phase, clearCountdown]);
+
   const pauseRecording = useCallback(() => {
     const rec = recorderRef.current;
     if (!rec || phase !== "recording" || rec.state !== "recording") return;
@@ -618,6 +633,7 @@ export function useJournalVideoCapture(
 
   const switchFacing = useCallback(async () => {
     if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+    clearCountdown();
     const next = toggleCameraFacing(facingRef.current);
     setFacingMode(next);
     facingRef.current = next;
@@ -638,11 +654,12 @@ export function useJournalVideoCapture(
     } catch {
       setError("Could not switch camera.");
     }
-  }, [mode, phase, cleanupStream, acquireStream]);
+  }, [mode, phase, cleanupStream, acquireStream, clearCountdown]);
 
   const selectDevice = useCallback(
     async (nextDeviceId: string) => {
       if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+      clearCountdown();
       setDeviceId(nextDeviceId);
       deviceIdRef.current = nextDeviceId;
       const gen = ++openGenRef.current;
@@ -661,7 +678,33 @@ export function useJournalVideoCapture(
         setError("Could not switch camera.");
       }
     },
-    [mode, phase, cleanupStream, acquireStream],
+    [mode, phase, cleanupStream, acquireStream, clearCountdown],
+  );
+
+  const selectAudioDevice = useCallback(
+    async (nextAudioDeviceId: string) => {
+      if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+      clearCountdown();
+      setAudioDeviceId(nextAudioDeviceId);
+      audioDeviceIdRef.current = nextAudioDeviceId;
+      setSettings((prev) => ({ ...prev, audioDeviceId: nextAudioDeviceId }));
+      const gen = ++openGenRef.current;
+      try {
+        cleanupStream();
+        const stream = await acquireStream("camera", gen);
+        if (!stream) return;
+        streamRef.current = stream;
+        setPreviewStream(stream);
+        if (videoElRef.current) {
+          videoElRef.current.srcObject = stream;
+          await videoElRef.current.play().catch(() => {});
+        }
+        setPhase("preview");
+      } catch {
+        setError("Could not switch microphone.");
+      }
+    },
+    [mode, phase, cleanupStream, acquireStream, clearCountdown],
   );
 
   const markChapter = useCallback(
@@ -721,11 +764,13 @@ export function useJournalVideoCapture(
     previewStream,
     facingMode,
     deviceId,
+    audioDeviceId,
     chapters,
     settings,
     bindPreview,
     openPreview,
     beginCountdown,
+    cancelCountdown,
     skipCountdown,
     startRecording,
     pauseRecording,
@@ -734,6 +779,7 @@ export function useJournalVideoCapture(
     cancel,
     switchFacing,
     selectDevice,
+    selectAudioDevice,
     markChapter,
     setBubbleLayout,
     patchSettings,

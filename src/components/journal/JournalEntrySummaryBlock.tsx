@@ -8,6 +8,8 @@ type Props = {
   summarizing?: boolean;
   className?: string;
   showFullTextLabel?: boolean;
+  /** Show the summary section even before AI text arrives (e.g. video journals). */
+  alwaysShow?: boolean;
 };
 
 /** Summary block shown above full journal body (video journals, sketches, etc.). */
@@ -17,10 +19,11 @@ export function JournalEntrySummaryBlock({
   summarizing = false,
   className,
   showFullTextLabel = false,
+  alwaysShow = false,
 }: Props) {
   const hasSummary = Boolean(summary.trim());
 
-  if (!hasSummary && !summarizing) return null;
+  if (!hasSummary && !summarizing && !alwaysShow) return null;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -37,7 +40,7 @@ export function JournalEntrySummaryBlock({
           <PolishedTextarea
             value={summary}
             onChange={(e) => onSummaryChange(e.target.value)}
-            placeholder="AI summary will appear here…"
+            placeholder="AI summary will appear here after your video is transcribed…"
             className="min-h-[4.5rem] resize-none border-0 bg-transparent px-0 py-0 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         ) : (

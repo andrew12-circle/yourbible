@@ -17,6 +17,7 @@ import { LiveTranscriptTicker } from "@/components/journal/LiveTranscriptTicker"
 import {
   useJournalVideoCapture,
   type JournalVideoCaptureMode,
+  type JournalVideoCapturePhase,
   type JournalVideoCaptureResult,
 } from "@/hooks/useJournalVideoCapture";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +70,8 @@ export default function JournalVideoCaptureDialog({
 }: Props) {
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
+  const prevPhaseRef = useRef<JournalVideoCapturePhase>("idle");
+  const [countdownDeferred, setCountdownDeferred] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const bindPreviewRef = useRef<(el: HTMLVideoElement | null) => void>(() => {});
   const stopOnMaxRef = useRef<() => void>(() => {});
@@ -84,17 +87,36 @@ export default function JournalVideoCaptureDialog({
   });
   const openPreviewRef = useRef(capture.openPreview);
   const cancelRef = useRef(capture.cancel);
+  const cancelCountdownRef = useRef(capture.cancelCountdown);
+  cancelCountdownRef.current = capture.cancelCountdown;
   const beginCountdownRef = useRef(capture.beginCountdown);
   openPreviewRef.current = capture.openPreview;
   cancelRef.current = capture.cancel;
   beginCountdownRef.current = capture.beginCountdown;
   bindPreviewRef.current = capture.bindPreview;
+
+  useEffect(() => {
+    if (prevPhaseRef.current === "countdown" && capture.phase === "preview") {
+      setCountdownDeferred(true);
+    }
+    prevPhaseRef.current = capture.phase;
+  }, [capture.phase]);
+
+  const handleCancelCountdown = useCallback(() => {
+    cancelCountdownRef.current();
+    setCountdownDeferred(true);
+  }, []);
+
+  const handleStartCountdown = useCallback(() => {
+    setCountdownDeferred(false);
+    beginCountdownRef.current();
+  }, []);
   const pauseRecordingRef = useRef(capture.pauseRecording);
   pauseRecordingRef.current = capture.pauseRecording;
   const resumeRecordingRef = useRef(capture.resumeRecording);
   resumeRecordingRef.current = capture.resumeRecording;
 
-  const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording");
+  const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording" || capture.phase === "preview" || capture.phase === "countdown");
   useSilenceAutoPause({
     enabled:
       capture.settings.silenceAutoPause &&
@@ -135,6 +157,7 @@ export default function JournalVideoCaptureDialog({
       setPickMode(null);
       setPendingReview(null);
       setPauseReason(null);
+      setCountdownDeferred(false);
       countdownStartedRef.current = false;
       return;
     }
@@ -157,13 +180,14 @@ export default function JournalVideoCaptureDialog({
     if (
       capture.phase === "preview" &&
       !countdownStartedRef.current &&
+      !countdownDeferred &&
       pickMode &&
       !pendingReview
     ) {
       countdownStartedRef.current = true;
       beginCountdownRef.current();
     }
-  }, [capture.phase, pickMode, pendingReview]);
+  }, [capture.phase, pickMode, pendingReview, countdownDeferred]);
 
   const recordingStartHandledRef = useRef(false);
 
@@ -213,6 +237,7 @@ export default function JournalVideoCaptureDialog({
 
   const handleRetake = () => {
     setPendingReview(null);
+    setCountdownDeferred(false);
     countdownStartedRef.current = false;
     void capture.openPreview(pickMode ?? defaultMode ?? "camera");
   };
@@ -279,11 +304,15 @@ export default function JournalVideoCaptureDialog({
       ) : null}
 
       {showCountdown ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-          <span className="text-7xl font-bold tabular-nums text-white animate-pulse">
-            {capture.countdown}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 text-white"
+          onClick={handleCancelCountdown}
+          aria-label="Pause countdown and adjust settings"
+        >
+          <span className="text-7xl font-bold tabular-nums animate-pulse">{capture.countdown}</span>
+          <span className="text-sm text-white/80">Tap to pause and adjust settings</span>
+        </button>
       ) : null}
 
       {active ? (
@@ -363,6 +392,8 @@ export default function JournalVideoCaptureDialog({
             active={active}
             paused={paused}
             processing={processing}
+            countdownDeferred={countdownDeferred}
+            onStartCountdown={handleStartCountdown}
             onPauseResume={
               active && !processing
                 ? () => (paused ? handleResumeRecording() : handlePauseRecording())
@@ -405,7 +436,9 @@ export default function JournalVideoCaptureDialog({
                   ? "Your screen is recording with your camera in the corner."
                   : "Talk naturally. Tap pause if you need a moment."
             : showCountdown
-              ? "Get ready… or tap Start now."
+              ? "Get ready… tap the screen to pause, or tap Start now."
+              : countdownDeferred
+                ? "Adjust webcam and mic, then tap Start countdown."
               : capture.settings.countdown === 0
                 ? "Recording starts when the camera is ready."
                 : "Recording starts after the countdown."}

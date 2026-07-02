@@ -30,4 +30,15 @@ describe("formatDictatedJournalText", () => {
     const out = formatDictatedJournalText(raw);
     expect(out).toMatch(/\?/);
   });
+
+  it("breaks long monologues into paragraphs", () => {
+    const raw =
+      "today i woke up feeling tired but grateful for another day. " +
+      "i spent time in prayer asking for wisdom about my work situation. " +
+      "then i went for a walk and noticed the trees starting to bloom. " +
+      "it reminded me that seasons change and this difficulty will pass too. " +
+      "i want to trust god more even when i cannot see the path ahead.";
+    const out = formatDictatedJournalText(raw);
+    expect(out).toContain("\n\n");
+  });
 });

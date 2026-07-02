@@ -6,6 +6,8 @@ export type BubbleSize = "sm" | "md" | "lg";
 export interface JournalVideoCaptureSettings {
   quality: JournalVideoQuality;
   countdown: JournalVideoCountdown;
+  /** Last selected microphone (desktop); null = system default. */
+  audioDeviceId: string | null;
   /** Desktop: draggable mini recorder over the journal. */
   floatingRecorder: boolean;
   silenceAutoPause: boolean;
@@ -22,6 +24,7 @@ export const JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS = 30;
 export const DEFAULT_JOURNAL_VIDEO_CAPTURE_SETTINGS: JournalVideoCaptureSettings = {
   quality: "720p",
   countdown: 3,
+  audioDeviceId: null,
   floatingRecorder: true,
   silenceAutoPause: true,
   includeSystemAudio: true,

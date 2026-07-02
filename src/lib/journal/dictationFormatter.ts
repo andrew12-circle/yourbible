@@ -21,8 +21,10 @@ const PARAGRAPH_PIVOTS =
 const SENTENCE_PIVOTS =
   /\s+(and then|but |so |because |although |though |while |when |if |after |before )\s+/gi;
 
-const MIN_PARAGRAPH_SEGMENT = 72;
-const MIN_SENTENCE_SEGMENT = 48;
+const MIN_PARAGRAPH_SEGMENT = 40;
+const MIN_SENTENCE_SEGMENT = 28;
+const AUTO_PARAGRAPH_SENTENCES = 3;
+const AUTO_PARAGRAPH_MIN_CHARS = 120;
 
 function capitalizeFirst(s: string): string {
   const t = s.trim();
@@ -70,10 +72,32 @@ function formatSentences(block: string): string {
     .join(" ");
 }
 
+function splitSentences(text: string): string[] {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+  const parts = normalized.split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [normalized];
+}
+
+/** Break long monologues into readable paragraphs when pivot words are absent. */
+function autoParagraphBreaks(text: string): string {
+  if (text.includes("\n\n") || text.length < AUTO_PARAGRAPH_MIN_CHARS) return text;
+  const sentences = splitSentences(text);
+  if (sentences.length <= AUTO_PARAGRAPH_SENTENCES) return text;
+  const paragraphs: string[] = [];
+  for (let i = 0; i < sentences.length; i += AUTO_PARAGRAPH_SENTENCES) {
+    paragraphs.push(sentences.slice(i, i + AUTO_PARAGRAPH_SENTENCES).join(" "));
+  }
+  return paragraphs.filter(Boolean).join("\n\n");
+}
+
 function formatParagraphs(text: string): string {
   const blocks = splitLongChunk(text, PARAGRAPH_PIVOTS, MIN_PARAGRAPH_SEGMENT);
-  if (blocks.length <= 1) return formatSentences(blocks[0] ?? text);
-  return blocks.map((b) => formatSentences(b)).filter(Boolean).join("\n\n");
+  if (blocks.length <= 1) {
+    const formatted = formatSentences(blocks[0] ?? text);
+    return autoParagraphBreaks(formatted);
+  }
+  return blocks.map((b) => autoParagraphBreaks(formatSentences(b))).filter(Boolean).join("\n\n");
 }
 
 /** Format raw speech-to-text into punctuated journal prose (device-only). */

@@ -1507,6 +1507,7 @@ export default function ReaderPage() {
       chapterHeaderReservePx: CHAPTER_HEADER_RESERVE_PX,
       reserveFootnotesBand: useStudyPageStack && showPageFootnotes,
       liveColumnSafetyPx: READER_LIVE_COLUMN_SAFETY_PX,
+      spreadPane: useSpreadDoubleColumn && useBookSpread,
     });
     const articleStyle = {
       ...readerScriptureTypographyStyle(fontChoice, fontScale, {

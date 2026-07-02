@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendVideoSpeechFinal,
   bodyWithLiveVideoTranscript,
+  buildJournalBodySegments,
   composeVideoLiveTranscript,
   finalizeVideoJournalBody,
   pickBestVideoJournalTranscript,
@@ -68,8 +69,8 @@ describe("resolveVideoAnchorOffset", () => {
 });
 
 describe("effectiveVideoAnchor", () => {
-  it("repairs anchor 0 when body has text", () => {
-    expect(effectiveVideoAnchor("Morning journal.", 0)).toBe(16);
+  it("keeps anchor 0 for video-first journals with transcript body", () => {
+    expect(effectiveVideoAnchor("Morning journal.", 0)).toBe(0);
   });
 
   it("repairs mid-word splits", () => {
@@ -97,6 +98,19 @@ describe("replaceTranscriptBeforeVideo", () => {
     expect(replaceTranscriptBeforeVideo("Old spoken.\n\nTrailing notes.", 11, "New spoken words.")).toBe(
       "New spoken words.\n\nTrailing notes.",
     );
+  });
+});
+
+describe("buildJournalBodySegments", () => {
+  it("renders video before transcript text for video-first journals", () => {
+    const body = "Today I prayed about patience and trust.";
+    const video = {
+      id: "v1",
+      anchor_offset: 0,
+      created_at: "2026-01-01T00:00:00Z",
+    } as Parameters<typeof buildJournalBodySegments>[1][number];
+    const segments = buildJournalBodySegments(body, [video]);
+    expect(segments.map((s) => s.kind)).toEqual(["video", "text"]);
   });
 });
 

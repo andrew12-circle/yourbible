@@ -206,7 +206,8 @@ export function clampAnchorOffset(body: string, offset: number): number {
 /** Detect mistaken toolbar-click anchors that split a word (e.g. "finally a|ble"). */
 export function isLikelyMisplacedVideoAnchor(body: string, anchor: number): boolean {
   if (!body.trim()) return false;
-  if (anchor <= 0) return true;
+  // Anchor 0 is valid — video-first journals store transcript after the inline player.
+  if (anchor <= 0) return false;
   if (anchor >= body.length) return false;
   const before = body[anchor - 1];
   const after = body[anchor];
@@ -239,6 +240,10 @@ export function replaceTranscriptBeforeVideo(
 ): string {
   const prepared = prepareVideoJournalTranscript(newTranscript) || newTranscript.trim();
   if (!prepared) return body;
+
+  const rawAnchor = anchorOffset ?? 0;
+  // Video-first journals anchor at 0 — the body holds live preview text to replace.
+  if (rawAnchor === 0) return prepared;
 
   const anchor = effectiveVideoAnchor(body, anchorOffset);
   const trailing = body.slice(anchor).trimStart();

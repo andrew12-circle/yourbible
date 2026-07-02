@@ -196,6 +196,7 @@ export function NewJournalEntryBodyEditor({
         summary={summary}
         onSummaryChange={onSummaryChange}
         summarizing={videoSummarizing}
+        alwaysShow={videos.length > 0}
         showFullTextLabel={Boolean(summary.trim())}
         className="mb-3"
       />
@@ -218,7 +219,7 @@ export function NewJournalEntryBodyEditor({
             body={body}
             videos={videos}
             polishResetKey={editId ?? "journal-new"}
-            bodyClassName="relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            bodyClassName="relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed whitespace-pre-wrap shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             onBodyChange={(next) => onBodyChange(next)}
             onCaretChange={onCaretChange}
             onRemoveVideo={onRemoveVideo}

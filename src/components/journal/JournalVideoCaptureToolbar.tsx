@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import {
   Bookmark,
   Camera,
   ChevronDown,
   FlipHorizontal,
   Loader2,
+  Mic,
   Monitor,
   Pause,
   PictureInPicture2,
@@ -12,6 +13,7 @@ import {
   Settings2,
   SkipForward,
   Square,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +28,7 @@ import {
 import { JournalVideoMicMeter } from "@/components/journal/JournalVideoMicMeter";
 import type { UseJournalVideoCaptureApi } from "@/hooks/useJournalVideoCapture";
 import { useMicLevel } from "@/hooks/useMicLevel";
-import { listVideoInputDevices } from "@/lib/journal/journalVideoDevices";
+import { listAudioInputDevices, listVideoInputDevices } from "@/lib/journal/journalVideoDevices";
 import type {
   BubbleCorner,
   BubbleSize,
@@ -44,6 +46,9 @@ type Props = {
   active?: boolean;
   paused?: boolean;
   processing?: boolean;
+  /** Preview is ready but countdown was paused — show Start button. */
+  countdownDeferred?: boolean;
+  onStartCountdown?: () => void;
   onPauseResume?: () => void;
   onStop?: () => void;
 };
@@ -52,21 +57,19 @@ function SmartBarDivider() {
   return <div className="mx-0.5 h-6 w-px shrink-0 bg-white/20" aria-hidden />;
 }
 
-function SmartBarIconButton({
-  label,
-  title,
-  onClick,
-  disabled,
-  children,
-}: {
-  label: string;
-  title?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
+const SmartBarIconButton = forwardRef<
+  HTMLButtonElement,
+  {
+    label: string;
+    title?: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    children: React.ReactNode;
+  }
+>(function SmartBarIconButton({ label, title, onClick, disabled, children }, ref) {
   return (
     <Button
+      ref={ref}
       type="button"
       size="icon"
       variant="ghost"
@@ -79,6 +82,10 @@ function SmartBarIconButton({
       {children}
     </Button>
   );
+});
+
+function deviceLabel(device: MediaDeviceInfo, fallback: string): string {
+  return device.label?.trim() || fallback;
 }
 
 /** Unified recorder bar: camera/source controls, quality, settings, and pause/stop transport. */
@@ -90,22 +97,45 @@ export function JournalVideoCaptureToolbar({
   active = false,
   paused = false,
   processing = false,
+  countdownDeferred = false,
+  onStartCountdown,
   onPauseResume,
   onStop,
 }: Props) {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const previewActive =
     capture.phase === "recording" ||
     capture.phase === "paused" ||
     capture.phase === "preview" ||
     capture.phase === "countdown";
-  const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording");
+  const micMeterActive =
+    capture.phase === "preview" || capture.phase === "countdown" || capture.phase === "recording";
+  const micLevel = useMicLevel(capture.previewStream, micMeterActive);
   const settingsLocked = capture.phase === "recording" || capture.phase === "paused";
   const showCountdown = capture.phase === "countdown";
+  const showPreviewStart = capture.phase === "preview" && countdownDeferred && !processing;
+
+  const activeVideoDeviceId = useMemo(
+    () => capture.previewStream?.getVideoTracks()[0]?.getSettings().deviceId ?? capture.deviceId ?? "",
+    [capture.previewStream, capture.deviceId],
+  );
+  const activeAudioDeviceId = useMemo(
+    () =>
+      capture.previewStream?.getAudioTracks()[0]?.getSettings().deviceId ?? capture.audioDeviceId ?? "",
+    [capture.previewStream, capture.audioDeviceId],
+  );
+  const activeAudioLabel = useMemo(() => {
+    const match = audioDevices.find((d) => d.deviceId === activeAudioDeviceId);
+    if (match?.label) return match.label;
+    const trackLabel = capture.previewStream?.getAudioTracks()[0]?.label;
+    return trackLabel?.trim() || "Default microphone";
+  }, [audioDevices, activeAudioDeviceId, capture.previewStream]);
 
   useEffect(() => {
     if (!previewActive) return;
-    void listVideoInputDevices().then(setDevices);
+    void listVideoInputDevices().then(setVideoDevices);
+    void listAudioInputDevices().then(setAudioDevices);
   }, [previewActive, capture.previewStream]);
 
   const persist = (patch: Parameters<typeof writeJournalVideoCaptureSettings>[0]) => {
@@ -144,8 +174,20 @@ export function JournalVideoCaptureToolbar({
         className,
       )}
     >
-      {/* Source + live helpers */}
       <div className="flex shrink-0 items-center gap-0.5">
+        {showPreviewStart && onStartCountdown ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs"
+            onClick={onStartCountdown}
+          >
+            <Video className="h-3.5 w-3.5" />
+            Start countdown
+          </Button>
+        ) : null}
+
         {showCountdown ? (
           <Button
             type="button"
@@ -159,13 +201,19 @@ export function JournalVideoCaptureToolbar({
           </Button>
         ) : null}
 
+        {previewActive ? (
+          <div className="mx-1 flex flex-col items-center gap-0.5" title={activeAudioLabel}>
+            <JournalVideoMicMeter level={micLevel} />
+            {!active && !showCountdown ? (
+              <span className="max-w-[5.5rem] truncate text-[9px] text-white/70">{activeAudioLabel}</span>
+            ) : null}
+          </div>
+        ) : null}
+
         {active ? (
-          <>
-            <JournalVideoMicMeter level={micLevel} className="mx-1.5" />
-            <SmartBarIconButton label="Mark chapter" onClick={() => capture.markChapter()}>
-              <Bookmark className="h-4 w-4" />
-            </SmartBarIconButton>
-          </>
+          <SmartBarIconButton label="Mark chapter" onClick={() => capture.markChapter()}>
+            <Bookmark className="h-4 w-4" />
+          </SmartBarIconButton>
         ) : null}
 
         {showCameraControls ? (
@@ -178,7 +226,7 @@ export function JournalVideoCaptureToolbar({
               >
                 <FlipHorizontal className="h-4 w-4" />
               </SmartBarIconButton>
-            ) : devices.length > 1 ? (
+            ) : videoDevices.length > 1 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -196,12 +244,12 @@ export function JournalVideoCaptureToolbar({
                 <DropdownMenuContent align="center">
                   <DropdownMenuLabel>Camera</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
-                    value={capture.deviceId ?? ""}
+                    value={activeVideoDeviceId}
                     onValueChange={(id) => void capture.selectDevice(id)}
                   >
-                    {devices.map((d) => (
+                    {videoDevices.map((d) => (
                       <DropdownMenuRadioItem key={d.deviceId} value={d.deviceId}>
-                        {d.label || `Camera ${d.deviceId.slice(0, 6)}`}
+                        {deviceLabel(d, `Camera ${d.deviceId.slice(0, 6)}`)}
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
@@ -292,7 +340,7 @@ export function JournalVideoCaptureToolbar({
         </>
       ) : null}
 
-      {(active || processing) ? (
+      {active || processing ? (
         <>
           <SmartBarDivider />
           <div className="flex shrink-0 items-center gap-1">
@@ -326,14 +374,13 @@ export function JournalVideoCaptureToolbar({
 
       <SmartBarDivider />
 
-      {/* More settings */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <SmartBarIconButton label="Recording settings" disabled={settingsLocked}>
             <Settings2 className="h-4 w-4" />
           </SmartBarIconButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="max-h-[min(70vh,28rem)] overflow-y-auto">
           <DropdownMenuLabel>Quality</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={capture.settings.quality}
@@ -353,6 +400,37 @@ export function JournalVideoCaptureToolbar({
             <DropdownMenuRadioItem value="3">3 seconds</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="5">5 seconds</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+          {!isMobile && audioDevices.length > 0 ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5">
+                <Mic className="h-3.5 w-3.5" />
+                Microphone
+              </DropdownMenuLabel>
+              <div className="px-2 pb-2">
+                <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1.5">
+                  <JournalVideoMicMeter level={micLevel} className="[&_span]:bg-muted-foreground/40 [&_span.bg-emerald-400]:bg-emerald-500" />
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{activeAudioLabel}</span>
+                </div>
+                <p className="mt-1 px-0.5 text-[10px] leading-snug text-muted-foreground">
+                  Speak to test your mic — green bars mean it is picking you up.
+                </p>
+              </div>
+              <DropdownMenuRadioGroup
+                value={activeAudioDeviceId}
+                onValueChange={(id) => {
+                  persist({ audioDeviceId: id });
+                  void capture.selectAudioDevice(id);
+                }}
+              >
+                {audioDevices.map((d) => (
+                  <DropdownMenuRadioItem key={d.deviceId} value={d.deviceId}>
+                    {deviceLabel(d, `Microphone ${d.deviceId.slice(0, 6)}`)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </>
+          ) : null}
           {!isMobile ? (
             <>
               <DropdownMenuSeparator />

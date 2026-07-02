@@ -342,7 +342,7 @@ function findSpreadLeftPageEnd(
   let hi = spreadEnd - 1;
   let best = spreadStart + 1;
 
-  while (lo <= hi) {
+    while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const leftFits = spreadLeftPaneFits(
       node,
@@ -377,6 +377,40 @@ function findSpreadLeftPageEnd(
       hi = mid - 1;
     } else {
       lo = mid + 1;
+    }
+  }
+
+  while (best > spreadStart + 1) {
+    const leftOk = spreadLeftPaneFits(
+      node,
+      stream,
+      spreadStart,
+      best,
+      chapters,
+      redByChapter,
+      columnsClassName,
+      leftLimit,
+      pageWidth,
+      studyLayout,
+      pageMeasureOptions,
+      spreadMeasureOptions,
+    );
+    const rightOk = streamSliceFitsPage(
+      node,
+      stream,
+      best,
+      spreadEnd,
+      chapters,
+      redByChapter,
+      columnsClassName,
+      rightLimit,
+      studyLayout,
+      pageMeasureOptions,
+    );
+    if (leftOk && rightOk) break;
+    best -= 1;
+    while (best > spreadStart + 1 && stream[best - 1]?.kind !== "verse") {
+      best -= 1;
     }
   }
 

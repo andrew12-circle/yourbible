@@ -165,9 +165,28 @@ export function wrapHolmanStudyContent(
     !scrollMode && contentHeightPx != null && contentHeightPx > 0
       ? readerScriptureColumnsHeightPx(contentHeightPx, chromeBelow)
       : undefined;
+  const scriptureSectionStyle: CSSProperties | undefined =
+    !scrollMode && columnHeightPx != null && columnHeightPx > 0
+      ? {
+          height: columnHeightPx,
+          maxHeight: columnHeightPx,
+          flex: "0 0 auto",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          minWidth: 0,
+        }
+      : undefined;
   const columnsStyle: CSSProperties | undefined =
     !scrollMode && hasColumns
-      ? scriptureColumnWrapperStyle(columnHeightPx)
+      ? columnHeightPx != null && columnHeightPx > 0
+        ? {
+            ...scriptureColumnWrapperStyle(columnHeightPx),
+            height: "100%",
+            maxHeight: "100%",
+          }
+        : scriptureColumnWrapperStyle(columnHeightPx)
       : undefined;
 
   return (
@@ -179,10 +198,17 @@ export function wrapHolmanStudyContent(
       )}
       style={stackStyle}
     >
-      <div className={cn(!scrollMode && "flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col")}>
+      <div
+        className={cn(
+          !scrollMode &&
+            columnHeightPx == null &&
+            "flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col",
+        )}
+        style={scriptureSectionStyle}
+      >
         {columnsClass ? (
           <div
-            className={cn(columnsClass, !scrollMode && "min-h-0 overflow-hidden")}
+            className={cn(columnsClass, !scrollMode && "min-h-0 overflow-hidden flex-1")}
             style={columnsStyle}
           >
             {scripture}
@@ -212,9 +238,10 @@ export function wrapScriptureColumns(
 ): ReactNode {
   const columnsClass = readerColumnClassName(layout);
   if (!columnsClass) return children;
+  const sized = !scrollMode && contentHeightPx != null && contentHeightPx > 0;
   return (
     <div
-      className={cn(columnsClass, !scrollMode && "h-full w-full min-h-0")}
+      className={cn(columnsClass, !scrollMode && !sized && "h-full w-full min-h-0")}
       style={scrollMode ? undefined : scriptureColumnWrapperStyle(contentHeightPx)}
     >
       {children}

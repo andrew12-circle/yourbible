@@ -7,6 +7,8 @@ import {
   paginatorSpreadPaneLimitPx,
   readerColumnContentHeightPx,
   readerPageContentLimitPx,
+  readerPageHeightsPx,
+  readerScriptureColumnsHeightPx,
   scriptureColumnWrapperStyle,
   scriptureContentFitsPage,
   scriptureSpreadLeftPaneFits,
@@ -232,6 +234,25 @@ describe("readerColumnMeasure", () => {
   it("paginatorSpreadPaneLimitPx reserves extra spread pane guard", () => {
     expect(paginatorSpreadPaneLimitPx(568)).toBe(568 - READER_SPREAD_PANE_EXTRA_GUARD_PX);
     expect(paginatorSpreadPaneLimitPx(1)).toBe(1);
+  });
+
+  it("readerPageHeightsPx matches spread paginator stack limits", () => {
+    const spread = readerPageHeightsPx({
+      pageContentReady: true,
+      hasStreamSlice: true,
+      scrollMode: false,
+      columnLayoutActive: true,
+      pageIndex: 1,
+      startsWithChapterHeader: false,
+      firstPageHeight: 520,
+      pageHeight: 600,
+      reserveFootnotesBand: true,
+      spreadPane: true,
+    });
+    expect(spread.stackContentHeightPx).toBe(paginatorSpreadPaneLimitPx(568));
+    expect(spread.scriptureColumnHeightPx).toBe(
+      readerScriptureColumnsHeightPx(spread.stackContentHeightPx!, 88),
+    );
   });
 
   it("scriptureSpreadLeftPaneFits rejects blocks starting in column 3 of spread measure", () => {

@@ -151,6 +151,7 @@ export type JournalVideoConstraintOptions = {
   quality?: JournalVideoQuality;
   facingMode?: CameraFacing;
   deviceId?: string | null;
+  audioDeviceId?: string | null;
 };
 
 function journalVideoTrackConstraints(
@@ -177,8 +178,11 @@ export function buildJournalVideoConstraints(
   options: JournalVideoConstraintOptions = {},
 ): MediaStreamConstraints {
   const mobile = isMobileVideoCapture();
+  const audio = options.audioDeviceId
+    ? { deviceId: { exact: options.audioDeviceId } }
+    : true;
   return {
-    audio: true,
+    audio,
     video: journalVideoTrackConstraints(mobile, options),
   };
 }
