@@ -679,7 +679,7 @@
   }
   .scripture-columns-spread .scripture-paragraph {
     break-inside: auto;
-    padding-inline-end: 0.2em;
+    padding-inline-end: 0.35em;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -724,7 +724,7 @@
   }
   .scripture-columns-2 .scripture-paragraph {
     break-inside: auto;
-    padding-inline-end: 0.2em;
+    padding-inline-end: 0.35em;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }

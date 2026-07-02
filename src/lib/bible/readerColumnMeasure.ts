@@ -17,7 +17,7 @@ export interface ScriptureColumnMeasureOptions {
  */
 
 /** Extra slack on live column wrappers so the last line is never clipped vs paginator. */
-export const READER_LIVE_COLUMN_SAFETY_PX = 24;
+export const READER_LIVE_COLUMN_SAFETY_PX = 32;
 
 /** Horizontal inset applied to column boxes (must match CSS padding-inline on columns). */
 export const READER_COLUMN_EDGE_INSET_EM = 0.35;
@@ -28,7 +28,7 @@ export function paginatorMeasureLimitPx(contentHeightPx: number): number {
 }
 
 /** Extra slack reserved per spread pane during paginator measurement. */
-export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 64;
+export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 72;
 
 /** Paginator stack height for one spread pane — tighter than live to avoid clip gaps. */
 export function paginatorSpreadPaneLimitPx(stackLimitPx: number): number {
@@ -47,10 +47,10 @@ export function readerScriptureColumnsHeightPx(
 }
 
 /** Clip slack for the last line / descenders inside a column box. */
-export const READER_COLUMN_CLIP_GUARD_PX = 32;
+export const READER_COLUMN_CLIP_GUARD_PX = 36;
 
 /** Breathing room between the last scripture line and the page nav bar. */
-export const READER_PAGE_NAV_CLEARANCE_PX = 24;
+export const READER_PAGE_NAV_CLEARANCE_PX = 40;
 
 /** ReaderPageFooter height (h-10) + top border — reserved when layout may measure before footer mounts. */
 export const READER_PAGE_NAV_FOOTER_PX = 48;
@@ -260,22 +260,31 @@ export function applyHolmanStudyMeasureHtml(
   const chromeBelow = (connectionsHtml ? READER_HOLMAN_CONNECTIONS_BAND_PX : 0)
     + (footnotesHtml ? READER_HOLMAN_FOOTNOTES_BAND_PX : 0);
   const columnH = readerScriptureColumnsHeightPx(h, chromeBelow);
-  if (!connectionsHtml && !footnotesHtml) {
-    applyScriptureColumnMeasureHtml(node, scriptureHtml, columnsClassName, contentHeightPx, options);
-    return;
-  }
   const columnCount = options?.columnCount ?? 2;
   const width =
     options?.measureWidthPx != null && options.measureWidthPx > 0
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
   const columnsInner = columnsClassName
+    ? `<div class="${columnsClassName}" style="height:100%;max-height:100%;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
+    : scriptureHtml;
+  const scriptureSectionStyle =
+    `height:${columnH}px;max-height:${columnH}px;flex:0 0 auto;overflow:hidden;display:flex;flex-direction:column;min-height:0;min-width:0`;
+  const scriptureSection = `<div style="${scriptureSectionStyle}">${columnsInner}</div>`;
+  if (!connectionsHtml && !footnotesHtml) {
+    node.innerHTML =
+      `<div class="scripture-page-stack holman-study-stack reader-holman-study" style="height:${h}px;max-height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
+      scriptureSection +
+      `</div>`;
+    return;
+  }
+  const columnsInnerLegacy = columnsClassName
     ? `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
     : scriptureHtml;
-  const scriptureSection = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInner}</div>`;
+  const scriptureSectionLegacy = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInnerLegacy}</div>`;
   node.innerHTML =
     `<div class="scripture-page-stack holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
-    scriptureSection +
+    scriptureSectionLegacy +
     connectionsHtml +
     footnotesHtml +
     `</div>`;
@@ -312,7 +321,7 @@ function scriptureColumnsHaveClippedOverflow(columns: HTMLElement): boolean {
   if (box.height <= 0) return false;
 
   const clipBottom = box.bottom - READER_LIVE_COLUMN_SAFETY_PX;
-  const clipRight = box.right - 2;
+  const clipRight = box.right - 6;
   const blocks = columns.querySelectorAll(
     ".scripture-paragraph, .scripture-heading, .scripture-plate",
   );
