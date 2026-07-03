@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Maximize2, Music2, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,12 @@ import { cn } from "@/lib/utils";
 type Rect = { left: number; top: number; width: number; height: number };
 
 /**
- * The single persistent playback engine. The radio <audio> element and the
- * video/embed <iframe> are mounted here once and survive navigation. The video
- * embed floats in the corner and docks into the Music page slot when present.
+ * Visual surface for the media player. The radio <audio> engine lives in the
+ * provider (single, app-lifetime); here we render the floating radio bar and the
+ * video/embed <iframe> that floats in the corner and docks into the Music page.
  */
 export function GlobalMediaPlayerHost() {
   const { url, active, playing, setPlaying, dockEl, stop } = useGlobalMediaPlayer();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
 
   const embed = useMemo(() => (url ? parseWorshipMusicUrl(url) : null), [url]);
@@ -27,14 +26,6 @@ export function GlobalMediaPlayerHost() {
     if (preset) return preset.label;
     return globalMediaHistoryLabel({ id: "", url, title: undefined });
   }, [url]);
-
-  // Drive the radio <audio> element from the shared play/pause state.
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
-    if (playing) void el.play().catch(() => {});
-    else el.pause();
-  }, [playing, embed?.streamUrl, url]);
 
   // Track the Music page dock slot so the video embed can align to it.
   useEffect(() => {
@@ -66,60 +57,48 @@ export function GlobalMediaPlayerHost() {
 
   if (!active || !embed) return null;
 
-  // ---- Radio: hidden audio engine + floating control bar (unless docked) ----
+  // ---- Radio: floating control bar (audio engine lives in the provider) ----
   if (isRadio) {
+    if (dockEl) return null;
     return (
-      <>
-        <audio
-          ref={audioRef}
-          key={embed.streamUrl}
-          src={embed.streamUrl}
-          autoPlay
-          className="hidden"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-        />
-        {dockEl ? null : (
-          <div className="fixed bottom-4 right-4 z-[60] w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur-md">
-            <div className="flex items-center gap-2 px-3 py-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
-                <Music2 className="h-4 w-4" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-semibold text-foreground">{label}</p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {playing ? "Playing" : "Paused"} · Radio
-                </p>
-              </div>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-9 w-9 shrink-0"
-                onClick={() => setPlaying(!playing)}
-                aria-label={playing ? "Pause" : "Play"}
-              >
-                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
-              <Button asChild size="icon" variant="ghost" className="h-9 w-9 shrink-0" aria-label="Open Music">
-                <Link to="/music">
-                  <Maximize2 className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-9 w-9 shrink-0"
-                onClick={stop}
-                aria-label="Stop music"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <div className="fixed bottom-4 right-4 z-[60] w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+            <Music2 className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-foreground">{label}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {playing ? "Playing" : "Paused"} · Radio
+            </p>
           </div>
-        )}
-      </>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 shrink-0"
+            onClick={() => setPlaying(!playing)}
+            aria-label={playing ? "Pause" : "Play"}
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <Button asChild size="icon" variant="ghost" className="h-9 w-9 shrink-0" aria-label="Open Music">
+            <Link to="/music">
+              <Maximize2 className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 shrink-0"
+            onClick={stop}
+            aria-label="Stop music"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     );
   }
 

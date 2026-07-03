@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -65,12 +66,43 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
   const [history, setHistory] = useState(initial.history);
   const [playing, setPlayingState] = useState(false);
   const [dockEl, setDockEl] = useState<HTMLElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const loadedStreamRef = useRef("");
 
   const active = Boolean(url.trim() && parseWorshipMusicUrl(url));
+
+  const radioStreamUrl = useMemo(() => {
+    const parsed = url ? parseWorshipMusicUrl(url) : null;
+    return parsed?.provider === "radio" ? parsed.streamUrl ?? "" : "";
+  }, [url]);
 
   useEffect(() => {
     persist(url, history);
   }, [url, history]);
+
+  // Load the radio stream into the single persistent <audio> element. Guarding
+  // on the loaded URL prevents stacked/echoing playback from repeated mounts.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (loadedStreamRef.current === radioStreamUrl) return;
+    loadedStreamRef.current = radioStreamUrl;
+    el.pause();
+    if (radioStreamUrl) {
+      el.src = radioStreamUrl;
+      el.load();
+    } else {
+      el.removeAttribute("src");
+      el.load();
+    }
+  }, [radioStreamUrl]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (radioStreamUrl && playing) void el.play().catch(() => {});
+    else el.pause();
+  }, [radioStreamUrl, playing]);
 
   const play = useCallback((nextUrl: string) => {
     const parsed = parseWorshipMusicUrl(nextUrl);
@@ -151,6 +183,14 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
   return (
     <GlobalMediaPlayerContext.Provider value={value}>
       {children}
+      {/* Single, app-lifetime radio engine. Never remounts, so streams never stack. */}
+      <audio
+        ref={audioRef}
+        className="hidden"
+        preload="none"
+        onPlay={() => setPlayingState(true)}
+        onPause={() => setPlayingState(false)}
+      />
     </GlobalMediaPlayerContext.Provider>
   );
 }
