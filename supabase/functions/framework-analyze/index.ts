@@ -20,7 +20,8 @@ import {
 } from "../_shared/epistemology.ts";
 import {
   callChatWithTools,
-  getChatConfig,
+  getFrameworkAnalyzeChatConfig,
+  resolveFrameworkAnalyzeProvider,
 } from "../_shared/aiProvider.ts";
 import { drainPendingEmbeddingJobs } from "../_shared/embeddingJobDrain.ts";
 import { filterSubstantiveClaims, isMetaOrLowValueClaim } from "../_shared/claimQuality.ts";
@@ -1207,6 +1208,7 @@ async function geminiSubmitClaims(
   _apiKeyUnused: string,
   userPrompt: string,
 ): Promise<ClaimGeminiResult> {
+  const analyzeProvider = resolveFrameworkAnalyzeProvider();
   const maxAttempts = 4;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const r = await callChatWithTools(
@@ -1217,6 +1219,7 @@ async function geminiSubmitClaims(
       [TOOL],
       { type: "function", function: { name: "submit_claims" } },
       8192,
+      analyzeProvider,
     );
     if (r.status === 429) {
       if (attempt < maxAttempts - 1) {
@@ -1540,7 +1543,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const chatCfg = getChatConfig();
+    const chatCfg = getFrameworkAnalyzeChatConfig();
     if ("error" in chatCfg) throw new Error(chatCfg.error);
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1609,6 +1612,7 @@ Deno.serve(async (req) => {
           userId: artifact.user_id as string,
           artifactId: artifact_id,
         });
+        console.log(`framework-analyze: claim provider=${resolveFrameworkAnalyzeProvider()}`);
 
         const { data: beliefs } = await db
       .from("belief_nodes")

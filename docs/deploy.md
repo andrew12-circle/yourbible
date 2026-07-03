@@ -124,7 +124,9 @@ Or run `powershell -ExecutionPolicy Bypass -File scripts/deploy-transcript-worke
 Other keys as needed (see [`.env.example`](../.env.example)):
 
 ```bash
-npx supabase secrets set OPENAI_API_KEY=your_openai_key --project-ref itmcsyrnpcnrwviigppe
+npx supabase secrets set OPENAI_API_KEY=your_openai_key AI_PROVIDER=openai --project-ref itmcsyrnpcnrwviigppe
+# Artifact claim extraction uses Gemini by default; override only if needed:
+npx supabase secrets set FRAMEWORK_ANALYZE_AI_PROVIDER=gemini --project-ref itmcsyrnpcnrwviigppe
 npx supabase secrets set ELEVENLABS_API_KEY=your_elevenlabs_key --project-ref itmcsyrnpcnrwviigppe
 npx supabase secrets set API_BIBLE_KEY=your_api_bible_key --project-ref itmcsyrnpcnrwviigppe
 npx supabase secrets set YOUTUBE_DATA_API_KEY=your_youtube_key --project-ref itmcsyrnpcnrwviigppe

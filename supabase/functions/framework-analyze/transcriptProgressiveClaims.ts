@@ -4,7 +4,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0
 import {
   callChatJson,
   isOpenAiAuthFailure,
-  resolveAiProvider,
+  resolveFrameworkAnalyzeProvider,
   type AiProvider,
 } from "../_shared/aiProvider.ts";
 import {
@@ -164,7 +164,7 @@ function isRateLimitError(err: string | undefined): boolean {
 }
 
 function claimExtractionProviders(): AiProvider[] {
-  const primary = resolveAiProvider();
+  const primary = resolveFrameworkAnalyzeProvider();
   const openAiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
   const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
   const out: AiProvider[] = [];

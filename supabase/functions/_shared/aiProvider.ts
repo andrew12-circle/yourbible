@@ -34,6 +34,13 @@ export function resolveAiProvider(): AiProvider {
   return "gemini";
 }
 
+/** Claim/entity extraction for framework-analyze — defaults to Gemini (tuned separately from chat). */
+export function resolveFrameworkAnalyzeProvider(): AiProvider {
+  const explicit = Deno.env.get("FRAMEWORK_ANALYZE_AI_PROVIDER")?.trim().toLowerCase();
+  if (explicit === "openai" || explicit === "gemini") return explicit;
+  return "gemini";
+}
+
 const GEMINI_TOOL_GATEWAY_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GEMINI_TOOL_MODEL = Deno.env.get("GEMINI_TOOL_MODEL")?.trim() || "gemini-2.5-flash";
@@ -255,6 +262,23 @@ export type ChatConfig =
 
 export function getChatConfig(): ChatConfig {
   const provider = resolveAiProvider();
+  if (provider === "openai") {
+    const apiKey = openAiApiKey();
+    if (!apiKey) {
+      const fallback = geminiChatConfig();
+      if (fallback) return fallback;
+      return { error: "OPENAI_API_KEY is not configured." };
+    }
+    return { provider, apiKey, chatModel: getOpenAiChatModel() };
+  }
+  const gemini = geminiChatConfig();
+  if (gemini) return gemini;
+  return { error: "GEMINI_API_KEY is not configured." };
+}
+
+/** Chat config for framework-analyze (uses FRAMEWORK_ANALYZE_AI_PROVIDER, default gemini). */
+export function getFrameworkAnalyzeChatConfig(): ChatConfig {
+  const provider = resolveFrameworkAnalyzeProvider();
   if (provider === "openai") {
     const apiKey = openAiApiKey();
     if (!apiKey) {

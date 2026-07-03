@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { generateChaptersFromTranscript } from "../_shared/generateTranscriptChapters.ts";
 import type { YoutubeChapter } from "../_shared/youtubeChapters.ts";
 import type { TranscriptSegment } from "../_shared/transcriptSlice.ts";
-import { callChatWithTools } from "../_shared/aiProvider.ts";
+import { callChatWithTools, resolveFrameworkAnalyzeProvider } from "../_shared/aiProvider.ts";
 import {
   generateArtifactFrameworkOverview,
   persistArtifactFrameworkOverview,
@@ -265,6 +265,7 @@ export async function enrichArtifactAnalysis(
 
   if (serviceRole) {
     const admin = createClient(supabaseUrl, serviceRole);
+    const analyzeProvider = resolveFrameworkAnalyzeProvider();
     try {
       const er = await callChatWithTools(
         [
@@ -273,6 +274,8 @@ export async function enrichArtifactAnalysis(
         ],
         [host.entityTool],
         { type: "function", function: { name: "submit_knowledge_entities" } },
+        8192,
+        analyzeProvider,
       );
       if (er.ok) {
         const ej = await er.json();
@@ -332,6 +335,8 @@ export async function enrichArtifactAnalysis(
         ],
         [host.teachingTool],
         { type: "function", function: { name: "submit_teachings" } },
+        8192,
+        analyzeProvider,
       );
       if (tr.ok) {
         const tj = await tr.json();
