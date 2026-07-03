@@ -8,7 +8,6 @@ import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactC
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
 import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
 import {
-  isStaleYoutubeTranscriptFetch,
   markYoutubeTranscriptFetchError,
   retryYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
@@ -398,18 +397,16 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     void (async () => {
       const { data } = await supabase
         .from("artifacts")
-        .select("status,processing_token,metadata")
+        .select("status,processing_token")
         .eq("id", a.id)
         .maybeSingle();
       if (data?.status !== "analyzing") return;
       const token = data.processing_token;
       if (typeof token !== "string" || !token.trim()) return;
-      const meta =
-        data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
-          ? { ...(data.metadata as Record<string, unknown>) }
-          : {};
-      delete meta.analyze_inflight_at;
-      await supabase.from("artifacts").update({ metadata: meta }).eq("id", a.id);
+      // Do not clear analyze_inflight_at here: a healthy long run heartbeats that field,
+      // and the server dedups concurrent invokes. Clearing it would let a duplicate run
+      // start and DELETE claims the live run already persisted. If the run is genuinely
+      // dead, its heartbeat ages out past the dedup window and this re-invoke proceeds.
       await supabase.functions.invoke("framework-analyze", {
         body: { artifact_id: a.id, processing_token: token },
       });

@@ -1579,13 +1579,10 @@ Deno.serve(async (req) => {
     if (typeof inflightAt === "string") {
       const inflightMs = Date.parse(inflightAt);
       const inflightAge = Number.isFinite(inflightMs) ? Date.now() - inflightMs : Infinity;
-      const status = typeof artifact.status === "string" ? artifact.status : "";
-      const staleAnalyzing = status === "analyzing" && inflightAge > 90_000;
-      if (
-        Number.isFinite(inflightMs) &&
-        inflightAge < ANALYZE_INFLIGHT_DEDUP_MS &&
-        !staleAnalyzing
-      ) {
+      // A healthy long run refreshes analyze_inflight_at as a heartbeat, so a recent
+      // heartbeat means another run is genuinely still working — dedupe this invoke.
+      // Only treat it as abandoned once the heartbeat itself is older than the dedup window.
+      if (Number.isFinite(inflightMs) && inflightAge < ANALYZE_INFLIGHT_DEDUP_MS) {
         console.log(`framework-analyze: deduped in-flight artifact=${artifact_id}`);
         return new Response(JSON.stringify({ ok: true, deduped: true }), {
           status: 202,
@@ -1664,6 +1661,15 @@ Deno.serve(async (req) => {
               SERVICE_ROLE,
               SUPABASE_URL,
             ),
+          onHeartbeat: async () => {
+            await db
+              .from("artifacts")
+              .update({
+                metadata: { ...artifactMeta, analyze_inflight_at: new Date().toISOString() },
+              })
+              .eq("id", artifact_id)
+              .eq("processing_token", processing_token);
+          },
         });
         fastClaims = progressive.claims;
         claimsAlreadyPersisted = fastClaims.length > 0;

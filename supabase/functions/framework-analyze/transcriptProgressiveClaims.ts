@@ -284,6 +284,8 @@ export async function extractTranscriptClaimsProgressive(params: {
   appendClaims: (
     incoming: ClaimWithChapter[],
   ) => Promise<number>;
+  /** Refresh the in-flight heartbeat so concurrent invokes stay deduped during a long run. */
+  onHeartbeat?: () => Promise<void>;
 }): Promise<{ claims: ClaimOut[]; lastGateway?: ClaimGeminiResult; partial: boolean }> {
   const {
     systemPrompt,
@@ -297,6 +299,7 @@ export async function extractTranscriptClaimsProgressive(params: {
     processing_token,
     maxPersistedClaims,
     appendClaims,
+    onHeartbeat,
   } = params;
 
   const windows = buildTranscriptBatchWindows(rawText, segments, timed, durationSeconds);
@@ -320,6 +323,9 @@ export async function extractTranscriptClaimsProgressive(params: {
     if (i > 0 && CLAIM_CHUNK_DELAY_MS > 0) {
       await new Promise((r) => setTimeout(r, CLAIM_CHUNK_DELAY_MS));
     }
+    // Heartbeat so a concurrent invoke sees a live run and dedupes instead of
+    // starting a second run that would DELETE these claims mid-flight.
+    if (onHeartbeat) await onHeartbeat().catch(() => {});
     const { label, body, startSeconds } = windows[i]!;
     const isOpening = i === 0;
     const prompt = buildTranscriptSectionPrompt(
@@ -351,6 +357,15 @@ export async function extractTranscriptClaimsProgressive(params: {
 
     if (batchClaims.length > 0) {
       if (!clearedExistingClaims) {
+        // Only clear if this run still owns the token — avoids wiping claims that a
+        // concurrent (token-matched) run already persisted.
+        const { data: stillOwns } = await db
+          .from("artifacts")
+          .select("id")
+          .eq("id", artifact_id)
+          .eq("processing_token", processing_token)
+          .maybeSingle();
+        if (!stillOwns) return { claims: collected, lastGateway, partial: true };
         await db.from("artifact_claims").delete().eq("artifact_id", artifact_id);
         clearedExistingClaims = true;
       }
