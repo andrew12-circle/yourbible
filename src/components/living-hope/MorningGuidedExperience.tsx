@@ -11,7 +11,6 @@ import { MorningFormulaJournalLink } from "@/components/living-hope/MorningFormu
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
-import { WorshipMusicPlayer } from "@/components/living-hope/WorshipMusicPlayer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMorningScriptureTimer } from "@/hooks/useMorningScriptureTimer";
 import type { MorningScripture } from "@/hooks/useMorningScripture";
@@ -145,9 +144,6 @@ export function MorningGuidedExperience({
   scriptureError,
   onGenerateScripture,
   journalEntryId,
-  worshipPlaylistUrl,
-  worshipPlaylistHistory,
-  onWorshipMusicChange,
   onSwitchToStructured,
   canGoBack,
   onGoBack,
@@ -166,9 +162,6 @@ export function MorningGuidedExperience({
   const [prayerGenerating, setPrayerGenerating] = useState(false);
   const [generatedPrayers, setGeneratedPrayers] = useState<string | null>(null);
   const [prayerError, setPrayerError] = useState<string | null>(null);
-
-  const showMusic = step.kind === "worship" || step.kind === "thanksgiving";
-  const musicSubdued = step.kind === "thanksgiving";
 
   const scriptureTimer = useMorningScriptureTimer(
     step.kind === "scripture",
@@ -267,26 +260,12 @@ export function MorningGuidedExperience({
         </Button>
       </div>
 
-      {showMusic ? (
-        <div
-          className={cn(
-            "transition-all duration-700",
-            musicSubdued ? "opacity-55 scale-[0.98] origin-top pointer-events-auto" : "opacity-100",
-          )}
-        >
-          <WorshipMusicPlayer
-            playlistUrl={worshipPlaylistUrl}
-            playlistHistory={worshipPlaylistHistory}
-            onWorshipMusicChange={onWorshipMusicChange}
-          />
-          {step.kind === "worship" ? (
-            <p className={cn(lh.footnote, "text-center mt-1 tabular-nums")}>
-              {worshipPhaseComplete(worshipElapsedMs, worshipTargetMs)
-                ? "Music time complete — continue when ready"
-                : `${formatGuidedCountdown(worshipTargetMs - worshipElapsedMs)} of worship remaining`}
-            </p>
-          ) : null}
-        </div>
+      {step.kind === "worship" ? (
+        <p className={cn(lh.footnote, "text-center tabular-nums")}>
+          {worshipPhaseComplete(worshipElapsedMs, worshipTargetMs)
+            ? "Music time complete — continue when ready"
+            : `${formatGuidedCountdown(worshipTargetMs - worshipElapsedMs)} of worship remaining`}
+        </p>
       ) : null}
 
       {beat === "intro" ? (

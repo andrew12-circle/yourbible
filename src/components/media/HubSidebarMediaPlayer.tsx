@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Music2, Radio } from "lucide-react";
+import { ChevronDown, ChevronUp, Music2, Radio, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GlobalMediaEmbed } from "@/components/media/GlobalMediaEmbed";
 import { WorshipMusicHistoryStrip } from "@/components/living-hope/WorshipMusicHistoryStrip";
 import { useGlobalMediaPlayer } from "@/contexts/GlobalMediaPlayerContext";
 import {
@@ -11,8 +12,13 @@ import {
 import { parseWorshipMusicUrl, WORSHIP_MUSIC_HINT } from "@/lib/livingHope/worshipMusic";
 import { cn } from "@/lib/utils";
 
+/**
+ * The single music surface in the hub. Controls (presets / URL / history) and
+ * the actual player embed live here. The embed stays mounted while active — even
+ * when the panel is collapsed — so audio keeps playing as you navigate.
+ */
 export function HubSidebarMediaPlayer() {
-  const { url, history, active, play, setExpanded, expanded } = useGlobalMediaPlayer();
+  const { url, history, active, play, stop, setExpanded, expanded } = useGlobalMediaPlayer();
   const [open, setOpen] = useState(active);
   const [draft, setDraft] = useState("");
 
@@ -20,9 +26,10 @@ export function HubSidebarMediaPlayer() {
     if (active) setOpen(true);
   }, [active]);
 
-  const embed = useMemo(() => (url ? parseWorshipMusicUrl(url) : null), [url]);
   const nowPlayingLabel = useMemo(() => {
     if (!url) return null;
+    const preset = GLOBAL_MEDIA_PRESETS.find((p) => p.url === url);
+    if (preset) return preset.label;
     return globalMediaHistoryLabel({ id: "", url, title: undefined });
   }, [url]);
 
@@ -32,6 +39,8 @@ export function HubSidebarMediaPlayer() {
     play(trimmed, { expand: true });
     setDraft("");
   };
+
+  const playerVisible = open && active && expanded;
 
   return (
     <div className="mb-3 rounded-xl border border-border/50 bg-muted/20">
@@ -48,6 +57,9 @@ export function HubSidebarMediaPlayer() {
             {active && nowPlayingLabel ? nowPlayingLabel : "WAY-FM, YouTube, Spotify…"}
           </span>
         </span>
+        {active ? (
+          <span className="mr-1 inline-flex h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" aria-hidden />
+        ) : null}
         {open ? <ChevronUp className="h-4 w-4 shrink-0 opacity-50" /> : <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />}
       </button>
 
@@ -100,17 +112,46 @@ export function HubSidebarMediaPlayer() {
             />
           ) : null}
 
-          {active && embed ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 w-full text-[11px]"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? "Minimize dock" : "Show player dock"}
-            </Button>
+          {active ? (
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 flex-1 text-[11px]"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? "Hide player" : "Show player"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={stop}
+                aria-label="Stop music"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Keep the embed mounted whenever active so audio survives collapsing the
+          panel; only reveal it when the panel is open and the player is expanded. */}
+      {active ? (
+        <div
+          className={cn(
+            playerVisible
+              ? "border-t border-border/40 px-2.5 pb-2.5 pt-2"
+              : "h-0 overflow-hidden opacity-0",
+          )}
+          aria-hidden={!playerVisible}
+        >
+          <div className="overflow-hidden rounded-lg bg-black">
+            <GlobalMediaEmbed url={url} label={nowPlayingLabel ?? "Music"} />
+          </div>
         </div>
       ) : null}
     </div>

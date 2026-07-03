@@ -22,7 +22,6 @@ import {
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
 import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 import { morningFormulaReaderState, persistReaderReturn } from "@/lib/bible/readerNavigation";
-import { WorshipMusicPlayer } from "@/components/living-hope/WorshipMusicPlayer";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
 import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFormulaInlineJournal";
@@ -132,9 +131,6 @@ export function MorningRitualStepPanels({
   scriptureError,
   onGenerateScripture,
   journalEntryId,
-  worshipPlaylistUrl,
-  worshipPlaylistHistory,
-  onWorshipMusicChange,
   expressMode,
   onExpressModeChange,
   guidedMode = false,
@@ -215,11 +211,6 @@ export function MorningRitualStepPanels({
           Put on praise music and pray. Get your eyes off business, money, systems, and pressure — talk to Him.
           You don&apos;t need to write anything down.
         </p>
-        <WorshipMusicPlayer
-          playlistUrl={worshipPlaylistUrl}
-          playlistHistory={worshipPlaylistHistory}
-          onWorshipMusicChange={onWorshipMusicChange}
-        />
         <p className={cn(lh.labelUpper, "mb-2 mt-1")}>Focus on</p>
         <PromptList items={WORSHIP_PROMPTS} />
         <MorningFormulaInlineJournal

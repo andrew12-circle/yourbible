@@ -32,10 +32,14 @@ export function GlobalMediaPlayerHost() {
     void audioRef.current.play().catch(() => {});
   }, [embed?.provider, embed?.streamUrl, url]);
 
+  // In the hub layout the sidebar Music panel is the single player surface, so
+  // the floating dock is suppressed to avoid competing overlays. This dock is
+  // only the fallback player for layouts without the sidebar (reader, mobile).
+  if (showHubShell) return null;
   if (!active || !embed) return null;
 
   const isRadio = embed.provider === "radio";
-  const dockWidth = showHubShell ? "min(100vw, 18rem)" : "100vw";
+  const dockWidth = "100vw";
 
   return (
     <>
