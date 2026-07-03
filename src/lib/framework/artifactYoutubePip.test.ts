@@ -10,6 +10,7 @@ import {
   PIP_VIEWPORT_PAD,
   pipVisibilitySignal,
   shouldAllowPipEnter,
+  shouldSuppressPipEnterAfterTabReturn,
   shouldUseScrollRootForPipIo,
 } from "./artifactYoutubePip";
 
@@ -55,6 +56,14 @@ describe("shouldAllowPipEnter", () => {
     expect(shouldAllowPipEnter(false, "enter")).toBe(false);
     expect(shouldAllowPipEnter(true, "enter")).toBe(true);
     expect(shouldAllowPipEnter(true, "cancel_enter")).toBe(false);
+  });
+});
+
+describe("shouldSuppressPipEnterAfterTabReturn", () => {
+  it("blocks enter during tab-return grace but allows exit", () => {
+    expect(shouldSuppressPipEnterAfterTabReturn(true, "enter")).toBe(true);
+    expect(shouldSuppressPipEnterAfterTabReturn(true, "exit")).toBe(false);
+    expect(shouldSuppressPipEnterAfterTabReturn(false, "enter")).toBe(false);
   });
 });
 

@@ -163,7 +163,10 @@ export default function PrayerRequestForm({
       <div className="space-y-2">
         <Label>Scriptures standing on</Label>
         <PrayerScriptureRefsInput value={scriptureRefs} onChange={setScriptureRefs} />
-        <p className="text-xs text-muted-foreground">Shows in the ledger Scripture column.</p>
+        <p className="text-xs text-muted-foreground">
+          Browse provision and faith verses with full text, or type a reference. Shows in the ledger
+          Scripture column.
+        </p>
       </div>
 
       <div className="space-y-2">

@@ -9,6 +9,7 @@ import {
   consumeArtifactInlineVideoResume,
   readPlaybackSecondsLocal,
 } from "@/lib/framework/artifactPlaybackProgress";
+import { mergePlaybackWithBackgroundHandoff } from "@/lib/framework/backgroundPlaybackHandoff";
 import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
@@ -50,10 +51,14 @@ export function useArtifactVideoPlayback(options: {
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
   /** Locked iframe start — set once per video; remote progress seeks instead of reloading src. */
   const lockedEmbedStartRef = useRef(
-    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+    artifactId
+      ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
+      : 0,
   );
   const [staticEmbedStart, setStaticEmbedStart] = useState(() =>
-    artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0,
+    artifactId
+      ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
+      : 0,
   );
   const [apiStartSeconds, setApiStartSeconds] = useState(0);
 
@@ -69,6 +74,7 @@ export function useArtifactVideoPlayback(options: {
   const staticTelemetry = useStaticYouTubeEmbedTelemetry({
     videoSlotRef: youtubePip.videoSlotRef,
     enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
+    artifactId: artifactId ?? null,
     initialSeconds: staticEmbedStart,
     syncBackgroundPlayback: true,
     getSavedPlaybackSeconds: () => playbackFallbackRef.current,
@@ -109,10 +115,11 @@ export function useArtifactVideoPlayback(options: {
     setApiPlayerWanted(false);
     documentPip.exitDocumentPip();
     const local = artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
-    lockedEmbedStartRef.current = local;
-    playbackFallbackRef.current = local;
-    setStaticEmbedStart(local);
-    setApiStartSeconds(local);
+    const merged = artifactId ? mergePlaybackWithBackgroundHandoff(local, artifactId) : local;
+    lockedEmbedStartRef.current = merged;
+    playbackFallbackRef.current = merged;
+    setStaticEmbedStart(merged);
+    setApiStartSeconds(merged);
   }, [artifactId, documentPip.exitDocumentPip, youTubeVideoId]);
 
   useEffect(() => {

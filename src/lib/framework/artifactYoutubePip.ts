@@ -12,6 +12,8 @@ export const PIP_ENTER_CANCEL_RATIO = 0.25;
 export const PIP_EXIT_VISIBLE_RATIO = 0.28;
 export const PIP_ENTER_DELAY_MS = 100;
 export const PIP_EXIT_DELAY_MS = 150;
+/** After a browser tab becomes visible, defer PiP enter until layout/IO settles. */
+export const PIP_TAB_RETURN_GRACE_MS = 2500;
 export const PIP_IO_THRESHOLDS = [0, 0.1, 0.25, 0.5, 0.75, 1] as const;
 
 export type PipVisibilitySignal = "enter" | "exit" | "cancel_enter" | "cancel_exit" | "hold";
@@ -45,6 +47,14 @@ export function intersectionRatioForPipTarget(target: Element, root: Element | n
 /** Block enter until the slot has been at least half visible (avoids false PiP on load). */
 export function shouldAllowPipEnter(armed: boolean, signal: PipVisibilitySignal): boolean {
   return signal === "enter" && armed;
+}
+
+/** Tab return / bfcache restore — IO often reports 0 before layout paints; do not enter PiP. */
+export function shouldSuppressPipEnterAfterTabReturn(
+  inTabReturnGrace: boolean,
+  signal: PipVisibilitySignal,
+): boolean {
+  return inTabReturnGrace && signal === "enter";
 }
 
 export function pipVisibilitySignal(inPip: boolean, intersectionRatio: number): PipVisibilitySignal {

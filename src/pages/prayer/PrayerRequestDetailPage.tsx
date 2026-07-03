@@ -26,6 +26,7 @@ import { PRAYER_STATUSES, PRAYER_STATUS_LABELS, CELEBRATION_STATUSES } from "@/l
 import { PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
 import { formatDisplayDate } from "@/lib/prayer/stats";
 import { formatLedgerAmount, parseLedgerAmount } from "@/lib/prayer/money";
+import { PrayerScriptureReviewList } from "@/components/prayer/PrayerScriptureReviewCard";
 import { mergeScriptureDisplay } from "@/lib/prayer/scriptureDisplay";
 import { localDateISO } from "@/lib/habits/dates";
 import type { PrayerRequestStatus } from "@/lib/prayer/types";
@@ -387,17 +388,15 @@ export default function PrayerRequestDetailPage() {
 
         {mergedScriptures.length > 0 ? (
           <section>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              Scriptures
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Scriptures standing on
             </h2>
-            <ul className="flex flex-wrap gap-2">
-              {mergedScriptures.map((ref) => (
-                <li key={ref} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                  {ref}
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              Read these daily while you wait — what you are calling in. Expand each verse to review
+              the full text.
+            </p>
+            <PrayerScriptureReviewList refs={mergedScriptures} expandAll />
+            <p className="text-xs text-muted-foreground mt-3">
               Shown in the ledger Scripture column. Add more via Edit or Link content.
             </p>
           </section>

@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@/hooks/use-toast";
+import {
+  clearBackgroundPlaybackHandoff,
+  extrapolateBackgroundPlaybackSeconds,
+  readBackgroundPlaybackHandoff,
+  writeBackgroundPlaybackHandoff,
+} from "@/lib/framework/backgroundPlaybackHandoff";
 import { embedNeedsResumeSeek } from "@/lib/framework/playbackSeconds";
+import { PIP_TAB_RETURN_GRACE_MS } from "@/lib/framework/artifactYoutubePip";
 import {
   isIosYouTubeBackgroundAudioActive,
   startIosYouTubeBackgroundAudio,
@@ -40,6 +47,7 @@ function applyEmbedCurrentTime(
 export function useStaticYouTubeEmbedTelemetry(options: {
   videoSlotRef: RefObject<HTMLDivElement | null>;
   enabled: boolean;
+  artifactId?: string | null;
   initialSeconds?: number;
   /** Pause on app background and resume on return (iOS PWA / mobile Safari). */
   syncBackgroundPlayback?: boolean;
@@ -54,6 +62,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   const {
     videoSlotRef,
     enabled,
+    artifactId = null,
     initialSeconds = 0,
     syncBackgroundPlayback = false,
     getSavedPlaybackSeconds,
@@ -66,6 +75,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
   /** User (or app resume logic) wants playback — survives YouTube-initiated PAUSE events. */
   const intendedPlayingRef = useRef(false);
   const resumeOnVisibleRef = useRef(false);
+  const tabReturnGraceUntilRef = useRef(0);
   const resumeAfterPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAppPauseAtRef = useRef(0);
   const recentPlayerPointerRef = useRef(false);
@@ -127,6 +137,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     clearLayoutRepositionTimers();
     const msSinceAppPause = Date.now() - lastAppPauseAtRef.current;
     if (msSinceAppPause < EMBED_APP_PAUSE_GRACE_MS) return;
+    if (Date.now() < tabReturnGraceUntilRef.current && intendedPlayingRef.current) return;
     intendedPlayingRef.current = false;
     if (isPlayingRef.current) {
       isPlayingRef.current = false;
@@ -353,8 +364,11 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         requestCurrentTime();
         const live = currentTimeRef.current;
         const savedFromParent = getSavedPlaybackSecondsRef.current?.() ?? 0;
+        const handoff = artifactId ? readBackgroundPlaybackHandoff(artifactId) : null;
+        const extrapolated = handoff ? extrapolateBackgroundPlaybackSeconds(handoff) : 0;
         const resolved = Math.max(
           overrideSeconds ?? savedFromParent,
+          extrapolated,
           Number.isFinite(live) ? live : 0,
         );
         currentTimeRef.current = resolved;
@@ -376,6 +390,10 @@ export function useStaticYouTubeEmbedTelemetry(options: {
           playVideo();
         } else if (attempt < 2 && shouldResume && !fresh) {
           window.setTimeout(() => runResume(attempt + 1), 200);
+          return;
+        }
+        if (artifactId && handoff) {
+          clearBackgroundPlaybackHandoff(artifactId);
         }
       };
 
@@ -388,6 +406,13 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         requestCurrentTime();
         const seconds = currentTimeRef.current;
         onPersistPlaybackSecondsRef.current?.(seconds);
+        if (artifactId && isPlayingRef.current) {
+          writeBackgroundPlaybackHandoff(artifactId, {
+            hiddenAtMs: Date.now(),
+            secondsAtHide: seconds,
+            wasPlaying: true,
+          });
+        }
 
         if (youtubeDocumentPipActiveRef.current) return;
 
@@ -417,6 +442,8 @@ export function useStaticYouTubeEmbedTelemetry(options: {
         return;
       }
 
+      tabReturnGraceUntilRef.current = Date.now() + PIP_TAB_RETURN_GRACE_MS;
+
       if (isIosYouTubeBackgroundAudioActive()) {
         const { seconds, wasPlaying } = stopIosYouTubeBackgroundAudio();
         resumeAfterVisible(wasPlaying, seconds);
@@ -435,6 +462,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       if (!event.persisted && !("wasDiscarded" in document && (document as Document & { wasDiscarded?: boolean }).wasDiscarded)) {
         return;
       }
+      tabReturnGraceUntilRef.current = Date.now() + PIP_TAB_RETURN_GRACE_MS;
       const shouldResume = resumeOnVisibleRef.current;
       resumeOnVisibleRef.current = false;
       resumeAfterVisible(shouldResume);
@@ -448,6 +476,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       window.removeEventListener("pageshow", onPageShow);
     };
   }, [
+    artifactId,
     clearResumeAfterPauseTimer,
     enabled,
     syncBackgroundPlayback,

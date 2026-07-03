@@ -10,7 +10,9 @@ import {
   PIP_ENTER_CANCEL_RATIO,
   PIP_EXIT_VISIBLE_RATIO,
   PIP_IO_THRESHOLDS,
+  PIP_TAB_RETURN_GRACE_MS,
   pipVisibilitySignal,
+  shouldSuppressPipEnterAfterTabReturn,
   shouldUseScrollRootForPipIo,
   readPipLayoutFromSession,
   writePipLayoutToSession,
@@ -41,6 +43,7 @@ export function useArtifactYoutubePip(options: {
   const pipDragRafRef = useRef<number | null>(null);
   /** Ignore spurious "enter" until the slot has been visibly in-flow at least once (avoids load-time false PiP). */
   const pipEnterArmedRef = useRef(false);
+  const tabReturnGraceUntilRef = useRef(0);
   const ioRef = useRef<IntersectionObserver | null>(null);
   const ioRootRef = useRef<Element | null>(null);
   const ioTargetRef = useRef<Element | null>(null);
@@ -114,6 +117,9 @@ export function useArtifactYoutubePip(options: {
       }
 
       const signal = pipVisibilitySignal(pipModeRef.current, intersectionRatio);
+      if (shouldSuppressPipEnterAfterTabReturn(Date.now() < tabReturnGraceUntilRef.current, signal)) {
+        return;
+      }
 
       switch (signal) {
         case "enter":
@@ -157,6 +163,10 @@ export function useArtifactYoutubePip(options: {
       deliverIntersectionRatio(entry.intersectionRatio);
     };
 
+    const beginTabReturnGrace = () => {
+      tabReturnGraceUntilRef.current = Date.now() + PIP_TAB_RETURN_GRACE_MS;
+    };
+
     const refreshIntersectionAfterTabVisible = () => {
       const target = ioTargetRef.current;
       if (!target) return;
@@ -173,6 +183,15 @@ export function useArtifactYoutubePip(options: {
         clearTimers();
         return;
       }
+      beginTabReturnGrace();
+      refreshIntersectionAfterTabVisible();
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted && !("wasDiscarded" in document && (document as Document & { wasDiscarded?: boolean }).wasDiscarded)) {
+        return;
+      }
+      beginTabReturnGrace();
       refreshIntersectionAfterTabVisible();
     };
 
@@ -225,10 +244,12 @@ export function useArtifactYoutubePip(options: {
     const onResize = () => attach();
     window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       window.cancelAnimationFrame(pollRaf);
       clearTimers();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
       ioRef.current?.disconnect();
       ioRef.current = null;
       ioRootRef.current = null;
