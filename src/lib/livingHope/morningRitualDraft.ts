@@ -15,6 +15,7 @@ const STORAGE_KEY = "yb_morning_ritual_draft_v1";
 export interface MorningRitualDraft {
   reviewDate: string;
   expressMode: boolean;
+  guidedMode: boolean;
   stepIndex: number;
   stepKey: string;
   stepLabel: string;
@@ -36,6 +37,7 @@ export interface MorningRitualDraft {
 export interface MorningRitualDraftSummary {
   reviewDate: string;
   expressMode: boolean;
+  guidedMode: boolean;
   stepIndex: number;
   totalSteps: number;
   stepLabel: string;
@@ -45,6 +47,7 @@ export interface MorningRitualDraftSummary {
 
 export interface MorningRitualDraftInput {
   expressMode: boolean;
+  guidedMode: boolean;
   stepIndex: number;
   steps: RitualStep[];
   goalIndex?: number;
@@ -92,6 +95,7 @@ export function saveMorningRitualDraft(userId: string, input: MorningRitualDraft
   const draft: MorningRitualDraft = {
     reviewDate: localDateISO(),
     expressMode: input.expressMode,
+    guidedMode: input.guidedMode,
     stepIndex: clampRitualStepIndex(input.stepIndex, input.steps),
     stepKey: ritualStepKey(step),
     stepLabel: ritualStepLabel(step, input.goalIndex, input.goalTotal),
@@ -130,6 +134,7 @@ export function summarizeMorningRitualDraft(draft: MorningRitualDraft | null): M
   return {
     reviewDate: draft.reviewDate,
     expressMode: draft.expressMode,
+    guidedMode: draft.guidedMode ?? true,
     stepIndex: draft.stepIndex,
     totalSteps: draft.totalSteps,
     stepLabel: draft.stepLabel,
@@ -151,7 +156,7 @@ export function resolveDraftStepIndex(draft: MorningRitualDraft, steps: RitualSt
 
 export function emptyMorningRitualDraftFields(): Omit<
   MorningRitualDraftInput,
-  "expressMode" | "stepIndex" | "steps" | "goalIndex" | "goalTotal"
+  "expressMode" | "guidedMode" | "stepIndex" | "steps" | "goalIndex" | "goalTotal"
 > {
   const thanksgiving = emptyThanksgivingLists();
   return {

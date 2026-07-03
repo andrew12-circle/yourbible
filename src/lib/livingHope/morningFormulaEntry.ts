@@ -1,4 +1,3 @@
-import { MORNING_FORMULA_TAGLINE } from "@/lib/livingHope/morningRitual";
 import type { MorningRitualDraftSummary } from "@/lib/livingHope/morningRitualDraft";
 
 export interface MorningFormulaEntryTarget {
@@ -17,7 +16,10 @@ export function getMorningFormulaEntryTarget(opts: {
 
   if (opts.draft?.inProgress) {
     const stepNum = opts.draft.stepIndex + 1;
-    const query = opts.draft.expressMode ? "?mode=express" : "";
+    const params = new URLSearchParams();
+    if (opts.draft.expressMode) params.set("mode", "express");
+    else if (!opts.draft.guidedMode) params.set("mode", "structured");
+    const query = params.toString() ? `?${params.toString()}` : "";
     return {
       href: `/living-hope/review${query}`,
       headline: `Continue step ${stepNum} of ${opts.draft.totalSteps}`,
@@ -37,13 +39,13 @@ export function getMorningFormulaEntryTarget(opts: {
     return {
       href: "/living-hope/review",
       headline: "Review again",
-      subline: MORNING_FORMULA_TAGLINE,
+      subline: "Guided morning · or switch to structured view",
     };
   }
 
   return {
     href: "/living-hope/review",
     headline: isMorning ? "Start today's formula" : "Review your vision",
-    subline: MORNING_FORMULA_TAGLINE,
+    subline: "Guided worship → thanks → scripture → prayer → align → surrender",
   };
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { getMorningFormulaEntryTarget } from "@/lib/livingHope/morningFormulaEntry";
-import { MORNING_FORMULA_TAGLINE } from "@/lib/livingHope/morningRitual";
 import {
   loadMorningRitualDraft,
   resolveDraftStepIndex,
@@ -28,6 +27,7 @@ describe("getMorningFormulaEntryTarget", () => {
       draft: {
         reviewDate: localDateISO(),
         expressMode: false,
+        guidedMode: true,
         stepIndex: 3,
         totalSteps: 12,
         stepLabel: "Scripture",
@@ -39,7 +39,7 @@ describe("getMorningFormulaEntryTarget", () => {
     expect(target.subline).toBe("Scripture");
   });
 
-  it("uses unified tagline for a fresh ritual", () => {
+  it("uses guided copy for a fresh ritual", () => {
     const target = getMorningFormulaEntryTarget({
       ritualReady: true,
       reviewedToday: false,
@@ -47,7 +47,24 @@ describe("getMorningFormulaEntryTarget", () => {
       isMorning: true,
     });
     expect(target.href).toBe("/living-hope/review");
-    expect(target.subline).toBe(MORNING_FORMULA_TAGLINE);
+    expect(target.subline).toContain("Guided worship");
+  });
+
+  it("preserves structured mode in draft continue href", () => {
+    const target = getMorningFormulaEntryTarget({
+      ritualReady: true,
+      reviewedToday: false,
+      draft: {
+        reviewDate: localDateISO(),
+        expressMode: false,
+        guidedMode: false,
+        stepIndex: 2,
+        totalSteps: 12,
+        stepLabel: "Thanks",
+        inProgress: true,
+      },
+    });
+    expect(target.href).toBe("/living-hope/review?mode=structured");
   });
 });
 
@@ -58,6 +75,7 @@ describe("morningRitualDraft", () => {
     const steps = buildExpressRitualSteps();
     saveMorningRitualDraft(userId, {
       expressMode: true,
+      guidedMode: false,
       stepIndex: 3,
       steps,
       goalIndex: 0,
@@ -92,6 +110,7 @@ describe("morningRitualDraft", () => {
     const draft = {
       reviewDate: localDateISO(),
       expressMode: false,
+      guidedMode: true,
       stepIndex: 99,
       stepKey: "scripture",
       stepLabel: "Scripture",

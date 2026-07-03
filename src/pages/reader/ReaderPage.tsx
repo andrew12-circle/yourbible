@@ -63,11 +63,16 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
   clearReaderReturn,
+  MORNING_FORMULA_SCRIPTURE_RETURN,
   persistReaderReturn,
   readReaderReturn,
   readerReturnFromState,
   type ReaderNavigationState,
 } from "@/lib/bible/readerNavigation";
+import {
+  pauseMorningScriptureTimer,
+  startMorningScriptureTimer,
+} from "@/lib/livingHope/morningScriptureTimer";
 import { useCompanion } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
 import ReaderInkLayer, {
@@ -197,6 +202,16 @@ export default function ReaderPage() {
     }
     setReaderReturn(readReaderReturn());
   }, [location.state]);
+
+  useEffect(() => {
+    const to = readerReturn?.to ?? "";
+    const fromMorningScripture =
+      to.startsWith("/living-hope/review") &&
+      (to.includes("step=scripture") || to === MORNING_FORMULA_SCRIPTURE_RETURN);
+    if (!fromMorningScripture) return;
+    startMorningScriptureTimer();
+    return () => pauseMorningScriptureTimer();
+  }, [readerReturn?.to]);
 
   const canonBooks = useMemo(() => getBooks(readCanon()), []);
   const defaultBookAbbr = readCanon() === "ethiopian" ? "Gen" : "Jhn";

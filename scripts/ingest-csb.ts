@@ -26,7 +26,7 @@ const BOOK_USFM: Record<string, string> = {
   Jos: "JOS", Jdg: "JDG", Rut: "RUT", "1Sa": "1SA", "2Sa": "2SA",
   "1Ki": "1KI", "2Ki": "2KI", "1Ch": "1CH", "2Ch": "2CH", Ezr: "EZR",
   Neh: "NEH", Est: "EST", Job: "JOB", Psa: "PSA", Pro: "PRO", Ecc: "ECC",
-  Sng: "SNG", Isa: "ISA", Jer: "JER", Lam: "LAM", Ezk: "EZE", Dan: "DAN",
+  Sng: "SNG", Isa: "ISA", Jer: "JER", Lam: "LAM", Ezk: "EZK", Dan: "DAN",
   Hos: "HOS", Jol: "JOL", Amo: "AMO", Oba: "OBA", Jon: "JON", Mic: "MIC",
   Nam: "NAM", Hab: "HAB", Zep: "ZEP", Hag: "HAG", Zec: "ZEC", Mal: "MAL",
   Mat: "MAT", Mrk: "MRK", Luk: "LUK", Jhn: "JHN", Act: "ACT", Rom: "ROM",

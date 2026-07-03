@@ -29,7 +29,8 @@ import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFor
 import { MORNING_FORMULA_WORSHIP_RETURN } from "@/lib/bible/readerNavigation";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
-import { lh } from "@/lib/livingHope/themeClasses";
+import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
+import type { SessionDurationMin } from "@/lib/livingHope/morningFormulaTimer";
 import { cn } from "@/lib/utils";
 
 function PromptList({ items }: { items: readonly string[] }) {
@@ -86,6 +87,10 @@ type Props = {
   onWorshipMusicChange: (next: { url: string; history: WorshipMusicHistoryItem[] }) => void;
   expressMode: boolean;
   onExpressModeChange: (next: boolean) => void;
+  guidedMode?: boolean;
+  onGuidedModeChange?: (next: boolean) => void;
+  durationMin?: SessionDurationMin;
+  onDurationChange?: (next: SessionDurationMin) => void;
 };
 
 export function MorningRitualStepPanels({
@@ -132,6 +137,10 @@ export function MorningRitualStepPanels({
   onWorshipMusicChange,
   expressMode,
   onExpressModeChange,
+  guidedMode = false,
+  onGuidedModeChange,
+  durationMin,
+  onDurationChange,
 }: Props) {
   if (step.kind === "intro") {
     return (
@@ -139,6 +148,11 @@ export function MorningRitualStepPanels({
         <div className="min-w-0">
           <h1 className={cn(lh.titleLg, "mb-3")}>Morning formula</h1>
           <p className={cn(lh.body, "mb-4")}>{MORNING_FORMULA_INTRO_FLOW}.</p>
+          {durationMin != null && onDurationChange ? (
+            <div className="mb-4">
+              <MorningFormulaDurationPicker durationMin={durationMin} onDurationChange={onDurationChange} />
+            </div>
+          ) : null}
           <p className={cn("text-[13px] mb-4", lh.muted)}>
             Shift from &ldquo;What do I need to do?&rdquo; to &ldquo;Who am I with?&rdquo; — then receive today&apos;s
             direction.
@@ -147,6 +161,19 @@ export function MorningRitualStepPanels({
             <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 320)}…</blockquote>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={() => onGuidedModeChange?.(true)}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left transition-colors w-full",
+            "border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/15",
+          )}
+        >
+          <p className="text-[14px] font-semibold text-foreground">Guided morning</p>
+          <p className="text-[13px] text-muted-foreground mt-1 leading-snug">
+            Coach-led flow — worship music, gratitude journal, scripture timer, prayer help, and embodied vision.
+          </p>
+        </button>
         <button
           type="button"
           onClick={() => onExpressModeChange(!expressMode)}
@@ -164,6 +191,11 @@ export function MorningRitualStepPanels({
               : "Off — full alignment with vision, surrender, goals, and metrics."}
           </p>
         </button>
+        {!guidedMode ? (
+          <p className={cn(lh.footnote, "px-1")}>
+            Structured view — step-by-step panels with full navigation. Switch to guided anytime from the header.
+          </p>
+        ) : null}
         <div className="min-w-0">
           <img
             src="/images/morning-formula-steps.png"

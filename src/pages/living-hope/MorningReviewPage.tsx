@@ -5,13 +5,15 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
+import { MorningFormulaSessionTimer, MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import { MorningRitualStepNav } from "@/components/living-hope/MorningRitualStepNav";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
+import { MorningGuidedExperience } from "@/components/living-hope/MorningGuidedExperience";
 import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { useMorningScripture } from "@/hooks/useMorningScripture";
-import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
+import { useMorningFormulaTimer } from "@/hooks/useMorningFormulaTimer";
 import {
   clearMorningRitualDraftForUser,
   resolveDraftStepIndex,
@@ -44,10 +46,16 @@ import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
 import { formatSupabaseError } from "@/lib/supabase/errors";
 import { toast } from "@/hooks/use-toast";
 import { lh } from "@/lib/livingHope/themeClasses";
+import { clearMorningScriptureTimer } from "@/lib/livingHope/morningScriptureTimer";
+import {
+  clearMorningFormulaTimer,
+  formatFormulaCountdown,
+} from "@/lib/livingHope/morningFormulaTimer";
+import { formatFormalGreetingName, resolveProfileDisplayName } from "@/lib/profile/displayName";
 import { cn } from "@/lib/utils";
 
 export default function MorningReviewPage() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const { busy, goals, letter, load, setTodayReview } = useLivingHope(user?.id);
   const { busy: wbBusy, workbook, update: updateWorkbook } = useLivingHopeWorkbook(user?.id);
@@ -70,6 +78,11 @@ export default function MorningReviewPage() {
   } = useMorningConversationEntry(user?.id);
 
   const [expressMode, setExpressMode] = useState(() => searchParams.get("mode") === "express");
+  const [guidedMode, setGuidedMode] = useState(() => {
+    const mode = searchParams.get("mode");
+    if (mode === "structured" || mode === "express") return false;
+    return true;
+  });
   const [stepIndex, setStepIndex] = useState(0);
   const [touches, setTouches] = useState<Record<string, GoalTouch>>({});
   const [visionRecall, setVisionRecall] = useState("");
@@ -108,9 +121,14 @@ export default function MorningReviewPage() {
   const currentGoal = step.kind === "goal" ? activeGoals.find((g) => g.id === step.goalId) : null;
   const goalIndex = step.kind === "goal" ? activeGoals.findIndex((g) => g.id === step.goalId) : 0;
 
+  const formalName = formatFormalGreetingName(resolveProfileDisplayName(profile, user));
+  const useGuidedUi = guidedMode && !expressMode;
+  const formulaTimer = useMorningFormulaTimer(steps, stepIndex);
+
   const applyDraftRestore = useCallback((draft: MorningRitualDraft) => {
     pendingDraftRestore.current = draft;
     setExpressMode(draft.expressMode);
+    setGuidedMode(draft.guidedMode ?? true);
     setTouches(draft.touches);
     setVisionRecall(draft.visionRecall);
     setStoryRecall(draft.storyRecall);
@@ -127,6 +145,7 @@ export default function MorningReviewPage() {
   const draftInput = useMemo(
     () => ({
       expressMode,
+      guidedMode,
       stepIndex,
       steps,
       goalIndex,
@@ -145,6 +164,7 @@ export default function MorningReviewPage() {
     }),
     [
       expressMode,
+      guidedMode,
       stepIndex,
       steps,
       goalIndex,
@@ -187,7 +207,13 @@ export default function MorningReviewPage() {
 
   const handleExpressModeChange = useCallback((next: boolean) => {
     setExpressMode(next);
+    if (next) setGuidedMode(false);
     setStepIndex(0);
+  }, []);
+
+  const handleGuidedModeChange = useCallback((next: boolean) => {
+    setGuidedMode(next);
+    if (next) setExpressMode(false);
   }, []);
 
   const handleAddStory = useCallback(
@@ -352,6 +378,8 @@ export default function MorningReviewPage() {
       });
       setTodayReview(review);
       clearMorningRitualDraftForUser(user.id);
+      clearMorningScriptureTimer();
+      clearMorningFormulaTimer();
       try {
         const synced = await syncMorningReviewToJournal(user.id, {
           reviewDate: defaultMorningReviewDate(),
@@ -434,7 +462,20 @@ export default function MorningReviewPage() {
   const canGoBack = step.kind !== "done" && stepIndex > 0;
 
   return (
-    <LivingHopeChrome title="Today's formula" subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}>
+    <LivingHopeChrome
+      title="Today's formula"
+      subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}
+      right={
+        <MorningFormulaSessionTimer
+          durationMin={formulaTimer.durationMin}
+          onDurationChange={formulaTimer.setDurationMin}
+          stepRemainingMs={formulaTimer.stepRemainingMs}
+          sessionRemainingMs={formulaTimer.sessionRemainingMs}
+          stepExpired={formulaTimer.stepExpired}
+          visible={formulaTimer.showTimer}
+        />
+      }
+    >
       {loadingAll ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
@@ -449,7 +490,7 @@ export default function MorningReviewPage() {
             />
           </div>
 
-          {step.kind !== "done" && step.kind !== "intro" ? (
+          {step.kind !== "done" && step.kind !== "intro" && !useGuidedUi ? (
             <MorningRitualStepNav
               steps={steps}
               stepIndex={stepIndex}
@@ -467,57 +508,122 @@ export default function MorningReviewPage() {
               transition={{ duration: 0.25 }}
               className="flex-1 flex flex-col"
             >
-              <MorningRitualStepPanels
-                step={step}
-                letter={letter}
-                workbook={workbook}
-                manifestoItem={manifestoItem}
-                storySuggestedIndex={storySuggestedIndex}
-                storySelectedIndex={storySelectedIndex}
-                onStorySelectedIndexChange={setStorySelectedIndex}
-                onAddStory={handleAddStory}
-                storyRecall={storyRecall}
-                setStoryRecall={setStoryRecall}
-                currentGoal={currentGoal}
-                touches={touches}
-                setTouch={setTouch}
-                visionRecall={visionRecall}
-                setVisionRecall={setVisionRecall}
-                metricValues={metricValues}
-                setMetricValues={setMetricValues}
-                thanksgivingNow={thanksgivingNow}
-                thanksgivingNotYet={thanksgivingNotYet}
-                onThanksgivingNowChange={setThanksgivingNowItem}
-                onThanksgivingNotYetChange={setThanksgivingNotYetItem}
-                conversationEntryId={conversationEntryId}
-                conversationPreview={conversationPreview}
-                conversationBusy={conversationBusy}
-                conversationError={conversationError}
-                scriptureReflection={scriptureReflection}
-                setScriptureReflection={setScriptureReflection}
-                dailyAssignment={dailyAssignment}
-                setDailyAssignment={setDailyAssignment}
-                surrender={surrender}
-                setSurrender={setSurrender}
-                covering={covering}
-                setCovering={setCovering}
-                scripture={scripture}
-                scriptureBusy={scriptureBusy}
-                scriptureError={scriptureError}
-                onGenerateScripture={() => void generateDaily()}
-                journalEntryId={journalEntryId}
-                worshipPlaylistUrl={workbook?.worship_playlist_url ?? ""}
-                worshipPlaylistHistory={workbook?.worship_music_history ?? []}
-                onWorshipMusicChange={({ url, history }) =>
-                  updateWorkbook({ worship_playlist_url: url, worship_music_history: history })
-                }
-                expressMode={expressMode}
-                onExpressModeChange={handleExpressModeChange}
-              />
+              {useGuidedUi ? (
+                <MorningGuidedExperience
+                  step={step}
+                  formalName={formalName}
+                  letter={letter}
+                  workbook={workbook}
+                  manifestoItem={manifestoItem}
+                  storySuggestedIndex={storySuggestedIndex}
+                  storySelectedIndex={storySelectedIndex}
+                  onStorySelectedIndexChange={setStorySelectedIndex}
+                  onAddStory={handleAddStory}
+                  storyRecall={storyRecall}
+                  setStoryRecall={setStoryRecall}
+                  currentGoal={currentGoal}
+                  touches={touches}
+                  setTouch={setTouch}
+                  visionRecall={visionRecall}
+                  setVisionRecall={setVisionRecall}
+                  metricValues={metricValues}
+                  setMetricValues={setMetricValues}
+                  thanksgivingNow={thanksgivingNow}
+                  thanksgivingNotYet={thanksgivingNotYet}
+                  onThanksgivingNowChange={setThanksgivingNowItem}
+                  onThanksgivingNotYetChange={setThanksgivingNotYetItem}
+                  conversationEntryId={conversationEntryId}
+                  conversationPreview={conversationPreview}
+                  conversationBusy={conversationBusy}
+                  conversationError={conversationError}
+                  ensureConversationEntry={ensureConversationEntry}
+                  scriptureReflection={scriptureReflection}
+                  setScriptureReflection={setScriptureReflection}
+                  dailyAssignment={dailyAssignment}
+                  setDailyAssignment={setDailyAssignment}
+                  surrender={surrender}
+                  setSurrender={setSurrender}
+                  covering={covering}
+                  setCovering={setCovering}
+                  scripture={scripture}
+                  scriptureBusy={scriptureBusy}
+                  scriptureError={scriptureError}
+                  onGenerateScripture={() => void generateDaily()}
+                  journalEntryId={journalEntryId}
+                  worshipPlaylistUrl={workbook?.worship_playlist_url ?? ""}
+                  worshipPlaylistHistory={workbook?.worship_music_history ?? []}
+                  onWorshipMusicChange={({ url, history }) =>
+                    updateWorkbook({ worship_playlist_url: url, worship_music_history: history })
+                  }
+                  onSwitchToStructured={() => handleGuidedModeChange(false)}
+                  canGoBack={canGoBack}
+                  onGoBack={() => setStepIndex((i) => Math.max(0, i - 1))}
+                  onContinue={goToNextStep}
+                  saving={saving}
+                  isLastStep={stepIndex === steps.length - 2}
+                  stepBudgetMs={formulaTimer.stepBudgetMs}
+                  stepRemainingMs={formulaTimer.stepRemainingMs}
+                  stepExpired={formulaTimer.stepExpired}
+                  durationMin={formulaTimer.durationMin}
+                  onDurationChange={formulaTimer.setDurationMin}
+                />
+              ) : (
+                <MorningRitualStepPanels
+                  step={step}
+                  letter={letter}
+                  workbook={workbook}
+                  manifestoItem={manifestoItem}
+                  storySuggestedIndex={storySuggestedIndex}
+                  storySelectedIndex={storySelectedIndex}
+                  onStorySelectedIndexChange={setStorySelectedIndex}
+                  onAddStory={handleAddStory}
+                  storyRecall={storyRecall}
+                  setStoryRecall={setStoryRecall}
+                  currentGoal={currentGoal}
+                  touches={touches}
+                  setTouch={setTouch}
+                  visionRecall={visionRecall}
+                  setVisionRecall={setVisionRecall}
+                  metricValues={metricValues}
+                  setMetricValues={setMetricValues}
+                  thanksgivingNow={thanksgivingNow}
+                  thanksgivingNotYet={thanksgivingNotYet}
+                  onThanksgivingNowChange={setThanksgivingNowItem}
+                  onThanksgivingNotYetChange={setThanksgivingNotYetItem}
+                  conversationEntryId={conversationEntryId}
+                  conversationPreview={conversationPreview}
+                  conversationBusy={conversationBusy}
+                  conversationError={conversationError}
+                  scriptureReflection={scriptureReflection}
+                  setScriptureReflection={setScriptureReflection}
+                  dailyAssignment={dailyAssignment}
+                  setDailyAssignment={setDailyAssignment}
+                  surrender={surrender}
+                  setSurrender={setSurrender}
+                  covering={covering}
+                  setCovering={setCovering}
+                  scripture={scripture}
+                  scriptureBusy={scriptureBusy}
+                  scriptureError={scriptureError}
+                  onGenerateScripture={() => void generateDaily()}
+                  journalEntryId={journalEntryId}
+                  worshipPlaylistUrl={workbook?.worship_playlist_url ?? ""}
+                  worshipPlaylistHistory={workbook?.worship_music_history ?? []}
+                  onWorshipMusicChange={({ url, history }) =>
+                    updateWorkbook({ worship_playlist_url: url, worship_music_history: history })
+                  }
+                  expressMode={expressMode}
+                  onExpressModeChange={handleExpressModeChange}
+                  guidedMode={guidedMode}
+                  onGuidedModeChange={handleGuidedModeChange}
+                  durationMin={formulaTimer.durationMin}
+                  onDurationChange={formulaTimer.setDurationMin}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
 
-          {step.kind !== "done" ? (
+          {step.kind !== "done" && !useGuidedUi ? (
             <div className="mt-6 pt-2 flex gap-2">
               {canGoBack ? (
                 <Button
@@ -540,13 +646,19 @@ export default function MorningReviewPage() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    {stepIndex === steps.length - 2 ? "Complete review" : "Continue"}
+                    {stepIndex === steps.length - 2
+                      ? "Complete review"
+                      : formulaTimer.stepExpired
+                        ? "Continue — time's up"
+                        : formulaTimer.showTimer
+                          ? `Continue (${formatFormulaCountdown(formulaTimer.stepRemainingMs)} left)`
+                          : "Continue"}
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </>
                 )}
               </Button>
             </div>
-          ) : (
+          ) : step.kind === "done" ? (
             <Button
               className={cn(lh.btnDone, "mt-6")}
               onClick={() => {
@@ -556,7 +668,7 @@ export default function MorningReviewPage() {
             >
               Back to Morning formula
             </Button>
-          )}
+          ) : null}
         </div>
       )}
     </LivingHopeChrome>

@@ -61,8 +61,7 @@ export default function PrayerLedgerTable({
             <col className="w-[6%]" />
             <col className="w-[12%]" />
             <col className="w-[9%]" />
-            <col className="w-[5%]" />
-            <col className="w-[5%]" />
+            <col className="w-[6%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="bg-amber-200/90 hover:bg-amber-200/90 border-b border-amber-400/50 dark:bg-amber-950/60">
