@@ -94,6 +94,82 @@ describe("readerStream", () => {
     ]);
   });
 
+  it("only inserts plates for the focused chapter in adjacent streams", () => {
+    const chapters = [
+      {
+        bookAbbr: "Gen",
+        bookName: "Genesis",
+        chapter: 12,
+        verses: verses([1, 2, 14, 15]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Gen",
+        bookName: "Genesis",
+        chapter: 13,
+        verses: verses([1, 2, 3]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+      {
+        bookAbbr: "Gen",
+        bookName: "Genesis",
+        chapter: 14,
+        verses: verses([1, 2, 18]),
+        paragraphStarts: [1],
+        headings: [],
+        poetryBlocks: [],
+      },
+    ];
+    const stream = buildReaderStream(chapters, {
+      plateFocus: { bookAbbr: "Gen", chapter: 13 },
+    });
+    expect(stream.some((u) => u.kind === "plate")).toBe(false);
+
+    const gen12 = buildReaderStream(chapters, {
+      plateFocus: { bookAbbr: "Gen", chapter: 12 },
+    });
+    const plateChapters = new Set(
+      gen12.filter((u) => u.kind === "plate").map((u) => (u.kind === "plate" ? u.chapter : 0)),
+    );
+    expect(plateChapters).toEqual(new Set([12]));
+    expect(gen12.some((u) => u.kind === "plate")).toBe(true);
+  });
+
+  it("dedupes repeated image URLs across the stream", () => {
+    const crucifixionStream = buildReaderStream(
+      [
+        {
+          bookAbbr: "Mat",
+          bookName: "Matthew",
+          chapter: 27,
+          verses: verses([1]),
+          paragraphStarts: [1],
+          headings: [],
+          poetryBlocks: [],
+        },
+        {
+          bookAbbr: "Mrk",
+          bookName: "Mark",
+          chapter: 15,
+          verses: verses([1]),
+          paragraphStarts: [1],
+          headings: [],
+          poetryBlocks: [],
+        },
+      ],
+      { dedupeImageUrls: true },
+    );
+    const urls = crucifixionStream
+      .filter((u) => u.kind === "plate")
+      .map((u) => (u.kind === "plate" ? u.plate.imageUrl : ""));
+    expect(urls.length).toBe(1);
+    expect(new Set(urls).size).toBe(1);
+  });
+
   it("slices pages by stream indices", () => {
     const stream = buildReaderStream([
       {

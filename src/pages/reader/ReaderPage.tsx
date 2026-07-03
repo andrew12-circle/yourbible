@@ -640,9 +640,16 @@ export default function ReaderPage() {
       passage,
     ],
   );
+  const plateFocus = useMemo(
+    () => ({ bookAbbr: book.abbr, chapter }),
+    [book.abbr, chapter],
+  );
   const readerStream = useMemo(
-    () => (streamChapters.length > 0 ? buildReaderStream(streamChapters) : []),
-    [streamChapters],
+    () =>
+      streamChapters.length > 0
+        ? buildReaderStream(streamChapters, { plateFocus })
+        : [],
+    [streamChapters, plateFocus],
   );
   const streamCompositionKey = useMemo(
     () => streamChapterCompositionKey(streamChapters),
@@ -1834,6 +1841,7 @@ export default function ReaderPage() {
       {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
           chapters={streamChapters}
+          plateFocus={plateFocus}
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight || paginatorFirstPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight || subsequentPageHeight)}

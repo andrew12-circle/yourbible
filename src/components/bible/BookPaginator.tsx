@@ -13,6 +13,7 @@ import {
 import { READER_SPREAD_COLUMNS_CLASS } from "@/lib/bible/readerColumnLayout";
 import {
   type ReaderChapterPassage,
+  type ReaderPlateFocus,
   type ReaderStreamUnit,
   buildReaderStream,
   READER_PAGINATOR_SPLIT_REVISION,
@@ -25,6 +26,8 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   chapters: ReaderChapterPassage[];
+  /** Only this chapter carries inline plates; neighbors are verse-only for pagination. */
+  plateFocus?: ReaderPlateFocus;
   pageWidth: number;
   pageHeight: number;
   firstPageHeight?: number;
@@ -40,6 +43,7 @@ interface Props {
 
 export function BookPaginator({
   chapters,
+  plateFocus,
   pageWidth,
   pageHeight,
   firstPageHeight,
@@ -59,7 +63,10 @@ export function BookPaginator({
   }, []);
   const [revision, setRevision] = useState(0);
   const lastSplitsRef = useRef<string>("");
-  const stream = useMemo(() => buildReaderStream(chapters), [chapters]);
+  const stream = useMemo(
+    () => buildReaderStream(chapters, { plateFocus }),
+    [chapters, plateFocus],
+  );
 
   const redByChapter = useMemo(() => {
     const m = new Map<string, Map<number, Segment[]>>();

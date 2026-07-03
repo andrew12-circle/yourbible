@@ -30,20 +30,56 @@ export function chapterStreamKey(bookAbbr: string, chapter: number): string {
   return `${bookAbbr}|${chapter}`;
 }
 
+export interface ReaderPlateFocus {
+  bookAbbr: string;
+  chapter: number;
+}
+
+export interface BuildReaderStreamOptions {
+  /** Only inline plates for this chapter; adjacent chapters stay verse-only. */
+  plateFocus?: ReaderPlateFocus;
+  /** Skip plates whose imageUrl already appears earlier in the stream. */
+  dedupeImageUrls?: boolean;
+}
+
+function chapterIncludesPlates(
+  ch: ReaderChapterPassage,
+  plateFocus?: ReaderPlateFocus,
+): boolean {
+  if (!plateFocus) return true;
+  return ch.bookAbbr === plateFocus.bookAbbr && ch.chapter === plateFocus.chapter;
+}
+
 /** Flatten chapters into a continuous reading stream with plates, headers, and verses. */
-export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStreamUnit[] {
+export function buildReaderStream(
+  chapters: ReaderChapterPassage[],
+  options?: BuildReaderStreamOptions,
+): ReaderStreamUnit[] {
   const stream: ReaderStreamUnit[] = [];
+  const seenImageUrls = new Set<string>();
+  const dedupeImageUrls = options?.dedupeImageUrls ?? true;
+
+  const pushPlate = (ch: ReaderChapterPassage, plate: BiblePlate) => {
+    if (dedupeImageUrls) {
+      if (seenImageUrls.has(plate.imageUrl)) return;
+      seenImageUrls.add(plate.imageUrl);
+    }
+    stream.push({
+      kind: "plate",
+      bookAbbr: ch.bookAbbr,
+      bookName: ch.bookName,
+      chapter: ch.chapter,
+      plate,
+    });
+  };
+
   for (const ch of chapters) {
     if (ch.verses.length === 0) continue;
-    const plates = inlinePlatesForChapter(ch.bookAbbr, ch.chapter);
+    const plates = chapterIncludesPlates(ch, options?.plateFocus)
+      ? inlinePlatesForChapter(ch.bookAbbr, ch.chapter)
+      : [];
     for (const plate of plates.filter((p) => p.beforeVerse === 1)) {
-      stream.push({
-        kind: "plate",
-        bookAbbr: ch.bookAbbr,
-        bookName: ch.bookName,
-        chapter: ch.chapter,
-        plate,
-      });
+      pushPlate(ch, plate);
     }
     stream.push({
       kind: "chapter-header",
@@ -55,13 +91,7 @@ export function buildReaderStream(chapters: ReaderChapterPassage[]): ReaderStrea
       for (const plate of plates.filter(
         (p) => p.beforeVerse === verse.number && !(verse.number === 1 && p.beforeVerse === 1),
       )) {
-        stream.push({
-          kind: "plate",
-          bookAbbr: ch.bookAbbr,
-          bookName: ch.bookName,
-          chapter: ch.chapter,
-          plate,
-        });
+        pushPlate(ch, plate);
       }
       stream.push({
         kind: "verse",
