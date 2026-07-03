@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PrayerRequestStatusBadge from "@/components/prayer/PrayerRequestStatusBadge";
 import { PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
+import { formatLedgerAmount } from "@/lib/prayer/money";
 import { formatDisplayDate, computeWaitDays, humanizeWaitDays } from "@/lib/prayer/stats";
 import type { PrayerRequestRow } from "@/lib/prayer/types";
 
@@ -34,6 +35,9 @@ export default function PrayerRequestCard({
         <h3 className="text-[15px] font-semibold tracking-tight text-foreground">{request.title}</h3>
         {request.prayer_text ? (
           <p className="line-clamp-2 text-sm text-muted-foreground leading-snug">{request.prayer_text}</p>
+        ) : null}
+        {request.amount_requested != null ? (
+          <p className="text-sm font-medium tabular-nums">{formatLedgerAmount(request.amount_requested)}</p>
         ) : null}
         <p className="text-xs text-muted-foreground">
           Requested {formatDisplayDate(request.requested_at)}

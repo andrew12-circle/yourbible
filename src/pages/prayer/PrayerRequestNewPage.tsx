@@ -25,8 +25,11 @@ export default function PrayerRequestNewPage() {
             const row = await createPrayerRequest(user.id, {
               title: values.title,
               prayerText: values.prayerText,
+              purpose: values.purpose,
               category: values.category,
               requestedAt: values.requestedAt,
+              deadline: values.deadline || null,
+              amountRequested: values.amountRequestedNum,
               scriptureRefs: values.scriptureRefs,
               privateNotes: values.privateNotes,
             });

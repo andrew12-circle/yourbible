@@ -15,6 +15,7 @@ import {
   buildPraiseReportTitle,
 } from "@/lib/prayer/praiseReportFromRequest";
 import { computeWaitDays, formatDisplayDate, humanizeWaitDays } from "@/lib/prayer/stats";
+import { formatLedgerAmount, parseLedgerAmount } from "@/lib/prayer/money";
 import { localDateISO } from "@/lib/habits/dates";
 import type { PrayerRequestRow, PrayerRequestStatus } from "@/lib/prayer/types";
 
@@ -29,6 +30,7 @@ export default function PrayerAnswerCelebrationPage() {
   const [fetching, setFetching] = useState(true);
   const [answeredAt, setAnsweredAt] = useState(localDateISO());
   const [answerText, setAnswerText] = useState("");
+  const [amountProvided, setAmountProvided] = useState("");
   const [praiseBody, setPraiseBody] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -42,6 +44,7 @@ export default function PrayerAnswerCelebrationPage() {
       const row = await fetchPrayerRequest(user.id, id);
       setRequest(row);
       if (row) {
+        setAmountProvided(row.amount_requested != null ? String(row.amount_requested) : "");
         setPraiseBody(
           buildPraiseReportBody({
             ...row,
@@ -75,9 +78,29 @@ export default function PrayerAnswerCelebrationPage() {
     computeWaitDays({ requested_at: request.requested_at, answered_at: answeredAt }) ?? 0,
   );
 
+  const rebuildPraise = (
+    nextAnsweredAt: string,
+    nextAnswer: string,
+    nextAmount: string,
+  ) => {
+    const amountNum = parseLedgerAmount(nextAmount);
+    setPraiseBody(
+      buildPraiseReportBody(
+        {
+          ...request!,
+          answered_at: nextAnsweredAt,
+          answer_text: nextAnswer,
+          amount_provided: amountNum,
+          status: celebrationStatus,
+        },
+        nextAnswer,
+      ),
+    );
+  };
+
   const submit = async () => {
     if (!answerText.trim()) {
-      toast({ title: "Describe how God answered", variant: "destructive" });
+      toast({ title: "Describe how God provided", variant: "destructive" });
       return;
     }
     setBusy(true);
@@ -85,6 +108,7 @@ export default function PrayerAnswerCelebrationPage() {
       const result = await completePrayerAnswer(user.id, request, {
         answerText,
         answeredAt,
+        amountProvided: parseLedgerAmount(amountProvided),
         status: celebrationStatus,
         praiseBodyOverride: praiseBody,
       });
@@ -123,6 +147,12 @@ export default function PrayerAnswerCelebrationPage() {
         <p>
           <span className="text-muted-foreground">Waited:</span> {previewWait}
         </p>
+        {request.amount_requested != null ? (
+          <p>
+            <span className="text-muted-foreground">Amount needed:</span>{" "}
+            {formatLedgerAmount(request.amount_requested)}
+          </p>
+        ) : null}
         {request.prayer_text ? (
           <p className="pt-2 italic">&ldquo;{request.prayer_text}&rdquo;</p>
         ) : null}
@@ -137,39 +167,33 @@ export default function PrayerAnswerCelebrationPage() {
             value={answeredAt}
             onChange={(e) => {
               setAnsweredAt(e.target.value);
-              setPraiseBody(
-                buildPraiseReportBody(
-                  {
-                    ...request,
-                    answered_at: e.target.value,
-                    answer_text: answerText,
-                    status: celebrationStatus,
-                  },
-                  answerText,
-                ),
-              );
+              rebuildPraise(e.target.value, answerText, amountProvided);
             }}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="answer-text">How did God answer?</Label>
+          <Label htmlFor="amount-provided">Amount actually provided</Label>
+          <Input
+            id="amount-provided"
+            value={amountProvided}
+            onChange={(e) => {
+              setAmountProvided(e.target.value);
+              rebuildPraise(answeredAt, answerText, e.target.value);
+            }}
+            placeholder="$4,200"
+            inputMode="decimal"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="answer-text">Story — how did God provide?</Label>
           <PolishedTextarea
             id="answer-text"
             value={answerText}
             onChange={(e) => {
               setAnswerText(e.target.value);
-              setPraiseBody(
-                buildPraiseReportBody(
-                  {
-                    ...request,
-                    answered_at: answeredAt,
-                    answer_text: e.target.value,
-                    status: celebrationStatus,
-                  },
-                  e.target.value,
-                ),
-              );
+              rebuildPraise(answeredAt, e.target.value, amountProvided);
             }}
             placeholder="Closed three unexpected loans that fully covered payroll."
             className="min-h-[100px] resize-none"

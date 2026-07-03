@@ -2146,14 +2146,18 @@ export type Database = {
       }
       prayer_requests: {
         Row: {
+          amount_provided: number | null
+          amount_requested: number | null
           answer_text: string | null
           answered_at: string | null
           category: string
           created_at: string
+          deadline: string | null
           id: string
           prayer_text: string
           praise_report_entry_id: string | null
           private_notes: string
+          purpose: string
           requested_at: string
           scripture_refs: Json
           sort_order: number
@@ -2163,14 +2167,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          amount_provided?: number | null
+          amount_requested?: number | null
           answer_text?: string | null
           answered_at?: string | null
           category?: string
           created_at?: string
+          deadline?: string | null
           id?: string
           prayer_text?: string
           praise_report_entry_id?: string | null
           private_notes?: string
+          purpose?: string
           requested_at?: string
           scripture_refs?: Json
           sort_order?: number
@@ -2180,14 +2188,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          amount_provided?: number | null
+          amount_requested?: number | null
           answer_text?: string | null
           answered_at?: string | null
           category?: string
           created_at?: string
+          deadline?: string | null
           id?: string
           prayer_text?: string
           praise_report_entry_id?: string | null
           private_notes?: string
+          purpose?: string
           requested_at?: string
           scripture_refs?: Json
           sort_order?: number

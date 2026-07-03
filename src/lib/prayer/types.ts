@@ -42,10 +42,14 @@ export type PrayerRequestRow = {
   user_id: string;
   title: string;
   prayer_text: string;
+  purpose: string;
   category: PrayerCategory;
   status: PrayerRequestStatus;
   requested_at: string;
+  deadline: string | null;
   answered_at: string | null;
+  amount_requested: number | null;
+  amount_provided: number | null;
   answer_text: string | null;
   private_notes: string;
   scripture_refs: ScriptureRef[];
@@ -70,8 +74,11 @@ export type PrayerTimelineEventRow = {
 export type CreatePrayerRequestInput = {
   title: string;
   prayerText?: string;
+  purpose?: string;
   category?: PrayerCategory;
   requestedAt?: string;
+  deadline?: string | null;
+  amountRequested?: number | null;
   scriptureRefs?: ScriptureRef[];
   privateNotes?: string;
 };
@@ -79,10 +86,14 @@ export type CreatePrayerRequestInput = {
 export type UpdatePrayerRequestInput = Partial<{
   title: string;
   prayer_text: string;
+  purpose: string;
   category: PrayerCategory;
   status: PrayerRequestStatus;
   requested_at: string;
+  deadline: string | null;
   answered_at: string | null;
+  amount_requested: number | null;
+  amount_provided: number | null;
   answer_text: string | null;
   private_notes: string;
   scripture_refs: ScriptureRef[];
@@ -127,10 +138,14 @@ export function rowToPrayerRequest(row: Record<string, unknown>): PrayerRequestR
     user_id: String(row.user_id),
     title: String(row.title ?? ""),
     prayer_text: String(row.prayer_text ?? ""),
+    purpose: String(row.purpose ?? ""),
     category: row.category as PrayerCategory,
     status: row.status as PrayerRequestStatus,
     requested_at: String(row.requested_at),
+    deadline: row.deadline != null ? String(row.deadline) : null,
     answered_at: row.answered_at != null ? String(row.answered_at) : null,
+    amount_requested: row.amount_requested != null ? Number(row.amount_requested) : null,
+    amount_provided: row.amount_provided != null ? Number(row.amount_provided) : null,
     answer_text: row.answer_text != null ? String(row.answer_text) : null,
     private_notes: String(row.private_notes ?? ""),
     scripture_refs: parseScriptureRefs(row.scripture_refs as Json),

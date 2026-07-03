@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { HandHeart, NotebookPen, Plus } from "lucide-react";
+import { HandHeart, NotebookPen, Plus, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PrayerShell from "@/components/prayer/PrayerShell";
 import PrayerStatsPanel from "@/components/prayer/PrayerStatsPanel";
@@ -24,15 +24,21 @@ export default function PrayerHubPage() {
   return (
     <PrayerShell title="Prayer">
       <p className="mb-5 text-[15px] text-muted-foreground leading-relaxed">
-        Write what you need. Record how God provides. Your journal holds conversation with God; this ledger
-        builds evidence of answered prayer over years.
+        Write what you need — item, amount, deadline — and record how God provides. Your journal holds
+        conversation with God; this ledger builds evidence of answered prayer over years.
       </p>
 
       <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild>
           <Link to="/prayer/requests/new">
             <Plus className="mr-1.5 h-4 w-4" />
-            New request
+            Add need
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/prayer/requests">
+            <LayoutGrid className="mr-1.5 h-4 w-4" />
+            Open ledger
           </Link>
         </Button>
         <Button asChild variant="outline">

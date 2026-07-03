@@ -13,6 +13,7 @@ import type { PrayerRequestRow, PrayerRequestStatus } from "@/lib/prayer/types";
 export type CompletePrayerAnswerInput = {
   answerText: string;
   answeredAt?: string;
+  amountProvided?: number | null;
   status?: Extract<PrayerRequestStatus, "answered" | "different_answer">;
   praiseBodyOverride?: string;
 };
@@ -34,6 +35,7 @@ export async function completePrayerAnswer(
         ...request,
         answered_at: answeredAt,
         answer_text: answerText,
+        amount_provided: input.amountProvided ?? request.amount_provided,
         status,
       },
       answerText,
@@ -54,6 +56,7 @@ export async function completePrayerAnswer(
     status,
     answered_at: answeredAt,
     answer_text: answerText,
+    amount_provided: input.amountProvided ?? request.amount_provided,
     praise_report_entry_id: praiseEntryId,
   });
   if (!updated) return null;

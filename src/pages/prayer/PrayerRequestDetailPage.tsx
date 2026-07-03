@@ -24,6 +24,7 @@ import { deletePrayerRequest, updatePrayerRequest } from "@/lib/prayer/api";
 import { PRAYER_STATUSES, PRAYER_STATUS_LABELS, CELEBRATION_STATUSES } from "@/lib/prayer/statuses";
 import { PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
 import { formatDisplayDate } from "@/lib/prayer/stats";
+import { formatLedgerAmount } from "@/lib/prayer/money";
 import type { PrayerRequestStatus } from "@/lib/prayer/types";
 
 export default function PrayerRequestDetailPage() {
@@ -106,7 +107,11 @@ export default function PrayerRequestDetailPage() {
           initial={{
             title: request.title,
             requestedAt: request.requested_at,
+            deadline: request.deadline ?? "",
             category: request.category,
+            amountRequested:
+              request.amount_requested != null ? String(request.amount_requested) : "",
+            purpose: request.purpose,
             prayerText: request.prayer_text,
             privateNotes: request.private_notes,
             scriptureRefs: request.scripture_refs,
@@ -119,7 +124,10 @@ export default function PrayerRequestDetailPage() {
               await updatePrayerRequest(user.id, request.id, {
                 title: values.title,
                 requested_at: values.requestedAt,
+                deadline: values.deadline || null,
                 category: values.category,
+                amount_requested: values.amountRequestedNum,
+                purpose: values.purpose,
                 prayer_text: values.prayerText,
                 private_notes: values.privateNotes,
                 scripture_refs: values.scriptureRefs,
@@ -167,6 +175,27 @@ export default function PrayerRequestDetailPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border/60 bg-muted/20 p-4 text-sm">
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount needed</p>
+            <p className="font-medium tabular-nums">{formatLedgerAmount(request.amount_requested)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount received</p>
+            <p className="font-medium tabular-nums">{formatLedgerAmount(request.amount_provided)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Deadline</p>
+            <p>{request.deadline ? formatDisplayDate(request.deadline) : "—"}</p>
+          </div>
+          {request.purpose ? (
+            <div className="sm:col-span-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Purpose</p>
+              <p>{request.purpose}</p>
+            </div>
+          ) : null}
         </div>
 
         {request.prayer_text ? (

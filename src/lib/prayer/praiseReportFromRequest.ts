@@ -8,7 +8,16 @@ export function buildPraiseReportTitle(request: Pick<PrayerRequestRow, "title">)
 export function buildPraiseReportBody(
   request: Pick<
     PrayerRequestRow,
-    "requested_at" | "answered_at" | "prayer_text" | "answer_text" | "title" | "status"
+    | "requested_at"
+    | "answered_at"
+    | "prayer_text"
+    | "answer_text"
+    | "title"
+    | "status"
+    | "purpose"
+    | "amount_requested"
+    | "amount_provided"
+    | "deadline"
   >,
   answerOverride?: string,
 ): string {
@@ -22,15 +31,30 @@ export function buildPraiseReportBody(
       ? "\n\n_God answered differently than I expected — and that was the gift._"
       : "";
 
+  const amountLines: string[] = [];
+  if (request.amount_requested != null) {
+    amountLines.push(`**Amount needed:** $${request.amount_requested.toLocaleString()}`);
+  }
+  if (request.amount_provided != null) {
+    amountLines.push(`**Amount provided:** $${request.amount_provided.toLocaleString()}`);
+  }
+  if (request.deadline) {
+    amountLines.push(`**Deadline:** ${formatDisplayDate(request.deadline)}`);
+  }
+  if ((request.purpose ?? "").trim()) {
+    amountLines.push(`**Purpose:** ${request.purpose!.trim()}`);
+  }
+
   return [
     `**Requested:** ${formatDisplayDate(request.requested_at)}`,
     `**Answered:** ${formatDisplayDate(answeredAt)}`,
     `**Waited:** ${waitLabel}`,
+    ...amountLines,
     "",
     "**Prayer:**",
     prayer ? `"${prayer}"` : "_(no prayer text recorded)_",
     "",
-    "**Answer:**",
+    "**How God provided:**",
     answer ? `"${answer}"` : "_(describe how God provided)_",
     statusNote,
   ]
