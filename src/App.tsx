@@ -90,6 +90,7 @@ const LifeWeekReviewLogPage = lazy(() => import("./pages/life/LifeWeekReviewLogP
 const LifePrioritiesPage = lazy(() => import("./pages/life/LifePrioritiesPage"));
 const HabitsPage = lazy(() => import("./pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("./pages/life/TodosPage"));
+const MusicPage = lazy(() => import("./pages/MusicPage"));
 const ReadingPlansPage = lazy(() => import("./pages/bible/ReadingPlansPage"));
 const CodeLabPage = lazy(() => import("./pages/bible/CodeLabPage"));
 const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPage"));
@@ -150,6 +151,7 @@ const App = () => (
                   <Route path="/life/habits" element={<HabitsPage />} />
                   <Route path="/life/todos" element={<TodosPage />} />
                   <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
+                  <Route path="/music" element={<MusicPage />} />
                   <Route path="/prayer" element={<PrayerHubPage />} />
                   <Route path="/prayer/requests" element={<PrayerRequestsListPage />} />
                   <Route path="/prayer/requests/new" element={<PrayerRequestNewPage />} />

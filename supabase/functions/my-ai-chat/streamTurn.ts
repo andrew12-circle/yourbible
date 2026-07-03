@@ -7,6 +7,7 @@ import {
 } from "./systemPrompt.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import type { ResolvedResponseDepth } from "./responseDepth.ts";
+import type { MyAiCompanionMode } from "./systemPrompt.ts";
 import { finalizeChatCitations } from "./enrichCitations.ts";
 
 export type StreamCitation = {
@@ -99,6 +100,7 @@ export type StreamTurnParams = {
   skipUserInsert: boolean;
   excludeJournal: string | null;
   librarySearch?: boolean;
+  companionMode?: MyAiCompanionMode;
   corsHeaders: Record<string, string>;
 };
 
@@ -115,6 +117,7 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
     skipUserInsert,
     excludeJournal,
     librarySearch,
+    companionMode = "chatgpt",
     corsHeaders,
   } = params;
 
@@ -138,13 +141,15 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         ]);
 
         const systemText = journalMode
-          ? buildJournalChatStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
-          : buildMyAiStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
+          ? buildJournalChatStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
+          : buildMyAiStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode);
 
         const userPayload =
           `${contextPack.contextBlock}\n\nUser message:\n${message}\n\nAnswer the user message using the context above. Return markdown only.`;
 
-        const upstream = await fetchChatCompletionStream(systemText, userPayload, 0.55, 4096);
+        const streamTemp = companionMode === "chatgpt" ? 0.7 : 0.55;
+        const streamMaxTokens = companionMode === "chatgpt" ? 8192 : 4096;
+        const upstream = await fetchChatCompletionStream(systemText, userPayload, streamTemp, streamMaxTokens);
         if (!upstream.ok || !upstream.body) {
           const errText = await upstream.text().catch(() => "Stream failed");
           controller.enqueue(

@@ -5,7 +5,7 @@ import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_share
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage, claimResearchTitleFromClaim } from "../_shared/chatTitle.ts";
-import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt } from "./systemPrompt.ts";
+import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt, parseCompanionMode, type MyAiCompanionMode } from "./systemPrompt.ts";
 import { createStreamingChatResponse } from "./streamTurn.ts";
 import { finalizeChatCitations } from "./enrichCitations.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
@@ -52,6 +52,8 @@ type RequestBody = {
   edit_user_message_id?: string | null;
   /** auto | reflect | deep — controls substantive vs reflective replies. */
   response_depth?: "auto" | "reflect" | "deep";
+  /** chatgpt (default) | inward — ChatGPT-first vs library-first companion. */
+  companion_mode?: "chatgpt" | "inward";
   /** Per-turn inward/outward mode from My AI composer chips. */
   research_scope?: "library" | "outside" | "web";
 };
@@ -144,6 +146,7 @@ async function generateClaimChatReply(
   resolvedDepth: ResolvedResponseDepth,
   chatUseWeb: boolean,
   claimPackId: string,
+  companionMode: MyAiCompanionMode = "inward",
 ): Promise<
   | { error: string }
   | {
@@ -179,8 +182,8 @@ async function generateClaimChatReply(
 
   const usedWebFromBlock = Boolean(webBlock.trim());
   const systemText = journalMode
-    ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth)
-    : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth);
+    ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
+    : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode);
   const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, webBlock, message, true);
   const ranked = await generateRankedReply(systemText, userPayload, message, resolvedDepth);
   if ("error" in ranked) return { error: ranked.error };
@@ -1322,12 +1325,21 @@ Deno.serve(async (req) => {
       resolvedDepth = "deep";
     }
 
+    const companionMode = parseCompanionMode(body.companion_mode, journalMode);
+    const effectiveCompanionMode: MyAiCompanionMode =
+      researchScope === "library" ? "inward" : companionMode;
+    if (companionMode === "chatgpt" && parseResponseDepthSetting(body.response_depth) === "auto") {
+      resolvedDepth = "deep";
+    }
+
     let includeGeneral = journalMode
       ? body.include_general_knowledge === true
       : body.include_general_knowledge !== false;
     if (researchScope === "library") {
       includeGeneral = false;
     } else if (researchScope === "outside" || researchScope === "web") {
+      includeGeneral = true;
+    } else if (companionMode === "chatgpt") {
       includeGeneral = true;
     }
 
@@ -1345,6 +1357,7 @@ Deno.serve(async (req) => {
         skipUserInsert,
         excludeJournal,
         librarySearch,
+        companionMode: effectiveCompanionMode,
         corsHeaders,
       });
     }
@@ -1378,6 +1391,7 @@ Deno.serve(async (req) => {
       resolvedDepth,
       chatUseWeb,
       claimPackId,
+      effectiveCompanionMode,
     );
     if ("error" in generated) return jsonResponse({ error: generated.error }, 502);
     const { reply, citations: modelCitations, ranked } = generated;

@@ -34,7 +34,15 @@ import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
 import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
 import { chatTitleFromFirstMessage } from "@/lib/myai/chatTitle";
 import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
-import { myAiBodyForResearchScope, type MyAiResearchScope } from "@/lib/myai/researchScope";
+import type { MyAiResearchScope } from "@/lib/myai/researchScope";
+import {
+  buildMyAiTurnBody,
+  MY_AI_COMPANION_MODE_HINTS,
+  MY_AI_COMPANION_MODE_LABELS,
+  persistCompanionModeSetting,
+  readCompanionModeSetting,
+  type MyAiCompanionMode,
+} from "@/lib/myai/companionMode";
 import { MyAiMark } from "@/components/myai/MyAiMark";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
@@ -319,8 +327,9 @@ export default function MyAiPage() {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
+  const [companionMode, setCompanionMode] = useState<MyAiCompanionMode>(() => readCompanionModeSetting());
   const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
-    readResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY),
+    readResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, "deep"),
   );
   const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -411,6 +420,10 @@ export default function MyAiPage() {
     if (typeof window === "undefined") return;
     localStorage.setItem(LS_INCLUDE_GENERAL, includeGeneral ? "1" : "0");
   }, [includeGeneral]);
+
+  useEffect(() => {
+    persistCompanionModeSetting(companionMode);
+  }, [companionMode]);
 
   useEffect(() => {
     persistResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
@@ -545,7 +558,7 @@ export default function MyAiPage() {
     const text = (textOverride ?? input).trim();
     if (!text || sending) return;
 
-    const scopeFlags = myAiBodyForResearchScope(scope, { includeGeneral, responseDepth });
+    const scopeFlags = buildMyAiTurnBody(scope, { companionMode, includeGeneral, responseDepth });
 
     const editId =
       editingMessageId && !editingMessageId.startsWith("pending-") ? editingMessageId : null;
@@ -645,7 +658,7 @@ export default function MyAiPage() {
 
   const retryWithScope = async (scope?: MyAiResearchScope) => {
     if (!routeChatId || sending) return;
-    const scopeFlags = myAiBodyForResearchScope(scope, { includeGeneral, responseDepth });
+    const scopeFlags = buildMyAiTurnBody(scope, { companionMode, includeGeneral, responseDepth });
     const assistantTempId = `pending-retry-${Date.now()}`;
     setMessages((prev) => {
       let lastAssistantIdx = -1;
@@ -826,19 +839,44 @@ export default function MyAiPage() {
               </PopoverTrigger>
               <PopoverContent className="w-72" align="end">
                 <div className="space-y-3">
-                  <ResponseDepthControl
-                    idPrefix="my-ai-depth"
-                    value={responseDepth}
-                    onChange={setResponseDepth}
-                  />
                   <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="my-ai-outside-pop" className="text-sm">Outside knowledge</Label>
+                    <div className="space-y-0.5">
+                      <Label htmlFor="my-ai-inward-pop" className="text-sm">
+                        {MY_AI_COMPANION_MODE_LABELS.inward}
+                      </Label>
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        {MY_AI_COMPANION_MODE_HINTS.inward}
+                      </p>
+                    </div>
                     <Switch
-                      id="my-ai-outside-pop"
-                      checked={includeGeneral}
-                      onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                      id="my-ai-inward-pop"
+                      checked={companionMode === "inward"}
+                      onCheckedChange={(v) => setCompanionMode(v ? "inward" : "chatgpt")}
                     />
                   </div>
+                  {companionMode === "inward" ? (
+                    <>
+                      <ResponseDepthControl
+                        idPrefix="my-ai-depth"
+                        value={responseDepth}
+                        onChange={setResponseDepth}
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="my-ai-outside-pop" className="text-sm">Outside knowledge</Label>
+                        <Switch
+                          id="my-ai-outside-pop"
+                          checked={includeGeneral}
+                          onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <ResponseDepthControl
+                      idPrefix="my-ai-depth"
+                      value={responseDepth}
+                      onChange={setResponseDepth}
+                    />
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
@@ -867,7 +905,9 @@ export default function MyAiPage() {
                 <ChatOpeningBlessing variant="welcome" className="mb-6" />
                 <h2 className="text-base font-semibold tracking-tight text-foreground">How can I help?</h2>
                 <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                  Grounded in your beliefs, journals, and framework — with citations back to your sources.
+                  {companionMode === "inward"
+                    ? "Grounded in your beliefs, journals, and framework — with citations back to your sources."
+                    : "Smart, thorough answers like ChatGPT — enriched with your library when it fits."}
                 </p>
                 <div className="mt-6 grid w-full gap-1.5 sm:grid-cols-2">
                   {SUGGESTED_PROMPTS.map((prompt) => (
@@ -953,6 +993,8 @@ export default function MyAiPage() {
             textareaRef={taRef}
             responseDepth={responseDepth}
             onResponseDepthChange={setResponseDepth}
+            companionMode={companionMode}
+            onCompanionModeChange={setCompanionMode}
             includeGeneral={includeGeneral}
             onIncludeGeneralChange={setIncludeGeneral}
             suggestedPrompts={SUGGESTED_PROMPTS}

@@ -26,6 +26,11 @@ import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import MyAiResearchChips from "@/components/myai/MyAiResearchChips";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import type { MyAiResearchScope } from "@/lib/myai/researchScope";
+import {
+  MY_AI_COMPANION_MODE_HINTS,
+  MY_AI_COMPANION_MODE_LABELS,
+  type MyAiCompanionMode,
+} from "@/lib/myai/companionMode";
 import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
 import { myAiComposerColumn, myAiInputShell } from "@/lib/myai/myAiTheme";
 import { mobileBottomDockPadding, mobileBottomDockTransform } from "@/lib/shell/mobileShellClasses";
@@ -54,6 +59,8 @@ type Props = {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   responseDepth: ResponseDepthSetting;
   onResponseDepthChange: (value: ResponseDepthSetting) => void;
+  companionMode: MyAiCompanionMode;
+  onCompanionModeChange: (value: MyAiCompanionMode) => void;
   includeGeneral: boolean;
   onIncludeGeneralChange: (value: boolean) => void;
   suggestedPrompts: readonly string[];
@@ -83,6 +90,8 @@ export default function MyAiComposer({
   textareaRef: externalTaRef,
   responseDepth,
   onResponseDepthChange,
+  companionMode,
+  onCompanionModeChange,
   includeGeneral,
   onIncludeGeneralChange,
   suggestedPrompts,
@@ -214,26 +223,72 @@ export default function MyAiComposer({
                 ))}
                 <DropdownMenuSeparator />
                 <div className="space-y-3 px-2 py-2">
-                  <ResponseDepthControl
-                    idPrefix="my-ai-composer-depth"
-                    value={responseDepth}
-                    onChange={onResponseDepthChange}
-                  />
                   <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="my-ai-composer-outside" className="text-xs font-normal">
-                      Outside knowledge
-                    </Label>
+                    <div className="space-y-0.5">
+                      <Label htmlFor="my-ai-composer-inward" className="text-xs font-normal">
+                        {MY_AI_COMPANION_MODE_LABELS.inward}
+                      </Label>
+                      <p className="text-[10px] leading-snug text-muted-foreground">
+                        {MY_AI_COMPANION_MODE_HINTS.inward}
+                      </p>
+                    </div>
                     <Switch
-                      id="my-ai-composer-outside"
-                      checked={includeGeneral}
-                      onCheckedChange={(v) => onIncludeGeneralChange(Boolean(v))}
+                      id="my-ai-composer-inward"
+                      checked={companionMode === "inward"}
+                      onCheckedChange={(v) => onCompanionModeChange(v ? "inward" : "chatgpt")}
                     />
                   </div>
+                  {companionMode === "inward" ? (
+                    <>
+                      <ResponseDepthControl
+                        idPrefix="my-ai-composer-depth"
+                        value={responseDepth}
+                        onChange={onResponseDepthChange}
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="my-ai-composer-outside" className="text-xs font-normal">
+                          Outside knowledge
+                        </Label>
+                        <Switch
+                          id="my-ai-composer-outside"
+                          checked={includeGeneral}
+                          onCheckedChange={(v) => onIncludeGeneralChange(Boolean(v))}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <ResponseDepthControl
+                      idPrefix="my-ai-composer-depth"
+                      value={responseDepth}
+                      onChange={onResponseDepthChange}
+                    />
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
             <div className="flex shrink-0 items-center gap-0.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 gap-1 rounded-full px-2 text-xs font-medium",
+                  companionMode === "inward"
+                    ? "bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+                    : "text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/10",
+                )}
+                aria-pressed={companionMode === "inward"}
+                aria-label={MY_AI_COMPANION_MODE_LABELS.inward}
+                title={MY_AI_COMPANION_MODE_HINTS.inward}
+                onClick={() =>
+                  onCompanionModeChange(companionMode === "inward" ? "chatgpt" : "inward")
+                }
+              >
+                <Brain className="h-3.5 w-3.5" />
+                Inward
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -313,7 +368,9 @@ export default function MyAiComposer({
         ) : null}
 
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-          My AI can make mistakes. Grounded in your framework when sources match.
+          {companionMode === "inward"
+            ? "Inward companion — your library first, with citations when sources match."
+            : "My AI can make mistakes. ChatGPT-style answers enriched with your library when relevant."}
         </p>
       </div>
     </div>

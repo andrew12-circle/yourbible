@@ -20,12 +20,16 @@ import { parseWorshipMusicUrl } from "@/lib/livingHope/worshipMusic";
 interface GlobalMediaPlayerState {
   url: string;
   history: WorshipMusicHistoryItem[];
-  expanded: boolean;
   active: boolean;
+  /** Reflects the radio <audio> element play state; ignored for iframe embeds. */
+  playing: boolean;
+  /** The Music page registers a DOM node here so the video embed docks into it. */
+  dockEl: HTMLElement | null;
   play: (url: string, options?: { expand?: boolean }) => void;
   stop: () => void;
-  setExpanded: (next: boolean) => void;
-  toggleExpanded: () => void;
+  setPlaying: (next: boolean) => void;
+  togglePlaying: () => void;
+  setDockTarget: (el: HTMLElement | null) => void;
   mergeWorkbookHistory: (workbookHistory: WorshipMusicHistoryItem[]) => void;
   syncWorkbookSelection: (url: string, history: WorshipMusicHistoryItem[]) => void;
 }
@@ -35,12 +39,14 @@ const GlobalMediaPlayerContext = createContext<GlobalMediaPlayerState | null>(nu
 const FALLBACK: GlobalMediaPlayerState = {
   url: "",
   history: [],
-  expanded: false,
   active: false,
+  playing: false,
+  dockEl: null,
   play: () => {},
   stop: () => {},
-  setExpanded: () => {},
-  toggleExpanded: () => {},
+  setPlaying: () => {},
+  togglePlaying: () => {},
+  setDockTarget: () => {},
   mergeWorkbookHistory: () => {},
   syncWorkbookSelection: () => {},
 };
@@ -49,46 +55,51 @@ export function useGlobalMediaPlayer() {
   return useContext(GlobalMediaPlayerContext) ?? FALLBACK;
 }
 
-function persist(url: string, history: WorshipMusicHistoryItem[], expanded: boolean) {
-  saveGlobalMediaPlayerState({ url, history, expanded });
+function persist(url: string, history: WorshipMusicHistoryItem[]) {
+  saveGlobalMediaPlayerState({ url, history, expanded: false });
 }
 
 export function GlobalMediaPlayerProvider({ children }: { children: ReactNode }) {
   const initial = loadGlobalMediaPlayerState();
   const [url, setUrl] = useState(initial.url);
   const [history, setHistory] = useState(initial.history);
-  const [expanded, setExpandedState] = useState(initial.expanded);
+  const [playing, setPlayingState] = useState(false);
+  const [dockEl, setDockEl] = useState<HTMLElement | null>(null);
 
   const active = Boolean(url.trim() && parseWorshipMusicUrl(url));
 
   useEffect(() => {
-    persist(url, history, expanded);
-  }, [url, history, expanded]);
+    persist(url, history);
+  }, [url, history]);
 
-  const play = useCallback((nextUrl: string, options?: { expand?: boolean }) => {
+  const play = useCallback((nextUrl: string) => {
     const parsed = parseWorshipMusicUrl(nextUrl);
     if (!parsed) return;
     const normalized = parsed.openUrl;
     setUrl(normalized);
+    setPlayingState(true);
     setHistory((prev) => {
       const next = buildGlobalMediaHistory(prev, normalized);
       void enrichGlobalMediaHistoryItem(next, normalized).then(setHistory);
       return next;
     });
-    if (options?.expand) setExpandedState(true);
   }, []);
 
   const stop = useCallback(() => {
     setUrl("");
-    setExpandedState(false);
+    setPlayingState(false);
   }, []);
 
-  const setExpanded = useCallback((next: boolean) => {
-    setExpandedState(next);
+  const setPlaying = useCallback((next: boolean) => {
+    setPlayingState(next);
   }, []);
 
-  const toggleExpanded = useCallback(() => {
-    setExpandedState((prev) => !prev);
+  const togglePlaying = useCallback(() => {
+    setPlayingState((prev) => !prev);
+  }, []);
+
+  const setDockTarget = useCallback((el: HTMLElement | null) => {
+    setDockEl(el);
   }, []);
 
   const mergeWorkbookHistory = useCallback((workbookHistory: WorshipMusicHistoryItem[]) => {
@@ -110,16 +121,31 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
     () => ({
       url,
       history,
-      expanded,
       active,
+      playing,
+      dockEl,
       play,
       stop,
-      setExpanded,
-      toggleExpanded,
+      setPlaying,
+      togglePlaying,
+      setDockTarget,
       mergeWorkbookHistory,
       syncWorkbookSelection,
     }),
-    [url, history, expanded, active, play, stop, setExpanded, toggleExpanded, mergeWorkbookHistory, syncWorkbookSelection],
+    [
+      url,
+      history,
+      active,
+      playing,
+      dockEl,
+      play,
+      stop,
+      setPlaying,
+      togglePlaying,
+      setDockTarget,
+      mergeWorkbookHistory,
+      syncWorkbookSelection,
+    ],
   );
 
   return (

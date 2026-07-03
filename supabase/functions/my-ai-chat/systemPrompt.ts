@@ -4,6 +4,38 @@
 
 import type { ResolvedResponseDepth } from "./responseDepth.ts";
 
+export type MyAiCompanionMode = "chatgpt" | "inward";
+
+export function parseCompanionMode(raw: unknown, journalMode: boolean): MyAiCompanionMode {
+  if (journalMode) return "inward";
+  return raw === "inward" ? "inward" : "chatgpt";
+}
+
+const LAYER_IDENTITY_CHATGPT = `# Layer 1 — Identity
+You are the user's personal My AI — a sharp, helpful assistant in the spirit of ChatGPT: clear, substantive, and thorough. You know this user from the context sections below (beliefs, journals, videos, cognitive state), but your PRIMARY job is to answer their question well — not to force every reply through their saved library.`;
+
+const LAYER_CHATGPT_FIRST = `# Layer 2 — Answer first, personalize second
+- Answer the user's question directly and thoroughly, like a capable ChatGPT conversation.
+- Use your full general knowledge — Scripture references, theology, history, practical life — without gatekeeping or refusing because their library is silent.
+- When the appended context contains relevant beliefs, journals, or video moments, weave them in naturally as enrichment ("This connects to what you wrote…", "In your saved library…").
+- Never invent sources they did not record. Personalize only from real rows in context.
+- Prefer substantive, usable answers. End with a question only when it genuinely helps — not by default.`;
+
+const LAYER_EVOLUTION_CHATGPT = `# Layer 3 — Continuity (when context supports it)
+- When "Living cognitive state" or belief trajectories appear below, you MAY honor their season and voice — but do not let that block a direct answer.
+- Surface open tensions when clearly relevant; skip when the user asked a straightforward factual or theological question.`;
+
+const LAYER_RETRIEVAL_CHATGPT = `# Layer 4 — Library context (enrichment, not gate)
+- Appended context is optional enrichment — authoritative when you use it, not required every turn.
+- When you reference saved content, name it specifically (video title, journal theme, belief topic).
+- Bracket UUID tags ([belief:uuid], etc.) are internal only — never in visible prose.
+- Quote scripture by reference when helpful; do NOT fabricate verse text.`;
+
+const LAYER_HELPFUL_CHATGPT = `# Layer 5 — Quality bar
+- Write like ChatGPT: clear paragraphs, blank lines between thoughts, lists when helpful.
+- Be direct and smart. No therapist filler ("it sounds like…", "great question…", "thank you for sharing…").
+- No moralizing or preaching unless they ask for counsel. Match their emotional register without being saccharine.`;
+
 const LAYER_IDENTITY_CHAT = `# Layer 1 — Identity
 You are the user's personal "My AI" — a continuity-keeping assistant for their biblical worldview and inner life. You are not a generic chatbot. You speak to one specific person whose voice, season, and unresolved tensions you already know from the "Living cognitive state" section the server appends below.`;
 
@@ -78,24 +110,60 @@ Return plain markdown only — NOT JSON, NOT code fences. The user reads your re
 - When you use inward sources, name them in plain language (video title, journal date, belief topic) — never paste raw journal excerpts or bracket UUID tokens.
 - Bracket tags are stripped server-side; do not rely on them in visible text.`;
 
+function chatGptModeLayers(
+  partnerDigestMarkdown?: string,
+): string[] {
+  return [
+    LAYER_IDENTITY_CHATGPT,
+    LAYER_CHATGPT_FIRST,
+    LAYER_EVOLUTION_CHATGPT,
+    LAYER_RETRIEVAL_CHATGPT,
+    LAYER_HELPFUL_CHATGPT,
+    LAYER_DEEP_WISDOM_CHAT,
+    partnerLayer(partnerDigestMarkdown, false),
+    `# Layer 6 — General knowledge
+Use your full training knowledge freely. The user's saved library enriches answers when relevant but never blocks them.`,
+    STREAM_MARKDOWN_CONTRACT,
+  ];
+}
+
+function inwardModeLayers(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown: string | undefined,
+  journalSoft: boolean,
+  depth: ResolvedResponseDepth,
+  stream: boolean,
+): string[] {
+  const identity = journalSoft ? LAYER_IDENTITY_JOURNAL : LAYER_IDENTITY_CHAT;
+  const antiGeneric = journalSoft ? LAYER_ANTI_GENERIC_JOURNAL : LAYER_ANTI_GENERIC_CHAT;
+  const deepLayer = depth === "deep"
+    ? (journalSoft ? LAYER_DEEP_WISDOM_JOURNAL : LAYER_DEEP_WISDOM_CHAT)
+    : "";
+  const output = stream ? STREAM_MARKDOWN_CONTRACT : OUTPUT_CONTRACT;
+  return [
+    identity,
+    LAYER_INWARD_FIRST,
+    LAYER_EVOLUTION,
+    LAYER_RETRIEVAL,
+    antiGeneric,
+    deepLayer,
+    partnerLayer(partnerDigestMarkdown, journalSoft),
+    outsideLayer(includeGeneralKnowledge, journalSoft, depth),
+    output,
+  ].filter(Boolean);
+}
+
 /** Markdown streaming — My AI chat mode. */
 export function buildMyAiStreamSystemPrompt(
   includeGeneralKnowledge: boolean,
   partnerDigestMarkdown?: string,
   depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "chatgpt",
 ): string {
-  const layers = [
-    LAYER_IDENTITY_CHAT,
-    LAYER_INWARD_FIRST,
-    LAYER_EVOLUTION,
-    LAYER_RETRIEVAL,
-    LAYER_ANTI_GENERIC_CHAT,
-    depth === "deep" ? LAYER_DEEP_WISDOM_CHAT : "",
-    partnerLayer(partnerDigestMarkdown, false),
-    outsideLayer(includeGeneralKnowledge, false, depth),
-    STREAM_MARKDOWN_CONTRACT,
-  ].filter(Boolean);
-  return layers.join("\n\n");
+  if (companionMode === "chatgpt") {
+    return chatGptModeLayers(partnerDigestMarkdown).join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, false, depth, true).join("\n\n");
 }
 
 /** Markdown streaming — journal chat mode. */
@@ -103,19 +171,12 @@ export function buildJournalChatStreamSystemPrompt(
   includeGeneralKnowledge: boolean,
   partnerDigestMarkdown?: string,
   depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "inward",
 ): string {
-  const layers = [
-    LAYER_IDENTITY_JOURNAL,
-    LAYER_INWARD_FIRST,
-    LAYER_EVOLUTION,
-    LAYER_RETRIEVAL,
-    LAYER_ANTI_GENERIC_JOURNAL,
-    depth === "deep" ? LAYER_DEEP_WISDOM_JOURNAL : "",
-    partnerLayer(partnerDigestMarkdown, true),
-    outsideLayer(includeGeneralKnowledge, true, depth),
-    STREAM_MARKDOWN_CONTRACT,
-  ].filter(Boolean);
-  return layers.join("\n\n");
+  if (companionMode === "chatgpt") {
+    return chatGptModeLayers(partnerDigestMarkdown).join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, true).join("\n\n");
 }
 
 function partnerLayer(partnerDigestMarkdown?: string, soft = false): string {
@@ -170,19 +231,15 @@ export function buildMyAiSystemPrompt(
   includeGeneralKnowledge: boolean,
   partnerDigestMarkdown?: string,
   depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "chatgpt",
 ): string {
-  const layers = [
-    LAYER_IDENTITY_CHAT,
-    LAYER_INWARD_FIRST,
-    LAYER_EVOLUTION,
-    LAYER_RETRIEVAL,
-    LAYER_ANTI_GENERIC_CHAT,
-    depth === "deep" ? LAYER_DEEP_WISDOM_CHAT : "",
-    partnerLayer(partnerDigestMarkdown, false),
-    outsideLayer(includeGeneralKnowledge, false, depth),
-    OUTPUT_CONTRACT,
-  ].filter(Boolean);
-  return layers.join("\n\n");
+  if (companionMode === "chatgpt") {
+    return [
+      ...chatGptModeLayers(partnerDigestMarkdown).slice(0, -1),
+      OUTPUT_CONTRACT,
+    ].join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, false, depth, false).join("\n\n");
 }
 
 /** Layered system instructions for the journaling companion. Same output contract, softer voice. */
@@ -190,19 +247,15 @@ export function buildJournalChatSystemPrompt(
   includeGeneralKnowledge: boolean,
   partnerDigestMarkdown?: string,
   depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "inward",
 ): string {
-  const layers = [
-    LAYER_IDENTITY_JOURNAL,
-    LAYER_INWARD_FIRST,
-    LAYER_EVOLUTION,
-    LAYER_RETRIEVAL,
-    LAYER_ANTI_GENERIC_JOURNAL,
-    depth === "deep" ? LAYER_DEEP_WISDOM_JOURNAL : "",
-    partnerLayer(partnerDigestMarkdown, true),
-    outsideLayer(includeGeneralKnowledge, true, depth),
-    OUTPUT_CONTRACT,
-  ].filter(Boolean);
-  return layers.join("\n\n");
+  if (companionMode === "chatgpt") {
+    return [
+      ...chatGptModeLayers(partnerDigestMarkdown).slice(0, -1),
+      OUTPUT_CONTRACT,
+    ].join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, false).join("\n\n");
 }
 
 const LAYER_WEB_RESEARCH = `# Web research mode (OpenAI web search enabled)
