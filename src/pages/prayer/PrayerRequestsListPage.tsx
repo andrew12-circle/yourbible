@@ -1,21 +1,15 @@
 import { useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { LayoutGrid, List, Loader2, Plus } from "lucide-react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PrayerShell from "@/components/prayer/PrayerShell";
 import PrayerRequestCard from "@/components/prayer/PrayerRequestCard";
 import PrayerLedgerTable from "@/components/prayer/PrayerLedgerTable";
+import PrayerLedgerToolbar from "@/components/prayer/PrayerLedgerToolbar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { usePrayerRequests } from "@/hooks/usePrayerRequests";
-import { PRAYER_STATUSES, PRAYER_STATUS_LABELS } from "@/lib/prayer/statuses";
-import { PRAYER_CATEGORIES, PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
+import { PRAYER_STATUSES } from "@/lib/prayer/statuses";
 import type { PrayerCategory, PrayerRequestRow, PrayerRequestStatus } from "@/lib/prayer/types";
-
-const STATUS_FILTERS: { id: PrayerRequestStatus | "all"; label: string }[] = [
-  { id: "all", label: "All" },
-  ...PRAYER_STATUSES.map((s) => ({ id: s, label: PRAYER_STATUS_LABELS[s] })),
-];
 
 function monthKey(iso: string): string {
   return iso.slice(0, 7);
@@ -30,10 +24,14 @@ export default function PrayerRequestsListPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const initialStatus = (params.get("status") as PrayerRequestStatus | null) ?? "all";
-  const [statusFilter, setStatusFilter] = useState<PrayerRequestStatus | "all">(
-    STATUS_FILTERS.some((f) => f.id === initialStatus) ? initialStatus : "all",
-  );
+  const initialStatus = params.get("status");
+  const [statusFilter, setStatusFilter] = useState<PrayerRequestStatus | "all">(() => {
+    if (!initialStatus || initialStatus === "all") return "all";
+    if (PRAYER_STATUSES.includes(initialStatus as PrayerRequestStatus)) {
+      return initialStatus as PrayerRequestStatus;
+    }
+    return "all";
+  });
   const [categoryFilter, setCategoryFilter] = useState<PrayerCategory | "all">("all");
   const [view, setView] = useState<"ledger" | "cards">("ledger");
   const [monthFilter, setMonthFilter] = useState<string>("all");
@@ -65,113 +63,23 @@ export default function PrayerRequestsListPage() {
 
   return (
     <PrayerShell title="Provision ledger" wide>
-      <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
+      <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
         Your Müller-style log: item, amount, deadline, purpose, status — then mark answered with what God
         actually provided and the story behind it.
       </p>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button asChild size="sm">
-          <Link to="/prayer/requests/new">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add need
-          </Link>
-        </Button>
-        <div className="ml-auto flex rounded-lg border border-border p-0.5">
-          <button
-            type="button"
-            onClick={() => setView("ledger")}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium",
-              view === "ledger" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Ledger
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("cards")}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium",
-              view === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            <List className="h-3.5 w-3.5" />
-            Cards
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-1">
-        <button
-          type="button"
-          onClick={() => setMonthFilter("all")}
-          className={cn(
-            "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
-            monthFilter === "all" ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
-          )}
-        >
-          All months
-        </button>
-        {monthOptions.map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMonthFilter(m)}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
-              monthFilter === m ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
-            )}
-          >
-            {formatMonthLabel(m)}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-1">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setStatusFilter(f.id)}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition",
-              statusFilter === f.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-5 flex flex-wrap gap-1">
-        <button
-          type="button"
-          onClick={() => setCategoryFilter("all")}
-          className={cn(
-            "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
-            categoryFilter === "all" ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
-          )}
-        >
-          All categories
-        </button>
-        {PRAYER_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setCategoryFilter(c)}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
-              categoryFilter === c ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
-            )}
-          >
-            {PRAYER_CATEGORY_LABELS[c]}
-          </button>
-        ))}
-      </div>
+      <PrayerLedgerToolbar
+        view={view}
+        onViewChange={setView}
+        monthFilter={monthFilter}
+        onMonthFilterChange={setMonthFilter}
+        monthOptions={monthOptions}
+        formatMonthLabel={formatMonthLabel}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        categoryFilter={categoryFilter}
+        onCategoryFilterChange={setCategoryFilter}
+      />
 
       {listLoading ? (
         <div className="flex justify-center py-12">
