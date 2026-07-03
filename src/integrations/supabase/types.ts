@@ -2100,6 +2100,112 @@ export type Database = {
           },
         ]
       }
+      prayer_request_timeline_events: {
+        Row: {
+          body: string | null
+          created_at: string
+          event_kind: string
+          id: string
+          link_ref: Json
+          occurred_at: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          event_kind: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          event_kind?: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_request_timeline_events_prayer_request_id_fkey"
+            columns: ["prayer_request_id"]
+            isOneToOne: false
+            referencedRelation: "prayer_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prayer_requests: {
+        Row: {
+          answer_text: string | null
+          answered_at: string | null
+          category: string
+          created_at: string
+          id: string
+          prayer_text: string
+          praise_report_entry_id: string | null
+          private_notes: string
+          requested_at: string
+          scripture_refs: Json
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          prayer_text?: string
+          praise_report_entry_id?: string | null
+          private_notes?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          prayer_text?: string
+          praise_report_entry_id?: string | null
+          private_notes?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_requests_praise_report_entry_id_fkey"
+            columns: ["praise_report_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_summaries: {
         Row: {
           connection_id: string

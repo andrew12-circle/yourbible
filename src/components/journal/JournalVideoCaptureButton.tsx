@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { journalVideoCaptureSupported, journalVideoTranscriptEmptyMessage } from "@/lib/journal/videos";
 import { enqueueJournalVideoUpload } from "@/lib/journal/journalVideoUploadQueue";
 import { saveJournalVideoCapture } from "@/lib/journal/journalVideoUploadProcessor";
+import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -52,6 +53,7 @@ export default function JournalVideoCaptureButton({
   };
 
   const openCapture = () => {
+    snapAnchor();
     setOpen(true);
   };
 
@@ -78,6 +80,7 @@ export default function JournalVideoCaptureButton({
       );
 
       onVideoSaved(saved);
+      void clearInProgressJournalVideoRecording(result.recoveryDraftId);
       toast({
         title: saved.transcript ? "Video and transcript saved" : "Video saved",
         description: saved.transcript
@@ -109,6 +112,7 @@ export default function JournalVideoCaptureButton({
             result.audio,
             result.chapters,
           );
+          void clearInProgressJournalVideoRecording(result.recoveryDraftId);
           toast({
             title: "Video queued for upload",
             description: "We'll retry when you're back online.",
@@ -180,6 +184,11 @@ export default function JournalVideoCaptureButton({
           defaultMode="camera"
           onRecordingStart={onRecordingStart}
           onLiveTranscript={onLiveTranscript}
+          recovery={
+            userId && entryId
+              ? { userId, entryId, anchorOffset: anchorRef.current }
+              : undefined
+          }
           reviewBeforeUpload
         />
       ) : null}

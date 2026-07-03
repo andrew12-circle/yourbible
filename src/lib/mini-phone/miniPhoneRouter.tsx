@@ -65,6 +65,13 @@ const LivingHopeHubPage = lazy(() => import("@/pages/living-hope/LivingHopeHubPa
 const FutureLetterPage = lazy(() => import("@/pages/living-hope/FutureLetterPage"));
 const MorningReviewPage = lazy(() => import("@/pages/living-hope/MorningReviewPage"));
 const WorkbookSectionPage = lazy(() => import("@/pages/living-hope/WorkbookSectionPage"));
+const PrayerHubPage = lazy(() => import("@/pages/prayer/PrayerHubPage"));
+const PrayerRequestsListPage = lazy(() => import("@/pages/prayer/PrayerRequestsListPage"));
+const PrayerRequestNewPage = lazy(() => import("@/pages/prayer/PrayerRequestNewPage"));
+const PrayerRequestDetailPage = lazy(() => import("@/pages/prayer/PrayerRequestDetailPage"));
+const PrayerAnswerCelebrationPage = lazy(() => import("@/pages/prayer/PrayerAnswerCelebrationPage"));
+const PraiseReportsPage = lazy(() => import("@/pages/prayer/PraiseReportsPage"));
+const PrayerTimelinePage = lazy(() => import("@/pages/prayer/PrayerTimelinePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function MiniPhoneRouteLayout() {
@@ -100,6 +107,13 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/life/habits", element: <HabitsPage /> },
   { path: "/life/todos", element: <TodosPage /> },
   { path: "/todos", element: <Navigate to="/life/todos" replace /> },
+  { path: "/prayer", element: <PrayerHubPage /> },
+  { path: "/prayer/requests", element: <PrayerRequestsListPage /> },
+  { path: "/prayer/requests/new", element: <PrayerRequestNewPage /> },
+  { path: "/prayer/requests/:id/celebrate", element: <PrayerAnswerCelebrationPage /> },
+  { path: "/prayer/requests/:id", element: <PrayerRequestDetailPage /> },
+  { path: "/prayer/praise", element: <PraiseReportsPage /> },
+  { path: "/prayer/timeline", element: <PrayerTimelinePage /> },
   { path: "/framework", element: <FrameworkDashboard /> },
   { path: "/framework/journey", element: <FaithJourneyPage /> },
   { path: "/framework/playbook", element: <PlaybookPage /> },
@@ -135,6 +149,7 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/journal/prompts", element: <JournalPromptsPage /> },
   { path: "/journal/today", element: <JournalTodayPage /> },
   { path: "/journal/life", element: <JournalLifePage /> },
+  { path: "/journal/life/praise", element: <Navigate to="/prayer/praise" replace /> },
   { path: "/journal/life/:kind", element: <JournalLifePage /> },
   { path: "/journal/vent", element: <JournalVentPage /> },
   { path: "/journal/chat", element: <JournalChatPage /> },

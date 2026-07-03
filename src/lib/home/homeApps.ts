@@ -28,6 +28,7 @@ export type HomeDashboardCounts = {
   chats: number;
   artifacts: number;
   journalToday: number;
+  prayerWaiting: number;
 };
 
 export function getBibleRoute(): string {
@@ -75,6 +76,14 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Beliefs", to: "/framework/beliefs", icon: Network, color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
     { label: "Influences", to: "/framework/influences", icon: Users, color: IOS_APP_BG.influences },
     { label: "Journal", to: "/journal", icon: NotebookPen, color: IOS_APP_BG.journal, badge: promptBadge },
+    {
+      label: "Prayer",
+      to: "/prayer",
+      icon: HandHeart,
+      color: IOS_APP_BG.prayer,
+      badge: counts.prayerWaiting || undefined,
+      ariaLabel: "Prayer requests and praise reports",
+    },
     {
       label: "Walking together",
       to: "/partner",

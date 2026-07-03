@@ -28,6 +28,7 @@ const iconColorMap: Record<string, string> = {
   "Morning formula": "text-amber-500",
   Daily: "text-orange-500",
   Journal: "text-violet-500",
+  Prayer: "text-rose-500",
   Notes: "text-amber-500",
   Framework: "text-indigo-500",
   Journey: "text-emerald-500",
@@ -72,6 +73,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
       { title: "Bible", icon: BookOpen, to: "__bible__" },
       { title: "Journal", icon: NotebookPen, to: "/journal" },
+      { title: "Prayer", icon: HandHeart, to: "/prayer" },
       { title: "Notes", icon: StickyNote, to: "/journal/notes" },
       { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
       { title: "Mind map", icon: Share2, to: "/framework/graph" },
@@ -129,6 +131,9 @@ function isItemActive(item: SidebarItem, to: string, pathname: string): boolean 
   }
   if (item.title === "Journal") {
     if (pathname.startsWith("/journal/notes")) return false;
+    return pathname === to || pathname.startsWith(to + "/");
+  }
+  if (item.title === "Prayer") {
     return pathname === to || pathname.startsWith(to + "/");
   }
   if (to === "/home") return pathname === "/home";
@@ -269,6 +274,7 @@ export function HubSidebar() {
 
   const badgeMap: Record<string, number | undefined> = {
     Journal: promptBadge,
+    Prayer: counts.prayerWaiting || undefined,
     Beliefs: counts.beliefs || undefined,
     Artifacts: counts.artifacts || undefined,
     Tensions: counts.tensions || undefined,

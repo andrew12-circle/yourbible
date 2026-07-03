@@ -32,6 +32,7 @@ import {
   journalVideoRemainingMs,
   JOURNAL_VIDEO_MAX_UPLOAD_BYTES,
 } from "@/lib/journal/journalVideoLimits";
+import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -44,6 +45,11 @@ type Props = {
   defaultMode?: JournalVideoCaptureMode;
   onRecordingStart?: () => void;
   onLiveTranscript?: (text: string) => void;
+  recovery?: {
+    userId: string;
+    entryId: string;
+    anchorOffset: number;
+  };
   /** One-line prompt shown above the live transcript while recording. */
   teleprompter?: string;
   /** Show retake / confirm step before calling onComplete. */
@@ -65,6 +71,7 @@ export default function JournalVideoCaptureDialog({
   defaultMode,
   onRecordingStart,
   onLiveTranscript,
+  recovery,
   teleprompter,
   reviewBeforeUpload = true,
 }: Props) {
@@ -84,6 +91,7 @@ export default function JournalVideoCaptureDialog({
       stopOnMaxRef.current();
     },
     onInterim: onLiveTranscript,
+    recovery,
   });
   const openPreviewRef = useRef(capture.openPreview);
   const cancelRef = useRef(capture.cancel);
@@ -236,6 +244,7 @@ export default function JournalVideoCaptureDialog({
   };
 
   const handleRetake = () => {
+    void clearInProgressJournalVideoRecording(pendingReview?.result.recoveryDraftId);
     setPendingReview(null);
     setCountdownDeferred(false);
     countdownStartedRef.current = false;

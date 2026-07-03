@@ -77,10 +77,10 @@ function Hub() {
             iconClassName="bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
           />
           <LifeHubCard
-            to="/journal/life/praise"
+            to="/prayer/praise"
             icon={<PartyPopper className="h-4 w-4" aria-hidden />}
             title="Praise reports"
-            description={ENTRY_KIND_META.praise_report.shortHint}
+            description="God's faithfulness over time — full archive with stats in Prayer"
             iconClassName="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
           />
           <LifeHubCard

@@ -63,6 +63,13 @@ function OutgoingChip({ link }: { link: EntryLink }) {
         case "verse":
           setLabel(String(ref.ref ?? "scripture"));
           break;
+        case "prayer_request": {
+          const id = String(ref.id ?? ref.prayer_request_id ?? "");
+          if (!id) return;
+          const { data } = await supabase.from("prayer_requests").select("title").eq("id", id).maybeSingle();
+          if (!cancelled && data?.title) setLabel(data.title.slice(0, 48));
+          break;
+        }
         default:
           break;
       }
@@ -100,6 +107,10 @@ function OutgoingChip({ link }: { link: EntryLink }) {
         return "/framework/tensions";
       case "chat_thread":
         return "/my-ai";
+      case "prayer_request": {
+        const id = String(ref.id ?? ref.prayer_request_id ?? "");
+        return id ? `/prayer/requests/${id}` : "/prayer/requests";
+      }
       default:
         return "/journal";
     }

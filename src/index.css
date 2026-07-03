@@ -599,18 +599,18 @@
     color: hsl(0 58% 58%);
   }
 
-  /* Printed Bible page numbers — matches chapter drop-cap / cover cordovan. */
+  /* Reader chrome page numbers — inherit local chrome typography for legibility. */
   .reader-page-number {
-    font-family: var(--font-display, 'Cormorant Garamond', serif);
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     line-height: 1;
-    color: hsl(0 52% 42%);
+    color: inherit;
     font-variant-numeric: tabular-nums;
   }
   .reader-theme-dark .reader-page-number {
-    color: hsl(0 58% 58%);
+    color: inherit;
   }
 
   /* Traditional Bible paragraph flow — drop-cap + inline verse numbers. */

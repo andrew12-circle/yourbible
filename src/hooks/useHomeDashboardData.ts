@@ -14,6 +14,7 @@ const EMPTY_COUNTS: HomeDashboardCounts = {
   chats: 0,
   artifacts: 0,
   journalToday: 0,
+  prayerWaiting: 0,
 };
 
 export function useHomeDashboardData() {
@@ -81,6 +82,7 @@ export function useHomeDashboardData() {
         { count: chatsCount },
         { count: artsCount },
         { count: jTodayCount },
+        { count: prayerWaitingCount },
       ] = await Promise.all([
         supabase.from("journal_prompts").select("id,text").limit(500),
         supabase
@@ -100,6 +102,11 @@ export function useHomeDashboardData() {
           .eq("user_id", user.id)
           .or("entry_kind.is.null,entry_kind.neq.vent")
           .gte("entry_at_ts", startOfDay.toISOString()),
+        supabase
+          .from("prayer_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("status", "waiting"),
       ]);
       const list = prompts ?? [];
       if (list.length) {
@@ -119,6 +126,7 @@ export function useHomeDashboardData() {
         chats: chatsCount ?? 0,
         artifacts: artsCount ?? 0,
         journalToday: jTodayCount ?? 0,
+        prayerWaiting: prayerWaitingCount ?? 0,
       });
       } catch {
         // Keep last-known counts; dashboard widgets still render.

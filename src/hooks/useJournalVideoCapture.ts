@@ -31,6 +31,12 @@ import {
 } from "@/lib/journal/screenRecordingComposite";
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 import { composeVideoLiveTranscript, appendVideoSpeechFinal, pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
+import {
+  appendInProgressJournalVideoRecordingChunk,
+  clearInProgressJournalVideoRecording,
+  startInProgressJournalVideoRecording,
+  updateInProgressJournalVideoRecording,
+} from "@/lib/journal/journalVideoRecordingRecovery";
 
 export type JournalVideoCapturePhase =
   | "idle"
@@ -50,6 +56,7 @@ export type JournalVideoCaptureResult = {
   peakLiveTranscript: string;
   chapters: JournalVideoChapter[];
   durationMs: number;
+  recoveryDraftId?: string | null;
 };
 
 export interface UseJournalVideoCaptureOptions {
@@ -58,6 +65,11 @@ export interface UseJournalVideoCaptureOptions {
   onScreenShareEnded?: () => void;
   onMaxDuration?: () => void;
   settings?: JournalVideoCaptureSettings;
+  recovery?: {
+    userId: string;
+    entryId: string;
+    anchorOffset: number;
+  };
 }
 
 export interface UseJournalVideoCaptureApi {
@@ -148,6 +160,9 @@ export function useJournalVideoCapture(
   const pausedAccumMsRef = useRef(0);
   const pauseStartedAtRef = useRef<number | null>(null);
   const maxDurationTriggeredRef = useRef(false);
+  const recoveryDraftIdRef = useRef<string | null>(null);
+  const videoChunkIndexRef = useRef(0);
+  const audioChunkIndexRef = useRef(0);
   const stopRecordingRef = useRef<(() => Promise<JournalVideoCaptureResult | null>) | null>(null);
   const facingRef = useRef<CameraFacing>("user");
   const deviceIdRef = useRef<string | null>(null);
@@ -164,6 +179,10 @@ export function useJournalVideoCapture(
     if (combined.length > peakLiveTranscriptRef.current.length) {
       peakLiveTranscriptRef.current = combined;
     }
+    updateInProgressJournalVideoRecording(recoveryDraftIdRef.current, {
+      liveTranscript: combined,
+      peakLiveTranscript: peakLiveTranscriptRef.current,
+    });
     setInterim(combined);
     onInterimRef.current?.(combined);
   }, []);
@@ -237,6 +256,10 @@ export function useJournalVideoCapture(
     recordingTickRef.current = setInterval(() => {
       const elapsed = getRecordingElapsedMs();
       const bytes = syncRecordingBytes();
+      updateInProgressJournalVideoRecording(recoveryDraftIdRef.current, {
+        durationMs: elapsed,
+        chapters: chaptersRef.current,
+      });
       setRecordingElapsedMs(elapsed);
       if (
         shouldStopJournalVideoRecording(bytes, elapsed) &&
@@ -351,6 +374,7 @@ export function useJournalVideoCapture(
     resolveStopRef.current = null;
     resolveAudioStopRef.current?.(null);
     resolveAudioStopRef.current = null;
+    void clearInProgressJournalVideoRecording(recoveryDraftIdRef.current);
     cleanupStream();
     setMode(null);
     setPhase("idle");
@@ -359,6 +383,9 @@ export function useJournalVideoCapture(
     peakLiveTranscriptRef.current = "";
     chaptersRef.current = [];
     lastSpeechFinalRef.current = { text: "", at: 0 };
+    recoveryDraftIdRef.current = null;
+    videoChunkIndexRef.current = 0;
+    audioChunkIndexRef.current = 0;
     setChapters([]);
     setInterim("");
     onInterimRef.current?.("");
@@ -443,9 +470,35 @@ export function useJournalVideoCapture(
       /* optional */
     }
     const rec = new MediaRecorder(stream, recorderOptions);
+    const recoveryId = options.recovery ? crypto.randomUUID() : null;
+    recoveryDraftIdRef.current = recoveryId;
+    videoChunkIndexRef.current = 0;
+    audioChunkIndexRef.current = 0;
+    if (recoveryId && options.recovery) {
+      startInProgressJournalVideoRecording({
+        id: recoveryId,
+        userId: options.recovery.userId,
+        entryId: options.recovery.entryId,
+        anchorOffset: options.recovery.anchorOffset,
+        durationMs: 0,
+        liveTranscript: "",
+        peakLiveTranscript: "",
+        videoMimeType: rec.mimeType || mime,
+        audioMimeType: null,
+        chapters: [],
+      });
+    }
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) {
         chunksRef.current.push(e.data);
+        const index = videoChunkIndexRef.current;
+        videoChunkIndexRef.current += 1;
+        void appendInProgressJournalVideoRecordingChunk(
+          recoveryDraftIdRef.current,
+          "video",
+          index,
+          e.data,
+        );
         syncRecordingBytes();
       }
     };
@@ -462,7 +515,17 @@ export function useJournalVideoCapture(
       const { recorder: audioRec, mimeType: audioMime } = sidecar;
       audioChunksRef.current = [];
       audioRec.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+          const index = audioChunkIndexRef.current;
+          audioChunkIndexRef.current += 1;
+          void appendInProgressJournalVideoRecordingChunk(
+            recoveryDraftIdRef.current,
+            "audio",
+            index,
+            e.data,
+          );
+        }
       };
       audioRec.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, {
@@ -474,6 +537,9 @@ export function useJournalVideoCapture(
       try {
         audioRec.start(250);
         audioRecorderRef.current = audioRec;
+        updateInProgressJournalVideoRecording(recoveryDraftIdRef.current, {
+          audioMimeType: audioRec.mimeType || audioMime,
+        });
       } catch {
         audioRecorderRef.current = null;
       }
@@ -489,7 +555,7 @@ export function useJournalVideoCapture(
     startRecordingTick();
     setPhase("recording");
     if (speechSupportedRef.current) speechStartRef.current();
-  }, [phase, clearCountdown, startRecordingTick, syncRecordingBytes]);
+  }, [phase, clearCountdown, options.recovery, startRecordingTick, syncRecordingBytes]);
 
   const beginCountdown = useCallback(() => {
     if (phase !== "preview" || countdownTimerRef.current) return;
@@ -575,6 +641,13 @@ export function useJournalVideoCapture(
       liveTranscript,
     );
     const recordedChapters = [...chaptersRef.current];
+    const recoveryDraftId = recoveryDraftIdRef.current;
+    updateInProgressJournalVideoRecording(recoveryDraftId, {
+      durationMs,
+      liveTranscript,
+      peakLiveTranscript,
+      chapters: recordedChapters,
+    });
     speechStopRef.current();
     finalizedTranscriptRef.current = "";
     interimPartialRef.current = "";
@@ -626,6 +699,7 @@ export function useJournalVideoCapture(
       peakLiveTranscript,
       chapters: recordedChapters,
       durationMs,
+      recoveryDraftId,
     };
   }, [phase, cleanupStream, clearCountdown, clearRecordingTick, getRecordingElapsedMs, resetRecordingClock]);
 

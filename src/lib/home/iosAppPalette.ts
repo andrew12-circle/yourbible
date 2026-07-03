@@ -23,5 +23,6 @@ export const IOS_APP_BG = {
   firstLight: "linear-gradient(180deg, #FFD080 0%, #FF9500 100%)",
   youtube: "linear-gradient(180deg, #FF6961 0%, #FF0000 100%)",
   myAi: "linear-gradient(180deg, #5AC8FA 0%, #007AFF 100%)",
+  prayer: "linear-gradient(180deg, #FF9F6B 0%, #FF6482 100%)",
   settings: "linear-gradient(180deg, #AEAEB2 0%, #8E8E93 100%)",
 } as const;

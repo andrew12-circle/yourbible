@@ -92,6 +92,13 @@ const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPa
 const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage"));
 const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
 const WorkbookSectionPage = lazy(() => import("./pages/living-hope/WorkbookSectionPage"));
+const PrayerHubPage = lazy(() => import("./pages/prayer/PrayerHubPage"));
+const PrayerRequestsListPage = lazy(() => import("./pages/prayer/PrayerRequestsListPage"));
+const PrayerRequestNewPage = lazy(() => import("./pages/prayer/PrayerRequestNewPage"));
+const PrayerRequestDetailPage = lazy(() => import("./pages/prayer/PrayerRequestDetailPage"));
+const PrayerAnswerCelebrationPage = lazy(() => import("./pages/prayer/PrayerAnswerCelebrationPage"));
+const PraiseReportsPage = lazy(() => import("./pages/prayer/PraiseReportsPage"));
+const PrayerTimelinePage = lazy(() => import("./pages/prayer/PrayerTimelinePage"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -138,6 +145,13 @@ const App = () => (
                   <Route path="/life/habits" element={<HabitsPage />} />
                   <Route path="/life/todos" element={<TodosPage />} />
                   <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
+                  <Route path="/prayer" element={<PrayerHubPage />} />
+                  <Route path="/prayer/requests" element={<PrayerRequestsListPage />} />
+                  <Route path="/prayer/requests/new" element={<PrayerRequestNewPage />} />
+                  <Route path="/prayer/requests/:id/celebrate" element={<PrayerAnswerCelebrationPage />} />
+                  <Route path="/prayer/requests/:id" element={<PrayerRequestDetailPage />} />
+                  <Route path="/prayer/praise" element={<PraiseReportsPage />} />
+                  <Route path="/prayer/timeline" element={<PrayerTimelinePage />} />
                   <Route path="/framework" element={<FrameworkDashboard />} />
                   <Route path="/framework/journey" element={<FaithJourneyPage />} />
                   <Route path="/framework/playbook" element={<PlaybookPage />} />
@@ -173,6 +187,7 @@ const App = () => (
                   <Route path="/journal/prompts" element={<JournalPromptsPage />} />
                   <Route path="/journal/today" element={<JournalTodayPage />} />
                   <Route path="/journal/life" element={<JournalLifePage />} />
+                  <Route path="/journal/life/praise" element={<Navigate to="/prayer/praise" replace />} />
                   <Route path="/journal/life/:kind" element={<JournalLifePage />} />
                   <Route path="/journal/vent" element={<JournalVentPage />} />
                   <Route path="/journal/chat" element={<JournalChatPage />} />

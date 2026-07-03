@@ -12,7 +12,8 @@ export type LinkKind =
   | "artifact"
   | "prompt"
   | "entry"
-  | "entity";
+  | "entity"
+  | "prayer_request";
 
 export interface EntryLinkInput {
   kind: LinkKind;
