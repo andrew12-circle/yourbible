@@ -12,6 +12,8 @@ import JournalBodyWithVideos from "@/components/journal/JournalBodyWithVideos";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import { retranscribeJournalEntryVideo, updateEntryVideoTranscript } from "@/lib/journal/videos";
 import { bodyWithLiveVideoTranscript, finalizeVideoJournalBody, prepareVideoJournalTranscript, replaceTranscriptBeforeVideo, resolveVideoAnchorOffset, resolveVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
+import { JOURNAL_VIDEO_SAVED_EVENT, type JournalVideoSavedEventDetail } from "@/lib/journal/journalVideoEntryMerge";
+import { updateJournalVideoRecordingBodySnapForEntry } from "@/lib/journal/journalVideoRecordingRecovery";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
@@ -606,10 +608,12 @@ export default function EntryEditorPane({
   const handleVideoRecordingStart = useCallback(() => {
     const cur = entryRef.current;
     if (!cur) return;
-    videoLiveSnapRef.current = {
+    const snap = {
       body: cur.body,
       anchor: resolveBodyVideoAnchor(),
     };
+    videoLiveSnapRef.current = snap;
+    updateJournalVideoRecordingBodySnapForEntry(cur.id, snap.body, snap.anchor);
     videoAutoTitle.onRecordingStart();
   }, [resolveBodyVideoAnchor, videoAutoTitle]);
 
@@ -653,7 +657,11 @@ export default function EntryEditorPane({
       });
       if (!cur || !best) {
         videoLiveSnapRef.current = null;
-        if (snap) handleBodyChange(snap.body);
+        if (snap && cur && cur.body !== snap.body) {
+          // Keep live preview text — don't wipe words the user already saw while recording.
+        } else if (snap) {
+          handleBodyChange(snap.body);
+        }
         if (cur) await videoAutoTitle.onRecordingComplete(cur.body);
         return;
       }
@@ -664,6 +672,19 @@ export default function EntryEditorPane({
     },
     [handleBodyChange, reloadVideos, videoAutoTitle],
   );
+
+  useEffect(() => {
+    const onVideoSaved = (event: Event) => {
+      const detail = (event as CustomEvent<JournalVideoSavedEventDetail>).detail;
+      const cur = entryRef.current;
+      if (!detail?.entryId || !cur || cur.id !== detail.entryId) return;
+      if (cur.body === detail.body) return;
+      entryRef.current = { ...cur, body: detail.body };
+      setEntry({ ...cur, body: detail.body });
+    };
+    window.addEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
+    return () => window.removeEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
+  }, [entryId]);
 
   const handleRetranscribeVideo = useCallback(
     async (video: { id: string; storage_path: string; anchor_offset: number }) => {
@@ -1071,6 +1092,7 @@ export default function EntryEditorPane({
             userId={user?.id}
             entryId={entry?.id ?? null}
             getAnchorOffset={resolveBodyVideoAnchor}
+            getBodySnap={() => videoLiveSnapRef.current}
             onRecordingStart={handleVideoRecordingStart}
             onLiveTranscript={handleVideoLiveTranscript}
             onRecordingCancelled={handleVideoRecordingCancelled}

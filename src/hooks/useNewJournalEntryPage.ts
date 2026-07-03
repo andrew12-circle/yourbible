@@ -69,13 +69,12 @@ import {
   resolveVideoJournalTranscript,
   resolveVideoAnchorOffset,
 } from "@/lib/journal/journalVideoBody";
+import { JOURNAL_VIDEO_SAVED_EVENT, type JournalVideoSavedEventDetail } from "@/lib/journal/journalVideoEntryMerge";
+import { updateJournalVideoRecordingBodySnapForEntry } from "@/lib/journal/journalVideoRecordingRecovery";
+import { saveJournalVideoCaptureWithQueue } from "@/lib/journal/journalVideoUploadProcessor";
 import {
-  insertEntryVideo,
   journalVideoCaptureSupported,
   journalVideoTranscriptEmptyMessage,
-  transcribeJournalVideo,
-  updateEntryVideoTranscript,
-  uploadEntryVideo,
 } from "@/lib/journal/videos";
 import {
   useJournalComposePersistence,
@@ -1206,12 +1205,17 @@ export function useNewJournalEntryPage() {
   }, []);
 
   const handleVideoRecordingStart = useCallback(() => {
-    videoLiveSnapRef.current = {
+    const snap = {
       body: bodyRef.current,
       anchor: getVideoAnchorOffset(),
     };
+    videoLiveSnapRef.current = snap;
+    const entryId = editId ?? inlineEntryId;
+    if (entryId) {
+      updateJournalVideoRecordingBodySnapForEntry(entryId, snap.body, snap.anchor);
+    }
     videoAutoTitle.onRecordingStart();
-  }, [getVideoAnchorOffset, videoAutoTitle]);
+  }, [getVideoAnchorOffset, videoAutoTitle, editId, inlineEntryId]);
 
   const handleVideoLiveTranscript = useCallback(
     (live: string) => {
@@ -1319,54 +1323,65 @@ export function useNewJournalEntryPage() {
       const anchorOffset = videoAnchorRef.current;
       const recordedMs = result.durationMs || durationMs;
       setVideoUploading(true);
+      toast({
+        title: "Recording saved on this device",
+        description: "Uploading your video…",
+      });
       try {
-        const uploaded = await uploadEntryVideo(user.id, entryId, result.video, recordedMs);
-        const row = await insertEntryVideo(user.id, entryId, uploaded, { anchor_offset: anchorOffset });
-        if (!row) throw new Error("Could not attach video to entry");
+        const { saved, queued } = await saveJournalVideoCaptureWithQueue({
+          userId: user.id,
+          entryId,
+          result,
+          durationMs: recordedMs,
+          anchorOffset,
+          bodySnap: videoLiveSnapRef.current,
+        });
 
         setVideoUploading(false);
         setVideoTranscribing(true);
-        const stt = await transcribeJournalVideo(uploaded.storage_path, {
-          userId: user.id,
-          audioBlob: result.audio,
-          liveTranscript: result.liveTranscript,
-          peakLiveTranscript: result.peakLiveTranscript,
-        });
+
         const snap = videoLiveSnapRef.current;
         const best = resolveVideoJournalTranscript({
-          serverTranscript: stt.text,
-          liveTranscript: result.liveTranscript,
-          peakLiveTranscript: result.peakLiveTranscript,
+          serverTranscript: saved.transcript,
+          liveTranscript: saved.liveTranscript,
+          peakLiveTranscript: saved.peakLiveTranscript,
           snap,
           body: bodyRef.current,
         });
-        if (best) await updateEntryVideoTranscript(row.id, best);
 
         await reloadVideos();
         let enrichResult: { summary?: string } | void;
         if (best.trim()) {
           const nextBody = finalizeVideoJournalBody(snap, bodyRef.current, anchorOffset, best);
           handleBodyChange(nextBody);
-          setVideoTranscribing(false);
           enrichResult = await videoAutoTitle.onRecordingComplete(nextBody);
         } else {
           enrichResult = await videoAutoTitle.onRecordingComplete(bodyRef.current);
         }
         videoLiveSnapRef.current = null;
-        toast({
-          title: best ? "Video and transcript saved" : "Video saved",
-          description: best
-            ? enrichResult?.summary
-              ? "Summary and full transcript are in your entry."
-              : undefined
-            : journalVideoTranscriptEmptyMessage({
-                sttError: stt.error,
-                hadLiveCaption: Boolean(
-                  result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
-                ),
-                hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
-              }),
-        });
+
+        if (queued) {
+          toast({
+            title: "Upload delayed",
+            description:
+              "Your recording is safe on this device. We'll upload and finish the transcript automatically.",
+          });
+        } else {
+          toast({
+            title: best ? "Video and transcript saved" : "Video saved",
+            description: best
+              ? enrichResult?.summary
+                ? "Summary and full transcript are in your entry."
+                : undefined
+              : journalVideoTranscriptEmptyMessage({
+                  sttError: saved.sttError,
+                  hadLiveCaption: Boolean(
+                    result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
+                  ),
+                  hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
+                }),
+          });
+        }
         setVideoOpen(false);
       } catch (e) {
         toast({
@@ -1382,6 +1397,19 @@ export function useNewJournalEntryPage() {
     },
     [user?.id, editId, inlineEntryId, reloadVideos, handleBodyChange, videoAutoTitle],
   );
+
+  useEffect(() => {
+    const entryId = editId ?? inlineEntryId;
+    if (!entryId) return;
+    const onVideoSaved = (event: Event) => {
+      const detail = (event as CustomEvent<JournalVideoSavedEventDetail>).detail;
+      if (!detail?.entryId || detail.entryId !== entryId) return;
+      if (bodyRef.current === detail.body) return;
+      setBody(detail.body);
+    };
+    window.addEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
+    return () => window.removeEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
+  }, [editId, inlineEntryId]);
 
   const scoreNow = useCallback(async () => {
     const entryId = editId ?? inlineEntryId;
@@ -1601,6 +1629,7 @@ export function useNewJournalEntryPage() {
     handleVideoLiveTranscript,
     handleVideoRecordingCancelled,
     videoCaptureSupported: journalVideoCaptureSupported(),
+    videoAnchorRef,
     handleCaretChange,
     removeExistingPhoto,
     removePendingFile,

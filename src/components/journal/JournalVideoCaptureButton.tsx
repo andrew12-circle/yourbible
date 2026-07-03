@@ -5,16 +5,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import JournalVideoCaptureDialog from "@/components/journal/JournalVideoCaptureDialog";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { toast } from "@/hooks/use-toast";
+import type { VideoJournalBodySnap } from "@/lib/journal/journalVideoBody";
 import { journalVideoCaptureSupported, journalVideoTranscriptEmptyMessage } from "@/lib/journal/videos";
-import { enqueueJournalVideoUpload } from "@/lib/journal/journalVideoUploadQueue";
-import { saveJournalVideoCapture } from "@/lib/journal/journalVideoUploadProcessor";
-import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
+import { saveJournalVideoCaptureWithQueue } from "@/lib/journal/journalVideoUploadProcessor";
 import { cn } from "@/lib/utils";
 
 type Props = {
   userId: string | undefined;
   entryId: string | null;
   getAnchorOffset: () => number;
+  getBodySnap?: () => VideoJournalBodySnap | null;
   onVideoSaved: (payload: {
     transcript: string;
     anchorOffset: number;
@@ -32,6 +32,7 @@ export default function JournalVideoCaptureButton({
   userId,
   entryId,
   getAnchorOffset,
+  getBodySnap,
   onVideoSaved,
   onRecordingStart,
   onLiveTranscript,
@@ -66,63 +67,44 @@ export default function JournalVideoCaptureButton({
     const anchorOffset = anchorRef.current;
     const recordedMs = result.durationMs || durationMs;
     setUploading(true);
+    toast({
+      title: "Recording saved on this device",
+      description: "Uploading your video…",
+    });
     try {
-      const saved = await saveJournalVideoCapture(
+      const { saved, queued } = await saveJournalVideoCaptureWithQueue({
         userId,
         entryId,
-        result.video,
-        result.audio,
-        recordedMs,
+        result,
+        durationMs: recordedMs,
         anchorOffset,
-        result.liveTranscript,
-        result.chapters,
-        result.peakLiveTranscript,
-      );
+        bodySnap: getBodySnap?.() ?? null,
+      });
 
       onVideoSaved(saved);
-      void clearInProgressJournalVideoRecording(result.recoveryDraftId);
-      toast({
-        title: saved.transcript ? "Video and transcript saved" : "Video saved",
-        description: saved.transcript
-          ? undefined
-          : journalVideoTranscriptEmptyMessage({
-              sttError: saved.sttError,
-              hadLiveCaption: Boolean(
-                result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
-              ),
-              hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
-            }),
-      });
+
+      if (queued) {
+        toast({
+          title: "Upload delayed",
+          description:
+            "Your recording is safe on this device. We'll upload and finish the transcript automatically.",
+        });
+      } else {
+        toast({
+          title: saved.transcript ? "Video and transcript saved" : "Video saved",
+          description: saved.transcript
+            ? undefined
+            : journalVideoTranscriptEmptyMessage({
+                sttError: saved.sttError,
+                hadLiveCaption: Boolean(
+                  result.liveTranscript.trim() || result.peakLiveTranscript.trim(),
+                ),
+                hadAudioSidecar: Boolean(result.audio && result.audio.size > 0),
+              }),
+        });
+      }
       setOpen(false);
     } catch (e) {
-      const offline = typeof navigator !== "undefined" && !navigator.onLine;
-      if (offline || /network|fetch|failed/i.test(e instanceof Error ? e.message : "")) {
-        try {
-          await enqueueJournalVideoUpload(
-            {
-              id: crypto.randomUUID(),
-              userId,
-              entryId,
-              anchorOffset,
-              durationMs: recordedMs,
-              liveTranscript: result.liveTranscript,
-              createdAt: new Date().toISOString(),
-            },
-            result.video,
-            result.audio,
-            result.chapters,
-          );
-          void clearInProgressJournalVideoRecording(result.recoveryDraftId);
-          toast({
-            title: "Video queued for upload",
-            description: "We'll retry when you're back online.",
-          });
-          setOpen(false);
-          return;
-        } catch {
-          /* fall through */
-        }
-      }
       toast({
         title: "Couldn't save video",
         description: e instanceof Error ? e.message : "Please try again.",

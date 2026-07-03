@@ -48,7 +48,7 @@ export default function PrayerShell({
           </div>
         </div>
         {!hideTabs ? (
-          <nav className={cn("mx-auto flex w-full gap-1 overflow-x-auto pb-2", contentWidth, contentPad)}>
+          <nav className={cn("mx-auto grid w-full grid-cols-4 gap-1 pb-2", contentWidth, contentPad)}>
             {TABS.map((tab) => {
               const active = tab.end
                 ? pathname === tab.to
@@ -58,7 +58,7 @@ export default function PrayerShell({
                   key={tab.to}
                   to={tab.to}
                   className={cn(
-                    "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition",
+                    "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-medium transition",
                     active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",

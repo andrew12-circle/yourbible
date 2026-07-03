@@ -14,6 +14,10 @@ export type QueuedJournalVideoUpload = {
   anchorOffset: number;
   durationMs: number;
   liveTranscript: string;
+  peakLiveTranscript?: string;
+  /** Frozen pre-record body for transcript merge after background upload. */
+  bodySnapBody?: string;
+  bodySnapAnchor?: number;
   createdAt: string;
 };
 
@@ -64,13 +68,13 @@ export async function enqueueJournalVideoUpload(
   writeMeta(rows);
 }
 
-export async function dequeueJournalVideoUpload(
-  id: string,
-): Promise<{
+type QueuedJournalVideoPayload = {
   video: Blob;
   audio: Blob | null;
   chapters: import("@/lib/journal/journalVideoChapters").JournalVideoChapter[];
-} | null> {
+};
+
+async function readQueuedPayload(id: string): Promise<QueuedJournalVideoPayload | null> {
   const db = await openDb();
   const payload = await new Promise<{
     video: Blob;
@@ -90,20 +94,34 @@ export async function dequeueJournalVideoUpload(
     req.onerror = () => reject(req.error);
   });
   db.close();
-  writeMeta(readMeta().filter((r) => r.id !== id));
-  if (payload) {
-    const db2 = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db2.transaction(DB_STORE, "readwrite");
-      tx.objectStore(DB_STORE).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    db2.close();
-  }
   return payload
     ? { video: payload.video, audio: payload.audio, chapters: payload.chapters ?? [] }
     : null;
+}
+
+/** Read queued blobs without removing them (safe to retry on upload failure). */
+export async function readQueuedJournalVideoUpload(id: string): Promise<QueuedJournalVideoPayload | null> {
+  return readQueuedPayload(id);
+}
+
+/** Remove a successfully uploaded item from the queue. */
+export async function removeQueuedJournalVideoUpload(id: string): Promise<void> {
+  writeMeta(readMeta().filter((r) => r.id !== id));
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+/** @deprecated Prefer readQueuedJournalVideoUpload + removeQueuedJournalVideoUpload on success. */
+export async function dequeueJournalVideoUpload(id: string): Promise<QueuedJournalVideoPayload | null> {
+  const payload = await readQueuedPayload(id);
+  if (payload) await removeQueuedJournalVideoUpload(id);
+  return payload;
 }
 
 export function listQueuedJournalVideoUploads(): QueuedJournalVideoUpload[] {

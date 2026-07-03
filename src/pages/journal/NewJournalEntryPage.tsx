@@ -518,6 +518,15 @@ export default function NewJournalEntryPage() {
           defaultMode="camera"
           onRecordingStart={p.handleVideoRecordingStart}
           onLiveTranscript={p.handleVideoLiveTranscript}
+          recovery={
+            p.user?.id && p.activeEntryId
+              ? {
+                  userId: p.user.id,
+                  entryId: p.activeEntryId,
+                  anchorOffset: p.videoAnchorRef.current,
+                }
+              : undefined
+          }
         />
       ) : null}
 

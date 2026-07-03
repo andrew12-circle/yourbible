@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   processJournalVideoUploadQueue,
-  saveJournalVideoCapture,
+  recoverAndSaveJournalVideoRecording,
 } from "@/lib/journal/journalVideoUploadProcessor";
 import { listQueuedJournalVideoUploads } from "@/lib/journal/journalVideoUploadQueue";
 import {
@@ -23,6 +23,7 @@ export function JournalVideoUploadRetry() {
       if (processed > 0) {
         toast({
           title: processed === 1 ? "Queued video uploaded" : `${processed} queued videos uploaded`,
+          description: "Transcript merged into your journal entry.",
         });
       }
       if (failed > 0) {
@@ -55,17 +56,7 @@ export function JournalVideoUploadRetry() {
             continue;
           }
 
-          await saveJournalVideoCapture(
-            payload.meta.userId,
-            payload.meta.entryId,
-            payload.video,
-            payload.audio,
-            payload.meta.durationMs,
-            payload.meta.anchorOffset,
-            payload.meta.liveTranscript,
-            payload.meta.chapters,
-            payload.meta.peakLiveTranscript,
-          );
+          await recoverAndSaveJournalVideoRecording(payload.meta, payload.video, payload.audio);
           await clearInProgressJournalVideoRecording(recording.id);
           recovered += 1;
         } catch (e) {
@@ -80,7 +71,7 @@ export function JournalVideoUploadRetry() {
             recovered === 1
               ? "Recovered interrupted video journal"
               : `Recovered ${recovered} interrupted video journals`,
-          description: "The video is attached to its journal entry.",
+          description: "Video and transcript are attached to your journal entry.",
         });
       }
       if (discarded > 0 && recovered === 0 && failed === 0) {

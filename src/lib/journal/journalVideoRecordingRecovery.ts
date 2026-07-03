@@ -13,6 +13,8 @@ export type JournalVideoRecordingRecoveryMeta = {
   durationMs: number;
   liveTranscript: string;
   peakLiveTranscript: string;
+  bodySnapBody?: string;
+  bodySnapAnchor?: number;
   videoMimeType: string;
   audioMimeType: string | null;
   videoChunkCount: number;
@@ -160,6 +162,18 @@ export async function appendInProgressJournalVideoRecordingChunk(
 
 export function listInProgressJournalVideoRecordings(): JournalVideoRecordingRecoveryMeta[] {
   return readMetas().sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+}
+
+/** Patch body snap onto the in-progress recording for an entry (called when recording starts). */
+export function updateJournalVideoRecordingBodySnapForEntry(
+  entryId: string,
+  body: string,
+  anchor: number,
+): void {
+  const rows = readMetas().filter((row) => row.entryId === entryId);
+  if (!rows.length) return;
+  const recording = rows[rows.length - 1];
+  upsertMeta(recording.id, { bodySnapBody: body, bodySnapAnchor: anchor });
 }
 
 export async function readInProgressJournalVideoRecording(
