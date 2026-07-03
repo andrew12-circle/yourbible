@@ -2,11 +2,12 @@
 
 import { newId, type WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 
-export type WorshipMusicProvider = "spotify" | "apple" | "youtube";
+export type WorshipMusicProvider = "spotify" | "apple" | "youtube" | "radio";
 
 export interface WorshipMusicEmbed {
   provider: WorshipMusicProvider;
   embedUrl: string;
+  streamUrl?: string;
   openUrl: string;
   label: string;
 }
@@ -15,6 +16,7 @@ const PROVIDER_LABELS: Record<WorshipMusicProvider, string> = {
   spotify: "Spotify",
   apple: "Apple Music",
   youtube: "YouTube",
+  radio: "Radio",
 };
 
 function spotifyEmbed(type: string, id: string, openUrl: string): WorshipMusicEmbed {
@@ -35,6 +37,25 @@ function appleEmbed(path: string, openUrl: string): WorshipMusicEmbed {
   };
 }
 
+function radioEmbed(streamUrl: string, label = "Radio"): WorshipMusicEmbed {
+  return {
+    provider: "radio",
+    embedUrl: "",
+    streamUrl,
+    openUrl: streamUrl,
+    label,
+  };
+}
+
+function isDirectAudioStream(url: URL): boolean {
+  const path = url.pathname.toLowerCase();
+  return (
+    path.endsWith(".mp3") ||
+    path.endsWith(".aac") ||
+    path.endsWith(".m3u") ||
+    path.includes("streamguys")
+  );
+}
 function youtubeEmbed(embedUrl: string, openUrl: string): WorshipMusicEmbed {
   return {
     provider: "youtube",
@@ -52,6 +73,10 @@ export function parseWorshipMusicUrl(input: string): WorshipMusicEmbed | null {
   try {
     const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
     const host = url.hostname.replace(/^www\./, "");
+
+    if (isDirectAudioStream(url)) {
+      return radioEmbed(url.toString());
+    }
 
     if (host === "open.spotify.com") {
       const parts = url.pathname.split("/").filter(Boolean);
@@ -114,6 +139,8 @@ export function worshipMusicEmbedHeight(provider: WorshipMusicProvider): number 
       return 175;
     case "youtube":
       return 360;
+    case "radio":
+      return 48;
   }
 }
 
@@ -196,7 +223,7 @@ export async function fetchWorshipMusicOEmbed(url: string): Promise<WorshipMusic
   if (!parsed) return {};
 
   const fallbackThumb = worshipMusicFallbackThumbnail(parsed.openUrl, parsed.provider);
-  if (parsed.provider === "apple") {
+  if (parsed.provider === "apple" || parsed.provider === "radio") {
     return { thumbnailUrl: fallbackThumb ?? undefined };
   }
 
@@ -235,4 +262,4 @@ export function mergeWorshipHistoryMetadata(
 }
 
 export const WORSHIP_MUSIC_HINT =
-  "Paste a Spotify, Apple Music, or YouTube playlist link — it plays here during worship.";
+  "Paste Spotify, Apple Music, YouTube, or a radio stream — it plays in the sidebar player.";

@@ -14,6 +14,7 @@ const PROVIDER_LABELS: Record<WorshipMusicProvider, string> = {
   spotify: "Spotify",
   apple: "Apple Music",
   youtube: "YouTube",
+  radio: "Radio",
 };
 
 function historyLabel(item: WorshipMusicHistoryItem): string {

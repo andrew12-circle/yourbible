@@ -37,8 +37,8 @@ export default function PrayerTimelinePage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <PrayerShell title="Timeline">
-      <p className="mb-5 text-sm text-muted-foreground leading-relaxed">
+    <PrayerShell title="Timeline" wide>
+      <p className="mb-5 max-w-3xl text-sm text-muted-foreground leading-relaxed">
         See how God worked through circumstances — not just the final answer — across all your requests.
       </p>
 
@@ -51,17 +51,23 @@ export default function PrayerTimelinePage() {
           Timeline events appear when you add requests, link journal entries, or mark prayers answered.
         </p>
       ) : (
-        <div className="space-y-8">
+        <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {grouped.map(([day, dayEvents]) => (
-            <section key={day}>
-              <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {new Date(`${day}T12:00:00`).toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </h2>
+            <section
+              key={day}
+              className="rounded-2xl border border-border/60 bg-card/40 p-4"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-primary/60" aria-hidden />
+                <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {new Date(`${day}T12:00:00`).toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </h2>
+              </div>
               <div>
                 {dayEvents
                   .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))

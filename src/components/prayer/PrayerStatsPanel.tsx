@@ -20,7 +20,7 @@ export default function PrayerStatsPanel({ stats, compact = false }: { stats: Pr
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {items.map((item) => (
         <div key={item.label} className="rounded-xl border border-border/60 bg-card/50 px-3 py-2.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>

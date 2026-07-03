@@ -11,6 +11,7 @@ import OfflineBanner from "@/components/OfflineBanner";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GlobalMediaPlayerProvider } from "@/contexts/GlobalMediaPlayerContext";
 import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
 import { JournalVideoLaunchProvider } from "@/contexts/JournalVideoLaunchContext";
 import { LifeWeekReviewGate } from "@/components/life/LifeWeekReviewGate";
@@ -77,6 +78,9 @@ const JournalVentPage = lazy(() => import("./pages/journal/JournalVentPage"));
 const JournalChatPage = lazy(() => import("./pages/journal/JournalChatPage"));
 const HomeIndicator = lazy(() => import("./components/HomeIndicator"));
 const GlobalJournalLauncher = lazy(() => import("./components/journal/GlobalJournalLauncher"));
+const GlobalMediaPlayerHost = lazy(() =>
+  import("./components/media/GlobalMediaPlayerHost").then((mod) => ({ default: mod.GlobalMediaPlayerHost })),
+);
 const GlobalArtifactVideoPip = lazy(() => import("./components/framework/GlobalArtifactVideoPip"));
 const MyAiPage = lazy(() => import("./pages/myai/MyAiPage"));
 const PartnerWalkPage = lazy(() => import("./pages/partner/PartnerWalkPage"));
@@ -110,6 +114,7 @@ const App = () => (
         <BrowserRouter>
           <AppOfflineBanner />
           <AuthProvider>
+            <GlobalMediaPlayerProvider>
             <LifeWeekReviewProvider>
             <JournalVideoLaunchProvider>
             <ThemeSwitcher />
@@ -229,6 +234,7 @@ const App = () => (
             <Suspense fallback={null}>
               <HomeIndicator />
               <GlobalJournalLauncher />
+              <GlobalMediaPlayerHost />
               <GlobalJournalQuickCapture />
               <GlobalArtifactVideoPip />
               <LifeWeekReviewGate />
@@ -236,6 +242,7 @@ const App = () => (
             </Suspense>
             </JournalVideoLaunchProvider>
             </LifeWeekReviewProvider>
+            </GlobalMediaPlayerProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

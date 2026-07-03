@@ -25,6 +25,8 @@ import {
 import {
   COVERING_PRAYER_PROMPTS,
   COVERING_STEP_INTRO,
+} from "@/lib/livingHope/coveringPrayer";
+import {
   SURRENDER_STEP_INTRO,
   type DailyAssignment,
   type RitualStep,

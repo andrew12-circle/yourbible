@@ -77,8 +77,8 @@ export default function PraiseReportsPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <PrayerShell title="Praise reports">
-      <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
+    <PrayerShell title="Praise reports" wide>
+      <p className="mb-4 max-w-3xl text-sm text-muted-foreground leading-relaxed">
         Instead of reading worries, read God&apos;s faithfulness. These memorials celebrate what He has done.
       </p>
 
@@ -116,7 +116,7 @@ export default function PraiseReportsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((entry) => (
             <PraiseReportCard
               key={entry.id}

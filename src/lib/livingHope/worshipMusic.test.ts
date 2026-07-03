@@ -75,4 +75,10 @@ describe("upsertWorshipMusicHistory", () => {
     );
     expect(thumb).toContain("dQw4w9WgXcQ");
   });
+
+  it("parses direct radio stream URLs", () => {
+    const result = parseWorshipMusicUrl("https://wayfm.streamguys1.com/wayf.mp3");
+    expect(result?.provider).toBe("radio");
+    expect(result?.streamUrl).toContain("wayf.mp3");
+  });
 });

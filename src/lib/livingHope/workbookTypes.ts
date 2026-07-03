@@ -46,7 +46,7 @@ export interface WorshipMusicHistoryItem {
   url: string;
   title?: string;
   thumbnail_url?: string;
-  provider?: "spotify" | "apple" | "youtube";
+  provider?: "spotify" | "apple" | "youtube" | "radio";
   added_at?: string;
 }
 

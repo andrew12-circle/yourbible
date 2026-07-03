@@ -12,7 +12,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { BOOKS } from "../src/data/books";
 import { parsePassageHtml } from "../src/lib/bible/parsePassageHtml";
-import { normalizePassage } from "../src/lib/bible/api";
 import { passageToCanonicalChapter } from "../src/lib/bible/canonical/passageToCanonical";
 import { GOLDEN_CSB_BIBLE_ID } from "../src/lib/bible/goldenChapters";
 
@@ -97,7 +96,10 @@ async function main() {
       process.stdout.write(`Ingest ${abbr} ${ch}… `);
       const html = await fetchChapterHtml(apiKey, bibleId, abbr, ch);
       const reference = `${abbr} ${ch}`;
-      const parsed = normalizePassage(parsePassageHtml(html, reference));
+      // parsePassageHtml already sanitizes verse text, headings, and paragraph
+      // starts, so its output is equivalent to normalizePassage without pulling
+      // in Vite-only modules (api.ts → supabase client) that break under tsx.
+      const parsed = parsePassageHtml(html, reference);
       const record = passageToCanonicalChapter(parsed, abbr, ch, bibleId);
       record.verses.forEach((v) => {
         v.bookOrder = bookOrder;

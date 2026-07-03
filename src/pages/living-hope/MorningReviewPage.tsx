@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
-import { MorningFormulaSessionTimer, MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
+import { MorningFormulaSessionTimer } from "@/components/living-hope/MorningFormulaSessionTimer";
 import { MorningRitualStepNav } from "@/components/living-hope/MorningRitualStepNav";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
 import { MorningGuidedExperience } from "@/components/living-hope/MorningGuidedExperience";

@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Rows3, Table2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -36,6 +38,7 @@ export default function PrayerLedgerTable({
   onMarkAnswered,
   timelineScriptureByRequestId,
 }: Props) {
+  const [compact, setCompact] = useState(false);
   const totals = rows.reduce(
     (acc, r) => {
       if (r.amount_requested != null) acc.requested += r.amount_requested;
@@ -47,34 +50,45 @@ export default function PrayerLedgerTable({
 
   return (
     <div className="min-w-0 space-y-3">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setCompact((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title={compact ? "Show all columns" : "Hide Purpose and Notes"}
+        >
+          {compact ? <Table2 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
+          {compact ? "Show all columns" : "Compact"}
+        </button>
+      </div>
       <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-border/60">
         <Table className="w-full min-w-0 table-fixed border-separate border-spacing-0 text-sm">
           <colgroup>
-            <col className="w-[12%]" />
-            <col className="w-[7%]" />
-            <col className="w-[6%]" />
-            <col className="w-[11%]" />
-            <col className="w-[6%]" />
-            <col className="w-[8%]" />
-            <col className="w-[6%]" />
-            <col className="w-[7%]" />
-            <col className="w-[6%]" />
-            <col className="w-[12%]" />
-            <col className="w-[9%]" />
-            <col className="w-[6%]" />
+            <col className={compact ? "w-[15%]" : "w-[12%]"} />
+            <col className={compact ? "w-[9%]" : "w-[7%]"} />
+            <col className={compact ? "w-[8%]" : "w-[6%]"} />
+            {compact ? null : <col className="w-[11%]" />}
+            <col className={compact ? "w-[8%]" : "w-[6%]"} />
+            <col className={compact ? "w-[9%]" : "w-[8%]"} />
+            <col className={compact ? "w-[8%]" : "w-[6%]"} />
+            <col className={compact ? "w-[9%]" : "w-[7%]"} />
+            <col className={compact ? "w-[15%]" : "w-[6%]"} />
+            {compact ? null : <col className="w-[12%]" />}
+            <col className={compact ? "w-[12%]" : "w-[9%]"} />
+            <col className={compact ? "w-[7%]" : "w-[6%]"} />
           </colgroup>
           <TableHeader>
             <TableRow className="bg-amber-200/90 hover:bg-amber-200/90 border-b border-amber-400/50 dark:bg-amber-950/60">
               <TableHead className="bg-amber-200/95 font-semibold dark:bg-amber-950/80">Item</TableHead>
               <TableHead className="font-semibold">Amount</TableHead>
               <TableHead className="font-semibold">Deadline</TableHead>
-              <TableHead className="font-semibold">Purpose</TableHead>
+              {compact ? null : <TableHead className="font-semibold">Purpose</TableHead>}
               <TableHead className="font-semibold">Requested</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Answered</TableHead>
               <TableHead className="font-semibold">Received</TableHead>
               <TableHead className="font-semibold">Story</TableHead>
-              <TableHead className="font-semibold">Notes</TableHead>
+              {compact ? null : <TableHead className="font-semibold">Notes</TableHead>}
               <TableHead className="font-semibold">Scripture</TableHead>
               <TableHead className="font-semibold">Action</TableHead>
             </TableRow>
@@ -117,11 +131,13 @@ export default function PrayerLedgerTable({
                   <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
                     {shortDate(row.deadline)}
                   </TableCell>
-                  <TableCell className="align-top text-muted-foreground">
-                    <span className="line-clamp-2" title={row.purpose || undefined}>
-                      {clip(row.purpose, 80) || "—"}
-                    </span>
-                  </TableCell>
+                  {compact ? null : (
+                    <TableCell className="align-top text-muted-foreground">
+                      <span className="line-clamp-2" title={row.purpose || undefined}>
+                        {clip(row.purpose, 80) || "—"}
+                      </span>
+                    </TableCell>
+                  )}
                   <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
                     {shortDate(row.requested_at)}
                   </TableCell>
@@ -159,11 +175,13 @@ export default function PrayerLedgerTable({
                       {clip(row.answer_text, 80) || "—"}
                     </span>
                   </TableCell>
-                  <TableCell className="align-top text-muted-foreground">
-                    <span className="line-clamp-2" title={row.private_notes || undefined}>
-                      {clip(row.private_notes, 60) || "—"}
-                    </span>
-                  </TableCell>
+                  {compact ? null : (
+                    <TableCell className="align-top text-muted-foreground">
+                      <span className="line-clamp-2" title={row.private_notes || undefined}>
+                        {clip(row.private_notes, 60) || "—"}
+                      </span>
+                    </TableCell>
+                  )}
                   <TableCell
                     className="align-top text-xs text-muted-foreground"
                     title={
