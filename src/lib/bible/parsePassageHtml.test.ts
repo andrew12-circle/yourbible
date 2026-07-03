@@ -94,6 +94,47 @@ describe("parsePassageHtml", () => {
     expect(sanitizePubVerseText("the Son of Man. ,")).toBe("the Son of Man.");
   });
 
+  it("removes the non-breaking space CSB inserts before closing quotes", () => {
+    const html = `
+<p class="p"><span class="v">21</span>\u201cWhat then?\u00a0\u201d they asked him. \u201cAre you Elijah?\u00a0\u201d</p>`;
+    const parsed = parsePassageHtml(html, "John 1");
+    expect(parsed.verses[0]?.text).toBe(
+      "\u201cWhat then?\u201d they asked him. \u201cAre you Elijah?\u201d",
+    );
+  });
+
+  it("collapses the space before a nested closing single quote", () => {
+    expect(
+      sanitizePubVerseText("told me, \u2018Pick up your mat and walk.\u2019 \u201d"),
+    ).toBe("told me, \u2018Pick up your mat and walk.\u2019\u201d");
+  });
+
+  it("strips superscript footnote-caller comma debris from verse body", () => {
+    const html = `
+<p class="p"><span class="v">34</span>this is the Son of God.\u201d <span data-caller="+" class="f"> <span class="fr">1:34 </span><span class="ft">Other mss read </span><span class="fqa">the Chosen One</span></span><span class="sup">,</span><span data-caller="+" class="f"> <span class="fr">1:34 </span><span class="ft"><span class="xt"><span id="MAT.3.17">Mt 3:17</span></span></span></span></p>`;
+    const parsed = parsePassageHtml(html, "John 1");
+    expect(parsed.verses[0]?.text).toBe("this is the Son of God.\u201d");
+  });
+
+  it("joins ordered footnote alternatives without gluing words together", () => {
+    const html = `
+<p class="p"><span class="v">5</span>the darkness did not overcome<span data-caller="+" class="f"> <span class="fr">1:5 </span><span class="ft">Or </span><span class="fqa">grasp</span><span class="ft">, or </span><span class="fqa">comprehend</span><span class="ft">, or </span><span class="fqa">overtake</span><span class="ft">; Jn 12:35</span></span> it.</p>`;
+    const parsed = parsePassageHtml(html, "John 1");
+    expect(parsed.verses[0]?.footnotes?.[0]?.text).toBe(
+      "Or grasp, or comprehend, or overtake; Jn 12:35",
+    );
+  });
+
+  it("keeps a footnote whose only content is a cross-reference as a cross-ref, not text", () => {
+    const html = `
+<p class="p"><span class="v">1</span>In the beginning<span data-caller="+" class="f"> <span class="fr">1:1 </span><span class="ft"><span class="xt"><span id="GEN.1.1">Gn 1:1</span>; <span id="COL.1.18">Col 1:18</span></span></span></span> was the Word.</p>`;
+    const parsed = parsePassageHtml(html, "John 1");
+    const v = parsed.verses[0];
+    expect(v?.crossRefs?.map((x) => x.label)).toEqual(["Gn 1:1", "Col 1:18"]);
+    expect(v?.footnotes ?? []).toHaveLength(0);
+    expect(v?.text).toBe("In the beginning was the Word.");
+  });
+
   it("preserves divine-name nd spans as styled text parts", () => {
     const html = `<p class="p"><span class="v">1</span>In the <span class="nd">Lord</span> we trust.</p>`;
     const parsed = parsePassageHtml(html);
