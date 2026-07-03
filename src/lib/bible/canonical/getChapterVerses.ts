@@ -8,17 +8,25 @@ import {
 } from "./passageToCanonical";
 import { getCanonicalChapter, setCanonicalChapter } from "./store";
 import type { CanonicalChapterRecord } from "./types";
+import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 
 export { CANONICAL_CSB_BIBLE_ID, isCanonicalCsbBible };
 
-/** Read a chapter from the canonical verse store, or null if not ingested. */
+/**
+ * Read a chapter from the canonical verse store, or null if not ingested.
+ * Records produced by an older parser build are treated as a miss so the
+ * chapter is re-fetched and re-indexed with current formatting fixes.
+ */
 export async function getChapterFromCanonicalStore(
   bibleId: string,
   bookAbbr: string,
   chapter: number,
 ): Promise<CanonicalChapterRecord | null> {
   if (!isCanonicalCsbBible(bibleId)) return null;
-  return getCanonicalChapter(bibleId, bookAbbr, chapter);
+  const record = await getCanonicalChapter(bibleId, bookAbbr, chapter);
+  if (!record) return null;
+  if (record.parserRevision !== PASSAGE_PARSER_REVISION) return null;
+  return record;
 }
 
 /** Persist a parsed passage into the canonical verse store. */
@@ -45,7 +53,7 @@ export async function getChapterVerses(
   bibleAbbr?: string,
 ): Promise<Passage> {
   if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-    const cached = await getCanonicalChapter(bibleId, bookAbbr, chapter);
+    const cached = await getChapterFromCanonicalStore(bibleId, bookAbbr, chapter);
     if (cached) return canonicalChapterToPassage(cached);
   }
 

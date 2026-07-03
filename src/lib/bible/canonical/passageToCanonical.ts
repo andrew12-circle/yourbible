@@ -1,6 +1,7 @@
 import type { Passage, PassageVerse } from "@/lib/bible/api";
+import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { API_BIBLE_CSB_ID } from "@/lib/bible/bibleEditions";
-import { CSB_TEXT_REVISION, isCsbEdition } from "@/lib/bible/textRevision";
+import { CSB_TEXT_REVISION, PASSAGE_PARSER_REVISION, isCsbEdition } from "@/lib/bible/textRevision";
 import type { CanonicalChapterRecord, CanonicalVerse, ChapterLayout, ChapterStudyMeta } from "./types";
 import { bookOrderForAbbr, chapterCacheKey, makeVerseId } from "./verseId";
 
@@ -51,6 +52,7 @@ export function passageToCanonicalChapter(
     bookAbbr,
     chapter,
     textRevision,
+    parserRevision: PASSAGE_PARSER_REVISION,
     verses,
     layout,
     cachedAt: Date.now(),
@@ -85,7 +87,7 @@ export function canonicalChapterToPassage(record: CanonicalChapterRecord): Passa
       const study = studyById.get(cv.verseId);
       return {
         number: cv.verse,
-        text: cv.text,
+        text: sanitizePubVerseText(cv.text),
         parts: study?.parts,
         crossRefs: study?.crossRefs,
         footnotes: study?.footnotes,

@@ -14,6 +14,11 @@ describe("studyParseQuality", () => {
     expect(verseHasStudyDebris("born again Lit That man")).toBe(true);
   });
 
+  it("does not flag verses that legitimately begin with Or/Lit", () => {
+    expect(verseHasStudyDebris("Or what woman who has ten silver coins")).toBe(false);
+    expect(verseHasStudyDebris("Lit the lamp and searched the house")).toBe(false);
+  });
+
   it("returns verses with debris", () => {
     const bad = findVersesWithStudyDebris([
       { number: 1, text: "Good verse." },

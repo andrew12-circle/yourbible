@@ -40,8 +40,34 @@ function isStaleTokenResponse(error: unknown): boolean {
   return ctx instanceof Response && ctx.status === 409;
 }
 
+const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
+
 export function createTranscriptProcessingToken(): string {
   return crypto.randomUUID();
+}
+
+/** True when a fetch has been in flight long enough that a fresh token is warranted. */
+export function isStaleYoutubeTranscriptFetch(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false;
+  const createdMs = Date.parse(createdAt);
+  if (!Number.isFinite(createdMs)) return false;
+  return Date.now() - createdMs > YOUTUBE_FETCH_STALE_MS;
+}
+
+/**
+ * Re-queue transcript fetch without rotating the token when the job may still be running
+ * on the edge (avoids discarding a successful background completion).
+ */
+export async function retryYoutubeTranscriptFetch(
+  artifactId: string,
+  url: string,
+  opts?: { videoId?: string | null; metadata?: unknown; createdAt?: string | null },
+): Promise<TranscriptFetchResult> {
+  const fetchOpts = { videoId: opts?.videoId, metadata: opts?.metadata };
+  if (isStaleYoutubeTranscriptFetch(opts?.createdAt)) {
+    return restartYoutubeTranscriptFetch(artifactId, url, fetchOpts);
+  }
+  return resumeYoutubeTranscriptFetch(artifactId, url, fetchOpts);
 }
 
 export async function markYoutubeTranscriptFetchError(artifactId: string, message: string): Promise<void> {

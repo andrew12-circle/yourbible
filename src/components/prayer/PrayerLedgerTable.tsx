@@ -10,6 +10,7 @@ import {
 import PrayerRequestStatusBadge from "@/components/prayer/PrayerRequestStatusBadge";
 import { cn } from "@/lib/utils";
 import { formatLedgerAmount } from "@/lib/prayer/money";
+import { mergeScriptureRefStrings } from "@/lib/prayer/scriptureDisplay";
 import type { PrayerRequestRow } from "@/lib/prayer/types";
 
 function shortDate(iso: string | null): string {
@@ -27,9 +28,14 @@ function clip(text: string | null | undefined, max = 48): string {
 type Props = {
   rows: PrayerRequestRow[];
   onMarkAnswered?: (row: PrayerRequestRow) => void;
+  timelineScriptureByRequestId?: Map<string, string[]>;
 };
 
-export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
+export default function PrayerLedgerTable({
+  rows,
+  onMarkAnswered,
+  timelineScriptureByRequestId,
+}: Props) {
   const totals = rows.reduce(
     (acc, r) => {
       if (r.amount_requested != null) acc.requested += r.amount_requested;
@@ -44,17 +50,19 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
       <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-border/60">
         <Table className="w-full min-w-0 table-fixed border-separate border-spacing-0 text-sm">
           <colgroup>
-            <col className="w-[13%]" />
-            <col className="w-[8%]" />
-            <col className="w-[7%]" />
             <col className="w-[12%]" />
             <col className="w-[7%]" />
-            <col className="w-[9%]" />
-            <col className="w-[7%]" />
-            <col className="w-[8%]" />
-            <col className="w-[13%]" />
-            <col className="w-[10%]" />
             <col className="w-[6%]" />
+            <col className="w-[11%]" />
+            <col className="w-[6%]" />
+            <col className="w-[8%]" />
+            <col className="w-[6%]" />
+            <col className="w-[7%]" />
+            <col className="w-[6%]" />
+            <col className="w-[12%]" />
+            <col className="w-[9%]" />
+            <col className="w-[5%]" />
+            <col className="w-[5%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="bg-amber-200/90 hover:bg-amber-200/90 border-b border-amber-400/50 dark:bg-amber-950/60">
@@ -69,6 +77,7 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
               <TableHead className="font-semibold">Story</TableHead>
               <TableHead className="font-semibold">Notes</TableHead>
               <TableHead className="font-semibold">Scripture</TableHead>
+              <TableHead className="font-semibold">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -77,6 +86,15 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                 row.status === "answered" ||
                 row.status === "different_answer" ||
                 row.status === "partial";
+              const canMarkAnswered =
+                onMarkAnswered && row.status === "waiting" && !row.praise_report_entry_id;
+              const timelineRefs = timelineScriptureByRequestId?.get(row.id) ?? [];
+              const scriptureList = mergeScriptureRefStrings(row.scripture_refs, timelineRefs);
+              const scriptureDisplay = scriptureList.length
+                ? scriptureList.join(", ")
+                : "—";
+              const emptyAnswerHint = "Mark answered to record — click Record or the WAITING badge";
+
               return (
                 <TableRow
                   key={row.id}
@@ -109,13 +127,12 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                     {shortDate(row.requested_at)}
                   </TableCell>
                   <TableCell className="align-top">
-                    {onMarkAnswered &&
-                    row.status === "waiting" &&
-                    !row.praise_report_entry_id ? (
+                    {canMarkAnswered ? (
                       <button
                         type="button"
                         onClick={() => onMarkAnswered(row)}
                         className="inline-flex"
+                        title="Click to mark answered and record provision"
                       >
                         <PrayerRequestStatusBadge status={row.status} className="cursor-pointer" />
                       </button>
@@ -123,14 +140,23 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                       <PrayerRequestStatusBadge status={row.status} />
                     )}
                   </TableCell>
-                  <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
+                  <TableCell
+                    className="align-top whitespace-nowrap text-muted-foreground text-xs"
+                    title={row.answered_at ? undefined : emptyAnswerHint}
+                  >
                     {shortDate(row.answered_at)}
                   </TableCell>
-                  <TableCell className="tabular-nums align-top whitespace-nowrap">
+                  <TableCell
+                    className="tabular-nums align-top whitespace-nowrap"
+                    title={row.amount_provided != null ? undefined : emptyAnswerHint}
+                  >
                     {formatLedgerAmount(row.amount_provided)}
                   </TableCell>
-                  <TableCell className="align-top text-muted-foreground">
-                    <span className="line-clamp-2" title={row.answer_text || undefined}>
+                  <TableCell
+                    className="align-top text-muted-foreground"
+                    title={row.answer_text?.trim() ? row.answer_text : emptyAnswerHint}
+                  >
+                    <span className="line-clamp-2">
                       {clip(row.answer_text, 80) || "—"}
                     </span>
                   </TableCell>
@@ -139,12 +165,33 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                       {clip(row.private_notes, 60) || "—"}
                     </span>
                   </TableCell>
-                  <TableCell className="align-top text-xs text-muted-foreground">
-                    <span className="line-clamp-2" title={row.scripture_refs.map((s) => s.ref).join(", ") || undefined}>
-                      {row.scripture_refs.length
-                        ? row.scripture_refs.map((s) => s.ref).join(", ")
-                        : "—"}
-                    </span>
+                  <TableCell
+                    className="align-top text-xs text-muted-foreground"
+                    title={
+                      scriptureList.length
+                        ? scriptureDisplay
+                        : "Add via Edit → Scriptures standing on, or Link content → Scripture"
+                    }
+                  >
+                    <span className="line-clamp-2">{scriptureDisplay}</span>
+                  </TableCell>
+                  <TableCell className="align-top text-xs">
+                    {canMarkAnswered ? (
+                      <button
+                        type="button"
+                        onClick={() => onMarkAnswered(row)}
+                        className="font-medium text-primary hover:underline whitespace-nowrap"
+                      >
+                        Record
+                      </button>
+                    ) : (
+                      <Link
+                        to={`/prayer/requests/${row.id}`}
+                        className="text-muted-foreground hover:underline whitespace-nowrap"
+                      >
+                        View
+                      </Link>
+                    )}
                   </TableCell>
                 </TableRow>
               );

@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import PrayerCategorySelect from "@/components/prayer/PrayerCategorySelect";
 import PrayerScriptureRefsInput from "@/components/prayer/PrayerScriptureRefsInput";
+import PrayerAnswerFieldsSection from "@/components/prayer/PrayerAnswerFieldsSection";
 import { localDateISO } from "@/lib/habits/dates";
 import { parseLedgerAmount } from "@/lib/prayer/money";
 import type { PrayerCategory, ScriptureRef } from "@/lib/prayer/types";
@@ -19,19 +20,29 @@ export type PrayerRequestFormValues = {
   prayerText: string;
   privateNotes: string;
   scriptureRefs: ScriptureRef[];
+  answeredAt?: string;
+  amountProvided?: string;
+  answerText?: string;
 };
 
 type Props = {
   initial?: Partial<PrayerRequestFormValues>;
   submitLabel?: string;
   busy?: boolean;
-  onSubmit: (values: PrayerRequestFormValues & { amountRequestedNum: number | null }) => void | Promise<void>;
+  showAnswerFields?: boolean;
+  onSubmit: (
+    values: PrayerRequestFormValues & {
+      amountRequestedNum: number | null;
+      amountProvidedNum?: number | null;
+    },
+  ) => void | Promise<void>;
 };
 
 export default function PrayerRequestForm({
   initial,
   submitLabel = "Save request",
   busy = false,
+  showAnswerFields = false,
   onSubmit,
 }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -43,6 +54,9 @@ export default function PrayerRequestForm({
   const [prayerText, setPrayerText] = useState(initial?.prayerText ?? "");
   const [privateNotes, setPrivateNotes] = useState(initial?.privateNotes ?? "");
   const [scriptureRefs, setScriptureRefs] = useState<ScriptureRef[]>(initial?.scriptureRefs ?? []);
+  const [answeredAt, setAnsweredAt] = useState(initial?.answeredAt ?? "");
+  const [amountProvided, setAmountProvided] = useState(initial?.amountProvided ?? "");
+  const [answerText, setAnswerText] = useState(initial?.answerText ?? "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +72,14 @@ export default function PrayerRequestForm({
       prayerText: prayerText.trim(),
       privateNotes: privateNotes.trim(),
       scriptureRefs,
+      ...(showAnswerFields
+        ? {
+            answeredAt,
+            amountProvided,
+            answerText: answerText.trim(),
+            amountProvidedNum: parseLedgerAmount(amountProvided),
+          }
+        : {}),
     });
   };
 
@@ -141,6 +163,7 @@ export default function PrayerRequestForm({
       <div className="space-y-2">
         <Label>Scriptures standing on</Label>
         <PrayerScriptureRefsInput value={scriptureRefs} onChange={setScriptureRefs} />
+        <p className="text-xs text-muted-foreground">Shows in the ledger Scripture column.</p>
       </div>
 
       <div className="space-y-2">
@@ -152,7 +175,26 @@ export default function PrayerRequestForm({
           placeholder="Impressions, progress, partial provision…"
           className="min-h-[80px] resize-none"
         />
+        <p className="text-xs text-muted-foreground">Shows in the ledger Notes column — not Story.</p>
       </div>
+
+      {showAnswerFields ? (
+        <div className="rounded-xl border border-border/60 p-4 space-y-1">
+          <h3 className="text-sm font-medium">Provision recorded</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Edit the ledger Answered, Received, and Story columns.
+          </p>
+          <PrayerAnswerFieldsSection
+            answeredAt={answeredAt}
+            amountProvided={amountProvided}
+            answerText={answerText}
+            onAnsweredAtChange={setAnsweredAt}
+            onAmountProvidedChange={setAmountProvided}
+            onAnswerTextChange={setAnswerText}
+            disabled={busy}
+          />
+        </div>
+      ) : null}
 
       <Button type="submit" disabled={busy || !title.trim()} className="w-full sm:w-auto">
         {busy ? "Saving…" : submitLabel}

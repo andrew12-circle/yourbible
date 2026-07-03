@@ -4,7 +4,7 @@
  */
 
 /** Bump when passage payload shape or parser behavior changes materially. */
-export const PASSAGE_PARSER_REVISION = "v9";
+export const PASSAGE_PARSER_REVISION = "v10";
 
 export const CSB_TEXT_REVISION = "api-bible-csb-2024";
 export const NKJV_TEXT_REVISION = "api-bible-nkjv-2024";

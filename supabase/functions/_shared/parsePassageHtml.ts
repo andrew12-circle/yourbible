@@ -176,6 +176,12 @@ export function sanitizePubVerseText(text: string, options?: { trim?: boolean })
   t = t.replace(/(^|\s)#\s*(?=$|\s|[,.;:!?])/g, "$1");
   if (trim) t = t.trim();
   t = t.replace(/\s+([,.!?;:])/g, "$1");
+  // API.Bible CSB inserts a (non-breaking) space before closing quotation marks
+  // (e.g. `?<nbsp>”`). A printed Bible never shows that gap — collapse it.
+  t = t.replace(/\s+([”’])/g, "$1");
+  // Drop an orphan comma left behind after a sentence-ending closing quote
+  // (footnote-caller `sup` debris in cached passages, e.g. `God.”,`).
+  t = t.replace(/([.!?][”’])\s*,(?=\s|$)/g, "$1");
   return t;
 }
 
@@ -328,21 +334,109 @@ function innerHtmlOfNestedSpan(token: string, className: string): string | null 
   return token.slice(contentStart, pos - 7);
 }
 
+/** Direct child spans of a footnote block, in document order (fr/ft/fqa/fq/fk/xt). */
+function footnoteChildSpans(innerHtml: string): { cls: string; inner: string }[] {
+  const out: { cls: string; inner: string }[] = [];
+  const openRe = /<span\b[^>]*\bclass=["']([^"']*)["'][^>]*>/gi;
+  let i = 0;
+  while (i < innerHtml.length) {
+    openRe.lastIndex = i;
+    const m = openRe.exec(innerHtml);
+    if (!m) break;
+    const cls = m[1] ?? "";
+    let depth = 1;
+    let pos = m.index + m[0].length;
+    const contentStart = pos;
+    while (pos < innerHtml.length && depth > 0) {
+      const nextOpen = innerHtml.indexOf("<span", pos);
+      const nextClose = innerHtml.indexOf("</span>", pos);
+      if (nextClose === -1) {
+        pos = innerHtml.length;
+        break;
+      }
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        pos = nextOpen + 5;
+      } else {
+        depth -= 1;
+        pos = nextClose + 7;
+      }
+    }
+    out.push({ cls, inner: innerHtml.slice(contentStart, pos - 7) });
+    i = pos;
+  }
+  return out;
+}
+
+/** Remove `xt` cross-ref spans (including nested children) so leftover prose can be measured. */
+function stripXtSpans(html: string): string {
+  let out = "";
+  let i = 0;
+  const openRe = /<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>/gi;
+  while (i < html.length) {
+    openRe.lastIndex = i;
+    const m = openRe.exec(html);
+    if (!m) {
+      out += html.slice(i);
+      break;
+    }
+    out += html.slice(i, m.index);
+    let depth = 1;
+    let pos = m.index + m[0].length;
+    while (pos < html.length && depth > 0) {
+      const nextOpen = html.indexOf("<span", pos);
+      const nextClose = html.indexOf("</span>", pos);
+      if (nextClose === -1) {
+        pos = html.length;
+        break;
+      }
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        pos = nextOpen + 5;
+      } else {
+        depth -= 1;
+        pos = nextClose + 7;
+      }
+    }
+    i = pos;
+  }
+  return out;
+}
+
+/**
+ * Parse a CSB/NKJV study footnote (`<span class="f">`). Footnote content is an
+ * ordered alternation of `ft` (prose/separators like ", or ") and `fqa`/`fq`/`fk`
+ * (alternative readings). They must be concatenated in document order so words are
+ * not glued together (e.g. "Or grasp, or comprehend, or overtake"). A footnote whose
+ * only content is a cross-reference apparatus becomes cross-ref parts instead.
+ */
 function parseStudyFootnoteSpan(token: string, parts: VersePart[], footnoteIdx: number): number {
-  const xtInner = innerHtmlOfNestedSpan(token, "xt");
-  if (xtInner) {
-    pushXtCrossRefs(xtInner, parts, (raw) => appendTextPart(parts, sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)), { trim: false })));
-    return footnoteIdx;
+  const inner = innerHtmlOfNestedSpan(token, "f") ?? token;
+  const children = footnoteChildSpans(inner).filter((c) => !/\bfr\b/.test(c.cls));
+
+  const hasTextualNote = children.some((c) => {
+    if (/\b(?:fqa|fq|fk)\b/.test(c.cls)) return true;
+    if (/\bft\b/.test(c.cls)) {
+      return stripHtmlTags(stripXtSpans(c.inner)).trim().length > 0;
+    }
+    return false;
+  });
+
+  if (!hasTextualNote) {
+    const xtInner = innerHtmlOfNestedSpan(token, "xt");
+    if (xtInner) {
+      pushXtCrossRefs(xtInner, parts, (raw) =>
+        appendTextPart(parts, sanitizePubVerseText(decodeEntities(stripHtmlTags(raw)), { trim: false })),
+      );
+      return footnoteIdx;
+    }
   }
+
   let text = "";
-  const ftMatch =
-    /<span\b[^>]*\bclass=["'][^"']*\bft\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i.exec(token);
-  if (ftMatch) text += decodeEntities(stripHtmlTags(ftMatch[1]!));
-  for (const m of token.matchAll(/<span\b[^>]*\bclass=["'][^"']*\bfqa\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
-    text += decodeEntities(stripHtmlTags(m[1]!));
-  }
-  for (const m of token.matchAll(/<span\b[^>]*\bclass=["'][^"']*\bfq\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
-    text += ` ${decodeEntities(stripHtmlTags(m[1]!))}`;
+  for (const c of children) {
+    if (/\b(?:ft|fqa|fq|fk|xt)\b/.test(c.cls)) {
+      text += decodeEntities(stripHtmlTags(c.inner));
+    }
   }
   const cleaned = sanitizePubVerseText(text, { trim: true });
   if (!cleaned) return footnoteIdx;
@@ -369,6 +463,12 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   const parts: VersePart[] = [];
   let footnoteIdx = footnoteStart;
   let work = html.replace(/<br\s*\/?>/gi, " ");
+  // Superscript footnote-caller separators (`<span class="sup">,</span>`) sit
+  // between adjacent footnote markers and must not leak into body text.
+  work = work.replace(
+    /<span\b[^>]*\bclass=["'][^"']*\bsup\b[^"']*["'][^>]*>[\s\S]*?<\/span>/gi,
+    "",
+  );
   const studyExtract = extractStudyFootnoteBlocks(work);
   work = studyExtract.html;
   const studyBlocks = studyExtract.blocks;
@@ -379,7 +479,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   };
 
   const tokenRe =
-    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)|([A-Z])<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([^<]*)<\/span>/gi;
 
   let lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -427,7 +527,13 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
       const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
       pushText(innerMatch?.[1] ?? "", "divine");
     } else if (/\bsc\b/i.test(token)) {
-      pushText(joinSmallCapSpan(m[1] ?? "", m[2] ?? ""), "inscription");
+      if (m[3] !== undefined) {
+        // Capital outside the small-cap span (`T<span class="sc">his</span>`):
+        // keep original casing and let small-caps styling render the inscription.
+        pushText(m[3] + (m[4] ?? ""), "inscription");
+      } else {
+        pushText(joinSmallCapSpan(m[1] ?? "", m[2] ?? ""), "inscription");
+      }
     }
     lastIndex = m.index + token.length;
   }

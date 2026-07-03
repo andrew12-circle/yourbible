@@ -1,0 +1,285 @@
+{
+  "edition": "CSB",
+  "book": "Exo",
+  "chapter": 20,
+  "reference": "Exodus 20",
+  "verseCount": 26,
+  "versesWithCrossRefs": 23,
+  "versesWithFootnotes": 2,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 31,
+      "textPreview": "Then God spoke all these words:",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 94,
+      "textPreview": "I am the Lord your God, who brought you out of the land of Egypt, out of the pla",
+      "crossRefLabels": [
+        "Ex 13:3",
+        "Hs 13:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 34,
+      "textPreview": "Do not have other gods besides me.",
+      "crossRefLabels": [
+        "Dt 6:14",
+        "Jr 35:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 143,
+      "textPreview": "Do not make an idol for yourself, whether in the shape of anything in the heaven",
+      "crossRefLabels": [
+        "Lv 26:1",
+        "Dt 27:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 222,
+      "textPreview": "Do not bow in worship to them, and do not serve them; for I, the Lord your God, ",
+      "crossRefLabels": [
+        "Ex 34:14",
+        "Dt 4:24",
+        "Is 44:15",
+        "Is 44:19",
+        "Nm 14:18",
+        "Ps 79:8",
+        "Jr 32:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 94,
+      "textPreview": "but showing faithful love to a thousand generations of those who love me and kee",
+      "crossRefLabels": [
+        "Dt 7:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 116,
+      "textPreview": "Do not misuse the name of the Lord your God, because the Lord will not leave any",
+      "crossRefLabels": [
+        "Lv 19:12",
+        "Mt 5:33"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 42,
+      "textPreview": "Remember the Sabbath day, to keep it holy:",
+      "crossRefLabels": [
+        "Ex 31:13–16",
+        "Lv 26:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 47,
+      "textPreview": "You are to labor six days and do all your work,",
+      "crossRefLabels": [
+        "Ex 34:21",
+        "Lk 13:14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 205,
+      "textPreview": "but the seventh day is a Sabbath to the Lord your God. You must not do any work ",
+      "crossRefLabels": [
+        "Gn 2:2–3",
+        "Neh 13:16–19"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 189,
+      "textPreview": "For the Lord made the heavens and the earth, the sea, and everything in them in ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 116,
+      "textPreview": "Honor your father and your mother so that you may have a long life in the land t",
+      "crossRefLabels": [
+        "Lv 19:3",
+        "Mt 15:4",
+        "Mk 7:10",
+        "Lk 18:20",
+        "Eph 6:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 14,
+      "textPreview": "Do not murder.",
+      "crossRefLabels": [
+        "Mt 5:21",
+        "Rm 13:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 23,
+      "textPreview": "Do not commit adultery.",
+      "crossRefLabels": [
+        "Dt 5:18",
+        "Mt 5:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 13,
+      "textPreview": "Do not steal.",
+      "crossRefLabels": [
+        "Lv 19:11",
+        "Mt 19:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 50,
+      "textPreview": "Do not give false testimony against your neighbor.",
+      "crossRefLabels": [
+        "Ex 23:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 159,
+      "textPreview": "Do not covet your neighbor’s house. Do not covet your neighbor’s wife, his male ",
+      "crossRefLabels": [
+        "Dt 5:21",
+        "Mt 5:28",
+        "Lk 12:15",
+        "Rm 7:7",
+        "Rm 13:9",
+        "Eph 5:3",
+        "Eph 5:5",
+        "Heb 13:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 180,
+      "textPreview": "All the people witnessed the thunder and lightning, the sound of the ram’s horn,",
+      "crossRefLabels": [
+        "Ex 19:18",
+        "Heb 12:18"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 19,
+      "textLength": 107,
+      "textPreview": "“You speak to us, and we will listen,” they said to Moses, “but don’t let God sp",
+      "crossRefLabels": [
+        "Dt 5:25",
+        "Dt 5:27",
+        "Gl 3:19"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 123,
+      "textPreview": "Moses responded to the people, “Don’t be afraid, for God has come to test you, s",
+      "crossRefLabels": [
+        "Dt 13:3",
+        "Pr 16:6",
+        "Is 8:13"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 21,
+      "textLength": 100,
+      "textPreview": "And the people remained standing at a distance as Moses approached the total dar",
+      "crossRefLabels": [
+        "Ex 19:16",
+        "Dt 5:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 126,
+      "textPreview": "Then the Lord told Moses, “This is what you are to say to the Israelites: You ha",
+      "crossRefLabels": [
+        "Dt 4:36",
+        "Neh 9:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 80,
+      "textPreview": "Do not make gods of silver to rival me; do not make gods of gold for yourselves.",
+      "crossRefLabels": [
+        "Ex 20:3",
+        "Ex 32:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 208,
+      "textPreview": "“Make an earthen altar for me, and sacrifice on it your burnt offerings and fell",
+      "crossRefLabels": [
+        "Gn 12:2",
+        "Dt 12:5",
+        "Dt 16:6",
+        "Dt 16:11",
+        "1Kg 9:3",
+        "2Ch 6:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 118,
+      "textPreview": "If you make a stone altar for me, do not build it out of cut stones. If you use ",
+      "crossRefLabels": [
+        "Dt 27:5",
+        "Jos 8:31"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 79,
+      "textPreview": "Do not go up to my altar on steps, so that your nakedness is not exposed on it.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

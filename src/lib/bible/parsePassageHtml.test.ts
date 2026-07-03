@@ -67,6 +67,23 @@ describe("parsePassageHtml", () => {
     );
   });
 
+  it("styles inscriptions when the capital sits outside the small-cap span (CSB Luke 23:38)", () => {
+    const html = `
+<p class="p"><span class="v">38</span>An inscription was above him: T<span class="sc">his</span> I<span class="sc">s the</span> K<span class="sc">ing of the</span> J<span class="sc">ews</span>.</p>`;
+    const parsed = parsePassageHtml(html, "Luke 23");
+    const v = parsed.verses[0];
+    expect(v?.text).toBe("An inscription was above him: This Is the King of the Jews.");
+    const inscription = (v?.parts ?? []).filter(
+      (p) => p.kind === "text" && p.style === "inscription",
+    );
+    expect(inscription.map((p) => (p.kind === "text" ? p.text : ""))).toEqual([
+      "This",
+      "Is the",
+      "King of the",
+      "Jews",
+    ]);
+  });
+
   it("keeps pronoun I separate from following words (CSB John 1:31)", () => {
     const html = `
 <p class="p"><span data-number="31" data-sid="JHN 1:31" class="v">31</span><span class="sc">I</span>didn't know him, but <span class="sc">I</span>came baptizing with water so that he might be revealed to Israel.</p>`;

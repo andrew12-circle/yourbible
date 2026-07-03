@@ -1,0 +1,119 @@
+{
+  "edition": "CSB",
+  "book": "Isa",
+  "chapter": 53,
+  "reference": "Isaiah 53",
+  "verseCount": 12,
+  "versesWithCrossRefs": 5,
+  "versesWithFootnotes": 3,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 36,
+      "textPreview": "Who has believed what we have heard?",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 2,
+      "textLength": 40,
+      "textPreview": "He grew up before him like a young plant",
+      "crossRefLabels": [
+        "Is 11:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 36,
+      "textPreview": "He was despised and rejected by men,",
+      "crossRefLabels": [
+        "Ps 22:6",
+        "Is 49:7",
+        "Lk 18:31–33"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 35,
+      "textPreview": "Yet he himself bore our sicknesses,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 44,
+      "textPreview": "But he was pierced because of our rebellion,",
+      "crossRefLabels": [
+        "Is 53:8",
+        "Rm 4:25",
+        "1Co 15:3",
+        "Heb 9:28"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 30,
+      "textPreview": "We all went astray like sheep;",
+      "crossRefLabels": [
+        "Mt 18:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 31,
+      "textPreview": "He was oppressed and afflicted,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 53,
+      "textPreview": "He was taken away because of oppression and judgment,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 40,
+      "textPreview": "He was assigned a grave with the wicked,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 47,
+      "textPreview": "Yet the Lord was pleased to crush him severely.",
+      "crossRefLabels": [
+        "Is 44:28",
+        "Is 55:11",
+        "Dt 29:22",
+        "Is 17:11"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 11,
+      "textLength": 18,
+      "textPreview": "After his anguish,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 48,
+      "textPreview": "Therefore I will give him the many as a portion,",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    }
+  ]
+}

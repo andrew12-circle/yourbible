@@ -35,6 +35,8 @@ export type CanonicalChapterRecord = {
   bookAbbr: string;
   chapter: number;
   textRevision: string;
+  /** Parser build that produced this record; stale revisions are re-fetched. */
+  parserRevision?: string;
   verses: CanonicalVerse[];
   layout: ChapterLayout;
   cachedAt: number;

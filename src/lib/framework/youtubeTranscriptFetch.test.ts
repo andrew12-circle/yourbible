@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   resumeYoutubeTranscriptFetch,
   restartYoutubeTranscriptFetch,
+  retryYoutubeTranscriptFetch,
   startYoutubeTranscriptFetch,
+  isStaleYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -155,5 +157,54 @@ describe("youtube transcript fetch helper", () => {
         video_id: "abc123def45",
       },
     });
+  });
+
+  it("retryYoutubeTranscriptFetch resumes with existing token when not stale", async () => {
+    mockedSupabase.__mocks.maybeSingle.mockResolvedValue({
+      data: { processing_token: "existing-token" },
+      error: null,
+    });
+    vi.mocked(mockedSupabase.functions.invoke).mockResolvedValue({ data: { ok: true }, error: null });
+
+    const recent = new Date().toISOString();
+    const result = await retryYoutubeTranscriptFetch(
+      "artifact-1",
+      "https://www.youtube.com/watch?v=abc123def45",
+      { createdAt: recent },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(mockedSupabase.__mocks.update).not.toHaveBeenCalled();
+    expect(mockedSupabase.functions.invoke).toHaveBeenCalledWith("framework-fetch-transcript", {
+      body: expect.objectContaining({ processing_token: "existing-token" }),
+    });
+  });
+
+  it("retryYoutubeTranscriptFetch rotates token when stale", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("fresh-token" as `${string}-${string}-${string}-${string}-${string}`);
+    vi.mocked(mockedSupabase.functions.invoke).mockResolvedValue({ data: { ok: true }, error: null });
+
+    const stale = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+    const result = await retryYoutubeTranscriptFetch(
+      "artifact-1",
+      "https://www.youtube.com/watch?v=abc123def45",
+      { createdAt: stale },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(mockedSupabase.__mocks.update).toHaveBeenCalledWith({
+      status: "fetching",
+      error: null,
+      processing_token: "fresh-token",
+    });
+  });
+
+  it("isStaleYoutubeTranscriptFetch is false for recent artifacts", () => {
+    expect(isStaleYoutubeTranscriptFetch(new Date().toISOString())).toBe(false);
+  });
+
+  it("isStaleYoutubeTranscriptFetch is true after three minutes", () => {
+    const stale = new Date(Date.now() - 3 * 60 * 1000 - 1000).toISOString();
+    expect(isStaleYoutubeTranscriptFetch(stale)).toBe(true);
   });
 });

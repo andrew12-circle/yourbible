@@ -2,10 +2,16 @@ import type { PassageVerse } from "@/lib/bible/api";
 import { collectHolmanXrefsFromVerses } from "@/lib/bible/holmanStudyLayout";
 import { collectFootnotes, verseParts } from "@/lib/bible/verseParts";
 
-/** Patterns that should not appear in cleaned verse body text when study notes parsed correctly. */
+/**
+ * Patterns that should not appear in cleaned verse body text when study notes
+ * parsed correctly. Leaked footnote apparatus is always appended *after* real
+ * verse text, so the "Lit"/"Or" note markers require preceding content — this
+ * avoids false positives on verses that legitimately begin with "Or" (e.g.
+ * Luke 15:8, "Or what woman…") or "Lit".
+ */
 const STUDY_DEBRIS_PATTERNS = [
-  /\bLit\s+[A-Za-z]/,
-  /\bOr\s+[A-Za-z]/,
+  /\S\s+Lit\s+[A-Za-z]/,
+  /\S\s+Or\s+[A-Za-z]/,
   /\b\d+:\d+\s+[A-Za-z]{1,3}\s+\d+/,
   /\b(?:Mt|Mk|Lk|Jhn|Jn|Rom|Rm|Gen|Gn|Ps|Rev)\s+\d+:\d+/,
   /\bSome mss\b/i,

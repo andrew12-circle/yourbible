@@ -125,6 +125,35 @@ export async function deletePrayerRequest(userId: string, id: string): Promise<b
   return true;
 }
 
+export async function listScriptureTimelineRefsByRequestIds(
+  userId: string,
+  requestIds: string[],
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (!requestIds.length) return map;
+
+  const { data, error } = await supabase
+    .from("prayer_request_timeline_events")
+    .select(TIMELINE_SELECT)
+    .eq("user_id", userId)
+    .eq("event_kind", "scripture")
+    .in("prayer_request_id", requestIds);
+  if (error) throwSupabaseError(error);
+
+  for (const row of data ?? []) {
+    const event = rowToTimelineEvent(row as Record<string, unknown>);
+    const requestId = event.prayer_request_id;
+    const verseRef = event.link_ref.verse_ref?.trim() || event.title.replace(/^Read\s+/i, "").trim();
+    if (!verseRef) continue;
+    const existing = map.get(requestId) ?? [];
+    if (!existing.some((r) => r.toLowerCase() === verseRef.toLowerCase())) {
+      map.set(requestId, [...existing, verseRef]);
+    }
+  }
+
+  return map;
+}
+
 export async function listTimelineEvents(
   userId: string,
   prayerRequestId: string,

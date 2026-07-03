@@ -1,0 +1,322 @@
+{
+  "edition": "CSB",
+  "book": "Gen",
+  "chapter": 1,
+  "reference": "Genesis 1",
+  "verseCount": 31,
+  "versesWithCrossRefs": 17,
+  "versesWithFootnotes": 6,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 55,
+      "textPreview": "In the beginning God created the heavens and the earth.",
+      "crossRefLabels": [
+        "Ps 90:2",
+        "Ps 102:12",
+        "Is 40:21",
+        "Jn 1:1–3",
+        "Eph 3:21",
+        "Neh 9:6",
+        "Is 40:12–14",
+        "Is 43:7",
+        "Jr 10:12–16",
+        "Am 4:13",
+        "Rm 1:25",
+        "1Co 11:9",
+        "Col 1:16",
+        "Rv 4:11"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 2,
+      "textLength": 155,
+      "textPreview": "Now the earth was formless and empty, darkness covered the surface of the watery",
+      "crossRefLabels": [
+        "Jr 4:23",
+        "Jb 26:13",
+        "Jb 33:4",
+        "Ps 33:6",
+        "Ps 104:30"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 57,
+      "textPreview": "Then God said, “Let there be light,” and there was light.",
+      "crossRefLabels": [
+        "2Co 4:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 79,
+      "textPreview": "God saw that the light was good, and God separated the light from the darkness.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 119,
+      "textPreview": "God called the light “day,” and the darkness he called “night.” There was an eve",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 89,
+      "textPreview": "Then God said, “Let there be an expanse between the waters, separating water fro",
+      "crossRefLabels": [
+        "Is 44:24",
+        "Jr 10:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 114,
+      "textPreview": "So God made the expanse and separated the water under the expanse from the water",
+      "crossRefLabels": [
+        "Ps 148:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 76,
+      "textPreview": "God called the expanse “sky.” Evening came and then morning: the second day.",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 116,
+      "textPreview": "Then God said, “Let the water under the sky be gathered into one place, and let ",
+      "crossRefLabels": [
+        "Jb 38:8",
+        "Ps 33:7",
+        "Ps 136:6",
+        "Jr 5:22",
+        "2Pt 3:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 111,
+      "textPreview": "God called the dry land “earth,” and the gathering of the water he called “seas.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 170,
+      "textPreview": "Then God said, “Let the earth produce vegetation: seed-bearing plants and fruit ",
+      "crossRefLabels": [
+        "Ps 65:9–13",
+        "Ps 104:14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 171,
+      "textPreview": "The earth produced vegetation: seed-bearing plants according to their kinds and ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 45,
+      "textPreview": "Evening came and then morning: the third day.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 158,
+      "textPreview": "Then God said, “Let there be lights in the expanse of the sky to separate the da",
+      "crossRefLabels": [
+        "Jr 10:2",
+        "Ps 104:19"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 15,
+      "textLength": 92,
+      "textPreview": "They will be lights in the expanse of the sky to provide light on the earth.” An",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 136,
+      "textPreview": "God made the two great lights —the greater light to rule over the day and the le",
+      "crossRefLabels": [
+        "Dt 4:19",
+        "Ps 136:7–9",
+        "Is 40:26"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 72,
+      "textPreview": "God placed them in the expanse of the sky to provide light on the earth,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 97,
+      "textPreview": "to rule the day and the night, and to separate light from darkness. And God saw ",
+      "crossRefLabels": [
+        "Jr 31:35"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 46,
+      "textPreview": "Evening came and then morning: the fourth day.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 124,
+      "textPreview": "Then God said, “Let the water swarm with living creatures, and let birds fly abo",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 21,
+      "textLength": 217,
+      "textPreview": "So God created the large sea-creatures and every living creature that moves and ",
+      "crossRefLabels": [
+        "Ps 104:25–28"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 116,
+      "textPreview": "God blessed them: “Be fruitful, multiply, and fill the waters of the seas, and l",
+      "crossRefLabels": [
+        "Gn 8:17",
+        "Gn 9:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 45,
+      "textPreview": "Evening came and then morning: the fifth day.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 185,
+      "textPreview": "Then God said, “Let the earth produce living creatures according to their kinds:",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 206,
+      "textPreview": "So God made the wildlife of the earth according to their kinds, the livestock ac",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 206,
+      "textPreview": "Then God said, “Let us make man in our image, according to our likeness. They wi",
+      "crossRefLabels": [
+        "Gn 3:22",
+        "Gn 11:7",
+        "Gn 5:1",
+        "Gn 5:3",
+        "Gn 9:6",
+        "Rm 8:29",
+        "1Co 11:7",
+        "1Co 15:49",
+        "2Co 3:18",
+        "2Co 4:4",
+        "Eph 4:24",
+        "Col 1:15",
+        "Jms 3:9",
+        "Gn 9:2",
+        "Ps 8:6–8",
+        "Jms 3:7"
+      ],
+      "footnoteMarkers": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "number": 27,
+      "textLength": 36,
+      "textPreview": "So God created man in his own image;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 188,
+      "textPreview": "God blessed them, and God said to them, “Be fruitful, multiply, fill the earth, ",
+      "crossRefLabels": [
+        "Gn 9:1",
+        "Gn 9:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 167,
+      "textPreview": "God also said, “Look, I have given you every seed-bearing plant on the surface o",
+      "crossRefLabels": [
+        "Gn 9:3",
+        "Ps 104:14–15",
+        "Ps 136:25",
+        "Ps 145:15–16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 211,
+      "textPreview": "for all the wildlife of the earth, for every bird of the sky, and for every crea",
+      "crossRefLabels": [
+        "Ps 147:9"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 31,
+      "textLength": 104,
+      "textPreview": "God saw all that he had made, and it was very good indeed. Evening came and then",
+      "crossRefLabels": [
+        "1Tm 4:4"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

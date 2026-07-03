@@ -1,0 +1,641 @@
+{
+  "edition": "CSB",
+  "book": "Luk",
+  "chapter": 23,
+  "reference": "Luke 23",
+  "verseCount": 55,
+  "versesWithCrossRefs": 46,
+  "versesWithFootnotes": 14,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 64,
+      "textPreview": "Then their whole assembly rose up and brought him before Pilate.",
+      "crossRefLabels": [
+        "Mt 27:1",
+        "Mt 27:11",
+        "Mk 15:1–5",
+        "Jn 18:28–38"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 164,
+      "textPreview": "They began to accuse him, saying, “We found this man misleading our nation, oppo",
+      "crossRefLabels": [
+        "Lk 20:22–25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 52,
+      "textPreview": "So Pilate asked him, “Are you the king of the Jews?”",
+      "crossRefLabels": [
+        "Mt 27:11",
+        "Mk 15:2",
+        "Mt 2:2",
+        "Lk 23:37–38",
+        "Jn 18:39",
+        "Jn 19:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 93,
+      "textPreview": "Pilate then told the chief priests and the crowds, “I find no grounds for chargi",
+      "crossRefLabels": [
+        "Mt 27:24",
+        "Lk 23:14",
+        "Lk 23:22",
+        "Jn 19:4",
+        "Jn 19:6",
+        "1Pt 2:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 125,
+      "textPreview": "But they kept insisting, “He stirs up the people, teaching throughout all Judea,",
+      "crossRefLabels": [
+        "Ac 17:5–8",
+        "Ac 17:13",
+        "Mt 4:12",
+        "Mt 4:23",
+        "Lk 4:14",
+        "Jn 1:43",
+        "Jn 2:11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 59,
+      "textPreview": "When Pilate heard this, he asked if the man was a Galilean.",
+      "crossRefLabels": [
+        "1Tm 6:13"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 7,
+      "textLength": 114,
+      "textPreview": "Finding that he was under Herod’s jurisdiction, he sent him to Herod, who was al",
+      "crossRefLabels": [
+        "Lk 3:1",
+        "Lk 9:7–9",
+        "Lk 13:31"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 158,
+      "textPreview": "Herod was very glad to see Jesus; for a long time he had wanted to see him becau",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 62,
+      "textPreview": "So he kept asking him questions, but Jesus did not answer him.",
+      "crossRefLabels": [
+        "Is 53:7",
+        "Mt 27:12",
+        "Mt 27:14",
+        "Mk 15:4–5",
+        "Jn 19:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 68,
+      "textPreview": "The chief priests and the scribes stood by, vehemently accusing him.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 130,
+      "textPreview": "Then Herod, with his soldiers, treated him with contempt, mocked him, dressed hi",
+      "crossRefLabels": [
+        "Is 53:3",
+        "Mk 9:12",
+        "Lk 18:32",
+        "Ac 4:11",
+        "Mt 27:28",
+        "Mk 15:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 81,
+      "textPreview": "That very day Herod and Pilate became friends. Previously, they had been enemies",
+      "crossRefLabels": [
+        "Ps 2:2",
+        "Ac 4:27"
+      ],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 13,
+      "textLength": 70,
+      "textPreview": "Pilate called together the chief priests, the leaders, and the people,",
+      "crossRefLabels": [
+        "Lk 23:35",
+        "Lk 24:20",
+        "Jn 7:26",
+        "Jn 7:48",
+        "Jn 12:42"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 210,
+      "textPreview": "and said to them, “You have brought me this man as one who misleads the people. ",
+      "crossRefLabels": [
+        "Lk 23:2",
+        "Lk 23:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 97,
+      "textPreview": "Neither has Herod, because he sent him back to us. Clearly, he has done nothing ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 57,
+      "textPreview": "Therefore, I will have him whipped and then release him.”",
+      "crossRefLabels": [
+        "Jn 19:1",
+        "Ac 5:40"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 18,
+      "textLength": 79,
+      "textPreview": "Then they all cried out together, “Take this man away! Release Barabbas to us!”",
+      "crossRefLabels": [
+        "Mt 27:15–23",
+        "Mk 15:6–14",
+        "Jn 18:40",
+        "Ac 21:36",
+        "Ac 22:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 98,
+      "textPreview": "(He had been thrown into prison for a rebellion that had taken place in the city",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 54,
+      "textPreview": "Wanting to release Jesus, Pilate addressed them again,",
+      "crossRefLabels": [
+        "Ac 3:13–14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 47,
+      "textPreview": "but they kept shouting, “Crucify! Crucify him!”",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 177,
+      "textPreview": "A third time he said to them, “Why? What has this man done wrong? I have found i",
+      "crossRefLabels": [
+        "Jn 8:46",
+        "Lk 23:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 105,
+      "textPreview": "But they kept up the pressure, demanding with loud voices that he be crucified, ",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 24,
+      "textLength": 39,
+      "textPreview": "So Pilate decided to grant their demand",
+      "crossRefLabels": [
+        "Mt 27:24–26",
+        "Mk 15:15",
+        "Jn 19:16",
+        "Php 4:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 140,
+      "textPreview": "and released the one they were asking for, who had been thrown into prison for r",
+      "crossRefLabels": [
+        "Lk 24:20",
+        "Ac 4:24–28"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 137,
+      "textPreview": "As they led him away, they seized Simon, a Cyrenian, who was coming in from the ",
+      "crossRefLabels": [
+        "Mt 27:31–32",
+        "Mk 15:20–21",
+        "Jn 19:17",
+        "Rm 16:3",
+        "Lk 9:23",
+        "Lk 14:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 27,
+      "textLength": 90,
+      "textPreview": "A large crowd of people followed him, including women who were mourning and lame",
+      "crossRefLabels": [
+        "Lk 8:52",
+        "Ac 8:2",
+        "Rv 1:7",
+        "Rv 18:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 120,
+      "textPreview": "But turning to them, Jesus said, “Daughters of Jerusalem, do not weep for me, bu",
+      "crossRefLabels": [
+        "Sg 1:5",
+        "Sg 2:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 149,
+      "textPreview": "Look, the days are coming when they will say, ‘Blessed are the women without chi",
+      "crossRefLabels": [
+        "Lk 17:22",
+        "Mt 24:19",
+        "Mk 13:17",
+        "Lk 11:27",
+        "Lk 21:23"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 89,
+      "textPreview": "Then they will begin to say to the mountains, ‘Fall on us!’ and to the hills, ‘C",
+      "crossRefLabels": [
+        "Hs 10:8",
+        "Hs 10:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 85,
+      "textPreview": "For if they do these things when the wood is green, what will happen when it is ",
+      "crossRefLabels": [
+        "Ezk 20:47",
+        "Lk 19:41"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 32,
+      "textLength": 66,
+      "textPreview": "Two others —criminals —were also led away to be executed with him.",
+      "crossRefLabels": [
+        "Is 53:12",
+        "Mt 27:38",
+        "Mk 15:27",
+        "Lk 22:37",
+        "Jn 19:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 33,
+      "textLength": 138,
+      "textPreview": "When they arrived at the place called The Skull, they crucified him there, along",
+      "crossRefLabels": [
+        "Mt 27:33–38",
+        "Mk 15:22–27",
+        "Jn 19:17–24"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 34,
+      "textLength": 130,
+      "textPreview": "Then Jesus said, “Father, forgive them, because they do not know what they are d",
+      "crossRefLabels": [
+        "Mt 5:16",
+        "Mt 6:1",
+        "Mt 11:27",
+        "Jn 8:42",
+        "Mt 11:25",
+        "Lk 6:29",
+        "Lk 6:35",
+        "Lk 22:42",
+        "Ac 3:17",
+        "1Co 2:6–8",
+        "Ps 22:18"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 35,
+      "textLength": 144,
+      "textPreview": "The people stood watching, and even the leaders were scoffing: “He saved others;",
+      "crossRefLabels": [
+        "Mt 27:43",
+        "Mt 27:48",
+        "Mk 15:26",
+        "Mk 15:29",
+        "Jn 19:19",
+        "Jn 19:29",
+        "Ps 22:7",
+        "Ps 22:17",
+        "Lk 16:14",
+        "Lk 23:13",
+        "Is 42:1",
+        "Mt 1:17",
+        "Mt 12:18",
+        "Lk 9:20",
+        "Lk 9:35",
+        "1Pt 2:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 36,
+      "textLength": 62,
+      "textPreview": "The soldiers also mocked him. They came offering him sour wine",
+      "crossRefLabels": [
+        "Ps 69:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 37,
+      "textLength": 59,
+      "textPreview": "and said, “If you are the king of the Jews, save yourself!”",
+      "crossRefLabels": [
+        "Lk 23:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 38,
+      "textLength": 59,
+      "textPreview": "An inscription was above him: This Is the King of the Jews.",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 39,
+      "textLength": 117,
+      "textPreview": "Then one of the criminals hanging there began to yell insults at him: “Aren’t yo",
+      "crossRefLabels": [
+        "Mt 27:44",
+        "Mk 15:32"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 40,
+      "textLength": 109,
+      "textPreview": "But the other answered, rebuking him: “Don’t you even fear God, since you are un",
+      "crossRefLabels": [
+        "Ps 147:11",
+        "Pr 1:7",
+        "Ac 10:2",
+        "Rv 14:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 41,
+      "textLength": 127,
+      "textPreview": "We are punished justly, because we’re getting back what we deserve for the thing",
+      "crossRefLabels": [
+        "Lk 23:4"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 42,
+      "textLength": 67,
+      "textPreview": "Then he said, “Jesus, remember me when you come into your kingdom.”",
+      "crossRefLabels": [
+        "Jdg 16:28",
+        "1Sm 25:31",
+        "Neh 5:19",
+        "Jb 14:13",
+        "Ps 106:4",
+        "Mk 8:38",
+        "Ac 20:25"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 43,
+      "textLength": 78,
+      "textPreview": "And he said to him, “Truly I tell you, today you will be with me in paradise.”",
+      "crossRefLabels": [
+        "2Co 12:4",
+        "Rv 2:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 44,
+      "textLength": 73,
+      "textPreview": "It was now about noon, and darkness came over the whole land until three,",
+      "crossRefLabels": [
+        "Mt 27:45–56",
+        "Mk 15:33–41"
+      ],
+      "footnoteMarkers": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "number": 45,
+      "textLength": 87,
+      "textPreview": "because the sun’s light failed. The curtain of the sanctuary was split down the ",
+      "crossRefLabels": [
+        "Ex 26:31–33",
+        "Heb 6:19"
+      ],
+      "footnoteMarkers": [
+        4
+      ]
+    },
+    {
+      "number": 46,
+      "textLength": 121,
+      "textPreview": "And Jesus called out with a loud voice, “Father, into your hands I entrust my sp",
+      "crossRefLabels": [
+        "Ps 31:5",
+        "Is 53:12",
+        "Jn 19:30",
+        "1Co 15:55",
+        "1Pt 4:19",
+        "Ps 31:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 47,
+      "textLength": 103,
+      "textPreview": "When the centurion saw what happened, he began to glorify God, saying, “This man",
+      "crossRefLabels": [
+        "Lk 13:13"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 48,
+      "textLength": 122,
+      "textPreview": "All the crowds that had gathered for this spectacle, when they saw what had take",
+      "crossRefLabels": [
+        "Lk 18:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 49,
+      "textLength": 120,
+      "textPreview": "But all who knew him, including the women who had followed him from Galilee, sto",
+      "crossRefLabels": [
+        "Mt 27:55–56",
+        "Mk 15:40–41",
+        "Jn 19:25",
+        "Ps 38:11",
+        "Ps 88:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 50,
+      "textLength": 75,
+      "textPreview": "There was a good and righteous man named Joseph, a member of the Sanhedrin,",
+      "crossRefLabels": [
+        "Mt 27:57–61",
+        "Mk 15:42–47",
+        "Jn 19:38–42"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 51,
+      "textLength": 131,
+      "textPreview": "who had not agreed with their plan and action. He was from Arimathea, a Judean t",
+      "crossRefLabels": [
+        "Ac 2:23",
+        "Lk 2:25",
+        "Lk 2:38"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 52,
+      "textLength": 48,
+      "textPreview": "He approached Pilate and asked for Jesus’s body.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 53,
+      "textLength": 121,
+      "textPreview": "Taking it down, he wrapped it in fine linen and placed it in a tomb cut into the",
+      "crossRefLabels": [
+        "Is 53:9",
+        "Mk 11:2"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 54,
+      "textLength": 63,
+      "textPreview": "It was the preparation day, and the Sabbath was about to begin.",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 55,
+      "textLength": 110,
+      "textPreview": "The women who had come with him from Galilee followed along and observed the tom",
+      "crossRefLabels": [
+        "Lk 1:42"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 56,
+      "textLength": 113,
+      "textPreview": "Then they returned and prepared spices and perfumes. And they rested on the Sabb",
+      "crossRefLabels": [
+        "Mk 16:1",
+        "Lk 24:1",
+        "Ex 20:10",
+        "Dt 5:14"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "edition": "CSB",
+  "book": "Psa",
+  "chapter": 22,
+  "reference": "Psalm 22",
+  "verseCount": 31,
+  "versesWithCrossRefs": 10,
+  "versesWithFootnotes": 2,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 42,
+      "textPreview": "My God, my God, why have you abandoned me?",
+      "crossRefLabels": [
+        "Mt 27:46",
+        "Mk 15:34"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 44,
+      "textPreview": "My God, I cry by day, but you do not answer,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 17,
+      "textPreview": "But you are holy,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 29,
+      "textPreview": "Our ancestors trusted in you;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 36,
+      "textPreview": "They cried to you and were set free;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 30,
+      "textPreview": "But I am a worm and not a man,",
+      "crossRefLabels": [
+        "Jb 25:6"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 30,
+      "textPreview": "Everyone who sees me mocks me;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 23,
+      "textPreview": "“He relies on the Lord;",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 42,
+      "textPreview": "It was you who brought me out of the womb,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 33,
+      "textPreview": "I was given over to you at birth;",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 11,
+      "textLength": 46,
+      "textPreview": "Don’t be far from me, because distress is near",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 23,
+      "textPreview": "Many bulls surround me;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 35,
+      "textPreview": "They open their mouths against me —",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 27,
+      "textPreview": "I am poured out like water,",
+      "crossRefLabels": [
+        "Jb 30:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 40,
+      "textPreview": "My strength is dried up like baked clay;",
+      "crossRefLabels": [
+        "Ps 38:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 28,
+      "textPreview": "For dogs have surrounded me;",
+      "crossRefLabels": [
+        "Ps 59:6",
+        "Ps 59:14"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 25,
+      "textPreview": "I can count all my bones;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 42,
+      "textPreview": "They divided my garments among themselves,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 33,
+      "textPreview": "But you, Lord, don’t be far away.",
+      "crossRefLabels": [
+        "Ps 10:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 30,
+      "textPreview": "Rescue my life from the sword,",
+      "crossRefLabels": [
+        "Jr 39:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 30,
+      "textPreview": "Save me from the lion’s mouth,",
+      "crossRefLabels": [
+        "Ps 35:17",
+        "2Tm 4:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 53,
+      "textPreview": "I will proclaim your name to my brothers and sisters;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 34,
+      "textPreview": "You who fear the Lord, praise him!",
+      "crossRefLabels": [
+        "Rv 19:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 35,
+      "textPreview": "For he has not despised or abhorred",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 40,
+      "textPreview": "I will give praise in the great assembly",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 37,
+      "textPreview": "The humble will eat and be satisfied;",
+      "crossRefLabels": [
+        "Ps 107:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 27,
+      "textLength": 39,
+      "textPreview": "All the ends of the earth will remember",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 33,
+      "textPreview": "for kingship belongs to the Lord;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 47,
+      "textPreview": "All who prosper on earth will eat and bow down;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 33,
+      "textPreview": "Their descendants will serve him;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 45,
+      "textPreview": "They will come and declare his righteousness;",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

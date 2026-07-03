@@ -8,9 +8,9 @@ import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactC
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
 import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
 import {
+  isStaleYoutubeTranscriptFetch,
   markYoutubeTranscriptFetchError,
-  resumeYoutubeTranscriptFetch,
-  restartYoutubeTranscriptFetch,
+  retryYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { resolveYouTubeVideoId } from "@/lib/youtube";
 import { isReadableDocumentKind } from "@/lib/framework/documentArtifact";
@@ -26,15 +26,7 @@ const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
 const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
 const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
 const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
-const YOUTUBE_FETCH_STALE_MS = 3 * 60 * 1000;
 const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
-
-function isStaleYoutubeFetch(createdAt: string | null | undefined): boolean {
-  if (!createdAt) return false;
-  const createdMs = Date.parse(createdAt);
-  if (!Number.isFinite(createdMs)) return false;
-  return Date.now() - createdMs > YOUTUBE_FETCH_STALE_MS;
-}
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -346,11 +338,12 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
           .eq("id", artifactId)
           .maybeSingle();
         if (data?.status !== "fetching" || (data.raw_text ?? "").trim()) return;
-        const stale = isStaleYoutubeFetch(a?.created_at);
-        const fetchOpts = { videoId: resolveYouTubeVideoId(artifactUrl, a?.metadata), metadata: a?.metadata };
-        const result = stale
-          ? await restartYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts)
-          : await resumeYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts);
+        const fetchOpts = {
+          videoId: resolveYouTubeVideoId(artifactUrl, a?.metadata),
+          metadata: a?.metadata,
+          createdAt: a?.created_at,
+        };
+        const result = await retryYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts);
         if (!result.ok) await loadStatusOnly();
       })();
     }, YOUTUBE_FETCH_ENSURE_AFTER_MS);
@@ -380,9 +373,10 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (now - retry.lastAt < YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS) return;
 
     autoRetryRef.current[a.id] = { count: retry.count + 1, lastAt: now };
-    void restartYoutubeTranscriptFetch(a.id, a.url, {
+    void retryYoutubeTranscriptFetch(a.id, a.url, {
       videoId: resolveYouTubeVideoId(a.url, a.metadata),
       metadata: a.metadata,
+      createdAt: a.created_at,
     }).then((result) => {
       if (!result.ok) void loadStatusOnly();
     });

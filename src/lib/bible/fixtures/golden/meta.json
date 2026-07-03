@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-06-21T18:24:45.036Z",
+  "fetchedAt": "2026-07-03T16:49:59.270Z",
   "bibleId": "a556c5305ee15c3f-01",
   "chapters": [
     {
@@ -25,6 +25,46 @@
     {
       "id": "csb-gal-5",
       "bytes": 16570
+    },
+    {
+      "id": "csb-gen-1",
+      "bytes": 14477
+    },
+    {
+      "id": "csb-exo-20",
+      "bytes": 12538
+    },
+    {
+      "id": "csb-deu-6",
+      "bytes": 14560
+    },
+    {
+      "id": "csb-psa-22",
+      "bytes": 20673
+    },
+    {
+      "id": "csb-pro-3",
+      "bytes": 20233
+    },
+    {
+      "id": "csb-isa-53",
+      "bytes": 14186
+    },
+    {
+      "id": "csb-mat-5",
+      "bytes": 29764
+    },
+    {
+      "id": "csb-luk-15",
+      "bytes": 15405
+    },
+    {
+      "id": "csb-luk-23",
+      "bytes": 33153
+    },
+    {
+      "id": "csb-rev-21",
+      "bytes": 19346
     }
   ]
 }

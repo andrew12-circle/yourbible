@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +8,7 @@ import PrayerLedgerTable from "@/components/prayer/PrayerLedgerTable";
 import PrayerLedgerToolbar from "@/components/prayer/PrayerLedgerToolbar";
 import { Button } from "@/components/ui/button";
 import { usePrayerRequests } from "@/hooks/usePrayerRequests";
+import { listScriptureTimelineRefsByRequestIds } from "@/lib/prayer/api";
 import { PRAYER_STATUSES } from "@/lib/prayer/statuses";
 import type { PrayerCategory, PrayerRequestRow, PrayerRequestStatus } from "@/lib/prayer/types";
 
@@ -54,6 +55,21 @@ export default function PrayerRequestsListPage() {
     return list;
   }, [rows, monthFilter]);
 
+  const [timelineScriptureByRequestId, setTimelineScriptureByRequestId] = useState<
+    Map<string, string[]>
+  >(new Map());
+
+  useEffect(() => {
+    if (!user?.id || sorted.length === 0) {
+      setTimelineScriptureByRequestId(new Map());
+      return;
+    }
+    void listScriptureTimelineRefsByRequestIds(
+      user.id,
+      sorted.map((r) => r.id),
+    ).then(setTimelineScriptureByRequestId);
+  }, [user?.id, sorted]);
+
   const markAnswered = (row: PrayerRequestRow) => {
     navigate(`/prayer/requests/${row.id}/celebrate`);
   };
@@ -96,7 +112,11 @@ export default function PrayerRequestsListPage() {
           </Button>
         </div>
       ) : view === "ledger" ? (
-        <PrayerLedgerTable rows={sorted} onMarkAnswered={markAnswered} />
+        <PrayerLedgerTable
+          rows={sorted}
+          onMarkAnswered={markAnswered}
+          timelineScriptureByRequestId={timelineScriptureByRequestId}
+        />
       ) : (
         <div className="space-y-2">
           {sorted.map((r) => (

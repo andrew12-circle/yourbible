@@ -1,0 +1,318 @@
+{
+  "edition": "CSB",
+  "book": "Luk",
+  "chapter": 15,
+  "reference": "Luke 15",
+  "verseCount": 32,
+  "versesWithCrossRefs": 16,
+  "versesWithFootnotes": 9,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 69,
+      "textPreview": "All the tax collectors and sinners were approaching to listen to him.",
+      "crossRefLabels": [
+        "Mt 18:12–14",
+        "Mt 11:19",
+        "Lk 5:29"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 95,
+      "textPreview": "And the Pharisees and scribes were complaining, “This man welcomes sinners and e",
+      "crossRefLabels": [
+        "Lk 5:30",
+        "Lk 7:39",
+        "Ac 11:3",
+        "Gl 2:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 29,
+      "textPreview": "So he told them this parable:",
+      "crossRefLabels": [
+        "Mk 12:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 161,
+      "textPreview": "“What man among you, who has a hundred sheep and loses one of them, does not lea",
+      "crossRefLabels": [
+        "Ps 119:176",
+        "Jr 50:6",
+        "Zch 11:16",
+        "Mt 10:6",
+        "Mt 15:24"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 5,
+      "textLength": 59,
+      "textPreview": "When he has found it, he joyfully puts it on his shoulders,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 132,
+      "textPreview": "and coming home, he calls his friends and neighbors together, saying to them, ‘R",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 155,
+      "textPreview": "I tell you, in the same way, there will be more joy in heaven over one sinner wh",
+      "crossRefLabels": [
+        "Jr 51:48",
+        "Rv 18:20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 144,
+      "textPreview": "“Or what woman who has ten silver coins, if she loses one coin, does not light a",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 136,
+      "textPreview": "When she finds it, she calls her friends and neighbors together, saying, ‘Rejoic",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 103,
+      "textPreview": "I tell you, in the same way, there is joy in the presence of God’s angels over o",
+      "crossRefLabels": [
+        "Lk 2:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 34,
+      "textPreview": "He also said, “A man had two sons.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 140,
+      "textPreview": "The younger of them said to his father, ‘Father, give me the share of the estate",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 13,
+      "textLength": 150,
+      "textPreview": "Not many days later, the younger son gathered together all he had and traveled t",
+      "crossRefLabels": [
+        "Lk 16:1",
+        "Rm 6:2",
+        "Rm 8:12",
+        "Gl 2:14",
+        "Col 3:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 87,
+      "textPreview": "After he had spent everything, a severe famine struck that country, and he had n",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        2
+      ]
+    },
+    {
+      "number": 15,
+      "textLength": 104,
+      "textPreview": "Then he went to work for one of the citizens of that country, who sent him into ",
+      "crossRefLabels": [
+        "Lv 11:7",
+        "Dt 14:8"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 102,
+      "textPreview": "He longed to eat his fill from the pods that the pigs were eating, but no one wo",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 17,
+      "textLength": 134,
+      "textPreview": "When he came to his senses, he said, ‘How many of my father’s hired workers have",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        4,
+        5
+      ]
+    },
+    {
+      "number": 18,
+      "textLength": 102,
+      "textPreview": "I’ll get up, go to my father, and say to him, “Father, I have sinned against hea",
+      "crossRefLabels": [
+        "Ex 10:16",
+        "Mt 21:25",
+        "Jn 3:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 85,
+      "textPreview": "I’m no longer worthy to be called your son. Make me like one of your hired worke",
+      "crossRefLabels": [
+        "Lk 7:6–7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 187,
+      "textPreview": "So he got up and went to his father. But while the son was still a long way off,",
+      "crossRefLabels": [
+        "Mt 9:36",
+        "Mk 1:41",
+        "Lk 7:13",
+        "Lk 10:33",
+        "Gn 29:13",
+        "Gn 33:4",
+        "Gn 45:15",
+        "2Sm 14:33"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 122,
+      "textPreview": "The son said to him, ‘Father, I have sinned against heaven and in your sight. I’",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 135,
+      "textPreview": "“But the father told his servants, ‘Quick! Bring out the best robe and put it on",
+      "crossRefLabels": [
+        "Zch 3:3",
+        "Gn 41:42",
+        "Est 3:10",
+        "Est 8:2",
+        "Ezk 16:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 80,
+      "textPreview": "Then bring the fattened calf and slaughter it, and let’s celebrate with a feast,",
+      "crossRefLabels": [
+        "1Sm 28:24"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 108,
+      "textPreview": "because this son of mine was dead and is alive again; he was lost and is found!’",
+      "crossRefLabels": [
+        "Lk 15:32",
+        "Rm 11:15",
+        "2Co 4:10",
+        "Col 2:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 91,
+      "textPreview": "“Now his older son was in the field; as he came near the house, he heard music a",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 26,
+      "textLength": 72,
+      "textPreview": "So he summoned one of the servants, questioning what these things meant.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 27,
+      "textLength": 128,
+      "textPreview": "‘Your brother is here,’ he told him, ‘and your father has slaughtered the fatten",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 28,
+      "textLength": 92,
+      "textPreview": "“Then he became angry and didn’t want to go in. So his father came out and plead",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 188,
+      "textPreview": "But he replied to his father, ‘Look, I have been slaving many years for you, and",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 123,
+      "textPreview": "But when this son of yours came, who has devoured your assets with prostitutes, ",
+      "crossRefLabels": [
+        "Pr 29:3"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 31,
+      "textLength": 81,
+      "textPreview": "“ ‘Son,’ he said to him, ‘you are always with me, and everything I have is yours",
+      "crossRefLabels": [
+        "Jn 8:35"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 32,
+      "textLength": 123,
+      "textPreview": "But we had to celebrate and rejoice, because this brother of yours was dead and ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

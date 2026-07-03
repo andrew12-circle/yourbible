@@ -4,6 +4,7 @@ import { Loader2, PartyPopper } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PrayerShell from "@/components/prayer/PrayerShell";
 import { Button } from "@/components/ui/button";
+import { ToastAction } from "@/components/ui/toast";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -113,8 +114,19 @@ export default function PrayerAnswerCelebrationPage() {
         praiseBodyOverride: praiseBody,
       });
       if (result) {
-        toast({ title: "Praise report created" });
-        navigate(`/journal/${result.praiseEntryId}`);
+        navigate("/prayer/requests");
+        toast({
+          title: "Recorded in your ledger",
+          description: "Praise report saved to your journal.",
+          action: (
+            <ToastAction
+              altText="View praise report"
+              onClick={() => navigate(`/journal/${result.praiseEntryId}`)}
+            >
+              View report
+            </ToastAction>
+          ),
+        });
       }
     } catch (e) {
       toast({ title: "Could not save", description: String(e), variant: "destructive" });

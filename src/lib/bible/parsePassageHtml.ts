@@ -429,7 +429,7 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
   };
 
   const tokenRe =
-    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<figure\b[\s\S]*?<\/figure>|<img\b[^>]*>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)/gi;
+    /\uE000STUDYFN\d+\uE001|<note\b[\s\S]*?<\/note>|<figure\b[\s\S]*?<\/figure>|<img\b[^>]*>|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*[a-z]\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>(?:\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>)?|<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxt\b[^"']*["'][^>]*>[\s\S]*?<\/span>\s*<span\b[^>]*\bclass=["'][^"']*\bxo[^"']*["'][^>]*>\s*#\s*<\/span>|<span\b[^>]*\bclass=["'][^"']*\b(?:qs|selah)\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bnd\b[^"']*["'][^>]*>[\s\S]*?<\/span>|<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([A-Za-z])<\/span>([a-z]*)|([A-Z])<span\b[^>]*\bclass=["'][^"']*\bsc\b[^"']*["'][^>]*>([^<]*)<\/span>/gi;
 
   let lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -480,7 +480,13 @@ export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
       const innerMatch = /<span\b[^>]*>([\s\S]*?)<\/span>/i.exec(token);
       pushText(innerMatch?.[1] ?? "", "divine");
     } else if (/\bsc\b/i.test(token)) {
-      pushText(joinSmallCapSpan(m[1] ?? "", m[2] ?? ""), "inscription");
+      if (m[3] !== undefined) {
+        // Capital outside the small-cap span (`T<span class="sc">his</span>`):
+        // keep original casing and let small-caps styling render the inscription.
+        pushText(m[3] + (m[4] ?? ""), "inscription");
+      } else {
+        pushText(joinSmallCapSpan(m[1] ?? "", m[2] ?? ""), "inscription");
+      }
     }
     lastIndex = m.index + token.length;
   }

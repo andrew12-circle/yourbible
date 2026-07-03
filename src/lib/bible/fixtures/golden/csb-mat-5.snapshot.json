@@ -1,0 +1,546 @@
+{
+  "edition": "CSB",
+  "book": "Mat",
+  "chapter": 5,
+  "reference": "Matthew 5",
+  "verseCount": 48,
+  "versesWithCrossRefs": 32,
+  "versesWithFootnotes": 10,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 101,
+      "textPreview": "When he saw the crowds, he went up on the mountain, and after he sat down, his d",
+      "crossRefLabels": [
+        "Mk 3:13",
+        "Lk 9:28",
+        "Jn 6:3",
+        "Jn 6:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 36,
+      "textPreview": "Then he began to teach them, saying:",
+      "crossRefLabels": [
+        "Ac 8:35",
+        "Ac 10:34",
+        "Ac 18:14"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 3,
+      "textLength": 32,
+      "textPreview": "“Blessed are the poor in spirit,",
+      "crossRefLabels": [
+        "Is 57:15",
+        "Is 66:2"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 28,
+      "textPreview": "Blessed are those who mourn,",
+      "crossRefLabels": [
+        "Is 61:2",
+        "Mt 11:29",
+        "Mt 21:5",
+        "Jn 16:20",
+        "Rv 7:17"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 5,
+      "textLength": 23,
+      "textPreview": "Blessed are the humble,",
+      "crossRefLabels": [
+        "Ps 37:11",
+        "Rm 4:13",
+        "Rv 21:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 58,
+      "textPreview": "Blessed are those who hunger and thirst for righteousness,",
+      "crossRefLabels": [
+        "Is 55:1–2",
+        "Jn 4:14",
+        "Jn 6:48",
+        "Jn 7:37"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 25,
+      "textPreview": "Blessed are the merciful,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 30,
+      "textPreview": "Blessed are the pure in heart,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 9,
+      "textLength": 28,
+      "textPreview": "Blessed are the peacemakers,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 62,
+      "textPreview": "Blessed are those who are persecuted because of righteousness,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 117,
+      "textPreview": "“You are blessed when they insult you and persecute you and falsely say every ki",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 126,
+      "textPreview": "Be glad and rejoice, because your reward is great in heaven. For that is how the",
+      "crossRefLabels": [
+        "Mt 2:23",
+        "2Tm 3:12",
+        "Mt 23:37",
+        "Ac 7:52",
+        "1Th 2:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 184,
+      "textPreview": "“You are the salt of the earth. But if the salt should lose its taste, how can i",
+      "crossRefLabels": [
+        "Mk 9:50",
+        "Lk 14:34"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 14,
+      "textLength": 76,
+      "textPreview": "“You are the light of the world. A city situated on a hill cannot be hidden.",
+      "crossRefLabels": [
+        "Pr 4:18",
+        "Jn 8:12",
+        "Php 2:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 124,
+      "textPreview": "No one lights a lamp and puts it under a basket, but rather on a lampstand, and ",
+      "crossRefLabels": [
+        "Jn 5:35",
+        "Rv 21:23",
+        "Mk 4:21",
+        "Lk 8:16",
+        "Lk 11:33"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 130,
+      "textPreview": "In the same way, let your light shine before others, so that they may see your g",
+      "crossRefLabels": [
+        "Mt 9:8",
+        "Jn 15:8",
+        "1Pt 2:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 102,
+      "textPreview": "“Don’t think that I came to abolish the Law or the Prophets. I did not come to a",
+      "crossRefLabels": [
+        "Mt 7:12",
+        "Rm 3:31",
+        "Rm 10:4",
+        "Rm 13:8",
+        "Gl 3:24"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 168,
+      "textPreview": "For truly I tell you, until heaven and earth pass away, not the smallest letter ",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 19,
+      "textLength": 232,
+      "textPreview": "Therefore, whoever breaks one of the least of these commands and teaches others ",
+      "crossRefLabels": [
+        "Mt 11:11",
+        "Mt 24:35",
+        "Lk 16:17",
+        "Jms 2:10"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 133,
+      "textPreview": "For I tell you, unless your righteousness surpasses that of the scribes and Phar",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 114,
+      "textPreview": "“You have heard that it was said to our ancestors, Do not murder, and whoever mu",
+      "crossRefLabels": [
+        "Ex 20:13",
+        "Dt 5:17",
+        "Ex 20:13",
+        "Dt 5:17",
+        "Mt 19:18",
+        "Mt 23:31",
+        "Mt 23:35",
+        "Mk 10:19",
+        "Lk 18:20",
+        "Rm 13:9",
+        "Jms 2:11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 216,
+      "textPreview": "But I tell you, everyone who is angry with his brother or sister will be subject",
+      "crossRefLabels": [
+        "Mt 18:9",
+        "Mk 9:43",
+        "Jms 3:6",
+        "1Jn 3:15"
+      ],
+      "footnoteMarkers": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "number": 23,
+      "textLength": 124,
+      "textPreview": "So if you are offering your gift on the altar, and there you remember that your ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 135,
+      "textPreview": "leave your gift there in front of the altar. First go and be reconciled with you",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 210,
+      "textPreview": "Reach a settlement quickly with your adversary while you’re on the way with him ",
+      "crossRefLabels": [
+        "Pr 25:8",
+        "Lk 12:58"
+      ],
+      "footnoteMarkers": [
+        5
+      ]
+    },
+    {
+      "number": 26,
+      "textLength": 85,
+      "textPreview": "Truly I tell you, you will never get out of there until you have paid the last p",
+      "crossRefLabels": [],
+      "footnoteMarkers": [
+        6
+      ]
+    },
+    {
+      "number": 27,
+      "textLength": 57,
+      "textPreview": "“You have heard that it was said, Do not commit adultery.",
+      "crossRefLabels": [
+        "Ex 20:14",
+        "Dt 5:18",
+        "Ex 20:14",
+        "Dt 5:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 28,
+      "textLength": 109,
+      "textPreview": "But I tell you, everyone who looks at a woman lustfully has already committed ad",
+      "crossRefLabels": [
+        "2Sm 11:2",
+        "Jb 31:1",
+        "Pr 6:25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 29,
+      "textLength": 178,
+      "textPreview": "If your right eye causes you to sin, gouge it out and throw it away. For it is b",
+      "crossRefLabels": [
+        "Mt 18:9",
+        "Mk 9:47",
+        "Mt 10:28",
+        "Mt 23:15",
+        "Mt 23:33",
+        "Lk 12:5"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 30,
+      "textLength": 174,
+      "textPreview": "And if your right hand causes you to sin, cut it off and throw it away. For it i",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 31,
+      "textLength": 87,
+      "textPreview": "“It was also said, Whoever divorces his wife must give her a written notice of d",
+      "crossRefLabels": [
+        "Jr 3:1",
+        "Mt 19:7",
+        "Mk 10:4",
+        "Dt 24:1",
+        "Dt 24:1"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 32,
+      "textLength": 172,
+      "textPreview": "But I tell you, everyone who divorces his wife, except in a case of sexual immor",
+      "crossRefLabels": [
+        "Mt 19:9",
+        "Mk 10:11",
+        "Lk 16:18",
+        "Rm 7:3",
+        "1Co 7:11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 33,
+      "textLength": 129,
+      "textPreview": "“Again, you have heard that it was said to our ancestors, You must not break you",
+      "crossRefLabels": [
+        "Lv 19:12",
+        "Nm 30:2",
+        "Dt 23:21",
+        "Lv 19:12",
+        "Nm 30:2",
+        "Dt 23:21",
+        "Mt 23:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 34,
+      "textLength": 88,
+      "textPreview": "But I tell you, don’t take an oath at all: either by heaven, because it is God’s",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 35,
+      "textLength": 104,
+      "textPreview": "or by the earth, because it is his footstool; or by Jerusalem, because it is the",
+      "crossRefLabels": [
+        "Ps 48:2",
+        "Is 66:1",
+        "Mt 23:22",
+        "Ac 7:49",
+        "Jms 5:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 36,
+      "textLength": 80,
+      "textPreview": "Do not swear by your head, because you cannot make a single hair white or black.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 37,
+      "textLength": 101,
+      "textPreview": "But let your ‘yes’ mean ‘yes,’ and your ‘no’ mean ‘no.’ Anything more than this ",
+      "crossRefLabels": [
+        "Mt 6:13",
+        "Mt 13:19",
+        "Mt 13:38",
+        "Jn 17:15",
+        "2Th 3:3"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 38,
+      "textLength": 76,
+      "textPreview": "“You have heard that it was said, An eye for an eye and a tooth for a tooth.",
+      "crossRefLabels": [
+        "Ex 21:24",
+        "Lv 24:20",
+        "Dt 19:21",
+        "Ex 21:24",
+        "Lv 24:20",
+        "Dt 19:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 39,
+      "textLength": 127,
+      "textPreview": "But I tell you, don’t resist an evildoer. On the contrary, if anyone slaps you o",
+      "crossRefLabels": [
+        "Lk 6:29–30",
+        "Rm 12:17",
+        "1Co 6:7",
+        "1Pt 3:9"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 40,
+      "textLength": 93,
+      "textPreview": "As for the one who wants to sue you and take away your shirt, let him have your ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 41,
+      "textLength": 57,
+      "textPreview": "And if anyone forces you to go one mile, go with him two.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 42,
+      "textLength": 92,
+      "textPreview": "Give to the one who asks you, and don’t turn away from the one who wants to borr",
+      "crossRefLabels": [
+        "Dt 15:8",
+        "Lk 6:34"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 43,
+      "textLength": 73,
+      "textPreview": "“You have heard that it was said, Love your neighbor and hate your enemy.",
+      "crossRefLabels": [
+        "Lv 19:18",
+        "Lv 19:18",
+        "Dt 23:6",
+        "Lk 10:29"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 44,
+      "textLength": 71,
+      "textPreview": "But I tell you, love your enemies and pray for those who persecute you,",
+      "crossRefLabels": [
+        "Lk 6:27",
+        "Lk 23:34",
+        "Ac 7:60",
+        "Rm 12:20",
+        "1Co 4:12",
+        "1Pt 2:23"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
+    },
+    {
+      "number": 45,
+      "textLength": 162,
+      "textPreview": "so that you may be children of your Father in heaven. For he causes his sun to r",
+      "crossRefLabels": [
+        "Jb 25:3",
+        "Mt 5:9",
+        "Lk 6:35",
+        "Ac 14:17"
+      ],
+      "footnoteMarkers": [
+        3
+      ]
+    },
+    {
+      "number": 46,
+      "textLength": 105,
+      "textPreview": "For if you love those who love you, what reward will you have? Don’t even the ta",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 47,
+      "textLength": 125,
+      "textPreview": "And if you greet only your brothers and sisters, what are you doing out of the o",
+      "crossRefLabels": [
+        "Mt 5:37",
+        "Mk 6:51",
+        "Jn 10:10",
+        "Rm 3:1",
+        "2Co 9:1"
+      ],
+      "footnoteMarkers": [
+        4,
+        5
+      ]
+    },
+    {
+      "number": 48,
+      "textLength": 58,
+      "textPreview": "Be perfect, therefore, as your heavenly Father is perfect.",
+      "crossRefLabels": [
+        "Gn 17:1",
+        "Lv 19:2",
+        "Php 3:15",
+        "Col 4:12",
+        "Jms 1:4",
+        "1Pt 1:15"
+      ],
+      "footnoteMarkers": []
+    }
+  ]
+}

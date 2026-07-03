@@ -5,6 +5,7 @@ import {
   fetchPrayerRequest,
   listTimelineEvents,
   linkJournalEntryToRequest,
+  updatePrayerRequest,
 } from "@/lib/prayer/api";
 import { inferTimelineKindFromJournal } from "@/lib/prayer/timeline";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,11 +77,23 @@ export function usePrayerRequestDetail(userId: string | undefined, requestId: st
   };
 
   const linkVerse = async (verseRef: string) => {
+    if (!userId || !requestId) return;
+    const ref = verseRef.trim();
+    if (!ref) return;
+
     await addEvent({
       eventKind: "scripture",
-      title: `Read ${verseRef}`,
-      linkRef: { verse_ref: verseRef },
+      title: `Read ${ref}`,
+      linkRef: { verse_ref: ref },
     });
+
+    const current = request?.scripture_refs ?? [];
+    if (!current.some((s) => s.ref.toLowerCase() === ref.toLowerCase())) {
+      const updated = await updatePrayerRequest(userId, requestId, {
+        scripture_refs: [...current, { ref }],
+      });
+      if (updated) setRequest(updated);
+    }
   };
 
   return {

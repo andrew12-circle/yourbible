@@ -18,11 +18,18 @@ const FIXTURE_DIR = path.join(ROOT, "src/lib/bible/fixtures/golden");
 const API_BASE = "https://rest.api.bible/v1";
 
 const BOOK_USFM = {
-  Jhn: "JHN",
-  Psa: "PSA",
-  Rom: "ROM",
+  Gen: "GEN",
   Exo: "EXO",
+  Deu: "DEU",
+  Psa: "PSA",
+  Pro: "PRO",
+  Isa: "ISA",
+  Mat: "MAT",
+  Luk: "LUK",
+  Jhn: "JHN",
+  Rom: "ROM",
   Gal: "GAL",
+  Rev: "REV",
 };
 
 const CHAPTERS = [
@@ -32,6 +39,18 @@ const CHAPTERS = [
   { id: "csb-rom-8", book: "Rom", chapter: 8 },
   { id: "csb-exo-14", book: "Exo", chapter: 14 },
   { id: "csb-gal-5", book: "Gal", chapter: 5 },
+  // Expanded high-risk coverage: divine name, poetry/Selah, red-letter,
+  // nested quotes, inscriptions, prophetic + wisdom text.
+  { id: "csb-gen-1", book: "Gen", chapter: 1 },
+  { id: "csb-exo-20", book: "Exo", chapter: 20 },
+  { id: "csb-deu-6", book: "Deu", chapter: 6 },
+  { id: "csb-psa-22", book: "Psa", chapter: 22 },
+  { id: "csb-pro-3", book: "Pro", chapter: 3 },
+  { id: "csb-isa-53", book: "Isa", chapter: 53 },
+  { id: "csb-mat-5", book: "Mat", chapter: 5 },
+  { id: "csb-luk-15", book: "Luk", chapter: 15 },
+  { id: "csb-luk-23", book: "Luk", chapter: 23 },
+  { id: "csb-rev-21", book: "Rev", chapter: 21 },
 ];
 
 function loadApiKey() {

@@ -1,0 +1,317 @@
+{
+  "edition": "CSB",
+  "book": "Deu",
+  "chapter": 6,
+  "reference": "Deuteronomy 6",
+  "verseCount": 25,
+  "versesWithCrossRefs": 18,
+  "versesWithFootnotes": 2,
+  "verses": [
+    {
+      "number": 1,
+      "textLength": 175,
+      "textPreview": "“This is the command —the statutes and ordinances —the Lord your God has command",
+      "crossRefLabels": [
+        "Dt 3:12"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 2,
+      "textLength": 197,
+      "textPreview": "Do this so that you may fear the Lord your God all the days of your life by keep",
+      "crossRefLabels": [
+        "Dt 14:23",
+        "Dt 6:24",
+        "Dt 10:12",
+        "Dt 14:23",
+        "Dt 17:19",
+        "Dt 31:12–13",
+        "Jos 4:24",
+        "Jos 24:14",
+        "1Sm 12:14",
+        "1Sm 12:24",
+        "2Kg 17:34",
+        "Dt 4:9",
+        "Dt 16:3",
+        "Dt 17:19",
+        "Jos 1:5",
+        "Jos 4:14",
+        "1Sm 1:11",
+        "1Sm 7:15",
+        "1Kg 4:21",
+        "1Kg 11:34",
+        "1Kg 15:5–6",
+        "2Kg 25:29",
+        "Ex 20:12",
+        "Dt 5:16"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 3,
+      "textLength": 190,
+      "textPreview": "Listen, Israel, and be careful to follow them, so that you may prosper and multi",
+      "crossRefLabels": [
+        "Ex 3:8",
+        "Ex 3:17",
+        "Ex 13:5",
+        "Ex 33:3",
+        "Lv 20:24",
+        "Nm 16:13",
+        "Dt 11:9",
+        "Dt 26:9",
+        "Dt 26:15",
+        "Dt 27:3",
+        "Jos 5:6",
+        "Jr 11:5",
+        "Jr 32:22"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 4,
+      "textLength": 51,
+      "textPreview": "“Listen, Israel: The Lord our God, the Lord is one.",
+      "crossRefLabels": [
+        "Zch 14:9",
+        "Mk 12:29",
+        "Mk 12:32",
+        "Rm 3:30",
+        "1Co 8:6",
+        "Eph 4:6",
+        "1Tm 2:5",
+        "Jms 2:19"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 5,
+      "textLength": 91,
+      "textPreview": "Love the Lord your God with all your heart, with all your soul, and with all you",
+      "crossRefLabels": [
+        "Mt 22:37",
+        "Mk 12:30",
+        "Lk 10:27"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 6,
+      "textLength": 63,
+      "textPreview": "These words that I am giving you today are to be in your heart.",
+      "crossRefLabels": [
+        "Dt 11:18"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 7,
+      "textLength": 145,
+      "textPreview": "Repeat them to your children. Talk about them when you sit in your house and whe",
+      "crossRefLabels": [
+        "Dt 4:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 8,
+      "textLength": 75,
+      "textPreview": "Bind them as a sign on your hand and let them be a symbol on your forehead.",
+      "crossRefLabels": [
+        "Ex 13:16",
+        "Dt 11:18"
+      ],
+      "footnoteMarkers": [
+        2,
+        3
+      ]
+    },
+    {
+      "number": 9,
+      "textLength": 65,
+      "textPreview": "Write them on the doorposts of your house and on your city gates.",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 10,
+      "textLength": 188,
+      "textPreview": "“When the Lord your God brings you into the land he swore to your ancestors Abra",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 11,
+      "textLength": 186,
+      "textPreview": "houses full of every good thing that you did not fill them with, cisterns that y",
+      "crossRefLabels": [
+        "Jos 24:13",
+        "Dt 8:10",
+        "Neh 9:25"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 12,
+      "textLength": 104,
+      "textPreview": "be careful not to forget the Lord who brought you out of the land of Egypt, out ",
+      "crossRefLabels": [
+        "Lv 26:13",
+        "Dt 5:6",
+        "Dt 8:14",
+        "Dt 13:5",
+        "Dt 13:10",
+        "Jos 24:17",
+        "Jr 34:13"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 13,
+      "textLength": 69,
+      "textPreview": "Fear the Lord your God, worship him, and take your oaths in his name.",
+      "crossRefLabels": [
+        "Dt 10:12",
+        "Dt 10:20",
+        "Dt 13:4",
+        "Jos 24:14",
+        "1Sm 12:24",
+        "Mt 4:10",
+        "Lk 4:8",
+        "Rv 14:7"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 14,
+      "textLength": 61,
+      "textPreview": "Do not follow other gods, the gods of the peoples around you,",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 15,
+      "textLength": 161,
+      "textPreview": "for the Lord your God, who is among you, is a jealous God. Otherwise, the Lord y",
+      "crossRefLabels": [
+        "Dt 5:9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 16,
+      "textLength": 58,
+      "textPreview": "Do not test the Lord your God as you tested him at Massah.",
+      "crossRefLabels": [
+        "Ex 15:25",
+        "Ex 16:4",
+        "Nm 14:22",
+        "Ps 78:18",
+        "Ps 78:41",
+        "Ps 78:56",
+        "Ps 106:14",
+        "Mal 3:15",
+        "Mt 4:7",
+        "Lk 4:12",
+        "Ex 17:1–7",
+        "Dt 9:22",
+        "Dt 33:8",
+        "Ps 95:8–9"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 17,
+      "textLength": 99,
+      "textPreview": "Carefully observe the commands of the Lord your God, the decrees and statutes he",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 18,
+      "textLength": 170,
+      "textPreview": "Do what is right and good in the Lord’s sight, so that you may prosper and so th",
+      "crossRefLabels": [
+        "Dt 8:7",
+        "Dt 1:35"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 19,
+      "textLength": 65,
+      "textPreview": "by driving out all your enemies before you, as the Lord has said.",
+      "crossRefLabels": [
+        "Ex 34:11"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 20,
+      "textLength": 142,
+      "textPreview": "“When your son asks you in the future, ‘What is the meaning of the decrees, stat",
+      "crossRefLabels": [
+        "Jos 4:21"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 21,
+      "textLength": 103,
+      "textPreview": "tell him, ‘We were slaves of Pharaoh in Egypt, but the Lord brought us out of Eg",
+      "crossRefLabels": [
+        "Ex 3:19",
+        "Ex 6:1",
+        "Ex 13:9",
+        "Ex 32:11",
+        "Nm 20:20",
+        "Dt 4:34",
+        "Dt 5:15",
+        "Dt 7:8",
+        "Dt 9:26",
+        "Dt 26:8",
+        "Ps 136:12",
+        "Jr 32:21",
+        "Ezk 20:33–34",
+        "Dn 9:15"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 22,
+      "textLength": 122,
+      "textPreview": "Before our eyes the Lord inflicted great and devastating signs and wonders on Eg",
+      "crossRefLabels": [
+        "Neh 9:10",
+        "Ps 135:9",
+        "Is 20:3",
+        "Jr 32:20"
+      ],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 23,
+      "textLength": 104,
+      "textPreview": "but he brought us from there in order to lead us in and give us the land that he",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 24,
+      "textLength": 147,
+      "textPreview": "The Lord commanded us to follow all these statutes and to fear the Lord our God ",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    },
+    {
+      "number": 25,
+      "textLength": 132,
+      "textPreview": "Righteousness will be ours if we are careful to follow every one of these comman",
+      "crossRefLabels": [],
+      "footnoteMarkers": []
+    }
+  ]
+}

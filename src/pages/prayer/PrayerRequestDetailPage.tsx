@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, Link2, Trash2 } from "lucide-react";
+import { Loader2, Link2, PartyPopper, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PrayerShell from "@/components/prayer/PrayerShell";
 import PrayerRequestStatusBadge from "@/components/prayer/PrayerRequestStatusBadge";
 import PrayerRequestForm from "@/components/prayer/PrayerRequestForm";
 import PrayerTimelineView from "@/components/prayer/PrayerTimelineView";
 import PrayerLinkPicker from "@/components/prayer/PrayerLinkPicker";
+import PrayerAnswerFieldsSection from "@/components/prayer/PrayerAnswerFieldsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +25,9 @@ import { deletePrayerRequest, updatePrayerRequest } from "@/lib/prayer/api";
 import { PRAYER_STATUSES, PRAYER_STATUS_LABELS, CELEBRATION_STATUSES } from "@/lib/prayer/statuses";
 import { PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
 import { formatDisplayDate } from "@/lib/prayer/stats";
-import { formatLedgerAmount } from "@/lib/prayer/money";
+import { formatLedgerAmount, parseLedgerAmount } from "@/lib/prayer/money";
+import { mergeScriptureDisplay } from "@/lib/prayer/scriptureDisplay";
+import { localDateISO } from "@/lib/habits/dates";
 import type { PrayerRequestStatus } from "@/lib/prayer/types";
 
 export default function PrayerRequestDetailPage() {
@@ -36,6 +39,13 @@ export default function PrayerRequestDetailPage() {
   const [linkOpen, setLinkOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteBody, setNoteBody] = useState("");
+  const [showPartialForm, setShowPartialForm] = useState(false);
+  const [partialAnsweredAt, setPartialAnsweredAt] = useState("");
+  const [partialAmount, setPartialAmount] = useState("");
+  const [partialStory, setPartialStory] = useState("");
+  const [editAnsweredAt, setEditAnsweredAt] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editStory, setEditStory] = useState("");
 
   const {
     request,
@@ -47,6 +57,13 @@ export default function PrayerRequestDetailPage() {
     linkArtifact,
     linkVerse,
   } = usePrayerRequestDetail(user?.id, id);
+
+  useEffect(() => {
+    if (!request) return;
+    setEditAnsweredAt(request.answered_at ?? "");
+    setEditAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setEditStory(request.answer_text ?? "");
+  }, [request]);
 
   if (loading || detailLoading) {
     return (
@@ -60,6 +77,17 @@ export default function PrayerRequestDetailPage() {
 
   if (!user) return <Navigate to="/auth" replace />;
   if (!request) return <Navigate to="/prayer/requests" replace />;
+
+  const mergedScriptures = mergeScriptureDisplay(request.scripture_refs, events);
+  const hasAnswerData =
+    request.answered_at != null ||
+    request.amount_provided != null ||
+    (request.answer_text != null && request.answer_text.trim().length > 0);
+  const canRecordFullAnswer =
+    request.status === "waiting" && !request.praise_report_entry_id;
+  const canRecordPartial =
+    (request.status === "waiting" || request.status === "partial") &&
+    !request.praise_report_entry_id;
 
   const onStatusChange = async (status: PrayerRequestStatus) => {
     if (CELEBRATION_STATUSES.includes(status) && !request.praise_report_entry_id) {
@@ -76,6 +104,57 @@ export default function PrayerRequestDetailPage() {
       }
     } catch (e) {
       toast({ title: "Update failed", description: String(e), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openPartialForm = () => {
+    setPartialAnsweredAt(request.answered_at ?? localDateISO());
+    setPartialAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setPartialStory(request.answer_text ?? "");
+    setShowPartialForm(true);
+  };
+
+  const savePartialProvision = async () => {
+    const hasAny =
+      partialAnsweredAt.trim() ||
+      partialAmount.trim() ||
+      partialStory.trim();
+    if (!hasAny) {
+      toast({ title: "Add at least one detail", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await updatePrayerRequest(user.id, request.id, {
+        status: "partial",
+        answered_at: partialAnsweredAt.trim() || null,
+        amount_provided: parseLedgerAmount(partialAmount),
+        answer_text: partialStory.trim() || null,
+      });
+      await reload();
+      setShowPartialForm(false);
+      toast({ title: "Partial provision recorded" });
+    } catch (e) {
+      toast({ title: "Could not save", description: String(e), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAnswerFields = async () => {
+    setBusy(true);
+    try {
+      await updatePrayerRequest(user.id, request.id, {
+        answered_at: editAnsweredAt.trim() || null,
+        amount_provided: parseLedgerAmount(editAmount),
+        answer_text: editStory.trim() || null,
+      });
+      await reload();
+      toast({ title: "Ledger answer fields updated" });
+    } catch (e) {
+      toast({ title: "Could not save", description: String(e), variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -115,7 +194,12 @@ export default function PrayerRequestDetailPage() {
             prayerText: request.prayer_text,
             privateNotes: request.private_notes,
             scriptureRefs: request.scripture_refs,
+            answeredAt: request.answered_at ?? "",
+            amountProvided:
+              request.amount_provided != null ? String(request.amount_provided) : "",
+            answerText: request.answer_text ?? "",
           }}
+          showAnswerFields={hasAnswerData || request.status === "partial"}
           submitLabel="Save changes"
           busy={busy}
           onSubmit={async (values) => {
@@ -131,6 +215,14 @@ export default function PrayerRequestDetailPage() {
                 prayer_text: values.prayerText,
                 private_notes: values.privateNotes,
                 scripture_refs: values.scriptureRefs,
+                ...(hasAnswerData || request.status === "partial"
+                  ? {
+                      answered_at: values.answeredAt?.trim() || null,
+                      amount_provided:
+                        values.amountProvidedNum ?? parseLedgerAmount(values.amountProvided ?? ""),
+                      answer_text: values.answerText?.trim() || null,
+                    }
+                  : {}),
               });
               await reload();
               toast({ title: "Saved" });
@@ -175,7 +267,95 @@ export default function PrayerRequestDetailPage() {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Story, Answered date, and Received amount are recorded when you mark a need answered — not
+            in Edit. Use the buttons below or change status to Answered.
+          </p>
         </div>
+
+        {canRecordFullAnswer ? (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-50/50 p-4 dark:bg-amber-950/20 space-y-3">
+            <div className="flex items-start gap-3">
+              <PartyPopper className="h-5 w-5 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Ready to record provision?</p>
+                <p className="text-xs text-muted-foreground">
+                  Fill in the ledger Story, Answered, and Received columns and create a praise report.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => navigate(`/prayer/requests/${request.id}/celebrate`)}>
+              Record how God provided
+            </Button>
+          </div>
+        ) : null}
+
+        {canRecordPartial ? (
+          <section className="rounded-xl border border-border/60 p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Partial provision</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Record what God has provided so far without closing the need. Updates the ledger
+                Answered, Received, and Story columns.
+              </p>
+            </div>
+            {showPartialForm ? (
+              <>
+                <PrayerAnswerFieldsSection
+                  answeredAt={partialAnsweredAt}
+                  amountProvided={partialAmount}
+                  answerText={partialStory}
+                  onAnsweredAtChange={setPartialAnsweredAt}
+                  onAmountProvidedChange={setPartialAmount}
+                  onAnswerTextChange={setPartialStory}
+                  disabled={busy}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" disabled={busy} onClick={() => void savePartialProvision()}>
+                    Save partial provision
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowPartialForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button size="sm" variant="outline" onClick={openPartialForm}>
+                Record partial provision
+              </Button>
+            )}
+          </section>
+        ) : null}
+
+        {hasAnswerData ? (
+          <section className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 p-4 dark:bg-emerald-950/20 space-y-3">
+            <div>
+              <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                Ledger answer fields
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Edit what appears in the Answered, Received, and Story columns.
+              </p>
+            </div>
+            <PrayerAnswerFieldsSection
+              answeredAt={editAnsweredAt}
+              amountProvided={editAmount}
+              answerText={editStory}
+              onAnsweredAtChange={setEditAnsweredAt}
+              onAmountProvidedChange={setEditAmount}
+              onAnswerTextChange={setEditStory}
+              disabled={busy}
+            />
+            <Button size="sm" disabled={busy} onClick={() => void saveAnswerFields()}>
+              Save answer fields
+            </Button>
+            {request.praise_report_entry_id ? (
+              <Button asChild variant="link" className="h-auto p-0 text-emerald-700 dark:text-emerald-300">
+                <Link to={`/journal/${request.praise_report_entry_id}`}>View praise report</Link>
+              </Button>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border/60 bg-muted/20 p-4 text-sm">
           <div>
@@ -205,18 +385,21 @@ export default function PrayerRequestDetailPage() {
           </section>
         ) : null}
 
-        {request.scripture_refs.length > 0 ? (
+        {mergedScriptures.length > 0 ? (
           <section>
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Scriptures
             </h2>
             <ul className="flex flex-wrap gap-2">
-              {request.scripture_refs.map((s) => (
-                <li key={s.ref} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                  {s.ref}
+              {mergedScriptures.map((ref) => (
+                <li key={ref} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                  {ref}
                 </li>
               ))}
             </ul>
+            <p className="text-xs text-muted-foreground mt-2">
+              Shown in the ledger Scripture column. Add more via Edit or Link content.
+            </p>
           </section>
         ) : null}
 
@@ -228,20 +411,6 @@ export default function PrayerRequestDetailPage() {
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {request.private_notes}
             </p>
-          </section>
-        ) : null}
-
-        {request.answer_text ? (
-          <section className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 p-4 dark:bg-emerald-950/20">
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-200 mb-2">
-              Answer
-            </h2>
-            <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{request.answer_text}</p>
-            {request.praise_report_entry_id ? (
-              <Button asChild variant="link" className="mt-2 h-auto p-0 text-emerald-700 dark:text-emerald-300">
-                <Link to={`/journal/${request.praise_report_entry_id}`}>View praise report</Link>
-              </Button>
-            ) : null}
           </section>
         ) : null}
 
