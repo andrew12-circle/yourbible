@@ -16,16 +16,26 @@ type Props = {
   title?: string;
   back?: string;
   hideTabs?: boolean;
+  /** Full-width layout for ledger / table views (default is narrow reading width). */
+  wide?: boolean;
 };
 
-export default function PrayerShell({ children, title, back = "/prayer", hideTabs = false }: Props) {
+export default function PrayerShell({
+  children,
+  title,
+  back = "/prayer",
+  hideTabs = false,
+  wide = false,
+}: Props) {
   const { pathname } = useLocation();
   const { showHubShell } = useAppShellMode();
+  const contentWidth = wide ? "max-w-none" : "max-w-3xl";
+  const contentPad = wide ? "px-4 lg:px-6" : "px-4";
 
   return (
     <div className={cn(hubShellPageRoot(showHubShell), "flex min-h-0 flex-1 flex-col")}>
       <header className="shrink-0 border-b border-border/60 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
+        <div className={cn("mx-auto flex w-full items-center gap-3 py-3", contentWidth, contentPad)}>
           <Link
             to={back}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -38,7 +48,7 @@ export default function PrayerShell({ children, title, back = "/prayer", hideTab
           </div>
         </div>
         {!hideTabs ? (
-          <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 pb-2">
+          <nav className={cn("mx-auto flex w-full gap-1 overflow-x-auto pb-2", contentWidth, contentPad)}>
             {TABS.map((tab) => {
               const active = tab.end
                 ? pathname === tab.to
@@ -61,7 +71,14 @@ export default function PrayerShell({ children, title, back = "/prayer", hideTab
           </nav>
         ) : null}
       </header>
-      <main className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-5 pb-safe-28">
+      <main
+        className={cn(
+          "mx-auto min-h-0 w-full flex-1 overflow-y-auto py-5 pb-safe-28",
+          contentWidth,
+          contentPad,
+          wide && "overflow-x-hidden",
+        )}
+      >
         {children}
       </main>
     </div>

@@ -64,7 +64,7 @@ export default function PrayerRequestsListPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <PrayerShell title="Provision ledger">
+    <PrayerShell title="Provision ledger" wide>
       <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
         Your Müller-style log: item, amount, deadline, purpose, status — then mark answered with what God
         actually provided and the story behind it.

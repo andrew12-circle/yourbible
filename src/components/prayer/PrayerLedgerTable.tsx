@@ -10,7 +10,6 @@ import {
 import PrayerRequestStatusBadge from "@/components/prayer/PrayerRequestStatusBadge";
 import { cn } from "@/lib/utils";
 import { formatLedgerAmount } from "@/lib/prayer/money";
-import { formatDisplayDate } from "@/lib/prayer/stats";
 import type { PrayerRequestRow } from "@/lib/prayer/types";
 
 function shortDate(iso: string | null): string {
@@ -41,24 +40,35 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
   );
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto -mx-4 px-4">
-        <Table className="min-w-[1100px] w-full border-separate border-spacing-0 text-sm">
+    <div className="min-w-0 space-y-3">
+      <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-border/60">
+        <Table className="w-full min-w-0 table-fixed border-separate border-spacing-0 text-sm">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+            <col className="w-[7%]" />
+            <col className="w-[12%]" />
+            <col className="w-[7%]" />
+            <col className="w-[9%]" />
+            <col className="w-[7%]" />
+            <col className="w-[8%]" />
+            <col className="w-[13%]" />
+            <col className="w-[10%]" />
+            <col className="w-[6%]" />
+          </colgroup>
           <TableHeader>
             <TableRow className="bg-amber-200/90 hover:bg-amber-200/90 border-b border-amber-400/50 dark:bg-amber-950/60">
-              <TableHead className="sticky left-0 z-[2] bg-amber-200/95 dark:bg-amber-950/80 font-semibold min-w-[160px]">
-                Item
-              </TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[100px]">Amount</TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[90px]">Deadline</TableHead>
-              <TableHead className="font-semibold min-w-[120px]">Purpose</TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[90px]">Requested</TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[100px]">Status</TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[90px]">Answered</TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-[100px]">Received</TableHead>
-              <TableHead className="font-semibold min-w-[140px]">Story</TableHead>
-              <TableHead className="font-semibold min-w-[120px]">Notes</TableHead>
-              <TableHead className="font-semibold min-w-[100px]">Scripture</TableHead>
+              <TableHead className="bg-amber-200/95 font-semibold dark:bg-amber-950/80">Item</TableHead>
+              <TableHead className="font-semibold">Amount</TableHead>
+              <TableHead className="font-semibold">Deadline</TableHead>
+              <TableHead className="font-semibold">Purpose</TableHead>
+              <TableHead className="font-semibold">Requested</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Answered</TableHead>
+              <TableHead className="font-semibold">Received</TableHead>
+              <TableHead className="font-semibold">Story</TableHead>
+              <TableHead className="font-semibold">Notes</TableHead>
+              <TableHead className="font-semibold">Scripture</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -75,22 +85,30 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                     fulfilled && "bg-emerald-50/50 dark:bg-emerald-950/15",
                   )}
                 >
-                  <TableCell className="sticky left-0 z-[1] bg-inherit font-medium">
-                    <Link to={`/prayer/requests/${row.id}`} className="hover:underline">
+                  <TableCell className="font-medium align-top">
+                    <Link
+                      to={`/prayer/requests/${row.id}`}
+                      className="line-clamp-2 hover:underline"
+                      title={row.title}
+                    >
                       {row.title}
                     </Link>
                   </TableCell>
-                  <TableCell className="tabular-nums whitespace-nowrap">
+                  <TableCell className="tabular-nums align-top whitespace-nowrap">
                     {formatLedgerAmount(row.amount_requested)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                  <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
                     {shortDate(row.deadline)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{clip(row.purpose, 40)}</TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                  <TableCell className="align-top text-muted-foreground">
+                    <span className="line-clamp-2" title={row.purpose || undefined}>
+                      {clip(row.purpose, 80) || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
                     {shortDate(row.requested_at)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     {onMarkAnswered &&
                     row.status === "waiting" &&
                     !row.praise_report_entry_id ? (
@@ -105,18 +123,28 @@ export default function PrayerLedgerTable({ rows, onMarkAnswered }: Props) {
                       <PrayerRequestStatusBadge status={row.status} />
                     )}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                  <TableCell className="align-top whitespace-nowrap text-muted-foreground text-xs">
                     {shortDate(row.answered_at)}
                   </TableCell>
-                  <TableCell className="tabular-nums whitespace-nowrap">
+                  <TableCell className="tabular-nums align-top whitespace-nowrap">
                     {formatLedgerAmount(row.amount_provided)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{clip(row.answer_text, 56)}</TableCell>
-                  <TableCell className="text-muted-foreground">{clip(row.private_notes, 40)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {row.scripture_refs.length
-                      ? row.scripture_refs.map((s) => s.ref).join(", ")
-                      : "—"}
+                  <TableCell className="align-top text-muted-foreground">
+                    <span className="line-clamp-2" title={row.answer_text || undefined}>
+                      {clip(row.answer_text, 80) || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-top text-muted-foreground">
+                    <span className="line-clamp-2" title={row.private_notes || undefined}>
+                      {clip(row.private_notes, 60) || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-top text-xs text-muted-foreground">
+                    <span className="line-clamp-2" title={row.scripture_refs.map((s) => s.ref).join(", ") || undefined}>
+                      {row.scripture_refs.length
+                        ? row.scripture_refs.map((s) => s.ref).join(", ")
+                        : "—"}
+                    </span>
                   </TableCell>
                 </TableRow>
               );
