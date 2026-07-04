@@ -82,6 +82,9 @@ const GlobalMediaPlayerHost = lazy(() =>
   import("./components/media/GlobalMediaPlayerHost").then((mod) => ({ default: mod.GlobalMediaPlayerHost })),
 );
 const GlobalArtifactVideoPip = lazy(() => import("./components/framework/GlobalArtifactVideoPip"));
+const GlobalArtifactDocumentPip = lazy(
+  () => import("./components/framework/GlobalArtifactDocumentPip"),
+);
 const MyAiPage = lazy(() => import("./pages/myai/MyAiPage"));
 const PartnerWalkPage = lazy(() => import("./pages/partner/PartnerWalkPage"));
 const PartnerAcceptPage = lazy(() => import("./pages/partner/PartnerAcceptPage"));
@@ -239,6 +242,7 @@ const App = () => (
               <GlobalMediaPlayerHost />
               <GlobalJournalQuickCapture />
               <GlobalArtifactVideoPip />
+              <GlobalArtifactDocumentPip />
               <LifeWeekReviewGate />
               <JournalVideoUploadRetry />
             </Suspense>

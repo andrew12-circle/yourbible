@@ -21,6 +21,7 @@ export function findYouTubeStaticShell(root: ParentNode | null): HTMLElement | n
 }
 
 export function buildArtifactVideoPopoutUrl(options: {
+  artifactId: string;
   videoId: string;
   startSeconds: number;
   autoplay: boolean;
@@ -28,6 +29,7 @@ export function buildArtifactVideoPopoutUrl(options: {
   openerOrigin?: string;
 }): string {
   const url = new URL(ARTIFACT_VIDEO_POPOUT_PATH, window.location.origin);
+  url.searchParams.set("aid", options.artifactId);
   url.searchParams.set("v", options.videoId);
   url.searchParams.set("t", String(Math.max(0, Math.floor(options.startSeconds))));
   if (options.autoplay) url.searchParams.set("ap", "1");
@@ -42,19 +44,22 @@ export function hideInlineShellForDocumentPip(shell: HTMLElement): void {
 }
 
 export function showInlineShellAfterDocumentPip(shell: HTMLElement): void {
+  if (!shell.isConnected) return;
   shell.style.visibility = "";
   shell.style.pointerEvents = "";
 }
 
 export type DocumentPipSession = {
   pipWindow: Window;
-  inlineShell: HTMLElement;
+  inlineShell: HTMLElement | null;
   onPageHide: () => void;
   onPipClick: () => void;
+  onPipMessage: (event: MessageEvent) => void;
 };
 
 export async function openYouTubeDocumentPip(options: {
-  inlineShell: HTMLElement;
+  inlineShell: HTMLElement | null;
+  artifactId: string;
   videoId: string;
   startSeconds: number;
   autoplay: boolean;
@@ -62,10 +67,24 @@ export async function openYouTubeDocumentPip(options: {
   width: number;
   height: number;
   onClose: () => void;
+  onActivate: () => void;
+  onPopoutMessage: (data: ArtifactVideoPopoutMessage) => void;
 }): Promise<DocumentPipSession | null> {
   if (!isDocumentPictureInPictureSupported()) return null;
 
-  const { inlineShell, videoId, startSeconds, autoplay, pageUrl, width, height, onClose } = options;
+  const {
+    inlineShell,
+    artifactId,
+    videoId,
+    startSeconds,
+    autoplay,
+    pageUrl,
+    width,
+    height,
+    onClose,
+    onActivate,
+    onPopoutMessage,
+  } = options;
   const docPip = window.documentPictureInPicture;
   if (!docPip) return null;
 
@@ -79,14 +98,24 @@ export async function openYouTubeDocumentPip(options: {
     return null;
   }
 
-  hideInlineShellForDocumentPip(inlineShell);
+  if (inlineShell) hideInlineShellForDocumentPip(inlineShell);
 
   const session: DocumentPipSession = {
     pipWindow,
     inlineShell,
     onPageHide: () => {},
     onPipClick: () => {
-      window.focus();
+      onActivate();
+    },
+    onPipMessage: (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (isArtifactVideoPopoutActivateMessage(event.data, window.location.origin, event.origin)) {
+        onActivate();
+        return;
+      }
+      if (isArtifactVideoPopoutMessage(event.data, window.location.origin, event.origin)) {
+        onPopoutMessage(event.data);
+      }
     },
   };
 
@@ -96,11 +125,13 @@ export async function openYouTubeDocumentPip(options: {
 
   pipWindow.addEventListener("pagehide", session.onPageHide);
   pipWindow.addEventListener("click", session.onPipClick);
+  pipWindow.addEventListener("message", session.onPipMessage);
 
   youtubeDocumentPipActiveRef.current = true;
   youtubeDocumentPipWindowRef.current = pipWindow;
 
   const popoutUrl = buildArtifactVideoPopoutUrl({
+    artifactId,
     videoId,
     startSeconds,
     autoplay,
@@ -114,11 +145,12 @@ export async function openYouTubeDocumentPip(options: {
 export function closeYouTubeDocumentPip(session: DocumentPipSession | null): void {
   if (!session || !youtubeDocumentPipActiveRef.current) return;
 
-  const { pipWindow, inlineShell, onPageHide, onPipClick } = session;
+  const { pipWindow, inlineShell, onPageHide, onPipClick, onPipMessage } = session;
   pipWindow.removeEventListener("pagehide", onPageHide);
   pipWindow.removeEventListener("click", onPipClick);
+  pipWindow.removeEventListener("message", onPipMessage);
 
-  showInlineShellAfterDocumentPip(inlineShell);
+  if (inlineShell) showInlineShellAfterDocumentPip(inlineShell);
 
   youtubeDocumentPipActiveRef.current = false;
   youtubeDocumentPipWindowRef.current = null;
@@ -135,6 +167,8 @@ export type ArtifactVideoPopoutMessage = {
   seconds: number;
   playing: boolean;
   closing?: boolean;
+  action?: "activate";
+  artifactId?: string;
 };
 
 export function isArtifactVideoPopoutMessage(
@@ -145,9 +179,18 @@ export function isArtifactVideoPopoutMessage(
   if (eventOrigin !== expectedOrigin) return false;
   if (!data || typeof data !== "object") return false;
   const msg = data as Partial<ArtifactVideoPopoutMessage>;
-  return (
-    msg.type === ARTIFACT_VIDEO_POPOUT_MESSAGE &&
-    typeof msg.seconds === "number" &&
-    typeof msg.playing === "boolean"
-  );
+  if (msg.type !== ARTIFACT_VIDEO_POPOUT_MESSAGE) return false;
+  if (msg.action === "activate") return true;
+  return typeof msg.seconds === "number" && typeof msg.playing === "boolean";
+}
+
+export function isArtifactVideoPopoutActivateMessage(
+  data: unknown,
+  expectedOrigin: string,
+  eventOrigin: string,
+): data is ArtifactVideoPopoutMessage & { action: "activate" } {
+  if (eventOrigin !== expectedOrigin) return false;
+  if (!data || typeof data !== "object") return false;
+  const msg = data as Partial<ArtifactVideoPopoutMessage>;
+  return msg.type === ARTIFACT_VIDEO_POPOUT_MESSAGE && msg.action === "activate";
 }

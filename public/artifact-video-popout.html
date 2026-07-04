@@ -12,12 +12,14 @@
         height: 100%;
         overflow: hidden;
         background: #000;
+        cursor: pointer;
       }
       iframe {
         display: block;
         width: 100%;
         height: 100%;
         border: 0;
+        pointer-events: auto;
       }
     </style>
   </head>
@@ -32,6 +34,7 @@
     <script>
       (function () {
         var params = new URLSearchParams(location.search);
+        var artifactId = params.get("aid") || "";
         var videoId = params.get("v") || "";
         var start = Math.max(0, parseInt(params.get("t") || "0", 10) || 0);
         var autoplay = params.get("ap") === "1" ? "1" : "0";
@@ -69,21 +72,37 @@
           );
         }
 
-        function notifyOpener(closing) {
-          if (!window.opener) return;
-          try {
-            window.opener.postMessage(
-              {
-                type: "yb-artifact-video-popout",
-                seconds: lastSeconds,
-                playing: playing,
-                closing: Boolean(closing),
-              },
-              openerOrigin,
-            );
-          } catch (_) {
-            /* ignore */
+        function postToHost(payload) {
+          var targets = [];
+          if (window.opener) targets.push(window.opener);
+          if (window.parent && window.parent !== window) targets.push(window.parent);
+          for (var i = 0; i < targets.length; i++) {
+            try {
+              targets[i].postMessage(payload, openerOrigin);
+            } catch (_) {
+              /* ignore */
+            }
           }
+        }
+
+        function notifyHost(closing) {
+          postToHost({
+            type: "yb-artifact-video-popout",
+            seconds: lastSeconds,
+            playing: playing,
+            closing: Boolean(closing),
+            artifactId: artifactId || undefined,
+          });
+        }
+
+        function notifyActivate() {
+          postToHost({
+            type: "yb-artifact-video-popout",
+            action: "activate",
+            seconds: lastSeconds,
+            playing: playing,
+            artifactId: artifactId || undefined,
+          });
         }
 
         function isYouTubeOrigin(origin) {
@@ -133,7 +152,7 @@
 
           if (msg.event === "onStateChange" && typeof msg.info === "number") {
             playing = msg.info === 1 || msg.info === 3;
-            notifyOpener(false);
+            notifyHost(false);
             return;
           }
 
@@ -144,25 +163,30 @@
             if (typeof msg.info.playerState === "number") {
               playing = msg.info.playerState === 1 || msg.info.playerState === 3;
             }
-            notifyOpener(false);
+            notifyHost(false);
           }
         });
 
         iframe.addEventListener("load", function () {
           startListening();
           requestCurrentTime();
-          notifyOpener(false);
+          notifyHost(false);
+        });
+
+        document.body.addEventListener("click", function (event) {
+          if (event.target === iframe) return;
+          notifyActivate();
         });
 
         iframe.src = buildEmbedSrc();
         setInterval(startListening, 2000);
         setInterval(requestCurrentTime, 250);
         setInterval(function () {
-          notifyOpener(false);
+          notifyHost(false);
         }, 2000);
 
         window.addEventListener("pagehide", function () {
-          notifyOpener(true);
+          notifyHost(true);
         });
       })();
     </script>

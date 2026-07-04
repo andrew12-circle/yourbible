@@ -32,7 +32,12 @@ import {
   type MyAiCompanionMode,
 } from "@/lib/myai/companionMode";
 import { textareaHeightForLines, useAutoGrowTextarea } from "@/hooks/useAutoGrowTextarea";
-import { myAiComposerColumn, myAiInputShell } from "@/lib/myai/myAiTheme";
+import {
+  myAiComposerColumn,
+  myAiComposerPill,
+  myAiComposerPillActive,
+  myAiInputShell,
+} from "@/lib/myai/myAiTheme";
 import { mobileBottomDockPadding, mobileBottomDockTransform } from "@/lib/shell/mobileShellClasses";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
 import { cn } from "@/lib/utils";
@@ -172,12 +177,54 @@ export default function MyAiComposer({
             placeholder={sending ? "Thinking…" : editingMessageId ? "Edit message" : "Ask anything"}
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
-              "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-1.5",
+              "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5",
               "text-base leading-snug shadow-none placeholder:text-muted-foreground/70 md:text-[13px]",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
               "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
             )}
           />
+
+          <div className="flex flex-wrap items-center gap-2 px-2 pb-1 pt-0.5">
+            <button
+              type="button"
+              className={cn(
+                companionMode === "inward" ? myAiComposerPillActive : myAiComposerPill,
+              )}
+              aria-pressed={companionMode === "inward"}
+              aria-label={MY_AI_COMPANION_MODE_LABELS.inward}
+              title={MY_AI_COMPANION_MODE_HINTS.inward}
+              onClick={() =>
+                onCompanionModeChange(companionMode === "inward" ? "chatgpt" : "inward")
+              }
+            >
+              <Brain className="h-3 w-3 shrink-0" />
+              Inward
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={myAiComposerPill}
+                  aria-label="Response depth"
+                >
+                  {DEPTH_LABELS[responseDepth]}
+                  <ChevronDown className="h-3 w-3 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                {(Object.keys(DEPTH_LABELS) as ResponseDepthSetting[]).map((mode) => (
+                  <DropdownMenuItem
+                    key={mode}
+                    onClick={() => onResponseDepthChange(mode)}
+                    className={cn(responseDepth === mode && "font-medium text-foreground")}
+                  >
+                    {DEPTH_LABELS[mode]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <div className="flex items-center justify-between gap-1 px-0.5 pb-0.5 pt-0">
             <DropdownMenu>
@@ -186,7 +233,7 @@ export default function MyAiComposer({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/10"
+                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   aria-label="Add and options"
                 >
                   <Plus className="h-5 w-5" />
@@ -268,58 +315,11 @@ export default function MyAiComposer({
             </DropdownMenu>
 
             <div className="flex shrink-0 items-center gap-0.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-8 gap-1 rounded-full px-2 text-xs font-medium",
-                  companionMode === "inward"
-                    ? "bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
-                    : "text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/10",
-                )}
-                aria-pressed={companionMode === "inward"}
-                aria-label={MY_AI_COMPANION_MODE_LABELS.inward}
-                title={MY_AI_COMPANION_MODE_HINTS.inward}
-                onClick={() =>
-                  onCompanionModeChange(companionMode === "inward" ? "chatgpt" : "inward")
-                }
-              >
-                <Brain className="h-3.5 w-3.5" />
-                Inward
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-0.5 rounded-full px-2 text-xs font-medium text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/10"
-                    aria-label="Response depth"
-                  >
-                    {DEPTH_LABELS[responseDepth]}
-                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  {(Object.keys(DEPTH_LABELS) as ResponseDepthSetting[]).map((mode) => (
-                    <DropdownMenuItem
-                      key={mode}
-                      onClick={() => onResponseDepthChange(mode)}
-                      className={cn(responseDepth === mode && "font-medium text-foreground")}
-                    >
-                      {DEPTH_LABELS[mode]}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
               <DictateButton
                 ref={dictateRef}
                 userId={userId}
                 size="md"
-                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/10"
+                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                 onAppend={(chunk) => {
                   onInputChange((prev) => mergeDictatedText(prev, chunk));
                 }}
@@ -335,7 +335,7 @@ export default function MyAiComposer({
                     ? "bg-foreground text-background hover:bg-foreground/90"
                     : canSend
                       ? "bg-blue-600 text-white hover:bg-blue-600/90"
-                      : "bg-transparent text-muted-foreground/40 hover:bg-black/[0.04] dark:hover:bg-white/10",
+                      : "bg-transparent text-muted-foreground/40 hover:bg-muted/80",
                 )}
                 disabled={!showStop && !canSend}
                 onClick={showStop ? onStop : handleSend}
@@ -367,7 +367,7 @@ export default function MyAiComposer({
           />
         ) : null}
 
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/70">
           {companionMode === "inward"
             ? "Inward companion — your library first, with citations when sources match."
             : "My AI can make mistakes. ChatGPT-style answers enriched with your library when relevant."}

@@ -93,8 +93,8 @@ export default function ArtifactYoutubePipOverlay({
               type="button"
               onClick={onEnterDocumentPip}
               onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Pop out player to keep watching in other tabs"
-              title="Pop out player"
+              aria-label="Desktop PiP — keep watching while you work"
+              title="Desktop PiP"
               className="rounded-full p-1 text-white hover:bg-white/15"
             >
               <PictureInPicture2 className="h-4 w-4" aria-hidden />

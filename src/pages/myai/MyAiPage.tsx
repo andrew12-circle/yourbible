@@ -44,6 +44,7 @@ import {
   type MyAiCompanionMode,
 } from "@/lib/myai/companionMode";
 import { MyAiMark } from "@/components/myai/MyAiMark";
+import { myAiChatTitle } from "@/lib/myai/myAiTheme";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -751,145 +752,147 @@ export default function MyAiPage() {
         <section className="relative flex min-w-0 flex-1 flex-col bg-background">
           <header
             className={cn(
-              "sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-border bg-background/90 backdrop-blur-md px-2 pb-2 sm:px-3",
+              "sticky top-0 z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
               showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
             )}
             style={vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
           >
-            {!showHubShell && (
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            )}
-
-            <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:hidden" aria-label="Open chats">
-                  <Menu className="h-5 w-5" />
+            <div className="flex min-w-0 items-center gap-0.5 justify-self-start">
+              {!showHubShell && (
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[min(100%,300px)] p-0">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Chats</SheetTitle>
-                </SheetHeader>
-                <div className="h-full">{sidebarContent}</div>
-              </SheetContent>
-            </Sheet>
+              )}
 
-            {!sidebarOpen && (
+              <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:hidden" aria-label="Open chats">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[min(100%,300px)] p-0">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Chats</SheetTitle>
+                  </SheetHeader>
+                  <div className="h-full">{sidebarContent}</div>
+                </SheetContent>
+              </Sheet>
+
+              {!sidebarOpen && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-9 w-9 shrink-0 md:inline-flex"
+                  onClick={() => persistSidebar(true)}
+                  aria-label="Open sidebar"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </Button>
+              )}
+
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="hidden h-9 w-9 shrink-0 md:inline-flex"
-                onClick={() => persistSidebar(true)}
-                aria-label="Open sidebar"
+                className="h-9 w-9 shrink-0 md:hidden"
+                onClick={newChat}
+                aria-label="New chat"
               >
-                <PanelLeft className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
               </Button>
-            )}
+            </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 md:hidden"
-              onClick={newChat}
-              aria-label="New chat"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-
-            <MyAiMark size="md" />
-
-            <h1 className="min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:text-[13px]" title={headerTitleFull}>
+            <h1 className={cn(myAiChatTitle, "max-w-[min(100%,20rem)] justify-self-center px-1")} title={headerTitleFull}>
               {headerTitle}
             </h1>
 
-            {routeChatId && visibleMessages.length > 0 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 sm:hidden"
-                  disabled={savingJournal || sending}
-                  aria-label="Save to journal"
-                  onClick={() => void saveAsJournalEntry()}
-                >
-                  {savingJournal ? <Loader2 className="h-4 w-4 animate-spin" /> : <NotebookPen className="h-4 w-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden h-8 shrink-0 gap-1.5 px-2 text-xs sm:inline-flex"
-                  disabled={savingJournal || sending}
-                  onClick={() => void saveAsJournalEntry()}
-                >
-                  {savingJournal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <NotebookPen className="h-3.5 w-3.5" />}
-                  Save
-                </Button>
-              </>
-            )}
+            <div className="flex min-w-0 items-center gap-0.5 justify-self-end">
+              {routeChatId && visibleMessages.length > 0 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 sm:hidden"
+                    disabled={savingJournal || sending}
+                    aria-label="Save to journal"
+                    onClick={() => void saveAsJournalEntry()}
+                  >
+                    {savingJournal ? <Loader2 className="h-4 w-4 animate-spin" /> : <NotebookPen className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden h-8 shrink-0 gap-1.5 px-2 text-xs sm:inline-flex"
+                    disabled={savingJournal || sending}
+                    onClick={() => void saveAsJournalEntry()}
+                  >
+                    {savingJournal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <NotebookPen className="h-3.5 w-3.5" />}
+                    Save
+                  </Button>
+                </>
+              )}
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Chat settings">
-                  <Settings2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72" align="end">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="my-ai-inward-pop" className="text-sm">
-                        {MY_AI_COMPANION_MODE_LABELS.inward}
-                      </Label>
-                      <p className="text-[11px] leading-snug text-muted-foreground">
-                        {MY_AI_COMPANION_MODE_HINTS.inward}
-                      </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Chat settings">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72" align="end">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="my-ai-inward-pop" className="text-sm">
+                          {MY_AI_COMPANION_MODE_LABELS.inward}
+                        </Label>
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          {MY_AI_COMPANION_MODE_HINTS.inward}
+                        </p>
+                      </div>
+                      <Switch
+                        id="my-ai-inward-pop"
+                        checked={companionMode === "inward"}
+                        onCheckedChange={(v) => setCompanionMode(v ? "inward" : "chatgpt")}
+                      />
                     </div>
-                    <Switch
-                      id="my-ai-inward-pop"
-                      checked={companionMode === "inward"}
-                      onCheckedChange={(v) => setCompanionMode(v ? "inward" : "chatgpt")}
-                    />
-                  </div>
-                  {companionMode === "inward" ? (
-                    <>
+                    {companionMode === "inward" ? (
+                      <>
+                        <ResponseDepthControl
+                          idPrefix="my-ai-depth"
+                          value={responseDepth}
+                          onChange={setResponseDepth}
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="my-ai-outside-pop" className="text-sm">Outside knowledge</Label>
+                          <Switch
+                            id="my-ai-outside-pop"
+                            checked={includeGeneral}
+                            onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
+                          />
+                        </div>
+                      </>
+                    ) : (
                       <ResponseDepthControl
                         idPrefix="my-ai-depth"
                         value={responseDepth}
                         onChange={setResponseDepth}
                       />
-                      <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="my-ai-outside-pop" className="text-sm">Outside knowledge</Label>
-                        <Switch
-                          id="my-ai-outside-pop"
-                          checked={includeGeneral}
-                          onCheckedChange={(v) => setIncludeGeneral(Boolean(v))}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <ResponseDepthControl
-                      idPrefix="my-ai-depth"
-                      value={responseDepth}
-                      onChange={setResponseDepth}
-                    />
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              aria-label="What My AI knows about you"
-              onClick={() => setStateOpen(true)}
-            >
-              <Brain className="h-4 w-4 text-muted-foreground" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                aria-label="What My AI knows about you"
+                onClick={() => setStateOpen(true)}
+              >
+                <Brain className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
           </header>
 
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4">

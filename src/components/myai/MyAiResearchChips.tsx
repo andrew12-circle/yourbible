@@ -4,6 +4,7 @@ import {
   MY_AI_RESEARCH_SCOPE_LABELS,
   type MyAiResearchScope,
 } from "@/lib/myai/researchScope";
+import { myAiComposerPill } from "@/lib/myai/myAiTheme";
 import { cn } from "@/lib/utils";
 
 const SCOPES: {
@@ -23,7 +24,7 @@ type Props = {
 
 export default function MyAiResearchChips({ disabled, onScope, className }: Props) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {SCOPES.map(({ scope, icon: Icon }) => (
         <button
           key={scope}
@@ -32,9 +33,7 @@ export default function MyAiResearchChips({ disabled, onScope, className }: Prop
           title={MY_AI_RESEARCH_SCOPE_HINTS[scope]}
           onClick={() => onScope(scope)}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-2.5 py-1",
-            "text-[11px] font-medium text-muted-foreground transition-colors",
-            "hover:border-blue-500/35 hover:bg-blue-500/5 hover:text-foreground",
+            myAiComposerPill,
             "disabled:pointer-events-none disabled:opacity-45",
           )}
         >

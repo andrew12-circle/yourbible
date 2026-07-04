@@ -4,6 +4,7 @@ import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePip
 import { useArtifactPlaybackPersistence } from "@/hooks/useArtifactPlaybackPersistence";
 import { useArtifactPipLayoutGestures } from "@/hooks/useArtifactPipLayoutGestures";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
+import { useArtifactGlobalDocumentPipStore } from "@/lib/framework/artifactGlobalDocumentPipStore";
 import { useArtifactGlobalVideoPipStore } from "@/lib/framework/artifactGlobalVideoPipStore";
 import { artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
 import { isArtifactDetailPath } from "@/pages/framework/FrameworkLayout";
@@ -19,6 +20,7 @@ export default function GlobalArtifactVideoPip() {
   const navigate = useNavigate();
   const session = useArtifactGlobalVideoPipStore((s) => s.session);
   const dismiss = useArtifactGlobalVideoPipStore((s) => s.dismiss);
+  const documentPipActive = useArtifactGlobalDocumentPipStore((s) => s.active);
 
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
   const resumeOnLoadRef = useRef(false);
@@ -128,6 +130,7 @@ export default function GlobalArtifactVideoPip() {
   }, [dismiss, navigate, persistSeconds, session, staticTelemetry]);
 
   if (!session || typeof document === "undefined") return null;
+  if (documentPipActive) return null;
   if (isArtifactDetailPath(pathname)) return null;
   if (!staticEmbedSrc) return null;
 

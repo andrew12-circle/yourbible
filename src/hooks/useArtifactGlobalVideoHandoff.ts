@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useArtifactGlobalDocumentPipStore } from "@/lib/framework/artifactGlobalDocumentPipStore";
 import { useArtifactGlobalVideoPipStore } from "@/lib/framework/artifactGlobalVideoPipStore";
 import type { ArtifactPipLayout } from "@/lib/framework/artifactYoutubePip";
 
@@ -41,6 +42,8 @@ export function useArtifactGlobalVideoHandoff(options: {
   useEffect(() => {
     return () => {
       if (!artifactId || !youTubeVideoId) return;
+      const docPip = useArtifactGlobalDocumentPipStore.getState();
+      if (docPip.active && docPip.session?.artifactId === artifactId) return;
       const existing = useArtifactGlobalVideoPipStore.getState().session;
       if (existing?.artifactId === artifactId) return;
       if (!getWantsContinuousPlaybackRef.current()) return;

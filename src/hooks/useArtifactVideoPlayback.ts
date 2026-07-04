@@ -12,6 +12,7 @@ import {
 import { mergePlaybackWithBackgroundHandoff } from "@/lib/framework/backgroundPlaybackHandoff";
 import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
+import { useArtifactGlobalDocumentPipStore } from "@/lib/framework/artifactGlobalDocumentPipStore";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
 export function useArtifactVideoPlayback(options: {
@@ -92,7 +93,9 @@ export function useArtifactVideoPlayback(options: {
 
   const documentPip = useYouTubeDocumentPip({
     enabled: pipEnabled && !apiPlayerWanted,
+    artifactId,
     youTubeVideoId,
+    title: videoTitle,
     videoSlotRef: youtubePip.videoSlotRef,
     pipLayout: youtubePip.pipOverlayLayout,
     getIsPlaying: () => getIsPlayingForDocPipRef.current(),
@@ -113,7 +116,14 @@ export function useArtifactVideoPlayback(options: {
     embedPrimedRef.current = false;
     setEmbedLoaded(false);
     setApiPlayerWanted(false);
-    documentPip.exitDocumentPip();
+    const globalDocPip = useArtifactGlobalDocumentPipStore.getState();
+    if (
+      globalDocPip.active &&
+      (globalDocPip.session?.artifactId !== artifactId ||
+        globalDocPip.session?.youTubeVideoId !== youTubeVideoId)
+    ) {
+      documentPip.exitDocumentPip();
+    }
     const local = artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
     const merged = artifactId ? mergePlaybackWithBackgroundHandoff(local, artifactId) : local;
     lockedEmbedStartRef.current = merged;

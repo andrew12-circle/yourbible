@@ -179,8 +179,8 @@ export default function ArtifactVideoStage({
         <button
           type="button"
           onClick={onEnterDocumentPip}
-          aria-label="Pop out player to keep watching in other tabs"
-          title="Pop out player"
+          aria-label="Desktop PiP — keep watching while you work"
+          title="Desktop PiP"
           className="absolute right-2 top-2 z-[5] rounded-full bg-black/55 p-1.5 text-white hover:bg-black/75"
         >
           <PictureInPicture2 className="h-4 w-4" aria-hidden />
