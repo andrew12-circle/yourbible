@@ -44,11 +44,20 @@ if (missing.length > 0) {
   const lines = missing
     .map(([name, example]) => `  • ${name} (e.g. ${example})`)
     .join("\n");
-  console.error(
+  const message =
     "\n[build] Missing required environment variables:\n" +
-      lines +
-      "\n\nSet them in Vercel → Project → Settings → Environment Variables (Production),\n" +
-      "then redeploy. For local dev, copy .env.example to .env.\n",
-  );
+    lines +
+    "\n\nSet them in Vercel → Project → Settings → Environment Variables (Production),\n" +
+    "then redeploy. For local dev, copy .env.example to .env.\n";
+
+  if (process.env.VERCEL_ENV === "preview") {
+    console.warn(
+      message +
+        "\nContinuing preview build; the app will render its runtime configuration error screen.\n",
+    );
+    process.exit(0);
+  }
+
+  console.error(message);
   process.exit(1);
 }
