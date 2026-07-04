@@ -53,7 +53,7 @@ import {
 import { loadMyAiChatsForSidebar } from "@/lib/myai/loadMyAiChats";
 import { resolveUntitledChats } from "@/lib/myai/resolveChatTitles";
 import type { MyAiChatListItem, MyAiProjectRow } from "@/lib/myai/chatSections";
-import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
+import { mobileCenteredScreen, mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import {
   createMyAiProject,
   deleteMyAiProject,
@@ -315,7 +315,7 @@ export default function MyAiPage() {
   const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
-  const { keyboardInset: kbInset, offsetTop: vvOffsetTop } = useVisualViewportMetrics();
+  const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } = useVisualViewportMetrics();
   const [composerFocused, setComposerFocused] = useState(false);
 
   const [chats, setChats] = useState<ChatRow[]>([]);
@@ -443,6 +443,7 @@ export default function MyAiPage() {
   const headerTitleFull = activeChat?.title?.trim() || "My AI";
   const showWelcome = !loadingMessages && messages.length === 0 && !sending;
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const keyboardViewportPage = !showHubShell && kbInset > 0;
   const lastAssistantId = [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id;
   const streamingAssistantId = sending
     ? [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id ?? null
@@ -740,7 +741,15 @@ export default function MyAiPage() {
   );
 
   return (
-    <div className={cn("flex flex-col overflow-hidden bg-background", showHubShell ? "h-full min-h-0" : "h-[100dvh]")}>
+    <div
+      className={cn("flex flex-col overflow-hidden bg-background", showHubShell ? "h-full min-h-0" : "h-[100dvh]")}
+      style={mobileVisualViewportPageStyle({
+        keyboardInset: kbInset,
+        offsetTop: vvOffsetTop,
+        viewportHeight,
+        enabled: keyboardViewportPage,
+      })}
+    >
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -754,7 +763,7 @@ export default function MyAiPage() {
               "sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-border bg-background/90 backdrop-blur-md px-2 pb-2 sm:px-3",
               showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
             )}
-            style={vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
+            style={!keyboardViewportPage && vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
           >
             {!showHubShell && (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
@@ -1004,7 +1013,7 @@ export default function MyAiPage() {
             savingJournal={savingJournal}
             onNewChat={newChat}
             onOpenCognitiveState={() => setStateOpen(true)}
-            keyboardInset={kbInset}
+            keyboardInset={keyboardViewportPage ? 0 : kbInset}
             onComposerPointerDown={() => {
               composerLockScrollYRef.current = window.scrollY;
             }}
