@@ -91,8 +91,8 @@ function StreamCursor() {
 export default function ChatAssistantMarkdown({ content, className, streaming = false }: Props) {
   if (streaming) {
     return (
-      <div className={cn(CHAT_ASSISTANT_MARKDOWN_CLASS, className)}>
-        <p className="m-0 whitespace-pre-wrap text-[15px] leading-[1.9] text-foreground">
+      <div className={cn(CHAT_ASSISTANT_MARKDOWN_CLASS, "min-w-0 overflow-x-hidden", className)}>
+        <p className="m-0 whitespace-pre-wrap break-words text-[15px] leading-[1.9] text-foreground [overflow-wrap:anywhere]">
           {content}
           <StreamCursor />
         </p>
@@ -102,7 +102,13 @@ export default function ChatAssistantMarkdown({ content, className, streaming = 
 
   if (!content.trim()) return null;
   return (
-    <div className={cn(CHAT_ASSISTANT_MARKDOWN_CLASS, className)}>
+    <div
+      className={cn(
+        CHAT_ASSISTANT_MARKDOWN_CLASS,
+        "min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere]",
+        className,
+      )}
+    >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {prepareChatMarkdownForDisplay(content)}
       </ReactMarkdown>

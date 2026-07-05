@@ -56,6 +56,10 @@ import { resolveUntitledChats } from "@/lib/myai/resolveChatTitles";
 import type { MyAiChatListItem, MyAiProjectRow } from "@/lib/myai/chatSections";
 import { mobileCenteredScreen, mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
 import {
+  EMPTY_TRANSCRIPT_SCROLL_SNAPSHOT,
+  nextMyAiTranscriptScroll,
+} from "@/lib/myai/transcriptScroll";
+import {
   createMyAiProject,
   deleteMyAiProject,
   isMyAiProjectsTableMissing,
@@ -335,6 +339,7 @@ export default function MyAiPage() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const composerLockScrollYRef = useRef<number | null>(null);
+  const transcriptScrollSnapshotRef = useRef(EMPTY_TRANSCRIPT_SCROLL_SNAPSHOT);
 
   useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
@@ -408,8 +413,32 @@ export default function MyAiPage() {
   }, [routeChatId, loadMessages]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: sending ? "auto" : "smooth" });
-  }, [messages, sending]);
+    const { snapshot, target } = nextMyAiTranscriptScroll({
+      previous: transcriptScrollSnapshotRef.current,
+      chatId: routeChatId,
+      messages,
+      sending,
+    });
+    transcriptScrollSnapshotRef.current = snapshot;
+    if (target.type === "none") return;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      if (target.type === "message-start") {
+        const targetEl = Array.from(el.querySelectorAll<HTMLElement>("[data-my-ai-message-id]"))
+          .find((node) => node.dataset.myAiMessageId === target.messageId);
+        if (targetEl) {
+          const offset = targetEl.getBoundingClientRect().top - el.getBoundingClientRect().top;
+          el.scrollTo({ top: Math.max(0, el.scrollTop + offset - 16), behavior: "smooth" });
+          return;
+        }
+      }
+
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, [messages, routeChatId, sending]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -735,7 +764,10 @@ export default function MyAiPage() {
 
   return (
     <div
-      className={cn("flex flex-col overflow-hidden bg-background", showHubShell ? "h-full min-h-0" : "h-[100dvh]")}
+      className={cn(
+        "flex flex-col overflow-hidden bg-background",
+        showHubShell ? "h-full min-h-0" : "h-[100dvh]",
+      )}
       style={mobileVisualViewportPageStyle({
         keyboardInset: kbInset,
         offsetTop: vvOffsetTop,
@@ -750,7 +782,7 @@ export default function MyAiPage() {
           <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{sidebarContent}</aside>
         )}
 
-        <section className="relative flex min-w-0 flex-1 flex-col bg-background">
+        <section className="relative flex min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
           <header
             className={cn(
               "sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
@@ -914,7 +946,7 @@ export default function MyAiPage() {
             <>
           <div
             ref={scrollRef}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4"
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4"
           >
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
@@ -923,14 +955,14 @@ export default function MyAiPage() {
             )}
 
             {!loadingMessages && visibleMessages.length > 0 && (
-              <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">
+              <div className="mx-auto w-full max-w-2xl min-w-0 space-y-6 pb-6">
                 <ChatOpeningBlessing variant="transcript" />
                 {visibleMessages.map((m) => (
-                  <div key={m.id} className="group w-full">
+                  <div key={m.id} data-my-ai-message-id={m.id} className="group w-full min-w-0">
                     {m.role === "user" ? (
                       <div className="flex flex-col items-end">
                         <div className="max-w-[min(100%,36rem)] rounded-2xl bg-blue-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-blue-500/15 dark:bg-blue-500/15">
-                          <p className="whitespace-pre-wrap">{m.content}</p>
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.content}</p>
                         </div>
                         {!m.id.startsWith("pending-") ? (
                           <ChatMessageActions
@@ -942,7 +974,7 @@ export default function MyAiPage() {
                         ) : null}
                       </div>
                     ) : (
-                      <div className="max-w-none px-1 sm:px-2">
+                      <div className="min-w-0 max-w-none overflow-x-hidden px-1 sm:px-2">
                         {sending && m.id === streamingAssistantId ? (
                           <ChatAssistantMarkdown content={m.content} streaming />
                         ) : m.content ? (
