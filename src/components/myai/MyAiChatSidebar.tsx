@@ -32,7 +32,12 @@ import {
 import { LumenLanternMark } from "@/components/myai/LumenLanternMark";
 import { LUMEN_NAME } from "@/lib/myai/lumenBrand";
 import {
+  myAiSidebarBrandTitle,
+  myAiSidebarChatRow,
+  myAiSidebarChatRowMuted,
+  myAiSidebarFont,
   myAiSidebarGroupHeader,
+  myAiSidebarSectionCount,
   myAiSidebarSectionGap,
   myAiSidebarSectionHeader,
 } from "@/lib/myai/myAiTheme";
@@ -110,13 +115,19 @@ export default function MyAiChatSidebar({
         }
       }}
       className={cn(
-        "group mx-0.5 flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-lg px-2.5 py-2 text-[13px] transition-colors",
+        "group mx-0.5 flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-lg px-2.5 py-2.5 transition-colors",
         activeChatId === c.id
-          ? "bg-muted font-medium text-foreground"
-          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+          ? "bg-muted text-foreground"
+          : "hover:bg-muted/70 hover:text-foreground",
       )}
     >
-      <span className="min-w-0 flex-1 truncate leading-snug" title={c.title?.trim() || undefined}>
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate",
+          activeChatId === c.id ? myAiSidebarChatRow : myAiSidebarChatRowMuted,
+        )}
+        title={c.title?.trim() || undefined}
+      >
         {sidebarChatTitle(c.title)}
       </span>
       <DropdownMenu>
@@ -212,7 +223,7 @@ export default function MyAiChatSidebar({
               <Folder className="h-3 w-3 shrink-0 text-muted-foreground/70" />
             ) : null}
             <span className={myAiSidebarSectionHeader}>{section.label}</span>
-            <span className="text-[10px] text-muted-foreground/60">({section.chats.length})</span>
+            <span className={myAiSidebarSectionCount}>({section.chats.length})</span>
           </button>
           {projectId ? (
             <button
@@ -256,13 +267,16 @@ export default function MyAiChatSidebar({
   const showEmptySearch = query.length > 0 && sections.length === 0;
 
   return (
-    <div className="my-ai-chat-sidebar flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm">
+    <div
+      className={cn(
+        "my-ai-chat-sidebar flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm",
+        myAiSidebarFont,
+      )}
+    >
       <div className="flex flex-col gap-2 border-b border-border/50 px-2 py-2.5">
         <div className="flex min-w-0 items-center gap-3 px-1 py-0.5">
           <LumenLanternMark size="lg" />
-          <span className="truncate font-display text-[1.875rem] font-semibold leading-none tracking-tight text-foreground">
-            {LUMEN_NAME}
-          </span>
+          <span className={myAiSidebarBrandTitle}>{LUMEN_NAME}</span>
         </div>
 
         <div className="flex items-center gap-0.5 px-0.5">
@@ -307,7 +321,7 @@ export default function MyAiChatSidebar({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chats"
-            className="h-8 rounded-md border-transparent bg-muted/50 pl-8 text-xs placeholder:text-muted-foreground focus-visible:border-border focus-visible:bg-background"
+            className="h-8 rounded-md border-transparent bg-muted/50 pl-8 text-[13px] placeholder:text-muted-foreground focus-visible:border-border focus-visible:bg-background"
           />
         </div>
       </div>

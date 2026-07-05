@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import MyAiComposer from "@/components/myai/MyAiComposer";
 import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
 import MyAiWelcomeHero from "@/components/myai/MyAiWelcomeHero";
+import MyAiWelcomeExplainer from "@/components/myai/MyAiWelcomeExplainer";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
@@ -900,10 +901,11 @@ export default function MyAiPage() {
           </header>
 
           {showWelcome ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-safe sm:px-4">
-              <div className={cn(myAiComposerColumn, "w-full")}>
-                <MyAiWelcomeHero displayName={welcomeDisplayName} className="mb-8" />
-                <MyAiComposer
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 pb-safe sm:px-4">
+              <div className={cn(myAiComposerColumn, "relative flex w-full flex-col")}>
+                <div className="relative flex min-h-[min(420px,48vh)] flex-col justify-center">
+                  <MyAiWelcomeHero displayName={welcomeDisplayName} className="relative z-10 mb-5" />
+                  <MyAiComposer
                   layout="center"
                   input={input}
                   onInputChange={setInput}
@@ -940,6 +942,8 @@ export default function MyAiPage() {
                   welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
                   onWelcomeQuickPrompt={(prompt) => void send(prompt)}
                 />
+                </div>
+                <MyAiWelcomeExplainer className="relative z-10 mt-8 pb-2" />
               </div>
             </div>
           ) : (

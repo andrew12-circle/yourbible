@@ -42,6 +42,8 @@ import {
   myAiComposerPill,
   myAiComposerPillActive,
   myAiInputShell,
+  myAiWelcomeGlowOrb,
+  myAiWelcomeGlowShell,
 } from "@/lib/myai/myAiTheme";
 import { mobileBottomDockPadding, mobileBottomDockTransform } from "@/lib/shell/mobileShellClasses";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
@@ -196,7 +198,14 @@ export default function MyAiComposer({
           </div>
         ) : null}
 
-        <div className={myAiInputShell}>
+        <div className={cn(isCentered && "relative")}>
+          {isCentered ? (
+            <div className={myAiWelcomeGlowShell} aria-hidden>
+              <div className={myAiWelcomeGlowOrb} />
+            </div>
+          ) : null}
+
+          <div className={cn(myAiInputShell, isCentered && "relative z-10")}>
           <Textarea
             ref={taRef}
             value={displayInput}
@@ -422,6 +431,7 @@ export default function MyAiComposer({
               </Button>
             </div>
           </div>
+        </div>
         </div>
 
         {welcomeQuickPrompts?.length && onWelcomeQuickPrompt ? (
