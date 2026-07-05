@@ -29,7 +29,7 @@ import {
   type MyAiChatListItem,
   type MyAiProjectRow,
 } from "@/lib/myai/chatSections";
-import { LumenIcon } from "@/components/myai/LumenIcon";
+import { LumenLanternMark } from "@/components/myai/LumenLanternMark";
 import { LUMEN_NAME } from "@/lib/myai/lumenBrand";
 import {
   myAiSidebarGroupHeader,
@@ -257,14 +257,15 @@ export default function MyAiChatSidebar({
 
   return (
     <div className="my-ai-chat-sidebar flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm">
-      <div className="flex flex-col gap-1 border-b border-border/50 px-2 py-2">
-        <div className="flex items-center gap-1">
-          <div className="flex min-w-0 flex-1 items-center gap-2 px-1.5 py-1">
-            <LumenIcon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span className="truncate font-display text-[15px] font-semibold leading-tight tracking-tight text-foreground">
-              {LUMEN_NAME}
-            </span>
-          </div>
+      <div className="flex flex-col gap-2 border-b border-border/50 px-2 py-2.5">
+        <div className="flex min-w-0 items-center gap-3 px-1 py-0.5">
+          <LumenLanternMark size="lg" />
+          <span className="truncate font-display text-[1.875rem] font-semibold leading-none tracking-tight text-foreground">
+            {LUMEN_NAME}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-0.5 px-0.5">
           <Button
             type="button"
             variant="ghost"
