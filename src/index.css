@@ -1738,6 +1738,35 @@
     background: transparent;
   }
 
+  /* My AI chat list — lighter hairline thumb on hover; fixed width, no arrow buttons. */
+  .my-ai-sidebar-scroll {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .my-ai-chat-sidebar:hover .my-ai-sidebar-scroll {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+  .my-ai-sidebar-scroll::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  .my-ai-sidebar-scroll::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+  .my-ai-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  .my-ai-chat-sidebar:hover .my-ai-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+  }
+  .my-ai-sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
   .touch-pan-y { touch-action: pan-y; }
   .pt-safe { padding-top: max(1rem, var(--safe-area-inset-top)); }

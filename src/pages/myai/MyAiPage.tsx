@@ -6,7 +6,6 @@ import {
   Brain,
   Loader2,
   Menu,
-  NotebookPen,
   PanelLeft,
   Plus,
   Settings2,
@@ -26,6 +25,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import MyAiComposer from "@/components/myai/MyAiComposer";
 import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
+import MyAiWelcomeHero from "@/components/myai/MyAiWelcomeHero";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
@@ -43,8 +43,8 @@ import {
   readCompanionModeSetting,
   type MyAiCompanionMode,
 } from "@/lib/myai/companionMode";
-import { MyAiMark } from "@/components/myai/MyAiMark";
-import { myAiChatTitle } from "@/lib/myai/myAiTheme";
+import { myAiComposerColumn } from "@/lib/myai/myAiTheme";
+import { resolveProfileDisplayName } from "@/lib/profile/displayName";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
   persistResponseDepthSetting,
@@ -113,12 +113,6 @@ function readSidebarOpen(): boolean {
   const v = localStorage.getItem(LS_SIDEBAR);
   if (v === "0" || v === "false") return false;
   return true;
-}
-
-function displayChatTitle(title: string | null | undefined): string {
-  const t = title?.trim() || "My AI";
-  if (t.length <= 44) return t;
-  return `${t.slice(0, 41).trim()}…`;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -312,7 +306,7 @@ function TypingDots() {
 }
 
 export default function MyAiPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showHubShell } = useAppShellMode();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
@@ -439,11 +433,9 @@ export default function MyAiPage() {
   }
   if (!user) return <Navigate to="/auth" replace />;
 
-  const activeChat = chats.find((c) => c.id === routeChatId);
-  const headerTitle = displayChatTitle(activeChat?.title);
-  const headerTitleFull = activeChat?.title?.trim() || "My AI";
-  const showWelcome = !loadingMessages && messages.length === 0 && !sending;
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const showWelcome = !loadingMessages && visibleMessages.length === 0;
+  const welcomeDisplayName = resolveProfileDisplayName(profile, user);
   const keyboardViewportPage = !showHubShell && kbInset > 0;
   const lastAssistantId = [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id;
   const streamingAssistantId = sending
@@ -755,18 +747,18 @@ export default function MyAiPage() {
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {sidebarOpen && (
-          <aside className="hidden w-[240px] shrink-0 border-r border-border md:flex">{sidebarContent}</aside>
+          <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{sidebarContent}</aside>
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col bg-background">
           <header
             className={cn(
-              "sticky top-0 z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
+              "sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
               showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
             )}
             style={!keyboardViewportPage && vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
           >
-            <div className="flex min-w-0 items-center gap-0.5 justify-self-start">
+            <div className="flex min-w-0 items-center gap-0.5">
               {!showHubShell && (
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
                   <ArrowLeft className="h-5 w-5" />
@@ -812,36 +804,7 @@ export default function MyAiPage() {
               </Button>
             </div>
 
-            <h1 className={cn(myAiChatTitle, "max-w-[min(100%,20rem)] justify-self-center px-1")} title={headerTitleFull}>
-              {headerTitle}
-            </h1>
-
-            <div className="flex min-w-0 items-center gap-0.5 justify-self-end">
-              {routeChatId && visibleMessages.length > 0 && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 shrink-0 sm:hidden"
-                    disabled={savingJournal || sending}
-                    aria-label="Save to journal"
-                    onClick={() => void saveAsJournalEntry()}
-                  >
-                    {savingJournal ? <Loader2 className="h-4 w-4 animate-spin" /> : <NotebookPen className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="hidden h-8 shrink-0 gap-1.5 px-2 text-xs sm:inline-flex"
-                    disabled={savingJournal || sending}
-                    onClick={() => void saveAsJournalEntry()}
-                  >
-                    {savingJournal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <NotebookPen className="h-3.5 w-3.5" />}
-                    Save
-                  </Button>
-                </>
-              )}
-
+            <div className="flex min-w-0 items-center gap-0.5">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Chat settings">
@@ -904,36 +867,58 @@ export default function MyAiPage() {
             </div>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4">
+          {showWelcome ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-safe sm:px-4">
+              <div className={cn(myAiComposerColumn, "w-full")}>
+                <MyAiWelcomeHero displayName={welcomeDisplayName} className="mb-8" />
+                <MyAiComposer
+                  layout="center"
+                  input={input}
+                  onInputChange={setInput}
+                  onSend={() => void send()}
+                  onResearchScope={handleResearchScope}
+                  onStop={sending ? stopGeneration : undefined}
+                  sending={sending}
+                  editingMessageId={editingMessageId}
+                  onCancelEdit={() => {
+                    setEditingMessageId(null);
+                    setInput("");
+                  }}
+                  userId={user.id}
+                  textareaRef={taRef}
+                  responseDepth={responseDepth}
+                  onResponseDepthChange={setResponseDepth}
+                  companionMode={companionMode}
+                  onCompanionModeChange={setCompanionMode}
+                  includeGeneral={includeGeneral}
+                  onIncludeGeneralChange={setIncludeGeneral}
+                  suggestedPrompts={SUGGESTED_PROMPTS}
+                  onSuggestedPrompt={(prompt) => void send(prompt)}
+                  canSaveJournal={Boolean(routeChatId && visibleMessages.length > 0)}
+                  onSaveJournal={() => void saveAsJournalEntry()}
+                  savingJournal={savingJournal}
+                  onNewChat={newChat}
+                  onOpenCognitiveState={() => setStateOpen(true)}
+                  keyboardInset={keyboardViewportPage ? 0 : kbInset}
+                  onComposerPointerDown={() => {
+                    composerLockScrollYRef.current = window.scrollY;
+                  }}
+                  onComposerFocus={() => setComposerFocused(true)}
+                  onComposerBlur={() => setComposerFocused(false)}
+                  welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
+                  onWelcomeQuickPrompt={(prompt) => void send(prompt)}
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4"
+          >
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
-              </div>
-            )}
-
-            {showWelcome && (
-              <div className="mx-auto flex max-w-md flex-col items-center justify-center px-2 py-8 text-center sm:py-12">
-                <MyAiMark size="lg" className="mb-3" />
-                <ChatOpeningBlessing variant="welcome" className="mb-6" />
-                <h2 className="text-base font-semibold tracking-tight text-foreground">How can I help?</h2>
-                <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                  {companionMode === "inward"
-                    ? "Grounded in your beliefs, journals, and framework — with citations back to your sources."
-                    : "Smart, thorough answers like ChatGPT — enriched with your library when it fits."}
-                </p>
-                <div className="mt-6 grid w-full gap-1.5 sm:grid-cols-2">
-                  {SUGGESTED_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      disabled={sending}
-                      onClick={() => void send(prompt)}
-                      className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-[11px] leading-snug text-muted-foreground transition-colors hover:border-blue-500/30 hover:bg-blue-500/5 hover:text-foreground disabled:opacity-50"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -990,6 +975,7 @@ export default function MyAiPage() {
           </div>
 
           <MyAiComposer
+            layout="dock"
             input={input}
             onInputChange={setInput}
             onSend={() => void send()}
@@ -1023,6 +1009,8 @@ export default function MyAiPage() {
             onComposerFocus={() => setComposerFocused(true)}
             onComposerBlur={() => setComposerFocused(false)}
           />
+            </>
+          )}
         </section>
       </div>
     </div>

@@ -40,7 +40,7 @@ describe("timeBucketForChat", () => {
 });
 
 describe("buildChatSidebarSections", () => {
-  it("puts project chats in folders and unfiled chats in smart/time sections", () => {
+  it("puts project chats in folders and unfiled chats in time sections", () => {
     const chats: MyAiChatListItem[] = [
       chat({ id: "a", title: "Prayer chat", project_id: "p1", updated_at: "2026-06-12T10:00:00.000Z" }),
       chat({ id: "b", title: "Hard question — Evil", updated_at: "2026-06-12T09:00:00.000Z" }),
@@ -50,14 +50,20 @@ describe("buildChatSidebarSections", () => {
     const now = new Date("2026-06-12T15:00:00.000Z");
 
     const sections = buildChatSidebarSections(chats, projects, { now });
-    expect(sections.map((s) => s.label)).toEqual([
-      "Faith",
-      "Hard questions",
-      "Yesterday",
-    ]);
+    expect(sections.map((s) => s.label)).toEqual(["Faith", "Today", "Yesterday"]);
     expect(sections[0]?.chats.map((c) => c.id)).toEqual(["a"]);
     expect(sections[1]?.chats.map((c) => c.id)).toEqual(["b"]);
     expect(sections[2]?.chats.map((c) => c.id)).toEqual(["c"]);
+  });
+
+  it("includes empty project folders", () => {
+    const chats: MyAiChatListItem[] = [
+      chat({ id: "a", title: "General chat", updated_at: "2026-06-12T10:00:00.000Z" }),
+    ];
+    const projects = [{ id: "p1", name: "Faith", sort_order: 0 }];
+    const sections = buildChatSidebarSections(chats, projects, { now: new Date("2026-06-12T15:00:00.000Z") });
+    expect(sections.find((s) => s.kind === "project")?.label).toBe("Faith");
+    expect(sections.find((s) => s.kind === "project")?.chats).toEqual([]);
   });
 
   it("shows chats with stale project_id when folder row is missing", () => {

@@ -80,12 +80,13 @@ function pushSection(
   label: string,
   kind: ChatSidebarSectionKind,
   chats: MyAiChatListItem[],
+  opts?: { allowEmpty?: boolean },
 ) {
-  if (!chats.length) return;
+  if (!chats.length && !opts?.allowEmpty) return;
   sections.push({ id, label, kind, chats: sortChatsNewestFirst(chats) });
 }
 
-/** Build sidebar sections: user folders first, then smart groups, then time buckets. */
+/** Build sidebar sections: user folders first, then time buckets for unfiled chats. */
 export function buildChatSidebarSections(
   chats: MyAiChatListItem[],
   projects: MyAiProjectRow[],
@@ -106,7 +107,9 @@ export function buildChatSidebarSections(
   if (!projectFilterId) {
     for (const project of sortedProjects) {
       const projectChats = visible.filter((c) => c.project_id === project.id);
-      pushSection(sections, `project:${project.id}`, project.name, "project", projectChats);
+      pushSection(sections, `project:${project.id}`, project.name, "project", projectChats, {
+        allowEmpty: true,
+      });
     }
   } else {
     const activeProject = sortedProjects.find((p) => p.id === projectFilterId);
@@ -119,25 +122,13 @@ export function buildChatSidebarSections(
     ? []
     : visible.filter((c) => !c.project_id || !knownProjectIds.has(c.project_id));
 
-  const smartBuckets = new Map<SmartCategory, MyAiChatListItem[]>();
   const timeBuckets = new Map<TimeBucket, MyAiChatListItem[]>();
 
   for (const chat of unfiled) {
-    const smart = detectSmartCategory(chat);
-    if (smart) {
-      const bucket = smartBuckets.get(smart) ?? [];
-      bucket.push(chat);
-      smartBuckets.set(smart, bucket);
-      continue;
-    }
     const time = timeBucketForChat(chat.updated_at, now);
     const bucket = timeBuckets.get(time) ?? [];
     bucket.push(chat);
     timeBuckets.set(time, bucket);
-  }
-
-  for (const smart of SMART_SECTIONS) {
-    pushSection(sections, `smart:${smart.id}`, smart.label, "smart", smartBuckets.get(smart.id) ?? []);
   }
 
   for (const time of TIME_SECTIONS) {

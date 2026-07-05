@@ -122,6 +122,29 @@ export function mergeDictatedText(currentBody: string, chunkFromHook: string): s
   return /\s$/.test(currentBody) ? currentBody + addition : `${currentBody} ${addition}`;
 }
 
+/** Finalized text plus live partial — dedupes overlapping words at the join. */
+export function composeLiveDictationDisplay(finalized: string, interimPartial: string): string {
+  const f = finalized.trimEnd();
+  const interim = interimPartial.replace(/\s+/g, " ").trim();
+  if (!interim) return finalized;
+  if (!f) return interim;
+
+  const fWords = f.split(/\s+/);
+  const iWords = interim.split(/\s+/);
+  let overlap = 0;
+  for (let n = Math.min(fWords.length, iWords.length); n > 0; n -= 1) {
+    const tail = fWords.slice(-n).join(" ").toLowerCase();
+    const head = iWords.slice(0, n).join(" ").toLowerCase();
+    if (tail === head) {
+      overlap = n;
+      break;
+    }
+  }
+  const uniqueInterim = iWords.slice(overlap).join(" ");
+  if (!uniqueInterim) return finalized;
+  return mergeDictatedText(f, uniqueInterim);
+}
+
 export function useSpeechDictation(options: UseSpeechDictationOptions): UseSpeechDictationApi {
   const { onAppend, onInterim, language = "en-US", skipMicPermissionProbe = false } = options;
   const onAppendRef = useRef(onAppend);

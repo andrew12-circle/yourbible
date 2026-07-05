@@ -19,4 +19,7 @@ export const myAiComposerPillActive =
 export const myAiSidebarSectionGap = "mb-4 pt-1";
 
 export const myAiSidebarSectionHeader =
-  "truncate text-[11px] font-medium text-muted-foreground/80";
+  "truncate text-[11px] font-bold uppercase tracking-wide text-foreground";
+
+export const myAiSidebarGroupHeader =
+  "truncate text-xs font-bold text-foreground";

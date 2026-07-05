@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, Sun, Sunrise, NotebookPen, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
-  GraduationCap, Mail, ListTodo, CheckSquare, Moon, MessageCircleHeart,
+  GraduationCap, Mail, ListTodo, CheckSquare, Moon,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
   Grid3X3, BookMarked, ChevronRight, HandHeart,
 } from "lucide-react";
@@ -20,6 +20,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HubSidebarStorageMeter } from "@/components/shell/HubSidebarStorageMeter";
 import { HubSidebarMediaPlayer } from "@/components/media/HubSidebarMediaPlayer";
+import { LumenIcon } from "@/components/myai/LumenIcon";
+import { LUMEN_NAME } from "@/lib/myai/lumenBrand";
 
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
@@ -43,7 +45,7 @@ const iconColorMap: Record<string, string> = {
   Tasks: "text-teal-500",
   Habits: "text-green-500",
   Sleep: "text-indigo-400",
-  "My AI": "text-blue-500",
+  "Lumen AI": "text-amber-600",
   Partner: "text-red-400",
   Settings: "text-gray-500",
   "Research later": "text-slate-400",
@@ -84,6 +86,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
   {
     label: "Life",
     items: [
+      { title: LUMEN_NAME, icon: LumenIcon, to: "/my-ai" },
       { title: "Tasks", icon: ListTodo, to: "/life/todos" },
       { title: "Habits", icon: CheckSquare, to: "/life/habits" },
       { title: "Sleep", icon: Moon, to: "/sleep" },
@@ -113,7 +116,6 @@ const sidebarGroups: SidebarGroupConfig[] = [
     label: "More",
     items: [
       { title: "Code Lab", icon: Grid3X3, to: "/bible/code-lab" },
-      { title: "My AI", icon: MessageCircleHeart, to: "/my-ai" },
       { title: "Partner", icon: HeartHandshake, to: "/partner" },
       { title: "Settings", icon: Settings, to: "/settings" },
     ],
@@ -279,7 +281,7 @@ export function HubSidebar() {
     Beliefs: counts.beliefs || undefined,
     Artifacts: counts.artifacts || undefined,
     Tensions: counts.tensions || undefined,
-    "My AI": counts.chats || undefined,
+    [LUMEN_NAME]: counts.chats || undefined,
   };
 
   return (

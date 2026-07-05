@@ -20,9 +20,10 @@ type Props = {
   disabled?: boolean;
   onScope: (scope: MyAiResearchScope) => void;
   className?: string;
+  compact?: boolean;
 };
 
-export default function MyAiResearchChips({ disabled, onScope, className }: Props) {
+export default function MyAiResearchChips({ disabled, onScope, className, compact }: Props) {
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {SCOPES.map(({ scope, icon: Icon }) => (
@@ -34,10 +35,11 @@ export default function MyAiResearchChips({ disabled, onScope, className }: Prop
           onClick={() => onScope(scope)}
           className={cn(
             myAiComposerPill,
+            compact && "px-2 py-0.5 text-[11px]",
             "disabled:pointer-events-none disabled:opacity-45",
           )}
         >
-          <Icon className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+          <Icon className={cn("h-3 w-3 shrink-0 opacity-70", compact && "h-2.5 w-2.5")} aria-hidden />
           {MY_AI_RESEARCH_SCOPE_LABELS[scope]}
         </button>
       ))}

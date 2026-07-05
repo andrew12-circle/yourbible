@@ -1,11 +1,13 @@
-import { useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useRef, useState, useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   ArrowUp,
+  BookOpen,
   Brain,
   ChevronDown,
+  Globe,
   Loader2,
-  NotebookPen,
   Plus,
+  Save,
   Sparkles,
   Square,
 } from "lucide-react";
@@ -23,9 +25,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
-import MyAiResearchChips from "@/components/myai/MyAiResearchChips";
-import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { composeLiveDictationDisplay, mergeDictatedText } from "@/hooks/useSpeechDictation";
 import type { MyAiResearchScope } from "@/lib/myai/researchScope";
+import {
+  MY_AI_RESEARCH_SCOPE_HINTS,
+  MY_AI_RESEARCH_SCOPE_LABELS,
+} from "@/lib/myai/researchScope";
 import {
   MY_AI_COMPANION_MODE_HINTS,
   MY_AI_COMPANION_MODE_LABELS,
@@ -47,6 +52,15 @@ const DEPTH_LABELS: Record<ResponseDepthSetting, string> = {
   reflect: "Brief",
   deep: "Deep",
 };
+
+const RESEARCH_SCOPE_ITEMS: {
+  scope: MyAiResearchScope;
+  icon: typeof BookOpen;
+}[] = [
+  { scope: "library", icon: BookOpen },
+  { scope: "outside", icon: Sparkles },
+  { scope: "web", icon: Globe },
+];
 
 const MIN_HEIGHT_PX = textareaHeightForLines(1);
 const MAX_HEIGHT_PX = textareaHeightForLines(6);
@@ -80,6 +94,10 @@ type Props = {
   onComposerFocus?: () => void;
   onComposerBlur?: () => void;
   className?: string;
+  welcomeQuickPrompts?: readonly string[];
+  onWelcomeQuickPrompt?: (prompt: string) => void;
+  /** Center in viewport (new chat); dock to bottom once a thread exists. */
+  layout?: "center" | "dock";
 };
 
 export default function MyAiComposer({
@@ -111,22 +129,37 @@ export default function MyAiComposer({
   onComposerFocus,
   onComposerBlur,
   className,
+  welcomeQuickPrompts,
+  onWelcomeQuickPrompt,
+  layout = "dock",
 }: Props) {
+  const isCentered = layout === "center";
   const localTaRef = useRef<HTMLTextAreaElement>(null);
   const taRef = externalTaRef ?? localTaRef;
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const [dictInterim, setDictInterim] = useState("");
+  const [dictationListening, setDictationListening] = useState(false);
 
-  const canSend = Boolean(input.trim()) && !sending;
+  const displayInput = composeLiveDictationDisplay(input, dictInterim);
+  const canSend = Boolean(displayInput.trim()) && !sending;
   const showStop = sending && Boolean(onStop);
 
-  useAutoGrowTextarea(taRef, input, { maxLines: 6, minLines: 1 });
+  useAutoGrowTextarea(taRef, displayInput, { maxLines: 6, minLines: 1 });
+
+  useEffect(() => {
+    if (!dictInterim) return;
+    const el = taRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [displayInput, dictInterim, taRef]);
 
   const handleSend = () => {
     if (!canSend) return;
     dictateRef.current?.stop();
+    const text = displayInput.trim();
     setDictInterim("");
-    onSend();
+    onInputChange(text);
+    onSend(text);
   };
 
   const applyPrompt = (prompt: string) => {
@@ -137,15 +170,21 @@ export default function MyAiComposer({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4",
+        isCentered
+          ? "relative w-full"
+          : "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4",
         className,
       )}
-      style={{
-        ...mobileBottomDockPadding("0.75rem"),
-        ...mobileBottomDockTransform(keyboardInset),
-      }}
+      style={
+        isCentered
+          ? mobileBottomDockTransform(keyboardInset)
+          : {
+              ...mobileBottomDockPadding("0.75rem"),
+              ...mobileBottomDockTransform(keyboardInset),
+            }
+      }
     >
-      <div className={cn("pointer-events-auto", myAiComposerColumn)}>
+      <div className={cn("pointer-events-auto", !isCentered && myAiComposerColumn, isCentered && "w-full")}>
         {editingMessageId ? (
           <div className="mb-1 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
             <span>Editing message</span>
@@ -160,8 +199,11 @@ export default function MyAiComposer({
         <div className={myAiInputShell}>
           <Textarea
             ref={taRef}
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            value={displayInput}
+            onChange={(e) => {
+              setDictInterim("");
+              onInputChange(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -174,7 +216,16 @@ export default function MyAiComposer({
             rows={1}
             spellCheck
             disabled={sending}
-            placeholder={sending ? "Thinking…" : editingMessageId ? "Edit message" : "Ask anything"}
+            aria-live={dictationListening ? "polite" : undefined}
+            placeholder={
+              sending
+                ? "Thinking…"
+                : dictationListening
+                  ? "Listening…"
+                  : editingMessageId
+                    ? "Edit message"
+                    : "Ask anything"
+            }
             style={{ minHeight: MIN_HEIGHT_PX, maxHeight: MAX_HEIGHT_PX }}
             className={cn(
               "!min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5",
@@ -184,146 +235,166 @@ export default function MyAiComposer({
             )}
           />
 
-          <div className="flex flex-wrap items-center gap-2 px-2 pb-1 pt-0.5">
-            <button
-              type="button"
-              className={cn(
-                companionMode === "inward" ? myAiComposerPillActive : myAiComposerPill,
-              )}
-              aria-pressed={companionMode === "inward"}
-              aria-label={MY_AI_COMPANION_MODE_LABELS.inward}
-              title={MY_AI_COMPANION_MODE_HINTS.inward}
-              onClick={() =>
-                onCompanionModeChange(companionMode === "inward" ? "chatgpt" : "inward")
-              }
-            >
-              <Brain className="h-3 w-3 shrink-0" />
-              Inward
-            </button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={myAiComposerPill}
-                  aria-label="Response depth"
-                >
-                  {DEPTH_LABELS[responseDepth]}
-                  <ChevronDown className="h-3 w-3 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                {(Object.keys(DEPTH_LABELS) as ResponseDepthSetting[]).map((mode) => (
-                  <DropdownMenuItem
-                    key={mode}
-                    onClick={() => onResponseDepthChange(mode)}
-                    className={cn(responseDepth === mode && "font-medium text-foreground")}
+          <div className="flex items-center justify-between gap-2 px-1 pb-0.5 pt-0">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    aria-label="Add and options"
                   >
-                    {DEPTH_LABELS[mode]}
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-2rem)]">
+                  {onResearchScope
+                    ? RESEARCH_SCOPE_ITEMS.map(({ scope, icon: Icon }) => (
+                        <DropdownMenuItem
+                          key={scope}
+                          disabled={sending}
+                          title={MY_AI_RESEARCH_SCOPE_HINTS[scope]}
+                          onClick={() => onResearchScope(scope)}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {MY_AI_RESEARCH_SCOPE_LABELS[scope]}
+                        </DropdownMenuItem>
+                      ))
+                    : null}
+                  {onResearchScope ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuItem onClick={onNewChat} disabled={sending}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    New chat
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div className="flex items-center justify-between gap-1 px-0.5 pb-0.5 pt-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                  aria-label="Add and options"
-                >
-                  <Plus className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-2rem)]">
-                <DropdownMenuItem onClick={onNewChat} disabled={sending}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  New chat
-                </DropdownMenuItem>
-                {canSaveJournal ? (
-                  <DropdownMenuItem disabled={savingJournal || sending} onClick={onSaveJournal}>
-                    <NotebookPen className="mr-2 h-4 w-4" />
-                    {savingJournal ? "Saving…" : "Save to journal"}
+                  {canSaveJournal ? (
+                    <DropdownMenuItem disabled={savingJournal || sending} onClick={onSaveJournal}>
+                      <Save className="mr-2 h-4 w-4" />
+                      {savingJournal ? "Saving…" : "Save to journal"}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem onClick={onOpenCognitiveState}>
+                    <Brain className="mr-2 h-4 w-4" />
+                    What My AI knows
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem onClick={onOpenCognitiveState}>
-                  <Brain className="mr-2 h-4 w-4" />
-                  What My AI knows
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-                  Try asking
-                </DropdownMenuLabel>
-                {suggestedPrompts.map((prompt) => (
-                  <DropdownMenuItem
-                    key={prompt}
-                    disabled={sending}
-                    onClick={() => applyPrompt(prompt)}
-                    className="whitespace-normal text-xs leading-snug"
-                  >
-                    {prompt}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <div className="space-y-3 px-2 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="my-ai-composer-inward" className="text-xs font-normal">
-                        {MY_AI_COMPANION_MODE_LABELS.inward}
-                      </Label>
-                      <p className="text-[10px] leading-snug text-muted-foreground">
-                        {MY_AI_COMPANION_MODE_HINTS.inward}
-                      </p>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                    Try asking
+                  </DropdownMenuLabel>
+                  {suggestedPrompts.map((prompt) => (
+                    <DropdownMenuItem
+                      key={prompt}
+                      disabled={sending}
+                      onClick={() => applyPrompt(prompt)}
+                      className="whitespace-normal text-xs leading-snug"
+                    >
+                      {prompt}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="space-y-3 px-2 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="my-ai-composer-inward" className="text-xs font-normal">
+                          {MY_AI_COMPANION_MODE_LABELS.inward}
+                        </Label>
+                        <p className="text-[10px] leading-snug text-muted-foreground">
+                          {MY_AI_COMPANION_MODE_HINTS.inward}
+                        </p>
+                      </div>
+                      <Switch
+                        id="my-ai-composer-inward"
+                        checked={companionMode === "inward"}
+                        onCheckedChange={(v) => onCompanionModeChange(v ? "inward" : "chatgpt")}
+                      />
                     </div>
-                    <Switch
-                      id="my-ai-composer-inward"
-                      checked={companionMode === "inward"}
-                      onCheckedChange={(v) => onCompanionModeChange(v ? "inward" : "chatgpt")}
-                    />
-                  </div>
-                  {companionMode === "inward" ? (
-                    <>
+                    {companionMode === "inward" ? (
+                      <>
+                        <ResponseDepthControl
+                          idPrefix="my-ai-composer-depth"
+                          value={responseDepth}
+                          onChange={onResponseDepthChange}
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="my-ai-composer-outside" className="text-xs font-normal">
+                            Outside knowledge
+                          </Label>
+                          <Switch
+                            id="my-ai-composer-outside"
+                            checked={includeGeneral}
+                            onCheckedChange={(v) => onIncludeGeneralChange(Boolean(v))}
+                          />
+                        </div>
+                      </>
+                    ) : (
                       <ResponseDepthControl
                         idPrefix="my-ai-composer-depth"
                         value={responseDepth}
                         onChange={onResponseDepthChange}
                       />
-                      <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="my-ai-composer-outside" className="text-xs font-normal">
-                          Outside knowledge
-                        </Label>
-                        <Switch
-                          id="my-ai-composer-outside"
-                          checked={includeGeneral}
-                          onCheckedChange={(v) => onIncludeGeneralChange(Boolean(v))}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <ResponseDepthControl
-                      idPrefix="my-ai-composer-depth"
-                      value={responseDepth}
-                      onChange={onResponseDepthChange}
-                    />
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <button
+                type="button"
+                className={cn(
+                  companionMode === "inward" ? myAiComposerPillActive : myAiComposerPill,
+                )}
+                aria-pressed={companionMode === "inward"}
+                aria-label={MY_AI_COMPANION_MODE_LABELS.inward}
+                title={MY_AI_COMPANION_MODE_HINTS.inward}
+                onClick={() =>
+                  onCompanionModeChange(companionMode === "inward" ? "chatgpt" : "inward")
+                }
+              >
+                <Brain className="h-3 w-3 shrink-0" />
+                Inward
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={myAiComposerPill} aria-label="Response depth">
+                    {DEPTH_LABELS[responseDepth]}
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {(Object.keys(DEPTH_LABELS) as ResponseDepthSetting[]).map((mode) => (
+                    <DropdownMenuItem
+                      key={mode}
+                      onClick={() => onResponseDepthChange(mode)}
+                      className={cn(responseDepth === mode && "font-medium text-foreground")}
+                    >
+                      {DEPTH_LABELS[mode]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             <div className="flex shrink-0 items-center gap-0.5">
               <DictateButton
                 ref={dictateRef}
                 userId={userId}
+                webSpeechOnly
                 size="md"
-                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                className={cn(
+                  "h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                  dictationListening && "text-primary",
+                )}
                 onAppend={(chunk) => {
                   onInputChange((prev) => mergeDictatedText(prev, chunk));
                 }}
                 onInterim={setDictInterim}
+                onListeningChange={(listening) => {
+                  setDictationListening(listening);
+                  if (listening) {
+                    requestAnimationFrame(() => taRef.current?.focus());
+                  }
+                }}
               />
 
               <Button
@@ -353,25 +424,32 @@ export default function MyAiComposer({
           </div>
         </div>
 
-        {dictInterim.trim() ? (
-          <p className="mt-1.5 px-2 text-[11px] italic leading-relaxed text-muted-foreground" aria-live="polite">
-            {dictInterim}
+        {welcomeQuickPrompts?.length && onWelcomeQuickPrompt ? (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {welcomeQuickPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                disabled={sending}
+                onClick={() => onWelcomeQuickPrompt(prompt)}
+                className={cn(
+                  "rounded-full border border-border/80 bg-background px-3.5 py-2 text-[13px] font-normal text-foreground",
+                  "transition-colors hover:bg-muted/60 disabled:opacity-50",
+                )}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {!welcomeQuickPrompts?.length ? (
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground/70">
+            {companionMode === "inward"
+              ? "Inward companion — your library first, with citations when sources match."
+              : "My AI can make mistakes. ChatGPT-style answers enriched with your library when relevant."}
           </p>
         ) : null}
-
-        {onResearchScope ? (
-          <MyAiResearchChips
-            disabled={sending}
-            onScope={onResearchScope}
-            className="mt-2 justify-center sm:justify-start"
-          />
-        ) : null}
-
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/70">
-          {companionMode === "inward"
-            ? "Inward companion — your library first, with citations when sources match."
-            : "My AI can make mistakes. ChatGPT-style answers enriched with your library when relevant."}
-        </p>
       </div>
     </div>
   );
