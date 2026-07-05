@@ -4,6 +4,8 @@ export type YouTubeEmbedSrcOptions = {
   startSeconds?: number;
   autoplay?: boolean;
   mute?: boolean;
+  /** Live broadcast — omit start seek so the embed stays at the live edge. */
+  liveEdge?: boolean;
   /** Embed origin — defaults to the opener page origin. */
   origin?: string;
   /** Page URL YouTube uses for embed referrer validation (fixes error 153). */
@@ -16,7 +18,8 @@ export function buildYouTubeEmbedSrc(
   startSeconds = 0,
   options?: YouTubeEmbedSrcOptions,
 ): string {
-  const start = Math.max(0, Math.floor(options?.startSeconds ?? startSeconds));
+  const liveEdge = Boolean(options?.liveEdge);
+  const start = liveEdge ? 0 : Math.max(0, Math.floor(options?.startSeconds ?? startSeconds));
   const autoplay = options?.autoplay ? "1" : "0";
   const mute = options?.mute ? "1" : "0";
   const params = new URLSearchParams({
@@ -30,7 +33,7 @@ export function buildYouTubeEmbedSrc(
     playsinline: "1",
     rel: "0",
   });
-  if (start > 0) params.set("start", String(start));
+  if (!liveEdge && start > 0) params.set("start", String(start));
   const origin =
     options?.origin ??
     (typeof window !== "undefined" ? window.location.origin : undefined);

@@ -18,6 +18,7 @@ import { useRef, useLayoutEffect, type MutableRefObject, type RefObject } from "
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { NewJournalEntryPhotoSuggestion } from "@/components/journal/new-entry/NewJournalEntryPhotoSuggestion";
+import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
 import { cn } from "@/lib/utils";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };

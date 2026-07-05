@@ -2272,6 +2272,69 @@ body:has(.hub-shell),
   min-height: 0;
 }
 
+/*
+ * Mini phone embed — the browser viewport is desktop-wide but the pane is phone-width.
+ * Neutralize Tailwind md/lg utilities that leak desktop layout into the drawer.
+ */
+@media (min-width: 768px) {
+  [data-mini-phone-app] .md\:hidden {
+    display: revert !important;
+  }
+
+  [data-mini-phone-app] button.md\:hidden,
+  [data-mini-phone-app] .inline-flex.md\:hidden {
+    display: inline-flex !important;
+  }
+
+  [data-mini-phone-app] .flex.md\:hidden {
+    display: flex !important;
+  }
+
+  [data-mini-phone-app] .hidden.md\:flex,
+  [data-mini-phone-app] .hidden.md\:inline-flex,
+  [data-mini-phone-app] .hidden.md\:block {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-mini-phone-app] .max-lg\:hidden {
+    display: none !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:flex {
+    display: flex !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:h-\[100dvh\] {
+    height: 100dvh !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:max-h-\[100dvh\] {
+    max-height: 100dvh !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:flex-col {
+    flex-direction: column !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:overflow-hidden {
+    overflow: hidden !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:min-h-0 {
+    min-height: 0 !important;
+  }
+
+  [data-mini-phone-app] .max-lg\:flex-1 {
+    flex: 1 1 0% !important;
+  }
+
+  [data-mini-phone-app] .lg\:hidden {
+    display: none !important;
+  }
+}
+
 /* Hub edge tabs must not overlap the open mini-phone drawer. */
 body:has([data-mini-phone-drawer]) [data-phone-bubble],
 body:has([data-mini-phone-drawer]) [data-sidebar-peek] {

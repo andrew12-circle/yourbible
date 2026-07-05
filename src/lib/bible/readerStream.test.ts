@@ -555,7 +555,7 @@ describe("readerStream", () => {
       },
     ]);
     const splits = [0, 5, 7, stream.length];
-    expect(spreadPageForChapterStart(stream, splits, "Act", 1)).toBe(0);
+    expect(spreadPageForChapterStart(stream, splits, "Act", 1)).toBe(2);
     expect(spreadPageForChapterStartLeftPane(stream, splits, "Act", 1)).toBe(2);
     const left = sliceReaderSpreadPane(stream, splits, 2, "left", stream.length);
     expect(left?.verseGroups.some((g) => g.bookAbbr === "Act" && g.chapter === 1)).toBe(true);

@@ -85,6 +85,11 @@ function repairGluedPronounI(text: string): string {
   return text.replace(/\bI([A-Z][A-Za-z']+)/g, (_m, tail: string) => `I ${tail.toLowerCase()}`);
 }
 
+/** Divine-name span abuts following word when poetry lines merge (the + Lord + requires → theLord). */
+function repairGluedDivineName(text: string): string {
+  return text.replace(/\btheLord\b/g, "the Lord");
+}
+
 /**
  * Repair verse text when inline HTML tags were replaced with spaces (e.g. CSB
  * small-cap spans `<span class="sc">T</span>his` → "T his").
@@ -108,6 +113,7 @@ function repairSplitInitialCaps(text: string): string {
 export function sanitizePubVerseText(text: string, options?: { trim?: boolean }): string {
   const trim = options?.trim !== false;
   let t = repairGluedPronounI(text);
+  t = repairGluedDivineName(t);
   t = repairSplitInitialCaps(t);
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");
   t = t.replace(/#\s*#/g, "\u2014");
@@ -580,6 +586,32 @@ function isTextBlock(block: string): boolean {
   return TEXT_PARAGRAPH_RE.test(cls) || extractVersesFromBlock(block).length > 0;
 }
 
+/** API.Bible poetry/prose paragraph with no verse marker — continues the prior verse. */
+function isVerselessContinuationBlock(block: string): boolean {
+  const inner = block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, "");
+  if (extractVersesFromBlock(inner).length > 0) return false;
+  return isTextBlock(block);
+}
+
+function appendContinuationToVerse(existing: PassageVerse, innerHtml: string): PassageVerse | null {
+  const { parts } = parseVerseHtmlToParts(innerHtml);
+  if (parts.length === 0) return null;
+  const continuationParts: VersePart[] = parts.map((part, index) => {
+    if (part.kind !== "text") return part;
+    if (index === 0) return { ...part, text: part.text.trim() };
+    return part;
+  });
+  const spacedParts: VersePart[] = [...continuationParts];
+  const first = spacedParts[0];
+  if (first?.kind === "text" && existing.text.length > 0) {
+    const gap = /\s$/.test(existing.text) ? "" : " ";
+    spacedParts[0] = { ...first, text: `${gap}${first.text}` };
+  }
+  const incoming = buildPassageVerse(existing.number, spacedParts);
+  if (!incoming) return existing;
+  return mergeVerseEntries(existing, incoming);
+}
+
 /** Parse API.Bible HTML chapter content into verses, paragraph breaks, and headings. */
 export function parsePassageHtml(content: string, reference = ""): ParsedPassage {
   const blocks = splitParagraphBlocks(content);
@@ -588,6 +620,7 @@ export function parsePassageHtml(content: string, reference = ""): ParsedPassage
   const poetryBlocks: PoetryBlock[] = [];
   const headings: PassageHeading[] = [];
   let nextHeading: string | null = null;
+  let lastOpenVerse: number | null = null;
 
   for (const block of blocks) {
     if (isHeadingBlock(block)) {
@@ -600,7 +633,16 @@ export function parsePassageHtml(content: string, reference = ""): ParsedPassage
     const cls = paragraphClass(block);
     const inner = block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, "");
     const blockVerses = extractVersesFromBlock(inner);
-    if (blockVerses.length === 0) continue;
+    if (blockVerses.length === 0) {
+      if (lastOpenVerse !== null && isVerselessContinuationBlock(block)) {
+        const existing = verseMap.get(lastOpenVerse);
+        if (existing) {
+          const merged = appendContinuationToVerse(existing, inner);
+          if (merged) verseMap.set(lastOpenVerse, merged);
+        }
+      }
+      continue;
+    }
 
     const firstVerse = blockVerses[0]!.number;
     paragraphStarts.push(firstVerse);
@@ -615,6 +657,7 @@ export function parsePassageHtml(content: string, reference = ""): ParsedPassage
     for (const v of blockVerses) {
       const existing = verseMap.get(v.number);
       verseMap.set(v.number, existing ? mergeVerseEntries(existing, v) : v);
+      lastOpenVerse = v.number;
     }
   }
 

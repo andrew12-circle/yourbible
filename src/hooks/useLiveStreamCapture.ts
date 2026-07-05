@@ -12,6 +12,7 @@ import {
 } from "@/lib/framework/liveStream";
 import { getYouTubeVideoId } from "@/lib/youtube";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
+import { liveBroadcastArtifactMetadata } from "@/lib/youtube/liveBroadcast";
 
 function nextStartSeconds(chunks: LiveTranscriptChunk[]): number {
   const last = chunks.reduce((latest, chunk) => Math.max(latest, chunk.startSeconds), 0);
@@ -38,7 +39,10 @@ export function useLiveStreamCapture(userId?: string | null) {
 
   const youTubeVideoId = useMemo(() => getYouTubeVideoId(url), [url]);
   const embedUrl = useMemo(
-    () => (youTubeVideoId ? buildYouTubeEmbedSrc(youTubeVideoId, 0, { autoplay: false }) : null),
+    () =>
+      youTubeVideoId
+        ? buildYouTubeEmbedSrc(youTubeVideoId, 0, { autoplay: false, liveEdge: true })
+        : null,
     [youTubeVideoId],
   );
   const liftedClaims = useMemo(() => detectLiveClaimCandidates(chunks), [chunks]);
@@ -157,6 +161,76 @@ export function useLiveStreamCapture(userId?: string | null) {
     return data.id;
   }, [chunks, liftedClaims, rawText, title, url, userId, youTubeVideoId]);
 
+  const saveWatchSession = useCallback(async () => {
+    if (!userId) {
+      toast({ title: "Sign in to save this live stream", variant: "destructive" });
+      return null;
+    }
+    if (!youTubeVideoId || !url.trim()) {
+      toast({ title: "Paste a YouTube live URL first", variant: "destructive" });
+      return null;
+    }
+
+    setSaving(true);
+    const fallbackTitle = `Live stream ${new Date().toLocaleDateString()}`;
+    const metadata = liveBroadcastArtifactMetadata(youTubeVideoId, url.trim());
+
+    const { data, error } = await supabase
+      .from("artifacts")
+      .insert({
+        user_id: userId,
+        title: title.trim() || fallbackTitle,
+        kind: "youtube",
+        url: url.trim(),
+        raw_text: rawText,
+        status: "ready",
+        metadata,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      setSaving(false);
+      toast({ title: "Could not save live stream", description: error?.message, variant: "destructive" });
+      return null;
+    }
+
+    if (liftedClaims.length) {
+      const rows = liftedClaims.map((claim) => ({
+        user_id: userId,
+        artifact_id: data.id,
+        claim: claim.claim,
+        tone: claimTone(claim),
+        doctrine_tags: [claim.category, ...claim.signals].map((signal) => signal.replace(/_/g, " ")),
+        scripture_supports: claim.linkedScriptures.map((ref) => ({
+          ref,
+          note: "Detected in live transcript.",
+        })) as Json,
+        scripture_challenges: [] as Json,
+        match_relation: "new",
+        bias_flags: claim.signals.includes("contradiction") ? ["needs_review"] : [],
+        user_note: `Lifted from live stream at ${formatLiveClock(claim.startSeconds)}.`,
+        chapter_start_seconds: Math.floor(claim.startSeconds),
+      }));
+      const { error: claimError } = await supabase.from("artifact_claims").insert(rows);
+      if (claimError) {
+        toast({
+          title: "Live stream saved, claims need review",
+          description: claimError.message,
+          variant: "destructive",
+        });
+      }
+    }
+
+    setSavedArtifactId(data.id);
+    setSaving(false);
+    toast({
+      title: "Live stream saved",
+      description: "Keep watching here or browse the app — playback continues in the corner player.",
+    });
+    return data.id;
+  }, [liftedClaims, rawText, title, url, userId, youTubeVideoId]);
+
   return {
     title,
     setTitle,
@@ -175,5 +249,6 @@ export function useLiveStreamCapture(userId?: string | null) {
     removeChunk,
     clearSession,
     saveSession,
+    saveWatchSession,
   };
 }

@@ -25,7 +25,8 @@
     "generate:tissot-plates": "node scripts/gen-tissot-plates.mjs",
     "reresolve:tissot-plates": "node scripts/reresolve-tissot-plates.mjs",
     "validate:bible-plates": "node scripts/validate-bible-plates.mjs",
-    "ingest:csb": "npx tsx scripts/ingest-csb.ts"
+    "ingest:csb": "npx tsx scripts/ingest-csb.ts",
+    "audit:bible-parser": "npx tsx scripts/audit-bible-parser.mjs"
   },
   "dependencies": {
     "@fix-webm-duration/fix": "^1.0.1",

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useVisualViewportMetrics, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -313,6 +314,7 @@ function TypingDots() {
 export default function MyAiPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { showHubShell } = useAppShellMode();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
   const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } = useVisualViewportMetrics();
@@ -779,7 +781,7 @@ export default function MyAiPage() {
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {sidebarOpen && (
+        {sidebarOpen && !isMobile && (
           <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{sidebarContent}</aside>
         )}
 
@@ -798,21 +800,23 @@ export default function MyAiPage() {
                 </Button>
               )}
 
-              <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:hidden" aria-label="Open chats">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[min(100%,300px)] p-0">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Chats</SheetTitle>
-                  </SheetHeader>
-                  <div className="h-full">{sidebarContent}</div>
-                </SheetContent>
-              </Sheet>
+              {isMobile ? (
+                <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Open chats">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[min(100%,300px)] p-0">
+                    <SheetHeader className="sr-only">
+                      <SheetTitle>Chats</SheetTitle>
+                    </SheetHeader>
+                    <div className="h-full">{sidebarContent}</div>
+                  </SheetContent>
+                </Sheet>
+              ) : null}
 
-              {!sidebarOpen && (
+              {!isMobile && !sidebarOpen && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -825,16 +829,18 @@ export default function MyAiPage() {
                 </Button>
               )}
 
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0 md:hidden"
-                onClick={newChat}
-                aria-label="New chat"
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
+              {isMobile ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={newChat}
+                  aria-label="New chat"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              ) : null}
             </div>
 
             <div className="flex min-w-0 items-center gap-0.5">

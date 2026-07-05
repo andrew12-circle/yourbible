@@ -8,6 +8,8 @@ type Options = {
   enabled?: boolean;
   /** Minimum characters before formatting. */
   minChars?: number;
+  /** Called after dictation stops and formatting finishes (e.g. refocus the editor). */
+  onFormatted?: () => void;
 };
 
 /** After dictation stops, format speech locally (no AI — safe for encrypted journals). */
@@ -15,14 +17,17 @@ export function useDictationAutoFormat({
   getBody,
   setBody,
   enabled = true,
-  minChars = 30,
+  minChars = 8,
+  onFormatted,
 }: Options) {
   const [formatting, setFormatting] = useState(false);
   const wasListeningRef = useRef(false);
   const getBodyRef = useRef(getBody);
   const setBodyRef = useRef(setBody);
+  const onFormattedRef = useRef(onFormatted);
   getBodyRef.current = getBody;
   setBodyRef.current = setBody;
+  onFormattedRef.current = onFormatted;
 
   const onListeningChange = useCallback(
     (listening: boolean) => {
@@ -41,6 +46,7 @@ export function useDictationAutoFormat({
         }
       } finally {
         setFormatting(false);
+        onFormattedRef.current?.();
       }
     },
     [enabled, minChars],

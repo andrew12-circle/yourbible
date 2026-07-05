@@ -4,8 +4,8 @@
   "chapter": 1,
   "reference": "John 1",
   "verseCount": 51,
-  "versesWithCrossRefs": 38,
-  "versesWithFootnotes": 16,
+  "versesWithCrossRefs": 40,
+  "versesWithFootnotes": 17,
   "verses": [
     {
       "number": 1,
@@ -272,14 +272,16 @@
     },
     {
       "number": 21,
-      "textLength": 46,
-      "textPreview": "“What then?” they asked him. “Are you Elijah?”",
+      "textLength": 109,
+      "textPreview": "“What then?” they asked him. “Are you Elijah?” “I am not,” he said. “Are you the",
       "crossRefLabels": [
         "Mal 4:5",
         "Mt 11:14",
         "Mt 17:10–13",
         "Mk 8:28",
-        "Lk 1:17"
+        "Lk 1:17",
+        "Dt 18:15",
+        "Mt 2:23"
       ],
       "footnoteMarkers": []
     },
@@ -452,9 +454,11 @@
     },
     {
       "number": 38,
-      "textLength": 92,
+      "textLength": 168,
       "textPreview": "When Jesus turned and noticed them following him, he asked them, “What are you l",
-      "crossRefLabels": [],
+      "crossRefLabels": [
+        "Jn 11:8"
+      ],
       "footnoteMarkers": []
     },
     {
@@ -491,10 +495,22 @@
     },
     {
       "number": 42,
-      "textLength": 30,
-      "textPreview": "and he brought Simon to Jesus.",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 147,
+      "textPreview": "and he brought Simon to Jesus. When Jesus saw him, he said, “You are Simon, son ",
+      "crossRefLabels": [
+        "1Co 1:12",
+        "1Co 3:22",
+        "1Co 9:5",
+        "1Co 15:5",
+        "Gl 1:18",
+        "Gl 2:9",
+        "Gl 2:11",
+        "Gl 2:14"
+      ],
+      "footnoteMarkers": [
+        1,
+        2
+      ]
     },
     {
       "number": 43,
@@ -539,8 +555,8 @@
     },
     {
       "number": 46,
-      "textLength": 62,
-      "textPreview": "“Can anything good come out of Nazareth?” Nathanael asked him.",
+      "textLength": 95,
+      "textPreview": "“Can anything good come out of Nazareth?” Nathanael asked him. “Come and see,” P",
       "crossRefLabels": [
         "Gn 1:31"
       ],
@@ -557,8 +573,8 @@
     },
     {
       "number": 48,
-      "textLength": 38,
-      "textPreview": "“How do you know me?” Nathanael asked.",
+      "textLength": 127,
+      "textPreview": "“How do you know me?” Nathanael asked. “Before Philip called you, when you were ",
       "crossRefLabels": [],
       "footnoteMarkers": []
     },

@@ -4,73 +4,104 @@
   "chapter": 3,
   "reference": "Proverbs 3",
   "verseCount": 35,
-  "versesWithCrossRefs": 15,
-  "versesWithFootnotes": 6,
+  "versesWithCrossRefs": 34,
+  "versesWithFootnotes": 9,
   "verses": [
     {
       "number": 1,
-      "textLength": 33,
-      "textPreview": "My son, don’t forget my teaching,",
-      "crossRefLabels": [],
+      "textLength": 70,
+      "textPreview": "My son, don’t forget my teaching, but let your heart keep my commands;",
+      "crossRefLabels": [
+        "Dt 30:16"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 2,
-      "textLength": 23,
-      "textPreview": "for they will bring you",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 63,
+      "textPreview": "for they will bring you many days, a full life, and well-being.",
+      "crossRefLabels": [
+        "Ps 91:16",
+        "Pr 3:16",
+        "Pr 4:10",
+        "Pr 9:11",
+        "Pr 10:27",
+        "Pr 4:1–4",
+        "Pr 6:20–23",
+        "Pr 7:1–3"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 3,
-      "textLength": 45,
-      "textPreview": "Never let loyalty and faithfulness leave you.",
-      "crossRefLabels": [],
+      "textLength": 112,
+      "textPreview": "Never let loyalty and faithfulness leave you. Tie them around your neck; write t",
+      "crossRefLabels": [
+        "Pr 1:9",
+        "Pr 6:21",
+        "Pr 7:3",
+        "2Co 3:3"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 4,
-      "textLength": 40,
-      "textPreview": "Then you will find favor and high regard",
-      "crossRefLabels": [],
+      "textLength": 61,
+      "textPreview": "Then you will find favor and high regard with God and people.",
+      "crossRefLabels": [
+        "Dt 4:6",
+        "1Sm 2:26",
+        "Lk 2:52",
+        "Rm 14:18"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 5,
-      "textLength": 38,
-      "textPreview": "Trust in the Lord with all your heart,",
+      "textLength": 81,
+      "textPreview": "Trust in the Lord with all your heart, and do not rely on your own understanding",
       "crossRefLabels": [
         "Ps 37:3",
-        "Ps 37:5"
+        "Ps 37:5",
+        "Jr 9:23"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 6,
-      "textLength": 26,
-      "textPreview": "in all your ways know him,",
-      "crossRefLabels": [],
+      "textLength": 64,
+      "textPreview": "in all your ways know him, and he will make your paths straight.",
+      "crossRefLabels": [
+        "Pr 11:5"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 7,
-      "textLength": 31,
-      "textPreview": "Don’t be wise in your own eyes;",
+      "textLength": 70,
+      "textPreview": "Don’t be wise in your own eyes; fear the Lord and turn away from evil.",
       "crossRefLabels": [
         "Pr 26:5",
         "Pr 26:12",
         "Pr 28:11",
         "Pr 28:26",
-        "Rm 12:16"
+        "Rm 12:16",
+        "Jb 1:1",
+        "Jb 28:28",
+        "Ps 37:27",
+        "Pr 16:6"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 8,
-      "textLength": 34,
-      "textPreview": "This will be healing for your body",
+      "textLength": 68,
+      "textPreview": "This will be healing for your body and strengthening for your bones.",
       "crossRefLabels": [
-        "Pr 4:22"
+        "Pr 4:22",
+        "Jb 21:24"
       ],
       "footnoteMarkers": [
         1
@@ -78,36 +109,52 @@
     },
     {
       "number": 9,
-      "textLength": 36,
-      "textPreview": "Honor the Lord with your possessions",
-      "crossRefLabels": [],
+      "textLength": 87,
+      "textPreview": "Honor the Lord with your possessions and with the first produce of your entire h",
+      "crossRefLabels": [
+        "Ex 23:19",
+        "Lv 23:9",
+        "Dt 26:2"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 10,
-      "textLength": 42,
-      "textPreview": "then your barns will be completely filled,",
-      "crossRefLabels": [],
+      "textLength": 85,
+      "textPreview": "then your barns will be completely filled, and your vats will overflow with new ",
+      "crossRefLabels": [
+        "Dt 28:8",
+        "Mal 3:10"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 11,
-      "textLength": 46,
-      "textPreview": "Do not despise the Lord’s instruction, my son,",
-      "crossRefLabels": [],
+      "textLength": 80,
+      "textPreview": "Do not despise the Lord’s instruction, my son, and do not loathe his discipline;",
+      "crossRefLabels": [
+        "Pr 5:11–13",
+        "Pr 15:5",
+        "Pr 15:31"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 12,
-      "textLength": 42,
-      "textPreview": "for the Lord disciplines the one he loves,",
-      "crossRefLabels": [],
+      "textLength": 100,
+      "textPreview": "for the Lord disciplines the one he loves, just as a father disciplines the son ",
+      "crossRefLabels": [
+        "Dt 8:5",
+        "Jb 5:17",
+        "Pr 13:24",
+        "Heb 12:5–7"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 13,
-      "textLength": 31,
-      "textPreview": "Happy is a man who finds wisdom",
+      "textLength": 63,
+      "textPreview": "Happy is a man who finds wisdom and who acquires understanding,",
       "crossRefLabels": [
         "Pr 8:32",
         "Pr 8:34"
@@ -116,33 +163,45 @@
     },
     {
       "number": 14,
-      "textLength": 39,
-      "textPreview": "for she is more profitable than silver,",
-      "crossRefLabels": [],
+      "textLength": 76,
+      "textPreview": "for she is more profitable than silver, and her revenue is better than gold.",
+      "crossRefLabels": [
+        "Jb 28:15",
+        "Pr 8:10",
+        "Pr 8:19",
+        "Pr 16:16",
+        "Pr 22:1"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 15,
-      "textLength": 33,
-      "textPreview": "She is more precious than jewels;",
+      "textLength": 67,
+      "textPreview": "She is more precious than jewels; nothing you desire can equal her.",
       "crossRefLabels": [
-        "Jb 28:18"
+        "Jb 28:18",
+        "Pr 8:11",
+        "Pr 20:15"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 16,
-      "textLength": 31,
-      "textPreview": "Long life is in her right hand;",
-      "crossRefLabels": [],
+      "textLength": 62,
+      "textPreview": "Long life is in her right hand; in her left, riches and honor.",
+      "crossRefLabels": [
+        "Pr 8:18",
+        "Pr 21:21",
+        "Pr 22:4"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
       "number": 17,
-      "textLength": 22,
-      "textPreview": "Her ways are pleasant,",
+      "textLength": 51,
+      "textPreview": "Her ways are pleasant, and all her paths, peaceful.",
       "crossRefLabels": [
         "Mt 11:19"
       ],
@@ -150,8 +209,8 @@
     },
     {
       "number": 18,
-      "textLength": 47,
-      "textPreview": "She is a tree of life to those who embrace her,",
+      "textLength": 87,
+      "textPreview": "She is a tree of life to those who embrace her, and those who hold on to her are",
       "crossRefLabels": [
         "Gn 2:9",
         "Pr 11:30",
@@ -163,8 +222,8 @@
     },
     {
       "number": 19,
-      "textLength": 36,
-      "textPreview": "The Lord founded the earth by wisdom",
+      "textLength": 82,
+      "textPreview": "The Lord founded the earth by wisdom and established the heavens by understandin",
       "crossRefLabels": [
         "Ps 104:24",
         "Pr 8:27"
@@ -173,42 +232,50 @@
     },
     {
       "number": 20,
-      "textLength": 46,
-      "textPreview": "By his knowledge the watery depths broke open,",
+      "textLength": 79,
+      "textPreview": "By his knowledge the watery depths broke open, and the clouds dripped with dew.",
       "crossRefLabels": [
-        "Gn 7:11"
+        "Gn 7:11",
+        "Dt 33:28",
+        "Jb 36:28"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 21,
-      "textLength": 37,
-      "textPreview": "Maintain sound wisdom and discretion.",
-      "crossRefLabels": [],
+      "textLength": 71,
+      "textPreview": "Maintain sound wisdom and discretion. My son, don’t lose sight of them.",
+      "crossRefLabels": [
+        "Pr 4:21"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 22,
-      "textLength": 25,
-      "textPreview": "They will be life for you",
+      "textLength": 54,
+      "textPreview": "They will be life for you and adornment for your neck.",
       "crossRefLabels": [
         "Pr 4:22"
       ],
       "footnoteMarkers": [
+        1,
         1
       ]
     },
     {
       "number": 23,
-      "textLength": 36,
-      "textPreview": "Then you will go safely on your way;",
-      "crossRefLabels": [],
+      "textLength": 64,
+      "textPreview": "Then you will go safely on your way; your foot will not stumble.",
+      "crossRefLabels": [
+        "Ps 91:12",
+        "Pr 4:12"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 24,
-      "textLength": 42,
-      "textPreview": "When you lie down, you will not be afraid;",
+      "textLength": 94,
+      "textPreview": "When you lie down, you will not be afraid; you will lie down, and your sleep wil",
       "crossRefLabels": [
         "Jb 11:19",
         "Ps 3:5",
@@ -220,40 +287,51 @@
     },
     {
       "number": 25,
-      "textLength": 24,
-      "textPreview": "Don’t fear sudden danger",
-      "crossRefLabels": [],
+      "textLength": 65,
+      "textPreview": "Don’t fear sudden danger or the ruin of the wicked when it comes,",
+      "crossRefLabels": [
+        "Jb 5:21",
+        "Ps 91:5",
+        "1Pt 3:14"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 26,
-      "textLength": 36,
-      "textPreview": "for the Lord will be your confidence",
-      "crossRefLabels": [],
+      "textLength": 74,
+      "textPreview": "for the Lord will be your confidence and will keep your foot from a snare.",
+      "crossRefLabels": [
+        "1Sm 2:9"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
       "number": 27,
-      "textLength": 25,
-      "textPreview": "When it is in your power,",
-      "crossRefLabels": [],
+      "textLength": 78,
+      "textPreview": "When it is in your power, don’t withhold good from the one to whom it belongs.",
+      "crossRefLabels": [
+        "Gl 6:10"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
       "number": 28,
-      "textLength": 54,
-      "textPreview": "Don’t say to your neighbor, “Go away! Come back later.",
-      "crossRefLabels": [],
+      "textLength": 105,
+      "textPreview": "Don’t say to your neighbor, “Go away! Come back later. I’ll give it tomorrow” —w",
+      "crossRefLabels": [
+        "Lv 19:13",
+        "Dt 24:15"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 29,
-      "textLength": 42,
-      "textPreview": "Don’t plan any harm against your neighbor,",
+      "textLength": 80,
+      "textPreview": "Don’t plan any harm against your neighbor, for he trusts you and lives near you.",
       "crossRefLabels": [
         "Pr 6:14",
         "Pr 14:22"
@@ -262,8 +340,8 @@
     },
     {
       "number": 30,
-      "textLength": 34,
-      "textPreview": "Don’t accuse anyone without cause,",
+      "textLength": 64,
+      "textPreview": "Don’t accuse anyone without cause, when he has done you no harm.",
       "crossRefLabels": [
         "Pr 24:28",
         "Rm 12:18"
@@ -272,8 +350,8 @@
     },
     {
       "number": 31,
-      "textLength": 24,
-      "textPreview": "Don’t envy a violent man",
+      "textLength": 51,
+      "textPreview": "Don’t envy a violent man or choose any of his ways;",
       "crossRefLabels": [
         "Ps 37:1",
         "Pr 23:17",
@@ -284,15 +362,22 @@
     },
     {
       "number": 32,
-      "textLength": 43,
-      "textPreview": "for the devious are detestable to the Lord,",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 78,
+      "textPreview": "for the devious are detestable to the Lord, but he is a friend to the upright.",
+      "crossRefLabels": [
+        "Ps 25:14",
+        "Pr 11:20",
+        "Pr 12:22",
+        "Pr 15:8–9"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 33,
-      "textLength": 51,
-      "textPreview": "The Lord’s curse is on the household of the wicked,",
+      "textLength": 93,
+      "textPreview": "The Lord’s curse is on the household of the wicked, but he blesses the home of t",
       "crossRefLabels": [
         "Zch 5:3",
         "Mal 2:2"
@@ -301,17 +386,22 @@
     },
     {
       "number": 34,
-      "textLength": 23,
-      "textPreview": "He mocks those who mock",
-      "crossRefLabels": [],
+      "textLength": 54,
+      "textPreview": "He mocks those who mock but gives grace to the humble.",
+      "crossRefLabels": [
+        "Jms 4:6",
+        "1Pt 5:5"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 35,
-      "textLength": 28,
-      "textPreview": "The wise will inherit honor,",
+      "textLength": 63,
+      "textPreview": "The wise will inherit honor, but he holds up fools to dishonor.",
       "crossRefLabels": [],
-      "footnoteMarkers": []
+      "footnoteMarkers": [
+        1
+      ]
     }
   ]
 }

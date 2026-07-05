@@ -52,6 +52,7 @@ export function MiniPhoneAppView({ entryRoute }: MiniPhoneAppViewProps) {
     <div
       ref={containerRef}
       data-mini-phone-app
+      data-mobile="true"
       className="relative isolate flex h-full w-full max-w-full flex-col overflow-hidden [transform:translateZ(0)]"
     />
   );

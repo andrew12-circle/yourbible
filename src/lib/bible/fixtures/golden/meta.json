@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-07-03T16:49:59.270Z",
+  "fetchedAt": "2026-07-05T19:14:19.233Z",
   "bibleId": "a556c5305ee15c3f-01",
   "chapters": [
     {
@@ -49,6 +49,10 @@
     {
       "id": "csb-isa-53",
       "bytes": 14186
+    },
+    {
+      "id": "csb-mic-6",
+      "bytes": 18012
     },
     {
       "id": "csb-mat-5",

@@ -1,7 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { formatDictatedJournalText } from "@/lib/journal/dictationFormatter";
+import { formatDictatedJournalText, normalizeShoutingCase } from "@/lib/journal/dictationFormatter";
+
+describe("normalizeShoutingCase", () => {
+  it("lowercases shouting-case STT output", () => {
+    expect(normalizeShoutingCase("SO I WENT TO THE CHURCH AND IT WAS GOOD")).toBe(
+      "so i went to the church and it was good",
+    );
+  });
+
+  it("preserves mixed-case prose", () => {
+    const mixed = "So I went to the Church and prayed.";
+    expect(normalizeShoutingCase(mixed)).toBe(mixed);
+  });
+
+  it("keeps short acronyms in shouting case", () => {
+    expect(normalizeShoutingCase("PRAY FOR THE USA AND UK TODAY")).toBe(
+      "pray for the USA and UK today",
+    );
+  });
+});
 
 describe("formatDictatedJournalText", () => {
+  it("formats all-caps church notes into journal prose", () => {
+    const raw = "SO I WENT TO THE CHURCH AND THE SERMON WAS ABOUT PATIENCE";
+    const out = formatDictatedJournalText(raw);
+    expect(out).toMatch(/^So i went to the church/i);
+    expect(out).toMatch(/\.$/);
+  });
   it("capitalizes and adds terminal punctuation", () => {
     const raw = "give me patience and understanding";
     const out = formatDictatedJournalText(raw);

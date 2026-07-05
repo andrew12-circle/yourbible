@@ -12,26 +12,24 @@ import { MiniPhoneErrorBoundary } from "@/components/mini-phone/MiniPhoneErrorBo
 import { MiniPhoneHomeBar } from "@/components/mini-phone/MiniPhoneHomeBar";
 import { MiniPhoneHomeGrid } from "@/components/mini-phone/MiniPhoneHomeGrid";
 
+import {
+  defaultMiniPhoneSize,
+  fitMiniPhoneSize,
+  MINI_PHONE_MAX_WIDTH,
+  MINI_PHONE_MIN_WIDTH,
+} from "@/lib/mini-phone/miniPhoneDimensions";
+
 const POSITION_STORAGE_KEY = "mini-phone-position";
 const SIZE_STORAGE_KEY = "mini-phone-size";
-
-const DEFAULT_W = 288;
-const DEFAULT_H = 624;
-const MIN_W = 260;
-const MIN_H = 420;
-const MAX_W = 520;
 
 function loadSize(): { w: number; h: number } {
   try {
     const raw = localStorage.getItem(SIZE_STORAGE_KEY);
-    if (!raw) return { w: DEFAULT_W, h: DEFAULT_H };
+    if (!raw) return defaultMiniPhoneSize();
     const parsed = JSON.parse(raw) as { w?: number; h?: number };
-    return {
-      w: Math.min(MAX_W, Math.max(MIN_W, parsed.w ?? DEFAULT_W)),
-      h: Math.max(MIN_H, parsed.h ?? DEFAULT_H),
-    };
+    return fitMiniPhoneSize(parsed.w ?? defaultMiniPhoneSize().w);
   } catch {
-    return { w: DEFAULT_W, h: DEFAULT_H };
+    return defaultMiniPhoneSize();
   }
 }
 
@@ -90,11 +88,10 @@ export function MiniPhoneDrawer() {
   const onResizePointerMove = useCallback((e: React.PointerEvent) => {
     if (!resizeState.current.resizing) return;
     const dx = e.clientX - resizeState.current.startX;
-    const dy = e.clientY - resizeState.current.startY;
     const maxH = window.innerHeight - 32;
-    const nextW = Math.min(MAX_W, Math.max(MIN_W, resizeState.current.origW + dx));
-    const nextH = Math.min(maxH, Math.max(MIN_H, resizeState.current.origH + dy));
-    setSize({ w: nextW, h: nextH });
+    const nextW = Math.min(MINI_PHONE_MAX_WIDTH, Math.max(MINI_PHONE_MIN_WIDTH, resizeState.current.origW + dx));
+    const { w, h } = fitMiniPhoneSize(nextW, { maxHeight: maxH });
+    setSize({ w, h });
   }, []);
 
   const onResizePointerUp = useCallback(() => {

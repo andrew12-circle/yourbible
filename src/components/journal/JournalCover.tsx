@@ -5,6 +5,7 @@ import { Journal } from "@/lib/journal/journals";
 import { journalCoverObjectPosition } from "@/lib/journal/covers";
 import { useJournalCoverBanner } from "@/hooks/useJournalCoverBanner";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -32,6 +33,7 @@ export default function JournalCover({
   backTo = "/home",
 }: Props) {
   const inMiniPhone = useMiniPhoneEmbed();
+  const isMobile = useIsMobile();
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
   const title = titleOverride ?? journal?.name ?? "All Entries";
   const { coverUrl, focal, hasPhoto } = useJournalCoverBanner(journal);
@@ -54,7 +56,10 @@ export default function JournalCover({
       <div className="flex items-center gap-1">
         <button
           onClick={onOpenRail}
-          className="md:hidden -ml-2 p-2 rounded-full hover:bg-white/15"
+          className={cn(
+            "-ml-2 p-2 rounded-full hover:bg-white/15",
+            !isMobile && "hidden md:flex",
+          )}
           aria-label="Journals"
         >
           <Menu className="w-[22px] h-[22px]" strokeWidth={2.2} />
@@ -62,7 +67,10 @@ export default function JournalCover({
         {backTo && backTo !== "/home" ? (
           <Link
             to={backTo}
-            className="md:hidden flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]"
+            className={cn(
+              "flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]",
+              !isMobile && "md:hidden",
+            )}
           >
             <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
             Back
@@ -70,7 +78,10 @@ export default function JournalCover({
         ) : null}
         <Link
           to={backTo ?? "/home"}
-          className="hidden md:flex items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]"
+          className={cn(
+            "items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]",
+            isMobile ? "hidden" : "hidden md:flex",
+          )}
         >
           <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />
           Home

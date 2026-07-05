@@ -5,7 +5,7 @@
   "reference": "Luke 23",
   "verseCount": 55,
   "versesWithCrossRefs": 46,
-  "versesWithFootnotes": 14,
+  "versesWithFootnotes": 15,
   "verses": [
     {
       "number": 1,
@@ -30,8 +30,8 @@
     },
     {
       "number": 3,
-      "textLength": 52,
-      "textPreview": "So Pilate asked him, “Are you the king of the Jews?”",
+      "textLength": 83,
+      "textPreview": "So Pilate asked him, “Are you the king of the Jews?” He answered him, “You say s",
       "crossRefLabels": [
         "Mt 27:11",
         "Mk 15:2",
@@ -40,7 +40,9 @@
         "Jn 18:39",
         "Jn 19:3"
       ],
-      "footnoteMarkers": []
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 4,

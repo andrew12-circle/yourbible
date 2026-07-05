@@ -250,6 +250,25 @@ describe("parsePassageHtml", () => {
     expect(groups[1]?.verses.map((v) => v.number)).toEqual([6]);
     expect(groups[1]?.isContinuation).toBe(false);
   });
+
+  it("merges poetry continuation lines into the prior verse (Micah 6 pattern)", () => {
+    const html = `
+<p class="m"><span class="v">1</span>Now listen to what the Lord is saying: </p>
+<p class="q">Rise, plead your case before the mountains, </p>
+<p class="q">and let the hills hear your complaint. </p>
+<p class="q1"><span class="v">8</span>Mankind, he has told each of you what is good </p>
+<p class="q">and what it is the Lord requires of you: </p>
+<p class="q">to act justly, </p>
+<p class="q">to love faithfulness, </p>
+<p class="q">and to walk humbly with your God. </p>`;
+    const parsed = parsePassageHtml(html, "Micah 6");
+    expect(parsed.verses).toHaveLength(2);
+    expect(parsed.verses[0]?.text).toContain("Now listen to what the Lord is saying:");
+    expect(parsed.verses[0]?.text).toContain("Rise, plead your case before the mountains");
+    expect(parsed.verses[0]?.text).toContain("and let the hills hear your complaint");
+    expect(parsed.verses[1]?.text).toContain("act justly");
+    expect(parsed.verses[1]?.text).toContain("walk humbly with your God");
+  });
 });
 
 describe("parseChapterText", () => {

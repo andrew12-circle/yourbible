@@ -4,61 +4,82 @@
   "chapter": 23,
   "reference": "Psalm 23",
   "verseCount": 6,
-  "versesWithCrossRefs": 2,
-  "versesWithFootnotes": 1,
+  "versesWithCrossRefs": 6,
+  "versesWithFootnotes": 3,
   "verses": [
     {
       "number": 1,
-      "textLength": 24,
-      "textPreview": "The Lord is my shepherd;",
+      "textLength": 44,
+      "textPreview": "The Lord is my shepherd; I have what I need.",
       "crossRefLabels": [
         "Gn 48:15",
         "Ps 78:52",
         "Jr 31:10",
         "Ezk 34:11–13",
-        "Jn 10:11"
+        "Jn 10:11",
+        "Ps 34:9–10",
+        "Php 4:19"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 2,
-      "textLength": 38,
-      "textPreview": "He lets me lie down in green pastures;",
+      "textLength": 71,
+      "textPreview": "He lets me lie down in green pastures; he leads me beside quiet waters.",
       "crossRefLabels": [
         "Ps 65:11–13",
-        "Ezk 34:14"
+        "Ezk 34:14",
+        "Ps 36:8"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 3,
-      "textLength": 18,
-      "textPreview": "He renews my life;",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 73,
+      "textPreview": "He renews my life; he leads me along the right paths for his name’s sake.",
+      "crossRefLabels": [
+        "Ps 5:8",
+        "Pr 4:11"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 4,
-      "textLength": 42,
-      "textPreview": "Even when I go through the darkest valley,",
-      "crossRefLabels": [],
+      "textLength": 123,
+      "textPreview": "Even when I go through the darkest valley, I fear no danger, for you are with me",
+      "crossRefLabels": [
+        "Is 43:2",
+        "Mc 7:14"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
       "number": 5,
-      "textLength": 29,
-      "textPreview": "You prepare a table before me",
-      "crossRefLabels": [],
+      "textLength": 107,
+      "textPreview": "You prepare a table before me in the presence of my enemies; you anoint my head ",
+      "crossRefLabels": [
+        "Ps 92:10",
+        "Ps 16:5"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 6,
-      "textLength": 46,
-      "textPreview": "Only goodness and faithful love will pursue me",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 132,
+      "textPreview": "Only goodness and faithful love will pursue me all the days of my life, and I wi",
+      "crossRefLabels": [
+        "Ps 25:7",
+        "Ps 109:21",
+        "Ps 27:4–6"
+      ],
+      "footnoteMarkers": [
+        1,
+        1
+      ]
     }
   ]
 }

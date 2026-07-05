@@ -13,6 +13,8 @@ export type ArtifactGlobalVideoPipSession = {
   startSeconds: number;
   resumePlayback: boolean;
   layout: ArtifactPipLayout;
+  /** Live sermon — embed stays at live edge; no VOD resume seeks. */
+  isLiveBroadcast: boolean;
 };
 
 export type ArtifactGlobalVideoPipHandoffInput = {
@@ -22,6 +24,7 @@ export type ArtifactGlobalVideoPipHandoffInput = {
   startSeconds: number;
   resumePlayback: boolean;
   layout?: ArtifactPipLayout;
+  isLiveBroadcast?: boolean;
 };
 
 interface ArtifactGlobalVideoPipState {
@@ -43,14 +46,16 @@ export const useArtifactGlobalVideoPipStore = create<ArtifactGlobalVideoPipState
   session: null,
 
   startSession: (input) => {
+    const isLiveBroadcast = Boolean(input.isLiveBroadcast);
     set({
       session: {
         artifactId: input.artifactId,
         youTubeVideoId: input.youTubeVideoId,
         title: input.title,
-        startSeconds: Math.max(0, Math.floor(input.startSeconds)),
+        startSeconds: isLiveBroadcast ? 0 : Math.max(0, Math.floor(input.startSeconds)),
         resumePlayback: input.resumePlayback,
         layout: resolveHandoffLayout(input.artifactId, input.layout),
+        isLiveBroadcast,
       },
     });
   },

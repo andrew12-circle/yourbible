@@ -22,6 +22,7 @@ import {
 import { useYoutubeCaptionPrefetch } from "@/hooks/useYoutubeCaptionPrefetch";
 import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 import { getYouTubeEmbedUrl, getYouTubeVideoId, resolveYouTubeVideoId, canonicalYouTubeWatchUrl, extractYouTubeUrlFromText } from "@/lib/youtube";
+import { isYouTubeLiveUrl, liveBroadcastArtifactMetadata } from "@/lib/youtube/liveBroadcast";
 
 const ONE_MB = 1024 * 1024;
 
@@ -169,6 +170,7 @@ export default function NewArtifactPage() {
   };
 
   const youTubeVideoId = useMemo(() => getYouTubeVideoId(url), [url]);
+  const isLiveYoutubeUrl = useMemo(() => isYouTubeLiveUrl(url), [url]);
   const embedUrl = useMemo(() => getYouTubeEmbedUrl(url), [url]);
   const showPreviewSlot = url.trim().length > 0;
   const captionPrefetch = useYoutubeCaptionPrefetch(url);
@@ -203,6 +205,40 @@ export default function NewArtifactPage() {
     }
     supabase.functions.invoke("framework-analyze", { body: { artifact_id: data.id, processing_token: processingToken } }).catch((e) => {
       console.error(e);
+    });
+    navigate(`/framework/artifacts/${data.id}`);
+  };
+
+  const submitYoutubeLiveWatch = async () => {
+    if (!url.trim()) {
+      toast({ title: "Paste a YouTube live URL", variant: "destructive" });
+      return;
+    }
+    const videoId = resolveYouTubeVideoId(url.trim());
+    if (!videoId) {
+      toast({ title: "Could not read video ID", description: "Paste the full YouTube live link.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const trimmedUrl = url.trim();
+    const normalizedUrl = canonicalYouTubeWatchUrl(videoId, trimmedUrl);
+    const { data, error } = await supabase.from("artifacts").insert({
+      user_id: user.id,
+      title: title.trim() || null,
+      kind: "youtube",
+      url: normalizedUrl,
+      raw_text: "",
+      status: "ready",
+      metadata: liveBroadcastArtifactMetadata(videoId, trimmedUrl),
+    }).select("id").maybeSingle();
+    setBusy(false);
+    if (error || !data) {
+      toast({ title: "Failed", description: error?.message ?? "Unknown error", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Live stream added",
+      description: "Open the artifact, press play, then browse the app — the corner player keeps the feed going.",
     });
     navigate(`/framework/artifacts/${data.id}`);
   };
@@ -617,10 +653,22 @@ export default function NewArtifactPage() {
               Caption auto-fetch did not return text yet; submit still tries the full server ladder (AssemblyAI when configured).
             </p>
           ) : null}
+          {isLiveYoutubeUrl && youTubeVideoId ? (
+            <div className="mb-4 rounded-lg border border-red-200/80 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30">
+              <p className="text-sm font-medium text-red-900 dark:text-red-100">Live stream detected</p>
+              <p className="mt-1 text-xs leading-relaxed text-red-800/90 dark:text-red-200/80">
+                Sermons that are still live cannot fetch a full transcript yet. Add it to your library and watch while
+                you browse — playback continues in the corner player when you leave the artifact page.
+              </p>
+              <Button type="button" className="mt-3" onClick={submitYoutubeLiveWatch} disabled={busy}>
+                {busy ? "Saving…" : "Add live stream & watch"}
+              </Button>
+            </div>
+          ) : null}
           <p className="text-xs text-muted-foreground mb-4">
             Fetches captions when available. Connect YouTube in Settings for your own uploads. Paste below if auto-fetch fails.
           </p>
-          <Button onClick={submitYoutube} disabled={busy} className="mb-6">
+          <Button onClick={submitYoutube} disabled={busy || isLiveYoutubeUrl} className="mb-6">
             {busy ? "Fetching…" : "Fetch & analyze"}
           </Button>
           <div className="rounded-lg border border-border bg-muted/20 p-4">

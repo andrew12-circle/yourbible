@@ -4,251 +4,349 @@
   "chapter": 22,
   "reference": "Psalm 22",
   "verseCount": 31,
-  "versesWithCrossRefs": 10,
-  "versesWithFootnotes": 2,
+  "versesWithCrossRefs": 31,
+  "versesWithFootnotes": 8,
   "verses": [
     {
       "number": 1,
-      "textLength": 42,
-      "textPreview": "My God, my God, why have you abandoned me?",
+      "textLength": 112,
+      "textPreview": "My God, my God, why have you abandoned me? Why are you so far from my deliveranc",
       "crossRefLabels": [
         "Mt 27:46",
-        "Mk 15:34"
+        "Mk 15:34",
+        "Ps 10:1",
+        "Ps 32:3",
+        "Ps 38:8"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 2,
-      "textLength": 44,
-      "textPreview": "My God, I cry by day, but you do not answer,",
-      "crossRefLabels": [],
+      "textLength": 74,
+      "textPreview": "My God, I cry by day, but you do not answer, by night, yet I have no rest.",
+      "crossRefLabels": [
+        "Ps 42:3",
+        "Ps 88:1"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 3,
-      "textLength": 17,
-      "textPreview": "But you are holy,",
-      "crossRefLabels": [],
+      "textLength": 53,
+      "textPreview": "But you are holy, enthroned on the praises of Israel.",
+      "crossRefLabels": [
+        "Ps 99:3"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 4,
-      "textLength": 29,
-      "textPreview": "Our ancestors trusted in you;",
-      "crossRefLabels": [],
+      "textLength": 65,
+      "textPreview": "Our ancestors trusted in you; they trusted, and you rescued them.",
+      "crossRefLabels": [
+        "Ps 107:6"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 5,
-      "textLength": 36,
-      "textPreview": "They cried to you and were set free;",
-      "crossRefLabels": [],
+      "textLength": 80,
+      "textPreview": "They cried to you and were set free; they trusted in you and were not disgraced.",
+      "crossRefLabels": [
+        "Ps 25:2",
+        "Ps 31:1",
+        "Ps 71:1",
+        "Is 49:23"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 6,
-      "textLength": 30,
-      "textPreview": "But I am a worm and not a man,",
+      "textLength": 73,
+      "textPreview": "But I am a worm and not a man, scorned by mankind and despised by people.",
       "crossRefLabels": [
-        "Jb 25:6"
+        "Jb 25:6",
+        "Ps 109:25",
+        "Is 53:3"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 7,
-      "textLength": 30,
-      "textPreview": "Everyone who sees me mocks me;",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
-    },
-    {
-      "number": 8,
-      "textLength": 23,
-      "textPreview": "“He relies on the Lord;",
-      "crossRefLabels": [],
+      "textLength": 64,
+      "textPreview": "Everyone who sees me mocks me; they sneer and shake their heads:",
+      "crossRefLabels": [
+        "Mt 27:39",
+        "Mk 15:29",
+        "Lk 23:35"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
+      "number": 8,
+      "textLength": 99,
+      "textPreview": "“He relies on the Lord; let him save him; let the Lord rescue him, since he take",
+      "crossRefLabels": [
+        "Mt 27:43"
+      ],
+      "footnoteMarkers": [
+        1,
+        1
+      ]
+    },
+    {
       "number": 9,
-      "textLength": 42,
-      "textPreview": "It was you who brought me out of the womb,",
-      "crossRefLabels": [],
+      "textLength": 82,
+      "textPreview": "It was you who brought me out of the womb, making me secure at my mother’s breas",
+      "crossRefLabels": [
+        "Ps 71:6"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 10,
-      "textLength": 33,
-      "textPreview": "I was given over to you at birth;",
-      "crossRefLabels": [],
+      "textLength": 77,
+      "textPreview": "I was given over to you at birth; you have been my God from my mother’s womb.",
+      "crossRefLabels": [
+        "Is 46:3",
+        "Is 49:1",
+        "Gl 1:15"
+      ],
       "footnoteMarkers": [
         1
       ]
     },
     {
       "number": 11,
-      "textLength": 46,
-      "textPreview": "Don’t be far from me, because distress is near",
-      "crossRefLabels": [],
+      "textLength": 74,
+      "textPreview": "Don’t be far from me, because distress is near and there’s no one to help.",
+      "crossRefLabels": [
+        "2Kg 14:26",
+        "Ps 71:12",
+        "Is 63:5"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 12,
-      "textLength": 23,
-      "textPreview": "Many bulls surround me;",
-      "crossRefLabels": [],
+      "textLength": 58,
+      "textPreview": "Many bulls surround me; strong ones of Bashan encircle me.",
+      "crossRefLabels": [
+        "Ps 68:30",
+        "Am 4:1"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 13,
-      "textLength": 35,
-      "textPreview": "They open their mouths against me —",
-      "crossRefLabels": [],
+      "textLength": 63,
+      "textPreview": "They open their mouths against me — lions, mauling and roaring.",
+      "crossRefLabels": [
+        "Ps 10:9",
+        "Ps 17:12"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 14,
-      "textLength": 27,
-      "textPreview": "I am poured out like water,",
+      "textLength": 101,
+      "textPreview": "I am poured out like water, and all my bones are disjointed; my heart is like wa",
       "crossRefLabels": [
-        "Jb 30:16"
+        "Jb 30:16",
+        "Jb 4:14",
+        "Ps 6:2",
+        "Ps 32:3",
+        "Nah 2:10"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 15,
-      "textLength": 40,
-      "textPreview": "My strength is dried up like baked clay;",
+      "textLength": 117,
+      "textPreview": "My strength is dried up like baked clay; my tongue sticks to the roof of my mout",
       "crossRefLabels": [
-        "Ps 38:10"
+        "Ps 38:10",
+        "Lm 4:4",
+        "Ps 104:29"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 16,
-      "textLength": 28,
-      "textPreview": "For dogs have surrounded me;",
+      "textLength": 104,
+      "textPreview": "For dogs have surrounded me; a gang of evildoers has closed in on me; they pierc",
       "crossRefLabels": [
         "Ps 59:6",
-        "Ps 59:14"
+        "Ps 59:14",
+        "Jn 20:25"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 17,
+      "textLength": 54,
+      "textPreview": "I can count all my bones; people look and stare at me.",
+      "crossRefLabels": [
+        "Lk 23:35"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
+    },
+    {
+      "number": 18,
+      "textLength": 78,
+      "textPreview": "They divided my garments among themselves, and they cast lots for my clothing.",
+      "crossRefLabels": [
+        "Mt 27:35",
+        "Lk 23:34",
+        "Jn 19:24"
       ],
       "footnoteMarkers": []
     },
     {
-      "number": 17,
-      "textLength": 25,
-      "textPreview": "I can count all my bones;",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
-    },
-    {
-      "number": 18,
-      "textLength": 42,
-      "textPreview": "They divided my garments among themselves,",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
-    },
-    {
       "number": 19,
-      "textLength": 33,
-      "textPreview": "But you, Lord, don’t be far away.",
+      "textLength": 71,
+      "textPreview": "But you, Lord, don’t be far away. My strength, come quickly to help me.",
       "crossRefLabels": [
-        "Ps 10:1"
+        "Ps 10:1",
+        "Ps 70:5"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 20,
-      "textLength": 30,
-      "textPreview": "Rescue my life from the sword,",
+      "textLength": 73,
+      "textPreview": "Rescue my life from the sword, my only life from the power of these dogs.",
       "crossRefLabels": [
         "Jr 39:18"
       ],
-      "footnoteMarkers": []
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 21,
-      "textLength": 30,
-      "textPreview": "Save me from the lion’s mouth,",
+      "textLength": 76,
+      "textPreview": "Save me from the lion’s mouth, from the horns of wild oxen. You answered me!",
       "crossRefLabels": [
         "Ps 35:17",
         "2Tm 4:17"
       ],
-      "footnoteMarkers": []
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 22,
-      "textLength": 53,
-      "textPreview": "I will proclaim your name to my brothers and sisters;",
-      "crossRefLabels": [],
+      "textLength": 88,
+      "textPreview": "I will proclaim your name to my brothers and sisters; I will praise you in the a",
+      "crossRefLabels": [
+        "Ps 40:10",
+        "Heb 2:12"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 23,
-      "textLength": 34,
-      "textPreview": "You who fear the Lord, praise him!",
+      "textLength": 118,
+      "textPreview": "You who fear the Lord, praise him! All you descendants of Jacob, honor him! All ",
       "crossRefLabels": [
-        "Rv 19:5"
+        "Rv 19:5",
+        "Ps 135:20"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 24,
-      "textLength": 35,
-      "textPreview": "For he has not despised or abhorred",
-      "crossRefLabels": [],
+      "textLength": 143,
+      "textPreview": "For he has not despised or abhorred the torment of the oppressed. He did not hid",
+      "crossRefLabels": [
+        "Ps 69:33",
+        "Ezk 39:29",
+        "Ps 28:2"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 25,
-      "textLength": 40,
-      "textPreview": "I will give praise in the great assembly",
-      "crossRefLabels": [],
-      "footnoteMarkers": []
+      "textLength": 106,
+      "textPreview": "I will give praise in the great assembly because of you; I will fulfill my vows ",
+      "crossRefLabels": [
+        "Ps 35:18",
+        "Ps 40:9–10",
+        "Ps 61:8"
+      ],
+      "footnoteMarkers": [
+        1
+      ]
     },
     {
       "number": 26,
-      "textLength": 37,
-      "textPreview": "The humble will eat and be satisfied;",
+      "textLength": 108,
+      "textPreview": "The humble will eat and be satisfied; those who seek the Lord will praise him. M",
       "crossRefLabels": [
-        "Ps 107:9"
+        "Ps 107:9",
+        "Ps 40:16",
+        "Ps 69:32"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 27,
-      "textLength": 39,
-      "textPreview": "All the ends of the earth will remember",
-      "crossRefLabels": [],
+      "textLength": 119,
+      "textPreview": "All the ends of the earth will remember and turn to the Lord. All the families o",
+      "crossRefLabels": [
+        "Ps 2:8",
+        "Ps 86:9"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 28,
-      "textLength": 33,
-      "textPreview": "for kingship belongs to the Lord;",
-      "crossRefLabels": [],
+      "textLength": 55,
+      "textPreview": "for kingship belongs to the Lord; he rules the nations.",
+      "crossRefLabels": [
+        "1Ch 16:31",
+        "2Ch 20:6",
+        "Mal 1:14",
+        "Rv 15:3"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 29,
-      "textLength": 47,
-      "textPreview": "All who prosper on earth will eat and bow down;",
-      "crossRefLabels": [],
+      "textLength": 148,
+      "textPreview": "All who prosper on earth will eat and bow down; all those who go down to the dus",
+      "crossRefLabels": [
+        "Is 45:23",
+        "Rm 14:11",
+        "Php 2:10"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 30,
-      "textLength": 33,
-      "textPreview": "Their descendants will serve him;",
-      "crossRefLabels": [],
+      "textLength": 82,
+      "textPreview": "Their descendants will serve him; the next generation will be told about the Lor",
+      "crossRefLabels": [
+        "Ps 102:18",
+        "Ps 102:28"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 31,
-      "textLength": 45,
-      "textPreview": "They will come and declare his righteousness;",
-      "crossRefLabels": [],
+      "textLength": 108,
+      "textPreview": "They will come and declare his righteousness; to a people yet to be born they wi",
+      "crossRefLabels": [
+        "Ps 71:18",
+        "Ps 78:6"
+      ],
       "footnoteMarkers": []
     }
   ]

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { MiniPhoneEmbedProvider } from "@/contexts/MiniPhoneEmbedContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 
 const mockUseAuth = vi.fn();
@@ -30,6 +31,14 @@ describe("useAppShellMode", () => {
     mockUseAuth.mockReturnValue({ profile: { layout: JSON.stringify({ homeMode: "ios" }) } });
     const { result } = renderHook(() => useAppShellMode());
     expect(result.current.homeMode).toBe("ios");
+    expect(result.current.showHubShell).toBe(false);
+  });
+
+  it("hides hub shell inside mini phone even when homeMode is hub", () => {
+    mockUseAuth.mockReturnValue({ profile: { layout: JSON.stringify({ homeMode: "hub" }) } });
+    const { result } = renderHook(() => useAppShellMode(), {
+      wrapper: ({ children }) => <MiniPhoneEmbedProvider>{children}</MiniPhoneEmbedProvider>,
+    });
     expect(result.current.showHubShell).toBe(false);
   });
 });

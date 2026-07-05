@@ -1,9 +1,5 @@
 import { useRef } from "react";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
-import {
-  ReaderCompactInkCollapsedChip,
-  ReaderCompactInkToolbar,
-} from "@/components/bible/ReaderCompactInkToolbar";
 import { useCompactInkLayout, useReaderSpread } from "@/hooks/use-reader-layout";
 import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
 import type { InkDrawTool, InkTool } from "@/lib/ink/types";
@@ -54,7 +50,7 @@ export function ReaderInkToolbar({
   const penColors = getSketchPenColors(false);
   const readerSpread = useReaderSpread();
   const compactViewport = useCompactInkLayout();
-  /** Single-page reader (phones / tablet portrait) always uses the compact dock. */
+  /** Single-page reader (phones / tablet portrait) uses the full-width ink dock. */
   const useMobileBar = !readerSpread || compactViewport || compactInkLayoutProp;
 
   const handleToolChange = (next: InkTool) => {
@@ -95,73 +91,43 @@ export function ReaderInkToolbar({
       />
       <div
         className={cn(
-          "pointer-events-auto flex min-w-0",
-          collapsed ? "justify-end" : cn("w-full justify-center", useMobileBar ? "max-w-full" : "max-w-[100vw]"),
+          "pointer-events-auto flex min-w-0 w-full",
+          collapsed ? "justify-end" : "justify-center",
         )}
       >
-        {useMobileBar ? (
-          collapsed ? (
-            <ReaderCompactInkCollapsedChip
-              tool={tool}
-              color={color}
-              onExpand={() => onCollapsedChange(false)}
-            />
-          ) : (
-            <ReaderCompactInkToolbar
-              tool={tool}
-              color={color}
-              size={size}
-              hasStrokes={hasStrokes}
-              redoCount={redoCount}
-              onCollapsedChange={onCollapsedChange}
-              onToolChange={handleToolChange}
-              onColorChange={(c) => {
-                onColor(c);
-                if (tool === "eraser") handleToolChange("fountain");
-              }}
-              onSizeChange={onSize}
-              onUndo={onUndo}
-              onRedo={onRedo}
-              onClear={onClear}
-              onClearChapterInk={onClearChapterInk}
-              customColorInputRef={customColorRef}
-            />
-          )
-        ) : (
-          <SketchInkToolbar
-            variant="reader"
-            isNightMode={false}
-            collapsed={collapsed}
-            onCollapsedChange={onCollapsedChange}
-            collapsedAnchor="end"
-            tabletPortrait={tabletPortrait}
-            compactInkLayout={false}
-            tool={tool}
-            color={color}
-            size={size}
-            penColors={penColors}
-            paper={NOOP_PAPER}
-            hasStrokes={hasStrokes}
-            redoCount={redoCount}
-            drawWithFinger
-            rulerVisible={false}
-            snapToRuler={false}
-            onToolChange={handleToolChange}
-            onColorChange={(c) => {
-              onColor(c);
-              if (tool === "eraser") handleToolChange("fountain");
-            }}
-            onSizeChange={onSize}
-            onPaperChange={() => {}}
-            onUndo={onUndo}
-            onRedo={onRedo}
-            onClear={onClear}
-            onClearChapterInk={onClearChapterInk}
-            onDrawWithFingerChange={() => {}}
-            onSnapToRulerChange={() => {}}
-            customColorInputRef={customColorRef}
-          />
-        )}
+        <SketchInkToolbar
+          variant="reader"
+          isNightMode={false}
+          collapsed={collapsed}
+          onCollapsedChange={onCollapsedChange}
+          collapsedAnchor="end"
+          tabletPortrait={tabletPortrait}
+          compactInkLayout={useMobileBar}
+          tool={tool}
+          color={color}
+          size={size}
+          penColors={penColors}
+          paper={NOOP_PAPER}
+          hasStrokes={hasStrokes}
+          redoCount={redoCount}
+          drawWithFinger
+          rulerVisible={false}
+          snapToRuler={false}
+          onToolChange={handleToolChange}
+          onColorChange={(c) => {
+            onColor(c);
+            if (tool === "eraser") handleToolChange("fountain");
+          }}
+          onSizeChange={onSize}
+          onPaperChange={() => {}}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onClear={onClear}
+          onClearChapterInk={onClearChapterInk}
+          onDrawWithFingerChange={() => {}}
+          onSnapToRulerChange={() => {}}
+          customColorInputRef={customColorRef}
+        />
       </div>
     </div>
   );

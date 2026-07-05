@@ -83,8 +83,13 @@ import { ReaderInkToolbar } from "@/components/bible/ReaderInkToolbar";
 import { useReaderInkMode } from "@/hooks/useReaderPageInk";
 import { computeReaderLayoutFingerprint } from "@/lib/ink/layoutFingerprint";
 import { clearReaderInkChapter } from "@/lib/ink/readerInkChapterClear";
-import { INK_PEN_COLORS, INK_PEN_SIZES } from "@/lib/ink/strokeRender";
+import { INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import type { InkTool } from "@/lib/ink/types";
+
+/** Bible margin ink defaults — fine tip (not fountain), 2px, toolbar blue. */
+const READER_INK_DEFAULT_TOOL: InkTool = "fineline";
+const READER_INK_DEFAULT_COLOR = "#007aff";
+const READER_INK_DEFAULT_SIZE = INK_PEN_SIZES[0];
 import {
   areSameSplits,
   isPageSplitsReady,
@@ -452,9 +457,9 @@ export default function ReaderPage() {
   }, []);
 
   const { inkMode, toggleInkMode } = useReaderInkMode();
-  const [inkTool, setInkTool] = useState<InkTool>("fountain");
-  const [inkColor, setInkColor] = useState(INK_PEN_COLORS[0].value);
-  const [inkSize, setInkSize] = useState<number>(INK_PEN_SIZES[1]);
+  const [inkTool, setInkTool] = useState<InkTool>(READER_INK_DEFAULT_TOOL);
+  const [inkColor, setInkColor] = useState(READER_INK_DEFAULT_COLOR);
+  const [inkSize, setInkSize] = useState<number>(READER_INK_DEFAULT_SIZE);
   const inkApisRef = useRef(new Map<string, ReaderInkLayerApi>());
   const [activeInkLayerId, setActiveInkLayerId] = useState<string | null>(null);
   const [inkToolbarState, setInkToolbarState] = useState({

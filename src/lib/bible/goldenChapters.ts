@@ -153,6 +153,16 @@ export const GOLDEN_CSB_CHAPTERS: GoldenChapterSpec[] = [
     spotCheckCrossRefs: {},
   },
   {
+    id: "csb-mic-6",
+    book: "Mic",
+    usfm: "MIC",
+    chapter: 6,
+    reference: "Micah 6",
+    minVerseCount: 16,
+    minVersesWithCrossRefs: 0,
+    spotCheckCrossRefs: {},
+  },
+  {
     id: "csb-mat-5",
     book: "Mat",
     usfm: "MAT",

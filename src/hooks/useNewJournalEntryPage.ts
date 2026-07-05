@@ -162,6 +162,7 @@ export function useNewJournalEntryPage() {
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyCaretRef = useRef<number | null>(null);
+  const focusBodyEditorRef = useRef<() => void>(() => {});
   const videoAnchorRef = useRef(0);
   const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
@@ -641,13 +642,6 @@ export function useNewJournalEntryPage() {
     onSummary: setSummary,
     onSummarizingChange: setVideoSummarizing,
   });
-
-  const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
-    useDictationAutoFormat({
-      enabled: !isVent && !inlineChatMode,
-      getBody: () => bodyRef.current,
-      setBody: (next) => handleBodyChange(next),
-    });
 
   const listeningCanSave = useMemo(() => !isListeningEmpty(listeningSections), [listeningSections]);
 
@@ -1162,6 +1156,15 @@ export function useNewJournalEntryPage() {
     el.setSelectionRange(pos, pos);
     requestAnimationFrame(() => scrollToCaretEnd());
   }, [scrollToCaretEnd]);
+  focusBodyEditorRef.current = focusBodyEditor;
+
+  const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
+    useDictationAutoFormat({
+      enabled: !isVent && !inlineChatMode,
+      getBody: () => bodyRef.current,
+      setBody: (next) => handleBodyChange(next),
+      onFormatted: () => focusBodyEditorRef.current(),
+    });
 
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => {

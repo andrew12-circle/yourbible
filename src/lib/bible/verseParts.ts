@@ -43,7 +43,8 @@ export function collectFootnotes(parts: VersePart[]): PassageFootnote[] {
 
 export function mergeVerseEntries(existing: PassageVerse, incoming: PassageVerse): PassageVerse {
   const parts = [...verseParts(existing), ...verseParts(incoming)];
-  const text = versePlainText({ number: existing.number, text: "", parts });
+  let text = versePlainText({ number: existing.number, text: "", parts });
+  text = text.replace(/\btheLord\b/g, "the Lord").replace(/\s+/g, " ").trim();
   return {
     number: existing.number,
     text,

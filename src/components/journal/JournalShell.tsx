@@ -19,6 +19,7 @@ import { JournalVaultUnlockGate } from "@/components/journal/JournalVaultUnlockG
 import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurToggle";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -62,6 +63,7 @@ export default function JournalShell({
   footer,
 }: Props) {
   const inMiniPhone = useMiniPhoneEmbed();
+  const isMobile = useIsMobile();
   const { showHubShell } = useAppShellMode();
   const fillViewport = inMiniPhone || showHubShell;
   const { user } = useAuth();
@@ -186,6 +188,7 @@ export default function JournalShell({
       )}
     >
       <div className={cn("flex", fillViewport && "min-h-0 flex-1 flex-col overflow-hidden")}>
+        {!isMobile && (
         <div className="hidden md:block w-72 border-r border-border/60 bg-muted/20 flex-shrink-0 h-screen sticky top-0 overflow-y-auto">
           <JournalsRail
             journals={journals}
@@ -193,6 +196,7 @@ export default function JournalShell({
             onChange={reload}
           />
         </div>
+        )}
         {/* Mobile rail in sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent side="left" className="w-72 p-0 [&>button]:hidden" style={{ padding: 0 }}>

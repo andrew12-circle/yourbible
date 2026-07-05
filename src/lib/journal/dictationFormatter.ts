@@ -32,6 +32,46 @@ function capitalizeFirst(s: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+/**
+ * STT often mirrors caps-lock notes or returns shouting case. When most letters are
+ * uppercase, normalize to lowercase before sentence/paragraph formatting.
+ */
+const SHOUTING_ACRONYMS = new Set([
+  "usa",
+  "uk",
+  "eu",
+  "un",
+  "nato",
+  "fbi",
+  "cia",
+  "abc",
+  "nbc",
+  "cbs",
+  "pbs",
+  "tv",
+  "am",
+  "pm",
+  "ad",
+  "bc",
+  "st",
+  "dr",
+  "mr",
+  "mrs",
+  "ms",
+]);
+
+export function normalizeShoutingCase(text: string): string {
+  const letters = text.replace(/[^a-zA-Z]/g, "");
+  if (letters.length < 3) return text;
+  const upper = (letters.match(/[A-Z]/g) ?? []).length;
+  if (upper / letters.length < 0.65) return text;
+
+  const lower = text.toLowerCase();
+  return lower.replace(/\b([a-z]{2,4})\b/gi, (word) =>
+    SHOUTING_ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word,
+  );
+}
+
 function ensureTerminalPunctuation(s: string): string {
   const t = s.trim();
   if (!t) return "";
@@ -102,7 +142,7 @@ function formatParagraphs(text: string): string {
 
 /** Format raw speech-to-text into punctuated journal prose (device-only). */
 export function formatDictatedJournalText(text: string): string {
-  let s = text.trim();
+  let s = normalizeShoutingCase(text.trim());
   if (!s) return text;
 
   for (const [re, replacement] of SPOKEN_PUNCTUATION) {

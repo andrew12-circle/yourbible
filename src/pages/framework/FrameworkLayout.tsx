@@ -9,6 +9,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   children: ReactNode;
@@ -78,6 +79,8 @@ export default function FrameworkLayout({
 }: Props) {
   const { pathname } = useLocation();
   const { showHubShell } = useAppShellMode();
+  const isMobile = useIsMobile();
+  const fillPane = showHubShell || isMobile;
   const claimResearch = isClaimResearchPath(pathname);
   const immersive = immersiveProp ?? (isArtifactDetailPath(pathname) || claimResearch);
   const studioLibrary = isArtifactsLibraryPath(pathname);
@@ -104,7 +107,8 @@ export default function FrameworkLayout({
     if (!root) return;
 
     const sync = () => {
-      const pipVideoLayout = window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_PIP_MIN_PX}px)`).matches;
+      const pipVideoLayout =
+        !isMobile && window.matchMedia(`(min-width: ${ARTIFACT_VIDEO_PIP_MIN_PX}px)`).matches;
       // Phone + tablet: framework header hidden; pinned video uses top-0 (see ArtifactYoutubeVideoBlock).
       if (!pipVideoLayout) {
         root.style.setProperty("--artifact-header-h", "0px");
@@ -132,7 +136,7 @@ export default function FrameworkLayout({
       mqlDesktop.removeEventListener("change", sync);
       window.removeEventListener("resize", sync);
     };
-  }, [immersiveMobileMinimal]);
+  }, [immersiveMobileMinimal, isMobile]);
 
   return (
     <div
@@ -140,11 +144,11 @@ export default function FrameworkLayout({
       data-artifact-youtube-mobile={immersiveMobileMinimal ? "" : undefined}
       className={cn(
         "bg-background font-sans text-foreground",
-        workspace || showHubShell
+        workspace || fillPane
           ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden"
           : "min-h-[100dvh]",
         immersiveMobileMinimal &&
-          (showHubShell
+          (fillPane
             ? "flex h-full min-h-0 flex-col overflow-hidden [--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]"
             : "max-lg:flex max-lg:h-[100dvh] max-lg:max-h-[100dvh] max-lg:flex-col max-lg:overflow-hidden max-lg:[--artifact-header-h:0px] [--artifact-sticky-video-h:56.25vw] [--artifact-sticky-chrome-h:0px] [--artifact-mobile-video-h:56.25vw] [--artifact-mobile-sticky-chrome-h:0px] [--artifact-mobile-pinned-header-h:56.25vw]"),
       )}
@@ -162,7 +166,7 @@ export default function FrameworkLayout({
         data-artifact-framework-header
         className={cn(
           "sticky top-0 z-30 shrink-0 border-b backdrop-blur-md max-md:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]",
-          hideMobileFrameworkHeader && "max-lg:hidden",
+          hideMobileFrameworkHeader && (isMobile ? "hidden" : "max-lg:hidden"),
           hideDesktopFrameworkHeader && "lg:hidden",
           immersive
             ? "border-border/60 bg-background/92 shadow-sm supports-[backdrop-filter]:bg-background/85"
@@ -285,10 +289,10 @@ export default function FrameworkLayout({
       <main
         className={cn(
           "mx-auto px-4 sm:px-5",
-          showHubShell && !workspace && !immersive && "min-h-0 flex-1 overflow-y-auto overflow-x-hidden",
+          fillPane && !workspace && !immersive && "min-h-0 flex-1 overflow-y-auto overflow-x-hidden",
           immersive
             ? hideMobileFrameworkHeader
-              ? showHubShell
+              ? fillPane
                 ? "mx-0 flex min-h-0 flex-1 flex-col overflow-hidden px-0 py-0 pb-0"
                 : "max-lg:mx-0 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden max-lg:px-0 max-lg:py-0 max-lg:pb-0 lg:mx-0 lg:px-0 lg:py-0 lg:pb-0"
               : hideDesktopFrameworkHeader
@@ -297,10 +301,10 @@ export default function FrameworkLayout({
             : workspace
               ? "mx-0 w-full min-w-0 flex min-h-0 flex-1 flex-col px-0 pb-0 pt-0"
               : studioLibrary
-                ? showHubShell
+                ? fillPane
                   ? "min-h-0 flex-1 overflow-y-auto pt-4 pb-4 sm:py-5"
                   : "pt-5 pb-[calc(1.25rem+var(--safe-area-inset-bottom))] sm:py-6"
-                : showHubShell
+                : fillPane
                   ? "min-h-0 flex-1 overflow-y-auto py-4 sm:py-6"
                   : "pt-8 pb-[calc(2rem+var(--safe-area-inset-bottom))] sm:py-10",
           contentClassName ?? "max-w-none",

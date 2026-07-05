@@ -12,6 +12,7 @@ export function useArtifactGlobalVideoHandoff(options: {
   getWantsContinuousPlayback: () => boolean;
   persistSeconds: (seconds: number) => void;
   pipLayout?: ArtifactPipLayout;
+  isLiveBroadcast?: boolean;
 }) {
   const {
     artifactId,
@@ -21,17 +22,20 @@ export function useArtifactGlobalVideoHandoff(options: {
     getWantsContinuousPlayback,
     persistSeconds,
     pipLayout,
+    isLiveBroadcast = false,
   } = options;
 
   const getPlaybackSecondsRef = useRef(getPlaybackSeconds);
   const getWantsContinuousPlaybackRef = useRef(getWantsContinuousPlayback);
   const persistSecondsRef = useRef(persistSeconds);
   const pipLayoutRef = useRef(pipLayout);
+  const isLiveBroadcastRef = useRef(isLiveBroadcast);
 
   getPlaybackSecondsRef.current = getPlaybackSeconds;
   getWantsContinuousPlaybackRef.current = getWantsContinuousPlayback;
   persistSecondsRef.current = persistSeconds;
   pipLayoutRef.current = pipLayout;
+  isLiveBroadcastRef.current = isLiveBroadcast;
 
   useEffect(() => {
     if (!artifactId) return;
@@ -48,8 +52,8 @@ export function useArtifactGlobalVideoHandoff(options: {
       if (existing?.artifactId === artifactId) return;
       if (!getWantsContinuousPlaybackRef.current()) return;
 
-      const seconds = getPlaybackSecondsRef.current();
-      persistSecondsRef.current(seconds);
+      const seconds = isLiveBroadcastRef.current ? 0 : getPlaybackSecondsRef.current();
+      if (!isLiveBroadcastRef.current) persistSecondsRef.current(seconds);
 
       useArtifactGlobalVideoPipStore.getState().startSession({
         artifactId,
@@ -58,6 +62,7 @@ export function useArtifactGlobalVideoHandoff(options: {
         startSeconds: seconds,
         resumePlayback: true,
         layout: pipLayoutRef.current,
+        isLiveBroadcast: isLiveBroadcastRef.current,
       });
     };
   }, [artifactId, title, youTubeVideoId]);
@@ -69,6 +74,7 @@ export function startArtifactGlobalVideoHandoff(input: {
   title: string | null;
   startSeconds: number;
   layout?: ArtifactPipLayout;
+  isLiveBroadcast?: boolean;
 }): void {
   useArtifactGlobalVideoPipStore.getState().startSession({
     artifactId: input.artifactId,
@@ -77,5 +83,6 @@ export function startArtifactGlobalVideoHandoff(input: {
     startSeconds: input.startSeconds,
     resumePlayback: true,
     layout: input.layout,
+    isLiveBroadcast: input.isLiveBroadcast,
   });
 }

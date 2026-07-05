@@ -1,4 +1,8 @@
 import { createContext, useContext } from "react";
+import {
+  MINI_PHONE_DEFAULT_HEIGHT,
+  MINI_PHONE_DEFAULT_WIDTH,
+} from "@/lib/mini-phone/miniPhoneDimensions";
 
 export interface MiniPhoneSize {
   width: number;
@@ -7,8 +11,8 @@ export interface MiniPhoneSize {
 }
 
 export const MiniPhoneSizeContext = createContext<MiniPhoneSize>({
-  width: 288,
-  height: 624,
+  width: MINI_PHONE_DEFAULT_WIDTH,
+  height: MINI_PHONE_DEFAULT_HEIGHT,
   compact: false,
 });
 

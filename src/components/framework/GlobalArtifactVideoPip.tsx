@@ -32,6 +32,7 @@ export default function GlobalArtifactVideoPip() {
 
   const startSeconds = useMemo(() => {
     if (!session) return 0;
+    if (session.isLiveBroadcast) return 0;
     const handoff = session.startSeconds;
     if (handoff > 0) return handoff;
     return savedStart;
@@ -70,6 +71,7 @@ export default function GlobalArtifactVideoPip() {
     if (!session) return null;
     return buildYouTubeEmbedSrc(session.youTubeVideoId, startSeconds, {
       autoplay: session.resumePlayback,
+      liveEdge: session.isLiveBroadcast,
     });
   }, [session, startSeconds]);
 
@@ -78,13 +80,13 @@ export default function GlobalArtifactVideoPip() {
   }, [session?.artifactId, session?.resumePlayback, session?.youTubeVideoId]);
 
   const onStaticEmbedLoad = useCallback(() => {
-    if (startSeconds > 0) staticTelemetry.seekTo(startSeconds, true);
+    if (!session?.isLiveBroadcast && startSeconds > 0) staticTelemetry.seekTo(startSeconds, true);
     if (resumeOnLoadRef.current) staticTelemetry.resumeAfterLayoutReposition();
     resumeOnLoadRef.current = false;
-  }, [startSeconds, staticTelemetry]);
+  }, [session?.isLiveBroadcast, startSeconds, staticTelemetry]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || session.isLiveBroadcast) return;
     const tick = window.setInterval(() => {
       const t = staticTelemetry.getCurrentTime();
       playbackFallbackRef.current = t;
@@ -121,9 +123,11 @@ export default function GlobalArtifactVideoPip() {
 
   const restoreToArtifact = useCallback(() => {
     if (!session) return;
-    const seconds = staticTelemetry.getCurrentTime();
-    playbackFallbackRef.current = seconds;
-    persistSeconds(seconds);
+    if (!session.isLiveBroadcast) {
+      const seconds = staticTelemetry.getCurrentTime();
+      playbackFallbackRef.current = seconds;
+      persistSeconds(seconds);
+    }
     markArtifactInlineVideoResume(session.artifactId);
     dismiss();
     navigate(`/framework/artifacts/${session.artifactId}#video`);

@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Activity, BadgeCheck, BookOpenCheck, Brain, ExternalLink, Radio, Save, Trash2 } from "lucide-react";
+import type { RefObject } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ type Capture = ReturnType<typeof useLiveStreamCapture>;
 type Props = {
   capture: Capture;
   signedIn: boolean;
+  videoSlotRef: RefObject<HTMLDivElement | null>;
 };
 
 const layerCards = [
@@ -42,7 +44,8 @@ const layerCards = [
   },
 ];
 
-export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props) {
+export default function LiveStreamCaptureWorkspace({ capture, signedIn, videoSlotRef }: Props) {
+  const navigate = useNavigate();
   const {
     title,
     setTitle,
@@ -60,6 +63,7 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
     removeChunk,
     clearSession,
     saveSession,
+    saveWatchSession,
   } = capture;
 
   return (
@@ -128,9 +132,10 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr),minmax(360px,0.85fr)]">
         <section className="space-y-5">
           <div className="overflow-hidden rounded-3xl border border-border/60 bg-black shadow-sm">
-            <div className="aspect-video">
+            <div ref={videoSlotRef} className="aspect-video">
               {embedUrl ? (
                 <iframe
+                  data-youtube-static-embed
                   key={youTubeVideoId}
                   title="Live YouTube stream"
                   src={embedUrl}
@@ -234,19 +239,33 @@ export default function LiveStreamCaptureWorkspace({ capture, signedIn }: Props)
               Save into your system
             </div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Saving creates a YouTube artifact with normalized transcript text and inserts lifted claims for later verdicts,
-              journal work, and belief comparison.
+              Save the stream as a YouTube artifact so you can keep watching while you browse the app. Add transcript
+              chunks first if you want lifted claims — or save now and capture later.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button type="button" onClick={() => void saveSession()} disabled={saving || !signedIn}>
-                {saving ? "Saving..." : "Save live capture"}
+              <Button
+                type="button"
+                onClick={() => void saveWatchSession()}
+                disabled={saving || !signedIn || !youTubeVideoId}
+              >
+                {saving ? "Saving..." : "Save & watch anywhere"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void saveSession()}
+                disabled={saving || !signedIn || !chunks.length}
+              >
+                {saving ? "Saving..." : "Save with transcript"}
               </Button>
               {savedArtifactId ? (
-                <Button asChild variant="secondary">
-                  <Link to={`/framework/artifacts/${savedArtifactId}`}>
-                    Open artifact
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                  </Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(`/framework/artifacts/${savedArtifactId}`)}
+                >
+                  Open artifact
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 </Button>
               ) : null}
               {!signedIn ? (

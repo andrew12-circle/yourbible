@@ -119,6 +119,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
 import { getYouTubeVideoId } from "@/lib/youtube";
+import { resolveLiveBroadcast } from "@/lib/youtube/liveBroadcast";
 import {
   buildClaimResearchJournalTitle,
   buildClaimResearchMarkdown,
@@ -383,6 +384,11 @@ export default function ArtifactDetailPage() {
     return fromMeta || null;
   }, [a?.kind, a?.url, artifactMetadata.video_id]);
 
+  const isLiveBroadcast = useMemo(
+    () => resolveLiveBroadcast(a?.url, a?.metadata),
+    [a?.metadata, a?.url],
+  );
+
   const videoPlayback = useArtifactVideoPlayback({
     artifactId: id,
     youTubeVideoId,
@@ -390,6 +396,7 @@ export default function ArtifactDetailPage() {
     mainScrollRef,
     transcriptSegments,
     transcriptRefs,
+    isLiveBroadcast,
   });
   const {
     pipEnabled,
@@ -413,6 +420,7 @@ export default function ArtifactDetailPage() {
     getWantsContinuousPlayback,
     persistSeconds,
     pipLayout: youtubePip.pipOverlayLayout,
+    isLiveBroadcast,
   });
 
   useEffect(() => {

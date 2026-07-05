@@ -14,6 +14,7 @@ import { BOOKS } from "../src/data/books";
 import { parsePassageHtml } from "../src/lib/bible/parsePassageHtml";
 import { passageToCanonicalChapter } from "../src/lib/bible/canonical/passageToCanonical";
 import { GOLDEN_CSB_BIBLE_ID } from "../src/lib/bible/goldenChapters";
+import { PASSAGE_PARSER_REVISION } from "../src/lib/bible/textRevision";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -50,11 +51,23 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let book: string | null = null;
   let chapter: number | null = null;
+  let force = false;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--book") book = args[++i] ?? null;
     if (args[i] === "--chapter") chapter = Number(args[++i]);
+    if (args[i] === "--force") force = true;
   }
-  return { book, chapter };
+  return { book, chapter, force };
+}
+
+function chapterNeedsRewrite(outPath: string): boolean {
+  if (!fs.existsSync(outPath)) return true;
+  try {
+    const existing = JSON.parse(fs.readFileSync(outPath, "utf8")) as { parserRevision?: string };
+    return existing.parserRevision !== PASSAGE_PARSER_REVISION;
+  } catch {
+    return true;
+  }
 }
 
 async function fetchChapterHtml(apiKey: string, bibleId: string, bookAbbr: string, chapter: number) {
@@ -77,7 +90,7 @@ async function main() {
     console.error("Set API_BIBLE_KEY in .env");
     process.exit(1);
   }
-  const { book: filterBook, chapter: filterChapter } = parseArgs();
+  const { book: filterBook, chapter: filterChapter, force } = parseArgs();
   const bibleId = process.env.GOLDEN_CSB_BIBLE_ID?.trim() ?? GOLDEN_CSB_BIBLE_ID;
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -91,7 +104,7 @@ async function main() {
     for (let ch = 1; ch <= chapterCount; ch++) {
       if (filterChapter && ch !== filterChapter) continue;
       const outPath = path.join(bookDir, `${ch}.json`);
-      if (fs.existsSync(outPath) && !filterBook) continue;
+      if (!force && !filterBook && !chapterNeedsRewrite(outPath)) continue;
 
       process.stdout.write(`Ingest ${abbr} ${ch}… `);
       const html = await fetchChapterHtml(apiKey, bibleId, abbr, ch);

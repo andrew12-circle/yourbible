@@ -22,6 +22,8 @@ export function useArtifactVideoPlayback(options: {
   mainScrollRef: RefObject<HTMLDivElement | null>;
   transcriptSegments: TranscriptSegment[];
   transcriptRefs: RefObject<Record<string, HTMLDivElement | null>>;
+  /** Live sermon — stay at live edge; skip VOD resume seeks and progress sync. */
+  isLiveBroadcast?: boolean;
 }) {
   const {
     artifactId,
@@ -30,6 +32,7 @@ export function useArtifactVideoPlayback(options: {
     mainScrollRef,
     transcriptSegments,
     transcriptRefs,
+    isLiveBroadcast = false,
   } = options;
   const playbackPersistence = useArtifactPlaybackPersistence(artifactId);
   const {
@@ -51,15 +54,17 @@ export function useArtifactVideoPlayback(options: {
   /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
   /** Locked iframe start — set once per video; remote progress seeks instead of reloading src. */
-  const lockedEmbedStartRef = useRef(
+  const lockedEmbedStartRef = useRef(isLiveBroadcast ? 0 : (
     artifactId
       ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
-      : 0,
-  );
+      : 0
+  ));
   const [staticEmbedStart, setStaticEmbedStart] = useState(() =>
-    artifactId
-      ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
-      : 0,
+    isLiveBroadcast
+      ? 0
+      : artifactId
+        ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
+        : 0,
   );
   const [apiStartSeconds, setApiStartSeconds] = useState(0);
 
@@ -124,13 +129,13 @@ export function useArtifactVideoPlayback(options: {
     ) {
       documentPip.exitDocumentPip();
     }
-    const local = artifactId ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
-    const merged = artifactId ? mergePlaybackWithBackgroundHandoff(local, artifactId) : local;
+    const local = artifactId && !isLiveBroadcast ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
+    const merged = artifactId && !isLiveBroadcast ? mergePlaybackWithBackgroundHandoff(local, artifactId) : 0;
     lockedEmbedStartRef.current = merged;
     playbackFallbackRef.current = merged;
     setStaticEmbedStart(merged);
     setApiStartSeconds(merged);
-  }, [artifactId, documentPip.exitDocumentPip, youTubeVideoId]);
+  }, [artifactId, documentPip.exitDocumentPip, isLiveBroadcast, youTubeVideoId]);
 
   useEffect(() => {
     if (apiPlayerWanted) documentPip.exitDocumentPip();
@@ -168,14 +173,14 @@ export function useArtifactVideoPlayback(options: {
   ]);
 
   useEffect(() => {
-    if (apiPlayerWanted || !artifactId) return;
+    if (isLiveBroadcast || apiPlayerWanted || !artifactId) return;
     const tick = window.setInterval(() => {
       const t = staticTelemetry.getCurrentTime();
       playbackFallbackRef.current = t;
       persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
-  }, [apiPlayerWanted, artifactId, persistSeconds, staticTelemetry]);
+  }, [apiPlayerWanted, artifactId, isLiveBroadcast, persistSeconds, staticTelemetry]);
 
   /** Static embed stays mounted; resume if YouTube pauses during inline ↔ PiP reposition. */
   useEffect(() => {
@@ -186,7 +191,7 @@ export function useArtifactVideoPlayback(options: {
 
   const restoreStaticEmbedProgress = useCallback(
     (opts?: { resume?: boolean; forceSeek?: boolean }) => {
-      if (apiPlayerWanted) return;
+      if (apiPlayerWanted || isLiveBroadcast) return;
       const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
       const live = staticTelemetry.getCurrentTime();
       const fresh = staticTelemetry.isTelemetryFresh(800);
@@ -196,12 +201,12 @@ export function useArtifactVideoPlayback(options: {
       if (shouldSeek && seconds > 0) staticTelemetry.seekTo(seconds, true);
       if (opts?.resume && !staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
     },
-    [apiPlayerWanted, staticTelemetry],
+    [apiPlayerWanted, isLiveBroadcast, staticTelemetry],
   );
 
   /** Account-backed progress arrived — seek once without changing iframe src. */
   useEffect(() => {
-    if (!playbackLoaded || !remoteFetchDone || !artifactId || !youTubeVideoId) return;
+    if (isLiveBroadcast || !playbackLoaded || !remoteFetchDone || !artifactId || !youTubeVideoId) return;
     if (accountProgressSyncedRef.current) return;
     accountProgressSyncedRef.current = true;
 
@@ -218,26 +223,29 @@ export function useArtifactVideoPlayback(options: {
     restoreStaticEmbedProgress,
     savedStart,
     youTubeVideoId,
+    isLiveBroadcast,
   ]);
 
   const onStaticEmbedLoad = useCallback(() => {
     embedVisibleRef.current = true;
     setEmbedLoaded(true);
-    const shouldResumeInline = artifactId ? consumeArtifactInlineVideoResume(artifactId) : false;
+    const shouldResumeInline = !isLiveBroadcast && artifactId ? consumeArtifactInlineVideoResume(artifactId) : false;
     restoreStaticEmbedProgress(shouldResumeInline ? { resume: true, forceSeek: true } : undefined);
     if (shouldResumeInline) {
       staticTelemetry.resumeAfterLayoutReposition();
-    } else if (!apiPlayerWanted && !embedPrimedRef.current) {
+    } else if (!apiPlayerWanted && !embedPrimedRef.current && !isLiveBroadcast) {
       embedPrimedRef.current = true;
       const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
       window.setTimeout(() => staticTelemetry.primeToPausedFrame(seconds), 80);
     }
-  }, [apiPlayerWanted, artifactId, restoreStaticEmbedProgress, staticTelemetry]);
+  }, [apiPlayerWanted, artifactId, isLiveBroadcast, restoreStaticEmbedProgress, staticTelemetry]);
 
   const staticEmbedSrc = useMemo(() => {
     if (!youTubeVideoId) return null;
-    return buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart);
-  }, [youTubeVideoId, staticEmbedStart]);
+    return buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart, {
+      liveEdge: isLiveBroadcast,
+    });
+  }, [isLiveBroadcast, staticEmbedStart, youTubeVideoId]);
 
   const enableApiPlayer = useCallback(() => {
     const seconds = staticTelemetry.getCurrentTime();
