@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "hub-sidebar-peek-y-pct";
 const DEFAULT_Y_PCT = 88;
-const DRAG_THRESHOLD = 5;
+const DRAG_THRESHOLD = 10;
 
 export function SidebarPeekTab() {
   const { isOpen: phoneOpen } = useMiniPhone();
@@ -22,45 +22,73 @@ export function SidebarPeekTab() {
     }
   });
 
+  const [isDragging, setIsDragging] = useState(false);
   const dragging = useRef(false);
   const startY = useRef(0);
   const startPct = useRef(yPct);
   const moved = useRef(false);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const endDrag = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setIsDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     dragging.current = true;
     moved.current = false;
     startY.current = e.clientY;
     startPct.current = yPct;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
   }, [yPct]);
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!dragging.current) return;
     const dy = e.clientY - startY.current;
-    if (Math.abs(dy) > DRAG_THRESHOLD) moved.current = true;
+    if (Math.abs(dy) > DRAG_THRESHOLD) {
+      moved.current = true;
+      setIsDragging(true);
+    }
+    if (!moved.current) return;
     const vh = window.innerHeight;
     const newPct = Math.min(95, Math.max(5, startPct.current + (dy / vh) * 100));
     setYPct(newPct);
   }, []);
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    dragging.current = false;
-    if (!moved.current) {
-      toggleSidebar();
-    } else {
-      const vh = window.innerHeight;
-      const dy = e.clientY - startY.current;
-      const finalPct = Math.min(95, Math.max(5, startPct.current + (dy / vh) * 100));
-      setYPct(finalPct);
-      try {
-        localStorage.setItem(STORAGE_KEY, String(finalPct));
-      } catch {
-        // ignore
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (!dragging.current) return;
+
+      if (moved.current) {
+        const vh = window.innerHeight;
+        const dy = e.clientY - startY.current;
+        const finalPct = Math.min(95, Math.max(5, startPct.current + (dy / vh) * 100));
+        setYPct(finalPct);
+        try {
+          localStorage.setItem(STORAGE_KEY, String(finalPct));
+        } catch {
+          // ignore
+        }
+      } else {
+        toggleSidebar();
       }
-    }
-  }, [toggleSidebar]);
+
+      endDrag(e);
+    },
+    [endDrag, toggleSidebar],
+  );
+
+  const onPointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      endDrag(e);
+    },
+    [endDrag],
+  );
 
   if (phoneOpen) return null;
 
@@ -71,10 +99,11 @@ export function SidebarPeekTab() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       style={{ top: `${yPct}%`, touchAction: "none" }}
       className={cn(
         "fixed left-0 -translate-y-1/2 z-50 flex items-center gap-2 py-4 pl-2.5 pr-3.5 rounded-r-xl shadow-lg transition-shadow duration-200 group select-none",
-        dragging.current ? "cursor-grabbing" : "cursor-grab",
+        isDragging ? "cursor-grabbing" : "cursor-pointer",
         open
           ? "bg-muted text-muted-foreground"
           : "bg-accent text-accent-foreground hover:bg-accent/90 hover:shadow-xl",

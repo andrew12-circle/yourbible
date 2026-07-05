@@ -1974,6 +1974,11 @@ body:has(.hub-shell),
   height: 100%;
   padding: var(--hub-safe-top) 0 var(--hub-edge) var(--hub-edge);
   width: calc(var(--sidebar-width) + var(--hub-edge));
+  transition: left 200ms ease-linear;
+}
+
+.hub-shell .peer[data-state="collapsed"][data-collapsible="offcanvas"] > .fixed {
+  left: calc((var(--sidebar-width) + var(--hub-edge)) * -1);
 }
 
 /* app-theme paints white on the fixed slot; show fabric in the gutter only */
@@ -1999,6 +2004,12 @@ body:has(.hub-shell),
 .hub-shell .peer[data-variant="floating"] > div:first-child {
   width: calc(var(--sidebar-width) + var(--hub-edge)) !important;
   height: 100% !important;
+  transition: width 200ms ease-linear;
+}
+
+.hub-shell .peer[data-state="collapsed"][data-variant="floating"] > div:first-child {
+  width: 0 !important;
+  min-width: 0 !important;
 }
 
 .hub-shell .hub-content-card {
