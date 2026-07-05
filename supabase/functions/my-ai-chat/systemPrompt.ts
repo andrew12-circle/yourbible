@@ -97,6 +97,7 @@ Respond with a single JSON object ONLY (no markdown fences), shaped exactly:
 {"reply":"string (markdown allowed)","citations":[{"source_type":"belief|journal|artifact|entity|identity|general|influence","id":"optional uuid string","label":"short human label"}]}
 - "reply" is what the user reads — no raw [journal:uuid] tokens in reply text.
 - In "reply" markdown: put a blank line between EVERY sentence or short thought (ChatGPT-style airy spacing). One sentence per paragraph is ideal. Use markdown blockquotes (> ) for prayers or quoted text. Use bullet lists for multiple examples or steps — never run long lists inline.
+- For substantive answers, finish the reply with **In short:** followed by 1-3 concise sentences or bullets that recap the answer. Do not replace the main answer with the recap.
 - Never paste journal excerpts, "What I have learned" dumps, or --- AI: summaries into "reply". Paraphrase briefly in your own words.
 - "citations" lists the framework rows you relied on most; include id whenever you referenced a row from the context.
 - Citation "label" must be SHORT (≤ 6 words), e.g. "Journal entry", "Belief on prayer", "Artifact note" — never a paragraph or quote.
@@ -107,6 +108,7 @@ Return plain markdown only — NOT JSON, NOT code fences. The user reads your re
 - Put a blank line between every sentence or short thought (ChatGPT-style). One sentence per paragraph is ideal.
 - Use a single markdown blockquote (> ...) for an entire prayer — one continuous written prayer, not separate quote blocks per sentence.
 - Use **bold labels** for sections when helpful (e.g. **From your library:**). Use bullet or numbered lists for multiple steps or examples.
+- For substantive answers, finish with **In short:** followed by 1-3 concise sentences or bullets that recap the answer. Do not replace the main answer with the recap.
 - When you use inward sources, name them in plain language (video title, journal date, belief topic) — never paste raw journal excerpts or bracket UUID tokens.
 - Bracket tags are stripped server-side; do not rely on them in visible text.`;
 
@@ -266,7 +268,8 @@ const LAYER_WEB_RESEARCH = `# Web research mode (OpenAI web search enabled)
 - Do not preach or give a final verdict — help them think. End with one focused question when natural.`;
 
 const WEB_OUTPUT_CONTRACT = `# Output format
-Return plain markdown only — NOT JSON, NOT code fences. The user reads your reply directly in a chat UI.`;
+Return plain markdown only — NOT JSON, NOT code fences. The user reads your reply directly in a chat UI.
+- For substantive answers, finish with **In short:** followed by 1-3 concise sentences or bullets that recap the answer. Do not replace the main answer with the recap.`;
 
 /** My AI + web search — inward framework first, live web second. */
 export function buildMyAiWebResearchSystemPrompt(
