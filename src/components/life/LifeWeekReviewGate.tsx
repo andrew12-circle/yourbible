@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { useLifeWeekReview } from "@/contexts/LifeWeekReviewContext";
+import { useJournalVideoLaunch } from "@/contexts/JournalVideoLaunchContext";
 import { LifeWeekReviewDialog } from "@/components/life/LifeWeekReviewDialog";
 
 const SKIP_PREFIXES = ["/auth", "/onboarding"];
@@ -9,6 +10,7 @@ const SKIP_PREFIXES = ["/auth", "/onboarding"];
 export function LifeWeekReviewGate() {
   const { user, profile, loading: authLoading } = useAuth();
   const { pathname } = useLocation();
+  const { isOpen: videoCaptureOpen } = useJournalVideoLaunch();
   const {
     pendingReview,
     completeReview,
@@ -24,6 +26,7 @@ export function LifeWeekReviewGate() {
     !skipRoute &&
     !authLoading &&
     !reviewLoading &&
+    !videoCaptureOpen &&
     Boolean(user) &&
     !needsOnboarding(profile) &&
     pendingReview != null;

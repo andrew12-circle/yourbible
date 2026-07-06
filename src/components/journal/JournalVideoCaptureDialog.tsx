@@ -8,7 +8,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogOverlay,
+  DialogPortal,
 } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
 import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
 import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
@@ -54,6 +57,10 @@ type Props = {
   teleprompter?: string;
   /** Show retake / confirm step before calling onComplete. */
   reviewBeforeUpload?: boolean;
+  /** Render above other app modals (week review gate, etc.). */
+  stackElevated?: boolean;
+  /** Disable floating desktop recorder — use full dialog pane. */
+  forceInline?: boolean;
 };
 
 type PendingReview = {
@@ -74,6 +81,8 @@ export default function JournalVideoCaptureDialog({
   recovery,
   teleprompter,
   reviewBeforeUpload = true,
+  stackElevated = false,
+  forceInline = false,
 }: Props) {
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
@@ -154,6 +163,7 @@ export default function JournalVideoCaptureDialog({
   }, []);
 
   const floating =
+    !forceInline &&
     !isMobile &&
     capture.settings.floatingRecorder &&
     capture.mode === "camera" &&
@@ -402,6 +412,7 @@ export default function JournalVideoCaptureDialog({
             paused={paused}
             processing={processing}
             countdownDeferred={countdownDeferred}
+            menuElevated={stackElevated}
             onStartCountdown={handleStartCountdown}
             onPauseResume={
               active && !processing
@@ -514,24 +525,41 @@ export default function JournalVideoCaptureDialog({
     );
   }
 
+  const dialogBodyClass = cn(
+    "gap-0 overflow-hidden p-0",
+    pendingReview ? "sm:max-w-lg" : isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
+    !pendingReview &&
+      "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
+    "[&>button.absolute]:hidden",
+  );
+
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
-      <DialogContent
-        className={cn(
-          "gap-0 overflow-hidden p-0",
-          pendingReview ? "sm:max-w-lg" : isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
-          !pendingReview &&
-            "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
-          "[&>button.absolute]:hidden",
-        )}
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>Video journal</DialogTitle>
-          <DialogDescription>Record yourself or your screen with a camera bubble.</DialogDescription>
-        </DialogHeader>
-
-        {pendingReview ? reviewPanel : showPicker ? picker : captureBody}
-      </DialogContent>
+      {stackElevated ? (
+        <DialogPortal>
+          <DialogOverlay className="z-[100]" />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed left-[50%] top-[50%] z-[100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+              dialogBodyClass,
+            )}
+          >
+            <DialogHeader className="sr-only">
+              <DialogTitle>Video journal</DialogTitle>
+              <DialogDescription>Record yourself or your screen with a camera bubble.</DialogDescription>
+            </DialogHeader>
+            {pendingReview ? reviewPanel : showPicker ? picker : captureBody}
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      ) : (
+        <DialogContent className={dialogBodyClass}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Video journal</DialogTitle>
+            <DialogDescription>Record yourself or your screen with a camera bubble.</DialogDescription>
+          </DialogHeader>
+          {pendingReview ? reviewPanel : showPicker ? picker : captureBody}
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

@@ -19,6 +19,14 @@ import {
 } from "@/lib/lifeWeekReviewLocalStore";
 import { syncLifeWeekReviewToJournal } from "@/lib/lifeWeekReviewJournal";
 import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
+import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
+import { saveJournalVideoCaptureWithQueue } from "@/lib/journal/journalVideoUploadProcessor";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
+
+export type LifeWeekReviewVideoCapture = {
+  result: JournalVideoCaptureResult;
+  durationMs: number;
+};
 
 type LifeWeekReviewContextValue = {
   loading: boolean;
@@ -29,7 +37,7 @@ type LifeWeekReviewContextValue = {
   pendingReviewCount: number;
   /** Remaining "remind me later" dismissals before this week stops prompting. */
   pendingReviewDismissalsLeft: number;
-  completeReview: (reflection: string) => Promise<void>;
+  completeReview: (reflection: string, video?: LifeWeekReviewVideoCapture) => Promise<void>;
   dismissPendingReview: () => void;
   saving: boolean;
   refresh: () => Promise<void>;
@@ -134,26 +142,42 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   }, [userId, pendingReview, dismissCountsByKey]);
 
   const completeReview = useCallback(
-    async (reflection: string) => {
+    async (reflection: string, video?: LifeWeekReviewVideoCapture) => {
       if (!userId || !pendingReview) return;
       setSaving(true);
       try {
+        const transcriptFromVideo = video
+          ? pickBestVideoJournalTranscript(video.result.liveTranscript, video.result.peakLiveTranscript).trim()
+          : "";
+        const finalReflection = reflection.trim() || transcriptFromVideo || "(Video week reflection)";
+
         await saveLifeWeekReview(
           userId,
           pendingReview.subject,
           pendingReview.weekIndex,
           pendingReview.weekStart,
-          reflection,
+          finalReflection,
         );
-        void syncLifeWeekReviewToJournal(userId, {
+        const journalResult = await syncLifeWeekReviewToJournal(userId, {
           subject: pendingReview.subject,
           personName: pendingReview.personName,
           weekIndex: pendingReview.weekIndex,
           weekNumber: pendingReview.weekNumber,
           weekRangeLabel: pendingReview.weekRangeLabel,
           weekStart: pendingReview.weekStart,
-          reflection,
-        }).catch(() => {});
+          reflection: finalReflection,
+        }).catch(() => null);
+
+        if (video && journalResult?.entryId) {
+          await saveJournalVideoCaptureWithQueue({
+            userId,
+            entryId: journalResult.entryId,
+            result: video.result,
+            durationMs: video.durationMs,
+            anchorOffset: 0,
+          }).catch(() => {});
+        }
+
         setClosedWeekIndicesBySubject((prev) => {
           const next = emptyClosedWeekIndicesBySubject();
           for (const subject of Object.keys(prev) as LifeWeekReviewSubject[]) {

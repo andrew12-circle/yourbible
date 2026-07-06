@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Film, Loader2, Mic, X } from "lucide-react";
+import { CheckCircle2, Film, Loader2, Mic, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,9 @@ import { DictateButton, type DictateButtonHandle } from "@/components/journal/Di
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { useJournalVideoLaunch } from "@/contexts/JournalVideoLaunchContext";
 import { journalVideoCaptureSupported } from "@/lib/journal/videos";
+import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
+import type { LifeWeekReviewVideoCapture } from "@/contexts/LifeWeekReviewContext";
 
 type Props = {
   open: boolean;
@@ -32,7 +35,7 @@ type Props = {
   saving: boolean;
   remainingCount: number;
   dismissalsLeft: number;
-  onComplete: (reflection: string) => Promise<void>;
+  onComplete: (reflection: string, video?: LifeWeekReviewVideoCapture) => Promise<void>;
   onDismiss: () => void;
 };
 
@@ -57,12 +60,15 @@ export function LifeWeekReviewDialog({
   const [checked, setChecked] = useState(false);
   const [reflection, setReflection] = useState("");
   const [dictInterim, setDictInterim] = useState("");
+  const [recordedVideo, setRecordedVideo] = useState<LifeWeekReviewVideoCapture | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const reflectionSectionRef = useRef<HTMLDivElement | null>(null);
 
   const displayReflection = mergeDictatedText(reflection, dictInterim);
   const trimmedLen = displayReflection.trim().length;
-  const canSubmit = checked && trimmedLen >= LIFE_WEEK_REFLECTION_MIN && !saving;
+  const hasVideo = recordedVideo != null;
+  const canSubmit =
+    checked && !saving && (hasVideo || trimmedLen >= LIFE_WEEK_REFLECTION_MIN);
   const currentWeekIndex = pending.weekIndex + 1;
   const reflectionPrompt = lifeWeekReflectionPrompt(pending.subject, pending.personName);
 
@@ -77,6 +83,7 @@ export function LifeWeekReviewDialog({
     setChecked(false);
     setReflection("");
     setDictInterim("");
+    setRecordedVideo(null);
     dictateRef.current?.stop();
   }, [pending.subject, pending.weekIndex]);
 
@@ -93,12 +100,16 @@ export function LifeWeekReviewDialog({
     dictateRef.current?.stop();
     const finalReflection = mergeDictatedText(reflection, dictInterim).trim();
     try {
-      await onComplete(finalReflection);
+      await onComplete(finalReflection, recordedVideo ?? undefined);
       setChecked(false);
       setReflection("");
       setDictInterim("");
+      setRecordedVideo(null);
       const who = pending.subject === "self" ? "Your" : `${pending.personName}'s`;
-      toast({ title: `${who} week ${pending.weekNumber.toLocaleString()} closed` });
+      toast({
+        title: `${who} week ${pending.weekNumber.toLocaleString()} closed`,
+        description: hasVideo ? "Video saved to Week reviews." : undefined,
+      });
     } catch (e) {
       toast({
         variant: "destructive",
@@ -188,6 +199,56 @@ export function LifeWeekReviewDialog({
                 {reflectionPrompt}
               </Label>
 
+              {journalVideoCaptureSupported() ? (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Talk it out on video</p>
+                      <p className="text-xs text-muted-foreground">
+                        Best for week close-out — review playback before saving, then close the week.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={hasVideo ? "secondary" : "default"}
+                      className="shrink-0 gap-2"
+                      onClick={() => {
+                        dictateRef.current?.stop();
+                        launchVideo({
+                          teleprompter: reflectionPrompt,
+                          defaultMode: "camera",
+                          reviewBeforeUpload: true,
+                          forceInline: true,
+                          onLiveTranscript: (text) => {
+                            setDictInterim("");
+                            setReflection(text);
+                          },
+                          onComplete: (result: JournalVideoCaptureResult, durationMs: number) => {
+                            setRecordedVideo({ result, durationMs });
+                            const spoken = pickBestVideoJournalTranscript(
+                              result.liveTranscript,
+                              result.peakLiveTranscript,
+                            ).trim();
+                            if (spoken) {
+                              setReflection((r) => mergeDictatedText(r, spoken));
+                            }
+                          },
+                        });
+                      }}
+                    >
+                      <Film className="h-4 w-4" />
+                      {hasVideo ? "Re-record video" : "Record video"}
+                    </Button>
+                  </div>
+                  {hasVideo ? (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                      Video ready — tap Close this week to save it to Week reviews.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="flex flex-1 items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
                   <DictateButton
@@ -206,34 +267,6 @@ export function LifeWeekReviewDialog({
                     <p className="text-xs text-muted-foreground">Tap again when you&apos;re done talking.</p>
                   </div>
                 </div>
-
-                {journalVideoCaptureSupported() ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto shrink-0 flex-col gap-1.5 px-4 py-3"
-                    onClick={() => {
-                      dictateRef.current?.stop();
-                      launchVideo({
-                        teleprompter: reflectionPrompt,
-                        defaultMode: "camera",
-                        onLiveTranscript: (text) => {
-                          setDictInterim("");
-                          setReflection(text);
-                        },
-                        onComplete: (result) => {
-                          const spoken = result.liveTranscript.trim();
-                          if (spoken) {
-                            setReflection((r) => mergeDictatedText(r, spoken));
-                          }
-                        },
-                      });
-                    }}
-                  >
-                    <Film className="h-5 w-5" />
-                    <span className="text-xs font-medium">Record video</span>
-                  </Button>
-                ) : null}
               </div>
 
               <Textarea
@@ -253,7 +286,9 @@ export function LifeWeekReviewDialog({
                 autoFocus
               />
               <p className="text-xs text-muted-foreground tabular-nums">
-                {trimmedLen}/{LIFE_WEEK_REFLECTION_MIN} characters minimum
+                {hasVideo
+                  ? "Video attached — transcript optional."
+                  : `${trimmedLen}/${LIFE_WEEK_REFLECTION_MIN} characters minimum`}
               </p>
             </div>
           ) : null}

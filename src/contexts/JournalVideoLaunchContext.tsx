@@ -13,6 +13,10 @@ export type JournalVideoLaunchRequest = {
   /** Shown as a teleprompter line while recording. */
   teleprompter?: string;
   defaultMode?: "camera" | "screen";
+  /** Show retake / confirm with native video playback before onComplete. */
+  reviewBeforeUpload?: boolean;
+  /** Keep recorder in the main dialog (not floating) — avoids stacked modal issues. */
+  forceInline?: boolean;
   onComplete?: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
   onRecordingStart?: () => void;
   onLiveTranscript?: (text: string) => void;
@@ -21,6 +25,7 @@ export type JournalVideoLaunchRequest = {
 type JournalVideoLaunchContextValue = {
   launch: (request: JournalVideoLaunchRequest) => void;
   close: () => void;
+  isOpen: boolean;
 };
 
 const JournalVideoLaunchContext = createContext<JournalVideoLaunchContextValue | null>(null);
@@ -39,7 +44,7 @@ export function JournalVideoLaunchProvider({ children }: { children: ReactNode }
     setRequest(null);
   }, []);
 
-  const value = useMemo(() => ({ launch, close }), [launch, close]);
+  const value = useMemo(() => ({ launch, close, isOpen: open }), [launch, close, open]);
 
   return (
     <JournalVideoLaunchContext.Provider value={value}>
@@ -52,13 +57,15 @@ export function JournalVideoLaunchProvider({ children }: { children: ReactNode }
           }}
           defaultMode={request.defaultMode ?? "camera"}
           teleprompter={request.teleprompter}
+          forceInline={request.forceInline ?? true}
+          stackElevated
           onRecordingStart={request.onRecordingStart}
           onLiveTranscript={request.onLiveTranscript}
           onComplete={async (result, durationMs) => {
             await request.onComplete?.(result, durationMs);
             close();
           }}
-          reviewBeforeUpload={false}
+          reviewBeforeUpload={request.reviewBeforeUpload ?? true}
         />
       ) : null}
     </JournalVideoLaunchContext.Provider>

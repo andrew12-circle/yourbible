@@ -51,6 +51,8 @@ type Props = {
   onStartCountdown?: () => void;
   onPauseResume?: () => void;
   onStop?: () => void;
+  /** Raise settings/camera menus above elevated capture dialogs. */
+  menuElevated?: boolean;
 };
 
 function SmartBarDivider() {
@@ -101,6 +103,7 @@ export function JournalVideoCaptureToolbar({
   onStartCountdown,
   onPauseResume,
   onStop,
+  menuElevated = false,
 }: Props) {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -162,7 +165,7 @@ export function JournalVideoCaptureToolbar({
     }
   };
 
-  const showCameraControls = capture.mode === "camera";
+  const menuClass = menuElevated ? "z-[110]" : undefined;
   const showScreenControls = capture.mode === "screen";
 
   return (
@@ -241,7 +244,7 @@ export function JournalVideoCaptureToolbar({
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center">
+                <DropdownMenuContent align="center" className={menuClass}>
                   <DropdownMenuLabel>Camera</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={activeVideoDeviceId}
@@ -270,7 +273,7 @@ export function JournalVideoCaptureToolbar({
                 <Monitor className="h-4 w-4" />
               </SmartBarIconButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
+            <DropdownMenuContent align="center" className={menuClass}>
               <DropdownMenuLabel>Camera bubble</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={capture.settings.bubbleCorner}
@@ -380,7 +383,7 @@ export function JournalVideoCaptureToolbar({
             <Settings2 className="h-4 w-4" />
           </SmartBarIconButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="max-h-[min(70vh,28rem)] overflow-y-auto">
+        <DropdownMenuContent align="end" className={cn("max-h-[min(70vh,28rem)] overflow-y-auto", menuClass)}>
           <DropdownMenuLabel>Quality</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={capture.settings.quality}
