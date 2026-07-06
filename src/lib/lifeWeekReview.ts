@@ -29,6 +29,9 @@ export const LIFE_WEEK_REVIEW_SUBJECTS: LifeWeekReviewSubject[] = ["self", "lill
 
 export const LIFE_WEEK_REFLECTION_MIN = 20;
 
+/** After this many "remind me later" dismissals, the pending review stops appearing until the week is closed. */
+export const LIFE_WEEK_REVIEW_MAX_DISMISSALS = 5;
+
 export const LIFE_WEEK_REFLECTION_PROMPT =
   "What did you do this past week to live the life you want—or the life God has called you to live?";
 

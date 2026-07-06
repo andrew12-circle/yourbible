@@ -31,6 +31,7 @@ type Props = {
   pending: PendingLifeWeekReview;
   saving: boolean;
   remainingCount: number;
+  dismissalsLeft: number;
   onComplete: (reflection: string) => Promise<void>;
   onDismiss: () => void;
 };
@@ -47,6 +48,7 @@ export function LifeWeekReviewDialog({
   pending,
   saving,
   remainingCount,
+  dismissalsLeft,
   onComplete,
   onDismiss,
 }: Props) {
@@ -119,7 +121,16 @@ export function LifeWeekReviewDialog({
           size="icon"
           className="absolute right-4 top-4 h-8 w-8"
           onClick={onDismiss}
-          aria-label="Close week review"
+          aria-label={
+            dismissalsLeft <= 1
+              ? "Dismiss week review"
+              : `Remind me later (${dismissalsLeft} left)`
+          }
+          title={
+            dismissalsLeft <= 1
+              ? "Dismiss — this week won't prompt again until you close it from Life Weeks"
+              : `Remind me later (${dismissalsLeft} reminders left before this stops appearing)`
+          }
         >
           <X className="h-4 w-4" />
         </Button>
@@ -137,6 +148,13 @@ export function LifeWeekReviewDialog({
             {remainingCount > 1 ? (
               <span className="mt-1 block text-xs">
                 {remainingCount - 1} more week{remainingCount - 1 === 1 ? "" : "s"} to close after this.
+              </span>
+            ) : null}
+            {dismissalsLeft > 0 ? (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Not ready? Close with{" "}
+                <span className="font-medium text-foreground">×</span> — it comes back on refresh (
+                {dismissalsLeft} reminder{dismissalsLeft === 1 ? "" : "s"} left).
               </span>
             ) : null}
           </DialogDescription>

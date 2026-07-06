@@ -3,10 +3,11 @@
  */
 
 import type { LifeWeekReviewRow, LifeWeekReviewSubject } from "@/lib/lifeWeekReview";
-import { emptyClosedWeekIndicesBySubject } from "@/lib/lifeWeekReview";
+import { emptyClosedWeekIndicesBySubject, LIFE_WEEK_REVIEW_MAX_DISMISSALS } from "@/lib/lifeWeekReview";
 
 const STORAGE_KEY = "yb_life_week_reviews_local_v1";
 const DISMISS_KEY = "yb_life_week_review_dismissed_v1";
+const DISMISS_COUNT_KEY = "yb_life_week_review_dismiss_counts_v1";
 const NOTIFY_KEY = "yb_life_week_reviews_local_notified";
 
 interface LocalReview {
@@ -101,6 +102,77 @@ export function lifeWeekReviewDismissKey(
   return `${subject}:${weekIndex}`;
 }
 
+function readDismissCountsAll(): Record<string, Record<string, number>> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(DISMISS_COUNT_KEY);
+    if (!raw) return migrateLegacyDismissedKeys();
+    const parsed = JSON.parse(raw) as Record<string, Record<string, number>>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** One-time migration from permanent dismiss list (v1) to dismiss counts. */
+function migrateLegacyDismissedKeys(): Record<string, Record<string, number>> {
+  const legacy = readDismissedAll();
+  const migrated: Record<string, Record<string, number>> = {};
+  for (const [userId, keys] of Object.entries(legacy)) {
+    migrated[userId] = {};
+    for (const key of keys) {
+      migrated[userId][key] = LIFE_WEEK_REVIEW_MAX_DISMISSALS;
+    }
+  }
+  if (Object.keys(migrated).length > 0) {
+    writeDismissCountsAll(migrated);
+    if (typeof window !== "undefined") localStorage.removeItem(DISMISS_KEY);
+  }
+  return migrated;
+}
+
+function writeDismissCountsAll(data: Record<string, Record<string, number>>): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DISMISS_COUNT_KEY, JSON.stringify(data));
+}
+
+export function localGetLifeWeekReviewDismissCount(
+  userId: string,
+  subject: LifeWeekReviewSubject,
+  weekIndex: number,
+): number {
+  const key = lifeWeekReviewDismissKey(subject, weekIndex);
+  return readDismissCountsAll()[userId]?.[key] ?? 0;
+}
+
+export function localListLifeWeekReviewDismissCounts(userId: string): Record<string, number> {
+  return readDismissCountsAll()[userId] ?? {};
+}
+
+/** Increment dismiss count; returns the new count. At max, the review stops appearing. */
+export function localIncrementLifeWeekReviewDismissCount(
+  userId: string,
+  subject: LifeWeekReviewSubject,
+  weekIndex: number,
+): number {
+  const key = lifeWeekReviewDismissKey(subject, weekIndex);
+  const all = readDismissCountsAll();
+  const counts = { ...(all[userId] ?? {}) };
+  const next = Math.min(LIFE_WEEK_REVIEW_MAX_DISMISSALS, (counts[key] ?? 0) + 1);
+  counts[key] = next;
+  all[userId] = counts;
+  writeDismissCountsAll(all);
+  return next;
+}
+
+export function localIsLifeWeekReviewPermanentlyDismissed(
+  userId: string,
+  subject: LifeWeekReviewSubject,
+  weekIndex: number,
+): boolean {
+  return localGetLifeWeekReviewDismissCount(userId, subject, weekIndex) >= LIFE_WEEK_REVIEW_MAX_DISMISSALS;
+}
+
 function readDismissedAll(): Record<string, string[]> {
   if (typeof window === "undefined") return {};
   try {
@@ -113,26 +185,28 @@ function readDismissedAll(): Record<string, string[]> {
   }
 }
 
-function writeDismissedAll(data: Record<string, string[]>): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
-}
-
+/** @deprecated Use localListLifeWeekReviewDismissCounts + localIsLifeWeekReviewPermanentlyDismissed */
 export function localListDismissedLifeWeekReviewKeys(userId: string): Set<string> {
-  return new Set(readDismissedAll()[userId] ?? []);
+  const counts = localListLifeWeekReviewDismissCounts(userId);
+  return new Set(
+    Object.entries(counts)
+      .filter(([, count]) => count >= LIFE_WEEK_REVIEW_MAX_DISMISSALS)
+      .map(([key]) => key),
+  );
 }
 
+/** @deprecated Use localIncrementLifeWeekReviewDismissCount */
 export function localDismissLifeWeekReview(
   userId: string,
   subject: LifeWeekReviewSubject,
   weekIndex: number,
 ): void {
+  const counts = readDismissCountsAll();
+  const userCounts = { ...(counts[userId] ?? {}) };
   const key = lifeWeekReviewDismissKey(subject, weekIndex);
-  const all = readDismissedAll();
-  const keys = new Set(all[userId] ?? []);
-  keys.add(key);
-  all[userId] = [...keys];
-  writeDismissedAll(all);
+  userCounts[key] = LIFE_WEEK_REVIEW_MAX_DISMISSALS;
+  counts[userId] = userCounts;
+  writeDismissCountsAll(counts);
 }
 
 export function localSaveLifeWeekReview(

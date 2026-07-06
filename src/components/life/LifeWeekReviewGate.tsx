@@ -16,6 +16,7 @@ export function LifeWeekReviewGate() {
     saving,
     loading: reviewLoading,
     pendingReviewCount,
+    pendingReviewDismissalsLeft,
   } = useLifeWeekReview();
 
   const skipRoute = SKIP_PREFIXES.some((p) => pathname.startsWith(p));
@@ -36,6 +37,7 @@ export function LifeWeekReviewGate() {
       pending={pendingReview}
       saving={saving}
       remainingCount={pendingReviewCount}
+      dismissalsLeft={pendingReviewDismissalsLeft}
       onComplete={completeReview}
       onDismiss={dismissPendingReview}
     />

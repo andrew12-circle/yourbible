@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import {
+  LIFE_WEEK_REVIEW_MAX_DISMISSALS,
   emptyClosedWeekIndicesBySubject,
   listClosedLifeWeekIndicesBySubject,
   resolvePendingLifeWeekReviews,
@@ -12,9 +13,9 @@ import {
 } from "@/lib/lifeWeekReview";
 import {
   lifeWeekReviewDismissKey,
-  localDismissLifeWeekReview,
+  localIncrementLifeWeekReviewDismissCount,
   localListClosedLifeWeekIndicesBySubject,
-  localListDismissedLifeWeekReviewKeys,
+  localListLifeWeekReviewDismissCounts,
 } from "@/lib/lifeWeekReviewLocalStore";
 import { syncLifeWeekReviewToJournal } from "@/lib/lifeWeekReviewJournal";
 import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
@@ -26,6 +27,8 @@ type LifeWeekReviewContextValue = {
   closedWeekIndices: Set<number>;
   pendingReview: PendingLifeWeekReview | null;
   pendingReviewCount: number;
+  /** Remaining "remind me later" dismissals before this week stops prompting. */
+  pendingReviewDismissalsLeft: number;
   completeReview: (reflection: string) => Promise<void>;
   dismissPendingReview: () => void;
   saving: boolean;
@@ -47,9 +50,10 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   const [closedWeekIndicesBySubject, setClosedWeekIndicesBySubject] = useState<
     Record<LifeWeekReviewSubject, Set<number>>
   >(emptyClosedWeekIndicesBySubject);
-  const [dismissedReviewKeys, setDismissedReviewKeys] = useState<Set<string>>(() =>
-    userId ? localListDismissedLifeWeekReviewKeys(userId) : new Set(),
+  const [dismissCountsByKey, setDismissCountsByKey] = useState<Record<string, number>>(() =>
+    userId ? localListLifeWeekReviewDismissCounts(userId) : {},
   );
+  const [sessionDismissedKeys, setSessionDismissedKeys] = useState<Set<string>>(() => new Set());
 
   const refresh = useCallback(async () => {
     if (!userId || !enabled) {
@@ -73,10 +77,12 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!userId) {
-      setDismissedReviewKeys(new Set());
+      setDismissCountsByKey({});
+      setSessionDismissedKeys(new Set());
       return;
     }
-    setDismissedReviewKeys(localListDismissedLifeWeekReviewKeys(userId));
+    setDismissCountsByKey(localListLifeWeekReviewDismissCounts(userId));
+    setSessionDismissedKeys(new Set());
   }, [userId]);
 
   useEffect(() => {
@@ -109,13 +115,23 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   }, [birthIso, displayName, familyMembers]);
 
   const pendingReviews = useMemo(() => {
-    if (!enabled || loading || reviewPeople.length === 0) return [];
-    return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject).filter(
-      (review) => !dismissedReviewKeys.has(lifeWeekReviewDismissKey(review.subject, review.weekIndex)),
-    );
-  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject, dismissedReviewKeys]);
+    if (!enabled || loading || reviewPeople.length === 0 || !userId) return [];
+    return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject).filter((review) => {
+      const key = lifeWeekReviewDismissKey(review.subject, review.weekIndex);
+      const dismissCount = dismissCountsByKey[key] ?? 0;
+      if (dismissCount >= LIFE_WEEK_REVIEW_MAX_DISMISSALS) return false;
+      if (sessionDismissedKeys.has(key)) return false;
+      return true;
+    });
+  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject, sessionDismissedKeys, dismissCountsByKey, userId]);
 
   const pendingReview = pendingReviews[0] ?? null;
+
+  const pendingReviewDismissalsLeft = useMemo(() => {
+    if (!userId || !pendingReview) return 0;
+    const count = dismissCountsByKey[lifeWeekReviewDismissKey(pendingReview.subject, pendingReview.weekIndex)] ?? 0;
+    return Math.max(0, LIFE_WEEK_REVIEW_MAX_DISMISSALS - count);
+  }, [userId, pendingReview, dismissCountsByKey]);
 
   const completeReview = useCallback(
     async (reflection: string) => {
@@ -155,9 +171,16 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
 
   const dismissPendingReview = useCallback(() => {
     if (!userId || !pendingReview) return;
-    localDismissLifeWeekReview(userId, pendingReview.subject, pendingReview.weekIndex);
     const key = lifeWeekReviewDismissKey(pendingReview.subject, pendingReview.weekIndex);
-    setDismissedReviewKeys((prev) => new Set([...prev, key]));
+    const nextCount = localIncrementLifeWeekReviewDismissCount(
+      userId,
+      pendingReview.subject,
+      pendingReview.weekIndex,
+    );
+    setDismissCountsByKey((prev) => ({ ...prev, [key]: nextCount }));
+    if (nextCount < LIFE_WEEK_REVIEW_MAX_DISMISSALS) {
+      setSessionDismissedKeys((prev) => new Set([...prev, key]));
+    }
   }, [userId, pendingReview]);
 
   const value = useMemo(
@@ -167,6 +190,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       closedWeekIndices: closedWeekIndicesBySubject.self,
       pendingReview,
       pendingReviewCount: pendingReviews.length,
+      pendingReviewDismissalsLeft,
       completeReview,
       dismissPendingReview,
       saving,
@@ -177,6 +201,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       closedWeekIndicesBySubject,
       pendingReview,
       pendingReviews.length,
+      pendingReviewDismissalsLeft,
       completeReview,
       dismissPendingReview,
       saving,
