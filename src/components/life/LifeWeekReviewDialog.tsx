@@ -122,7 +122,8 @@ export function LifeWeekReviewDialog({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-h-[min(92dvh,720px)] max-w-lg overflow-y-auto [&>button]:hidden"
+        hideCloseButton
+        className="max-h-[min(92dvh,720px)] max-w-lg overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -294,10 +295,18 @@ export function LifeWeekReviewDialog({
           ) : null}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
           <Button type="button" onClick={() => void handleSubmit()} disabled={!canSubmit} className="w-full sm:w-auto">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Close this week"}
           </Button>
+          {dismissalsLeft > 0 ? (
+            <Button type="button" variant="outline" onClick={onDismiss} className="w-full sm:w-auto">
+              Remind me later
+              <span className="ml-1.5 text-muted-foreground tabular-nums">
+                ({dismissalsLeft} left)
+              </span>
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

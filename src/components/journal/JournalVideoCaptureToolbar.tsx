@@ -166,6 +166,7 @@ export function JournalVideoCaptureToolbar({
   };
 
   const menuClass = menuElevated ? "z-[110]" : undefined;
+  const showCameraControls = capture.mode === "camera";
   const showScreenControls = capture.mode === "screen";
 
   return (
