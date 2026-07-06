@@ -12,6 +12,8 @@ type Props = {
   onRetake: () => void;
   onConfirm: () => void;
   confirming?: boolean;
+  confirmLabel?: string;
+  reviewHint?: string;
   className?: string;
 };
 
@@ -21,6 +23,8 @@ export function JournalVideoCaptureReview({
   onRetake,
   onConfirm,
   confirming = false,
+  confirmLabel = "Save video",
+  reviewHint,
   className,
 }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -46,6 +50,7 @@ export function JournalVideoCaptureReview({
         <p className="text-sm text-muted-foreground">
           {clock} · {result.chapters.length ? `${result.chapters.length} chapter markers` : "Retake or save when ready"}
         </p>
+        {reviewHint ? <p className="mt-1 text-sm text-foreground">{reviewHint}</p> : null}
       </div>
 
       <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
@@ -81,7 +86,7 @@ export function JournalVideoCaptureReview({
           ) : (
             <Upload className="mr-2 h-4 w-4" />
           )}
-          Save video
+          {confirmLabel}
         </Button>
       </div>
     </div>

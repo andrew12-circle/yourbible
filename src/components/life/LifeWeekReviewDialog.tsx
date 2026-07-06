@@ -20,6 +20,7 @@ import { toast } from "@/hooks/use-toast";
 import { LifeWeekReviewGridSnippet } from "@/components/life/LifeWeekReviewGridSnippet";
 import { BlinkLifeWeekReviewGridSnippet } from "@/components/life/BlinkLifeWeekReviewGridSnippet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLifeWeekReview, type LifeWeekReviewVideoCapture } from "@/contexts/LifeWeekReviewContext";
 import { parseFamilyFromLayout, familyMemberById } from "@/lib/lifeWeeksFamily";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
@@ -27,7 +28,6 @@ import { useJournalVideoLaunch } from "@/contexts/JournalVideoLaunchContext";
 import { journalVideoCaptureSupported } from "@/lib/journal/videos";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
-import type { LifeWeekReviewVideoCapture } from "@/contexts/LifeWeekReviewContext";
 
 type Props = {
   open: boolean;
@@ -46,6 +46,13 @@ function gridLabel(pending: PendingLifeWeekReview): string {
   return "your life grid";
 }
 
+function attachVideoToDraft(
+  result: JournalVideoCaptureResult,
+  durationMs: number,
+): LifeWeekReviewVideoCapture {
+  return { result, durationMs };
+}
+
 export function LifeWeekReviewDialog({
   open,
   pending,
@@ -56,11 +63,11 @@ export function LifeWeekReviewDialog({
   onDismiss,
 }: Props) {
   const { user, profile } = useAuth();
+  const { getDraft, patchDraft } = useLifeWeekReview();
   const { launch: launchVideo } = useJournalVideoLaunch();
-  const [checked, setChecked] = useState(false);
-  const [reflection, setReflection] = useState("");
+  const draft = getDraft(pending.subject, pending.weekIndex);
+  const { checked, reflection, recordedVideo } = draft;
   const [dictInterim, setDictInterim] = useState("");
-  const [recordedVideo, setRecordedVideo] = useState<LifeWeekReviewVideoCapture | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const reflectionSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -80,10 +87,7 @@ export function LifeWeekReviewDialog({
       : familyMemberById(familyMembers, pending.subject).birthDate;
 
   useEffect(() => {
-    setChecked(false);
-    setReflection("");
     setDictInterim("");
-    setRecordedVideo(null);
     dictateRef.current?.stop();
   }, [pending.subject, pending.weekIndex]);
 
@@ -95,16 +99,35 @@ export function LifeWeekReviewDialog({
     return () => window.cancelAnimationFrame(id);
   }, [checked]);
 
+  const setChecked = (value: boolean) => {
+    patchDraft(pending.subject, pending.weekIndex, { checked: value });
+  };
+
+  const setReflection = (value: string | ((prev: string) => string)) => {
+    patchDraft(pending.subject, pending.weekIndex, (prev) => ({
+      reflection: typeof value === "function" ? value(prev.reflection) : value,
+    }));
+  };
+
+  const saveVideoCapture = (result: JournalVideoCaptureResult, durationMs: number) => {
+    const video = attachVideoToDraft(result, durationMs);
+    const spoken = pickBestVideoJournalTranscript(
+      result.liveTranscript,
+      result.peakLiveTranscript,
+    ).trim();
+    patchDraft(pending.subject, pending.weekIndex, (prev) => ({
+      checked: true,
+      recordedVideo: video,
+      reflection: spoken ? mergeDictatedText(prev.reflection, spoken) : prev.reflection,
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
     dictateRef.current?.stop();
     const finalReflection = mergeDictatedText(reflection, dictInterim).trim();
     try {
       await onComplete(finalReflection, recordedVideo ?? undefined);
-      setChecked(false);
-      setReflection("");
-      setDictInterim("");
-      setRecordedVideo(null);
       const who = pending.subject === "self" ? "Your" : `${pending.personName}'s`;
       toast({
         title: `${who} week ${pending.weekNumber.toLocaleString()} closed`,
@@ -117,6 +140,26 @@ export function LifeWeekReviewDialog({
         description: e instanceof Error ? e.message : "Try again.",
       });
     }
+  };
+
+  const handleLaunchVideo = () => {
+    dictateRef.current?.stop();
+    patchDraft(pending.subject, pending.weekIndex, { checked: true });
+    launchVideo({
+      teleprompter: reflectionPrompt,
+      defaultMode: "camera",
+      reviewBeforeUpload: true,
+      forceInline: true,
+      confirmLabel: "Use for week close-out",
+      reviewHint:
+        "Stopping only pauses here — tap the button below to attach this recording to your week review.",
+      onLiveTranscript: (text) => {
+        setDictInterim("");
+        setReflection(text);
+      },
+      onReviewReady: saveVideoCapture,
+      onComplete: saveVideoCapture,
+    });
   };
 
   return (
@@ -206,36 +249,15 @@ export function LifeWeekReviewDialog({
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">Talk it out on video</p>
                       <p className="text-xs text-muted-foreground">
-                        Best for week close-out — review playback before saving, then close the week.
+                        After you stop, tap <span className="font-medium text-foreground">Use for week close-out</span>{" "}
+                        on the review screen — then come back here and tap Close this week.
                       </p>
                     </div>
                     <Button
                       type="button"
                       variant={hasVideo ? "secondary" : "default"}
                       className="shrink-0 gap-2"
-                      onClick={() => {
-                        dictateRef.current?.stop();
-                        launchVideo({
-                          teleprompter: reflectionPrompt,
-                          defaultMode: "camera",
-                          reviewBeforeUpload: true,
-                          forceInline: true,
-                          onLiveTranscript: (text) => {
-                            setDictInterim("");
-                            setReflection(text);
-                          },
-                          onComplete: (result: JournalVideoCaptureResult, durationMs: number) => {
-                            setRecordedVideo({ result, durationMs });
-                            const spoken = pickBestVideoJournalTranscript(
-                              result.liveTranscript,
-                              result.peakLiveTranscript,
-                            ).trim();
-                            if (spoken) {
-                              setReflection((r) => mergeDictatedText(r, spoken));
-                            }
-                          },
-                        });
-                      }}
+                      onClick={handleLaunchVideo}
                     >
                       <Film className="h-4 w-4" />
                       {hasVideo ? "Re-record video" : "Record video"}
@@ -244,7 +266,7 @@ export function LifeWeekReviewDialog({
                   {hasVideo ? (
                     <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                       <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                      Video ready — tap Close this week to save it to Week reviews.
+                      Video attached — tap Close this week to save it to Week reviews.
                     </p>
                   ) : null}
                 </div>
@@ -296,9 +318,24 @@ export function LifeWeekReviewDialog({
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-          <Button type="button" onClick={() => void handleSubmit()} disabled={!canSubmit} className="w-full sm:w-auto">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Close this week"}
-          </Button>
+          {!checked ? (
+            <Button
+              type="button"
+              onClick={() => setChecked(true)}
+              className="w-full sm:w-auto"
+            >
+              Check off week {pending.weekNumber.toLocaleString()}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={!canSubmit}
+              className="w-full sm:w-auto"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Close this week"}
+            </Button>
+          )}
           {dismissalsLeft > 0 ? (
             <Button type="button" variant="outline" onClick={onDismiss} className="w-full sm:w-auto">
               Remind me later

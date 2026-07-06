@@ -17,6 +17,12 @@ export type JournalVideoLaunchRequest = {
   reviewBeforeUpload?: boolean;
   /** Keep recorder in the main dialog (not floating) — avoids stacked modal issues. */
   forceInline?: boolean;
+  /** Called when recording stops and review begins — before the user taps confirm. */
+  onReviewReady?: (result: JournalVideoCaptureResult, durationMs: number) => void;
+  /** Override confirm button on the review step. */
+  confirmLabel?: string;
+  /** Extra hint on the review step. */
+  reviewHint?: string;
   onComplete?: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
   onRecordingStart?: () => void;
   onLiveTranscript?: (text: string) => void;
@@ -61,6 +67,9 @@ export function JournalVideoLaunchProvider({ children }: { children: ReactNode }
           stackElevated
           onRecordingStart={request.onRecordingStart}
           onLiveTranscript={request.onLiveTranscript}
+          onReviewReady={request.onReviewReady}
+          confirmLabel={request.confirmLabel}
+          reviewHint={request.reviewHint}
           onComplete={async (result, durationMs) => {
             await request.onComplete?.(result, durationMs);
             close();

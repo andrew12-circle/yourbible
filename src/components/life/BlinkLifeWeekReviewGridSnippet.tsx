@@ -39,14 +39,22 @@ export function BlinkLifeWeekReviewGridSnippet({
     scope: "blink",
   });
   const viewBox = blinkReviewSnippetViewBox(weekIndex);
-  const cellIndices = blinkWeekIndicesInReviewWindow(weekIndex);
+  const cellIndices = blinkWeekIndicesInReviewWindow(weekIndex).sort((a, b) => {
+    if (a === weekIndex) return 1;
+    if (b === weekIndex) return -1;
+    return a - b;
+  });
+
+  const handleCheckOff = () => {
+    if (!checked) onToggle();
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <p className="mb-2 text-center text-xs text-muted-foreground">
         {checked
           ? `Week marked on ${personName}'s Blink of an Eye grid`
-          : `Tap the highlighted square on ${personName}'s grid`}
+          : `Tap the pulsing square below, or use Check off week`}
       </p>
       <svg
         role="img"
@@ -77,15 +85,23 @@ export function BlinkLifeWeekReviewGridSnippet({
                     : `Check off week ${weekIndex + 1}`
                 }
                 aria-pressed={checked}
-                className={cn(!checked && "cursor-pointer")}
-                onClick={checked ? undefined : onToggle}
+                className={cn(!checked && "cursor-pointer touch-manipulation")}
+                style={{ pointerEvents: checked ? "none" : "all" }}
+                onPointerDown={
+                  checked
+                    ? undefined
+                    : (e) => {
+                        e.preventDefault();
+                        handleCheckOff();
+                      }
+                }
                 onKeyDown={
                   checked
                     ? undefined
                     : (e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onToggle();
+                          handleCheckOff();
                         }
                       }
                 }
@@ -97,7 +113,7 @@ export function BlinkLifeWeekReviewGridSnippet({
                     width={BLINK_CELL + 4}
                     height={BLINK_CELL + 4}
                     fill="none"
-                    className="stroke-primary"
+                    className="pointer-events-none stroke-primary"
                     strokeWidth={1.5}
                     rx={1}
                   >
@@ -119,7 +135,14 @@ export function BlinkLifeWeekReviewGridSnippet({
                   rx={0.5}
                 />
                 {!checked ? (
-                  <rect x={x} y={y} width={BLINK_CELL} height={BLINK_CELL} fill="transparent" />
+                  <rect
+                    x={x - 1}
+                    y={y - 1}
+                    width={BLINK_CELL + 2}
+                    height={BLINK_CELL + 2}
+                    fill="transparent"
+                    className="cursor-pointer"
+                  />
                 ) : null}
                 {checked ? (
                   <path
@@ -144,7 +167,7 @@ export function BlinkLifeWeekReviewGridSnippet({
                 width={BLINK_CELL}
                 height={BLINK_CELL}
                 fill={fill}
-                className={fill ? undefined : "fill-current opacity-40"}
+                className={cn("pointer-events-none", fill ? undefined : "fill-current opacity-40")}
                 rx={0.5}
               />
             );
@@ -158,14 +181,14 @@ export function BlinkLifeWeekReviewGridSnippet({
                 width={BLINK_CELL - 0.7}
                 height={BLINK_CELL - 0.7}
                 fill="none"
-                className="stroke-current stroke-[0.75] opacity-30"
+                className="pointer-events-none stroke-current stroke-[0.75] opacity-30"
                 rx={0.5}
               />
             );
           }
           if (isCurrent) {
             return (
-              <g key={i}>
+              <g key={i} className="pointer-events-none">
                 <rect
                   x={x}
                   y={y}
@@ -175,16 +198,6 @@ export function BlinkLifeWeekReviewGridSnippet({
                   className={fill ? undefined : "fill-current opacity-70"}
                   rx={0.5}
                 />
-                <rect
-                  x={x - 1}
-                  y={y - 1}
-                  width={BLINK_CELL + 2}
-                  height={BLINK_CELL + 2}
-                  fill="none"
-                  className="stroke-primary opacity-60"
-                  strokeWidth={1}
-                  rx={0.75}
-                />
               </g>
             );
           }
@@ -193,7 +206,7 @@ export function BlinkLifeWeekReviewGridSnippet({
       </svg>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={handleCheckOff}
         disabled={checked}
         aria-pressed={checked}
         aria-label={

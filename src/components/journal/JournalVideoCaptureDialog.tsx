@@ -57,6 +57,10 @@ type Props = {
   teleprompter?: string;
   /** Show retake / confirm step before calling onComplete. */
   reviewBeforeUpload?: boolean;
+  /** Called when recording stops and review begins — before the user taps confirm. */
+  onReviewReady?: (result: JournalVideoCaptureResult, durationMs: number) => void;
+  confirmLabel?: string;
+  reviewHint?: string;
   /** Render above other app modals (week review gate, etc.). */
   stackElevated?: boolean;
   /** Disable floating desktop recorder — use full dialog pane. */
@@ -81,6 +85,9 @@ export default function JournalVideoCaptureDialog({
   recovery,
   teleprompter,
   reviewBeforeUpload = true,
+  onReviewReady,
+  confirmLabel,
+  reviewHint,
   stackElevated = false,
   forceInline = false,
 }: Props) {
@@ -233,6 +240,7 @@ export default function JournalVideoCaptureDialog({
   };
 
   const finishCapture = async (result: JournalVideoCaptureResult, durationMs: number) => {
+    onReviewReady?.(result, durationMs);
     if (reviewBeforeUpload) {
       setPendingReview({ result, durationMs });
       return;
@@ -513,6 +521,8 @@ export default function JournalVideoCaptureDialog({
       onRetake={handleRetake}
       onConfirm={() => void handleConfirmReview()}
       confirming={uploading || transcribing}
+      confirmLabel={confirmLabel}
+      reviewHint={reviewHint}
     />
   ) : null;
 

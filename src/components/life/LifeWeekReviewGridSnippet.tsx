@@ -50,12 +50,22 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
     cols: GRID_COLS,
   });
   const viewBox = reviewSnippetViewBox(weekIndex);
-  const cellIndices = weekIndicesInWindow(weekIndex);
+  const cellIndices = weekIndicesInWindow(weekIndex).sort((a, b) => {
+    if (a === weekIndex) return 1;
+    if (b === weekIndex) return -1;
+    return a - b;
+  });
+
+  const handleCheckOff = () => {
+    if (!checked) onToggle();
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <p className="mb-2 text-center text-xs text-muted-foreground">
-        {checked ? "Week marked on your life grid" : "Tap the highlighted square on your life grid"}
+        {checked
+          ? "Week marked on your life grid"
+          : "Tap the pulsing square below, or use Check off week"}
       </p>
       <svg
         role="img"
@@ -86,15 +96,23 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                     : `Check off week ${weekIndex + 1}`
                 }
                 aria-pressed={checked}
-                className={cn(!checked && "cursor-pointer")}
-                onClick={checked ? undefined : onToggle}
+                className={cn(!checked && "cursor-pointer touch-manipulation")}
+                style={{ pointerEvents: checked ? "none" : "all" }}
+                onPointerDown={
+                  checked
+                    ? undefined
+                    : (e) => {
+                        e.preventDefault();
+                        handleCheckOff();
+                      }
+                }
                 onKeyDown={
                   checked
                     ? undefined
                     : (e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onToggle();
+                          handleCheckOff();
                         }
                       }
                 }
@@ -106,7 +124,7 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                     width={CELL + 6}
                     height={CELL + 6}
                     fill="none"
-                    className="stroke-primary"
+                    className="pointer-events-none stroke-primary"
                     strokeWidth={2}
                     rx={1.5}
                   >
@@ -128,7 +146,14 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                   rx={0.5}
                 />
                 {!checked ? (
-                  <rect x={x} y={y} width={CELL} height={CELL} fill="transparent" />
+                  <rect
+                    x={x - 2}
+                    y={y - 2}
+                    width={CELL + 4}
+                    height={CELL + 4}
+                    fill="transparent"
+                    className="cursor-pointer"
+                  />
                 ) : null}
                 {checked ? (
                   <path
@@ -153,7 +178,7 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                 width={CELL}
                 height={CELL}
                 fill={fill}
-                className={fill ? undefined : "fill-current opacity-40"}
+                className={cn("pointer-events-none", fill ? undefined : "fill-current opacity-40")}
                 rx={0.5}
               />
             );
@@ -167,14 +192,14 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                 width={CELL - 1}
                 height={CELL - 1}
                 fill="none"
-                className="stroke-current stroke-[1] opacity-30"
+                className="pointer-events-none stroke-current stroke-[1] opacity-30"
                 rx={0.5}
               />
             );
           }
           if (isCurrent) {
             return (
-              <g key={i}>
+              <g key={i} className="pointer-events-none">
                 <rect
                   x={x}
                   y={y}
@@ -184,16 +209,6 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
                   className={fill ? undefined : "fill-current opacity-70"}
                   rx={0.5}
                 />
-                <rect
-                  x={x - 1.5}
-                  y={y - 1.5}
-                  width={CELL + 3}
-                  height={CELL + 3}
-                  fill="none"
-                  className="stroke-primary opacity-60"
-                  strokeWidth={1.5}
-                  rx={1}
-                />
               </g>
             );
           }
@@ -202,7 +217,7 @@ export function LifeWeekReviewGridSnippet({ weekIndex, currentWeekIndex, checked
       </svg>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={handleCheckOff}
         disabled={checked}
         aria-pressed={checked}
         aria-label={

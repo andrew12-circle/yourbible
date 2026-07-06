@@ -28,6 +28,22 @@ export type LifeWeekReviewVideoCapture = {
   durationMs: number;
 };
 
+export type LifeWeekReviewDraft = {
+  checked: boolean;
+  reflection: string;
+  recordedVideo: LifeWeekReviewVideoCapture | null;
+};
+
+export function lifeWeekReviewDraftKey(subject: LifeWeekReviewSubject, weekIndex: number): string {
+  return `${subject}:${weekIndex}`;
+}
+
+const emptyLifeWeekReviewDraft = (): LifeWeekReviewDraft => ({
+  checked: false,
+  reflection: "",
+  recordedVideo: null,
+});
+
 type LifeWeekReviewContextValue = {
   loading: boolean;
   closedWeekIndicesBySubject: Record<LifeWeekReviewSubject, Set<number>>;
@@ -37,6 +53,12 @@ type LifeWeekReviewContextValue = {
   pendingReviewCount: number;
   /** Remaining "remind me later" dismissals before this week stops prompting. */
   pendingReviewDismissalsLeft: number;
+  getDraft: (subject: LifeWeekReviewSubject, weekIndex: number) => LifeWeekReviewDraft;
+  patchDraft: (
+    subject: LifeWeekReviewSubject,
+    weekIndex: number,
+    patch: Partial<LifeWeekReviewDraft> | ((prev: LifeWeekReviewDraft) => Partial<LifeWeekReviewDraft>),
+  ) => void;
   completeReview: (reflection: string, video?: LifeWeekReviewVideoCapture) => Promise<void>;
   dismissPendingReview: () => void;
   saving: boolean;
@@ -62,6 +84,40 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     userId ? localListLifeWeekReviewDismissCounts(userId) : {},
   );
   const [sessionDismissedKeys, setSessionDismissedKeys] = useState<Set<string>>(() => new Set());
+  const [draftsByKey, setDraftsByKey] = useState<Record<string, LifeWeekReviewDraft>>({});
+
+  const getDraft = useCallback(
+    (subject: LifeWeekReviewSubject, weekIndex: number): LifeWeekReviewDraft => {
+      return draftsByKey[lifeWeekReviewDraftKey(subject, weekIndex)] ?? emptyLifeWeekReviewDraft();
+    },
+    [draftsByKey],
+  );
+
+  const patchDraft = useCallback(
+    (
+      subject: LifeWeekReviewSubject,
+      weekIndex: number,
+      patch: Partial<LifeWeekReviewDraft> | ((prev: LifeWeekReviewDraft) => Partial<LifeWeekReviewDraft>),
+    ) => {
+      const key = lifeWeekReviewDraftKey(subject, weekIndex);
+      setDraftsByKey((prev) => {
+        const current = { ...emptyLifeWeekReviewDraft(), ...prev[key] };
+        const nextPatch = typeof patch === "function" ? patch(current) : patch;
+        return { ...prev, [key]: { ...current, ...nextPatch } };
+      });
+    },
+    [],
+  );
+
+  const clearDraft = useCallback((subject: LifeWeekReviewSubject, weekIndex: number) => {
+    const key = lifeWeekReviewDraftKey(subject, weekIndex);
+    setDraftsByKey((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!userId || !enabled) {
@@ -87,6 +143,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       setDismissCountsByKey({});
       setSessionDismissedKeys(new Set());
+      setDraftsByKey({});
       return;
     }
     setDismissCountsByKey(localListLifeWeekReviewDismissCounts(userId));
@@ -123,7 +180,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   }, [birthIso, displayName, familyMembers]);
 
   const pendingReviews = useMemo(() => {
-    if (!enabled || loading || reviewPeople.length === 0 || !userId) return [];
+    if (!enabled || reviewPeople.length === 0 || !userId) return [];
     return resolvePendingLifeWeekReviews(reviewPeople, closedWeekIndicesBySubject).filter((review) => {
       const key = lifeWeekReviewDismissKey(review.subject, review.weekIndex);
       const dismissCount = dismissCountsByKey[key] ?? 0;
@@ -131,7 +188,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       if (sessionDismissedKeys.has(key)) return false;
       return true;
     });
-  }, [enabled, loading, reviewPeople, closedWeekIndicesBySubject, sessionDismissedKeys, dismissCountsByKey, userId]);
+  }, [enabled, reviewPeople, closedWeekIndicesBySubject, sessionDismissedKeys, dismissCountsByKey, userId]);
 
   const pendingReview = pendingReviews[0] ?? null;
 
@@ -186,11 +243,12 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           next[pendingReview.subject].add(pendingReview.weekIndex);
           return next;
         });
+        clearDraft(pendingReview.subject, pendingReview.weekIndex);
       } finally {
         setSaving(false);
       }
     },
-    [userId, pendingReview],
+    [userId, pendingReview, clearDraft],
   );
 
   const dismissPendingReview = useCallback(() => {
@@ -215,6 +273,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       pendingReview,
       pendingReviewCount: pendingReviews.length,
       pendingReviewDismissalsLeft,
+      getDraft,
+      patchDraft,
       completeReview,
       dismissPendingReview,
       saving,
@@ -226,6 +286,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       pendingReview,
       pendingReviews.length,
       pendingReviewDismissalsLeft,
+      getDraft,
+      patchDraft,
       completeReview,
       dismissPendingReview,
       saving,
