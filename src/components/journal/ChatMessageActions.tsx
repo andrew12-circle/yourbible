@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Copy, Pencil, RefreshCw } from "lucide-react";
+import { Check, Copy, Pencil, RefreshCw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ type Props = {
   isLastAssistant?: boolean;
   onRegenerate?: () => void;
   onEdit?: () => void;
+  onReadAloud?: () => void;
   busy?: boolean;
   className?: string;
 };
@@ -19,6 +20,7 @@ export default function ChatMessageActions({
   isLastAssistant,
   onRegenerate,
   onEdit,
+  onReadAloud,
   busy,
   className,
 }: Props) {
@@ -54,6 +56,19 @@ export default function ChatMessageActions({
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
+      {role === "assistant" && onReadAloud ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          aria-label="Read aloud"
+          disabled={busy || !content.trim()}
+          onClick={onReadAloud}
+        >
+          <Volume2 className="h-3.5 w-3.5" />
+        </Button>
+      ) : null}
       {role === "assistant" && isLastAssistant && onRegenerate ? (
         <Button
           type="button"

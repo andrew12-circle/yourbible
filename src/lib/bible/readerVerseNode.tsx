@@ -36,47 +36,63 @@ function renderTextRange(
 ): ReactNode[] {
   const rangeEnd = rangeStart + text.length;
   const partSegments = sliceSegmentsForRange(segments, rangeStart, rangeEnd, plain);
+  const hasColoredHighlights = hlSlices.some((slice) => slice.color);
   const nodes: ReactNode[] = [];
-  let segOffset = rangeStart;
 
-  for (let si = 0; si < partSegments.length; si++) {
-    const seg = partSegments[si]!;
-    const segStart = segOffset;
-    const segEnd = segStart + seg.text.length;
-    segOffset = segEnd;
-
-    let hlCursor = hlGlobalStart;
-    for (let hi = 0; hi < hlSlices.length; hi++) {
-      const hl = hlSlices[hi]!;
-      const hlStart = hlCursor;
-      const hlEnd = hlStart + hl.text.length;
-      hlCursor = hlEnd;
-
-      const oStart = Math.max(segStart, hlStart);
-      const oEnd = Math.min(segEnd, hlEnd);
-      if (oEnd <= oStart) continue;
-
-      const chunk = plain.slice(oStart, oEnd);
-      let inner: ReactNode = chunk;
-      if (hl.color) {
-        inner = (
-          <span
-            className={`marker-hl v${mv}`}
-            style={{ ["--hl-color" as string]: `var(${hl.color})` }}
-          >
-            <span className="marker-hl-text">{chunk}</span>
-          </span>
-        );
-      }
-
-      const styled = seg.isJesus ? (
-        <span key={`${keyPrefix}-${si}-${hi}`} className="red-letter">
-          {inner}
+  if (!hasColoredHighlights) {
+    for (let si = 0; si < partSegments.length; si++) {
+      const seg = partSegments[si]!;
+      const inner = seg.isJesus ? (
+        <span key={`${keyPrefix}-${si}`} className="red-letter">
+          {seg.text}
         </span>
       ) : (
-        <span key={`${keyPrefix}-${si}-${hi}`}>{inner}</span>
+        <span key={`${keyPrefix}-${si}`}>{seg.text}</span>
       );
-      nodes.push(styled);
+      nodes.push(inner);
+    }
+  } else {
+    let segOffset = rangeStart;
+
+    for (let si = 0; si < partSegments.length; si++) {
+      const seg = partSegments[si]!;
+      const segStart = segOffset;
+      const segEnd = segStart + seg.text.length;
+      segOffset = segEnd;
+
+      let hlCursor = hlGlobalStart;
+      for (let hi = 0; hi < hlSlices.length; hi++) {
+        const hl = hlSlices[hi]!;
+        const hlStart = hlCursor;
+        const hlEnd = hlStart + hl.text.length;
+        hlCursor = hlEnd;
+
+        const oStart = Math.max(segStart, hlStart);
+        const oEnd = Math.min(segEnd, hlEnd);
+        if (oEnd <= oStart) continue;
+
+        const chunk = plain.slice(oStart, oEnd);
+        let inner: ReactNode = chunk;
+        if (hl.color) {
+          inner = (
+            <span
+              className={`marker-hl v${mv}`}
+              style={{ ["--hl-color" as string]: `var(${hl.color})` }}
+            >
+              <span className="marker-hl-text">{chunk}</span>
+            </span>
+          );
+        }
+
+        const styled = seg.isJesus ? (
+          <span key={`${keyPrefix}-${si}-${hi}`} className="red-letter">
+            {inner}
+          </span>
+        ) : (
+          <span key={`${keyPrefix}-${si}-${hi}`}>{inner}</span>
+        );
+        nodes.push(styled);
+      }
     }
   }
 
@@ -243,7 +259,7 @@ export function createReaderVerseRenderer({
           <button
             type="button"
             onClick={(e) => onVerseNumberClick(e, v)}
-            className="verse-num verse-num-gutter bg-transparent border-0 p-0 m-0 cursor-pointer hover:text-leather transition-colors"
+            className="verse-num verse-num-gutter bg-transparent border-0 p-0 cursor-pointer hover:text-leather transition-colors"
             aria-label={`Verse ${v.number}`}
             style={{ userSelect: "none" }}
           >

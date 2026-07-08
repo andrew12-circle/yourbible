@@ -28,7 +28,7 @@ import MyAiComposer from "@/components/myai/MyAiComposer";
 import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
 import MyAiWelcomeHero from "@/components/myai/MyAiWelcomeHero";
 import MyAiWelcomeExplainer from "@/components/myai/MyAiWelcomeExplainer";
-import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
+import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
@@ -46,6 +46,10 @@ import {
   type MyAiCompanionMode,
 } from "@/lib/myai/companionMode";
 import { myAiComposerColumn } from "@/lib/myai/myAiTheme";
+import {
+  persistMyAiVoiceReplies,
+  readMyAiVoiceRepliesDefault,
+} from "@/lib/myai/myAiComposerSettings";
 import { resolveProfileDisplayName } from "@/lib/profile/displayName";
 import {
   MY_AI_RESPONSE_DEPTH_STORAGE_KEY,
@@ -333,6 +337,7 @@ export default function MyAiPage() {
   const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
     readResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, "deep"),
   );
+  const [voiceReplies, setVoiceReplies] = useState(readMyAiVoiceRepliesDefault);
   const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
@@ -341,10 +346,39 @@ export default function MyAiPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const voiceRepliesRef = useRef(voiceReplies);
+  const mountedRef = useRef(true);
+  const assistantTtsRef = useRef(createAssistantTtsSession({
+    enabled: () => voiceRepliesRef.current,
+    mounted: () => mountedRef.current,
+  }));
   const composerLockScrollYRef = useRef<number | null>(null);
   const transcriptScrollSnapshotRef = useRef(EMPTY_TRANSCRIPT_SCROLL_SNAPSHOT);
 
   useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
+
+  voiceRepliesRef.current = voiceReplies;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      assistantTtsRef.current.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    persistMyAiVoiceReplies(voiceReplies);
+    if (!voiceReplies) assistantTtsRef.current.stop();
+  }, [voiceReplies]);
+
+  const playAssistantReply = useCallback((markdown: string) => {
+    void assistantTtsRef.current.play(markdown);
+  }, []);
+
+  const readMessageAloud = useCallback((markdown: string) => {
+    void assistantTtsRef.current.play(markdown, { force: true });
+  }, []);
 
   const persistSidebar = (open: boolean) => {
     setSidebarOpen(open);
@@ -477,6 +511,7 @@ export default function MyAiPage() {
   const stopGeneration = () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    assistantTtsRef.current.stop();
     setSending(false);
   };
 
@@ -503,6 +538,7 @@ export default function MyAiPage() {
 
   const newChat = () => {
     setMobileSheetOpen(false);
+    assistantTtsRef.current.stop();
     navigate("/my-ai");
     setMessages([]);
     setTimeout(() => taRef.current?.focus(), 50);
@@ -612,6 +648,7 @@ export default function MyAiPage() {
 
     setInput("");
     setSending(true);
+    assistantTtsRef.current.stop();
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
@@ -628,6 +665,7 @@ export default function MyAiPage() {
       });
 
       patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+      if (done.content.trim()) playAssistantReply(done.content);
 
       const chatTitle = done.title?.trim() || chatTitleFromFirstMessage(text);
       const chatId = done.chat_id;
@@ -701,6 +739,7 @@ export default function MyAiPage() {
       ];
     });
     setSending(true);
+    assistantTtsRef.current.stop();
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
@@ -715,6 +754,7 @@ export default function MyAiPage() {
         onDelta: (acc) => patchStreamingAssistant(assistantTempId, acc),
       });
       patchStreamingAssistant(assistantTempId, done.content, citationsFromStream(done.citations));
+      if (done.content.trim()) playAssistantReply(done.content);
       await loadMessages(routeChatId);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
@@ -890,6 +930,21 @@ export default function MyAiPage() {
                         onChange={setResponseDepth}
                       />
                     )}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="my-ai-voice-pop" className="text-sm">
+                          Voice replies
+                        </Label>
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          Read each reply aloud with natural narration
+                        </p>
+                      </div>
+                      <Switch
+                        id="my-ai-voice-pop"
+                        checked={voiceReplies}
+                        onCheckedChange={setVoiceReplies}
+                      />
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -945,6 +1000,8 @@ export default function MyAiPage() {
                   }}
                   onComposerFocus={() => setComposerFocused(true)}
                   onComposerBlur={() => setComposerFocused(false)}
+                  voiceReplies={voiceReplies}
+                  onVoiceRepliesChange={setVoiceReplies}
                   welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
                   onWelcomeQuickPrompt={(prompt) => void send(prompt)}
                 />
@@ -1006,6 +1063,7 @@ export default function MyAiPage() {
                                 ? () => void retryLast()
                                 : undefined
                             }
+                            onReadAloud={() => readMessageAloud(m.content)}
                           />
                         ) : null}
                       </div>
@@ -1050,6 +1108,8 @@ export default function MyAiPage() {
             }}
             onComposerFocus={() => setComposerFocused(true)}
             onComposerBlur={() => setComposerFocused(false)}
+            voiceReplies={voiceReplies}
+            onVoiceRepliesChange={setVoiceReplies}
           />
             </>
           )}

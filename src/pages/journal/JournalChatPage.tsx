@@ -36,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
 import { cn } from "@/lib/utils";
+import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
 import { readAndClearClaimChatHandoff, setClaimChatHandoff } from "@/lib/journal/claimChatHandoff";
 import { resolveJournalChatSessionTitles } from "@/lib/journal/resolveJournalChatSessionTitles";
 import { normalizeChatSessionTitle } from "@/lib/myai/chatTitle";
@@ -116,20 +117,6 @@ function readVoiceRepliesDefault(): boolean {
   return readJournalChatVoiceRepliesDefault();
 }
 
-function stripMarkdownForTts(md: string): string {
-  let s = md;
-  s = s.replace(/```[\s\S]*?```/g, " ");
-  s = s.replace(/`([^`]+)`/g, "$1");
-  s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-  s = s.replace(/^\s*#{1,6}\s+/gm, "");
-  s = s.replace(/\*\*([^*]+)\*\*/g, "$1");
-  s = s.replace(/\*([^*]+)\*/g, "$1");
-  s = s.replace(/__([^_]+)__/g, "$1");
-  s = s.replace(/_([^_]+)_/g, "$1");
-  s = s.replace(/\s+/g, " ");
-  return s.trim();
-}
-
 function TypingDots() {
   return (
     <span className="inline-flex items-center gap-1 py-1" aria-hidden>
@@ -190,9 +177,11 @@ export default function JournalChatPage() {
   const includeGeneralRef = useRef(includeGeneral);
   const responseDepthRef = useRef(responseDepth);
   const voiceRepliesRef = useRef(voiceReplies);
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-  const ttsObjectUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+  const assistantTtsRef = useRef(createAssistantTtsSession({
+    enabled: () => voiceRepliesRef.current,
+    mounted: () => mountedRef.current,
+  }));
   const sendRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
   const prevRouteEntryIdRef = useRef<string | undefined>(undefined);
   const [claimFocusSession, setClaimFocusSession] = useState<ClaimFocusSession | null>(null);
@@ -222,43 +211,14 @@ export default function JournalChatPage() {
   }, [routeEntryId]);
 
   const stopJournalTts = useCallback(() => {
-    const a = ttsAudioRef.current;
-    ttsAudioRef.current = null;
-    if (a) {
-      a.pause();
-      a.removeAttribute("src");
-      a.load();
-    }
-    const u = ttsObjectUrlRef.current;
-    ttsObjectUrlRef.current = null;
-    if (u) URL.revokeObjectURL(u);
+    assistantTtsRef.current.stop();
   }, []);
 
   const playJournalAssistantTts = useCallback(
     async (markdown: string) => {
-      if (!voiceRepliesRef.current) return;
-      const text = stripMarkdownForTts(markdown);
-      if (!text) return;
-      stopJournalTts();
-      try {
-        const { data, error } = await supabase.functions.invoke<ArrayBuffer>("sleep-tts", {
-          body: { text: text.slice(0, 4500) },
-        });
-        if (error) return;
-        if (!mountedRef.current || !voiceRepliesRef.current) return;
-        const buf = data as unknown;
-        if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) return;
-        const blob = new Blob([buf], { type: "audio/mpeg" });
-        const url = URL.createObjectURL(blob);
-        ttsObjectUrlRef.current = url;
-        const audio = new Audio(url);
-        ttsAudioRef.current = audio;
-        await audio.play().catch(() => {});
-      } catch {
-        /* ignore TTS failures */
-      }
+      await assistantTtsRef.current.play(markdown);
     },
-    [stopJournalTts],
+    [],
   );
 
   useEffect(() => {

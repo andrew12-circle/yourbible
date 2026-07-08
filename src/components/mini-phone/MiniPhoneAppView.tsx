@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +6,7 @@ import { MiniPhoneErrorBoundary } from "@/components/mini-phone/MiniPhoneErrorBo
 import { MiniPhoneRootProviders } from "@/components/mini-phone/MiniPhoneRootProviders";
 import { createMiniPhoneRouter } from "@/lib/mini-phone/miniPhoneRouter";
 import { loadMiniPhoneActiveRoute } from "@/lib/mini-phone/miniPhoneStorage";
+import { IPHONE_PRO_MAX_WIDTH_PT } from "@/lib/mini-phone/miniPhoneDimensions";
 
 interface MiniPhoneAppViewProps {
   entryRoute: string;
@@ -13,10 +14,43 @@ interface MiniPhoneAppViewProps {
 
 export function MiniPhoneAppView({ entryRoute }: MiniPhoneAppViewProps) {
   const auth = useAuth();
+  const frameRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<Root | null>(null);
   const routerRef = useRef<ReturnType<typeof createMiniPhoneRouter> | null>(null);
   const initialEntry = useRef(loadMiniPhoneActiveRoute() ?? entryRoute).current;
+  const [viewport, setViewport] = useState({
+    scale: 1,
+    height: 1,
+  });
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const measure = () => {
+      const width = frame.clientWidth;
+      const height = frame.clientHeight;
+      if (width <= 0 || height <= 0) return;
+
+      const scale = width / IPHONE_PRO_MAX_WIDTH_PT;
+      setViewport((prev) => {
+        const next = {
+          scale,
+          height: height / scale,
+        };
+        if (Math.abs(prev.scale - next.scale) < 0.001 && Math.abs(prev.height - next.height) < 0.5) {
+          return prev;
+        }
+        return next;
+      });
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -50,10 +84,21 @@ export function MiniPhoneAppView({ entryRoute }: MiniPhoneAppViewProps) {
 
   return (
     <div
-      ref={containerRef}
+      ref={frameRef}
       data-mini-phone-app
       data-mobile="true"
       className="relative isolate flex h-full w-full max-w-full flex-col overflow-hidden [transform:translateZ(0)]"
-    />
+    >
+      <div
+        ref={containerRef}
+        className="relative isolate flex shrink-0 flex-col overflow-hidden"
+        style={{
+          width: IPHONE_PRO_MAX_WIDTH_PT,
+          height: viewport.height,
+          transform: `scale(${viewport.scale})`,
+          transformOrigin: "top left",
+        }}
+      />
+    </div>
   );
 }

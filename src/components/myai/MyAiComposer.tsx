@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   ArrowUp,
+  AudioLines,
   BookOpen,
   Brain,
   ChevronDown,
@@ -95,6 +96,8 @@ type Props = {
   onComposerPointerDown?: () => void;
   onComposerFocus?: () => void;
   onComposerBlur?: () => void;
+  voiceReplies?: boolean;
+  onVoiceRepliesChange?: (value: boolean) => void;
   className?: string;
   welcomeQuickPrompts?: readonly string[];
   onWelcomeQuickPrompt?: (prompt: string) => void;
@@ -130,6 +133,8 @@ export default function MyAiComposer({
   onComposerPointerDown,
   onComposerFocus,
   onComposerBlur,
+  voiceReplies = false,
+  onVoiceRepliesChange,
   className,
   welcomeQuickPrompts,
   onWelcomeQuickPrompt,
@@ -405,6 +410,26 @@ export default function MyAiComposer({
                   }
                 }}
               />
+
+              {onVoiceRepliesChange ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={voiceReplies ? "default" : "ghost"}
+                  className={cn(
+                    "h-9 w-9 shrink-0 rounded-full",
+                    voiceReplies
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                  )}
+                  aria-label="Toggle voice replies"
+                  aria-pressed={voiceReplies}
+                  title="Read replies aloud"
+                  onClick={() => onVoiceRepliesChange(!voiceReplies)}
+                >
+                  <AudioLines className="h-4 w-4" />
+                </Button>
+              ) : null}
 
               <Button
                 type="button"
