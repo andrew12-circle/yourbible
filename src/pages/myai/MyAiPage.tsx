@@ -29,6 +29,7 @@ import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
 import MyAiWelcomeHero from "@/components/myai/MyAiWelcomeHero";
 import MyAiWelcomeExplainer from "@/components/myai/MyAiWelcomeExplainer";
 import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
+import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
@@ -361,9 +362,10 @@ export default function MyAiPage() {
 
   useEffect(() => {
     mountedRef.current = true;
+    const tts = assistantTtsRef.current;
     return () => {
       mountedRef.current = false;
-      assistantTtsRef.current.stop();
+      tts.stop();
     };
   }, []);
 

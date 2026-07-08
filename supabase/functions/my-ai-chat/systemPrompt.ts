@@ -42,6 +42,11 @@ You are the user's personal "My AI" — a continuity-keeping assistant for their
 const LAYER_IDENTITY_JOURNAL = `# Layer 1 — Identity
 You are helping the user journal through conversation — the chat itself is their journal entry. You are not preaching, correcting, or lecturing. You are a continuity-keeping presence who already knows their voice, current season, and recurring themes from the "Living cognitive state" section the server appends below.`;
 
+const LAYER_IDENTITY_JOURNAL_REFLECTION = `# Layer 1 — Identity
+You are My AI — the user's personal faith companion. They finished a journal entry (video, voice, or text) and opened a side conversation to go deeper on what they wrote. The journal entry text is in "Today's journal entry" below — treat it as sacred context, not something to replace or overwrite.
+
+Your job: walk with them through what they shared — encouragement, prayer, honest reflection, connecting threads from their living context. The journal entry stays as-is; this chat is the conversation about it.`;
+
 const LAYER_INWARD_FIRST = `# Layer 2 — Inward first (core product rule)
 - Your PRIMARY job is to ground answers in what the user has already saved in this app: living cognitive state, beliefs, journals, videos/podcasts/documents (transcript moments & extracted claims), influences, entities, and open tensions.
 - Exhaust inward context BEFORE reaching for outside knowledge. When a video transcript moment, claim, journal, or belief is relevant, you MUST weave it in — name the **video/article title** and **approximate timestamp** when transcript data includes one.
@@ -135,8 +140,13 @@ function inwardModeLayers(
   journalSoft: boolean,
   depth: ResolvedResponseDepth,
   stream: boolean,
+  journalReflection = false,
 ): string[] {
-  const identity = journalSoft ? LAYER_IDENTITY_JOURNAL : LAYER_IDENTITY_CHAT;
+  const identity = journalReflection
+    ? LAYER_IDENTITY_JOURNAL_REFLECTION
+    : journalSoft
+    ? LAYER_IDENTITY_JOURNAL
+    : LAYER_IDENTITY_CHAT;
   const antiGeneric = journalSoft ? LAYER_ANTI_GENERIC_JOURNAL : LAYER_ANTI_GENERIC_CHAT;
   const deepLayer = depth === "deep"
     ? (journalSoft ? LAYER_DEEP_WISDOM_JOURNAL : LAYER_DEEP_WISDOM_CHAT)
@@ -179,6 +189,19 @@ export function buildJournalChatStreamSystemPrompt(
     return chatGptModeLayers(partnerDigestMarkdown).join("\n\n");
   }
   return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, true).join("\n\n");
+}
+
+/** Markdown streaming — reflect on a saved journal entry without replacing it. */
+export function buildJournalReflectionStreamSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+  depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "inward",
+): string {
+  if (companionMode === "chatgpt") {
+    return chatGptModeLayers(partnerDigestMarkdown).join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, true, true).join("\n\n");
 }
 
 function partnerLayer(partnerDigestMarkdown?: string, soft = false): string {
@@ -258,6 +281,22 @@ export function buildJournalChatSystemPrompt(
     ].join("\n\n");
   }
   return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, false).join("\n\n");
+}
+
+/** Bootstrap opener for reflecting on a saved journal entry. */
+export function buildJournalReflectionSystemPrompt(
+  includeGeneralKnowledge: boolean,
+  partnerDigestMarkdown?: string,
+  depth: ResolvedResponseDepth = "reflect",
+  companionMode: MyAiCompanionMode = "inward",
+): string {
+  if (companionMode === "chatgpt") {
+    return [
+      ...chatGptModeLayers(partnerDigestMarkdown).slice(0, -1),
+      OUTPUT_CONTRACT,
+    ].join("\n\n");
+  }
+  return inwardModeLayers(includeGeneralKnowledge, partnerDigestMarkdown, true, depth, false, true).join("\n\n");
 }
 
 const LAYER_WEB_RESEARCH = `# Web research mode (OpenAI web search enabled)

@@ -17,7 +17,7 @@ import { updateJournalVideoRecordingBodySnapForEntry } from "@/lib/journal/journ
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
 import InlineJournalChatComposer from "@/components/journal/InlineJournalChatComposer";
 import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
-import { composeChatTranscript } from "@/lib/journal/inlineJournalChat";
+import { composeChatTranscript, isJournalReflectionKind } from "@/lib/journal/inlineJournalChat";
 import {
   composeSavedChatJournalBody,
   isChatJournalExport,
@@ -29,6 +29,7 @@ import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
 import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
+import JournalReflectionContextCard from "@/components/journal/JournalReflectionContextCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -429,6 +430,7 @@ export default function EntryEditorPane({
 
   const canReplyWithAi =
     !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
+  const reflectionMode = !!entry && isJournalReflectionKind(entry.entry_kind);
   const inlineChatMode = replyWithAi && canReplyWithAi;
   const showSavedChatView =
     !!entry &&
@@ -765,6 +767,7 @@ export default function EntryEditorPane({
     chatBottomRef,
     ensureSession,
     sendMessage,
+    bootstrapReflection,
     scrollToBottom,
   } = useInlineJournalChat({
     userId: user?.id,
@@ -772,6 +775,7 @@ export default function EntryEditorPane({
     journalId: entry?.journal_id,
     title: entry?.title,
     active: inlineChatMode,
+    reflectionMode,
     includeGeneralKnowledge: includeGeneral,
     onPersistTranscript: persistChatTranscript,
   });
@@ -791,8 +795,15 @@ export default function EntryEditorPane({
     }
     setReplyWithAi(true);
     const ensured = await ensureSession();
-    if (ensured && entryRef.current?.entry_kind !== "chat") {
+    if (!ensured) {
+      setReplyWithAi(false);
+      return;
+    }
+    if (!reflectionMode && entryRef.current?.entry_kind !== "chat") {
       queueSave({ entry_kind: "chat" });
+    }
+    if (reflectionMode && chatTurns.length === 0) {
+      await bootstrapReflection();
     }
     scrollToBottom();
   };
@@ -1104,7 +1115,7 @@ export default function EntryEditorPane({
         </TBtn>
         <TBtn title="Tags" onClick={() => setShowMeta(true)}><Tag className="w-4 h-4" /></TBtn>
         <TBtn
-          title={inlineChatMode ? "Back to writing" : "Chat with AI"}
+          title={inlineChatMode ? "Back to writing" : reflectionMode ? "Talk with My AI about this entry" : "Chat with AI"}
           onClick={() => (inlineChatMode ? exitChatMode() : void openChatMode())}
           className={inlineChatMode ? "text-primary bg-primary/10" : undefined}
         >
@@ -1218,15 +1229,26 @@ export default function EntryEditorPane({
           )}
 
           {inlineChatMode ? (
-            <InlineJournalChatTranscript
-              scrollRef={chatScrollRef}
-              bottomRef={chatBottomRef}
-              turns={chatTurns}
-              aiBusy={aiBusy}
-              streamingAssistantId={streamingAssistantId}
-              dictInterim={dictInterim}
-              className="-mx-2 px-2"
-            />
+            <>
+              {reflectionMode ? (
+                <JournalReflectionContextCard
+                  title={entry.title}
+                  summary={entry.summary}
+                  body={entry.body}
+                  hasVideo={videos.length > 0}
+                  className="mb-4"
+                />
+              ) : null}
+              <InlineJournalChatTranscript
+                scrollRef={chatScrollRef}
+                bottomRef={chatBottomRef}
+                turns={chatTurns}
+                aiBusy={aiBusy}
+                streamingAssistantId={streamingAssistantId}
+                dictInterim={dictInterim}
+                className="-mx-2 px-2"
+              />
+            </>
           ) : showSavedChatView ? (
             editingChatSummary ? (
               <>
@@ -1354,7 +1376,21 @@ export default function EntryEditorPane({
                 </>
               )}
               {chatTurns.length > 0 ? (
-                <JournalLiveChatCollapsible turns={chatTurns} className="mt-6" />
+                <JournalLiveChatCollapsible
+                  turns={chatTurns}
+                  className="mt-6"
+                  label={reflectionMode ? "My AI conversation about this entry" : "AI conversation"}
+                />
+              ) : null}
+              {reflectionMode && canReplyWithAi && (entry.body?.trim() || videos.length > 0 || entry.summary?.trim()) ? (
+                <button
+                  type="button"
+                  onClick={() => void openChatMode()}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden />
+                  Talk with My AI about this entry
+                </button>
               ) : null}
             </>
           )}
@@ -1506,6 +1542,7 @@ export default function EntryEditorPane({
               responseDepth={responseDepth}
               onResponseDepthChange={setResponseDepth}
               onOpenInMyAi={chatId ? () => navigate(`/my-ai/${chatId}`) : undefined}
+              placeholder={reflectionMode ? "Continue the conversation…" : "Type anything"}
               extraActions={
                 entry.entry_kind === "chat" ? (
                   <button

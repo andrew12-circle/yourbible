@@ -3,6 +3,7 @@ import { fetchChatCompletionStream } from "../_shared/aiProvider.ts";
 import { titleFromFirstMessage } from "../_shared/chatTitle.ts";
 import {
   buildJournalChatStreamSystemPrompt,
+  buildJournalReflectionStreamSystemPrompt,
   buildMyAiStreamSystemPrompt,
 } from "./systemPrompt.ts";
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
@@ -99,6 +100,7 @@ export type StreamTurnParams = {
   resolvedDepth: ResolvedResponseDepth;
   skipUserInsert: boolean;
   excludeJournal: string | null;
+  journalReflectionBlock?: string | null;
   librarySearch?: boolean;
   companionMode?: MyAiCompanionMode;
   corsHeaders: Record<string, string>;
@@ -116,6 +118,7 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
     resolvedDepth,
     skipUserInsert,
     excludeJournal,
+    journalReflectionBlock,
     librarySearch,
     companionMode = "chatgpt",
     corsHeaders,
@@ -140,12 +143,17 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
           buildPartnerWalkingAppendixForAi(supabase, userId),
         ]);
 
-        const systemText = journalMode
+        const systemText = journalReflectionBlock?.trim()
+          ? buildJournalReflectionStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
+          : journalMode
           ? buildJournalChatStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
           : buildMyAiStreamSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode);
 
+        const reflectionPrefix = journalReflectionBlock?.trim()
+          ? `${journalReflectionBlock.trim()}\n\n---\n\n`
+          : "";
         const userPayload =
-          `${contextPack.contextBlock}\n\nUser message:\n${message}\n\nAnswer the user message using the context above. Return markdown only.`;
+          `${reflectionPrefix}${contextPack.contextBlock}\n\nUser message:\n${message}\n\nAnswer the user message using the context above. Return markdown only.`;
 
         const streamTemp = companionMode === "chatgpt" ? 0.7 : 0.55;
         const streamMaxTokens = companionMode === "chatgpt" ? 8192 : 4096;

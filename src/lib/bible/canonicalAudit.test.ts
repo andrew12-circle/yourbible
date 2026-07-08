@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 import { BOOKS } from "@/data/books";
 import {
@@ -10,8 +9,7 @@ import {
 } from "@/lib/bible/canonicalAudit";
 import type { CanonicalChapterRecord } from "@/lib/bible/canonical/types";
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const CHAPTERS_DIR = path.join(ROOT, "public", "bibles", "csb", "chapters");
+const CHAPTERS_DIR = path.join(process.cwd(), "public", "bibles", "csb", "chapters");
 
 function loadChapterJson(bookAbbr: string, chapter: number): CanonicalChapterRecord {
   const filePath = path.join(CHAPTERS_DIR, bookAbbr, `${chapter}.json`);

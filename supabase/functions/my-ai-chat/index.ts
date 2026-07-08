@@ -5,10 +5,11 @@ import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_share
 import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage, claimResearchTitleFromClaim } from "../_shared/chatTitle.ts";
-import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt, parseCompanionMode, type MyAiCompanionMode } from "./systemPrompt.ts";
+import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildJournalReflectionSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt, parseCompanionMode, type MyAiCompanionMode } from "./systemPrompt.ts";
 import { createStreamingChatResponse } from "./streamTurn.ts";
 import { finalizeChatCitations } from "./enrichCitations.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
+import { JOURNAL_REFLECTION_OPENER_SEED, loadJournalReflectionContext } from "./journalReflection.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,10 @@ type RequestBody = {
   mode?: "chat" | "journal";
   journal_entry_id?: string | null;
   journal_bootstrap_opener?: boolean;
+  /** Bootstrap My AI to reflect on an existing saved journal entry. */
+  journal_bootstrap_reflection?: boolean;
+  /** Chat about a saved journal entry without overwriting its body. */
+  journal_reflection?: boolean;
   /** When bootstrapping, scope the opener to this artifact_claim row (must belong to the user). */
   journal_bootstrap_artifact_claim_id?: string | null;
   /** Optional transcript excerpt from the client (e.g. "Source in transcript"); capped server-side. */
@@ -147,6 +152,7 @@ async function generateClaimChatReply(
   chatUseWeb: boolean,
   claimPackId: string,
   companionMode: MyAiCompanionMode = "inward",
+  journalReflection = false,
 ): Promise<
   | { error: string }
   | {
@@ -181,7 +187,9 @@ async function generateClaimChatReply(
   }
 
   const usedWebFromBlock = Boolean(webBlock.trim());
-  const systemText = journalMode
+  const systemText = journalReflection
+    ? buildJournalReflectionSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
+    : journalMode
     ? buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode)
     : buildMyAiSystemPrompt(includeGeneral, partnerAppendix, resolvedDepth, companionMode);
   const userPayload = buildClaimChatUserPayload(contextBlock, researchPackBlock, webBlock, message, true);
@@ -826,9 +834,10 @@ Deno.serve(async (req) => {
     }
 
     // --- Bootstrap: first assistant opener (no user message) ---
-    if (body.journal_bootstrap_opener === true) {
+    if (body.journal_bootstrap_opener === true || body.journal_bootstrap_reflection === true) {
+      const reflectionBootstrap = body.journal_bootstrap_reflection === true;
       if (mode !== "journal" || !journalEntryId) {
-        return jsonResponse({ error: "journal_bootstrap_opener requires mode=journal and journal_entry_id" }, 400);
+        return jsonResponse({ error: "journal bootstrap requires mode=journal and journal_entry_id" }, 400);
       }
       const chatId = typeof body.chat_id === "string" && body.chat_id.length ? body.chat_id : null;
       if (!chatId) return jsonResponse({ error: "chat_id is required for bootstrap" }, 400);
@@ -850,9 +859,19 @@ Deno.serve(async (req) => {
         .eq("id", journalEntryId)
         .maybeSingle();
       if (jrErr) return jsonResponse({ error: jrErr.message }, 502);
-      if (!jr || jr.user_id !== userId || jr.entry_kind !== "chat") {
+      if (!jr || jr.user_id !== userId) {
         return jsonResponse({ error: "Invalid journal entry for chat bootstrap" }, 400);
       }
+      if (!reflectionBootstrap && jr.entry_kind !== "chat") {
+        return jsonResponse({ error: "Invalid journal entry for chat bootstrap" }, 400);
+      }
+      if (reflectionBootstrap && (jr.entry_kind === "vent" || jr.entry_kind === "listening")) {
+        return jsonResponse({ error: "Reflection chat is not available for this entry type" }, 400);
+      }
+
+      const reflectionCtx = reflectionBootstrap
+        ? await loadJournalReflectionContext(supabase, userId, journalEntryId)
+        : null;
 
       const { count: userMsgCount, error: ucErr } = await supabase
         .from("my_ai_messages")
@@ -881,9 +900,13 @@ Deno.serve(async (req) => {
 
       let claimFocusBlock = "";
       let openerSeed =
-        "(The user just opened a new journaling session. No user message yet. Write a brief warm opener: acknowledge anything relevant from the context if it fits, invite them to share what feels alive or heavy today, mirror their possible tone without assuming facts you do not have, and end with one gentle question. Keep it concise.)";
+        reflectionBootstrap && reflectionCtx?.block
+          ? JOURNAL_REFLECTION_OPENER_SEED
+          : "(The user just opened a new journaling session. No user message yet. Write a brief warm opener: acknowledge anything relevant from the context if it fits, invite them to share what feels alive or heavy today, mirror their possible tone without assuming facts you do not have, and end with one gentle question. Keep it concise.)";
 
-      if (claimBootstrap) {
+      if (reflectionBootstrap && reflectionCtx?.block) {
+        claimFocusBlock = reflectionCtx.block;
+      } else if (claimBootstrap) {
         const { data: claimRow, error: clErr } = await supabase
           .from("artifact_claims")
           .select(
@@ -1030,6 +1053,9 @@ Deno.serve(async (req) => {
       let reply = "";
       let citations: Citation[] = [];
       const includeGeneral = body.include_general_knowledge === true;
+      const buildBootstrapSystemPrompt = reflectionBootstrap
+        ? buildJournalReflectionSystemPrompt
+        : buildJournalChatSystemPrompt;
 
       if (shouldUseOpenAiWebResearch(bootstrapUseWeb, bootstrapChatCfg)) {
         const systemText = buildJournalChatWebResearchSystemPrompt(includeGeneral, partnerAppendix);
@@ -1051,7 +1077,7 @@ Deno.serve(async (req) => {
           );
         } else {
           const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
-          const fallbackSystem = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
+          const fallbackSystem = buildBootstrapSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
           const fallbackPayload =
             `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${webBlock ? `${webBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
           const chatRes = await callChatJson(fallbackSystem, fallbackPayload);
@@ -1073,7 +1099,7 @@ Deno.serve(async (req) => {
         }
       } else {
         const bootstrapDepth = resolveResponseDepth(parseResponseDepthSetting(body.response_depth), openerSeed);
-        const systemText = buildJournalChatSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
+        const systemText = buildBootstrapSystemPrompt(includeGeneral, partnerAppendix, bootstrapDepth);
         const userPayload =
           `${contextPack.contextBlock}\n\n${claimFocusBlock ? `${claimFocusBlock}\n\n---\n` : ""}${researchPackBlock ? `${researchPackBlock}\n\n---\n` : ""}${webBlock ? `${webBlock}\n\n---\n` : ""}${openerSeed}\n\nReturn only JSON as specified in the system instructions.`;
         const chatRes = await callChatJson(systemText, userPayload);
@@ -1220,22 +1246,41 @@ Deno.serve(async (req) => {
             .eq("user_id", userId);
           if (linkErr) return jsonResponse({ error: linkErr.message }, 502);
         }
-        await supabase
+        const reflectionRequested = body.journal_reflection === true;
+        const { data: linkedEntry } = await supabase
           .from("journal_entries")
-          .update({ entry_kind: "chat" })
+          .select("entry_kind")
           .eq("id", journalEntryId)
-          .eq("user_id", userId);
+          .eq("user_id", userId)
+          .maybeSingle();
+        const isReflectionEntry = reflectionRequested || (
+          linkedEntry?.entry_kind && linkedEntry.entry_kind !== "chat"
+        );
+        if (!isReflectionEntry) {
+          await supabase
+            .from("journal_entries")
+            .update({ entry_kind: "chat" })
+            .eq("id", journalEntryId)
+            .eq("user_id", userId);
+        }
       }
     } else {
       const insertRow: { user_id: string; journal_entry_id?: string } = { user_id: userId };
       if (mode === "journal" && journalEntryId) {
+        const reflectionRequested = body.journal_reflection === true;
         const { data: je, error: jeErr } = await supabase
           .from("journal_entries")
           .select("id,user_id,entry_kind")
           .eq("id", journalEntryId)
           .maybeSingle();
         if (jeErr) return jsonResponse({ error: jeErr.message }, 502);
-        if (!je || je.user_id !== userId || je.entry_kind !== "chat") {
+        if (!je || je.user_id !== userId) {
+          return jsonResponse({ error: "Invalid journal_entry_id for journal chat" }, 400);
+        }
+        if (je.entry_kind === "vent" || je.entry_kind === "listening") {
+          return jsonResponse({ error: "AI chat is not available for this entry type" }, 400);
+        }
+        if (je.entry_kind !== "chat" && !reflectionRequested) {
           return jsonResponse({ error: "Invalid journal_entry_id for journal chat" }, 400);
         }
         insertRow.journal_entry_id = journalEntryId;
@@ -1345,6 +1390,14 @@ Deno.serve(async (req) => {
 
     const useStream = body.stream !== false && !chatUseWeb && !claimPackId;
 
+    let journalReflectionBlock: string | null = null;
+    if (linkedJournalId && (body.journal_reflection === true || journalMode)) {
+      const reflectionCtx = await loadJournalReflectionContext(supabase, userId, linkedJournalId);
+      if (reflectionCtx?.isReflection && reflectionCtx.block.trim()) {
+        journalReflectionBlock = reflectionCtx.block;
+      }
+    }
+
     if (useStream) {
       return createStreamingChatResponse({
         supabase,
@@ -1356,12 +1409,16 @@ Deno.serve(async (req) => {
         resolvedDepth,
         skipUserInsert,
         excludeJournal,
+        journalReflectionBlock,
         librarySearch,
         companionMode: effectiveCompanionMode,
         corsHeaders,
       });
     }
 
+    const reflectionPrefix = journalReflectionBlock?.trim()
+      ? `${journalReflectionBlock.trim()}\n\n---\n\n`
+      : "";
     const contextPack = await buildFrameworkRetrievalContext(
       supabase,
       userId,
@@ -1384,7 +1441,7 @@ Deno.serve(async (req) => {
       journalMode,
       includeGeneral,
       partnerAppendix,
-      contextPack.contextBlock,
+      `${reflectionPrefix}${contextPack.contextBlock}`,
       researchPackBlock,
       webBlock,
       message,
@@ -1392,6 +1449,7 @@ Deno.serve(async (req) => {
       chatUseWeb,
       claimPackId,
       effectiveCompanionMode,
+      Boolean(journalReflectionBlock?.trim()),
     );
     if ("error" in generated) return jsonResponse({ error: generated.error }, 502);
     const { reply, citations: modelCitations, ranked } = generated;

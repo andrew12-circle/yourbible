@@ -21,6 +21,10 @@ export type MyAiChatRequestBody = {
   stream?: boolean;
   edit_user_message_id?: string | null;
   journal_bootstrap_opener?: boolean;
+  /** Bootstrap My AI to reflect on an existing saved journal entry (not chat-as-journal). */
+  journal_bootstrap_reflection?: boolean;
+  /** Chat about a saved journal entry without overwriting its body. */
+  journal_reflection?: boolean;
   journal_bootstrap_artifact_claim_id?: string;
   journal_bootstrap_transcript_excerpt?: string | null;
   /** Deep inward search — videos, claims, transcripts, library inventory. */

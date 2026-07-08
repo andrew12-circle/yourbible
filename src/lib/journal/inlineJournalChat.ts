@@ -80,19 +80,25 @@ export type EnsureInlineChatParams = {
   existingChatId?: string | null;
 };
 
-export async function ensureInlineJournalChatSession(
-  params: EnsureInlineChatParams,
-): Promise<{ entryId: string; chatId: string } | null> {
-  const { userId, entryId, journalId: _journalId, title, existingChatId } = params;
+export function isJournalReflectionKind(entryKind: string | null | undefined): boolean {
+  return entryKind !== "chat";
+}
 
-  const { error: kindErr } = await supabase
-    .from("journal_entries")
-    .update({ entry_kind: "chat" })
-    .eq("id", entryId)
-    .eq("user_id", userId);
-  if (kindErr) {
-    toast({ title: "Couldn't enable chat mode", description: kindErr.message, variant: "destructive" });
-    return null;
+async function ensureLinkedJournalChatSession(
+  params: EnsureInlineChatParams & { markAsChatEntry: boolean },
+): Promise<{ entryId: string; chatId: string } | null> {
+  const { userId, entryId, journalId: _journalId, title, existingChatId, markAsChatEntry } = params;
+
+  if (markAsChatEntry) {
+    const { error: kindErr } = await supabase
+      .from("journal_entries")
+      .update({ entry_kind: "chat" })
+      .eq("id", entryId)
+      .eq("user_id", userId);
+    if (kindErr) {
+      toast({ title: "Couldn't enable chat mode", description: kindErr.message, variant: "destructive" });
+      return null;
+    }
   }
 
   let chatId = existingChatId ?? null;
@@ -124,6 +130,45 @@ export async function ensureInlineJournalChatSession(
   }
 
   return { entryId, chatId: chatId! };
+}
+
+/** Chat-as-journal: marks the entry as `entry_kind = chat` and links a My AI thread. */
+export async function ensureInlineJournalChatSession(
+  params: EnsureInlineChatParams,
+): Promise<{ entryId: string; chatId: string } | null> {
+  return ensureLinkedJournalChatSession({ ...params, markAsChatEntry: true });
+}
+
+/** Reflection on a saved entry: links My AI without changing the entry body or kind. */
+export async function ensureJournalReflectionChatSession(
+  params: EnsureInlineChatParams,
+): Promise<{ entryId: string; chatId: string } | null> {
+  return ensureLinkedJournalChatSession({ ...params, markAsChatEntry: false });
+}
+
+export async function bootstrapJournalReflectionOpener(params: {
+  chatId: string;
+  entryId: string;
+  includeGeneralKnowledge?: boolean;
+  responseDepth?: ResponseDepthSetting;
+}): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("my-ai-chat", {
+    body: {
+      chat_id: params.chatId,
+      journal_entry_id: params.entryId,
+      mode: "journal",
+      journal_reflection: true,
+      journal_bootstrap_reflection: true,
+      include_general_knowledge: params.includeGeneralKnowledge === true,
+      response_depth: params.responseDepth ?? readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+      stream: false,
+    },
+  });
+  if (error) {
+    throw new Error(await edgeFunctionErrorMessage("my-ai-chat", error, data));
+  }
+  const payload = data as { error?: string } | null;
+  if (payload && typeof payload === "object" && payload.error) throw new Error(payload.error);
 }
 
 export async function sendInlineJournalChatMessage(params: {
