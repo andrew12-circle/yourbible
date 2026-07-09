@@ -110,7 +110,7 @@ export interface UseJournalVideoCaptureApi {
   cancel: () => void;
   switchFacing: () => Promise<void>;
   selectDevice: (deviceId: string) => Promise<void>;
-  markChapter: (label?: string) => void;
+  markChapter: (label?: string) => string | null;
   setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
   patchSettings: (patch: Partial<JournalVideoCaptureSettings>) => void;
 }
@@ -905,7 +905,8 @@ export function useJournalVideoCapture(
 
   const markChapter = useCallback(
     (label?: string) => {
-      if (phase !== "recording" && phase !== "paused") return;
+      const currentPhase = phaseRef.current;
+      if (currentPhase !== "recording" && currentPhase !== "paused") return null;
       const atMs = getRecordingElapsedMs();
       const chapter: JournalVideoChapter = {
         label: label?.trim() || formatChapterLabel(chaptersRef.current.length),
@@ -913,8 +914,9 @@ export function useJournalVideoCapture(
       };
       chaptersRef.current = [...chaptersRef.current, chapter];
       setChapters(chaptersRef.current);
+      return chapter.label;
     },
-    [phase, getRecordingElapsedMs],
+    [getRecordingElapsedMs],
   );
 
   const setBubbleLayout = useCallback((layout: Partial<ScreenBubbleLayout>) => {

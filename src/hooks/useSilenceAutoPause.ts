@@ -18,7 +18,9 @@ export function useSilenceAutoPause({
   onSilence,
 }: Options): void {
   const quietSinceRef = useRef<number | null>(null);
+  const levelRef = useRef(level);
   const onSilenceRef = useRef(onSilence);
+  levelRef.current = level;
   onSilenceRef.current = onSilence;
 
   useEffect(() => {
@@ -29,7 +31,8 @@ export function useSilenceAutoPause({
 
     const id = window.setInterval(() => {
       const now = Date.now();
-      if (level > threshold) {
+      const currentLevel = levelRef.current;
+      if (currentLevel > threshold) {
         quietSinceRef.current = null;
         return;
       }
@@ -44,5 +47,5 @@ export function useSilenceAutoPause({
     }, 400);
 
     return () => window.clearInterval(id);
-  }, [enabled, level, silenceSeconds, threshold]);
+  }, [enabled, silenceSeconds, threshold]);
 }

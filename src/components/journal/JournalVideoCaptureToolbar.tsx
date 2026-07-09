@@ -8,7 +8,6 @@ import {
   Mic,
   Monitor,
   Pause,
-  PictureInPicture2,
   Play,
   Settings2,
   SkipForward,
@@ -25,9 +24,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { JournalVideoMicMeter } from "@/components/journal/JournalVideoMicMeter";
+import { JournalVideoLiveMicWaveform } from "@/components/journal/JournalVideoLiveMicWaveform";
 import type { UseJournalVideoCaptureApi } from "@/hooks/useJournalVideoCapture";
-import { useMicLevel } from "@/hooks/useMicLevel";
+import { toast } from "@/hooks/use-toast";
 import { listAudioInputDevices, listVideoInputDevices } from "@/lib/journal/journalVideoDevices";
 import type {
   BubbleCorner,
@@ -51,9 +50,12 @@ type Props = {
   onStartCountdown?: () => void;
   onPauseResume?: () => void;
   onStop?: () => void;
-  /** Raise settings/camera menus above elevated capture dialogs. */
+  /** Raise settings/camera menus above the video pane and floating recorder. */
   menuElevated?: boolean;
 };
+
+/** Menus must sit above the floating recorder (z-200) and elevated dialogs (z-100). */
+const VIDEO_CAPTURE_MENU_Z = "z-[250]";
 
 function SmartBarDivider() {
   return <div className="mx-0.5 h-6 w-px shrink-0 bg-white/20" aria-hidden />;
@@ -94,7 +96,7 @@ function deviceLabel(device: MediaDeviceInfo, fallback: string): string {
 export function JournalVideoCaptureToolbar({
   capture,
   isMobile,
-  videoRef,
+  videoRef: _videoRef,
   className,
   active = false,
   paused = false,
@@ -103,7 +105,7 @@ export function JournalVideoCaptureToolbar({
   onStartCountdown,
   onPauseResume,
   onStop,
-  menuElevated = false,
+  menuElevated = true,
 }: Props) {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -113,11 +115,14 @@ export function JournalVideoCaptureToolbar({
     capture.phase === "preview" ||
     capture.phase === "countdown";
   const micMeterActive =
-    capture.phase === "preview" || capture.phase === "countdown" || capture.phase === "recording";
-  const micLevel = useMicLevel(capture.previewStream, micMeterActive);
+    capture.phase === "preview" ||
+    capture.phase === "countdown" ||
+    capture.phase === "recording" ||
+    capture.phase === "paused";
   const qualityLocked = capture.phase === "recording" || capture.phase === "paused";
   const showCountdown = capture.phase === "countdown";
-  const showPreviewStart = capture.phase === "preview" && countdownDeferred && !processing;
+  const showPreviewStart =
+    capture.phase === "preview" && countdownDeferred && !processing && !showCountdown;
 
   const activeVideoDeviceId = useMemo(
     () => capture.previewStream?.getVideoTracks()[0]?.getSettings().deviceId ?? capture.deviceId ?? "",
@@ -151,21 +156,7 @@ export function JournalVideoCaptureToolbar({
     persist({ quality: next });
   };
 
-  const enterPip = async () => {
-    const el = videoRef.current;
-    if (!el || !document.pictureInPictureEnabled) return;
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else {
-        await el.requestPictureInPicture();
-      }
-    } catch {
-      /* unsupported or denied */
-    }
-  };
-
-  const menuClass = menuElevated ? "z-[110]" : undefined;
+  const menuClass = menuElevated ? VIDEO_CAPTURE_MENU_Z : undefined;
   const showCameraPicker = videoDevices.length > 1;
   const showCameraControls = capture.mode === "camera" || capture.mode === "screen";
   const showScreenControls = capture.mode === "screen";
@@ -208,7 +199,11 @@ export function JournalVideoCaptureToolbar({
 
         {previewActive ? (
           <div className="mx-1 flex flex-col items-center gap-0.5" title={activeAudioLabel}>
-            <JournalVideoMicMeter level={micLevel} />
+            <JournalVideoLiveMicWaveform
+              stream={capture.previewStream}
+              active={micMeterActive}
+              maxBarHeight={active ? 16 : 18}
+            />
             {!active && !showCountdown ? (
               <span className="max-w-[5.5rem] truncate text-[9px] text-white/70">{activeAudioLabel}</span>
             ) : null}
@@ -216,7 +211,15 @@ export function JournalVideoCaptureToolbar({
         ) : null}
 
         {active ? (
-          <SmartBarIconButton label="Mark chapter" onClick={() => capture.markChapter()}>
+          <SmartBarIconButton
+            label="Mark chapter"
+            onClick={() => {
+              const label = capture.markChapter();
+              if (label) {
+                toast({ title: `Chapter marked: ${label}` });
+              }
+            }}
+          >
             <Bookmark className="h-4 w-4" />
           </SmartBarIconButton>
         ) : null}
@@ -231,7 +234,7 @@ export function JournalVideoCaptureToolbar({
                 <FlipHorizontal className="h-4 w-4" />
               </SmartBarIconButton>
             ) : showCameraPicker ? (
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
@@ -267,7 +270,7 @@ export function JournalVideoCaptureToolbar({
         ) : null}
 
         {showScreenControls && active ? (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <SmartBarIconButton label="Camera bubble layout">
                 <Monitor className="h-4 w-4" />
@@ -315,12 +318,6 @@ export function JournalVideoCaptureToolbar({
               </Button>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : null}
-
-        {document.pictureInPictureEnabled && capture.phase === "recording" ? (
-          <SmartBarIconButton label="Picture in picture" onClick={() => void enterPip()}>
-            <PictureInPicture2 className="h-4 w-4" />
-          </SmartBarIconButton>
         ) : null}
       </div>
 
@@ -377,7 +374,7 @@ export function JournalVideoCaptureToolbar({
 
       <SmartBarDivider />
 
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <SmartBarIconButton label="Recording settings">
             <Settings2 className="h-4 w-4" />
@@ -423,7 +420,12 @@ export function JournalVideoCaptureToolbar({
               </DropdownMenuLabel>
               <div className="px-2 pb-2">
                 <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1.5">
-                  <JournalVideoMicMeter level={micLevel} className="[&_span]:bg-muted-foreground/40 [&_span.bg-emerald-400]:bg-emerald-500" />
+                  <JournalVideoLiveMicWaveform
+                    stream={capture.previewStream}
+                    active={micMeterActive}
+                    className="[&_span]:bg-muted-foreground/40"
+                    maxBarHeight={14}
+                  />
                   <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{activeAudioLabel}</span>
                 </div>
                 <p className="mt-1 px-0.5 text-[10px] leading-snug text-muted-foreground">

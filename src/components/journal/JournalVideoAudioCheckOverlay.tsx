@@ -1,17 +1,16 @@
 import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { JournalVideoMicMeter } from "@/components/journal/JournalVideoMicMeter";
+import { JournalVideoLiveMicWaveform } from "@/components/journal/JournalVideoLiveMicWaveform";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  level: number;
-  detected: boolean;
+  stream: MediaStream | null;
   onContinue: () => void;
   className?: string;
 };
 
 /** Pre-recording prompt: confirm the mic is working before the countdown starts. */
-export function JournalVideoAudioCheckOverlay({ level, detected, onContinue, className }: Props) {
+export function JournalVideoAudioCheckOverlay({ stream, onContinue, className }: Props) {
   return (
     <div
       className={cn(
@@ -25,15 +24,13 @@ export function JournalVideoAudioCheckOverlay({ level, detected, onContinue, cla
       <div className="max-w-sm space-y-2">
         <p className="text-lg font-semibold">Make sure your audio is working</p>
         <p className="text-sm text-white/80">
-          Say <span className="font-medium text-white">&ldquo;test, test&rdquo;</span> — green bars mean
-          your mic is picking you up.
+          Say <span className="font-medium text-white">&ldquo;test, test&rdquo;</span> and watch the
+          bars move. Take your time — recording starts when you tap below.
         </p>
       </div>
       <div className="flex flex-col items-center gap-2">
-        <JournalVideoMicMeter level={level} className="scale-125 [&_span]:w-1.5" />
-        <p className="text-xs text-white/70">
-          {detected ? "Sounds good — starting…" : "Waiting for your voice…"}
-        </p>
+        <JournalVideoLiveMicWaveform stream={stream} active className="h-6 gap-1 [&_span]:w-1.5" maxBarHeight={22} />
+        <p className="text-xs text-white/70">Moving bars mean your mic is working</p>
       </div>
       <Button
         type="button"
@@ -42,7 +39,7 @@ export function JournalVideoAudioCheckOverlay({ level, detected, onContinue, cla
         className="rounded-full px-5"
         onClick={onContinue}
       >
-        Continue
+        Continue to setup
       </Button>
     </div>
   );

@@ -142,12 +142,22 @@ export default function JournalVideoCaptureDialog({
   const resumeRecordingRef = useRef(capture.resumeRecording);
   resumeRecordingRef.current = capture.resumeRecording;
 
-  const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording" || capture.phase === "preview" || capture.phase === "countdown");
+  const micLevel = useMicLevel(
+    capture.previewStream,
+    capture.phase === "recording" ||
+      capture.phase === "paused" ||
+      capture.phase === "preview" ||
+      capture.phase === "countdown",
+  );
   const previewHasAudio = (capture.previewStream?.getAudioTracks().length ?? 0) > 0;
-  const audioCheckActive = capture.phase === "preview" && previewHasAudio && !countdownDeferred;
-  const audioCheck = useJournalVideoAudioCheck(micLevel, audioCheckActive);
+  const audioCheck = useJournalVideoAudioCheck();
   const { passed: audioCheckPassed, markPassed: markAudioCheckPassed, reset: resetAudioCheck } =
     audioCheck;
+
+  const handleAudioCheckContinue = useCallback(() => {
+    markAudioCheckPassed();
+    setCountdownDeferred(true);
+  }, [markAudioCheckPassed]);
   useSilenceAutoPause({
     enabled:
       capture.settings.silenceAutoPause &&
@@ -217,22 +227,9 @@ export default function JournalVideoCaptureDialog({
   useEffect(() => {
     if (capture.phase === "preview" && capture.previewStream && !previewHasAudio) {
       markAudioCheckPassed();
+      setCountdownDeferred(true);
     }
   }, [capture.phase, capture.previewStream, previewHasAudio, markAudioCheckPassed]);
-
-  useEffect(() => {
-    if (
-      capture.phase === "preview" &&
-      !countdownStartedRef.current &&
-      !countdownDeferred &&
-      audioCheckPassed &&
-      pickMode &&
-      !pendingReview
-    ) {
-      countdownStartedRef.current = true;
-      beginCountdownRef.current();
-    }
-  }, [capture.phase, pickMode, pendingReview, countdownDeferred, audioCheckPassed]);
 
   const recordingStartHandledRef = useRef(false);
 
@@ -309,7 +306,7 @@ export default function JournalVideoCaptureDialog({
   const showPicker =
     open && pickMode === null && !processing && !pendingReview && !isMobile && !defaultMode;
   const isScreen = capture.mode === "screen";
-  const elapsedClock = formatJournalVideoClock(capture.recordingElapsedMs);
+  const elapsedClock = formatJournalVideoClock(capture.recordingRemainingMs);
   const sizeLabel = formatJournalVideoSizeMb(capture.recordingBytes, 0);
   const sizeCapLabel = formatJournalVideoSizeMb(JOURNAL_VIDEO_MAX_UPLOAD_BYTES, 0);
   const lowTime = active && capture.recordingRemainingMs <= 60_000;
@@ -355,9 +352,8 @@ export default function JournalVideoCaptureDialog({
 
       {showAudioCheck ? (
         <JournalVideoAudioCheckOverlay
-          level={micLevel}
-          detected={audioCheckPassed}
-          onContinue={markAudioCheckPassed}
+          stream={capture.previewStream}
+          onContinue={handleAudioCheckContinue}
         />
       ) : null}
 
@@ -390,6 +386,7 @@ export default function JournalVideoCaptureDialog({
             aria-live="polite"
           >
             {elapsedClock}
+            <span className="text-[10px] font-normal text-white/60"> left</span>
             <span className="mx-1.5 text-white/40" aria-hidden>
               ·
             </span>
@@ -451,7 +448,7 @@ export default function JournalVideoCaptureDialog({
             paused={paused}
             processing={processing}
             countdownDeferred={countdownDeferred}
-            menuElevated={stackElevated}
+            menuElevated
             onStartCountdown={handleStartCountdown}
             onPauseResume={
               active && !processing
@@ -495,7 +492,7 @@ export default function JournalVideoCaptureDialog({
                   ? "Your screen is recording with your camera in the corner."
                   : "Talk naturally. Tap pause if you need a moment."
               : showAudioCheck
-                ? "Say test, test to confirm your mic, or tap Continue."
+                ? "Test your mic, then tap Continue to setup. Adjust camera and mic before starting the countdown."
               : showCountdown
               ? "Get ready… tap the screen to pause, or tap Start now."
               : countdownDeferred
