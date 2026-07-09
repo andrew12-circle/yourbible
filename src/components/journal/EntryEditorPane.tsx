@@ -312,6 +312,9 @@ export default function EntryEditorPane({
     [user?.id, onChanged, scheduleLinksReload],
   );
 
+  const flushSaveRef = useRef(flushSave);
+  flushSaveRef.current = flushSave;
+
   // Autosave on entry mutation — accumulate patches so rapid edits never drop fields.
   const queueSave = (patch: Partial<EntryRow>) => {
     const cur = entryRef.current;
@@ -380,35 +383,41 @@ export default function EntryEditorPane({
     };
   }, [flushSave]);
 
-  // Load entry (after flushSave so we can persist the previous entry before switching).
+  // Load entry — only re-run when entryId changes (not when parent re-renders).
   useEffect(() => {
     if (!entryId) {
       setEntry(null);
       setPhotos([]);
       setLoadingEntry(false);
       setEntryNotFound(false);
+      entryRef.current = null;
       sketchTranscribeAttemptedRef.current = null;
       return;
     }
 
-    void flushSave({ silent: true });
-    if (saveTimer.current) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    pendingSaveRef.current = {};
-    saveGenerationRef.current += 1;
-    entryInitialFocusRef.current = null;
-    sketchTranscribeAttemptedRef.current = null;
-
     let cancelled = false;
-    setLoadingEntry(true);
-    setEntryNotFound(false);
-    setEntry(null);
-    setPhotos([]);
-    setBodyEditing(false);
-    setBodyFocused(false);
+
     (async () => {
+      await flushSaveRef.current({ silent: true });
+      if (cancelled) return;
+
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      pendingSaveRef.current = {};
+      saveGenerationRef.current += 1;
+      entryInitialFocusRef.current = null;
+      sketchTranscribeAttemptedRef.current = null;
+      entryRef.current = null;
+
+      setLoadingEntry(true);
+      setEntryNotFound(false);
+      setEntry(null);
+      setPhotos([]);
+      setBodyEditing(false);
+      setBodyFocused(false);
+
       let row: EntryRow | null = null;
       try {
         row = (await fetchJournalEntryDetail(entryId)) as EntryRow | null;
@@ -436,8 +445,8 @@ export default function EntryEditorPane({
       ) {
         row = { ...row, title: fallbackTitle };
       }
-      setEntry(row);
       entryRef.current = row;
+      setEntry(row);
       setReplyWithAi(row.entry_kind === "chat");
       setChatDraft("");
       if (shouldSuggestJournalTitle(row.title, row.body, row.summary)) {
@@ -453,10 +462,12 @@ export default function EntryEditorPane({
       setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
       setLoadingEntry(false);
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [entryId, flushSave]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- entry switch only; flush via ref
+  }, [entryId]);
 
   const sketchStoragePaths = useMemo(() => {
     const { sketches } = partitionJournalPhotos(photos);

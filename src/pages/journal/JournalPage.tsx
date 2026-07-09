@@ -123,6 +123,10 @@ export default function JournalPage() {
     [journalId, navigate],
   );
 
+  const handleEditorChanged = useCallback(() => {
+    setReloadKey((k) => k + 1);
+  }, []);
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
@@ -186,9 +190,10 @@ export default function JournalPage() {
             />
           ) : (
             <EntryEditorPane
+              key={entryId ?? "none"}
               entryId={entryId}
               journals={journals}
-              onChanged={() => setReloadKey((k) => k + 1)}
+              onChanged={handleEditorChanged}
               onClose={() =>
                 journalId ? navigate(`/journal/j/${journalId}`) : navigate("/journal")
               }

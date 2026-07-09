@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,7 @@ export default function JournalNotesPage() {
   const [booting, setBooting] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [creating, setCreating] = useState(false);
+  const createNavGenRef = useRef(0);
 
   const loadNotes = useCallback(async () => {
     if (!user) return;
@@ -58,6 +59,7 @@ export default function JournalNotesPage() {
 
   const createNew = async () => {
     if (!user || !notesJournalId || creating) return;
+    const navGen = ++createNavGenRef.current;
     setCreating(true);
     try {
       const id = await createNoteEntry(user.id, notesJournalId);
@@ -65,6 +67,7 @@ export default function JournalNotesPage() {
         toast({ title: "Couldn't create note", variant: "destructive" });
         return;
       }
+      if (navGen !== createNavGenRef.current) return;
       setReloadKey((k) => k + 1);
       navigate(`/journal/notes/e/${id}`);
     } catch (e) {
@@ -74,9 +77,21 @@ export default function JournalNotesPage() {
         variant: "destructive",
       });
     } finally {
-      setCreating(false);
+      if (navGen === createNavGenRef.current) setCreating(false);
     }
   };
+
+  const selectNote = useCallback(
+    (id: string) => {
+      createNavGenRef.current += 1;
+      navigate(`/journal/notes/e/${id}`);
+    },
+    [navigate],
+  );
+
+  const handleEditorChanged = useCallback(() => {
+    setReloadKey((k) => k + 1);
+  }, []);
 
   const handleDeleted = () => {
     setReloadKey((k) => k + 1);
@@ -89,7 +104,7 @@ export default function JournalNotesPage() {
       selectedId={entryId}
       reloadKey={reloadKey}
       headingLabel="Notes"
-      onSelect={(id) => navigate(`/journal/notes/e/${id}`)}
+      onSelect={selectNote}
       onNew={() => void createNew()}
       onDeleted={(id) => {
         if (entryId === id) handleDeleted();
@@ -100,9 +115,10 @@ export default function JournalNotesPage() {
 
   const editorPane = (
     <EntryEditorPane
+      key={entryId ?? "none"}
       entryId={entryId}
       journals={journals}
-      onChanged={() => setReloadKey((k) => k + 1)}
+      onChanged={handleEditorChanged}
       onClose={() => navigate("/journal/notes")}
       onNew={() => void createNew()}
       onDeleted={handleDeleted}

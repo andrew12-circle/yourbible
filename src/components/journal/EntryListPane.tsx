@@ -236,6 +236,15 @@ export default function EntryListPane({
         >
           <RefreshCw className="w-4 h-4" />
         </button>
+        <button
+          type="button"
+          onClick={onNew}
+          className="p-1.5 rounded-md hover:bg-muted text-primary"
+          title="New entry"
+          aria-label="New entry"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
       {searchOpen && (
@@ -250,8 +259,8 @@ export default function EntryListPane({
         </div>
       )}
 
-      {/* Body */}
-      <div className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto">
+      {/* Body — extra bottom padding so the last row isn't covered by the compose button */}
+      <div className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto pb-20">
         {loading && entries.length === 0 && !loadError && (
           <div className="flex justify-center py-16">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -340,10 +349,11 @@ export default function EntryListPane({
         )}
       </div>
 
-      {/* Floating + */}
+      {/* Compose on small list panes — desktop uses toolbar + above */}
       <button
+        type="button"
         onClick={onNew}
-        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition hover:scale-105"
+        className="absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition hover:scale-105 md:hidden"
         aria-label="New entry"
       >
         <Plus className="w-5 h-5" />
@@ -394,7 +404,10 @@ function EntryRow({
   const content = (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={`w-full text-left flex gap-3 px-4 py-3 border-b border-border/40 transition-colors ${
         active ? "bg-primary text-primary-foreground" : "hover:bg-muted/30"
       }`}
