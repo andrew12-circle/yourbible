@@ -17,6 +17,7 @@ type Props = {
   overlayPos: string;
   focusMode: boolean;
   readerSpread: boolean;
+  spreadStudyActive?: boolean;
   setFocusMode: (v: boolean) => void;
   activeVerse: PassageVerse | null;
   sheetOpen: boolean;
@@ -52,6 +53,7 @@ export function ReaderPageOverlays({
   overlayPos,
   focusMode,
   readerSpread,
+  spreadStudyActive = false,
   setFocusMode,
   activeVerse,
   sheetOpen,
@@ -141,7 +143,7 @@ export function ReaderPageOverlays({
         </button>
       ) : null}
 
-      {!focusMode ? <CompanionPane /> : null}
+      {!focusMode && !spreadStudyActive ? <CompanionPane /> : null}
 
       {showReaderDock ? (
         <ReaderFloatingTabBar bibleTo={`/read/${book.abbr}/${chapter}`} />

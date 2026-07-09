@@ -5,6 +5,8 @@ import {
   type ToolbarSelection,
 } from "@/components/bible/SelectionToolbar";
 import { toolbarSelectionFromRange } from "@/lib/bible/verseSelection";
+import { readEffectiveLayoutViewport } from "@/lib/mini-phone/miniPhoneLayoutViewport";
+import { readIsCompactViewport } from "@/lib/shell/viewport";
 
 export function useReaderToolbarSelection(
   verseLengths: Map<number, number>,
@@ -100,10 +102,10 @@ export function useReaderToolbarSelection(
 
   useEffect(() => {
     if (!tbSel) return;
-    const docked = window.innerWidth < 768;
+    const docked = readIsCompactViewport();
     const toolbarH = DEFAULT_TOOLBAR_H;
     const margin = 16;
-    const vh = window.innerHeight;
+    const { height: vh } = readEffectiveLayoutViewport();
     const r = tbSel.rect;
     if (docked) {
       const dockTop = vh - margin - toolbarH;

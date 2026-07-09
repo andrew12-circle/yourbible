@@ -7,6 +7,11 @@ import { MiniPhoneRootProviders } from "@/components/mini-phone/MiniPhoneRootPro
 import { createMiniPhoneRouter } from "@/lib/mini-phone/miniPhoneRouter";
 import { loadMiniPhoneActiveRoute } from "@/lib/mini-phone/miniPhoneStorage";
 import { IPHONE_PRO_MAX_WIDTH_PT } from "@/lib/mini-phone/miniPhoneDimensions";
+import {
+  MINI_PHONE_LAYOUT_HEIGHT_VAR,
+  MINI_PHONE_LAYOUT_SCALE_VAR,
+  MINI_PHONE_LAYOUT_WIDTH_VAR,
+} from "@/lib/mini-phone/miniPhoneLayoutViewport";
 
 interface MiniPhoneAppViewProps {
   entryRoute: string;
@@ -52,6 +57,14 @@ export function MiniPhoneAppView({ entryRoute }: MiniPhoneAppViewProps) {
     return () => ro.disconnect();
   }, []);
 
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    frame.style.setProperty(MINI_PHONE_LAYOUT_WIDTH_VAR, `${IPHONE_PRO_MAX_WIDTH_PT}px`);
+    frame.style.setProperty(MINI_PHONE_LAYOUT_HEIGHT_VAR, `${viewport.height}px`);
+    frame.style.setProperty(MINI_PHONE_LAYOUT_SCALE_VAR, String(viewport.scale));
+  }, [viewport.height, viewport.scale]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -91,6 +104,7 @@ export function MiniPhoneAppView({ entryRoute }: MiniPhoneAppViewProps) {
     >
       <div
         ref={containerRef}
+        data-mini-phone-viewport
         className="relative isolate flex shrink-0 flex-col overflow-hidden"
         style={{
           width: IPHONE_PRO_MAX_WIDTH_PT,

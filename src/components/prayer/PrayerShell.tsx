@@ -74,6 +74,7 @@ export default function PrayerShell({
       <main
         className={cn(
           "mx-auto min-h-0 w-full flex-1 overflow-y-auto py-5 pb-safe-28",
+          "bg-[radial-gradient(ellipse_at_top,hsl(var(--paper-warm)/0.35)_0%,transparent_55%)]",
           contentWidth,
           contentPad,
           wide && "overflow-x-hidden",

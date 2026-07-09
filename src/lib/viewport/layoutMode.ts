@@ -2,6 +2,7 @@ import {
   ARTIFACT_TABLET_MIN_PX,
   ARTIFACT_VIDEO_DESKTOP_MIN_PX,
 } from "@/lib/framework/artifactSurfaces";
+import { readEffectiveLayoutViewport } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 
 /** Width at which we treat the viewport as tablet-sized (iPad portrait minimum). */
 export const TABLET_MIN_PX = ARTIFACT_TABLET_MIN_PX;
@@ -15,14 +16,7 @@ export const READER_DESKTOP_MIN_PX = 1200;
 export type ViewportSize = { width: number; height: number; landscape: boolean };
 
 export function readViewportSize(): ViewportSize {
-  if (typeof window === "undefined") {
-    return { width: 1280, height: 800, landscape: true };
-  }
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const landscape =
-    window.matchMedia("(orientation: landscape)").matches || width > height;
-  return { width, height, landscape };
+  return readEffectiveLayoutViewport();
 }
 
 /**

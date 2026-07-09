@@ -3,19 +3,22 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPalette } from "@/lib/bible/palettes";
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
-import type { VerseRange } from "@/lib/bible/verseSelection";
+import { readIsCompactViewport } from "@/lib/shell/viewport";
+import { readEffectiveLayoutViewport } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 import { Trash2, NotebookPen, PenLine, Network, BookOpenText, Share2, Languages } from "lucide-react";
 
 function useDockToolbar() {
-  const [dock, setDock] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  );
+  const [dock, setDock] = useState(() => readIsCompactViewport());
   useEffect(() => {
+    const sync = () => setDock(readIsCompactViewport());
+    sync();
     const mq = window.matchMedia("(max-width: 767px)");
-    const apply = () => setDock(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    mq.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+    };
   }, []);
   return dock;
 }
@@ -75,6 +78,8 @@ export type ToolbarSelection = {
   verses: number[];
   /** Character ranges per verse for partial highlights. */
   ranges: VerseRange[];
+  /** Which spread page the selection lives on (desktop two-page layout). */
+  pageSide?: "left" | "right" | null;
 };
 
 interface Props {
@@ -130,8 +135,7 @@ export function SelectionToolbar({
   if (!selection) return null;
 
   const margin = 8;
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+  const { width: vw, height: vh } = readEffectiveLayoutViewport();
   const { left, top } = computeToolbarPosition(selection.rect, {
     vw,
     vh,

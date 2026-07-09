@@ -10,6 +10,7 @@ import {
   readViewportSize,
   READER_SINGLE_PAGE_MAX,
 } from "@/lib/viewport/layoutMode";
+import { queryMiniPhoneAppRoot } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 
 export { READER_SINGLE_PAGE_MAX };
 
@@ -29,6 +30,11 @@ function useViewportLayout<T>(selector: (size: ReturnType<typeof readViewportSiz
     landscape.addEventListener("change", sync);
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
+
+    const phoneRoot = queryMiniPhoneAppRoot();
+    const phoneRo = phoneRoot ? new ResizeObserver(sync) : null;
+    phoneRo?.observe(phoneRoot!);
+
     sync();
 
     return () => {
@@ -38,6 +44,7 @@ function useViewportLayout<T>(selector: (size: ReturnType<typeof readViewportSiz
       landscape.removeEventListener("change", sync);
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
+      phoneRo?.disconnect();
     };
   }, [selector]);
 

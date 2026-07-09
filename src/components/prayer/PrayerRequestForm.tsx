@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
+import PrayerScroll from "@/components/prayer/PrayerScroll";
 import PrayerCategorySelect from "@/components/prayer/PrayerCategorySelect";
 import PrayerScriptureRefsInput from "@/components/prayer/PrayerScriptureRefsInput";
 import PrayerAnswerFieldsSection from "@/components/prayer/PrayerAnswerFieldsSection";
@@ -149,16 +150,15 @@ export default function PrayerRequestForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="prayer-text">Prayer</Label>
+      <PrayerScroll label="Prayer" variant="compose" as="div">
         <PolishedTextarea
           id="prayer-text"
           value={prayerText}
           onChange={(e) => setPrayerText(e.target.value)}
           placeholder="Lord, provide enough business to cover payroll."
-          className="min-h-[100px] resize-none"
+          className="min-h-[120px] resize-none border-0 bg-transparent px-0 py-1 font-scripture text-[16px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         />
-      </div>
+      </PrayerScroll>
 
       <div className="space-y-2">
         <Label>Scriptures standing on</Label>

@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Loader2, Mic, MicOff } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/journal/voiceDictation";
 import { cn } from "@/lib/utils";
 
-export type DictateButtonHandle = { stop: () => void; toggle: () => void };
+export type DictateButtonHandle = { stop: () => void; cancel: () => void; toggle: () => void };
 
 export type DictateButtonProps = {
   userId?: string;
@@ -117,7 +117,13 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
 
   const prevListeningRef = useRef(false);
 
-  useImperativeHandle(ref, () => ({ stop, toggle }), [stop, toggle]);
+  const cancel = useCallback(() => {
+    interimRef.current = "";
+    onInterim?.("");
+    stop();
+  }, [onInterim, stop]);
+
+  useImperativeHandle(ref, () => ({ stop, cancel, toggle }), [stop, cancel, toggle]);
 
   useEffect(() => {
     onListeningChangeRef.current?.(listening || transcribing);
@@ -227,15 +233,6 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
         >
           {transcribing ? (
             <Loader2 className={cn(iconClass, "animate-spin")} />
-          ) : listening ? (
-            <>
-              <span
-                className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-red-500"
-                aria-hidden
-              />
-              <MicOff className={iconClass} />
-              <span className="sr-only">Listening…</span>
-            </>
           ) : (
             <Mic className={iconClass} />
           )}

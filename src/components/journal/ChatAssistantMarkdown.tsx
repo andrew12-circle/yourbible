@@ -2,6 +2,7 @@ import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
+import PrayerScroll from "@/components/prayer/PrayerScroll";
 import { cn } from "@/lib/utils";
 
 export const CHAT_ASSISTANT_MARKDOWN_CLASS = "chat-assistant-markdown";

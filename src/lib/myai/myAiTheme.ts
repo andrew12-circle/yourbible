@@ -26,6 +26,11 @@ export const myAiComposerPillActive =
   "inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium " +
   "text-blue-700 transition-colors hover:bg-blue-500/15 dark:text-blue-300";
 
+/** User message bubble — dark blue text on light blue wash. */
+export const myAiUserBubble =
+  "rounded-2xl bg-blue-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-blue-800 " +
+  "ring-1 ring-blue-500/15 dark:bg-blue-500/15 dark:text-blue-200";
+
 export const myAiSidebarSectionGap = "mb-4 pt-1";
 
 /** Day One–style system stack for the Lumen chat list sidebar. */

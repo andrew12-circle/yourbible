@@ -3,19 +3,22 @@ import { useCompanion, scopeRef } from "@/lib/reader/companionStore";
 import { CompanionJournalTab } from "@/components/reader/CompanionJournalTab";
 import { CompanionDialogueTab } from "@/components/reader/CompanionDialogueTab";
 import { CompanionBeliefTab } from "@/components/reader/CompanionBeliefTab";
+import { cn } from "@/lib/utils";
 
 /** Embedded AI companion column — Scripture stays separate; AI references verse scope only. */
-export function ReaderCompanionColumn() {
+export function ReaderCompanionColumn({ embedded = false }: { embedded?: boolean }) {
   const { tab, setTab, scope } = useCompanion();
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-background">
-      <div className="flex-shrink-0 border-b px-3 py-2 bg-paper-warm/40">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">AI insights</p>
-        <p className="text-xs font-medium truncate ink-text">
-          {scope ? scopeRef(scope) : "Select a verse to begin"}
-        </p>
-      </div>
+    <div className={cn("flex h-full min-h-0 flex-col bg-background", embedded && "bg-transparent")}>
+      {!embedded ? (
+        <div className="flex-shrink-0 border-b bg-paper-warm/40 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">AI insights</p>
+          <p className="truncate text-xs font-medium ink-text">
+            {scope ? scopeRef(scope) : "Select a verse to begin"}
+          </p>
+        </div>
+      ) : null}
       <div className="flex border-b border-paper-edge bg-paper flex-shrink-0">
         {(
           [

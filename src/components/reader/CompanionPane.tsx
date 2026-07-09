@@ -5,6 +5,7 @@ import {
   PanelRightClose, PanelLeftClose, PanelBottomClose,
 } from "lucide-react";
 import { useCompanion, scopeRef, type DockMode } from "@/lib/reader/companionStore";
+import { readEffectiveLayoutViewport } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 import { CompanionJournalTab } from "./CompanionJournalTab";
 import { CompanionDialogueTab } from "./CompanionDialogueTab";
 import { CompanionBeliefTab } from "./CompanionBeliefTab";
@@ -22,7 +23,7 @@ export function CompanionPane() {
   useEffect(() => {
     if (!open) return;
     const onResize = () => {
-      const vw = window.innerWidth, vh = window.innerHeight;
+      const { width: vw, height: vh } = readEffectiveLayoutViewport();
       if (pos.dock === "right") setPos({ x: vw - pos.w - 24, y: 80 });
       if (pos.dock === "left") setPos({ x: 24, y: 80 });
       if (pos.dock === "bottom") setPos({ x: 24, y: vh - pos.h - 24, w: vw - 48 });
@@ -32,7 +33,7 @@ export function CompanionPane() {
   }, [open, pos.dock, pos.w, pos.h, setPos]);
 
   const setDock = (dock: DockMode) => {
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const { width: vw, height: vh } = readEffectiveLayoutViewport();
     if (dock === "right") setPos({ dock, x: vw - pos.w - 24, y: 80 });
     else if (dock === "left") setPos({ dock, x: 24, y: 80 });
     else if (dock === "bottom") setPos({ dock, x: 24, y: vh - 360 - 24, w: vw - 48, h: 360 });
@@ -56,7 +57,7 @@ export function CompanionPane() {
     dragRef.current = null;
     setDragging(false);
     // snap to edges if close
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const { width: vw, height: vh } = readEffectiveLayoutViewport();
     const right = vw - (pos.x + pos.w);
     if (pos.x < 16) setDock("left");
     else if (right < 16) setDock("right");
@@ -74,9 +75,10 @@ export function CompanionPane() {
     if (!resizeRef.current) return;
     const dx = e.clientX - resizeRef.current.x;
     const dy = e.clientY - resizeRef.current.y;
+    const { width: vw, height: vh } = readEffectiveLayoutViewport();
     setPos({
-      w: Math.max(320, Math.min(window.innerWidth - 32, resizeRef.current.w + dx)),
-      h: Math.max(280, Math.min(window.innerHeight - 32, resizeRef.current.h + dy)),
+      w: Math.max(320, Math.min(vw - 32, resizeRef.current.w + dx)),
+      h: Math.max(280, Math.min(vh - 32, resizeRef.current.h + dy)),
     });
   };
   const onResizeUp = () => { resizeRef.current = null; };
@@ -104,7 +106,7 @@ export function CompanionPane() {
         bottom: "var(--safe-area-inset-bottom)",
         top: "auto",
         width: "100%",
-        height: "min(78vh, calc(100dvh - var(--safe-area-inset-bottom)))",
+        height: "min(78%, calc(100% - var(--safe-area-inset-bottom)))",
         borderRadius: "20px 20px 0 0",
       }
     : { left: pos.x, top: pos.y, width: pos.w, height: pos.h };

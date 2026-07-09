@@ -2,6 +2,7 @@ import { spreadPageStackWidths } from "@/lib/bible/readerPageMargins";
 import { spreadCropLeftInsetCss, spreadCropWidthCss, SPREAD_RIGHT_PEEK } from "@/lib/bible/spreadCrop";
 import { PageStackEdge } from "@/components/bible/PageStackEdge";
 import { cn } from "@/lib/utils";
+import { isInsideMiniPhoneApp } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 import { type CSSProperties, type ReactNode } from "react";
 
 interface Props {
@@ -102,6 +103,7 @@ export function BookScene({
           >
             <div
               className="relative flex h-full min-h-0 min-w-0 w-full flex-row"
+              data-reader-spread=""
               style={
                 croppedSpread && spreadNudgeRight
                   ? { transform: "translateX(clamp(0.5rem, 2.5vw, 0.875rem))" }
@@ -195,7 +197,7 @@ export function BookScene({
       ) : (
         <div
           className="relative z-10 w-full flex flex-col flex-1 min-h-0"
-          style={{ maxWidth: "min(1420px, 98vw)" }}
+          style={{ maxWidth: isInsideMiniPhoneApp() ? "100%" : "min(1420px, 98vw)" }}
         >
           <div
             className={cn(

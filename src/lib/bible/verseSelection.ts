@@ -316,11 +316,53 @@ export function selectionToVerseRanges(
   return out.length > 0 ? out : null;
 }
 
+export type ReaderPageSide = "left" | "right";
+
 export type ToolbarSelectionPayload = {
   rect: { left: number; top: number; right: number; bottom: number };
   verses: number[];
   ranges: VerseRange[];
+  /** Which spread page the selection lives on (desktop two-page layout). */
+  pageSide: ReaderPageSide | null;
 };
+
+/** Spread page side for a live selection — prefers DOM markers, falls back to rect center. */
+export function readerPageSideFromRange(range: Range): ReaderPageSide | null {
+  const startNode = range.startContainer;
+  const el =
+    startNode instanceof HTMLElement ? startNode : startNode.parentElement;
+  const marked = el?.closest("[data-reader-page-side]");
+  const attr = marked?.getAttribute("data-reader-page-side");
+  if (attr === "left" || attr === "right") return attr;
+
+  const rect = selectionRectFromRange(range);
+  if (!rect) return null;
+  return readerPageSideFromRect(rect);
+}
+
+export function readerPageSideFromRect(rect: {
+  left: number;
+  right: number;
+}): ReaderPageSide {
+  const spread = document.querySelector("[data-reader-spread]");
+  if (spread) {
+    const bounds = spread.getBoundingClientRect();
+    const cx = (rect.left + rect.right) / 2;
+    const mid = bounds.left + bounds.width / 2;
+    return cx < mid ? "left" : "right";
+  }
+  const cx = (rect.left + rect.right) / 2;
+  const reading = document.querySelector("[data-reading-area]");
+  if (reading) {
+    const bounds = reading.getBoundingClientRect();
+    return cx < bounds.left + bounds.width / 2 ? "left" : "right";
+  }
+  return cx < window.innerWidth / 2 ? "left" : "right";
+}
+
+export function oppositeReaderPageSide(side: ReaderPageSide): ReaderPageSide {
+  return side === "left" ? "right" : "left";
+}
 
 /**
  * Build toolbar state from a live DOM range. Shows the toolbar whenever the
@@ -336,14 +378,16 @@ export function toolbarSelectionFromRange(
   if (!rect) return null;
 
   const ranges = selectionToVerseRanges(range, verseLengths);
+  const pageSide = readerPageSideFromRange(range);
+
   if (ranges && ranges.length > 0) {
     const verses = [...new Set(ranges.map((r) => r.verse))].sort((a, b) => a - b);
-    return { rect, verses, ranges };
+    return { rect, verses, ranges, pageSide };
   }
 
   const verses = versesFromRangeFallback(range, verseLengths);
   if (verses.length === 0) return null;
-  return { rect, verses, ranges: [] };
+  return { rect, verses, ranges: [], pageSide };
 }
 
 export function isRangeInReadingArea(range: Range): boolean {

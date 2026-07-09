@@ -73,7 +73,7 @@ import {
   pauseMorningScriptureTimer,
   startMorningScriptureTimer,
 } from "@/lib/livingHope/morningScriptureTimer";
-import { useCompanion } from "@/lib/reader/companionStore";
+import { useCompanion, companionStudyPageSide } from "@/lib/reader/companionStore";
 import { supabase } from "@/integrations/supabase/client";
 import ReaderInkLayer, {
   type ReaderInkLayerApi,
@@ -165,8 +165,8 @@ import { useReaderPagination } from "@/hooks/useReaderPagination";
 import { useReaderPageMeasurement } from "@/hooks/useReaderPageMeasurement";
 import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
-import { ReaderNotesPanel } from "@/pages/reader/ReaderNotesPanel";
-import { ReaderCompanionColumn } from "@/pages/reader/ReaderCompanionColumn";
+import { ReaderSpreadStudyPane } from "@/pages/reader/ReaderSpreadStudyPane";
+import { readerPageSideFromRect } from "@/lib/bible/verseSelection";
 import { buildDocumentBlocks } from "@/lib/bible/documentModel";
 import { passageToCanonicalChapter } from "@/lib/bible/canonical/passageToCanonical";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
@@ -542,7 +542,11 @@ export default function ReaderPage() {
       .then(({ data }) => { if (data && data[0]) setAnchorBelief(data[0]); });
   }, [user, book.abbr, chapter]);
 
-  const { open: companionOpen } = useCompanion();
+  const { open: companionOpen, anchorPageSide } = useCompanion();
+  const spreadStudyActive =
+    companionOpen && effectiveSpread && !scrollMode && !compactChrome && !focusMode;
+  const studyPageSide = companionStudyPageSide(anchorPageSide);
+  const setAnchorPageSide = useCompanion((s) => s.setAnchorPageSide);
 
   const buildScope = (verses: number[]) => {
     const text = (passage?.verses ?? [])
@@ -715,6 +719,11 @@ export default function ReaderPage() {
   }, [verses]);
   const { tbSel, setTbSel, tbSelRef, pinnedSelection, clearWindowSelection } =
     useReaderToolbarSelection(verseLengths, inkMode);
+
+  useEffect(() => {
+    if (!spreadStudyActive || !tbSel?.pageSide) return;
+    setAnchorPageSide(tbSel.pageSide);
+  }, [spreadStudyActive, tbSel?.pageSide, setAnchorPageSide]);
   const highlightColor =
     activeHighlightColor ||
     getPalette(profile?.highlight_palette ?? "classic").colors[0]?.cssVar ||
@@ -1133,7 +1142,7 @@ export default function ReaderPage() {
     applyHighlightToSelection,
     applyUnderlineToSelection,
     clearMarksOnSelection,
-    noteOnSelection,
+    noteOnSelection: noteOnSelectionBase,
   } = useReaderSelectionMarks({
     pinnedSelection,
     clearWindowSelection,
@@ -1145,6 +1154,25 @@ export default function ReaderPage() {
     ulFor,
     setNoteOpen,
   });
+
+  const noteOnSelection = useCallback(() => {
+    const sel = pinnedSelection();
+    if (!sel) return;
+    if (effectiveSpread && !scrollMode && !compactChrome) {
+      const pageSide = sel.pageSide ?? readerPageSideFromRect(sel.rect);
+      openCompanion(buildScope(sel.verses), "journal", pageSide);
+      return;
+    }
+    noteOnSelectionBase();
+  }, [
+    pinnedSelection,
+    effectiveSpread,
+    scrollMode,
+    compactChrome,
+    openCompanion,
+    buildScope,
+    noteOnSelectionBase,
+  ]);
 
   const defaultInkLayerId = useBookSpread
     ? `${book.abbr}-${chapter}-${spreadPageIdx}-left`
@@ -1327,6 +1355,24 @@ export default function ReaderPage() {
 
   // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
+    if (spreadStudyActive && side === studyPageSide) {
+      const sel = tbSel;
+      return (
+        <ReaderSpreadStudyPane
+          side={side}
+          paletteId={profile?.highlight_palette ?? "classic"}
+          highlightColor={highlightColor}
+          currentColor={sel ? hlFor(sel.verses[0])?.color ?? null : null}
+          currentlyUnderlined={!!sel && sel.verses.every((v) => !!ulFor(v))}
+          onPickHighlight={applyHighlightToSelection}
+          onActiveColorChange={persistHighlightColor}
+          onPickUnderline={applyUnderlineToSelection}
+          onClear={clearMarksOnSelection}
+          pageClassName={readerPageClass}
+        />
+      );
+    }
+
     const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
     const splitsForPage =
       useStreamReader && displayStreamSplits.length >= 2
@@ -1446,6 +1492,7 @@ export default function ReaderPage() {
     };
     return (
       <div
+        data-reader-page-side={side}
         className={cn(
           "relative flex flex-col h-full min-h-0 overflow-hidden bg-paper pt-10 pb-2",
           readerPageClass,
@@ -1743,13 +1790,6 @@ export default function ReaderPage() {
         )}
       >
       <ReaderShell
-        threeColumn={readerSpread && !scrollMode && !compactChrome && companionOpen}
-        notesPane={
-          readerSpread && !scrollMode ? (
-            <ReaderNotesPanel bookName={book.name} chapter={chapter} />
-          ) : undefined
-        }
-        companionPane={companionOpen ? <ReaderCompanionColumn /> : undefined}
         biblePane={
       <BookScene
         progress={progress}
@@ -1925,6 +1965,7 @@ export default function ReaderPage() {
         overlayPos={overlayPos}
         focusMode={focusMode}
         readerSpread={readerSpread}
+        spreadStudyActive={spreadStudyActive}
         setFocusMode={setFocusMode}
         activeVerse={activeVerse}
         sheetOpen={sheetOpen}
@@ -1957,6 +1998,7 @@ export default function ReaderPage() {
       <ReaderSelectionChrome
         tbSel={tbSel}
         inkMode={inkMode}
+        spreadStudyActive={spreadStudyActive}
         paletteId={profile?.highlight_palette ?? "classic"}
         highlightColor={highlightColor}
         hlFor={hlFor}

@@ -4,6 +4,7 @@ import {
   AudioLines,
   BookOpen,
   Brain,
+  Check,
   ChevronDown,
   Globe,
   Loader2,
@@ -11,6 +12,7 @@ import {
   Save,
   Sparkles,
   Square,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
+import { MicWaveform } from "@/components/journal/MicWaveform";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import { composeLiveDictationDisplay, mergeDictatedText } from "@/hooks/useSpeechDictation";
 import type { MyAiResearchScope } from "@/lib/myai/researchScope";
@@ -46,7 +49,7 @@ import {
   myAiWelcomeGlowOrb,
   myAiWelcomeGlowShell,
 } from "@/lib/myai/myAiTheme";
-import { mobileBottomDockPadding, mobileBottomDockTransform } from "@/lib/shell/mobileShellClasses";
+import { mobileBottomDockStyle } from "@/lib/shell/mobileShellClasses";
 import type { ResponseDepthSetting } from "@/lib/journal/responseDepth";
 import { cn } from "@/lib/utils";
 
@@ -92,10 +95,6 @@ type Props = {
   savingJournal: boolean;
   onNewChat: () => void;
   onOpenCognitiveState: () => void;
-  keyboardInset?: number;
-  onComposerPointerDown?: () => void;
-  onComposerFocus?: () => void;
-  onComposerBlur?: () => void;
   voiceReplies?: boolean;
   onVoiceRepliesChange?: (value: boolean) => void;
   className?: string;
@@ -103,6 +102,11 @@ type Props = {
   onWelcomeQuickPrompt?: (prompt: string) => void;
   /** Center in viewport (new chat); dock to bottom once a thread exists. */
   layout?: "center" | "dock";
+  /** Keyboard inset (px) — pins the dock above the on-screen keyboard on mobile. */
+  keyboardInset?: number;
+  onComposerPointerDown?: () => void;
+  onComposerFocus?: () => void;
+  onComposerBlur?: () => void;
 };
 
 export default function MyAiComposer({
@@ -129,21 +133,24 @@ export default function MyAiComposer({
   savingJournal,
   onNewChat,
   onOpenCognitiveState,
-  keyboardInset = 0,
-  onComposerPointerDown,
-  onComposerFocus,
-  onComposerBlur,
   voiceReplies = false,
   onVoiceRepliesChange,
   className,
   welcomeQuickPrompts,
   onWelcomeQuickPrompt,
   layout = "dock",
+  keyboardInset = 0,
+  onComposerPointerDown,
+  onComposerFocus,
+  onComposerBlur,
 }: Props) {
   const isCentered = layout === "center";
   const localTaRef = useRef<HTMLTextAreaElement>(null);
   const taRef = externalTaRef ?? localTaRef;
   const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const dictationSnapshotRef = useRef("");
+  const inputRef = useRef(input);
+  inputRef.current = input;
   const [dictInterim, setDictInterim] = useState("");
   const [dictationListening, setDictationListening] = useState(false);
 
@@ -174,22 +181,26 @@ export default function MyAiComposer({
     requestAnimationFrame(() => taRef.current?.focus());
   };
 
+  const confirmDictation = () => {
+    dictateRef.current?.stop();
+    setDictInterim("");
+  };
+
+  const cancelDictation = () => {
+    dictateRef.current?.cancel();
+    onInputChange(dictationSnapshotRef.current);
+    setDictInterim("");
+  };
+
   return (
     <div
       className={cn(
         isCentered
           ? "relative w-full"
-          : "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-3 pt-8 sm:px-4",
+          : "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent px-3 pt-8 sm:px-4",
         className,
       )}
-      style={
-        isCentered
-          ? mobileBottomDockTransform(keyboardInset)
-          : {
-              ...mobileBottomDockPadding("0.75rem"),
-              ...mobileBottomDockTransform(keyboardInset),
-            }
-      }
+      style={isCentered ? undefined : mobileBottomDockStyle({ keyboardInset, extraPadding: "0.75rem" })}
     >
       <div className={cn("pointer-events-auto", !isCentered && myAiComposerColumn, isCentered && "w-full")}>
         {editingMessageId ? (
@@ -211,6 +222,39 @@ export default function MyAiComposer({
           ) : null}
 
           <div className={cn(myAiInputShell, isCentered && "relative z-10")}>
+          {dictationListening ? (
+            <div
+              className="flex min-h-[44px] items-center gap-2 px-2 py-2"
+              style={{ minHeight: MIN_HEIGHT_PX }}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div
+                  className="h-px min-w-[1.5rem] flex-1 border-t border-dotted border-muted-foreground/35"
+                  aria-hidden
+                />
+                <MicWaveform active className="shrink-0 px-1" />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                aria-label="Cancel dictation"
+                onClick={cancelDictation}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full bg-blue-600 text-white hover:bg-blue-600/90"
+                aria-label="Finish dictation"
+                onClick={confirmDictation}
+              >
+                <Check className="h-4 w-4" strokeWidth={2.25} />
+              </Button>
+            </div>
+          ) : (
           <Textarea
             ref={taRef}
             value={displayInput}
@@ -218,15 +262,15 @@ export default function MyAiComposer({
               setDictInterim("");
               onInputChange(e.target.value);
             }}
+            onPointerDown={onComposerPointerDown}
+            onFocus={onComposerFocus}
+            onBlur={onComposerBlur}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
-            onPointerDown={onComposerPointerDown}
-            onFocus={onComposerFocus}
-            onBlur={onComposerBlur}
             rows={1}
             spellCheck
             disabled={sending}
@@ -248,6 +292,7 @@ export default function MyAiComposer({
               "[scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.2)_transparent]",
             )}
           />
+          )}
 
           <div className="flex items-center justify-between gap-2 px-1 pb-0.5 pt-0">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -390,6 +435,7 @@ export default function MyAiComposer({
             </div>
 
             <div className="flex shrink-0 items-center gap-0.5">
+              {!dictationListening ? (
               <DictateButton
                 ref={dictateRef}
                 userId={userId}
@@ -397,19 +443,19 @@ export default function MyAiComposer({
                 size="md"
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  dictationListening && "text-primary",
                 )}
                 onAppend={(chunk) => {
                   onInputChange((prev) => mergeDictatedText(prev, chunk));
                 }}
                 onInterim={setDictInterim}
                 onListeningChange={(listening) => {
-                  setDictationListening(listening);
                   if (listening) {
-                    requestAnimationFrame(() => taRef.current?.focus());
+                    dictationSnapshotRef.current = inputRef.current;
                   }
+                  setDictationListening(listening);
                 }}
               />
+              ) : null}
 
               {onVoiceRepliesChange ? (
                 <Button
@@ -441,10 +487,13 @@ export default function MyAiComposer({
                     : canSend
                       ? "bg-blue-600 text-white hover:bg-blue-600/90"
                       : "bg-transparent text-muted-foreground/40 hover:bg-muted/80",
+                  dictationListening && "invisible pointer-events-none",
                 )}
                 disabled={!showStop && !canSend}
                 onClick={showStop ? onStop : handleSend}
                 aria-label={showStop ? "Stop generating" : "Send message"}
+                aria-hidden={dictationListening}
+                tabIndex={dictationListening ? -1 : undefined}
               >
                 {showStop ? (
                   <Square className="h-3.5 w-3.5 fill-current" />

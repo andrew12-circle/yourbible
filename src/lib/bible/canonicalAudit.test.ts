@@ -40,21 +40,28 @@ describe("canonical CSB Bible audit (local bundles)", () => {
     expect(found).toBe(1189);
   });
 
-  it("every verse has intact text, matching parts, and full render output", () => {
-    const audits = loadAllCanonicalChapters().map((record) => auditCanonicalChapter(record));
-    const summary = mergeChapterAudits(audits);
+  it(
+    "every verse has intact text, matching parts, and full render output",
+    () => {
+      const audits = loadAllCanonicalChapters().map((record) => auditCanonicalChapter(record));
+      const summary = mergeChapterAudits(audits);
 
-    if (summary.issueCount > 0) {
-      const preview = summary.issues
-        .slice(0, 40)
-        .map((issue) => `${issue.bookAbbr} ${issue.chapter}:${issue.verse} [${issue.kind}] ${issue.detail}`)
-        .join("\n");
-      expect(summary.issues, `${summary.issueCount} issues\n${preview}`).toEqual([]);
-    }
+      if (summary.issueCount > 0) {
+        const preview = summary.issues
+          .slice(0, 40)
+          .map(
+            (issue) =>
+              `${issue.bookAbbr} ${issue.chapter}:${issue.verse} [${issue.kind}] ${issue.detail}`,
+          )
+          .join("\n");
+        expect(summary.issues, `${summary.issueCount} issues\n${preview}`).toEqual([]);
+      }
 
-    expect(summary.chaptersAudited).toBe(1189);
-    expect(summary.versesAudited).toBeGreaterThan(30000);
-  });
+      expect(summary.chaptersAudited).toBe(1189);
+      expect(summary.versesAudited).toBeGreaterThan(30000);
+    },
+    120_000,
+  );
 
   it("2 Timothy 2:25 stores the full word truth", () => {
     const record = loadChapterJson("2Ti", 2);

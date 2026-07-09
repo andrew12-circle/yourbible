@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mobileSheetSafeTop, mobileVisualViewportPageStyle } from "./mobileShellClasses";
+import {
+  mobileBottomDockPadding,
+  mobileBottomDockStyle,
+  mobileSheetSafeTop,
+  mobileVisualViewportPageStyle,
+} from "./mobileShellClasses";
 
 describe("mobileSheetSafeTop", () => {
   it("adds safe-area inset with a minimum top gutter", () => {
@@ -35,6 +40,30 @@ describe("mobileVisualViewportPageStyle", () => {
       maxHeight: 476,
       transform: "translateY(44px)",
       transition: "transform 120ms ease-out, height 120ms ease-out",
+    });
+  });
+});
+
+describe("mobileBottomDockPadding", () => {
+  it("includes safe-area when keyboard is closed", () => {
+    expect(mobileBottomDockPadding("0.5rem", 0)).toEqual({
+      paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.5rem)",
+    });
+  });
+
+  it("uses minimal padding when keyboard is open", () => {
+    expect(mobileBottomDockPadding("0.5rem", 280)).toEqual({
+      paddingBottom: "0.5rem",
+    });
+  });
+});
+
+describe("mobileBottomDockStyle", () => {
+  it("combines padding and transform when keyboard is open", () => {
+    expect(mobileBottomDockStyle({ keyboardInset: 256, extraPadding: "0.5rem" })).toEqual({
+      paddingBottom: "0.5rem",
+      transform: "translateY(-256px)",
+      transition: "transform 120ms ease-out",
     });
   });
 });

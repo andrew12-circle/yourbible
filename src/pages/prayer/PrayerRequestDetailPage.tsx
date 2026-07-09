@@ -27,6 +27,7 @@ import { PRAYER_CATEGORY_LABELS } from "@/lib/prayer/categories";
 import { formatDisplayDate } from "@/lib/prayer/stats";
 import { formatLedgerAmount, parseLedgerAmount } from "@/lib/prayer/money";
 import { PrayerScriptureReviewList } from "@/components/prayer/PrayerScriptureReviewCard";
+import PrayerScroll from "@/components/prayer/PrayerScroll";
 import { mergeScriptureDisplay } from "@/lib/prayer/scriptureDisplay";
 import { localDateISO } from "@/lib/habits/dates";
 import type { PrayerRequestStatus } from "@/lib/prayer/types";
@@ -380,10 +381,9 @@ export default function PrayerRequestDetailPage() {
         </div>
 
         {request.prayer_text ? (
-          <section>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Prayer</h2>
-            <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{request.prayer_text}</p>
-          </section>
+          <PrayerScroll label="Prayer">
+            <p className="prayer-scroll-text">{request.prayer_text}</p>
+          </PrayerScroll>
         ) : null}
 
         {mergedScriptures.length > 0 ? (

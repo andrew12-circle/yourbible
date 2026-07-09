@@ -49,7 +49,7 @@ import {
   useVisualViewportMetrics,
 } from "@/hooks/useKeyboardInset";
 import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
-import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
+import { mobileCenteredScreen, mobileBottomDockStyle } from "@/lib/shell/mobileShellClasses";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
@@ -1066,11 +1066,7 @@ export default function JournalChatPage() {
                 showHubShell,
                 cn("z-30 border-t border-border/60 bg-background/95 px-3 pt-2 backdrop-blur-md sm:px-5", !showHubShell && "md:left-[260px]"),
               )}
-              style={{
-                paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
-                transform: kbInset ? `translateY(-${kbInset}px)` : undefined,
-                transition: "transform 120ms ease-out",
-              }}
+              style={mobileBottomDockStyle({ keyboardInset: kbInset })}
             >
               <div className="pointer-events-auto mx-auto max-w-2xl">
                 {sending && (

@@ -270,6 +270,111 @@
     -webkit-mask-composite: source-over;
   }
 
+  /* Prayer ledger — rolled parchment scroll (old-school Bible manuscript feel) */
+  .prayer-scroll {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+  }
+
+  .prayer-scroll-roll {
+    flex-shrink: 0;
+    height: 13px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .prayer-scroll-roll-top {
+    background: linear-gradient(
+      180deg,
+      hsl(28 22% 52%) 0%,
+      hsl(34 28% 72%) 28%,
+      hsl(var(--paper-warm)) 62%,
+      hsl(var(--paper)) 100%
+    );
+    border-radius: 50% / 100% 100% 0 0;
+    box-shadow:
+      inset 0 -4px 7px hsl(28 25% 28% / 0.28),
+      0 2px 5px hsl(28 25% 28% / 0.14);
+    margin-bottom: -1px;
+  }
+
+  .prayer-scroll-roll-bottom {
+    background: linear-gradient(
+      0deg,
+      hsl(28 22% 52%) 0%,
+      hsl(34 28% 72%) 28%,
+      hsl(var(--paper-warm)) 62%,
+      hsl(var(--paper)) 100%
+    );
+    border-radius: 50% / 0 0 100% 100%;
+    box-shadow:
+      inset 0 4px 7px hsl(28 25% 28% / 0.28),
+      0 -2px 5px hsl(28 25% 28% / 0.14);
+    margin-top: -1px;
+  }
+
+  .prayer-scroll-parchment {
+    background-color: hsl(var(--paper));
+    background-image:
+      radial-gradient(circle at 11% 17%, hsl(28 35% 42% / 0.10) 0 1.1px, transparent 2px),
+      radial-gradient(circle at 78% 31%, hsl(24 40% 38% / 0.08) 0 0.9px, transparent 2px),
+      radial-gradient(circle at 32% 71%, hsl(28 35% 42% / 0.07) 0 1px, transparent 2px),
+      radial-gradient(ellipse 60% 45% at 22% 28%, hsl(36 38% 86% / 0.55) 0%, transparent 65%),
+      radial-gradient(ellipse 55% 40% at 75% 70%, hsl(34 35% 84% / 0.45) 0%, transparent 70%),
+      radial-gradient(ellipse at center, transparent 55%, hsl(28 25% 35% / 0.10) 100%),
+      repeating-linear-gradient(18deg, hsl(28 25% 50% / 0.035) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(-72deg, hsl(28 25% 50% / 0.028) 0 1px, transparent 1px 4px),
+      radial-gradient(ellipse at top, hsl(var(--paper)) 0%, hsl(var(--paper-warm)) 55%, hsl(var(--paper-edge) / 0.35) 100%);
+    background-blend-mode: multiply, multiply, multiply, multiply, multiply, multiply, multiply, normal;
+  }
+
+  .prayer-scroll-body {
+    position: relative;
+    z-index: 1;
+    border-left: 1px solid hsl(var(--gold) / 0.28);
+    border-right: 1px solid hsl(var(--gold) / 0.28);
+    box-shadow: var(--shadow-leather);
+  }
+
+  .prayer-scroll--display .prayer-scroll-body {
+    padding: 1.35rem 1.4rem;
+  }
+
+  .prayer-scroll--card .prayer-scroll-body {
+    padding: 1rem 1.15rem;
+  }
+
+  .prayer-scroll--compose .prayer-scroll-body {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .prayer-scroll--chat .prayer-scroll-roll {
+    height: 10px;
+  }
+
+  .prayer-scroll--chat .prayer-scroll-body {
+    padding: 0.95rem 1.05rem;
+  }
+
+  .prayer-scroll-text {
+    font-family: var(--font-scripture, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: hsl(20 22% 14%);
+    white-space: pre-wrap;
+  }
+
+  .prayer-scroll--card:hover .prayer-scroll-body {
+    border-left-color: hsl(var(--gold) / 0.45);
+    border-right-color: hsl(var(--gold) / 0.45);
+  }
+
+  .prayer-scroll--card:active .prayer-scroll-body {
+    transform: scale(0.995);
+  }
+
   /* Ink — dark brown-black with subtle bleed */
   .ink-text {
     color: hsl(20 22% 12%);
@@ -2253,8 +2358,18 @@ body:has(.hub-shell),
 [data-mini-phone-app] {
   container-type: inline-size;
   max-width: 100%;
+  --mini-phone-layout-width: 430px;
+  --mini-phone-layout-height: 932px;
+  --mini-phone-layout-scale: 1;
   --safe-area-inset-top: 12px;
   --safe-area-inset-bottom: 8px;
+  /* 16:9 video pinned header — use phone logical width, not browser vw. */
+  --artifact-mobile-video-h: calc(var(--mini-phone-layout-width) * 9 / 16);
+  --artifact-sticky-video-h: calc(var(--mini-phone-layout-width) * 9 / 16);
+  --artifact-mobile-pinned-header-h: calc(var(--mini-phone-layout-width) * 9 / 16);
+  --artifact-header-h: 0px;
+  --artifact-sticky-chrome-h: 0px;
+  --artifact-mobile-sticky-chrome-h: 0px;
 }
 
 [data-mini-phone-app] .h-\[100dvh\],
@@ -2265,6 +2380,42 @@ body:has(.hub-shell),
 
 [data-mini-phone-app] .max-h-\[100dvh\] {
   max-height: 100% !important;
+}
+
+[data-mini-phone-app] .h-\[100svh\],
+[data-mini-phone-app] .min-h-\[100svh\],
+[data-mini-phone-app] .max-h-\[100svh\] {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+[data-mini-phone-app] .min-h-\[100lvh\] {
+  min-height: 100% !important;
+}
+
+[data-mini-phone-app] [data-artifact-youtube-mobile] {
+  --artifact-mobile-video-h: calc(var(--mini-phone-layout-width) * 9 / 16) !important;
+  --artifact-sticky-video-h: calc(var(--mini-phone-layout-width) * 9 / 16) !important;
+  --artifact-mobile-pinned-header-h: calc(var(--mini-phone-layout-width) * 9 / 16) !important;
+  --artifact-header-h: 0px !important;
+  --artifact-sticky-chrome-h: 0px !important;
+  --artifact-mobile-sticky-chrome-h: 0px !important;
+}
+
+[data-mini-phone-app] [data-bible-reader] {
+  max-width: 100% !important;
+}
+
+[data-mini-phone-app] [data-bible-reader] .w-screen {
+  width: 100% !important;
+}
+
+[data-mini-phone-app] .max-w-\[min\(680px\,92vw\)\],
+[data-mini-phone-app] .w-\[min\(92vw\,420px\)\],
+[data-mini-phone-app] .max-w-\[min\(92vw\,320px\)\] {
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 /* Mobile hub/journal slide-out menus — keep logo and top chrome below status bar / Dynamic Island. */
@@ -2287,8 +2438,38 @@ body:has(.hub-shell),
 
 /*
  * Mini phone embed — the browser viewport is desktop-wide but the pane is phone-width.
- * Neutralize Tailwind md/lg utilities that leak desktop layout into the drawer.
+ * Neutralize Tailwind responsive utilities that leak desktop layout into the drawer.
  */
+@media (min-width: 640px) {
+  [data-mini-phone-app] .sm\:hidden {
+    display: revert !important;
+  }
+
+  [data-mini-phone-app] button.sm\:hidden,
+  [data-mini-phone-app] .inline-flex.sm\:hidden {
+    display: inline-flex !important;
+  }
+
+  [data-mini-phone-app] .flex.sm\:hidden {
+    display: flex !important;
+  }
+
+  [data-mini-phone-app] .hidden.sm\:flex,
+  [data-mini-phone-app] .hidden.sm\:inline-flex,
+  [data-mini-phone-app] .hidden.sm\:block {
+    display: none !important;
+  }
+
+  [data-mini-phone-app] .sm\:flex-row {
+    flex-direction: column !important;
+  }
+
+  [data-mini-phone-app] .sm\:grid-cols-2,
+  [data-mini-phone-app] .sm\:grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
 @media (min-width: 768px) {
   [data-mini-phone-app] .md\:hidden {
     display: revert !important;
@@ -2308,6 +2489,16 @@ body:has(.hub-shell),
   [data-mini-phone-app] .hidden.md\:block {
     display: none !important;
   }
+
+  [data-mini-phone-app] .md\:flex-row {
+    flex-direction: column !important;
+  }
+
+  [data-mini-phone-app] .md\:grid-cols-2,
+  [data-mini-phone-app] .md\:grid-cols-3,
+  [data-mini-phone-app] .md\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -2320,11 +2511,11 @@ body:has(.hub-shell),
   }
 
   [data-mini-phone-app] .max-lg\:h-\[100dvh\] {
-    height: 100dvh !important;
+    height: 100% !important;
   }
 
   [data-mini-phone-app] .max-lg\:max-h-\[100dvh\] {
-    max-height: 100dvh !important;
+    max-height: 100% !important;
   }
 
   [data-mini-phone-app] .max-lg\:flex-col {
@@ -2346,6 +2537,35 @@ body:has(.hub-shell),
   [data-mini-phone-app] .lg\:hidden {
     display: none !important;
   }
+
+  [data-mini-phone-app] .lg\:grid {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  [data-mini-phone-app] .lg\:grid-cols-12,
+  [data-mini-phone-app] .lg\:grid-cols-6,
+  [data-mini-phone-app] .lg\:grid-cols-4,
+  [data-mini-phone-app] .lg\:grid-cols-3,
+  [data-mini-phone-app] .lg\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+
+  [data-mini-phone-app] .lg\:col-span-3,
+  [data-mini-phone-app] .lg\:col-span-4,
+  [data-mini-phone-app] .lg\:col-span-5,
+  [data-mini-phone-app] .lg\:col-span-6,
+  [data-mini-phone-app] .lg\:col-span-7,
+  [data-mini-phone-app] .lg\:col-span-8,
+  [data-mini-phone-app] .lg\:col-span-9 {
+    grid-column: auto !important;
+  }
+
+  [data-mini-phone-app] .xl\:grid-cols-2,
+  [data-mini-phone-app] .xl\:grid-cols-3,
+  [data-mini-phone-app] .xl\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
 }
 
 /* Hub edge tabs must not overlap the open mini-phone drawer. */
@@ -2361,6 +2581,14 @@ body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
 .app-theme .real-paper,
 .app-theme .leather-texture {
   background: transparent !important;
+}
+/* Keep parchment scroll styling inside the neutral app theme. */
+.app-theme .prayer-scroll-parchment {
+  background-color: hsl(var(--paper)) !important;
+}
+.app-theme .prayer-scroll-roll-top,
+.app-theme .prayer-scroll-roll-bottom {
+  opacity: 1;
 }
 .app-theme .leather-texture::after,
 .app-theme .real-paper::after { display: none !important; }

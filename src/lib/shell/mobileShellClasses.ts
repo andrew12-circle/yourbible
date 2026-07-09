@@ -64,6 +64,29 @@ export function mobileBottomDockTransform(keyboardInset: number): CSSProperties 
   };
 }
 
+/** Bottom dock padding — safe-area when keyboard is closed; minimal gutter when keyboard covers it. */
+export function mobileBottomDockPadding(
+  extra = "0.75rem",
+  keyboardInset = 0,
+): CSSProperties {
+  if (keyboardInset > 0) {
+    return { paddingBottom: extra };
+  }
+  return { paddingBottom: `max(env(safe-area-inset-bottom, 0px), ${extra})` };
+}
+
+/** Combined transform + padding for a keyboard-aware bottom composer dock. */
+export function mobileBottomDockStyle(opts: {
+  keyboardInset?: number;
+  extraPadding?: string;
+}): CSSProperties {
+  const { keyboardInset = 0, extraPadding = "0.5rem" } = opts;
+  return {
+    ...mobileBottomDockPadding(extraPadding, keyboardInset),
+    ...mobileBottomDockTransform(keyboardInset),
+  };
+}
+
 /** Pin a full-screen mobile page to the visible viewport while the keyboard is open (iOS Safari). */
 export function mobileVisualViewportPageStyle(opts: {
   keyboardInset: number;
@@ -80,6 +103,3 @@ export function mobileVisualViewportPageStyle(opts: {
   };
 }
 
-export function mobileBottomDockPadding(extra = "0.75rem"): CSSProperties {
-  return { paddingBottom: `max(env(safe-area-inset-bottom), ${extra})` };
-}

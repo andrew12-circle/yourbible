@@ -7,7 +7,6 @@ import {
   Loader2,
   Menu,
   PanelLeft,
-  Plus,
   Settings2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +14,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useVisualViewportMetrics, useLockBodyScrollWhenKeyboardActive } from "@/hooks/useKeyboardInset";
+import { useMobileComposerDock } from "@/hooks/useMobileComposerDock";
+import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -46,7 +46,7 @@ import {
   readCompanionModeSetting,
   type MyAiCompanionMode,
 } from "@/lib/myai/companionMode";
-import { myAiComposerColumn } from "@/lib/myai/myAiTheme";
+import { myAiComposerColumn, myAiUserBubble } from "@/lib/myai/myAiTheme";
 import {
   persistMyAiVoiceReplies,
   readMyAiVoiceRepliesDefault,
@@ -61,7 +61,8 @@ import {
 import { loadMyAiChatsForSidebar } from "@/lib/myai/loadMyAiChats";
 import { resolveUntitledChats } from "@/lib/myai/resolveChatTitles";
 import type { MyAiChatListItem, MyAiProjectRow } from "@/lib/myai/chatSections";
-import { mobileCenteredScreen, mobileVisualViewportPageStyle } from "@/lib/shell/mobileShellClasses";
+import { mobileCenteredScreen } from "@/lib/shell/mobileShellClasses";
+import { hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import {
   EMPTY_TRANSCRIPT_SCROLL_SNAPSHOT,
   nextMyAiTranscriptScroll,
@@ -319,12 +320,18 @@ function TypingDots() {
 export default function MyAiPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { showHubShell } = useAppShellMode();
+  const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
+  const {
+    kbInset,
+    keyboardOpen,
+    setComposerFocused,
+    lockScrollYRef,
+    pageStyle: mobileKeyboardPageStyle,
+    headerOffsetStyle,
+  } = useMobileComposerDock(showHubShell);
   const navigate = useNavigate();
   const { chatId: routeChatId } = useParams<{ chatId: string }>();
-  const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } = useVisualViewportMetrics();
-  const [composerFocused, setComposerFocused] = useState(false);
-
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [projects, setProjects] = useState<MyAiProjectRow[]>([]);
   const [activeProjectFilter, setActiveProjectFilter] = useState<string | null>(null);
@@ -341,6 +348,7 @@ export default function MyAiPage() {
   const [voiceReplies, setVoiceReplies] = useState(readMyAiVoiceRepliesDefault);
   const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const [savingJournal, setSavingJournal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -353,10 +361,7 @@ export default function MyAiPage() {
     enabled: () => voiceRepliesRef.current,
     mounted: () => mountedRef.current,
   }));
-  const composerLockScrollYRef = useRef<number | null>(null);
   const transcriptScrollSnapshotRef = useRef(EMPTY_TRANSCRIPT_SCROLL_SNAPSHOT);
-
-  useLockBodyScrollWhenKeyboardActive(composerFocused, composerLockScrollYRef);
 
   voiceRepliesRef.current = voiceReplies;
 
@@ -504,7 +509,6 @@ export default function MyAiPage() {
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
   const showWelcome = !loadingMessages && visibleMessages.length === 0;
   const welcomeDisplayName = resolveProfileDisplayName(profile, user);
-  const keyboardViewportPage = !showHubShell && kbInset > 0;
   const lastAssistantId = [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id;
   const streamingAssistantId = sending
     ? [...visibleMessages].reverse().find((m) => m.role === "assistant")?.id ?? null
@@ -789,21 +793,32 @@ export default function MyAiPage() {
     });
   };
 
-  const sidebarContent = (
+  const sidebarProps = {
+    chats,
+    projects,
+    loading: loadingChats,
+    activeChatId: routeChatId,
+    activeProjectFilter,
+    onSelectChat: openChat,
+    onNewChat: newChat,
+    onNewProject: () => void createProject(),
+    onDeleteChat: (id: string, e?: MouseEvent) => void deleteChat(id, e),
+    onMoveChatToProject: (chatId: string, projectId: string | null) => void moveChatToProject(chatId, projectId),
+    onSelectProjectFilter: setActiveProjectFilter,
+    onDeleteProject: (projectId: string) => void deleteProject(projectId),
+  };
+
+  const desktopSidebar = (
     <MyAiChatSidebar
-      chats={chats}
-      projects={projects}
-      loading={loadingChats}
-      activeChatId={routeChatId}
-      activeProjectFilter={activeProjectFilter}
-      onSelectChat={openChat}
-      onNewChat={newChat}
-      onNewProject={() => void createProject()}
-      onDeleteChat={(id, e) => void deleteChat(id, e)}
-      onMoveChatToProject={(chatId, projectId) => void moveChatToProject(chatId, projectId)}
-      onSelectProjectFilter={setActiveProjectFilter}
-      onDeleteProject={(projectId) => void deleteProject(projectId)}
+      {...sidebarProps}
       onCloseSidebar={() => persistSidebar(false)}
+    />
+  );
+
+  const mobileSidebar = (
+    <MyAiChatSidebar
+      {...sidebarProps}
+      variant="sheet"
     />
   );
 
@@ -811,20 +826,15 @@ export default function MyAiPage() {
     <div
       className={cn(
         "flex flex-col overflow-hidden bg-background",
-        showHubShell ? "h-full min-h-0" : "h-[100dvh]",
+        hubShellPageHeight(showHubShell, inMiniPhone),
       )}
-      style={mobileVisualViewportPageStyle({
-        keyboardInset: kbInset,
-        offsetTop: vvOffsetTop,
-        viewportHeight,
-        enabled: keyboardViewportPage,
-      })}
+      style={mobileKeyboardPageStyle}
     >
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {sidebarOpen && !isMobile && (
-          <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{sidebarContent}</aside>
+          <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{desktopSidebar}</aside>
         )}
 
         <section className="relative flex min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
@@ -833,7 +843,7 @@ export default function MyAiPage() {
               "sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
               showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
             )}
-            style={!keyboardViewportPage && vvOffsetTop > 0 ? { top: vvOffsetTop } : undefined}
+            style={headerOffsetStyle}
           >
             <div className="flex min-w-0 items-center gap-0.5">
               {!showHubShell && (
@@ -845,15 +855,20 @@ export default function MyAiPage() {
               {isMobile ? (
                 <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Open chats">
-                      <Menu className="h-5 w-5" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 shrink-0 touch-manipulation [&_svg]:size-7"
+                      aria-label="Open chats"
+                    >
+                      <Menu />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[min(100%,300px)] p-0">
+                  <SheetContent side="left" className="w-[min(100%,320px)] p-0">
                     <SheetHeader className="sr-only">
                       <SheetTitle>Chats</SheetTitle>
                     </SheetHeader>
-                    <div className="h-full">{sidebarContent}</div>
+                    <div className="h-full">{mobileSidebar}</div>
                   </SheetContent>
                 </Sheet>
               ) : null}
@@ -871,22 +886,10 @@ export default function MyAiPage() {
                 </Button>
               )}
 
-              {isMobile ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                  onClick={newChat}
-                  aria-label="New chat"
-                >
-                  <Plus className="h-5 w-5" />
-                </Button>
-              ) : null}
             </div>
 
             <div className="flex min-w-0 items-center gap-0.5">
-              <Popover>
+              <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Chat settings">
                     <Settings2 className="h-4 w-4 text-muted-foreground" />
@@ -947,26 +950,30 @@ export default function MyAiPage() {
                         onCheckedChange={setVoiceReplies}
                       />
                     </div>
+                    <div className="border-t border-border/60 pt-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-10 w-full justify-start gap-2 px-2 text-sm font-normal"
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          setStateOpen(true);
+                        }}
+                      >
+                        <Brain className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                        What My AI knows
+                      </Button>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                aria-label="What My AI knows about you"
-                onClick={() => setStateOpen(true)}
-              >
-                <Brain className="h-4 w-4 text-muted-foreground" />
-              </Button>
             </div>
           </header>
 
           {showWelcome ? (
             <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 pb-safe sm:px-4">
               <div className={cn(myAiComposerColumn, "relative flex w-full flex-col")}>
-                <div className="relative flex min-h-[min(420px,48vh)] flex-col justify-center">
+                <div className="relative flex min-h-[min(420px,48lvh)] flex-col justify-center">
                   <MyAiWelcomeHero displayName={welcomeDisplayName} className="relative z-10 mb-5" />
                   <MyAiComposer
                   layout="center"
@@ -996,12 +1003,6 @@ export default function MyAiPage() {
                   savingJournal={savingJournal}
                   onNewChat={newChat}
                   onOpenCognitiveState={() => setStateOpen(true)}
-                  keyboardInset={keyboardViewportPage ? 0 : kbInset}
-                  onComposerPointerDown={() => {
-                    composerLockScrollYRef.current = window.scrollY;
-                  }}
-                  onComposerFocus={() => setComposerFocused(true)}
-                  onComposerBlur={() => setComposerFocused(false)}
                   voiceReplies={voiceReplies}
                   onVoiceRepliesChange={setVoiceReplies}
                   welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
@@ -1015,7 +1016,10 @@ export default function MyAiPage() {
             <>
           <div
             ref={scrollRef}
-            className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pt-6 pb-safe-40 sm:px-4"
+            className={cn(
+              "min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pt-6 sm:px-4",
+              keyboardOpen ? "pb-32" : "pb-safe-40",
+            )}
           >
             {routeChatId && loadingMessages && (
               <div className="flex justify-center py-16">
@@ -1030,7 +1034,7 @@ export default function MyAiPage() {
                   <div key={m.id} data-my-ai-message-id={m.id} className="group w-full min-w-0">
                     {m.role === "user" ? (
                       <div className="flex flex-col items-end">
-                        <div className="max-w-[min(100%,36rem)] rounded-2xl bg-blue-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-blue-500/15 dark:bg-blue-500/15">
+                        <div className={cn("max-w-[min(100%,36rem)]", myAiUserBubble)}>
                           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.content}</p>
                         </div>
                         {!m.id.startsWith("pending-") ? (
@@ -1078,6 +1082,12 @@ export default function MyAiPage() {
 
           <MyAiComposer
             layout="dock"
+            keyboardInset={kbInset}
+            onComposerPointerDown={() => {
+              lockScrollYRef.current = window.scrollY;
+            }}
+            onComposerFocus={() => setComposerFocused(true)}
+            onComposerBlur={() => setComposerFocused(false)}
             input={input}
             onInputChange={setInput}
             onSend={() => void send()}
@@ -1104,12 +1114,6 @@ export default function MyAiPage() {
             savingJournal={savingJournal}
             onNewChat={newChat}
             onOpenCognitiveState={() => setStateOpen(true)}
-            keyboardInset={keyboardViewportPage ? 0 : kbInset}
-            onComposerPointerDown={() => {
-              composerLockScrollYRef.current = window.scrollY;
-            }}
-            onComposerFocus={() => setComposerFocused(true)}
-            onComposerBlur={() => setComposerFocused(false)}
             voiceReplies={voiceReplies}
             onVoiceRepliesChange={setVoiceReplies}
           />

@@ -1,3 +1,5 @@
+import { isEffectiveCompactLayout } from "@/lib/mini-phone/miniPhoneLayoutViewport";
+
 /** Breakpoint for compact (phone) vs hub-capable layouts. */
 export const COMPACT_VIEWPORT_PX = 768;
 
@@ -7,9 +9,9 @@ export function readCompactViewportEdge(): number {
   return Math.min(window.innerWidth, window.innerHeight);
 }
 
-/** True on phones and narrow split-view panes (hub shell hidden). */
+/** True on phones, mini-phone embed, and narrow split-view panes. */
 export function readIsCompactViewport(): boolean {
-  return readCompactViewportEdge() < COMPACT_VIEWPORT_PX;
+  return isEffectiveCompactLayout();
 }
 
 /** True when hub shell chrome should mount (tablet/desktop-class viewport). */

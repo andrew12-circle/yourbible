@@ -56,6 +56,8 @@ type Props = {
   onSelectProjectFilter: (projectId: string | null) => void;
   onDeleteProject: (projectId: string) => void;
   onCloseSidebar?: () => void;
+  /** Mobile sheet — larger touch targets and a prominent new-chat action. */
+  variant?: "panel" | "sheet";
 };
 
 export default function MyAiChatSidebar({
@@ -72,7 +74,9 @@ export default function MyAiChatSidebar({
   onSelectProjectFilter,
   onDeleteProject,
   onCloseSidebar,
+  variant = "panel",
 }: Props) {
+  const isSheet = variant === "sheet";
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -115,7 +119,8 @@ export default function MyAiChatSidebar({
         }
       }}
       className={cn(
-        "group mx-0.5 flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-lg px-2.5 py-2.5 transition-colors",
+        "group mx-0.5 flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-lg px-2.5 transition-colors",
+        isSheet ? "py-3" : "py-2.5",
         activeChatId === c.id
           ? "bg-muted text-foreground"
           : "hover:bg-muted/70 hover:text-foreground",
@@ -269,59 +274,90 @@ export default function MyAiChatSidebar({
   return (
     <div
       className={cn(
-        "my-ai-chat-sidebar flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm",
+        "my-ai-chat-sidebar flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-card",
         myAiSidebarFont,
+        isSheet ? "rounded-none border-0 shadow-none" : "rounded-xl border border-border/50 shadow-sm",
       )}
     >
-      <div className="flex flex-col gap-2 border-b border-border/50 px-2 py-2.5">
+      <div className={cn("flex flex-col gap-2 border-b border-border/50 px-2 py-2.5", isSheet && "px-3 py-3")}>
         <div className="flex min-w-0 items-center gap-3 px-1 py-0.5">
           <LumenLanternMark size="lg" />
           <span className={myAiSidebarBrandTitle}>{LUMEN_NAME}</span>
         </div>
 
-        <div className="flex items-center gap-0.5 px-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={onNewChat}
-            aria-label="New chat"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={onNewProject}
-            aria-label="New folder"
-          >
-            <FolderPlus className="h-3.5 w-3.5" />
-          </Button>
-          {onCloseSidebar ? (
+        {isSheet ? (
+          <div className="flex items-center gap-2 px-0.5">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 min-h-11 flex-1 justify-start gap-2.5 rounded-xl px-3.5 text-[15px] font-medium"
+              onClick={onNewChat}
+            >
+              <Plus className="h-5 w-5 shrink-0" />
+              New chat
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0 rounded-xl"
+              onClick={onNewProject}
+              aria-label="New folder"
+            >
+              <FolderPlus className="h-5 w-5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-0.5 px-0.5">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="hidden h-8 w-8 shrink-0 md:inline-flex"
-              onClick={onCloseSidebar}
-              aria-label="Close sidebar"
+              className="h-8 w-8 shrink-0"
+              onClick={onNewChat}
+              aria-label="New chat"
             >
-              <PanelLeftClose className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" />
             </Button>
-          ) : null}
-        </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={onNewProject}
+              aria-label="New folder"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+            </Button>
+            {onCloseSidebar ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hidden h-8 w-8 shrink-0 md:inline-flex"
+                onClick={onCloseSidebar}
+                aria-label="Close sidebar"
+              >
+                <PanelLeftClose className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+          </div>
+        )}
 
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className={cn(
+            "pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground",
+            isSheet ? "h-4 w-4" : "h-3.5 w-3.5",
+          )} />
           <Input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chats"
-            className="h-8 rounded-md border-transparent bg-muted/50 pl-8 text-[13px] placeholder:text-muted-foreground focus-visible:border-border focus-visible:bg-background"
+            className={cn(
+              "rounded-md border-transparent bg-muted/50 pl-8 text-[13px] placeholder:text-muted-foreground focus-visible:border-border focus-visible:bg-background",
+              isSheet ? "h-10 text-sm" : "h-8",
+            )}
           />
         </div>
       </div>
