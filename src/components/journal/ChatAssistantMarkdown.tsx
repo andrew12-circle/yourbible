@@ -20,16 +20,14 @@ const markdownComponents: Components = {
   ),
   li: ({ children }) => <li className="pl-0.5">{children}</li>,
   blockquote: ({ children }) => (
-    <blockquote
-      className={cn(
-        BODY,
-        BLOCK_GAP,
-        "rounded-r-lg border-l-[3px] border-blue-500/35 bg-blue-500/[0.04] py-3.5 pl-4 pr-3 not-italic text-foreground/90",
-        "[&>p]:!mt-3 [&>p:first-child]:!mt-0 [&>p]:leading-[1.9]",
-      )}
+    <PrayerScroll
+      as="div"
+      variant="chat"
+      className={BLOCK_GAP}
+      bodyClassName="[&>p]:prayer-scroll-text [&>p]:!m-0 [&>p+p]:!mt-3"
     >
       {children}
-    </blockquote>
+    </PrayerScroll>
   ),
   hr: () => <hr className={cn("border-border/60", BLOCK_GAP)} />,
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
