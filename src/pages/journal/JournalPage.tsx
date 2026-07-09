@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,7 @@ export default function JournalPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [dayOneImportOpen, setDayOneImportOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const createNavGenRef = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -77,6 +78,7 @@ export default function JournalPage() {
 
   const createNew = async () => {
     if (!user || creating) return;
+    const navGen = ++createNavGenRef.current;
     setCreating(true);
     try {
       const jid =
@@ -99,6 +101,7 @@ export default function JournalPage() {
         });
         return;
       }
+      if (navGen !== createNavGenRef.current) return;
       setReloadKey((k) => k + 1);
       if (isDesktop) {
         if (jid) navigate(`/journal/j/${jid}/e/${data.id}`);
@@ -108,9 +111,17 @@ export default function JournalPage() {
       }
       scheduleEntryContextEnrichment(user.id, data.id);
     } finally {
-      setCreating(false);
+      if (navGen === createNavGenRef.current) setCreating(false);
     }
   };
+
+  const selectEntry = useCallback(
+    (id: string, entryKind?: string | null) => {
+      createNavGenRef.current += 1;
+      navigate(journalDeskEntryHref(id, journalId, entryKind));
+    },
+    [journalId, navigate],
+  );
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -143,9 +154,7 @@ export default function JournalPage() {
               reloadKey={reloadKey}
               excludeJournalIds={excludeJournalIds}
               headingLabel={activeJournal?.name ?? "All entries"}
-              onSelect={(id, entryKind) =>
-                navigate(journalDeskEntryHref(id, journalId, entryKind))
-              }
+              onSelect={selectEntry}
               onNew={createNew}
               onDeleted={() => {
                 setReloadKey((k) => k + 1);

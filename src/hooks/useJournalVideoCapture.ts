@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  buildJournalVideoConstraints,
-  createJournalAudioSidecarRecorder,
-  journalVideoCaptureSupported,
-  pickJournalVideoMimeType,
-  stopMediaRecorderWithFlush,
-  tuneJournalVideoStream,
-} from "@/lib/journal/videos";
+  canChangeJournalVideoDevices,
+  isJournalVideoLiveCapture,
+  restartJournalVideoAudioSidecar,
+  swapJournalVideoAudioTrack,
+  swapJournalVideoCameraTrack,
+} from "@/lib/journal/journalVideoLiveDevices";
 import type { JournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
 import { readJournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
 import {
@@ -15,6 +14,14 @@ import {
 } from "@/lib/journal/journalVideoChapters";
 import type { CameraFacing } from "@/lib/journal/journalVideoDevices";
 import { toggleCameraFacing } from "@/lib/journal/journalVideoDevices";
+import {
+  buildJournalVideoConstraints,
+  createJournalAudioSidecarRecorder,
+  journalVideoCaptureSupported,
+  pickJournalVideoMimeType,
+  stopMediaRecorderWithFlush,
+  tuneJournalVideoStream,
+} from "@/lib/journal/videos";
 import {
   JOURNAL_VIDEO_BITS_PER_SECOND,
   JOURNAL_VIDEO_MAX_DURATION_MS,
@@ -89,6 +96,8 @@ export interface UseJournalVideoCaptureApi {
   audioDeviceId: string | null;
   chapters: JournalVideoChapter[];
   settings: JournalVideoCaptureSettings;
+  /** Screen mode: true when the composite records mic audio (not system/desktop audio). */
+  screenUsesCameraAudio: boolean;
   bindPreview: (el: HTMLVideoElement | null) => void;
   openPreview: (mode: JournalVideoCaptureMode) => Promise<void>;
   beginCountdown: () => void;
@@ -135,6 +144,7 @@ export function useJournalVideoCapture(
   const [settings, setSettings] = useState<JournalVideoCaptureSettings>(
     () => settingsProp ?? readJournalVideoCaptureSettings(),
   );
+  const [screenUsesCameraAudio, setScreenUsesCameraAudio] = useState(true);
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -167,9 +177,11 @@ export function useJournalVideoCapture(
   const facingRef = useRef<CameraFacing>("user");
   const deviceIdRef = useRef<string | null>(null);
   const audioDeviceIdRef = useRef<string | null>(audioDeviceId);
+  const phaseRef = useRef<JournalVideoCapturePhase>(phase);
   facingRef.current = facingMode;
   deviceIdRef.current = deviceId;
   audioDeviceIdRef.current = audioDeviceId;
+  phaseRef.current = phase;
 
   const syncLiveTranscriptDisplay = useCallback(() => {
     const combined = composeVideoLiveTranscript(
@@ -302,6 +314,50 @@ export function useJournalVideoCapture(
     }
   }, []);
 
+  const attachPreviewStream = useCallback((stream: MediaStream) => {
+    streamRef.current = stream;
+    setPreviewStream(stream);
+    if (videoElRef.current) {
+      videoElRef.current.srcObject = stream;
+      void videoElRef.current.play().catch(() => {});
+    }
+  }, []);
+
+  const liveDeviceRefs = useRef({
+    streamRef,
+    phaseRef,
+    settingsRef,
+    facingRef,
+    deviceIdRef,
+    audioDeviceIdRef,
+    audioRecorderRef,
+    audioChunksRef,
+    audioChunkIndexRef,
+    recoveryDraftIdRef,
+    resolveAudioStopRef,
+  });
+  liveDeviceRefs.current = {
+    streamRef,
+    phaseRef,
+    settingsRef,
+    facingRef,
+    deviceIdRef,
+    audioDeviceIdRef,
+    audioRecorderRef,
+    audioChunksRef,
+    audioChunkIndexRef,
+    recoveryDraftIdRef,
+    resolveAudioStopRef,
+  };
+
+  const restartAudioSidecar = useCallback(() => {
+    restartJournalVideoAudioSidecar(liveDeviceRefs.current);
+  }, []);
+
+  const notifyStreamUpdated = useCallback((stream: MediaStream) => {
+    setPreviewStream(stream);
+  }, []);
+
   const acquireStream = useCallback(
     async (captureMode: JournalVideoCaptureMode, gen: number) => {
       const s = settingsRef.current;
@@ -331,7 +387,9 @@ export function useJournalVideoCapture(
         }
         compositeSessionRef.current = session;
         stream = session.compositeStream;
+        setScreenUsesCameraAudio(session.usesCameraAudio);
       } else {
+        setScreenUsesCameraAudio(true);
         stream = await navigator.mediaDevices.getUserMedia(
           buildJournalVideoConstraints({
             quality: s.quality,
@@ -705,80 +763,144 @@ export function useJournalVideoCapture(
 
   stopRecordingRef.current = stopRecording;
 
+  const swapCameraVideoTrack = useCallback(async () => {
+    await swapJournalVideoCameraTrack(liveDeviceRefs.current, notifyStreamUpdated);
+  }, [notifyStreamUpdated]);
+
+  const swapCameraAudioTrack = useCallback(async () => {
+    await swapJournalVideoAudioTrack(liveDeviceRefs.current, notifyStreamUpdated);
+    restartAudioSidecar();
+  }, [notifyStreamUpdated, restartAudioSidecar]);
+
   const switchFacing = useCallback(async () => {
-    if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+    if (mode !== "camera") return;
+    const currentPhase = phaseRef.current;
+    if (!canChangeJournalVideoDevices(currentPhase)) return;
     clearCountdown();
     const next = toggleCameraFacing(facingRef.current);
     setFacingMode(next);
     facingRef.current = next;
     setDeviceId(null);
     deviceIdRef.current = null;
+
+    if (isJournalVideoLiveCapture(currentPhase)) {
+      try {
+        await swapCameraVideoTrack();
+      } catch {
+        setError("Could not switch camera.");
+      }
+      return;
+    }
+
     const gen = ++openGenRef.current;
     try {
       cleanupStream();
       const stream = await acquireStream("camera", gen);
       if (!stream) return;
-      streamRef.current = stream;
-      setPreviewStream(stream);
-      if (videoElRef.current) {
-        videoElRef.current.srcObject = stream;
-        await videoElRef.current.play().catch(() => {});
-      }
+      attachPreviewStream(stream);
       setPhase("preview");
     } catch {
       setError("Could not switch camera.");
     }
-  }, [mode, phase, cleanupStream, acquireStream, clearCountdown]);
+  }, [mode, cleanupStream, acquireStream, clearCountdown, attachPreviewStream, swapCameraVideoTrack]);
 
   const selectDevice = useCallback(
     async (nextDeviceId: string) => {
-      if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+      const currentPhase = phaseRef.current;
+      if (!canChangeJournalVideoDevices(currentPhase)) return;
       clearCountdown();
       setDeviceId(nextDeviceId);
       deviceIdRef.current = nextDeviceId;
+
+      if (mode === "screen") {
+        const session = compositeSessionRef.current;
+        if (!session) return;
+        const s = settingsRef.current;
+        try {
+          await session.replaceCameraInput({
+            quality: s.quality,
+            deviceId: nextDeviceId,
+            audioDeviceId: audioDeviceIdRef.current,
+          });
+          setPreviewStream(session.compositeStream);
+        } catch {
+          setError("Could not switch camera.");
+        }
+        return;
+      }
+
+      if (mode !== "camera") return;
+
+      if (isJournalVideoLiveCapture(currentPhase)) {
+        try {
+          await swapCameraVideoTrack();
+        } catch {
+          setError("Could not switch camera.");
+        }
+        return;
+      }
+
       const gen = ++openGenRef.current;
       try {
         cleanupStream();
         const stream = await acquireStream("camera", gen);
         if (!stream) return;
-        streamRef.current = stream;
-        setPreviewStream(stream);
-        if (videoElRef.current) {
-          videoElRef.current.srcObject = stream;
-          await videoElRef.current.play().catch(() => {});
-        }
+        attachPreviewStream(stream);
         setPhase("preview");
       } catch {
         setError("Could not switch camera.");
       }
     },
-    [mode, phase, cleanupStream, acquireStream, clearCountdown],
+    [mode, cleanupStream, acquireStream, clearCountdown, attachPreviewStream, swapCameraVideoTrack],
   );
 
   const selectAudioDevice = useCallback(
     async (nextAudioDeviceId: string) => {
-      if (mode !== "camera" || (phase !== "preview" && phase !== "countdown")) return;
+      const currentPhase = phaseRef.current;
+      if (!canChangeJournalVideoDevices(currentPhase)) return;
       clearCountdown();
       setAudioDeviceId(nextAudioDeviceId);
       audioDeviceIdRef.current = nextAudioDeviceId;
       setSettings((prev) => ({ ...prev, audioDeviceId: nextAudioDeviceId }));
+
+      if (mode === "screen") {
+        const session = compositeSessionRef.current;
+        if (!session?.usesCameraAudio) return;
+        try {
+          await session.replaceAudioInput(nextAudioDeviceId);
+          setPreviewStream(session.compositeStream);
+          if (isJournalVideoLiveCapture(currentPhase)) {
+            restartAudioSidecar();
+          }
+        } catch {
+          setError("Could not switch microphone.");
+        }
+        return;
+      }
+
+      if (mode !== "camera") return;
+
+      if (isJournalVideoLiveCapture(currentPhase)) {
+        try {
+          await swapCameraAudioTrack();
+        } catch {
+          setError("Could not switch microphone.");
+        }
+        return;
+      }
+
       const gen = ++openGenRef.current;
       try {
         cleanupStream();
         const stream = await acquireStream("camera", gen);
         if (!stream) return;
-        streamRef.current = stream;
-        setPreviewStream(stream);
-        if (videoElRef.current) {
-          videoElRef.current.srcObject = stream;
-          await videoElRef.current.play().catch(() => {});
-        }
+        attachPreviewStream(stream);
         setPhase("preview");
       } catch {
         setError("Could not switch microphone.");
       }
     },
-    [mode, phase, cleanupStream, acquireStream, clearCountdown],
+    [mode, cleanupStream, acquireStream, clearCountdown, attachPreviewStream, swapCameraAudioTrack, restartAudioSidecar],
   );
 
   const markChapter = useCallback(
@@ -841,6 +963,7 @@ export function useJournalVideoCapture(
     audioDeviceId,
     chapters,
     settings,
+    screenUsesCameraAudio,
     bindPreview,
     openPreview,
     beginCountdown,

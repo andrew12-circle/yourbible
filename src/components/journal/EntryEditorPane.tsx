@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
@@ -52,7 +52,11 @@ import { JournalSketchInline, partitionJournalPhotos } from "@/components/journa
 import { autosaveSketchPhoto } from "@/lib/journal/sketchPhotos";
 import { upsertSketchAndTranscribe } from "@/lib/journal/sketchTranscription";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
-import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
+import { entryFallbackTitle, shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
+import {
+  entryBodyHasSketchTranscription,
+  transcribeEntrySketchPaths,
+} from "@/lib/journal/sketchTranscription";
 import { useVideoJournalAutoTitle } from "@/hooks/useVideoJournalAutoTitle";
 import { JournalEntrySummaryBlock } from "@/components/journal/JournalEntrySummaryBlock";
 import {
@@ -161,6 +165,8 @@ export default function EntryEditorPane({
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const bottomDockRef = useRef<HTMLElement | null>(null);
   const entryInitialFocusRef = useRef<string | null>(null);
+  const sketchTranscribeAttemptedRef = useRef<string | null>(null);
+  const [transcribingSketch, setTranscribingSketch] = useState(false);
   const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
 
   useEffect(() => {
@@ -200,60 +206,6 @@ export default function EntryEditorPane({
     },
     [],
   );
-
-  // Load entry
-  useEffect(() => {
-    if (!entryId) {
-      setEntry(null);
-      setPhotos([]);
-      setLoadingEntry(false);
-      setEntryNotFound(false);
-      return;
-    }
-    let cancelled = false;
-    setLoadingEntry(true);
-    setEntryNotFound(false);
-    setEntry(null);
-    setPhotos([]);
-    setBodyEditing(false);
-    setBodyFocused(false);
-    (async () => {
-      let row: EntryRow | null = null;
-      try {
-        row = (await fetchJournalEntryDetail(entryId)) as EntryRow | null;
-      } catch (error) {
-        if (cancelled) return;
-        setLoadingEntry(false);
-        toast({
-          title: "Couldn't load entry",
-          description: error instanceof Error ? error.message : "Try again",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (cancelled) return;
-      if (!row) {
-        setLoadingEntry(false);
-        setEntryNotFound(true);
-        return;
-      }
-      setEntry(row);
-      setReplyWithAi(row.entry_kind === "chat");
-      setChatDraft("");
-      const { data: ph } = await supabase
-        .from("journal_photos")
-        .select("id,storage_path")
-        .eq("entry_id", entryId);
-      if (cancelled) return;
-      const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
-      if (cancelled) return;
-      setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
-      setLoadingEntry(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [entryId]);
 
   useEffect(() => {
     return () => dictateRef.current?.stop();
@@ -427,6 +379,136 @@ export default function EntryEditorPane({
       void flushSave({ silent: true });
     };
   }, [flushSave]);
+
+  // Load entry (after flushSave so we can persist the previous entry before switching).
+  useEffect(() => {
+    if (!entryId) {
+      setEntry(null);
+      setPhotos([]);
+      setLoadingEntry(false);
+      setEntryNotFound(false);
+      sketchTranscribeAttemptedRef.current = null;
+      return;
+    }
+
+    void flushSave({ silent: true });
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    pendingSaveRef.current = {};
+    saveGenerationRef.current += 1;
+    entryInitialFocusRef.current = null;
+    sketchTranscribeAttemptedRef.current = null;
+
+    let cancelled = false;
+    setLoadingEntry(true);
+    setEntryNotFound(false);
+    setEntry(null);
+    setPhotos([]);
+    setBodyEditing(false);
+    setBodyFocused(false);
+    (async () => {
+      let row: EntryRow | null = null;
+      try {
+        row = (await fetchJournalEntryDetail(entryId)) as EntryRow | null;
+      } catch (error) {
+        if (cancelled) return;
+        setLoadingEntry(false);
+        toast({
+          title: "Couldn't load entry",
+          description: error instanceof Error ? error.message : "Try again",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (cancelled) return;
+      if (!row) {
+        setLoadingEntry(false);
+        setEntryNotFound(true);
+        return;
+      }
+      const fallbackTitle = entryFallbackTitle(row.body, row.summary);
+      if (
+        !row.title?.trim() &&
+        fallbackTitle &&
+        !shouldSuggestJournalTitle(row.title, row.body, row.summary)
+      ) {
+        row = { ...row, title: fallbackTitle };
+      }
+      setEntry(row);
+      entryRef.current = row;
+      setReplyWithAi(row.entry_kind === "chat");
+      setChatDraft("");
+      if (shouldSuggestJournalTitle(row.title, row.body, row.summary)) {
+        scheduleTitleSuggestion(row);
+      }
+      const { data: ph } = await supabase
+        .from("journal_photos")
+        .select("id,storage_path")
+        .eq("entry_id", entryId);
+      if (cancelled) return;
+      const urls = await getSignedPhotoUrls((ph ?? []).map((p) => p.storage_path));
+      if (cancelled) return;
+      setPhotos((ph ?? []).map((p) => ({ ...p, url: urls[p.storage_path] })));
+      setLoadingEntry(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entryId, flushSave]);
+
+  const sketchStoragePaths = useMemo(() => {
+    const { sketches } = partitionJournalPhotos(photos);
+    return sketches.map((s) => s.storage_path);
+  }, [photos]);
+
+  const needsSketchTranscription =
+    !!entry &&
+    sketchStoragePaths.length > 0 &&
+    !entryBodyHasSketchTranscription(entry.body);
+
+  useEffect(() => {
+    if (!entry || !needsSketchTranscription || transcribingSketch) return;
+    if (sketchTranscribeAttemptedRef.current === entry.id) return;
+    sketchTranscribeAttemptedRef.current = entry.id;
+    setTranscribingSketch(true);
+    (async () => {
+      const tx = await transcribeEntrySketchPaths(entry.id, sketchStoragePaths);
+      setTranscribingSketch(false);
+      if (!tx.ok) {
+        toast({
+          title: "Couldn't read handwriting",
+          description: tx.error,
+          variant: "destructive",
+        });
+        sketchTranscribeAttemptedRef.current = null;
+        return;
+      }
+      if (tx.transcribed > 0 || tx.title || tx.body) {
+        const reloaded = await reloadEntryFromServer(entry.id);
+        if (reloaded) {
+          const withTitle =
+            !reloaded.title?.trim() && entryFallbackTitle(reloaded.body, reloaded.summary)
+              ? { ...reloaded, title: entryFallbackTitle(reloaded.body, reloaded.summary) }
+              : reloaded;
+          entryRef.current = withTitle as EntryRow;
+          setEntry(withTitle as EntryRow);
+          if (shouldSuggestJournalTitle(withTitle.title, withTitle.body, withTitle.summary)) {
+            scheduleTitleSuggestion(withTitle as EntryRow);
+          }
+        }
+        onChanged();
+      }
+    })();
+  }, [
+    entry,
+    needsSketchTranscription,
+    sketchStoragePaths,
+    transcribingSketch,
+    reloadEntryFromServer,
+    onChanged,
+  ]);
 
   const canReplyWithAi =
     !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
@@ -850,6 +932,7 @@ export default function EntryEditorPane({
   const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
 
   const { sketches: sketchPhotos, attachments: attachmentPhotos } = partitionJournalPhotos(photos);
+  const sketchAfterBody = sketchPhotos.length > 0;
 
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
@@ -1200,18 +1283,6 @@ export default function EntryEditorPane({
             />
           </div>
 
-          {!inlineChatMode && sketchPhotos.length > 0 ? (
-            <JournalSketchInline
-              sketches={sketchPhotos}
-              className="my-4"
-              onOpenSketch={() => {
-                dictateRef.current?.stop();
-                setSketchOpen(true);
-              }}
-              onRemove={removePhoto}
-            />
-          ) : null}
-
           {attachmentPhotos.length > 0 && !inlineChatMode && (
             <div className={`my-4 grid gap-2 ${attachmentPhotos.length === 1 ? "" : "grid-cols-2"}`}>
               {attachmentPhotos.map((p) => (
@@ -1280,11 +1351,11 @@ export default function EntryEditorPane({
             )
           ) : (
             <>
-              {!inlineChatMode && (entry.summary?.trim() || videoSummarizing || videos.length > 0) ? (
+              {!inlineChatMode && (entry.summary?.trim() || videoSummarizing || videos.length > 0 || transcribingSketch) ? (
                 <JournalEntrySummaryBlock
                   summary={entry.summary ?? ""}
                   onSummaryChange={(next) => queueSaveRef.current({ summary: next || null })}
-                  summarizing={videoSummarizing}
+                  summarizing={videoSummarizing || transcribingSketch}
                   alwaysShow={videos.length > 0}
                   showFullTextLabel={Boolean(entry.summary?.trim())}
                   className="mb-4"
@@ -1319,7 +1390,7 @@ export default function EntryEditorPane({
                   <div
                     className={cn(
                       "relative",
-                      plainWriteLayout && !bodyFocused && "flex min-h-0 flex-1 flex-col",
+                      plainWriteLayout && !bodyFocused && !sketchAfterBody && "flex min-h-0 flex-1 flex-col",
                     )}
                   >
                     <PolishedTextarea
@@ -1342,16 +1413,24 @@ export default function EntryEditorPane({
                         bodyMarkers.dismissMarkerMenu();
                         setBodyFocused(false);
                       }}
-                      placeholder="What happened today? Type #tag or @journal name to organize."
+                      placeholder={
+                        transcribingSketch
+                          ? "Reading your handwritten note…"
+                          : "What happened today? Type #tag or @journal name to organize."
+                      }
                       wrapperClassName={
-                        plainWriteLayout && !bodyFocused ? "flex min-h-0 flex-1 flex-col" : undefined
+                        plainWriteLayout && !bodyFocused && !sketchAfterBody
+                          ? "flex min-h-0 flex-1 flex-col"
+                          : undefined
                       }
                       className={cn(
                         journalPlainWriteFieldClass,
                         plainWriteLayout &&
                           (bodyFocused
                             ? "min-h-0"
-                            : "max-h-full min-h-0 flex-1 overflow-y-auto"),
+                            : sketchAfterBody
+                              ? "min-h-[8rem]"
+                              : "max-h-full min-h-0 flex-1 overflow-y-auto"),
                       )}
                     />
                     <JournalMarkerMenu
@@ -1373,8 +1452,25 @@ export default function EntryEditorPane({
                       Formatting dictation…
                     </p>
                   ) : null}
+                  {transcribingSketch ? (
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      Reading your handwritten note…
+                    </p>
+                  ) : null}
                 </>
               )}
+              {!inlineChatMode && sketchPhotos.length > 0 ? (
+                <JournalSketchInline
+                  sketches={sketchPhotos}
+                  className="my-4"
+                  onOpenSketch={() => {
+                    dictateRef.current?.stop();
+                    setSketchOpen(true);
+                  }}
+                  onRemove={removePhoto}
+                />
+              ) : null}
               {chatTurns.length > 0 ? (
                 <JournalLiveChatCollapsible
                   turns={chatTurns}

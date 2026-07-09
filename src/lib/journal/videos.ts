@@ -187,6 +187,30 @@ export function buildJournalVideoConstraints(
   };
 }
 
+export type MediaStreamTrackKind = "video" | "audio";
+
+/** Swap live tracks on a stream without recreating the MediaStream (keeps MediaRecorder attached). */
+export function replaceMediaStreamTracks(
+  target: MediaStream,
+  donor: MediaStream,
+  kinds: MediaStreamTrackKind[],
+): void {
+  for (const kind of kinds) {
+    const oldTracks = kind === "video" ? target.getVideoTracks() : target.getAudioTracks();
+    const newTracks = kind === "video" ? donor.getVideoTracks() : donor.getAudioTracks();
+    for (const track of oldTracks) {
+      target.removeTrack(track);
+      track.stop();
+    }
+    for (const track of newTracks) {
+      target.addTrack(track);
+    }
+  }
+  for (const track of donor.getTracks()) {
+    if (!target.getTracks().includes(track)) track.stop();
+  }
+}
+
 /** Tighten an acquired stream (iOS often ignores initial constraints). */
 export async function tuneJournalVideoStream(
   stream: MediaStream,

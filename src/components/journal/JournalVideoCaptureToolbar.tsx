@@ -115,7 +115,7 @@ export function JournalVideoCaptureToolbar({
   const micMeterActive =
     capture.phase === "preview" || capture.phase === "countdown" || capture.phase === "recording";
   const micLevel = useMicLevel(capture.previewStream, micMeterActive);
-  const settingsLocked = capture.phase === "recording" || capture.phase === "paused";
+  const qualityLocked = capture.phase === "recording" || capture.phase === "paused";
   const showCountdown = capture.phase === "countdown";
   const showPreviewStart = capture.phase === "preview" && countdownDeferred && !processing;
 
@@ -166,7 +166,8 @@ export function JournalVideoCaptureToolbar({
   };
 
   const menuClass = menuElevated ? "z-[110]" : undefined;
-  const showCameraControls = capture.mode === "camera";
+  const showCameraPicker = videoDevices.length > 1;
+  const showCameraControls = capture.mode === "camera" || capture.mode === "screen";
   const showScreenControls = capture.mode === "screen";
 
   return (
@@ -226,11 +227,10 @@ export function JournalVideoCaptureToolbar({
               <SmartBarIconButton
                 label="Flip camera"
                 onClick={() => void capture.switchFacing()}
-                disabled={settingsLocked}
               >
                 <FlipHorizontal className="h-4 w-4" />
               </SmartBarIconButton>
-            ) : videoDevices.length > 1 ? (
+            ) : showCameraPicker ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -238,10 +238,9 @@ export function JournalVideoCaptureToolbar({
                     size="sm"
                     variant="ghost"
                     className="h-9 max-w-[128px] shrink-0 gap-1 rounded-full px-2.5 text-xs text-white hover:bg-white/20 hover:text-white disabled:opacity-40"
-                    disabled={settingsLocked}
                   >
                     <Camera className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">Webcam</span>
+                    <span className="truncate">{capture.mode === "screen" ? "Bubble cam" : "Webcam"}</span>
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -260,7 +259,7 @@ export function JournalVideoCaptureToolbar({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <SmartBarIconButton label="Webcam" disabled={settingsLocked}>
+              <SmartBarIconButton label="Webcam">
                 <Camera className="h-4 w-4" />
               </SmartBarIconButton>
             )}
@@ -325,7 +324,7 @@ export function JournalVideoCaptureToolbar({
         ) : null}
       </div>
 
-      {!settingsLocked ? (
+      {!qualityLocked ? (
         <>
           <SmartBarDivider />
           <div className="flex shrink-0 items-center gap-0.5">
@@ -380,31 +379,42 @@ export function JournalVideoCaptureToolbar({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SmartBarIconButton label="Recording settings" disabled={settingsLocked}>
+          <SmartBarIconButton label="Recording settings">
             <Settings2 className="h-4 w-4" />
           </SmartBarIconButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className={cn("max-h-[min(70vh,28rem)] overflow-y-auto", menuClass)}>
-          <DropdownMenuLabel>Quality</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={capture.settings.quality}
-            onValueChange={(v) => persist({ quality: v as JournalVideoQuality })}
-          >
-            <DropdownMenuRadioItem value="720p">720p HD</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="1080p">1080p Full HD</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Countdown</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={String(capture.settings.countdown)}
-            onValueChange={(v) => persist({ countdown: Number(v) as JournalVideoCountdown })}
-          >
-            <DropdownMenuRadioItem value="0">None — start immediately</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="1">1 second</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="3">3 seconds</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="5">5 seconds</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-          {!isMobile && audioDevices.length > 0 ? (
+          {!qualityLocked ? (
+            <>
+              <DropdownMenuLabel>Quality</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={capture.settings.quality}
+                onValueChange={(v) => persist({ quality: v as JournalVideoQuality })}
+              >
+                <DropdownMenuRadioItem value="720p">720p HD</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="1080p">1080p Full HD</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Countdown</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={String(capture.settings.countdown)}
+                onValueChange={(v) => persist({ countdown: Number(v) as JournalVideoCountdown })}
+              >
+                <DropdownMenuRadioItem value="0">None — start immediately</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="1">1 second</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="3">3 seconds</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="5">5 seconds</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </>
+          ) : (
+            <>
+              <DropdownMenuLabel>While recording</DropdownMenuLabel>
+              <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">
+                Switch camera or microphone below. Quality and countdown apply on your next recording.
+              </p>
+            </>
+          )}
+          {audioDevices.length > 0 && capture.screenUsesCameraAudio ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="flex items-center gap-1.5">
@@ -435,7 +445,7 @@ export function JournalVideoCaptureToolbar({
               </DropdownMenuRadioGroup>
             </>
           ) : null}
-          {!isMobile ? (
+          {!isMobile && !qualityLocked ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Desktop</DropdownMenuLabel>

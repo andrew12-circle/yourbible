@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
+import { JournalVideoAudioCheckOverlay } from "@/components/journal/JournalVideoAudioCheckOverlay";
 import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
 import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
 import { JournalVideoPausedOverlay, type JournalVideoPauseReason } from "@/components/journal/JournalVideoPausedOverlay";
@@ -26,6 +27,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSilenceAutoPause } from "@/hooks/useSilenceAutoPause";
 import { useMicLevel } from "@/hooks/useMicLevel";
+import { useJournalVideoAudioCheck } from "@/hooks/useJournalVideoAudioCheck";
 import { screenCaptureSupported } from "@/lib/journal/screenRecordingComposite";
 import { JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS } from "@/lib/journal/journalVideoCaptureSettings";
 import {
@@ -141,6 +143,11 @@ export default function JournalVideoCaptureDialog({
   resumeRecordingRef.current = capture.resumeRecording;
 
   const micLevel = useMicLevel(capture.previewStream, capture.phase === "recording" || capture.phase === "preview" || capture.phase === "countdown");
+  const previewHasAudio = (capture.previewStream?.getAudioTracks().length ?? 0) > 0;
+  const audioCheckActive = capture.phase === "preview" && previewHasAudio && !countdownDeferred;
+  const audioCheck = useJournalVideoAudioCheck(micLevel, audioCheckActive);
+  const { passed: audioCheckPassed, markPassed: markAudioCheckPassed, reset: resetAudioCheck } =
+    audioCheck;
   useSilenceAutoPause({
     enabled:
       capture.settings.silenceAutoPause &&
@@ -202,17 +209,30 @@ export default function JournalVideoCaptureDialog({
   }, [open, pickMode, pendingReview]);
 
   useEffect(() => {
+    if (!open) {
+      resetAudioCheck();
+    }
+  }, [open, resetAudioCheck]);
+
+  useEffect(() => {
+    if (capture.phase === "preview" && capture.previewStream && !previewHasAudio) {
+      markAudioCheckPassed();
+    }
+  }, [capture.phase, capture.previewStream, previewHasAudio, markAudioCheckPassed]);
+
+  useEffect(() => {
     if (
       capture.phase === "preview" &&
       !countdownStartedRef.current &&
       !countdownDeferred &&
+      audioCheckPassed &&
       pickMode &&
       !pendingReview
     ) {
       countdownStartedRef.current = true;
       beginCountdownRef.current();
     }
-  }, [capture.phase, pickMode, pendingReview, countdownDeferred]);
+  }, [capture.phase, pickMode, pendingReview, countdownDeferred, audioCheckPassed]);
 
   const recordingStartHandledRef = useRef(false);
 
@@ -266,6 +286,7 @@ export default function JournalVideoCaptureDialog({
     setPendingReview(null);
     setCountdownDeferred(false);
     countdownStartedRef.current = false;
+    resetAudioCheck();
     void capture.openPreview(pickMode ?? defaultMode ?? "camera");
   };
 
@@ -282,6 +303,8 @@ export default function JournalVideoCaptureDialog({
   const processing = capture.phase === "processing" || uploading || transcribing;
   const ready = capture.phase === "preview" || capture.phase === "countdown" || active;
   const starting = open && pickMode !== null && capture.phase === "idle" && !capture.error;
+  const showAudioCheck =
+    capture.phase === "preview" && previewHasAudio && !audioCheckPassed && !countdownDeferred;
   const showCountdown = capture.phase === "countdown" && capture.countdown != null;
   const showPicker =
     open && pickMode === null && !processing && !pendingReview && !isMobile && !defaultMode;
@@ -328,6 +351,14 @@ export default function JournalVideoCaptureDialog({
             {pickMode === "screen" ? "Choose what to share…" : "Connecting camera…"}
           </p>
         </div>
+      ) : null}
+
+      {showAudioCheck ? (
+        <JournalVideoAudioCheckOverlay
+          level={micLevel}
+          detected={audioCheckPassed}
+          onContinue={markAudioCheckPassed}
+        />
       ) : null}
 
       {showCountdown ? (
@@ -463,7 +494,9 @@ export default function JournalVideoCaptureDialog({
                 : isScreen
                   ? "Your screen is recording with your camera in the corner."
                   : "Talk naturally. Tap pause if you need a moment."
-            : showCountdown
+              : showAudioCheck
+                ? "Say test, test to confirm your mic, or tap Continue."
+              : showCountdown
               ? "Get ready… tap the screen to pause, or tap Start now."
               : countdownDeferred
                 ? "Adjust webcam and mic, then tap Start countdown."

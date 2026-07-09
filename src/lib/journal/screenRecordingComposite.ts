@@ -1,6 +1,7 @@
 import {
   buildJournalVideoConstraints,
   type JournalVideoConstraintOptions,
+  replaceMediaStreamTracks,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
 import type { BubbleCorner, BubbleSize } from "@/lib/journal/journalVideoCaptureSettings";
@@ -29,6 +30,11 @@ export type ScreenCompositeSession = {
   compositeStream: MediaStream;
   stop: () => void;
   setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
+  /** Hot-swap the webcam bubble feed (preview or during recording). */
+  replaceCameraInput: (cameraOptions?: JournalVideoConstraintOptions) => Promise<void>;
+  /** Hot-swap mic when composite uses camera audio (not system audio). */
+  replaceAudioInput: (audioDeviceId: string) => Promise<void>;
+  usesCameraAudio: boolean;
 };
 
 export function screenCaptureSupported(): boolean {
@@ -220,11 +226,39 @@ export async function createScreenCompositeSession(
     cameraVideo.srcObject = null;
   };
 
+  const replaceCompositeAudioTrack = (nextTrack: MediaStreamTrack) => {
+    for (const track of compositeStream.getAudioTracks()) {
+      compositeStream.removeTrack(track);
+      track.stop();
+    }
+    compositeStream.addTrack(nextTrack);
+  };
+
   return {
     compositeStream,
+    usesCameraAudio: !screenHasAudio,
     stop,
     setBubbleLayout: (patch) => {
       bubbleLayoutState = { ...bubbleLayoutState, ...patch };
+    },
+    replaceCameraInput: async (cameraOptions = {}) => {
+      const next = await navigator.mediaDevices.getUserMedia({
+        video: buildJournalVideoConstraints(cameraOptions).video ?? true,
+        audio: false,
+      });
+      await tuneJournalVideoStream(next, cameraOptions.quality);
+      replaceMediaStreamTracks(cameraStream, next, ["video"]);
+      await cameraVideo.play().catch(() => {});
+    },
+    replaceAudioInput: async (audioDeviceId: string) => {
+      if (screenHasAudio) return;
+      const next = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: audioDeviceId } },
+        video: false,
+      });
+      replaceMediaStreamTracks(cameraStream, next, ["audio"]);
+      const audioTrack = cameraStream.getAudioTracks()[0];
+      if (audioTrack) replaceCompositeAudioTrack(audioTrack);
     },
   };
 }
