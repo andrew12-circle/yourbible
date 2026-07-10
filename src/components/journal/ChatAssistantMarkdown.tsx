@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ChatCompileTokens from "@/components/journal/ChatCompileTokens";
 import { prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
 import PrayerScroll from "@/components/prayer/PrayerScroll";
 import { cn } from "@/lib/utils";
@@ -77,24 +78,18 @@ type Props = {
   streaming?: boolean;
 };
 
-function StreamCursor() {
-  return (
-    <span
-      className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-pulse bg-foreground/75 align-baseline"
-      aria-hidden
-    />
-  );
-}
-
 /** My AI + journal chat assistant replies — ChatGPT-style block spacing. */
 export default function ChatAssistantMarkdown({ content, className, streaming = false }: Props) {
   if (streaming) {
+    const hasContent = content.length > 0;
     return (
       <div className={cn(CHAT_ASSISTANT_MARKDOWN_CLASS, "min-w-0 overflow-x-hidden", className)}>
-        <p className="m-0 whitespace-pre-wrap break-words text-[15px] leading-[1.9] text-foreground [overflow-wrap:anywhere]">
-          {content}
-          <StreamCursor />
-        </p>
+        {hasContent ? (
+          <p className="m-0 whitespace-pre-wrap break-words text-[15px] leading-[1.9] text-foreground [overflow-wrap:anywhere]">
+            {content}
+          </p>
+        ) : null}
+        <ChatCompileTokens compact={hasContent} className={hasContent ? "mt-2" : undefined} />
       </div>
     );
   }

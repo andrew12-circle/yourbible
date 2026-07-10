@@ -32,6 +32,7 @@ import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ResponseDepthControl from "@/components/journal/ResponseDepthControl";
 import ChatAssistantMarkdown from "@/components/journal/ChatAssistantMarkdown";
+import ChatCompileTokens from "@/components/journal/ChatCompileTokens";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
 import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
 import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
@@ -304,17 +305,7 @@ function CognitiveStateDialog({
 }
 
 function TypingDots() {
-  return (
-    <span className="inline-flex items-center gap-1 py-1" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-pulse"
-          style={{ animationDelay: `${i * 160}ms` }}
-        />
-      ))}
-    </span>
-  );
+  return <ChatCompileTokens />;
 }
 
 export default function MyAiPage() {

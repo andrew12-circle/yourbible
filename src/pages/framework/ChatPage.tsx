@@ -32,6 +32,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import ChatCompileTokens from "@/components/journal/ChatCompileTokens";
 
 const LS_SIDEBAR = "framework_chat.sidebar_open";
 const FRAMEWORK_MODES = ["socratic", "devil", "pastor"] as const;
@@ -70,17 +71,7 @@ function readSidebarOpen(): boolean {
 }
 
 function TypingDots() {
-  return (
-    <span className="inline-flex items-center gap-1 py-1" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-pulse"
-          style={{ animationDelay: `${i * 160}ms` }}
-        />
-      ))}
-    </span>
-  );
+  return <ChatCompileTokens />;
 }
 
 export default function ChatPage() {

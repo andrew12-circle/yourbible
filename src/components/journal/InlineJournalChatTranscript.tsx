@@ -62,21 +62,6 @@ export default function InlineJournalChatTranscript({
           )}
         </div>
       ))}
-      {aiBusy && (
-        <div className="flex justify-start">
-          <div className="inline-flex items-center gap-1.5 px-1 py-1 text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
-            <span
-              className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
-              style={{ animationDelay: "120ms" }}
-            />
-            <span
-              className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
-              style={{ animationDelay: "240ms" }}
-            />
-          </div>
-        </div>
-      )}
       {dictInterim?.trim() ? (
         <p className="px-1 text-xs italic leading-relaxed text-muted-foreground/80" aria-live="polite">
           {dictInterim}

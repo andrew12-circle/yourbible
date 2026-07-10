@@ -105,6 +105,7 @@ function formatBlock(block: string): string {
   const trimmed = block.trim();
   if (!trimmed) return "";
   if (isBlockquoteMarkdownBlock(trimmed)) return trimmed;
+  if (looksLikeMarkdownBlock(trimmed)) return preserveMarkdownBlock(trimmed);
   if (trimmed.includes("\n")) {
     return trimmed
       .split("\n")
@@ -117,6 +118,7 @@ function formatBlock(block: string): string {
 }
 
 function formatSingleLine(line: string): string {
+  if (looksLikeMarkdownLine(line)) return line;
   const sentences = splitSentences(line);
   if (sentences.length >= 2) {
     return oneSentencePerParagraph(line);
@@ -125,6 +127,32 @@ function formatSingleLine(line: string): string {
     return oneSentencePerParagraph(line);
   }
   return line;
+}
+
+/** Keep lists, bold headings, and other markdown intact (no sentence splitting). */
+function looksLikeMarkdownLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  return (
+    /\*\*/.test(trimmed) ||
+    /^[-*+•]\s/.test(trimmed) ||
+    /^\d+\.\s/.test(trimmed) ||
+    /^#{1,6}\s/.test(trimmed) ||
+    /^>\s/.test(trimmed)
+  );
+}
+
+function looksLikeMarkdownBlock(text: string): boolean {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  return lines.some(looksLikeMarkdownLine);
+}
+
+function preserveMarkdownBlock(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** ChatGPT-style: one sentence per paragraph so each line breathes. */

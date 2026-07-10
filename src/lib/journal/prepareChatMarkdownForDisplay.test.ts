@@ -65,4 +65,19 @@ describe("prepareChatMarkdownForDisplay", () => {
     const out = prepareChatMarkdownForDisplay(raw);
     expect(out).toContain("\n\nAs you think");
   });
+
+  it("preserves bold numbered sections without splitting asterisks", () => {
+    const raw =
+      "**1. Water. Bathroom. Brush teeth.**\n\n**2. Get dressed. Eat breakfast.**";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toContain("**1. Water. Bathroom. Brush teeth.**");
+    expect(out).toContain("**2. Get dressed. Eat breakfast.**");
+    expect(out).not.toMatch(/\*\*1\.\n\n/);
+  });
+
+  it("preserves multiline bullet lists without breaking list markers", () => {
+    const raw = "- Water.\n- Bathroom.\n- Brush teeth.";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toBe("- Water.\n- Bathroom.\n- Brush teeth.");
+  });
 });

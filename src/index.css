@@ -2732,3 +2732,43 @@ body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
     opacity: 1;
   }
 }
+
+/* Chat compile tokens — journal → artifacts → AI while thinking */
+@keyframes chat-compile-shimmer-sweep {
+  0% { transform: translateX(0); opacity: 0; }
+  20% { opacity: 0.85; }
+  100% { transform: translateX(220%); opacity: 0; }
+}
+
+@keyframes chat-compile-token-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 1px 3px hsl(24 18% 14% / 0.08);
+  }
+  12% {
+    transform: scale(1.14) translateY(-1px);
+    box-shadow:
+      0 4px 14px hsl(38 58% 52% / 0.28),
+      0 0 0 2px hsl(38 58% 52% / 0.12);
+  }
+  24% {
+    transform: scale(1);
+    box-shadow: 0 1px 3px hsl(24 18% 14% / 0.08);
+  }
+}
+
+.chat-compile-token {
+  animation: chat-compile-token-pulse 2.4s ease-in-out infinite;
+}
+
+.chat-compile-shimmer-sweep {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.15) 42%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0.15) 58%,
+    transparent 65%
+  );
+  animation: chat-compile-shimmer-sweep 2.4s ease-in-out infinite;
+}
