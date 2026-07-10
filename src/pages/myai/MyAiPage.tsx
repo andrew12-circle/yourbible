@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   Brain,
+  Database,
   Loader2,
   Menu,
   PanelLeft,
@@ -36,6 +37,7 @@ import ChatCompileTokens from "@/components/journal/ChatCompileTokens";
 import ChatMessageActions from "@/components/journal/ChatMessageActions";
 import ChatSourceAttribution from "@/components/journal/ChatSourceAttribution";
 import ChatOpeningBlessing from "@/components/journal/ChatOpeningBlessing";
+import LibraryIndexDialog from "@/components/framework/LibraryIndexDialog";
 import { chatTitleFromFirstMessage } from "@/lib/myai/chatTitle";
 import { streamMyAiChat, type MyAiChatCitation } from "@/lib/myai/invokeMyAiChat";
 import type { MyAiResearchScope } from "@/lib/myai/researchScope";
@@ -341,6 +343,7 @@ export default function MyAiPage() {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
+  const [indexOpen, setIndexOpen] = useState(false);
   const [savingJournal, setSavingJournal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -822,6 +825,7 @@ export default function MyAiPage() {
       style={mobileKeyboardPageStyle}
     >
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
+      <LibraryIndexDialog open={indexOpen} onOpenChange={setIndexOpen} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {sidebarOpen && !isMobile && (
@@ -941,7 +945,19 @@ export default function MyAiPage() {
                         onCheckedChange={setVoiceReplies}
                       />
                     </div>
-                    <div className="border-t border-border/60 pt-2">
+                    <div className="border-t border-border/60 pt-2 space-y-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-10 w-full justify-start gap-2 px-2 text-sm font-normal"
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          setIndexOpen(true);
+                        }}
+                      >
+                        <Database className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        Library search index
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"

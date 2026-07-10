@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LayoutGrid, List, Plus, Radio, Search } from "lucide-react";
+import { Database, LayoutGrid, List, Plus, Radio, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ interface LibraryToolbarProps {
   category: LibraryCategoryId;
   onCategoryChange: (c: LibraryCategoryId) => void;
   showNewArtifact?: boolean;
+  onOpenIndex?: () => void;
 }
 
 export function LibraryToolbar({
@@ -28,6 +29,7 @@ export function LibraryToolbar({
   category,
   onCategoryChange,
   showNewArtifact = false,
+  onOpenIndex,
 }: LibraryToolbarProps) {
   return (
     <div className="space-y-4">
@@ -101,6 +103,18 @@ export function LibraryToolbar({
             <option value="az">A–Z</option>
             <option value="source">Source</option>
           </select>
+          {onOpenIndex ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="default"
+              className="h-10 rounded-xl shadow-sm"
+              onClick={onOpenIndex}
+            >
+              <Database className="mr-2 h-4 w-4" aria-hidden />
+              Search index
+            </Button>
+          ) : null}
           {showNewArtifact ? (
             <>
               <Button asChild variant="secondary" size="default" className="h-10 rounded-xl font-semibold shadow-sm">

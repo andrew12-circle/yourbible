@@ -7,11 +7,11 @@ export const LUMEN_WELCOME_EXPLAINER_LEAD =
 export const LUMEN_WELCOME_DIFFERENTIATORS = [
   {
     title: "It remembers your whole story",
-    body: "Every chat builds on the last. Lumen sees your journals, artifacts, prayers, beliefs, and influences—full context, always.",
+    body: "Every chat builds on your beliefs, journals, and mind map — the framework you marked as true — then connects what speakers said back to that.",
   },
   {
     title: "Think inward first",
-    body: "Reason through faith, doubt, and life using what you have already saved—without outside noise unless you choose it.",
+    body: "Your recorded beliefs and journals anchor every reply. Videos and podcasts are lenses compared against your framework, not generic advice.",
   },
   {
     title: "Open the window when you want",

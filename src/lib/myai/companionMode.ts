@@ -13,12 +13,12 @@ export const MY_AI_COMPANION_MODE_LABELS: Record<MyAiCompanionMode, string> = {
 };
 
 export const MY_AI_COMPANION_MODE_HINTS: Record<MyAiCompanionMode, string> = {
-  chatgpt: "Smart, thorough answers first — your library enriches when relevant",
-  inward: "Your saved library first — general knowledge only when needed",
+  chatgpt: "Smart, thorough answers — still grounded in your beliefs and journals when relevant",
+  inward: "Your beliefs, journals, and mind map first — speakers and library second",
 };
 
 export function readCompanionModeSetting(
-  fallback: MyAiCompanionMode = "chatgpt",
+  fallback: MyAiCompanionMode = "inward",
 ): MyAiCompanionMode {
   if (typeof window === "undefined") return fallback;
   const v = localStorage.getItem(MY_AI_COMPANION_MODE_STORAGE_KEY);

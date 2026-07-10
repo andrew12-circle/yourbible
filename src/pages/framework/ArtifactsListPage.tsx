@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { Layers, Plus, Upload } from "lucide-react";
+import LibraryIndexDialog from "@/components/framework/LibraryIndexDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -43,6 +44,7 @@ export default function ArtifactsListPage() {
   const [sortKey, setSortKey] = useState<LibrarySortKey>(() => readLibrarySortKey());
   const [category, setCategory] = useState<LibraryCategoryId>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [indexOpen, setIndexOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -251,6 +253,7 @@ export default function ArtifactsListPage() {
       category={category}
       onCategoryChange={setCategory}
       showNewArtifact
+      onOpenIndex={() => setIndexOpen(true)}
     />
   );
 
@@ -439,6 +442,7 @@ export default function ArtifactsListPage() {
           )}
         </>
       )}
+      <LibraryIndexDialog open={indexOpen} onOpenChange={setIndexOpen} />
     </FrameworkLayout>
   );
 }

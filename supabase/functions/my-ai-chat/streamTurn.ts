@@ -6,7 +6,7 @@ import {
   buildJournalReflectionStreamSystemPrompt,
   buildMyAiStreamSystemPrompt,
 } from "./systemPrompt.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, type RetrievalOptions } from "./retrieval.ts";
 import type { ResolvedResponseDepth } from "./responseDepth.ts";
 import type { MyAiCompanionMode } from "./systemPrompt.ts";
 import { finalizeChatCitations } from "./enrichCitations.ts";
@@ -101,7 +101,7 @@ export type StreamTurnParams = {
   skipUserInsert: boolean;
   excludeJournal: string | null;
   journalReflectionBlock?: string | null;
-  librarySearch?: boolean;
+  retrievalOptions?: RetrievalOptions;
   companionMode?: MyAiCompanionMode;
   corsHeaders: Record<string, string>;
 };
@@ -119,7 +119,7 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
     skipUserInsert,
     excludeJournal,
     journalReflectionBlock,
-    librarySearch,
+    retrievalOptions,
     companionMode = "chatgpt",
     corsHeaders,
   } = params;
@@ -137,9 +137,7 @@ export function createStreamingChatResponse(params: StreamTurnParams): Response 
         controller.enqueue(encoder.encode(": connected\n\n"));
 
         const [contextPack, partnerAppendix] = await Promise.all([
-          buildFrameworkRetrievalContext(supabase, userId, chatId, message, excludeJournal, {
-            librarySearch,
-          }),
+          buildFrameworkRetrievalContext(supabase, userId, chatId, message, excludeJournal, retrievalOptions),
           buildPartnerWalkingAppendixForAi(supabase, userId),
         ]);
 

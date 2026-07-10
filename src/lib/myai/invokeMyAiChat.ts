@@ -29,6 +29,9 @@ export type MyAiChatRequestBody = {
   journal_bootstrap_transcript_excerpt?: string | null;
   /** Deep inward search — videos, claims, transcripts, library inventory. */
   research_scope?: "library" | "outside" | "web";
+  /** Pin one artifact so retrieval prioritizes it (e.g. opened from artifact detail). */
+  context_artifact_id?: string;
+  context_transcript_excerpt?: string | null;
   /** chatgpt (default) | inward — ChatGPT-first vs library-first companion. */
   companion_mode?: "chatgpt" | "inward";
 };

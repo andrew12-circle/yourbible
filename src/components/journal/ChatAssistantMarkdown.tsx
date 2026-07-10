@@ -2,8 +2,9 @@ import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChatCompileTokens from "@/components/journal/ChatCompileTokens";
+import ChatPrayerBiblePage from "@/components/journal/ChatPrayerBiblePage";
 import { prepareChatMarkdownForDisplay } from "@/lib/journal/prepareChatMarkdownForDisplay";
-import PrayerScroll from "@/components/prayer/PrayerScroll";
+import { extractMarkdownText } from "@/lib/journal/parseChatPrayer";
 import { cn } from "@/lib/utils";
 
 export const CHAT_ASSISTANT_MARKDOWN_CLASS = "chat-assistant-markdown";
@@ -21,14 +22,10 @@ const markdownComponents: Components = {
   ),
   li: ({ children }) => <li className="pl-0.5">{children}</li>,
   blockquote: ({ children }) => (
-    <PrayerScroll
-      as="div"
-      variant="chat"
+    <ChatPrayerBiblePage
+      text={extractMarkdownText(children)}
       className={BLOCK_GAP}
-      bodyClassName="[&>p]:prayer-scroll-text [&>p]:!m-0 [&>p+p]:!mt-3"
-    >
-      {children}
-    </PrayerScroll>
+    />
   ),
   hr: () => <hr className={cn("border-border/60", BLOCK_GAP)} />,
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
@@ -89,7 +86,7 @@ export default function ChatAssistantMarkdown({ content, className, streaming = 
             {content}
           </p>
         ) : null}
-        <ChatCompileTokens compact={hasContent} className={hasContent ? "mt-2" : undefined} />
+        {!hasContent ? <ChatCompileTokens /> : null}
       </div>
     );
   }

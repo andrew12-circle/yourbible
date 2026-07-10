@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
 import { buildClaimChatWebBlock, isExternalWebSearchConfigured } from "../_shared/researchPackCore.ts";
-import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi } from "./retrieval.ts";
+import { buildFrameworkRetrievalContext, buildPartnerWalkingAppendixForAi, type RetrievalOptions } from "./retrieval.ts";
 import { parseResponseDepthSetting, resolveResponseDepth, type ResolvedResponseDepth } from "./responseDepth.ts";
 import { titleFromFirstMessage, claimResearchTitleFromClaim } from "../_shared/chatTitle.ts";
 import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, buildJournalReflectionSystemPrompt, buildMyAiSystemPrompt, buildMyAiWebResearchSystemPrompt, parseCompanionMode, type MyAiCompanionMode } from "./systemPrompt.ts";
@@ -61,6 +61,9 @@ type RequestBody = {
   companion_mode?: "chatgpt" | "inward";
   /** Per-turn inward/outward mode from My AI composer chips. */
   research_scope?: "library" | "outside" | "web";
+  /** Pin one artifact for retrieval (e.g. opened from artifact detail). */
+  context_artifact_id?: string | null;
+  context_transcript_excerpt?: string | null;
 };
 
 const BRACKET_CITATION_RE = /\[(?:artifact|journal|belief|entity|influence|tension):[0-9a-f-]{36}\]/i;
@@ -78,6 +81,23 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function parseRetrievalOptionsFromBody(
+  body: RequestBody,
+  librarySearch: boolean,
+  companionMode: MyAiCompanionMode,
+): RetrievalOptions {
+  const pinnedRaw = typeof body.context_artifact_id === "string" ? body.context_artifact_id.trim() : "";
+  const pinnedArtifactId = /^[0-9a-f-]{36}$/i.test(pinnedRaw) ? pinnedRaw : null;
+  const excerptRaw = body.context_transcript_excerpt;
+  const pinnedTranscriptExcerpt =
+    typeof excerptRaw === "string" && excerptRaw.trim() ? excerptRaw.trim().slice(0, 4000) : null;
+  return {
+    librarySearch: librarySearch || companionMode === "inward",
+    pinnedArtifactId,
+    pinnedTranscriptExcerpt,
+  };
 }
 
 function sanitizeSectionBody(body: string): string {
@@ -1022,12 +1042,18 @@ Deno.serve(async (req) => {
           "(The user opened research on a hard theological question they chose — see \"Session focus\" above. No user message yet. Write a concise warm opener: restate the question briefly, honor that it is genuinely difficult, invite them to name what feels most threatening or unresolved, and offer to explore scripture, opposing views, and honest synthesis. End with ONE clear question. Do not preach or give a final answer yet.)";
       }
 
+      const bootstrapRetrieval = parseRetrievalOptionsFromBody(
+        body,
+        true,
+        journalEntryId ? "inward" : parseCompanionMode(body.companion_mode, false),
+      );
       const contextPack = await buildFrameworkRetrievalContext(
         supabase,
         userId,
         chatId,
         openerSeed + "\n" + claimFocusBlock,
         journalEntryId,
+        bootstrapRetrieval,
       );
       const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
       const packClaimId = claimBootstrap ||
@@ -1388,6 +1414,8 @@ Deno.serve(async (req) => {
       includeGeneral = true;
     }
 
+    const retrievalOptions = parseRetrievalOptionsFromBody(body, librarySearch, effectiveCompanionMode);
+
     const useStream = body.stream !== false && !chatUseWeb && !claimPackId;
 
     let journalReflectionBlock: string | null = null;
@@ -1410,7 +1438,7 @@ Deno.serve(async (req) => {
         skipUserInsert,
         excludeJournal,
         journalReflectionBlock,
-        librarySearch,
+        retrievalOptions,
         companionMode: effectiveCompanionMode,
         corsHeaders,
       });
@@ -1425,7 +1453,7 @@ Deno.serve(async (req) => {
       chatId!,
       message,
       excludeJournal,
-      { librarySearch },
+      retrievalOptions,
     );
     const partnerAppendix = await buildPartnerWalkingAppendixForAi(supabase, userId);
     const researchPackBlock = claimPackId

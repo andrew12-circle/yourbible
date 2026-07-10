@@ -105,6 +105,9 @@ verify_jwt = true
 [functions.embed-row]
 verify_jwt = true
 
+[functions.framework-library-index]
+verify_jwt = true
+
 [functions.framework-youtube-channel-avatar]
 verify_jwt = true
 

@@ -81,9 +81,9 @@ function normalizeTransitionBreaks(text: string): string {
 
 function normalizeInlineLists(text: string): string {
   let out = text;
-  out = out.replace(/([.!?:])\s+(?=[-*•]\s)/g, "$1\n\n");
-  out = out.replace(/([.!?:])\s+(?=\d+\.\s)/g, "$1\n\n");
-  out = out.replace(/([.!?])\s+([-*•])\s+/g, "$1\n\n$2 ");
+  out = out.replace(/([.!?:])[ \t]+(?=[-*•]\s)/g, "$1\n\n");
+  out = out.replace(/([.!?:])[ \t]+(?=\d+\.\s)/g, "$1\n\n");
+  out = out.replace(/([.!?])[ \t]+([-*•])\s+/g, "$1\n\n$2 ");
   out = out.replace(/([.!?])\s+(?=\*\*[^*]+\*\*)/g, "$1\n\n");
   return out;
 }
