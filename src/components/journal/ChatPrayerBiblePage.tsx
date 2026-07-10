@@ -51,11 +51,11 @@ export default function ChatPrayerBiblePage({ text, className }: Props) {
   return (
     <figure className={cn("chat-prayer-bible", className)}>
       <div
-        className="chat-prayer-bible__cover reader-leather-cover leather-cover-surface"
+        className="chat-prayer-bible__cover leather-cover-surface"
         style={coverLeatherStyle(COVER_LEATHER.cordovan)}
       >
         <div className="chat-prayer-bible__frame">
-          <div className="chat-prayer-bible__paper bg-paper">
+          <div className="chat-prayer-bible__paper paper-texture">
             <PageStackEdge side="left" widthPx={14} />
             <div className="chat-prayer-bible__ribbons" aria-hidden>
               {DECOR_RIBBONS.map(({ color, offset }, index) => (
