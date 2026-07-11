@@ -25,6 +25,12 @@ export type MyAiChatRequestBody = {
   journal_bootstrap_reflection?: boolean;
   /** Chat about a saved journal entry without overwriting its body. */
   journal_reflection?: boolean;
+  /** Fresh journal entry text from the client (avoids stale DB reads during reflection bootstrap). */
+  journal_reflection_entry?: {
+    title?: string | null;
+    summary?: string | null;
+    body?: string | null;
+  };
   journal_bootstrap_artifact_claim_id?: string;
   journal_bootstrap_transcript_excerpt?: string | null;
   /** Deep inward search — videos, claims, transcripts, library inventory. */

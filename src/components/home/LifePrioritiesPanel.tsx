@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "@/hooks/use-toast";
+import { syncHabitFrameworkTemplate } from "@/lib/habits/api";
 import {
   addMinutesToday,
   archivePriority,
@@ -185,7 +186,7 @@ export function LifePrioritiesManageSheet({
       <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-2xl">
         <SheetHeader className="text-left space-y-1">
           <SheetTitle>Priorities</SheetTitle>
-          <SheetDescription>Rename lanes, reorder what matters most, and set gentle time hints.</SheetDescription>
+          <SheetDescription>Abide → Build the temple → Family → Work. Rename lanes, reorder, and set gentle time hints.</SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6 pb-8">
@@ -302,6 +303,7 @@ export function LifePrioritiesPanel({ variant = "default" }: LifePrioritiesPanel
     setLoading(true);
     try {
       await ensureDefaults();
+      await syncHabitFrameworkTemplate().catch(() => undefined);
       const pri = await listPriorities(userId);
       setPriorities(pri);
       const start = weekDates[0];

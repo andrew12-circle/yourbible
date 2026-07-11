@@ -29,6 +29,7 @@ describe("buildMorningReviewJournalContent", () => {
         covering_note: "I cover my home and business in Your blood.",
         daily_assignment: {
           spiritual: "Read James 1 at lunch",
+          health: "Walk 20 minutes after lunch",
           family: "Finish closet",
           business: "Fix outage",
         },
@@ -68,6 +69,7 @@ describe("buildMorningReviewJournalContent", () => {
     expect(body).toContain("Salvation");
     expect(body).toContain("Seven figures");
     expect(body).toContain("Today's assignment");
+    expect(body).toContain("Walk 20 minutes");
     expect(body).toContain("Fix outage");
     expect(body).toContain("I am submitted to God.");
     expect(body).toContain("Walking into the office");

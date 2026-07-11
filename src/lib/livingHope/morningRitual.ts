@@ -4,9 +4,37 @@ import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 /** Connection-phase notes stored on `living_hope_reviews.connection_notes`. */
 export interface DailyAssignment {
   spiritual: string;
+  health: string;
   family: string;
   business: string;
 }
+
+export const DAILY_ASSIGNMENT_FIELDS: {
+  key: keyof DailyAssignment;
+  label: string;
+  placeholder: string;
+}[] = [
+  {
+    key: "spiritual",
+    label: "Abide — top 1 spiritual priority",
+    placeholder: "e.g. Read James 1 at lunch",
+  },
+  {
+    key: "health",
+    label: "Build the temple — steward your body",
+    placeholder: "e.g. Walk 20 min · bed by 10 · three real meals",
+  },
+  {
+    key: "family",
+    label: "Family — top 1 family priority",
+    placeholder: "e.g. Finish Caroline's closet",
+  },
+  {
+    key: "business",
+    label: "Work — top 1 work priority",
+    placeholder: "e.g. Fix the system outage",
+  },
+];
 
 export interface MorningConnectionNotes {
   worship_note?: string;
@@ -162,7 +190,17 @@ export type RitualStep =
   | { kind: "done" };
 
 export function emptyDailyAssignment(): DailyAssignment {
-  return { spiritual: "", family: "", business: "" };
+  return { spiritual: "", health: "", family: "", business: "" };
+}
+
+export function dailyAssignmentHasContent(assignment: DailyAssignment): boolean {
+  return DAILY_ASSIGNMENT_FIELDS.some((field) => assignment[field.key].trim().length > 0);
+}
+
+export function dailyAssignmentDisplayLabel(key: keyof DailyAssignment): string {
+  const field = DAILY_ASSIGNMENT_FIELDS.find((f) => f.key === key);
+  if (!field) return key;
+  return field.label.split(" — ")[0] ?? field.label;
 }
 
 export function emptyThanksgivingLists(): ThanksgivingLists {
@@ -245,6 +283,7 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
     const d = da as Record<string, unknown>;
     daily_assignment = {
       spiritual: String(d.spiritual ?? ""),
+      health: String(d.health ?? ""),
       family: String(d.family ?? ""),
       business: String(d.business ?? ""),
     };

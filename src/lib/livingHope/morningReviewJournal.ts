@@ -104,9 +104,10 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
 
   const assignment = ctx.connectionNotes?.daily_assignment;
   const assignmentLines: string[] = [];
-  if (assignment?.spiritual?.trim()) assignmentLines.push(`- **Spiritual:** ${assignment.spiritual.trim()}`);
+  if (assignment?.spiritual?.trim()) assignmentLines.push(`- **Abide:** ${assignment.spiritual.trim()}`);
+  if (assignment?.health?.trim()) assignmentLines.push(`- **Build the temple:** ${assignment.health.trim()}`);
   if (assignment?.family?.trim()) assignmentLines.push(`- **Family:** ${assignment.family.trim()}`);
-  if (assignment?.business?.trim()) assignmentLines.push(`- **Business:** ${assignment.business.trim()}`);
+  if (assignment?.business?.trim()) assignmentLines.push(`- **Work:** ${assignment.business.trim()}`);
 
   const routineLines =
     ctx.workbook?.routine

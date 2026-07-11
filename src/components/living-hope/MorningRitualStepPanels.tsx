@@ -11,6 +11,9 @@ import {
 } from "@/lib/livingHope/coveringPrayer";
 import {
   ASSIGNMENT_VS_GOALS_HINT,
+  DAILY_ASSIGNMENT_FIELDS,
+  dailyAssignmentDisplayLabel,
+  dailyAssignmentHasContent,
   MORNING_FORMULA_INTRO_FLOW,
   SCRIPTURE_QUESTIONS,
   SURRENDER_PRAYER_PROMPTS,
@@ -404,33 +407,17 @@ export function MorningRitualStepPanels({
         </p>
         <p className={cn(lh.footnote, "mb-4")}>{ASSIGNMENT_VS_GOALS_HINT}</p>
         <div className="space-y-4">
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 spiritual priority</label>
-            <Input
-              value={dailyAssignment.spiritual}
-              onChange={(e) => setDailyAssignment({ spiritual: e.target.value })}
-              className={lh.input}
-              placeholder="e.g. Read James 1 at lunch"
-            />
-          </div>
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 family priority</label>
-            <Input
-              value={dailyAssignment.family}
-              onChange={(e) => setDailyAssignment({ family: e.target.value })}
-              className={lh.input}
-              placeholder="e.g. Finish Caroline's closet"
-            />
-          </div>
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 business priority</label>
-            <Input
-              value={dailyAssignment.business}
-              onChange={(e) => setDailyAssignment({ business: e.target.value })}
-              className={lh.input}
-              placeholder="e.g. Fix the system outage"
-            />
-          </div>
+          {DAILY_ASSIGNMENT_FIELDS.map((field) => (
+            <div key={field.key}>
+              <label className={cn(lh.label, "mb-1 block")}>{field.label}</label>
+              <Input
+                value={dailyAssignment[field.key]}
+                onChange={(e) => setDailyAssignment({ [field.key]: e.target.value })}
+                className={lh.input}
+                placeholder={field.placeholder}
+              />
+            </div>
+          ))}
         </div>
       </>
     );
@@ -528,8 +515,7 @@ export function MorningRitualStepPanels({
   }
 
   if (step.kind === "done") {
-    const hasAssignment =
-      dailyAssignment.spiritual.trim() || dailyAssignment.family.trim() || dailyAssignment.business.trim();
+    const hasAssignment = dailyAssignmentHasContent(dailyAssignment);
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center">
         <div className={lh.iconBoxLg}>
@@ -542,21 +528,14 @@ export function MorningRitualStepPanels({
         {hasAssignment ? (
           <div className={cn("mt-4 text-left w-full max-w-xs rounded-lg border border-stone-200/80 p-3 text-[13px]", lh.bodySm)}>
             <p className={cn("font-semibold mb-2", lh.accentMuted)}>Today&apos;s assignment</p>
-            {dailyAssignment.spiritual.trim() ? (
-              <p>
-                <span className="font-medium">Spiritual:</span> {dailyAssignment.spiritual}
-              </p>
-            ) : null}
-            {dailyAssignment.family.trim() ? (
-              <p>
-                <span className="font-medium">Family:</span> {dailyAssignment.family}
-              </p>
-            ) : null}
-            {dailyAssignment.business.trim() ? (
-              <p>
-                <span className="font-medium">Business:</span> {dailyAssignment.business}
-              </p>
-            ) : null}
+            {DAILY_ASSIGNMENT_FIELDS.map((field) =>
+              dailyAssignment[field.key].trim() ? (
+                <p key={field.key}>
+                  <span className="font-medium">{dailyAssignmentDisplayLabel(field.key)}:</span>{" "}
+                  {dailyAssignment[field.key]}
+                </p>
+              ) : null,
+            )}
           </div>
         ) : null}
         <Link to="/life/todos" className={cn("mt-4 text-[13px] font-medium", lh.accentLink)}>

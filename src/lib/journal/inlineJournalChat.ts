@@ -146,12 +146,23 @@ export async function ensureJournalReflectionChatSession(
   return ensureLinkedJournalChatSession({ ...params, markAsChatEntry: false });
 }
 
+export type JournalReflectionEntrySnapshot = {
+  title?: string | null;
+  summary?: string | null;
+  body?: string | null;
+};
+
 export async function bootstrapJournalReflectionOpener(params: {
   chatId: string;
   entryId: string;
+  entrySnapshot?: JournalReflectionEntrySnapshot;
   includeGeneralKnowledge?: boolean;
   responseDepth?: ResponseDepthSetting;
 }): Promise<void> {
+  const snapshot = params.entrySnapshot;
+  const hasSnapshot = Boolean(
+    snapshot?.title?.trim() || snapshot?.summary?.trim() || snapshot?.body?.trim(),
+  );
   const { data, error } = await supabase.functions.invoke("my-ai-chat", {
     body: {
       chat_id: params.chatId,
@@ -159,6 +170,7 @@ export async function bootstrapJournalReflectionOpener(params: {
       mode: "journal",
       journal_reflection: true,
       journal_bootstrap_reflection: true,
+      journal_reflection_entry: hasSnapshot ? snapshot : undefined,
       include_general_knowledge: params.includeGeneralKnowledge === true,
       response_depth: params.responseDepth ?? readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
       stream: false,

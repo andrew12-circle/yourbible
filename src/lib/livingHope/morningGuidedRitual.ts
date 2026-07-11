@@ -78,7 +78,7 @@ export const GUIDED_COACH_COPY: Record<
   story: "This is the story you'll be living out — inhabit it.",
   surrender: "You've seen the life. Now release the grip — hold every hope open-handed.",
   covering: "Cover yourself and your house. Pray this aloud.",
-  assignment: "What does God want you to do today — spiritual, family, and business?",
+  assignment: "What does God want you to do today — abide, build the temple, family, and work?",
   goals: "One vivid picture and one obedience step for this goal.",
   metrics: "Log today's numbers — honest, not performative.",
 };

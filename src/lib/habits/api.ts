@@ -9,6 +9,11 @@ export type HabitRow = Tables<"habits">;
 export type HabitCompletionRow = Tables<"habit_completions">;
 export type HabitNoteRow = Tables<"habit_notes">;
 
+export async function syncHabitFrameworkTemplate(): Promise<void> {
+  const { error } = await supabase.rpc("sync_habit_framework_template");
+  if (error) throwSupabaseError(error);
+}
+
 export async function listHabits(userId: string): Promise<HabitRow[]> {
   const { data, error } = await supabase
     .from("habits")

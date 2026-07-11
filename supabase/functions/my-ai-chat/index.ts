@@ -9,7 +9,7 @@ import { buildJournalChatSystemPrompt, buildJournalChatWebResearchSystemPrompt, 
 import { createStreamingChatResponse } from "./streamTurn.ts";
 import { finalizeChatCitations } from "./enrichCitations.ts";
 import { attachSourceAttribution } from "../_shared/chatSourceAttribution.ts";
-import { JOURNAL_REFLECTION_OPENER_SEED, loadJournalReflectionContext } from "./journalReflection.ts";
+import { JOURNAL_REFLECTION_EMPTY_ENTRY_SEED, JOURNAL_REFLECTION_OPENER_SEED, loadJournalReflectionContext, type JournalReflectionEntrySnapshot } from "./journalReflection.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +35,8 @@ type RequestBody = {
   journal_bootstrap_reflection?: boolean;
   /** Chat about a saved journal entry without overwriting its body. */
   journal_reflection?: boolean;
+  /** Fresh journal entry text from the client (avoids stale DB reads during reflection). */
+  journal_reflection_entry?: JournalReflectionEntrySnapshot | null;
   /** When bootstrapping, scope the opener to this artifact_claim row (must belong to the user). */
   journal_bootstrap_artifact_claim_id?: string | null;
   /** Optional transcript excerpt from the client (e.g. "Source in transcript"); capped server-side. */
@@ -81,6 +83,15 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function parseJournalReflectionEntry(raw: unknown): JournalReflectionEntrySnapshot | null {
+  if (!isRecord(raw)) return null;
+  const title = typeof raw.title === "string" ? raw.title : null;
+  const summary = typeof raw.summary === "string" ? raw.summary : null;
+  const body = typeof raw.body === "string" ? raw.body : null;
+  if (!title?.trim() && !summary?.trim() && !body?.trim()) return null;
+  return { title, summary, body };
 }
 
 function parseRetrievalOptionsFromBody(
@@ -890,7 +901,12 @@ Deno.serve(async (req) => {
       }
 
       const reflectionCtx = reflectionBootstrap
-        ? await loadJournalReflectionContext(supabase, userId, journalEntryId)
+        ? await loadJournalReflectionContext(
+          supabase,
+          userId,
+          journalEntryId,
+          parseJournalReflectionEntry(body.journal_reflection_entry),
+        )
         : null;
 
       const { count: userMsgCount, error: ucErr } = await supabase
@@ -920,8 +936,10 @@ Deno.serve(async (req) => {
 
       let claimFocusBlock = "";
       let openerSeed =
-        reflectionBootstrap && reflectionCtx?.block
+        reflectionBootstrap && reflectionCtx?.hasEntryText
           ? JOURNAL_REFLECTION_OPENER_SEED
+          : reflectionBootstrap
+          ? JOURNAL_REFLECTION_EMPTY_ENTRY_SEED
           : "(The user just opened a new journaling session. No user message yet. Write a brief warm opener: acknowledge anything relevant from the context if it fits, invite them to share what feels alive or heavy today, mirror their possible tone without assuming facts you do not have, and end with one gentle question. Keep it concise.)";
 
       if (reflectionBootstrap && reflectionCtx?.block) {
@@ -1419,8 +1437,14 @@ Deno.serve(async (req) => {
     const useStream = body.stream !== false && !chatUseWeb && !claimPackId;
 
     let journalReflectionBlock: string | null = null;
+    const reflectionEntrySnapshot = parseJournalReflectionEntry(body.journal_reflection_entry);
     if (linkedJournalId && (body.journal_reflection === true || journalMode)) {
-      const reflectionCtx = await loadJournalReflectionContext(supabase, userId, linkedJournalId);
+      const reflectionCtx = await loadJournalReflectionContext(
+        supabase,
+        userId,
+        linkedJournalId,
+        reflectionEntrySnapshot,
+      );
       if (reflectionCtx?.isReflection && reflectionCtx.block.trim()) {
         journalReflectionBlock = reflectionCtx.block;
       }

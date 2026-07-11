@@ -26,6 +26,7 @@ import {
   COVERING_STEP_INTRO,
 } from "@/lib/livingHope/coveringPrayer";
 import {
+  DAILY_ASSIGNMENT_FIELDS,
   SURRENDER_STEP_INTRO,
   type DailyAssignment,
   type RitualStep,
@@ -468,30 +469,17 @@ export function MorningGuidedExperience({
 
       {step.kind === "assignment" ? (
         <div className="space-y-4">
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 spiritual priority</label>
-            <Input
-              value={dailyAssignment.spiritual}
-              onChange={(e) => setDailyAssignment({ spiritual: e.target.value })}
-              className={lh.input}
-            />
-          </div>
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 family priority</label>
-            <Input
-              value={dailyAssignment.family}
-              onChange={(e) => setDailyAssignment({ family: e.target.value })}
-              className={lh.input}
-            />
-          </div>
-          <div>
-            <label className={cn(lh.label, "mb-1 block")}>Top 1 business priority</label>
-            <Input
-              value={dailyAssignment.business}
-              onChange={(e) => setDailyAssignment({ business: e.target.value })}
-              className={lh.input}
-            />
-          </div>
+          {DAILY_ASSIGNMENT_FIELDS.map((field) => (
+            <div key={field.key}>
+              <label className={cn(lh.label, "mb-1 block")}>{field.label}</label>
+              <Input
+                value={dailyAssignment[field.key]}
+                onChange={(e) => setDailyAssignment({ [field.key]: e.target.value })}
+                className={lh.input}
+                placeholder={field.placeholder}
+              />
+            </div>
+          ))}
         </div>
       ) : null}
 

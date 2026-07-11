@@ -869,6 +869,9 @@ export default function EntryEditorPane({
     title: entry?.title,
     active: inlineChatMode,
     reflectionMode,
+    reflectionEntrySnapshot: entry
+      ? { title: entry.title, summary: entry.summary, body: entry.body }
+      : null,
     includeGeneralKnowledge: includeGeneral,
     onPersistTranscript: persistChatTranscript,
   });
@@ -886,6 +889,7 @@ export default function EntryEditorPane({
       toast({ title: "Not available for this entry type" });
       return;
     }
+    await flushSave({ silent: true });
     setReplyWithAi(true);
     const ensured = await ensureSession();
     if (!ensured) {

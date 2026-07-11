@@ -33,6 +33,7 @@ import {
   reorderHabits,
   replaceHabitsWithDefaults,
   saveHabitNote,
+  syncHabitFrameworkTemplate,
   toggleCompletion,
   type HabitRow,
 } from "@/lib/habits/api";
@@ -81,6 +82,7 @@ export default function HabitsPage() {
     if (!user?.id) return;
     setBusy(true);
     try {
+      await syncHabitFrameworkTemplate().catch(() => undefined);
       const [habitList, completions, badges] = await Promise.all([
         listHabits(user.id),
         listCompletionsForMonth(user.id, yearMonth),

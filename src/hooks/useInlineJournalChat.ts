@@ -8,6 +8,7 @@ import {
   ensureJournalReflectionChatSession,
   loadInlineChatTurns,
   type InlineChatTurn,
+  type JournalReflectionEntrySnapshot,
 } from "@/lib/journal/inlineJournalChat";
 import {
   readJournalChatIncludeGeneralDefault,
@@ -26,6 +27,8 @@ type UseInlineJournalChatOpts = {
   active: boolean;
   /** When true, chat is about a saved entry — do not overwrite journal body or change entry kind. */
   reflectionMode?: boolean;
+  /** Current entry text for reflection context (avoids stale DB reads right after journaling). */
+  reflectionEntrySnapshot?: JournalReflectionEntrySnapshot | null;
   includeGeneralKnowledge?: boolean;
   onPersistTranscript?: (body: string) => void;
 };
@@ -37,6 +40,7 @@ export function useInlineJournalChat({
   title,
   active,
   reflectionMode = false,
+  reflectionEntrySnapshot = null,
   includeGeneralKnowledge = readJournalChatIncludeGeneralDefault(),
   onPersistTranscript,
 }: UseInlineJournalChatOpts) {
@@ -141,6 +145,7 @@ export function useInlineJournalChat({
       await bootstrapJournalReflectionOpener({
         chatId: ensured.chatId,
         entryId: ensured.entryId,
+        entrySnapshot: reflectionEntrySnapshot ?? undefined,
         includeGeneralKnowledge,
         responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
       });
@@ -159,7 +164,14 @@ export function useInlineJournalChat({
       setStreamingAssistantId(null);
       setAiBusy(false);
     }
-  }, [reflectionMode, userId, entryId, ensureSession, includeGeneralKnowledge, scrollToBottom]);
+  }, [reflectionMode, userId, entryId, ensureSession, includeGeneralKnowledge, scrollToBottom, reflectionEntrySnapshot]);
+
+  const reflectionSnapshotPayload = useCallback(() => {
+    if (!reflectionMode || !reflectionEntrySnapshot) return undefined;
+    const { title, summary, body } = reflectionEntrySnapshot;
+    if (!title?.trim() && !summary?.trim() && !body?.trim()) return undefined;
+    return reflectionEntrySnapshot;
+  }, [reflectionMode, reflectionEntrySnapshot]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -192,6 +204,7 @@ export function useInlineJournalChat({
             mode: "journal",
             journal_entry_id: ensured.entryId,
             journal_reflection: reflectionMode || undefined,
+            journal_reflection_entry: reflectionSnapshotPayload(),
             include_general_knowledge: includeGeneralKnowledge,
             response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
           },
@@ -222,7 +235,7 @@ export function useInlineJournalChat({
         setAiBusy(false);
       }
     },
-    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom, includeGeneralKnowledge, chatId, reflectionMode],
+    [aiBusy, userId, entryId, ensureSession, persistTranscript, scrollToBottom, includeGeneralKnowledge, chatId, reflectionMode, reflectionSnapshotPayload],
   );
 
   return {
