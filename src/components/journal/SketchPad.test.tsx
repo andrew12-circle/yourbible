@@ -83,8 +83,10 @@ describe("SketchPad", () => {
     vi.restoreAllMocks();
   });
 
-  it("opens with fountain pen selected by default", () => {
+  it("opens with pen selected by default", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
 
     expect(screen.getByRole("button", { name: "Pen" })).toHaveAttribute(
       "aria-pressed",
@@ -125,6 +127,8 @@ describe("SketchPad", () => {
   it("shows docked markup toolbar with pen variants", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
+
     const toolbar = screen.getByRole("toolbar", { name: "Handwritten markup tools" });
     expect(toolbar).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pen" })).toBeInTheDocument();
@@ -135,10 +139,12 @@ describe("SketchPad", () => {
   it("minimizes to a circular chip showing the active pen", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
     fireEvent.click(screen.getByRole("button", { name: "Minimize tools" }));
 
     expect(screen.queryByRole("toolbar", { name: "Handwritten markup tools" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show markup tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eraser" })).toBeInTheDocument();
   });
 
   it("uses dark paper and night-safe ink when the device is in night mode", () => {
@@ -147,6 +153,7 @@ describe("SketchPad", () => {
     render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
 
     expect(canvasContext.fillStyle).toBe("#05070a");
+    fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
     expect(screen.getByRole("button", { name: "Color White" })).toHaveStyle({
       background: "#ffffff",
     });
@@ -168,17 +175,31 @@ describe("SketchPad", () => {
     expect(canvasContext.fillStyle).toBe("#f8fafc");
   });
 
-  it("opens inline artifact journal with fine tip pen and stroke size 6 by default", () => {
+  it("opens inline artifact journal with pen and stroke size 6 by default", () => {
     render(
       <SketchPad open layout="inline" fullBleed onClose={vi.fn()} onSave={vi.fn()} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show markup tools" }));
 
-    expect(screen.getByRole("button", { name: "Fine tip" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Pen" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+  });
+
+  it("shows eraser beside the minimized pen chip", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Eraser" })).toBeInTheDocument();
+  });
+
+  it("adds a second notebook page", () => {
+    render(<SketchPad open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Add page" })[0]!);
+
+    expect(screen.getByText("2/2")).toBeInTheDocument();
   });
 
   it("blocks finger touch on inline artifact journal before the pencil is used", () => {

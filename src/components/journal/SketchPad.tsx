@@ -17,10 +17,13 @@ import {
 import { getSketchPenColors, mappedSketchColorForMode } from "@/lib/journal/sketchInkColors";
 import { rulerSpanLength } from "@/lib/journal/sketchRuler";
 import { canvasBackground, drawPaper, drawStroke } from "@/lib/journal/sketchCanvasDraw";
-import { INK_TOOL_PRESETS, normalizeInkDrawTool } from "@/lib/ink/toolPresets";
+import { normalizeInkDrawTool } from "@/lib/ink/toolPresets";
 import type { InkDrawTool, InkStroke, InkTool } from "@/lib/ink/types";
 import { cn } from "@/lib/utils";
 import { useSketchPadPersistence } from "@/hooks/useSketchPadCanvas";
+import { useSketchPadPages } from "@/hooks/useSketchPadPages";
+import { exportSketchPagesPng } from "@/lib/journal/exportSketchPages";
+import { INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 
 /**
  * Day One–style sketch surface.
@@ -48,11 +51,9 @@ interface Point {
 
 type Stroke = InkStroke;
 
-const PEN_SIZES = [2, 4, 6, 10, 16];
-/** Default ink for artifact journal handwritten (fine tip, black, size 6). */
-const JOURNAL_HANDWRITE_TOOL: InkDrawTool = "fineline";
+const DEFAULT_SKETCH_TOOL: InkDrawTool = "fineline";
+const DEFAULT_SKETCH_SIZE = INK_PEN_SIZES[2]; // 6
 const JOURNAL_HANDWRITE_COLOR = "#000000";
-const JOURNAL_HANDWRITE_SIZE = 6;
 
 const NIGHT_MODE_QUERY = "(prefers-color-scheme: dark)";
 
@@ -84,8 +85,9 @@ export interface SketchPadProps {
   clearDraftOnSave?: boolean;
   /** Restored PNG when stroke draft is empty (returning to a saved page). */
   backgroundImageUrl?: string | null;
-  /** Show "New page" in the header (artifact journal). */
+  /** @deprecated Notebook pages are added in-pad; kept for callers that still pass it. */
   showNewPage?: boolean;
+  /** @deprecated Prefer in-pad Add page; optional new-entry hook for hosts. */
   onNewPage?: () => void;
   /** Title + source block on the ruled notebook page (artifact journal). */
   journalPageHeader?: ReactNode;
@@ -115,8 +117,8 @@ export default function SketchPad({
   fullBleed = false,
   clearDraftOnSave = true,
   backgroundImageUrl = null,
-  showNewPage = false,
-  onNewPage,
+  showNewPage: _showNewPage = false,
+  onNewPage: _onNewPage,
   journalPageHeader = null,
   journalTimestampStrip = null,
   onInsertTimestamp,
@@ -140,6 +142,17 @@ export default function SketchPad({
 
   const strokesRef = useRef<Stroke[]>([]);
   const redoStackRef = useRef<Stroke[]>([]);
+  const {
+    pageIndex,
+    pageCount,
+    pageIndexRef,
+    syncActiveIntoPages,
+    resetPages,
+    goToPage,
+    addPage,
+    snapshotPages,
+    anyPageHasStrokes,
+  } = useSketchPadPages(strokesRef);
   const activeStrokeRef = useRef<Stroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   /** Pointer type of the in-progress stroke, so a pen can take over from a palm. */
@@ -150,19 +163,16 @@ export default function SketchPad({
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
-  const [tool, setTool] = useState<InkTool>(() =>
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
-  );
-  const lastDrawToolRef = useRef<InkDrawTool>(
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
-  );
+  const [tool, setTool] = useState<InkTool>(() => DEFAULT_SKETCH_TOOL);
+  const lastDrawToolRef = useRef<InkDrawTool>(DEFAULT_SKETCH_TOOL);
+  const [resumeDrawTool, setResumeDrawTool] = useState<InkDrawTool>(DEFAULT_SKETCH_TOOL);
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const [rulerVisible, setRulerVisible] = useState(false);
   const [rulerCenter, setRulerCenter] = useState({ x: 200, y: 200 });
   const [rulerAngle, setRulerAngle] = useState(35);
   const [rulerLength, setRulerLength] = useState(400);
   const [snapToRuler, setSnapToRuler] = useState(true);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(journalHandwriteChrome);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(true);
   const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
     null,
   );
@@ -172,9 +182,7 @@ export default function SketchPad({
   const [color, setColor] = useState<string>(() =>
     journalHandwriteChrome ? JOURNAL_HANDWRITE_COLOR : getSketchPenColors(prefersNightMode())[0].value,
   );
-  const [size, setSize] = useState<number>(() =>
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1],
-  );
+  const [size, setSize] = useState<number>(() => DEFAULT_SKETCH_SIZE);
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
    * ignore finger & palm (`touch`) input on the canvas — just like Apple Notes.
@@ -301,8 +309,11 @@ export default function SketchPad({
 
   const persistDraft = useCallback(() => {
     if (!draftKey) return;
+    const pages = snapshotPages();
     saveSketchDraft(draftKey, {
-      strokes: strokesRef.current,
+      strokes: pages[pageIndexRef.current] ?? strokesRef.current,
+      pages,
+      pageIndex: pageIndexRef.current,
       paper,
       color,
       size,
@@ -310,25 +321,31 @@ export default function SketchPad({
       rulerVisible,
       rulerAngle,
     });
-  }, [draftKey, paper, color, size, tool, rulerVisible, rulerAngle]);
+  }, [color, draftKey, pageIndexRef, paper, rulerAngle, rulerVisible, size, snapshotPages, tool]);
 
   const exportPngFile = useCallback(async (): Promise<File | null> => {
-    const canvas = canvasRef.current;
-    if (!canvas || strokesRef.current.length === 0) return null;
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((b) => resolve(b), "image/png"),
-    );
-    if (!blob) return null;
+    if (!anyPageHasStrokes()) return null;
+    const { w, h } = sizeRef.current;
+    if (w <= 0 || h <= 0) return null;
+    const pages = snapshotPages();
     const base = filename || `sketch-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-    return new File([blob], `${base}.png`, { type: "image/png" });
-  }, [filename]);
+    return exportSketchPagesPng({
+      pages,
+      width: w,
+      height: h,
+      paper,
+      isNightMode: isNightModeRef.current,
+      filename: `${base}.png`,
+      dpr: dprRef.current,
+    });
+  }, [anyPageHasStrokes, filename, paper, snapshotPages]);
 
   const { notifyStrokeChange, flushAutosave, clearTimers, draftTimerRef } = useSketchPadPersistence({
     draftKey,
     onAutosave,
     exportPng: exportPngFile,
     persistDraft,
-    hasStrokes: () => strokesRef.current.length > 0,
+    hasStrokes: () => anyPageHasStrokes(),
   });
 
   const clampViewScale = (scale: number) =>
@@ -387,6 +404,8 @@ export default function SketchPad({
       }
       saveSketchDraft(draftKey, {
         strokes: strokesRef.current,
+        pages: snapshotPages(),
+        pageIndex: pageIndexRef.current,
         paper: next,
         color,
         size,
@@ -395,7 +414,7 @@ export default function SketchPad({
         rulerAngle,
       });
     },
-    [color, draftKey, rulerAngle, rulerVisible, size, tool],
+    [color, draftKey, pageIndexRef, rulerAngle, rulerVisible, size, snapshotPages, tool],
   );
 
   // Repaint when the paper style changes (background only; strokes stay).
@@ -474,7 +493,9 @@ export default function SketchPad({
       return;
     }
     const draft = draftKey ? loadSketchDraft(draftKey) : null;
-    const hasDraftStrokes = (draft?.strokes?.length ?? 0) > 0;
+    const hasDraftStrokes =
+      (draft?.strokes?.length ?? 0) > 0 ||
+      (draft?.pages?.some((p) => p.length > 0) ?? false);
     if (hasDraftStrokes) {
       backgroundImageRef.current = null;
       return;
@@ -492,26 +513,36 @@ export default function SketchPad({
   }, [open, backgroundImageUrl, draftKey]);
 
   useEffect(() => {
-    if (open && journalHandwriteChrome) setToolbarCollapsed(true);
-  }, [open, journalHandwriteChrome]);
+    if (open) setToolbarCollapsed(true);
+  }, [open]);
 
   // Reset / restore when opened
   useEffect(() => {
     if (!open) return;
     const draft = draftKey ? loadSketchDraft(draftKey) : null;
-    strokesRef.current = draft?.strokes ?? [];
+    if (draft?.pages && draft.pages.length > 0) {
+      resetPages(draft.pages as Stroke[][]);
+      if ((draft.pageIndex ?? 0) > 0) goToPage(draft.pageIndex ?? 0);
+    } else {
+      resetPages([(draft?.strokes as Stroke[] | undefined) ?? []]);
+    }
     redoStackRef.current = [];
     activeStrokeRef.current = null;
     activePointerIdRef.current = null;
     activePointerTypeRef.current = null;
     penSeenRef.current = strictPalmRejection && palmRejection;
-    setHasStrokes(strokesRef.current.length > 0);
+    setHasStrokes(anyPageHasStrokes());
     setRedoCount(0);
-    const restoredTool =
-      draft?.tool ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain");
-    setTool(restoredTool);
-    if (restoredTool !== "ruler" && restoredTool !== "lasso") {
-      lastDrawToolRef.current = restoredTool;
+    const restoredTool = draft?.tool ?? DEFAULT_SKETCH_TOOL;
+    const normalizedTool =
+      restoredTool === "fountain" ? DEFAULT_SKETCH_TOOL : restoredTool;
+    setTool(normalizedTool);
+    if (normalizedTool !== "ruler" && normalizedTool !== "lasso" && normalizedTool !== "eraser") {
+      lastDrawToolRef.current = normalizedTool;
+      setResumeDrawTool(normalizedTool);
+    } else {
+      lastDrawToolRef.current = DEFAULT_SKETCH_TOOL;
+      setResumeDrawTool(DEFAULT_SKETCH_TOOL);
     }
     setRulerVisible(draft?.rulerVisible ?? false);
     setRulerAngle(draft?.rulerAngle ?? 0);
@@ -523,13 +554,22 @@ export default function SketchPad({
           ? JOURNAL_HANDWRITE_COLOR
           : getSketchPenColors(isNightModeRef.current)[0].value,
     );
-    setSize(draft?.size ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1]));
+    setSize(draft?.size ?? DEFAULT_SKETCH_SIZE);
     resetViewRef.current();
     requestAnimationFrame(() => {
       resizeCanvasRef.current();
       flushRedrawRef.current();
     });
-  }, [open, draftKey, journalHandwriteChrome, palmRejection, strictPalmRejection]);
+  }, [
+    open,
+    draftKey,
+    journalHandwriteChrome,
+    palmRejection,
+    strictPalmRejection,
+    resetPages,
+    goToPage,
+    anyPageHasStrokes,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -658,15 +698,40 @@ export default function SketchPad({
         return;
       }
       setTool(next);
-      if (next !== "lasso") {
+      if (next !== "lasso" && next !== "eraser") {
         lastDrawToolRef.current = next;
-        const preset = INK_TOOL_PRESETS[next];
-        setSize(preset.defaultSize);
-        if (preset.defaultColor) setColor(preset.defaultColor);
+        setResumeDrawTool(next);
       }
     },
     [rulerVisible],
   );
+
+  const handleNotebookAddPage = useCallback(() => {
+    addPage();
+    redoStackRef.current = [];
+    setRedoCount(0);
+    setHasStrokes(anyPageHasStrokes());
+    flushRedrawRef.current();
+    notifyStrokeChange();
+  }, [addPage, anyPageHasStrokes, notifyStrokeChange]);
+
+  const handleNotebookPrevPage = useCallback(() => {
+    if (pageIndex <= 0) return;
+    goToPage(pageIndex - 1);
+    redoStackRef.current = [];
+    setRedoCount(0);
+    setHasStrokes(strokesRef.current.length > 0);
+    flushRedrawRef.current();
+  }, [goToPage, pageIndex]);
+
+  const handleNotebookNextPage = useCallback(() => {
+    if (pageIndex >= pageCount - 1) return;
+    goToPage(pageIndex + 1);
+    redoStackRef.current = [];
+    setRedoCount(0);
+    setHasStrokes(strokesRef.current.length > 0);
+    flushRedrawRef.current();
+  }, [goToPage, pageCount, pageIndex]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -784,7 +849,7 @@ export default function SketchPad({
         );
         return !hit;
       });
-      setHasStrokes(strokesRef.current.length > 0);
+      setHasStrokes(anyPageHasStrokes());
       lassoPointsRef.current = [];
       notifyStrokeChange();
       flushRedraw();
@@ -808,7 +873,8 @@ export default function SketchPad({
     const popped = strokesRef.current.pop();
     if (popped) {
       redoStackRef.current.push(popped);
-      setHasStrokes(strokesRef.current.length > 0);
+      syncActiveIntoPages();
+      setHasStrokes(anyPageHasStrokes());
       setRedoCount(redoStackRef.current.length);
       redraw();
       notifyStrokeChange();
@@ -828,10 +894,11 @@ export default function SketchPad({
 
   const handleClear = () => {
     if (strokesRef.current.length === 0) return;
-    if (!window.confirm("Clear the handwritten note? This can't be undone.")) return;
+    if (!window.confirm("Clear this page? This can't be undone.")) return;
     strokesRef.current = [];
     redoStackRef.current = [];
-    setHasStrokes(false);
+    syncActiveIntoPages();
+    setHasStrokes(anyPageHasStrokes());
     setRedoCount(0);
     redraw();
     notifyStrokeChange();
@@ -967,22 +1034,20 @@ export default function SketchPad({
             >
               {isInline ? inlineTitle?.trim() || "Handwritten" : "Handwritten"}
             </div>
-            {showNewPage && onNewPage ? (
-              <Button
-                type="button"
-                onClick={onNewPage}
-                size="sm"
-                variant="ghost"
-                className={cn(
-                  "h-8 shrink-0 rounded-full px-2.5 text-[12px] font-medium",
-                  isNightMode
-                    ? "text-slate-300 hover:bg-white/10 hover:text-white"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                New page
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              onClick={handleNotebookAddPage}
+              size="sm"
+              variant="ghost"
+              className={cn(
+                "h-8 shrink-0 rounded-full px-2.5 text-[12px] font-medium",
+                isNightMode
+                  ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              Add page
+            </Button>
             <Button
               type="button"
               onClick={handleSave}
@@ -1018,52 +1083,16 @@ export default function SketchPad({
         value={color}
         onChange={(e) => {
           setColor(e.target.value);
-          if (tool === "eraser") handleToolChange("fountain");
+          if (tool === "eraser") handleToolChange(resumeDrawTool);
         }}
         aria-hidden
         tabIndex={-1}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {!journalHandwriteChrome ? (
-        <SketchInkToolbar
-          isNightMode={isNightMode}
-          collapsed={toolbarCollapsed}
-          onCollapsedChange={setToolbarCollapsed}
-          tabletPortrait={tabletPortrait}
-          collapsedAnchor="center"
-          tool={tool}
-          color={color}
-          size={size}
-          penColors={penColors}
-          paper={paper}
-          hasStrokes={hasStrokes}
-          redoCount={redoCount}
-          drawWithFinger={drawWithFinger}
-          rulerVisible={rulerVisible}
-          snapToRuler={snapToRuler}
-          onToolChange={handleToolChange}
-          onColorChange={(c) => {
-            setColor(c);
-            if (tool === "eraser") handleToolChange("fountain");
-            else if (tool === "lasso") setTool(lastDrawToolRef.current);
-          }}
-          onSizeChange={setSize}
-          onPaperChange={handlePaperChange}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onClear={handleClear}
-          onDrawWithFingerChange={(v) => setPalmRejection(!v)}
-          onSnapToRulerChange={setSnapToRuler}
-          customColorInputRef={customColorRef}
-        />
-        ) : null}
-
         <div
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
-            !journalHandwriteChrome &&
-              (toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]"),
             edgeToEdgePaper ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
             isNightMode
               ? "bg-black"
@@ -1097,17 +1126,15 @@ export default function SketchPad({
               >
                 <Keyboard className="h-4 w-4" aria-hidden />
               </button>
-              {showNewPage && onNewPage ? (
-                <button
-                  type="button"
-                  onClick={onNewPage}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition hover:bg-muted hover:text-foreground"
-                  title="New page"
-                  aria-label="New page"
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={handleNotebookAddPage}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition hover:bg-muted hover:text-foreground"
+                title="Add page"
+                aria-label="Add page"
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+              </button>
               <button
                 type="button"
                 onClick={() => void handleSave()}
@@ -1146,6 +1173,14 @@ export default function SketchPad({
                 tabletPortrait={tabletPortrait}
                 collapsedAnchor="start"
                 floatOverPaper
+                dockEdge="bottom"
+                autoCollapseOnSelect
+                pageIndex={pageIndex}
+                pageCount={pageCount}
+                onPrevPage={handleNotebookPrevPage}
+                onNextPage={handleNotebookNextPage}
+                onAddPage={handleNotebookAddPage}
+                resumeDrawTool={resumeDrawTool}
                 tool={tool}
                 color={color}
                 size={size}
@@ -1159,7 +1194,7 @@ export default function SketchPad({
                 onToolChange={handleToolChange}
                 onColorChange={(c) => {
                   setColor(c);
-                  if (tool === "eraser") handleToolChange("fountain");
+                  if (tool === "eraser") handleToolChange(resumeDrawTool);
                   else if (tool === "lasso") setTool(lastDrawToolRef.current);
                 }}
                 onSizeChange={setSize}
@@ -1239,12 +1274,13 @@ export default function SketchPad({
             </div>
           </div>
         ) : (
+        <>
         <div
           ref={wrapperRef}
           className={cn(
-            "relative h-full w-full overflow-hidden",
+            "relative min-h-0 flex-1 w-full overflow-hidden",
             edgeToEdgePaper
-              ? "mx-2 mb-2 rounded-lg border border-border/40 shadow-sm"
+              ? "mx-2 mt-2 rounded-lg border border-border/40 shadow-sm"
               : "rounded-lg border shadow-sm sm:rounded-xl",
             isNightMode ? "bg-black" : "bg-white",
             !edgeToEdgePaper && (isNightMode ? "border-white/10" : "border-border/60"),
@@ -1326,6 +1362,46 @@ export default function SketchPad({
             />
           </div>
         </div>
+        <SketchInkToolbar
+          isNightMode={isNightMode}
+          collapsed={toolbarCollapsed}
+          onCollapsedChange={setToolbarCollapsed}
+          tabletPortrait={tabletPortrait}
+          collapsedAnchor="center"
+          dockEdge="bottom"
+          autoCollapseOnSelect
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          onPrevPage={handleNotebookPrevPage}
+          onNextPage={handleNotebookNextPage}
+          onAddPage={handleNotebookAddPage}
+          resumeDrawTool={resumeDrawTool}
+          tool={tool}
+          color={color}
+          size={size}
+          penColors={penColors}
+          paper={paper}
+          hasStrokes={hasStrokes}
+          redoCount={redoCount}
+          drawWithFinger={drawWithFinger}
+          rulerVisible={rulerVisible}
+          snapToRuler={snapToRuler}
+          onToolChange={handleToolChange}
+          onColorChange={(c) => {
+            setColor(c);
+            if (tool === "eraser") handleToolChange(resumeDrawTool);
+            else if (tool === "lasso") setTool(lastDrawToolRef.current);
+          }}
+          onSizeChange={setSize}
+          onPaperChange={handlePaperChange}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+          onDrawWithFingerChange={(v) => setPalmRejection(!v)}
+          onSnapToRulerChange={setSnapToRuler}
+          customColorInputRef={customColorRef}
+        />
+        </>
         )}
         </div>
       </div>

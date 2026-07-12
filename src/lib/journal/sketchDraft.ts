@@ -23,6 +23,9 @@ export function normalizeSketchDraftPaper(value: unknown): SketchDraftPaper {
 export type SketchDraftV2 = {
   version: 2;
   strokes: SketchDraftStroke[];
+  /** Notebook pages; when present, `strokes` mirrors the active page. */
+  pages?: SketchDraftStroke[][];
+  pageIndex?: number;
   paper: SketchDraftPaper;
   color: string;
   size: number;
@@ -43,6 +46,7 @@ type SketchDraftV1 = {
 };
 
 const DRAFT_PREFIX = "yourbible:sketch-draft:";
+const DEFAULT_TOOL: InkTool = "fineline";
 
 export function sketchDraftStorageKey(key: string) {
   return `${DRAFT_PREFIX}${key}`;
@@ -55,6 +59,12 @@ function normalizeStrokes(strokes: SketchDraftStroke[]): SketchDraftStroke[] {
   }));
 }
 
+function normalizeTool(tool: InkTool | "pen" | undefined): InkTool {
+  if (tool === "eraser" || tool === "ruler" || tool === "lasso") return tool;
+  if (tool === "fountain") return "fineline";
+  return normalizeInkDrawTool(tool);
+}
+
 export function loadSketchDraft(key: string): SketchDraftV2 | null {
   if (typeof window === "undefined") return null;
   try {
@@ -63,11 +73,22 @@ export function loadSketchDraft(key: string): SketchDraftV2 | null {
     const parsed = JSON.parse(raw) as SketchDraftV2 | SketchDraftV1;
     if (!parsed || !Array.isArray(parsed.strokes)) return null;
     if (parsed.version === 2) {
+      const pages =
+        Array.isArray(parsed.pages) && parsed.pages.length > 0
+          ? parsed.pages.map((p) => normalizeStrokes(Array.isArray(p) ? p : []))
+          : undefined;
+      const pageIndex =
+        pages && typeof parsed.pageIndex === "number"
+          ? Math.max(0, Math.min(parsed.pageIndex, pages.length - 1))
+          : 0;
+      const strokes = pages ? pages[pageIndex]! : normalizeStrokes(parsed.strokes);
       return {
         ...parsed,
-        strokes: normalizeStrokes(parsed.strokes),
+        strokes,
+        pages,
+        pageIndex: pages ? pageIndex : undefined,
         paper: normalizeSketchDraftPaper(parsed.paper),
-        tool: parsed.tool ?? "fountain",
+        tool: normalizeTool(parsed.tool ?? DEFAULT_TOOL),
       };
     }
     return {
@@ -76,7 +97,7 @@ export function loadSketchDraft(key: string): SketchDraftV2 | null {
       paper: normalizeSketchDraftPaper(parsed.paper),
       color: parsed.color,
       size: parsed.size,
-      tool: parsed.tool === "eraser" ? "eraser" : "fountain",
+      tool: parsed.tool === "eraser" ? "eraser" : DEFAULT_TOOL,
       updatedAt: parsed.updatedAt,
     };
   } catch {
@@ -86,10 +107,21 @@ export function loadSketchDraft(key: string): SketchDraftV2 | null {
 
 export function saveSketchDraft(key: string, draft: Omit<SketchDraftV2, "version" | "updatedAt">) {
   if (typeof window === "undefined") return;
+  const pages =
+    Array.isArray(draft.pages) && draft.pages.length > 0
+      ? draft.pages.map((p) => normalizeStrokes(p))
+      : undefined;
+  const pageIndex =
+    pages && typeof draft.pageIndex === "number"
+      ? Math.max(0, Math.min(draft.pageIndex, pages.length - 1))
+      : undefined;
   const payload: SketchDraftV2 = {
     version: 2,
     ...draft,
-    strokes: normalizeStrokes(draft.strokes),
+    strokes: normalizeStrokes(pages && pageIndex != null ? pages[pageIndex]! : draft.strokes),
+    pages,
+    pageIndex,
+    tool: normalizeTool(draft.tool),
     updatedAt: new Date().toISOString(),
   };
   try {

@@ -84,7 +84,7 @@ export function ReaderInkToolbar({
         value={color}
         onChange={(e) => {
           onColor(e.target.value);
-          if (tool === "eraser") handleToolChange("fountain");
+          if (tool === "eraser") handleToolChange("fineline");
         }}
         aria-hidden
         tabIndex={-1}
@@ -103,6 +103,7 @@ export function ReaderInkToolbar({
           collapsedAnchor="end"
           tabletPortrait={tabletPortrait}
           compactInkLayout={useMobileBar}
+          resumeDrawTool="fineline"
           tool={tool}
           color={color}
           size={size}
@@ -116,7 +117,7 @@ export function ReaderInkToolbar({
           onToolChange={handleToolChange}
           onColorChange={(c) => {
             onColor(c);
-            if (tool === "eraser") handleToolChange("fountain");
+            if (tool === "eraser") handleToolChange("fineline");
           }}
           onSizeChange={onSize}
           onPaperChange={() => {}}

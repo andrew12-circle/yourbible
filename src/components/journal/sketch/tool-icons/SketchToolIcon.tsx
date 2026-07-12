@@ -29,7 +29,7 @@ export function SketchToolIcon({
   active,
   accentColor,
 }: SketchToolIconProps & { tool: InkTool }) {
-  const Icon = TOOL_ICONS[tool] ?? FountainPenIcon;
+  const Icon = TOOL_ICONS[tool] ?? FinePenIcon;
   const accent =
     accentColor ??
     (tool === "fineline"
