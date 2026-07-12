@@ -81,7 +81,7 @@ function StoryPageFace({
   pageNumber: number;
 }) {
   return (
-    <article className="relative flex h-full min-h-0 flex-col overflow-hidden bg-paper px-5 pb-4 pt-8 sm:px-7">
+    <article className="relative flex h-full min-h-0 flex-col overflow-hidden bg-paper px-5 pb-20 pt-8 sm:px-7">
       <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
         <span>{book.title}</span>
         <span>Page {pageNumber}</span>
@@ -117,7 +117,7 @@ function StoryPageFace({
 
 function EndPageFace({ book }: { book: ChildrenBook }) {
   return (
-    <article className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden bg-paper px-8 text-center">
+    <article className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden bg-paper px-8 pb-16 text-center">
       <div
         className="flex h-24 w-24 items-center justify-center rounded-[2rem] shadow-lg"
         style={{ background: book.coverGradient }}
@@ -313,8 +313,8 @@ export function ChildrenBookReader({
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 gap-3 p-3 lg:p-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <section className="relative min-h-[34rem] overflow-hidden rounded-2xl border border-white/50 bg-white/35 shadow-soft">
+      <main className="grid min-h-0 min-w-0 flex-1 gap-3 overflow-hidden p-3 lg:p-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="relative min-h-[34rem] min-w-0 overflow-hidden rounded-2xl border border-white/50 bg-white/35 shadow-soft">
           <BookScene
             progress={progress}
             leftPage={
@@ -386,7 +386,7 @@ export function ChildrenBookReader({
           </div>
         </section>
 
-        <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto xl:flex">
+        <aside className="relative z-10 hidden min-h-0 min-w-0 flex-col gap-3 overflow-y-auto xl:flex">
           <LibraryPanel books={books} activeSlug={book.slug} onSelectBook={onSelectBook} />
           <section className="rounded-2xl border border-white/60 bg-white/85 p-4 shadow-sm backdrop-blur">
             <div className="flex items-center gap-2">
