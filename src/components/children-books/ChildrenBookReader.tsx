@@ -89,7 +89,7 @@ function StoryPageFace({
 
       <div
         className={cn(
-          "mt-4 flex min-h-[12rem] flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/70 bg-gradient-to-br p-5 text-center shadow-inner",
+          "mt-4 flex min-h-[10rem] flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/70 bg-gradient-to-br p-5 text-center shadow-inner",
           paletteClasses[page.palette],
         )}
       >
@@ -103,7 +103,7 @@ function StoryPageFace({
       </div>
 
       <div className="shrink-0 space-y-3 pt-5">
-        <p className="font-display text-xl leading-snug text-foreground sm:text-2xl">
+        <p className="font-display text-lg leading-snug text-foreground sm:text-xl">
           {page.body}
         </p>
         <p className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-xs leading-relaxed text-leather/80">
