@@ -12,6 +12,8 @@ import {
   BookOpen,
   Sparkles,
   ChevronLeft,
+  AudioLines,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -323,26 +325,61 @@ export default function NewJournalEntryPage() {
         >
         <div className="pointer-events-auto w-full max-w-3xl">
           {p.inlineChatMode ? (
-            <InlineJournalChatComposer
-              value={p.body}
-              onChange={p.setBody}
-              onSend={() => void p.sendToAi()}
-              onExit={p.exitChatMode}
-              dictateControl={dictateButton}
-              onPointerDown={() => {
-                p.composerLockScrollYRef.current = window.scrollY;
-              }}
-              onFocus={() => p.setComposerFocused(true)}
-              onBlur={() => p.setComposerFocused(false)}
-              aiBusy={p.aiBusy}
-              onAttachPhotos={p.triggerPhotos}
-              onHandwritten={p.triggerHandwritten}
-              includeGeneral={p.includeGeneral}
-              onIncludeGeneralChange={p.setIncludeGeneral}
-              responseDepth={p.responseDepth}
-              onResponseDepthChange={p.setResponseDepth}
-              onOpenInMyAi={p.chatId ? () => p.navigate(`/my-ai/${p.chatId}`) : undefined}
-            />
+            <>
+              {p.aiBusy ? (
+                <div className="mb-1 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={p.stopAiReply}
+                  >
+                    <Square className="mr-1 h-3 w-3" /> Stop
+                  </Button>
+                </div>
+              ) : null}
+              <InlineJournalChatComposer
+                value={p.body}
+                onChange={p.setBody}
+                onSend={() => void p.sendToAi()}
+                onExit={p.exitChatMode}
+                dictateControl={dictateButton}
+                onPointerDown={() => {
+                  p.composerLockScrollYRef.current = window.scrollY;
+                }}
+                onFocus={() => p.setComposerFocused(true)}
+                onBlur={() => p.setComposerFocused(false)}
+                aiBusy={p.aiBusy}
+                onAttachPhotos={p.triggerPhotos}
+                onHandwritten={p.triggerHandwritten}
+                includeGeneral={p.includeGeneral}
+                onIncludeGeneralChange={p.setIncludeGeneral}
+                responseDepth={p.responseDepth}
+                onResponseDepthChange={p.setResponseDepth}
+                onOpenInMyAi={p.chatId ? () => p.navigate(`/my-ai/${p.chatId}`) : undefined}
+                onRetryLast={() => void p.retryLastAiReply()}
+                canRetryLast={p.chatTurns.some((turn) => turn.role === "assistant")}
+                trailingControls={
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={p.voiceReplies ? "default" : "ghost"}
+                    className={cn(
+                      "h-9 w-9 shrink-0 rounded-full",
+                      p.voiceReplies
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    aria-label="Toggle voice replies"
+                    aria-pressed={p.voiceReplies}
+                    onClick={() => p.setVoiceReplies(!p.voiceReplies)}
+                  >
+                    <AudioLines className="h-4 w-4" />
+                  </Button>
+                }
+              />
+            </>
           ) : (
             <NewJournalEntryToolbar
               onPhotos={p.triggerPhotos}

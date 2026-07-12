@@ -734,6 +734,7 @@ Deno.serve(async (req) => {
           tags: tagsOut,
           body: bodyMd,
           summary: summaryText || null,
+          entry_kind: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", finalizeId)

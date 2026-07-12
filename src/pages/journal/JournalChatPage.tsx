@@ -1090,6 +1090,9 @@ export default function JournalChatPage() {
                   responseDepth={responseDepth}
                   onResponseDepthChange={setResponseDepth}
                   onOpenInMyAi={chatId ? () => navigate(`/my-ai/${chatId}`) : undefined}
+                  onSaveAsEntry={() => void endSession()}
+                  saveAsEntryLabel={ending ? "Saving..." : "Make normal entry"}
+                  saveAsEntryDisabled={ending}
                   onRetryLast={() => void retryLast()}
                   canRetryLast={messages.some((m) => m.role === "assistant")}
                   dictateControl={
