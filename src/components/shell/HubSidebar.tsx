@@ -26,6 +26,7 @@ import { LUMEN_NAME } from "@/lib/myai/lumenBrand";
 const iconColorMap: Record<string, string> = {
   Overview: "text-blue-500",
   Bible: "text-amber-600",
+  "Children's books": "text-fuchsia-500",
   "Code Lab": "text-amber-800",
   "Life Manual": "text-yellow-600",
   "Morning formula": "text-amber-500",
@@ -115,6 +116,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
   {
     label: "More",
     items: [
+      { title: "Children's books", icon: BookOpen, to: "/children-books" },
       { title: "Code Lab", icon: Grid3X3, to: "/bible/code-lab" },
       { title: "Partner", icon: HeartHandshake, to: "/partner" },
       { title: "Settings", icon: Settings, to: "/settings" },

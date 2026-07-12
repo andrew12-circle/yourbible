@@ -4,11 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import { ChildrenBookReader } from "@/components/children-books/ChildrenBookReader";
-import {
-  CHILDREN_BOOKS,
-  DEFAULT_CHILDREN_BOOK_SLUG,
-  findChildrenBook,
-} from "@/lib/children-books/storybook";
+import { ChildrenBooksLibrary } from "@/components/children-books/ChildrenBooksLibrary";
+import { CHILDREN_BOOKS, findChildrenBook } from "@/lib/children-books/storybook";
 
 export default function ChildrenBooksPage() {
   const { user, profile, loading } = useAuth();
@@ -17,7 +14,6 @@ export default function ChildrenBooksPage() {
   const navigate = useNavigate();
   const book = findChildrenBook(bookSlug);
   const invalidSlug = Boolean(bookSlug && !book);
-  const selectedBook = book ?? CHILDREN_BOOKS[0]!;
 
   const handleSelectBook = useCallback(
     (slug: string) => {
@@ -26,17 +22,30 @@ export default function ChildrenBooksPage() {
     [navigate],
   );
 
+  const handleBackToLibrary = useCallback(() => {
+    navigate("/children-books");
+  }, [navigate]);
+
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
-  if (invalidSlug) return <Navigate to={`/children-books/${DEFAULT_CHILDREN_BOOK_SLUG}`} replace />;
+  if (invalidSlug) return <Navigate to="/children-books" replace />;
+
+  if (!bookSlug || !book) {
+    return (
+      <ChildrenBooksLibrary
+        books={CHILDREN_BOOKS}
+        showHubShell={showHubShell}
+        onSelectBook={handleSelectBook}
+      />
+    );
+  }
 
   return (
     <ChildrenBookReader
-      books={CHILDREN_BOOKS}
-      book={selectedBook}
+      book={book}
       showHubShell={showHubShell}
-      onSelectBook={handleSelectBook}
+      onBackToLibrary={handleBackToLibrary}
     />
   );
 }

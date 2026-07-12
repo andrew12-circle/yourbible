@@ -439,7 +439,8 @@ export function buildChildrenBookGenerationPrompt(book: ChildrenBook): string {
     `Audience: ${book.ageRange}.`,
     `Spiritual focus: ${book.spiritualFocus}.`,
     "Write short page text for an illustrated children's book.",
-    "For every page, include one image prompt, one spiritual thread, and a parent note.",
+    "For every page, include one scene description for illustration, one spiritual thread, and a parent note.",
+    "Wrap each page scene with Storybook Illustration System Prompt v1.0 for painterly storybook realism.",
     "Use original wording and avoid copying protected modern adaptations.",
   ].join(" ");
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPageIllustrationPrompt,
+  STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
+  STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT,
+} from "@/lib/children-books/illustrationPrompt";
+import {
   CHILDREN_BOOKS,
   DEFAULT_CHILDREN_BOOK_SLUG,
   buildChildrenBookGenerationPrompt,
@@ -25,5 +30,33 @@ describe("children book storybook data", () => {
     expect(book).toBeDefined();
     expect(buildChildrenBookGenerationPrompt(book!)).toContain(book!.spiritualFocus);
     expect(buildChildrenBookGenerationPrompt(book!)).toContain("avoid copying protected modern adaptations");
+    expect(buildChildrenBookGenerationPrompt(book!)).toContain("Storybook Illustration System Prompt v1.0");
+  });
+});
+
+describe("page illustration prompts", () => {
+  it("wraps each page scene with the full illustration system prompt", () => {
+    const book = findChildrenBook(DEFAULT_CHILDREN_BOOK_SLUG)!;
+    const page = book.pages[0]!;
+
+    const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: 1 });
+
+    expect(prompt).toContain(STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT);
+    expect(prompt).toContain(STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT);
+    expect(prompt).toContain(page.picturePrompt);
+    expect(prompt).toContain(page.scriptureThread);
+    expect(prompt).toContain("Page 1:");
+    expect(prompt).toContain("NOT cartoon");
+    expect(prompt).toContain("There is no magic");
+  });
+
+  it("builds a complete prompt for every page in every book", () => {
+    for (const book of CHILDREN_BOOKS) {
+      book.pages.forEach((page, index) => {
+        const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: index + 1 });
+        expect(prompt.length).toBeGreaterThan(500);
+        expect(prompt).toContain(page.picturePrompt);
+      });
+    }
   });
 });
