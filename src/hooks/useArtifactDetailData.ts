@@ -259,7 +259,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (transitioned || (terminal && prevStatus !== row.status)) {
       await loadFull();
     }
-  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull]);
+  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull, repairRateLimitArtifactRow]);
 
   useEffect(() => {
     ensureFetchRef.current = null;
