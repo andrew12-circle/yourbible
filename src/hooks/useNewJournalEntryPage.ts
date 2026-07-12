@@ -27,7 +27,9 @@ import {
 } from "@/lib/journal/responseDepth";
 import {
   persistJournalChatIncludeGeneral,
+  persistJournalChatVoiceReplies,
   readJournalChatIncludeGeneralDefault,
+  readJournalChatVoiceRepliesDefault,
 } from "@/lib/journal/chatComposerSettings";
 import { getCurrentContext } from "@/lib/journal/context";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
@@ -60,6 +62,7 @@ import {
   type InlineChatTurn,
 } from "@/lib/journal/inlineJournalChat";
 import { streamMyAiChat } from "@/lib/myai/invokeMyAiChat";
+import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
 import { useJournalBodyMarkers } from "@/hooks/useJournalBodyMarkers";
 import { useJournalEntryVideos } from "@/hooks/useJournalEntryVideos";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
@@ -117,6 +120,7 @@ export function useNewJournalEntryPage() {
   const [analyzeForMirror, setAnalyzeForMirror] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState<boolean>(false);
   const [includeGeneral, setIncludeGeneral] = useState(readJournalChatIncludeGeneralDefault);
+  const [voiceReplies, setVoiceReplies] = useState(readJournalChatVoiceRepliesDefault);
   const [responseDepth, setResponseDepth] = useState<ResponseDepthSetting>(() =>
     readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
   );
@@ -142,6 +146,9 @@ export function useNewJournalEntryPage() {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const dictateRef = useRef<DictateButtonHandle | null>(null);
+  const abortAiRef = useRef<AbortController | null>(null);
+  const voiceRepliesRef = useRef(voiceReplies);
+  const mountedRef = useRef(true);
   const [dictInterim, setDictInterim] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -175,12 +182,18 @@ export function useNewJournalEntryPage() {
   const handoffAppliedForKey = useRef<string | null>(null);
   const journalProseBeforeChatRef = useRef("");
   const [artifactReturnTo, setArtifactReturnTo] = useState<string | null>(null);
+  const assistantTtsRef = useRef(createAssistantTtsSession({
+    enabled: () => voiceRepliesRef.current,
+    mounted: () => mountedRef.current,
+  }));
 
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
   const keyboardOpen = kbInset > 0;
+
+  voiceRepliesRef.current = voiceReplies;
 
   const getComposeSnapshot = useCallback(
     (): ComposePersistenceSnapshot => ({
@@ -258,6 +271,21 @@ export function useNewJournalEntryPage() {
   useEffect(() => {
     persistResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
   }, [responseDepth]);
+
+  useEffect(() => {
+    persistJournalChatVoiceReplies(voiceReplies);
+    if (!voiceReplies) assistantTtsRef.current.stop();
+  }, [voiceReplies]);
+
+  useEffect(() => {
+    const assistantTts = assistantTtsRef.current;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortAiRef.current?.abort();
+      assistantTts.stop();
+    };
+  }, []);
 
   const { scrollToCaretEnd } = useJournalEditorCaretScroll({
     scrollRef: mainScrollRef,
@@ -858,6 +886,7 @@ export function useNewJournalEntryPage() {
     const text = body.trim();
     if (!text || aiBusy) return;
     dictateRef.current?.stop();
+    assistantTtsRef.current.stop();
     setAiBusy(true);
     const userTempId = `tmp-user-${Date.now()}`;
     const assistantTempId = `tmp-asst-${Date.now()}`;
@@ -868,13 +897,17 @@ export function useNewJournalEntryPage() {
       { id: assistantTempId, role: "assistant", content: "" },
     ]);
     setBody("");
+    let ensured: { entryId: string; chatId: string } | null = null;
+    abortAiRef.current?.abort();
+    abortAiRef.current = new AbortController();
     try {
-      const ensured = await ensureChatEntry();
+      ensured = await ensureChatEntry();
       if (!ensured) {
         setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
         return;
       }
-      await streamMyAiChat({
+      const done = await streamMyAiChat({
+        signal: abortAiRef.current.signal,
         body: {
           chat_id: ensured.chatId,
           message: text,
@@ -890,18 +923,86 @@ export function useNewJournalEntryPage() {
         },
       });
       await loadChatTurns(ensured.chatId);
+      if (done.content.trim()) void assistantTtsRef.current.play(done.content);
       setTimeout(() => {
         chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
       }, 50);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        const cId = ensured?.chatId ?? chatId;
+        if (cId) await loadChatTurns(cId);
+        return;
+      }
       toast({ title: "AI reply failed", description: String(e), variant: "destructive" });
       setBody((b) => (b ? b : text));
       setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
     } finally {
+      abortAiRef.current = null;
       setStreamingAssistantId(null);
       setAiBusy(false);
     }
-  }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth]);
+  }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth, chatId]);
+
+  const stopAiReply = useCallback(() => {
+    abortAiRef.current?.abort();
+    abortAiRef.current = null;
+    assistantTtsRef.current.stop();
+    setStreamingAssistantId(null);
+    setAiBusy(false);
+  }, []);
+
+  const retryLastAiReply = useCallback(async () => {
+    const entryId = editId ?? inlineEntryId;
+    if (!entryId || !chatId || aiBusy) return;
+    if (!chatTurns.some((turn) => turn.role === "assistant")) return;
+    assistantTtsRef.current.stop();
+    dictateRef.current?.stop();
+    setAiBusy(true);
+    const assistantTempId = `tmp-retry-${Date.now()}`;
+    setStreamingAssistantId(assistantTempId);
+    setChatTurns((prev) => {
+      let lastAssistantIdx = -1;
+      for (let i = prev.length - 1; i >= 0; i -= 1) {
+        if (prev[i].role === "assistant") {
+          lastAssistantIdx = i;
+          break;
+        }
+      }
+      if (lastAssistantIdx < 0) return prev;
+      return [...prev.slice(0, lastAssistantIdx), { id: assistantTempId, role: "assistant", content: "" }];
+    });
+    abortAiRef.current?.abort();
+    abortAiRef.current = new AbortController();
+    try {
+      const done = await streamMyAiChat({
+        signal: abortAiRef.current.signal,
+        body: {
+          chat_id: chatId,
+          retry_last: true,
+          mode: "journal",
+          journal_entry_id: entryId,
+          include_general_knowledge: includeGeneral,
+          response_depth: responseDepth,
+        },
+        onDelta: (acc) => {
+          setChatTurns((prev) =>
+            prev.map((t) => (t.id === assistantTempId ? { ...t, content: acc } : t)),
+          );
+        },
+      });
+      await loadChatTurns(chatId);
+      if (done.content.trim()) void assistantTtsRef.current.play(done.content);
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === "AbortError")) {
+        toast({ title: "Retry failed", description: String(e), variant: "destructive" });
+      }
+      await loadChatTurns(chatId);
+    } finally {
+      abortAiRef.current = null;
+      setStreamingAssistantId(null);
+      setAiBusy(false);
+    }
+  }, [editId, inlineEntryId, chatId, aiBusy, chatTurns, includeGeneral, responseDepth, loadChatTurns]);
 
   const save = useCallback(async () => {
     if (!user) return;
@@ -1088,6 +1189,7 @@ export function useNewJournalEntryPage() {
     chatTurns,
     body,
     title,
+    summary,
     pendingFiles,
     existingPhotos,
     entryAt,
@@ -1563,6 +1665,8 @@ export function useNewJournalEntryPage() {
     setReplyWithAi,
     includeGeneral,
     setIncludeGeneral,
+    voiceReplies,
+    setVoiceReplies,
     responseDepth,
     setResponseDepth,
     chatId,
@@ -1607,6 +1711,8 @@ export function useNewJournalEntryPage() {
     sketchDraftKey,
     save,
     sendToAi,
+    stopAiReply,
+    retryLastAiReply,
     openChatMode,
     exitChatMode,
     triggerPhotos,

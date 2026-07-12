@@ -734,6 +734,7 @@ Deno.serve(async (req) => {
           tags: tagsOut,
           body: bodyMd,
           summary: summaryText || null,
+          entry_kind: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", finalizeId)
@@ -1557,7 +1558,7 @@ Deno.serve(async (req) => {
           await supabase.from("my_ai_message_candidates").insert(candRows);
         }
       }
-    } catch (_e) {
+    } catch {
       /* non-fatal */
     }
 
