@@ -63,6 +63,22 @@ vi.mock("@/hooks/useArtifactEntityCount", () => ({
   useArtifactEntityCount: () => 0,
 }));
 
+vi.mock("@/hooks/useArtifactCorpusStanding", () => ({
+  useArtifactCorpusStanding: () => ({
+    peerLibraryCount: 0,
+    peers: [],
+    echoClaimCount: 0,
+    loading: false,
+    error: null,
+    embeddingPending: false,
+    reload: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/framework/claimResearchRuns", () => ({
+  fetchLastResearchedAtByClaimIds: vi.fn(async () => ({})),
+}));
+
 vi.mock("@/hooks/useArtifactGlobalVideoHandoff", () => ({
   useArtifactGlobalVideoHandoff: () => {},
 }));
