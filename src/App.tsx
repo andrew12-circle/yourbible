@@ -96,6 +96,7 @@ const TodosPage = lazy(() => import("./pages/life/TodosPage"));
 const MusicPage = lazy(() => import("./pages/MusicPage"));
 const ReadingPlansPage = lazy(() => import("./pages/bible/ReadingPlansPage"));
 const CodeLabPage = lazy(() => import("./pages/bible/CodeLabPage"));
+const ChildrenBooksPage = lazy(() => import("./pages/children-books/ChildrenBooksPage"));
 const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPage"));
 const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage"));
 const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
@@ -142,6 +143,8 @@ const App = () => (
                   <Route path="/my-ai/:chatId" element={<MyAiPage />} />
                   <Route path="/partner" element={<PartnerWalkPage />} />
                   <Route path="/reading-plans" element={<ReadingPlansPage />} />
+                  <Route path="/children-books" element={<ChildrenBooksPage />} />
+                  <Route path="/children-books/:bookSlug" element={<ChildrenBooksPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/sleep" element={<SleepPage />} />
                   <Route path="/living-hope" element={<LivingHopeHubPage />} />
@@ -268,7 +271,7 @@ function AppOfflineBanner() {
 function ThemeSwitcher() {
   const { pathname } = useLocation();
   useEffect(() => {
-    const isReader = pathname.startsWith("/read/");
+    const isReader = pathname.startsWith("/read/") || pathname.startsWith("/children-books");
     document.body.classList.toggle("app-theme", !isReader);
   }, [pathname]);
   return null;

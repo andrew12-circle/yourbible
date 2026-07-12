@@ -44,6 +44,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
   return [
     { label: "Bible", to: bibleTo, icon: BookOpen, color: IOS_APP_BG.bible, badge: lastRead?.replace("/", " ") },
     {
+      label: "Children's books",
+      to: "/children-books",
+      icon: BookOpen,
+      color: IOS_APP_BG.childrenBooks,
+      ariaLabel: "Children's books — illustrated Kingdom storybooks",
+    },
+    {
       label: "Life Manual",
       to: "/bible/life-guide",
       icon: BookMarked,
