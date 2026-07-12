@@ -15,6 +15,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import { useMobileComposerDock } from "@/hooks/useMobileComposerDock";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { Button } from "@/components/ui/button";
@@ -315,6 +316,8 @@ export default function MyAiPage() {
   const { showHubShell } = useAppShellMode();
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
+  const tabletPortrait = useIsTabletPortrait();
+  const useSheetSidebar = isMobile || tabletPortrait;
   const {
     kbInset,
     keyboardOpen,
@@ -828,7 +831,7 @@ export default function MyAiPage() {
       <LibraryIndexDialog open={indexOpen} onOpenChange={setIndexOpen} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {sidebarOpen && !isMobile && (
+        {sidebarOpen && !useSheetSidebar && (
           <aside className="hidden w-[252px] shrink-0 p-2 pr-1 md:flex">{desktopSidebar}</aside>
         )}
 
@@ -847,7 +850,7 @@ export default function MyAiPage() {
                 </Button>
               )}
 
-              {isMobile ? (
+              {useSheetSidebar ? (
                 <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
                   <SheetTrigger asChild>
                     <Button
@@ -868,7 +871,7 @@ export default function MyAiPage() {
                 </Sheet>
               ) : null}
 
-              {!isMobile && !sidebarOpen && (
+              {!useSheetSidebar && !sidebarOpen && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -1056,9 +1059,9 @@ export default function MyAiPage() {
                     ) : (
                       <div className="min-w-0 max-w-none overflow-x-hidden px-1 sm:px-2">
                         {sending && m.id === streamingAssistantId ? (
-                          <ChatAssistantMarkdown content={m.content} streaming />
+                          <ChatAssistantMarkdown content={m.content} streaming comfortable={tabletPortrait} />
                         ) : m.content ? (
-                          <ChatAssistantMarkdown content={m.content} />
+                          <ChatAssistantMarkdown content={m.content} comfortable={tabletPortrait} />
                         ) : (
                           <TypingDots />
                         )}

@@ -3,6 +3,7 @@ import {
   READER_DESKTOP_FONT_BASE,
   READER_FONT_SCALE_DEFAULT,
   READER_MOBILE_FONT_BASE,
+  READER_TABLET_PORTRAIT_FONT_BASE,
   clampReaderFontScale,
   effectiveReaderFontScaleEm,
 } from "@/lib/bible/readerFontScale";
@@ -21,6 +22,12 @@ describe("readerFontScale", () => {
     expect(effectiveReaderFontScaleEm(READER_FONT_SCALE_DEFAULT, { compactChrome: true })).toBe(
       READER_MOBILE_FONT_BASE,
     );
+    expect(
+      effectiveReaderFontScaleEm(READER_FONT_SCALE_DEFAULT, {
+        compactChrome: true,
+        tabletPortrait: true,
+      }),
+    ).toBe(READER_TABLET_PORTRAIT_FONT_BASE);
     expect(effectiveReaderFontScaleEm(READER_FONT_SCALE_DEFAULT, {})).toBe(1);
   });
 });

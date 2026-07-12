@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsTablet } from "@/hooks/use-reader-layout";
 import {
   useLockBodyScrollWhenKeyboardActive,
   useVisualViewportMetrics,
@@ -16,11 +17,13 @@ export function useMobileComposerDock(showHubShell: boolean) {
     useVisualViewportMetrics();
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [composerFocused, setComposerFocused] = useState(false);
   const lockScrollYRef = useRef<number | null>(null);
 
   const keyboardOpen = kbInset > 0;
-  const mobileKeyboardLayout = !showHubShell && (isMobile || inMiniPhone) && keyboardOpen;
+  const mobileKeyboardLayout =
+    !showHubShell && (isMobile || inMiniPhone || isTablet) && keyboardOpen;
 
   useLockBodyScrollWhenKeyboardActive(
     !inMiniPhone && !isMobile && composerFocused,

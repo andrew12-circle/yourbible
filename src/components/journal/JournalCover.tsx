@@ -6,6 +6,7 @@ import { journalCoverObjectPosition } from "@/lib/journal/covers";
 import { useJournalCoverBanner } from "@/hooks/useJournalCoverBanner";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsDesktop } from "@/hooks/use-desktop";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function JournalCover({
 }: Props) {
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
   const title = titleOverride ?? journal?.name ?? "All Entries";
   const { coverUrl, focal, hasPhoto } = useJournalCoverBanner(journal);
@@ -58,7 +60,7 @@ export default function JournalCover({
           onClick={onOpenRail}
           className={cn(
             "-ml-2 p-2 rounded-full hover:bg-white/15",
-            !isMobile && "hidden md:flex",
+            isDesktop ? "hidden" : isMobile ? undefined : "hidden md:flex",
           )}
           aria-label="Journals"
         >
@@ -69,7 +71,7 @@ export default function JournalCover({
             to={backTo}
             className={cn(
               "flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]",
-              !isMobile && "md:hidden",
+              !isDesktop && "md:hidden",
             )}
           >
             <ChevronLeft className="w-5 h-5 -mr-0.5" strokeWidth={2.5} />

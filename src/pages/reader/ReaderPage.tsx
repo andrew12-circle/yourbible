@@ -397,6 +397,10 @@ export default function ReaderPage() {
   const tabletPortrait = useIsTabletPortrait();
   const compactInkLayout = useCompactInkLayout();
   const [displayMode, setDisplayMode] = useState<ReaderDisplayMode>(() => readReaderDisplayMode());
+  const readerFontLayout = useMemo(
+    () => ({ desktopSpread: readerSpread, compactChrome, tabletPortrait }),
+    [readerSpread, compactChrome, tabletPortrait],
+  );
   const [readerDark, setReaderDark] = useState(readReaderDarkMode);
   const [columnLayout, setColumnLayout] = useState<ReaderColumnLayout>(() => readReaderColumnLayout());
 
@@ -576,16 +580,13 @@ export default function ReaderPage() {
     () =>
       computeReaderLayoutFingerprint({
         bibleId: bibleId || "default",
-        fontScale: effectiveReaderFontScaleEm(fontScale, {
-          desktopSpread: readerSpread,
-          compactChrome,
-        }),
+        fontScale: effectiveReaderFontScaleEm(fontScale, readerFontLayout),
         pageWidth: Math.max(180, pageBox.w),
         pageHeight: Math.max(180, pageBox.h),
         singlePage: !readerSpread,
         columnLayout: spreadColumnLayout,
       }),
-    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, spreadColumnLayout, compactChrome],
+    [bibleId, fontScale, pageBox.w, pageBox.h, readerSpread, spreadColumnLayout, readerFontLayout],
   );
 
   useEffect(() => {
@@ -694,14 +695,11 @@ export default function ReaderPage() {
     : pageTypoClass(fontChoice);
   const paginatorFontStyle = useMemo(
     () => ({
-      ...readerScriptureTypographyStyle(fontChoice, fontScale, {
-        desktopSpread: readerSpread,
-        compactChrome,
-      }),
+      ...readerScriptureTypographyStyle(fontChoice, fontScale, readerFontLayout),
       fontFamily: scriptureFont,
       ["--reader-scripture-font-family" as string]: scriptureFont,
     }),
-    [fontChoice, fontScale, scriptureFont, readerSpread, compactChrome],
+    [fontChoice, fontScale, scriptureFont, readerFontLayout],
   );
   const paragraphStarts = useMemo(
     () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
@@ -1483,10 +1481,7 @@ export default function ReaderPage() {
       spreadPane: useSpreadDoubleColumn && useBookSpread,
     });
     const articleStyle = {
-      ...readerScriptureTypographyStyle(fontChoice, fontScale, {
-        desktopSpread: readerSpread,
-        compactChrome,
-      }),
+      ...readerScriptureTypographyStyle(fontChoice, fontScale, readerFontLayout),
       fontFamily: scriptureFont,
       ["--reader-scripture-font-family" as string]: scriptureFont,
     };

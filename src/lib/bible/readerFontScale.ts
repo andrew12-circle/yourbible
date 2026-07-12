@@ -17,9 +17,13 @@ export const READER_DESKTOP_FONT_BASE = 0.85;
  */
 export const READER_MOBILE_FONT_BASE = 0.9;
 
+/** iPad portrait — slightly larger than phone for arm's-length pew reading. */
+export const READER_TABLET_PORTRAIT_FONT_BASE = 1;
+
 export type ReaderFontScaleLayout = {
   desktopSpread?: boolean;
   compactChrome?: boolean;
+  tabletPortrait?: boolean;
 };
 
 export function clampReaderFontScale(scale: number): number {
@@ -35,6 +39,9 @@ export function effectiveReaderFontScaleEm(
     typeof layout === "boolean" ? { desktopSpread: layout } : layout;
   const clamped = clampReaderFontScale(displayScale);
   if (opts.desktopSpread) return clamped * READER_DESKTOP_FONT_BASE;
+  if (opts.compactChrome && opts.tabletPortrait) {
+    return clamped * READER_TABLET_PORTRAIT_FONT_BASE;
+  }
   if (opts.compactChrome) return clamped * READER_MOBILE_FONT_BASE;
   return clamped;
 }
