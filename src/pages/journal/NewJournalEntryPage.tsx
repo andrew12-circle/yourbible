@@ -71,7 +71,6 @@ export default function NewJournalEntryPage() {
     />
   );
 
-  const typing = (p.bodyFocused && !p.inlineChatMode) || (p.inlineChatMode && p.composerFocused);
   const keyboardOpen = p.kbInset > 0;
   const hideBottomChrome = keyboardOpen || (p.bodyFocused && !p.inlineChatMode);
   const showComposeMap = !hideBottomChrome && !p.inlineChatMode && !p.isListening;

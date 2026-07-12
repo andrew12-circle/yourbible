@@ -278,11 +278,12 @@ export function useNewJournalEntryPage() {
   }, [voiceReplies]);
 
   useEffect(() => {
+    const assistantTts = assistantTtsRef.current;
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       abortAiRef.current?.abort();
-      assistantTtsRef.current.stop();
+      assistantTts.stop();
     };
   }, []);
 
@@ -1188,6 +1189,7 @@ export function useNewJournalEntryPage() {
     chatTurns,
     body,
     title,
+    summary,
     pendingFiles,
     existingPhotos,
     entryAt,
