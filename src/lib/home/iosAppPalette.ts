@@ -1,6 +1,7 @@
 /** iOS-style home-screen icon backgrounds — lighter top, saturated base. */
 export const IOS_APP_BG = {
   bible: "linear-gradient(180deg, #FF6961 0%, #FF3B30 100%)",
+  childrenBooks: "linear-gradient(180deg, #F472B6 0%, #A855F7 100%)",
   lifeGuide: "linear-gradient(180deg, #E8C87A 0%, #C9A227 100%)",
   codeLab: "linear-gradient(180deg, #8B7355 0%, #5C4033 100%)",
   daily: "linear-gradient(180deg, #64B5FF 0%, #007AFF 100%)",
