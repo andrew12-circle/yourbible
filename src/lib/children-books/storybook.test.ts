@@ -57,6 +57,17 @@ describe("children book storybook data", () => {
     expect(buildChildrenBookGenerationPrompt(book!)).toContain("avoid copying protected modern adaptations");
     expect(buildChildrenBookGenerationPrompt(book!)).toContain("Lilly Storybook Art Bible");
   });
+
+  it("includes Aurora as a built-in illustrated book", () => {
+    const book = findChildrenBook("aurora-perfect-protection");
+
+    expect(book).toBeDefined();
+    expect(book!.title).toBe("Aurora: God's Perfect Protection");
+    expect(book!.useDefaultCoverPath).toBe(true);
+    expect(book!.useDefaultImagePaths).toBe(true);
+    expect(book!.pages).toHaveLength(26);
+    expect(book!.pages.at(-1)?.scriptureThread).toContain("Psalm 121:8");
+  });
 });
 
 describe("page illustration prompts", () => {

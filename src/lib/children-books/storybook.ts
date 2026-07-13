@@ -380,6 +380,286 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     ],
   },
   {
+    slug: "aurora-perfect-protection",
+    title: "Aurora: God's Perfect Protection",
+    sourceNote: "Original faith retelling inspired by public-domain sleeping-princess fairy tales",
+    ageRange: "Ages 4-8",
+    spiritualFocus: "God's protection, prayer, courage, family, kindness, and trust over fear",
+    summary:
+      "Aurora learns that God hears prayer, watches over His children, and is stronger than every plan meant for harm.",
+    coverGradient: "linear-gradient(135deg, #4f46e5 0%, #f59e0b 100%)",
+    coverPrompt:
+      "Front cover portrait: Princess Aurora with kind expressive eyes in a soft dawn-gold gown, standing near a sunlit castle window with forest, river, and morning light behind her, a peaceful shield-shaped glow of sunlight in the composition, no magic, elegant storybook cover with open space along the top for a title.",
+    useDefaultCoverPath: true,
+    generationSeed:
+      "Use the Aurora faith retelling as a children's picture book about God's perfect protection, prayer, courage, kindness, family reunion, and the truth that we trust God instead of pretend magic.",
+    useDefaultImagePaths: true,
+    closingPrayer:
+      "Dear Jesus, thank You for watching over me wherever I go. Help me pray first, trust Your promises, choose courage, and remember that Your protection is forever. Amen.",
+    pages: [
+      {
+        title: "A kingdom that prayed",
+        body:
+          "Long ago, in a beautiful kingdom nestled between green forests and sparkling rivers, there lived a kind king and queen who loved God with all their hearts. For many years they prayed for a child.",
+        scriptureThread: "God hears the prayers of families who wait on Him.",
+        picturePrompt:
+          "A kind king and queen kneeling together in a warm chapel at sunrise, castle windows opening toward green forests and sparkling rivers.",
+        palette: "dawn",
+        symbol: "crown",
+      },
+      {
+        title: "The first light of dawn",
+        body:
+          "Every morning they asked, 'Lord, if it is Your will, bless us with a son or daughter whom we can teach to know and love You.' One spring morning, a beautiful baby girl was born. They named her Aurora, because she reminded them of the first light of dawn.",
+        scriptureThread: "Children are precious gifts from the Lord.",
+        picturePrompt:
+          "A joyful king and queen holding baby Aurora near an open castle window as soft spring dawn light fills the nursery.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "Prayers around the cradle",
+        body:
+          "The whole kingdom celebrated and thanked God for the precious little girl. Flora prayed for kindness, Fauna prayed for joy, and Merryweather prayed, 'Protect this little girl all the days of her life, and remind her that You are always with her.'",
+        scriptureThread: "Faithful prayers surround children with love.",
+        picturePrompt:
+          "Three beloved wise women praying beside baby Aurora's cradle in a candlelit castle hall while families celebrate gently in the background.",
+        palette: "royal",
+        symbol: "heart",
+      },
+      {
+        title: "The jealous guest",
+        body:
+          "Just then, the great castle doors burst open. Maleficent stood there with jealous eyes. Pride had slowly filled her heart, and she became angry whenever others were blessed.",
+        scriptureThread: "Pride and jealousy lead hearts away from joy.",
+        picturePrompt:
+          "A proud woman in dark medieval robes standing in open castle doors, jealous and lonely, while a joyful celebration grows quiet.",
+        palette: "starlight",
+        symbol: "shield",
+      },
+      {
+        title: "A warning and a choice",
+        body:
+          "The king stepped forward and said, 'Maleficent, there is still time to turn away from your anger.' But she refused. She pointed toward Aurora and warned that before the princess's sixteenth birthday ended, she would touch a spinning wheel and fall into a deep sleep.",
+        scriptureThread: "God invites angry hearts to turn back before harm grows.",
+        picturePrompt:
+          "The king speaking with calm courage in a palace hall as the queen holds baby Aurora close and the proud woman refuses his warning.",
+        palette: "royal",
+        symbol: "shield",
+      },
+      {
+        title: "God is greater",
+        body:
+          "Fear filled the room, but Merryweather took the king's hand and whispered, 'Do not fear. God is greater than every plan of evil.' Then she prayed, 'Lord, what others mean for harm, You are able to turn for good. We trust You.'",
+        scriptureThread: "God can turn harm toward good for those who trust Him.",
+        picturePrompt:
+          "Merryweather praying beside the king and queen in a hushed castle hall, warm light falling across baby Aurora and the gathered people.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "The forest cottage",
+        body:
+          "The king ordered every spinning wheel destroyed, yet they knew Maleficent would not easily give up. Flora, Fauna, and Merryweather took Aurora to live in a small cottage deep in the forest until she was grown.",
+        scriptureThread: "Wise protection can be an act of faithful love.",
+        picturePrompt:
+          "Three wise women carrying baby Aurora along a forest path toward a warm cottage, distant castle towers behind them at sunset.",
+        palette: "garden",
+        symbol: "shield",
+      },
+      {
+        title: "A parent's prayer",
+        body:
+          "It was the hardest decision the king and queen had ever made. As their little girl rode away, the queen wiped away tears and prayed, 'Lord, watch over our daughter until we hold her again.'",
+        scriptureThread: "God watches children when parents cannot hold them close.",
+        picturePrompt:
+          "The king and queen standing on castle steps with tearful hope, watching a carriage disappear toward the forest in golden evening light.",
+        palette: "starlight",
+        symbol: "heart",
+      },
+      {
+        title: "Morning and evening prayers",
+        body:
+          "Aurora grew into a cheerful young girl. She thought Flora, Fauna, and Merryweather were simply her loving aunts. Every morning they thanked God for another day, and every evening ended with prayer.",
+        scriptureThread: "Daily prayer teaches a child to trust God's care.",
+        picturePrompt:
+          "Young Aurora and her three loving aunts gathered around a rustic table in a forest cottage, praying in warm morning light.",
+        palette: "dawn",
+        symbol: "heart",
+      },
+      {
+        title: "God writes the next page",
+        body:
+          "Aurora gathered flowers, baked bread, helped neighbors, and cared for injured birds and woodland animals. When she asked why they lived so far away, Flora said, 'God is writing a beautiful story, even when we cannot see the next page.'",
+        scriptureThread: "Faith trusts God beyond what we can see.",
+        picturePrompt:
+          "Aurora in a forest clearing with flowers, fresh bread, and a small injured bird resting safely in her hands, her aunt smiling nearby.",
+        palette: "garden",
+        symbol: "light",
+      },
+      {
+        title: "Lessons in the hidden years",
+        body:
+          "Aurora learned that kindness mattered more than beauty. She learned to forgive quickly. She learned that courage meant doing what was right even when it was difficult. Most of all, she learned to trust God.",
+        scriptureThread: "God grows courage and kindness in ordinary days.",
+        picturePrompt:
+          "Aurora helping an elderly neighbor carry a basket near the forest cottage while sunbeams touch wildflowers and woodland animals watch peacefully.",
+        palette: "garden",
+        symbol: "heart",
+      },
+      {
+        title: "The young traveler",
+        body:
+          "One sunny afternoon, while singing in the forest, Aurora met a young traveler named Phillip. He was kind, laughed easily, and loved helping others. They walked through the woods and talked about the beauty of God's creation.",
+        scriptureThread: "God's creation invites friendship, gratitude, and wonder.",
+        picturePrompt:
+          "Aurora and Phillip walking through a sunlit forest path beside a sparkling stream, talking kindly among wildflowers and birds.",
+        palette: "garden",
+        symbol: "light",
+      },
+      {
+        title: "The truth at last",
+        body:
+          "The day before Aurora's sixteenth birthday, Flora, Fauna, and Merryweather told her, 'You are Princess Aurora.' When Aurora learned her parents were alive and had missed her every day, she whispered, 'They must have missed me so much.'",
+        scriptureThread: "Compassion helps us receive hard truth with grace.",
+        picturePrompt:
+          "Aurora seated in the cottage with her three aunts, receiving surprising news with tearful compassion as afternoon light glows through the window.",
+        palette: "dawn",
+        symbol: "heart",
+      },
+      {
+        title: "Together again",
+        body:
+          "That evening they returned to the castle. The king and queen embraced their daughter with tears of joy. For the first time since she was a baby, their family was together again.",
+        scriptureThread: "God can restore joy after a long season of waiting.",
+        picturePrompt:
+          "Aurora embracing the king and queen in a grand castle doorway while lanterns glow and the three wise women watch with joyful tears.",
+        palette: "royal",
+        symbol: "crown",
+      },
+      {
+        title: "Pray first",
+        body:
+          "But Maleficent had been waiting. Hidden inside the castle, she led Aurora toward an old forgotten tower where the only spinning wheel left in the kingdom stood beneath a cloth. Aurora reached toward it and remembered, 'When something doesn't feel right, pray first.'",
+        scriptureThread: "Prayer should be our first response when something feels wrong.",
+        picturePrompt:
+          "Aurora standing in an old castle tower before a covered spinning wheel, pausing with eyes closed in prayer as soft light enters a narrow window.",
+        palette: "starlight",
+        symbol: "shield",
+      },
+      {
+        title: "Not forgotten",
+        body:
+          "Before Aurora could finish her prayer, her finger touched the spindle and she fell into a peaceful sleep. The queen cried and the king fell to his knees, but Merryweather stood calmly beside Aurora and said, 'God has not forgotten His promise.'",
+        scriptureThread: "God's promises stand even when hope looks quiet.",
+        picturePrompt:
+          "Aurora sleeping peacefully in a tower room as the king kneels, the queen weeps, and Merryweather stands with calm faith in warm window light.",
+        palette: "starlight",
+        symbol: "light",
+      },
+      {
+        title: "Phillip rides on",
+        body:
+          "When Phillip heard what had happened, he immediately rode toward the castle. The road became darker and harder with every mile. Maleficent filled the path with thorn bushes and whispered, 'You'll never reach her. Turn back. It's too late.'",
+        scriptureThread: "Fear tries to stop courage before the work is done.",
+        picturePrompt:
+          "Phillip riding a horse along a dark forest road toward distant castle towers, thorn bushes crowding the path under a troubled sky.",
+        palette: "starlight",
+        symbol: "shield",
+      },
+      {
+        title: "Step by step",
+        body:
+          "Phillip stopped his horse and bowed his head. 'Lord, give me strength.' Peace filled his heart. He climbed down and began clearing a path through the thorns, step by step and prayer by prayer.",
+        scriptureThread: "God gives strength for the next faithful step.",
+        picturePrompt:
+          "Phillip kneeling in prayer beside his horse, then clearing thorn branches from a forest path as soft dawn light begins to break through.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "Whom shall I fear?",
+        body:
+          "Finally Maleficent stood before him. Her heart had become so consumed with hatred that she seemed as frightening as a great dragon. Phillip remembered God's promise: 'The Lord is my light and my salvation - whom shall I fear?'",
+        scriptureThread: "The Lord is our light and salvation, so fear does not rule us.",
+        picturePrompt:
+          "Phillip standing firm with humble courage before a towering shadow shaped like a dragon, warm heavenly light behind him, no fantasy creature details.",
+        palette: "royal",
+        symbol: "shield",
+      },
+      {
+        title: "Light overcame darkness",
+        body:
+          "Phillip stood firm. Maleficent fled. Darkness could not overcome the light of God.",
+        scriptureThread: "God's light is stronger than darkness.",
+        picturePrompt:
+          "A dark shadow retreating from a castle bridge as sunrise pours over Phillip, the thorny path opening toward bright castle doors.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "Aurora wakes",
+        body:
+          "Phillip hurried into the quiet castle and found Aurora sleeping peacefully. He knelt beside her and prayed, 'Lord, thank You for protecting Aurora. Your will be done.' Then he gently kissed her forehead, and Aurora opened her eyes.",
+        scriptureThread: "God faithfully keeps His promises in His perfect care.",
+        picturePrompt:
+          "Phillip kneeling beside sleeping Aurora in a sunlit castle room, praying with gratitude as birds gather outside the window.",
+        palette: "dawn",
+        symbol: "heart",
+      },
+      {
+        title: "The kingdom rejoiced",
+        body:
+          "Sunlight poured through the windows. Birds began singing outside. The king and queen rejoiced, and the whole kingdom celebrated, not because of magic, but because God had faithfully kept His promise.",
+        scriptureThread: "We give glory to God for rescue and joy.",
+        picturePrompt:
+          "Aurora reunited with the king, queen, Phillip, and the wise women in a bright castle hall as sunlight streams through tall windows.",
+        palette: "royal",
+        symbol: "crown",
+      },
+      {
+        title: "Love God first",
+        body:
+          "Years later, Aurora and Phillip were married. Before the celebration began, they stood together in the castle chapel and prayed, 'Lord, help us love You first. Help us love each other well. Let our family always bring glory to You.'",
+        scriptureThread: "A family is strongest when God is loved first.",
+        picturePrompt:
+          "Aurora and Phillip praying together in a small castle chapel before their wedding celebration, flowers and candles glowing softly.",
+        palette: "royal",
+        symbol: "heart",
+      },
+      {
+        title: "God was watching",
+        body:
+          "Aurora became known as a queen who cared for the poor, welcomed strangers, and showed kindness to everyone. When children asked if she was afraid while she slept, she smiled and said, 'I wasn't alone. God was watching over me the whole time.'",
+        scriptureThread: "God watches over His children wherever they are.",
+        picturePrompt:
+          "Queen Aurora welcoming children, travelers, and poor families at a castle garden table with gentle kindness and warm afternoon light.",
+        palette: "garden",
+        symbol: "crown",
+      },
+      {
+        title: "What is pretend and what is real",
+        body:
+          "When children asked if magic had saved her, Aurora gently shook her head. 'Magic is only pretend. But God's love, God's protection, and God's promises are forever.' Princesses, castles, dragons, and talking woodland animals make stories fun to imagine, but we trust in God.",
+        scriptureThread: "We do not trust in pretend magic; we trust in the living God.",
+        picturePrompt:
+          "Aurora reading to children in a cozy castle library, a storybook open beside a small wooden castle toy, warm lamplight and peaceful faces.",
+        palette: "starlight",
+        symbol: "light",
+      },
+      {
+        title: "Psalm 121:8",
+        body:
+          "What is real? God hears our prayers. God watches over His children. God is stronger than evil. Kindness, courage, and faith honor Him. God keeps His promises, even when we have to wait. 'The Lord will watch over your coming and going both now and forevermore.' - Psalm 121:8",
+        scriptureThread: "The Lord will watch over your coming and going both now and forevermore. - Psalm 121:8",
+        picturePrompt:
+          "An open Bible on Psalm 121:8 beside dawn flowers, a small crown, a shield motif, and a path leading from a forest cottage to a sunlit castle.",
+        palette: "dawn",
+        symbol: "shield",
+      },
+    ],
+  },
+  {
     slug: "garden-of-grace",
     title: "The Garden of Grace",
     sourceNote: "Inspired by the public-domain Beauty and the Beast tradition",
