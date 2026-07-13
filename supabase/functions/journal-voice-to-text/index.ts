@@ -8,6 +8,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Strip STT-hallucinated / misheard strong swears (keep theological hell/damn). */
+const PROFANITY_PATTERN =
+  /\b(?:f+u+c+k(?:ing|in'|in|ed|er|ers|s)?|motherf+u+c+k(?:ing|er|ers|in'|in|ed|s)?|bull\s*sh[i1!]t(?:ting|ty|s)?|sh[i1!]t(?:ting|ty|s|head|heads)?|assholes?|b[i1!]tch(?:es|ing|y)?|cunts?|dickheads?|pricks?|twats?|wank(?:er|ers|ing)?|god\s*damn(?:ed|it)?|god\s*dammit)\b/gi;
+const OBFUSCATED_PATTERN = /\bf[\W_]{0,3}u[\W_]{0,3}c[\W_]{0,3}k(?:[\W_]*ing|[\W_]*ed|[\W_]*er)?\b/gi;
+
+function scrubTranscriptProfanity(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(PROFANITY_PATTERN, "")
+    .replace(OBFUSCATED_PATTERN, "")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -84,7 +100,9 @@ Deno.serve(async (req) => {
     }
 
     const data = await r.json();
-    const text: string = (data.text ?? data.transcript ?? "").trim();
+    const rawText: string = (data.text ?? data.transcript ?? "").trim();
+    // STT often hallucinates/mishears strong swears — strip before returning to the app.
+    const text = scrubTranscriptProfanity(rawText);
     if (!text) {
       return new Response(JSON.stringify({ error: "Empty transcript" }), {
         status: 422,

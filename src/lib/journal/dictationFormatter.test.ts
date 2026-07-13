@@ -34,6 +34,12 @@ describe("formatDictatedJournalText", () => {
     expect(out).toMatch(/\.$/);
   });
 
+  it("strips curse words from dictation", () => {
+    const out = formatDictatedJournalText("i was fucking praying about this");
+    expect(out).not.toMatch(/fuck/i);
+    expect(out).toMatch(/praying/i);
+  });
+
   it("splits long runs at spoken pivots", () => {
     const raw =
       "give me the patience you understanding and wisdom to know what to do in this situation " +

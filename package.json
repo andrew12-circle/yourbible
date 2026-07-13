@@ -28,7 +28,8 @@
     "ingest:csb": "npx tsx scripts/ingest-csb.ts",
     "audit:bible-parser": "npx tsx scripts/audit-bible-parser.mjs",
     "audit:canonical-bible": "npx tsx scripts/audit-canonical-bible.mjs",
-    "generate:children-books": "npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation"
+    "generate:children-books": "npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --all --force",
+    "generate:children-books:pages": "npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --force"
   },
   "dependencies": {
     "@fix-webm-duration/fix": "^1.0.1",

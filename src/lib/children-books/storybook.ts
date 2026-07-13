@@ -49,6 +49,8 @@ export function resolvePageLayout(
 export type ChildrenBook = {
   slug: string;
   title: string;
+  /** Series heroine name for illustration prompts (defaults to Lilly). */
+  heroName?: string;
   sourceNote: string;
   ageRange: string;
   spiritualFocus: string;
@@ -65,27 +67,35 @@ export type ChildrenBook = {
   useDefaultImagePaths?: boolean;
   /** Short prayer read aloud on the closing spread. */
   closingPrayer: string;
+  /** Scene for the closing illustration (public/children-books/{slug}/end.png when enabled). */
+  closingIllustrationPrompt: string;
+  closingImageUrl?: string;
+  useDefaultClosingImagePath?: boolean;
   pages: ChildrenBookPage[];
 };
 
 export const CHILDREN_BOOKS: ChildrenBook[] = [
   {
     slug: "kingdom-invitation",
-    title: "Cinderella: A Story of Faith, Kindness, and God's Perfect Timing",
+    title: "Lilly: A Story of Faith, Kindness, and God's Perfect Timing",
+    heroName: "Lilly",
     sourceNote: "Original faith retelling inspired by the public-domain Cinderella story",
     ageRange: "Ages 4-8",
     spiritualFocus: "Faith, kindness, humility, prayer, forgiveness, and God's timing",
     summary:
-      "Cinderella learns that God sees the overlooked, kindness is never wasted, and the Lord often answers prayer through ordinary people willing to help.",
+      "Lilly learns that God sees the overlooked, kindness is never wasted, and the Lord often answers prayer through ordinary people willing to help.",
     coverGradient: "linear-gradient(135deg, #7c3aed 0%, #f59e0b 100%)",
     coverPrompt:
-      "Front cover portrait: Cinderella in a gentle golden gown with kind expressive eyes, a humble smile, warm candlelit cottage and rolling forest hills behind her, golden hour light, elegant storybook cover composition with open space along the top for a title.",
+      "Front cover portrait: Lilly (soft chestnut hair, round face, warm smile) in a gentle golden gown, humble and kind, warm candlelit cottage and rolling forest hills behind her, golden hour light, elegant storybook cover composition with open space along the top for a title.",
     useDefaultCoverPath: true,
     generationSeed:
-      "Use the provided Cinderella faith retelling as a children's picture book about God's perfect timing, kindness, prayer, humility, and forgiveness.",
+      "Use the provided Cinderella faith retelling as a Lilly children's picture book about God's perfect timing, kindness, prayer, humility, and forgiveness.",
     useDefaultImagePaths: true,
+    useDefaultClosingImagePath: true,
     closingPrayer:
       "Dear Jesus, thank You for seeing me when no one else does. Help me stay kind, trust Your perfect timing, and love others the way You love me. Amen.",
+    closingIllustrationPrompt:
+      "Lilly standing in a golden sunset meadow, hands folded in thankful prayer, gentle smile, village and soft castle in the distance, firefly-like warm lights in the air, rolling hills, cinematic storybook ending, peaceful joy and wonder.",
     pages: [
       {
         title: "A mother's reminder",
@@ -385,6 +395,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       "Create an original Beauty-and-the-Beast-inspired children's book where the enchanted garden teaches mercy, repentance, and God's power to restore a wounded heart.",
     closingPrayer:
       "Dear Jesus, soften my heart when I am afraid. Teach me to see others with mercy, speak truth with kindness, and forgive the way You forgive me. Amen.",
+    closingIllustrationPrompt:
+      "Mara in a blooming rose garden at golden hour, thorns loosened into heart shapes, restored prince planting flowers beside her, castle soft in the distance, magical peaceful storybook ending.",
     pages: [
       {
         title: "The locked garden",
@@ -444,6 +456,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       "Create an original sea-princess fairy tale for children where longing, song, and wonder point toward Jesus as Living Water instead of toward self-saving magic.",
     closingPrayer:
       "Dear Jesus, You are the living water my heart needs. Quiet the storms inside me, help me listen for Your voice, and fill me with Your peace. Amen.",
+    closingIllustrationPrompt:
+      "Liora at a glowing shore where ocean meets a garden spring, hands open in worship, warm light from above the waves, bubbles of light rising, cinematic peaceful storybook ending.",
     pages: [
       {
         title: "Songs under the waves",
@@ -503,7 +517,7 @@ export function buildChildrenBookGenerationPrompt(book: ChildrenBook): string {
     `Spiritual focus: ${book.spiritualFocus}.`,
     "Write short page text for an illustrated children's book.",
     "For every page, include one scene description for illustration, one spiritual thread, and a parent note.",
-    "Wrap each page scene with Storybook Illustration System Prompt v1.0 for painterly storybook realism.",
+    "Wrap each page scene with the Lilly Storybook Art Bible and character model sheet.",
     "Use original wording and avoid copying protected modern adaptations.",
   ].join(" ");
 }

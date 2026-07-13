@@ -3,6 +3,8 @@
  * Safe to use with E2E encryption: plaintext never leaves the client for formatting.
  */
 
+import { scrubTranscriptProfanity } from "@/lib/journal/scrubTranscriptProfanity";
+
 const SPOKEN_PUNCTUATION: [RegExp, string][] = [
   [/\s+new\s+paragraph\s+/gi, "\n\n"],
   [/\s+new\s+line\s+/gi, "\n"],
@@ -142,8 +144,8 @@ function formatParagraphs(text: string): string {
 
 /** Format raw speech-to-text into punctuated journal prose (device-only). */
 export function formatDictatedJournalText(text: string): string {
-  let s = normalizeShoutingCase(text.trim());
-  if (!s) return text;
+  let s = scrubTranscriptProfanity(normalizeShoutingCase(text.trim()));
+  if (!s) return "";
 
   for (const [re, replacement] of SPOKEN_PUNCTUATION) {
     s = s.replace(re, replacement);

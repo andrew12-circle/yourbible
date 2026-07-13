@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPageIllustrationPrompt,
+  localizeScenePrompt,
   STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
   STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT,
 } from "@/lib/children-books/illustrationPrompt";
@@ -18,6 +19,8 @@ describe("children book storybook data", () => {
 
     for (const book of CHILDREN_BOOKS) {
       expect(book.pages.length).toBeGreaterThan(0);
+      expect(book.closingPrayer.trim()).not.toHaveLength(0);
+      expect(book.closingIllustrationPrompt.trim()).not.toHaveLength(0);
       for (const page of book.pages) {
         expect(page.picturePrompt.trim()).not.toHaveLength(0);
         expect(page.scriptureThread.trim()).not.toHaveLength(0);
@@ -52,7 +55,7 @@ describe("children book storybook data", () => {
     expect(book).toBeDefined();
     expect(buildChildrenBookGenerationPrompt(book!)).toContain(book!.spiritualFocus);
     expect(buildChildrenBookGenerationPrompt(book!)).toContain("avoid copying protected modern adaptations");
-    expect(buildChildrenBookGenerationPrompt(book!)).toContain("Storybook Illustration System Prompt v1.0");
+    expect(buildChildrenBookGenerationPrompt(book!)).toContain("Lilly Storybook Art Bible");
   });
 });
 
@@ -63,13 +66,15 @@ describe("page illustration prompts", () => {
 
     const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: 1 });
 
-    expect(prompt).toContain(STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT);
+    expect(prompt).toContain(STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT.slice(0, 40));
     expect(prompt).toContain(STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT);
-    expect(prompt).toContain(page.picturePrompt);
+    expect(prompt).toContain("Lilly Storybook Art Bible");
+    expect(prompt).toContain("LILLY CHARACTER MODEL SHEET");
+    expect(prompt).toContain(page.picturePrompt.replace("Cinderella", "Lilly").slice(0, 20));
     expect(prompt).toContain(page.scriptureThread);
     expect(prompt).toContain("Page 1:");
-    expect(prompt).toContain("NOT cartoon");
-    expect(prompt).toContain("There is no magic");
+    expect(prompt).toContain("clean ink linework");
+    expect(prompt).toContain("Avoid photorealism");
   });
 
   it("builds a complete prompt for every page in every book", () => {
@@ -77,7 +82,7 @@ describe("page illustration prompts", () => {
       book.pages.forEach((page, index) => {
         const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: index + 1 });
         expect(prompt.length).toBeGreaterThan(500);
-        expect(prompt).toContain(page.picturePrompt);
+        expect(prompt).toContain(localizeScenePrompt(book, page.picturePrompt));
       });
     }
   });

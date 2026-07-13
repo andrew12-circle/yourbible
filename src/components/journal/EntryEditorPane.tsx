@@ -899,7 +899,7 @@ export default function EntryEditorPane({
     if (!reflectionMode && entryRef.current?.entry_kind !== "chat") {
       queueSave({ entry_kind: "chat" });
     }
-    if (reflectionMode && chatTurns.length === 0) {
+    if (reflectionMode) {
       await bootstrapReflection();
     }
     scrollToBottom();

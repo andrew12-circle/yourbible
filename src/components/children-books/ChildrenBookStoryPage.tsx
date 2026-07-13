@@ -34,6 +34,7 @@ type ChildrenBookStoryPageProps = {
   loaded: boolean;
   failed: boolean;
   generating: boolean;
+  staticIllustrations?: boolean;
   onLoad: () => void;
   onError: () => void;
   onOpenIllustration: () => void;
@@ -97,6 +98,7 @@ function StoryArtBlock({
   onLoad,
   onError,
   onOpenIllustration,
+  staticIllustrations = false,
 }: {
   page: ChildrenBookPage;
   side: "left" | "right";
@@ -110,6 +112,7 @@ function StoryArtBlock({
   onLoad: () => void;
   onError: () => void;
   onOpenIllustration: () => void;
+  staticIllustrations?: boolean;
 }) {
   if (textOnly) return null;
 
@@ -151,7 +154,7 @@ function StoryArtBlock({
           !isPocket && !isInsetArt && "h-full w-full",
         )}
       >
-      {generating && (
+      {generating && !staticIllustrations && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/25 backdrop-blur-[1px]">
           <Loader2 className="h-8 w-8 animate-spin text-white drop-shadow" aria-hidden />
           <span className="text-xs font-medium text-white drop-shadow">Painting illustration…</span>
@@ -164,7 +167,7 @@ function StoryArtBlock({
             src={imageUrl}
             alt={page.imageAlt ?? page.title}
             className={cn(
-              "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+              "absolute inset-0 h-full w-full object-cover transition-opacity duration-200",
               loaded ? "opacity-100" : "opacity-0",
             )}
             style={{
@@ -176,11 +179,28 @@ function StoryArtBlock({
               WebkitMaskImage: artMask,
               maskImage: artMask,
             }}
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
             onLoad={onLoad}
             onError={onError}
           />
-          {!isInsetArt && (
+          {!loaded && (
+            <div
+              className={cn(
+                "absolute inset-0",
+                staticIllustrations
+                  ? "animate-pulse bg-[linear-gradient(180deg,#faf6ee_0%,#f3ecdf_100%)]"
+                  : cn("bg-gradient-to-br", paletteClasses[page.palette]),
+              )}
+              style={{
+                WebkitMaskImage: artMask,
+                maskImage: artMask,
+              }}
+              aria-hidden
+            />
+          )}
+          {!isInsetArt && loaded && (
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
@@ -193,6 +213,11 @@ function StoryArtBlock({
             />
           )}
         </div>
+      ) : staticIllustrations ? (
+        <div
+          className="absolute inset-0 animate-pulse bg-[linear-gradient(180deg,#faf6ee_0%,#f3ecdf_100%)]"
+          aria-hidden
+        />
       ) : (
         <div
           className={cn(
@@ -226,15 +251,6 @@ function StoryArtBlock({
         </div>
       )}
 
-      {!loaded && showImage && (
-        <div
-          className={cn("absolute inset-0 bg-gradient-to-br", paletteClasses[page.palette])}
-          style={{
-            WebkitMaskImage: artMask,
-            maskImage: artMask,
-          }}
-        />
-      )}
       </div>
     </div>
   );
@@ -264,6 +280,7 @@ export function ChildrenBookStoryPage({
   loaded,
   failed,
   generating,
+  staticIllustrations = false,
   onLoad,
   onError,
   onOpenIllustration,
@@ -308,6 +325,7 @@ export function ChildrenBookStoryPage({
             onLoad={onLoad}
             onError={onError}
             onOpenIllustration={onOpenIllustration}
+            staticIllustrations={staticIllustrations}
           />
           <StoryTextBlock page={page} textPosition={textPosition} textOnly={textOnly} />
         </>
@@ -329,6 +347,7 @@ export function ChildrenBookStoryPage({
             onLoad={onLoad}
             onError={onError}
             onOpenIllustration={onOpenIllustration}
+            staticIllustrations={staticIllustrations}
           />
           {!textFirst && (
             <StoryTextBlock page={page} textPosition={textPosition} textOnly={textOnly} />

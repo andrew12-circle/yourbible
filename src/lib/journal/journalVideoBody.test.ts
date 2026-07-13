@@ -10,6 +10,7 @@ import {
   resolveVideoJournalTranscript,
   insertTranscriptAtAnchor,
   liveTranscriptTickerLine,
+  normalizeLiveVideoTranscript,
   prepareVideoJournalTranscript,
   resolveVideoAnchorOffset,
   effectiveVideoAnchor,
@@ -33,6 +34,19 @@ describe("composeVideoLiveTranscript", () => {
 describe("prepareVideoJournalTranscript", () => {
   it("returns empty for blank input", () => {
     expect(prepareVideoJournalTranscript("   ")).toBe("");
+  });
+
+  it("strips curse words from speech-to-text", () => {
+    expect(prepareVideoJournalTranscript("I was fucking looking at the verse")).not.toMatch(
+      /fuck/i,
+    );
+    expect(prepareVideoJournalTranscript("I was fucking looking at the verse")).toMatch(/looking/i);
+  });
+});
+
+describe("normalizeLiveVideoTranscript", () => {
+  it("strips curse words from live captions", () => {
+    expect(normalizeLiveVideoTranscript("wait fucking what")).toBe("wait what");
   });
 });
 

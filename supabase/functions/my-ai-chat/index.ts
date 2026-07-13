@@ -865,9 +865,20 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: chatCfg.error }, 502);
     }
 
-    // --- Bootstrap: first assistant opener (no user message) ---
-    if (body.journal_bootstrap_opener === true || body.journal_bootstrap_reflection === true) {
-      const reflectionBootstrap = body.journal_bootstrap_reflection === true;
+    // --- Bootstrap: first assistant opener (no user message required) ---
+    const earlyMessage = typeof body.message === "string" ? body.message.trim() : "";
+    // Explicit flag, or journal_reflection with no message (clients may also send a short
+    // compatibility `message` alongside journal_bootstrap_reflection — ignored in this branch).
+    const reflectionBootstrap =
+      body.journal_bootstrap_reflection === true ||
+      (
+        body.journal_reflection === true &&
+        body.journal_bootstrap_opener !== true &&
+        !earlyMessage &&
+        mode === "journal" &&
+        Boolean(journalEntryId)
+      );
+    if (body.journal_bootstrap_opener === true || reflectionBootstrap) {
       if (mode !== "journal" || !journalEntryId) {
         return jsonResponse({ error: "journal bootstrap requires mode=journal and journal_entry_id" }, 400);
       }

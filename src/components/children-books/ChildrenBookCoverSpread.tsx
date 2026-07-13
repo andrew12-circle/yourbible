@@ -49,6 +49,9 @@ export function ChildrenBookCoverSpread({ book, opening, onOpen }: ChildrenBookC
                 "absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
                 loaded ? "opacity-100" : "opacity-0",
               )}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               onLoad={onLoad}
               onError={onError}
             />
@@ -102,7 +105,7 @@ export function ChildrenBookCoverThumbnail({
   return (
     <div
       className={cn(
-        "relative aspect-[3/4] w-full overflow-hidden rounded-r-md rounded-l-sm shadow-lg",
+        "relative overflow-hidden rounded-r-md rounded-l-sm",
         "before:absolute before:inset-y-0 before:left-0 before:z-10 before:w-2 before:bg-black/15",
         "after:absolute after:inset-y-1 after:left-1 after:z-10 after:w-px after:bg-white/25",
         className,

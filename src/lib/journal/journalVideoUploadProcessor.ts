@@ -151,7 +151,7 @@ export async function saveJournalVideoCapture(
 ): Promise<SaveJournalVideoCaptureResult> {
   const uploaded = await uploadEntryVideo(userId, entryId, video, durationMs);
   const liveCaptions = pickBestVideoJournalTranscript(liveTranscript, peakLiveTranscript);
-  const placeholderTranscript = prepareVideoJournalTranscript(liveCaptions) || liveCaptions || null;
+  const placeholderTranscript = prepareVideoJournalTranscript(liveCaptions) || null;
   const row = await insertEntryVideo(userId, entryId, uploaded, {
     anchor_offset: anchorOffset,
     transcript: placeholderTranscript,
@@ -169,9 +169,11 @@ export async function saveJournalVideoCapture(
     transcript = applyVideoChaptersToTranscript(transcript, chapters);
   }
   if (transcript) {
-    const prepared = prepareVideoJournalTranscript(transcript) || transcript;
-    await updateEntryVideoTranscript(row.id, prepared);
-    transcript = prepared;
+    const prepared = prepareVideoJournalTranscript(transcript);
+    if (prepared) {
+      await updateEntryVideoTranscript(row.id, prepared);
+      transcript = prepared;
+    }
   }
 
   return {

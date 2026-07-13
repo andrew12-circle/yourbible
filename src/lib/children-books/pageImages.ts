@@ -60,6 +60,76 @@ export function defaultCoverImagePath(bookSlug: string): string {
   return `/children-books/${bookSlug}/cover.png`;
 }
 
+/** Built-in closing-spread illustration under public/children-books/{slug}/end.png */
+export function defaultClosingImagePath(bookSlug: string): string {
+  return `/children-books/${bookSlug}/end.png`;
+}
+
+const preloadCache = new Set<string>();
+
+/** Warm the browser cache for static book assets (deduped per session). */
+export function preloadImageUrl(url: string, priority: "high" | "low" = "low"): void {
+  if (typeof window === "undefined" || !url || preloadCache.has(url)) return;
+  preloadCache.add(url);
+  const img = new Image();
+  if (priority === "high" && "fetchPriority" in img) {
+    (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = "high";
+  }
+  img.decoding = "async";
+  img.src = url;
+}
+
+export function preloadImageUrls(urls: string[], priority: "high" | "low" = "low"): void {
+  for (const url of urls) {
+    preloadImageUrl(url, priority);
+  }
+}
+
+export function resolveClosingImageUrl(book: ChildrenBook): string | undefined {
+  const fromBook = book.closingImageUrl?.trim();
+  if (fromBook) return fromBook;
+
+  const stored = getStoredClosingImageUrl(book.slug);
+  if (stored) return stored;
+
+  if (book.useDefaultClosingImagePath) {
+    return defaultClosingImagePath(book.slug);
+  }
+
+  return undefined;
+}
+
+export function closingImageStorageKey(bookSlug: string): string {
+  return `yb_children_book_end:${bookSlug}`;
+}
+
+export function getStoredClosingImageUrl(bookSlug: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(closingImageStorageKey(bookSlug));
+}
+
+export function setStoredClosingImageUrl(bookSlug: string, url: string | null): void {
+  if (typeof window === "undefined") return;
+  const key = closingImageStorageKey(bookSlug);
+  const trimmed = url?.trim();
+  if (trimmed) localStorage.setItem(key, trimmed);
+  else localStorage.removeItem(key);
+}
+
+/** All static illustration URLs for a book (cover, pages, closing). */
+export function listBookAssetUrls(book: ChildrenBook): string[] {
+  const urls: string[] = [];
+  const cover = resolveCoverImageUrl(book);
+  if (cover) urls.push(cover);
+  const closing = resolveClosingImageUrl(book);
+  if (closing) urls.push(closing);
+  book.pages.forEach((page, index) => {
+    const url = resolvePageImageUrl(book, page, index + 1);
+    if (url) urls.push(url);
+  });
+  return [...new Set(urls)];
+}
+
 export function resolvePageImageUrl(
   book: ChildrenBook,
   page: ChildrenBookPage,

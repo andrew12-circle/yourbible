@@ -1,16 +1,21 @@
 /**
- * Generate children's book page illustrations with OpenAI and save to public/.
+ * Generate children's book illustrations with OpenAI and save to public/.
  *
  * Usage:
- *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation
+ *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --all --force
  *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --from 1 --to 3
  *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --cover
+ *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --end
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildCoverIllustrationPrompt, buildPageIllustrationPrompt } from "../src/lib/children-books/illustrationPrompt.ts";
+import {
+  buildClosingIllustrationPrompt,
+  buildCoverIllustrationPrompt,
+  buildPageIllustrationPrompt,
+} from "../src/lib/children-books/illustrationPrompt.ts";
 import { findChildrenBook } from "../src/lib/children-books/storybook.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,14 +50,22 @@ function parseArgs(argv: string[]) {
   let to = Number.POSITIVE_INFINITY;
   let force = false;
   let cover = false;
+  let end = false;
+  let all = false;
   for (let i = 1; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--force") force = true;
     if (arg === "--cover") cover = true;
+    if (arg === "--end") end = true;
+    if (arg === "--all") all = true;
     if (arg === "--from" && argv[i + 1]) from = Number(argv[++i]);
     if (arg === "--to" && argv[i + 1]) to = Number(argv[++i]);
   }
-  return { slug, from, to, force, cover };
+  if (all) {
+    cover = true;
+    end = true;
+  }
+  return { slug, from, to, force, cover, end, all };
 }
 
 async function generateImageBytes(prompt: string, apiKey: string, model: string): Promise<Uint8Array> {
@@ -81,8 +94,34 @@ async function generateImageBytes(prompt: string, apiKey: string, model: string)
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
+async function saveImage(
+  label: string,
+  filePath: string,
+  prompt: string,
+  apiKey: string,
+  model: string,
+  force: boolean,
+): Promise<boolean> {
+  if (!force && existsSync(filePath)) {
+    console.log(`  [${label}] skip (exists)`);
+    return true;
+  }
+
+  console.log(`  [${label}] generating…`);
+  try {
+    const bytes = await generateImageBytes(prompt, apiKey, model);
+    await writeFile(filePath, bytes);
+    console.log(`  [${label}] saved ${path.relative(root, filePath)} (${bytes.length} bytes)`);
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`  [${label}] FAILED: ${message}`);
+    return false;
+  }
+}
+
 async function main() {
-  const { slug, from, to, force, cover } = parseArgs(process.argv.slice(2));
+  const { slug, from, to, force, cover, end, all } = parseArgs(process.argv.slice(2));
   const env = await loadEnvAsync();
   const apiKey = env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY missing in .env");
@@ -94,60 +133,68 @@ async function main() {
   const outDir = path.join(root, "public", "children-books", book.slug);
   await mkdir(outDir, { recursive: true });
 
-  if (cover) {
-    const filePath = path.join(outDir, "cover.png");
-    if (!force && existsSync(filePath)) {
-      console.log(`  [cover] skip (exists) ${book.title}`);
-      console.log("Done.");
-      return;
-    }
+  const delayMs = Number(env.OPENAI_IMAGE_DELAY_MS ?? 1500);
+  let failures = 0;
 
-    const prompt = buildCoverIllustrationPrompt(book);
-    console.log(`Generating cover for ${book.title}…`);
-    try {
-      const bytes = await generateImageBytes(prompt, apiKey, model);
-      await writeFile(filePath, bytes);
-      console.log(`  [cover] saved ${path.relative(root, filePath)} (${bytes.length} bytes)`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`  [cover] FAILED ${book.title}: ${message}`);
+  if (cover) {
+    console.log(`Cover — ${book.title}`);
+    const ok = await saveImage(
+      "cover",
+      path.join(outDir, "cover.png"),
+      buildCoverIllustrationPrompt(book),
+      apiKey,
+      model,
+      force,
+    );
+    if (!ok) failures += 1;
+    if (!all && !end && from > book.pages.length) {
+      console.log(failures ? `Done with ${failures} failure(s).` : "Done.");
+      process.exit(failures > 0 ? 1 : 0);
     }
-    console.log("Done.");
-    return;
+    await new Promise((r) => setTimeout(r, delayMs));
   }
 
   const lastPage = Math.min(book.pages.length, Number.isFinite(to) ? to : book.pages.length);
   const firstPage = Math.max(1, from);
+  const runPages = !cover || all || from <= book.pages.length;
 
-  console.log(`Generating ${book.title}`);
-  console.log(`Pages ${firstPage}-${lastPage} → public/children-books/${book.slug}/`);
+  if (runPages && (all || !cover || from <= lastPage)) {
+    console.log(`Pages ${firstPage}-${lastPage} — ${book.title}`);
+    console.log(`→ public/children-books/${book.slug}/`);
 
-  for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber += 1) {
-    const page = book.pages[pageNumber - 1];
-    if (!page) continue;
+    for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber += 1) {
+      const page = book.pages[pageNumber - 1];
+      if (!page) continue;
 
-    const filePath = path.join(outDir, `${String(pageNumber).padStart(2, "0")}.png`);
-    if (!force && existsSync(filePath)) {
-      console.log(`  [${pageNumber}] skip (exists) ${page.title}`);
-      continue;
+      const filePath = path.join(outDir, `${String(pageNumber).padStart(2, "0")}.png`);
+      const ok = await saveImage(
+        String(pageNumber),
+        filePath,
+        buildPageIllustrationPrompt({ book, page, pageNumber }),
+        apiKey,
+        model,
+        force,
+      );
+      if (!ok) failures += 1;
+      await new Promise((r) => setTimeout(r, delayMs));
     }
-
-    const prompt = buildPageIllustrationPrompt({ book, page, pageNumber });
-    console.log(`  [${pageNumber}] generating ${page.title}…`);
-
-    try {
-      const bytes = await generateImageBytes(prompt, apiKey, model);
-      await writeFile(filePath, bytes);
-      console.log(`  [${pageNumber}] saved ${path.relative(root, filePath)} (${bytes.length} bytes)`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`  [${pageNumber}] FAILED ${page.title}: ${message}`);
-    }
-
-    await new Promise((r) => setTimeout(r, 1500));
   }
 
-  console.log("Done.");
+  if (end) {
+    console.log(`Closing spread — ${book.title}`);
+    const ok = await saveImage(
+      "end",
+      path.join(outDir, "end.png"),
+      buildClosingIllustrationPrompt(book),
+      apiKey,
+      model,
+      force,
+    );
+    if (!ok) failures += 1;
+  }
+
+  console.log(failures ? `Done with ${failures} failure(s).` : "Done.");
+  if (failures > 0) process.exit(1);
 }
 
 main().catch((err) => {

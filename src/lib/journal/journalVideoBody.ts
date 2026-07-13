@@ -1,5 +1,6 @@
 import { formatDictationForJournal } from "@/lib/ai/formatDictatedTextLocally";
 import { mergeDictatedText } from "@/hooks/useSpeechDictation";
+import { scrubTranscriptProfanity } from "@/lib/journal/scrubTranscriptProfanity";
 import type { JournalVideoRow } from "@/lib/journal/videos";
 
 export type JournalBodySegment =
@@ -34,7 +35,7 @@ export function buildJournalBodySegments(body: string, videos: JournalVideoRow[]
 
 /** Collapse live caption whitespace — keeps the journal body as one flowing paragraph. */
 export function normalizeLiveVideoTranscript(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  return scrubTranscriptProfanity(text.replace(/\s+/g, " ").trim());
 }
 
 /** Append a finalized speech chunk without replay duplicates from mic restarts. */
@@ -115,9 +116,9 @@ export function bodyWithLiveVideoTranscript(
 
 /** Clean up raw speech-to-text before inserting into the journal body. */
 export function prepareVideoJournalTranscript(raw: string): string {
-  const trimmed = raw.trim();
+  const trimmed = scrubTranscriptProfanity(raw.trim());
   if (!trimmed) return trimmed;
-  return formatDictationForJournal(trimmed);
+  return scrubTranscriptProfanity(formatDictationForJournal(trimmed));
 }
 
 /** Pick the longest non-empty transcript from live captions, server STT, or editor preview. */
@@ -238,7 +239,7 @@ export function replaceTranscriptBeforeVideo(
   anchorOffset: number | null | undefined,
   newTranscript: string,
 ): string {
-  const prepared = prepareVideoJournalTranscript(newTranscript) || newTranscript.trim();
+  const prepared = prepareVideoJournalTranscript(newTranscript);
   if (!prepared) return body;
 
   const rawAnchor = anchorOffset ?? 0;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
-import { ChevronLeft, ChevronRight, ImageIcon, Library, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Library } from "lucide-react";
 
 import { BookScene } from "@/components/bible/BookScene";
 import { PageFlip } from "@/components/bible/PageFlip";
@@ -8,14 +8,15 @@ import { SwipePage } from "@/components/bible/SwipePage";
 import { ChildrenBookOrnamentPage } from "@/components/children-books/ChildrenBookArtPage";
 import { ChildrenBookCoverSpread } from "@/components/children-books/ChildrenBookCoverSpread";
 import { ChildrenBookStoryPage } from "@/components/children-books/ChildrenBookStoryPage";
-import { ChildrenBookGoldFlourish } from "@/components/children-books/ChildrenBookGoldFlourish";
-import { SpreadPageSpineShade } from "@/components/children-books/SpreadPageSpineShade";
-import { childrenBookBodyClassName } from "@/lib/children-books/childrenBookTypography";
+import {
+  ChildrenBookEndIllustrationPage,
+  ChildrenBookEndPrayerPage,
+} from "@/components/children-books/ChildrenBookEndPage";
 import { PageIllustrationSheet } from "@/components/children-books/PageIllustrationSheet";
 import { useGeneratePageIllustration } from "@/hooks/useGeneratePageIllustration";
+import { usePreloadChildrenBookImages } from "@/hooks/usePreloadChildrenBookImages";
 import { usePageImageLoaded } from "@/hooks/usePageImageUrl";
 import { useIsTabletPortrait, useReaderCompactChrome, useReaderSpread } from "@/hooks/use-reader-layout";
-import { childrenBookPagePadding } from "@/lib/children-books/pageMargins";
 import {
   childrenBookSpreadCount,
   leftStoryPageIndex,
@@ -68,50 +69,11 @@ function StoryPageFace({
       loaded={loaded}
       failed={failed}
       generating={generating}
+      staticIllustrations={Boolean(book.useDefaultImagePaths)}
       onLoad={onLoad}
       onError={onError}
       onOpenIllustration={onOpenIllustration}
     />
-  );
-}
-
-function EndPageFace({
-  book,
-  side,
-  singlePage,
-  compactChrome,
-}: {
-  book: ChildrenBook;
-  side: "left" | "right";
-  singlePage: boolean;
-  compactChrome: boolean;
-}) {
-  return (
-    <article
-      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[linear-gradient(180deg,#faf6ee_0%,#f3ecdf_100%)] text-center"
-      style={childrenBookPagePadding(side, "text", singlePage, compactChrome)}
-    >
-      <SpreadPageSpineShade side={side} spread={!singlePage} />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-8 sm:py-10">
-        <div
-          className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.75rem] shadow-lg sm:h-24 sm:w-24"
-          style={{ background: book.coverGradient }}
-        >
-          <Sparkles className="h-9 w-9 text-white sm:h-11 sm:w-11" aria-hidden />
-        </div>
-        <h2 className="mt-5 font-display text-2xl text-leather sm:mt-6 sm:text-3xl">The end</h2>
-        <ChildrenBookGoldFlourish className="mt-4" />
-        <p
-          className={cn(
-            "mt-5 max-w-md text-left font-serif italic text-foreground/88",
-            childrenBookBodyClassName(book.closingPrayer),
-          )}
-        >
-          {book.closingPrayer}
-        </p>
-        <p className="mt-6 max-w-sm text-xs leading-relaxed text-muted-foreground sm:text-sm">{book.title}</p>
-      </div>
-    </article>
   );
 }
 
@@ -155,6 +117,8 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
       : spreadCount <= 0
         ? 0
         : Math.min((pageIndex + 1) / (spreadCount + 1), 1);
+
+  usePreloadChildrenBookImages(book, { showCover, pageIndex, singlePage, spreadCount });
 
   useEffect(() => {
     setShowCover(true);
@@ -217,7 +181,12 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
 
   const leftContent =
     isEndSpread || isEndPage ? (
-      <EndPageFace book={book} side="left" singlePage={singlePage} compactChrome={compactChrome} />
+      <ChildrenBookEndIllustrationPage
+        book={book}
+        side="left"
+        singlePage={singlePage}
+        compactChrome={compactChrome}
+      />
     ) : leftPage ? (
       <StoryPageFace
         book={book}
@@ -238,16 +207,9 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
     );
 
   const rightContent =
-    isEndSpread ? (
-      <ChildrenBookOrnamentPage
-        page={book.pages[book.pages.length - 1]!}
-        side="right"
-        singlePage={singlePage}
-        compactChrome={compactChrome}
-      />
-    ) : isEndPage ? (
-      <ChildrenBookOrnamentPage
-        page={book.pages[book.pages.length - 1]!}
+    isEndSpread || isEndPage ? (
+      <ChildrenBookEndPrayerPage
+        book={book}
         side="right"
         singlePage={singlePage}
         compactChrome={compactChrome}

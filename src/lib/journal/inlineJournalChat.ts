@@ -152,6 +152,10 @@ export type JournalReflectionEntrySnapshot = {
   body?: string | null;
 };
 
+/** Sent with reflection bootstrap so older edge functions that require `message` still start. */
+export const JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE =
+  "I'd like to talk about what I just wrote in this journal entry.";
+
 export async function bootstrapJournalReflectionOpener(params: {
   chatId: string;
   entryId: string;
@@ -168,6 +172,9 @@ export async function bootstrapJournalReflectionOpener(params: {
       chat_id: params.chatId,
       journal_entry_id: params.entryId,
       mode: "journal",
+      // Compatibility message: required by older my-ai-chat builds; newer builds that honor
+      // journal_bootstrap_reflection ignore it and only save the assistant opener.
+      message: JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE,
       journal_reflection: true,
       journal_bootstrap_reflection: true,
       journal_reflection_entry: hasSnapshot ? snapshot : undefined,

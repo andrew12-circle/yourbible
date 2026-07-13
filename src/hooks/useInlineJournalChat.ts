@@ -7,6 +7,7 @@ import {
   ensureInlineJournalChatSession,
   ensureJournalReflectionChatSession,
   loadInlineChatTurns,
+  JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE,
   type InlineChatTurn,
   type JournalReflectionEntrySnapshot,
 } from "@/lib/journal/inlineJournalChat";
@@ -142,13 +143,52 @@ export function useInlineJournalChat({
         return true;
       }
 
-      await bootstrapJournalReflectionOpener({
-        chatId: ensured.chatId,
-        entryId: ensured.entryId,
-        entrySnapshot: reflectionEntrySnapshot ?? undefined,
-        includeGeneralKnowledge,
-        responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
-      });
+      try {
+        await bootstrapJournalReflectionOpener({
+          chatId: ensured.chatId,
+          entryId: ensured.entryId,
+          entrySnapshot: reflectionEntrySnapshot ?? undefined,
+          includeGeneralKnowledge,
+          responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+        });
+      } catch (bootstrapErr) {
+        const description =
+          bootstrapErr instanceof Error ? bootstrapErr.message : String(bootstrapErr);
+        // Older deployed my-ai-chat builds reject empty-message bootstrap; retry as a normal
+        // reflection turn with the auto-open prompt + journal snapshot.
+        if (!/message is required/i.test(description)) throw bootstrapErr;
+
+        const seed = JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE;
+        const userTempId = `tmp-user-${Date.now()}`;
+        setChatTurns([
+          { id: userTempId, role: "user", content: seed },
+          { id: assistantTempId, role: "assistant", content: "" },
+        ]);
+
+        const snapshot = reflectionEntrySnapshot;
+        const hasSnapshot = Boolean(
+          snapshot?.title?.trim() || snapshot?.summary?.trim() || snapshot?.body?.trim(),
+        );
+
+        await streamMyAiChat({
+          signal: abortRef.current.signal,
+          body: {
+            chat_id: ensured.chatId,
+            message: seed,
+            mode: "journal",
+            journal_entry_id: ensured.entryId,
+            journal_reflection: true,
+            journal_reflection_entry: hasSnapshot ? snapshot ?? undefined : undefined,
+            include_general_knowledge: includeGeneralKnowledge,
+            response_depth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+          },
+          onDelta: (acc) => {
+            setChatTurns((prev) =>
+              prev.map((t) => (t.id === assistantTempId ? { ...t, content: acc } : t)),
+            );
+          },
+        });
+      }
 
       const loaded = await loadInlineChatTurns(ensured.chatId);
       setChatTurns(loaded);

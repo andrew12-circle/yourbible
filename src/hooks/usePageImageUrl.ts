@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ChildrenBook, ChildrenBookPage } from "@/lib/children-books/storybook";
 import {
   CHILDREN_BOOK_IMAGE_EVENT,
+  preloadImageUrl,
   resolvePageImageUrl,
 } from "@/lib/children-books/pageImages";
 
@@ -13,7 +14,9 @@ export function usePageImageUrl(
   const [url, setUrl] = useState(() => resolvePageImageUrl(book, page, pageNumber));
 
   useEffect(() => {
-    setUrl(resolvePageImageUrl(book, page, pageNumber));
+    const next = resolvePageImageUrl(book, page, pageNumber);
+    setUrl(next);
+    if (next) preloadImageUrl(next, "high");
   }, [book, page, pageNumber]);
 
   useEffect(() => {
@@ -40,8 +43,39 @@ export function usePageImageLoaded(imageUrl: string | undefined): {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (!imageUrl) {
+      setLoaded(false);
+      setFailed(false);
+      return;
+    }
+
+    let cancelled = false;
     setLoaded(false);
     setFailed(false);
+
+    preloadImageUrl(imageUrl, "high");
+
+    const img = new Image();
+    img.decoding = "async";
+    if ("fetchPriority" in img) {
+      (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = "high";
+    }
+
+    img.onload = () => {
+      if (!cancelled) setLoaded(true);
+    };
+    img.onerror = () => {
+      if (!cancelled) setFailed(true);
+    };
+    img.src = imageUrl;
+
+    if (img.complete && img.naturalWidth > 0) {
+      setLoaded(true);
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [imageUrl]);
 
   return {
