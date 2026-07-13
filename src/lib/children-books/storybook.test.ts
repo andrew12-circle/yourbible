@@ -109,7 +109,7 @@ describe("page illustration prompts", () => {
 
     expect(prompt).toContain("HEROINE FOR THIS BOOK: Aurora");
     expect(prompt).toContain("AURORA CHARACTER MODEL SHEET");
-    expect(prompt).toContain("warm honey-blonde");
+    expect(prompt).toContain("Warm honey-blonde");
     expect(prompt).toContain("Aurora image refresh");
     expect(prompt).not.toContain("LILLY CHARACTER MODEL SHEET");
   });
