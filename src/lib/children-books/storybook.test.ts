@@ -9,6 +9,7 @@ import {
   DEFAULT_CHILDREN_BOOK_SLUG,
   buildChildrenBookGenerationPrompt,
   findChildrenBook,
+  resolvePageLayout,
 } from "@/lib/children-books/storybook";
 
 describe("children book storybook data", () => {
@@ -22,6 +23,27 @@ describe("children book storybook data", () => {
         expect(page.scriptureThread.trim()).not.toHaveLength(0);
       }
     }
+  });
+
+  it("cycles picture-book layouts when a page has no explicit layout", () => {
+    const book = findChildrenBook(DEFAULT_CHILDREN_BOOK_SLUG)!;
+    const layouts = book.pages.slice(0, 8).map((page, index) => resolvePageLayout(page, index));
+
+    expect(layouts).toEqual([
+      "picture-book",
+      "picture-book",
+      "picture-book",
+      "picture-book",
+      "full-spread",
+      "picture-book",
+      "picture-book",
+      "text-pocket",
+    ]);
+  });
+
+  it("respects an explicit layout override on a page", () => {
+    const page = { ...findChildrenBook(DEFAULT_CHILDREN_BOOK_SLUG)!.pages[0]!, layout: "text-only" as const };
+    expect(resolvePageLayout(page, 0)).toBe("text-only");
   });
 
   it("builds an AI generation prompt from the selected book", () => {

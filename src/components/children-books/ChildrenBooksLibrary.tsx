@@ -1,4 +1,5 @@
 import { BookOpen } from "lucide-react";
+import { ChildrenBookCoverThumbnail } from "@/components/children-books/ChildrenBookCoverSpread";
 import type { ChildrenBook } from "@/lib/children-books/storybook";
 import { cn } from "@/lib/utils";
 
@@ -17,15 +18,15 @@ function BookCover({ book, onSelect }: { book: ChildrenBook; onSelect: () => voi
     >
       <div
         className={cn(
-          "relative aspect-[3/4] w-full max-w-[9.5rem] overflow-hidden rounded-r-md rounded-l-sm shadow-lg",
-          "transition duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-xl",
-          "before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-black/15",
-          "after:absolute after:inset-y-1 after:left-1 after:w-px after:bg-white/25",
+          "relative w-full max-w-[9.5rem] transition duration-300 ease-out",
+          "group-hover:-translate-y-1 group-hover:shadow-xl",
         )}
-        style={{ background: book.coverGradient }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20" />
-        <div className="relative flex h-full flex-col justify-between p-3 sm:p-4">
+        <ChildrenBookCoverThumbnail
+          book={book}
+          className="group-hover:shadow-xl transition-shadow duration-300"
+        />
+        <div className="pointer-events-none absolute inset-0 z-30 flex flex-col justify-between p-3 sm:p-4">
           <BookOpen className="h-5 w-5 text-white/90 drop-shadow" aria-hidden />
           <div>
             <p className="font-display text-[11px] font-semibold leading-tight text-white drop-shadow sm:text-xs">

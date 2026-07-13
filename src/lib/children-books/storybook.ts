@@ -1,13 +1,50 @@
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
 
+/**
+ * Picture-book page layout (one story page = one physical page).
+ * Default rhythm alternates text-above-art (left) and art-above-text (right).
+ */
+export type ChildrenBookPageLayout =
+  | "picture-book"
+  | "text-pocket"
+  | "full-spread"
+  | "text-only";
+
 export type ChildrenBookPage = {
+  /** Editorial label for prompts and tooling — not shown on the story spread. */
   title: string;
   body: string;
   scriptureThread: string;
   picturePrompt: string;
+  /** Hosted or public path, e.g. /children-books/kingdom-invitation/01.webp */
+  imageUrl?: string;
+  imageAlt?: string;
+  /** Load from public/children-books/{bookSlug}/{pageNumber}.webp */
+  useDefaultImagePath?: boolean;
   palette: "dawn" | "garden" | "royal" | "starlight";
   symbol: ChildrenBookSymbol;
+  /** Override the automatic picture-book layout rhythm for this page. */
+  layout?: ChildrenBookPageLayout;
 };
+
+/** Occasional layout accents on top of the default left/right rhythm. */
+const PAGE_LAYOUT_CYCLE: ChildrenBookPageLayout[] = [
+  "picture-book",
+  "picture-book",
+  "picture-book",
+  "picture-book",
+  "full-spread",
+  "picture-book",
+  "picture-book",
+  "text-pocket",
+];
+
+export function resolvePageLayout(
+  page: ChildrenBookPage,
+  pageIndex: number,
+): ChildrenBookPageLayout {
+  return page.layout ?? PAGE_LAYOUT_CYCLE[pageIndex % PAGE_LAYOUT_CYCLE.length]!;
+}
 
 export type ChildrenBook = {
   slug: string;
@@ -17,7 +54,17 @@ export type ChildrenBook = {
   spiritualFocus: string;
   summary: string;
   coverGradient: string;
+  /** Scene description for the front-cover illustration */
+  coverPrompt: string;
+  coverImageUrl?: string;
+  coverImageAlt?: string;
+  /** Load cover from public/children-books/{slug}/cover.png */
+  useDefaultCoverPath?: boolean;
   generationSeed: string;
+  /** Load illustrations from public/children-books/{slug}/{page}.png */
+  useDefaultImagePaths?: boolean;
+  /** Short prayer read aloud on the closing spread. */
+  closingPrayer: string;
   pages: ChildrenBookPage[];
 };
 
@@ -31,8 +78,14 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     summary:
       "Cinderella learns that God sees the overlooked, kindness is never wasted, and the Lord often answers prayer through ordinary people willing to help.",
     coverGradient: "linear-gradient(135deg, #7c3aed 0%, #f59e0b 100%)",
+    coverPrompt:
+      "Front cover portrait: Cinderella in a gentle golden gown with kind expressive eyes, a humble smile, warm candlelit cottage and rolling forest hills behind her, golden hour light, elegant storybook cover composition with open space along the top for a title.",
+    useDefaultCoverPath: true,
     generationSeed:
       "Use the provided Cinderella faith retelling as a children's picture book about God's perfect timing, kindness, prayer, humility, and forgiveness.",
+    useDefaultImagePaths: true,
+    closingPrayer:
+      "Dear Jesus, thank You for seeing me when no one else does. Help me stay kind, trust Your perfect timing, and love others the way You love me. Amen.",
     pages: [
       {
         title: "A mother's reminder",
@@ -325,8 +378,13 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     summary:
       "A rose-garden story about seeing past fear, asking God for mercy, and watching grace transform a wounded heart.",
     coverGradient: "linear-gradient(135deg, #047857 0%, #f43f5e 100%)",
+    coverPrompt:
+      "Front cover portrait: a brave child before an old garden gate wrapped in thorn vines curling into heart shapes, a glowing rose at the center, emerald and rose light, painterly storybook cover with open space along the top for a title.",
+    useDefaultCoverPath: true,
     generationSeed:
       "Create an original Beauty-and-the-Beast-inspired children's book where the enchanted garden teaches mercy, repentance, and God's power to restore a wounded heart.",
+    closingPrayer:
+      "Dear Jesus, soften my heart when I am afraid. Teach me to see others with mercy, speak truth with kindness, and forgive the way You forgive me. Amen.",
     pages: [
       {
         title: "The locked garden",
@@ -379,8 +437,13 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     summary:
       "An ocean adventure about a little princess who discovers that the deepest longing in her heart is answered by the Living Water.",
     coverGradient: "linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%)",
+    coverPrompt:
+      "Front cover portrait: a bright coral undersea princess singing with bubbles rising like musical notes, gentle rays of warm light from above the waves, teal and gold storybook cover with open space along the top for a title.",
+    useDefaultCoverPath: true,
     generationSeed:
       "Create an original sea-princess fairy tale for children where longing, song, and wonder point toward Jesus as Living Water instead of toward self-saving magic.",
+    closingPrayer:
+      "Dear Jesus, You are the living water my heart needs. Quiet the storms inside me, help me listen for Your voice, and fill me with Your peace. Amen.",
     pages: [
       {
         title: "Songs under the waves",

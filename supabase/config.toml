@@ -134,3 +134,6 @@ verify_jwt = true
 
 [functions.delete-account]
 verify_jwt = true
+
+[functions.children-book-illustrate]
+verify_jwt = true

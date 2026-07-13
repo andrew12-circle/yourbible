@@ -87,6 +87,9 @@ function formatKnownEdgeError(message: string): string {
   if (/GEMINI_API_KEY is not configured/i.test(message)) {
     return `${message} Set it in Supabase Edge Function secrets: supabase secrets set GEMINI_API_KEY=... AI_PROVIDER=gemini --project-ref <ref>, then redeploy my-ai-chat.`;
   }
+  if (/children-book-illustrate is not deployed/i.test(message)) {
+    return `${message} Deploy: npx supabase functions deploy children-book-illustrate --project-ref itmcsyrnpcnrwviigppe`;
+  }
   if (/ELEVENLABS_API_KEY missing/i.test(message)) {
     return `${message} Set it with: npx supabase secrets set ELEVENLABS_API_KEY=your_key --project-ref itmcsyrnpcnrwviigppe then redeploy journal-voice-to-text.`;
   }

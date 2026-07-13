@@ -120,3 +120,29 @@ export function buildPageIllustrationPrompt({
     STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
   ].join("\n");
 }
+
+export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
+  return [
+    STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT,
+    "",
+    "BOOK CONTEXT",
+    `Book: ${book.title}`,
+    "Front cover illustration",
+    `Age range: ${book.ageRange}`,
+    `Spiritual focus: ${book.spiritualFocus}`,
+    `Summary: ${book.summary}`,
+    "",
+    "COVER COMPOSITION",
+    "Paint a premium children's picture book front cover in portrait orientation.",
+    "Leave gentle open space along the top third for a title overlay.",
+    "No text, letters, logos, or watermarks in the artwork.",
+    "The cover should feel inviting, warm, and worthy of a treasured storybook.",
+    "",
+    "SCENE TO ILLUSTRATE",
+    book.coverPrompt,
+    "",
+    "NEGATIVE PROMPT",
+    STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
+    "text, title lettering, author name, publisher logo, barcode, spine text.",
+  ].join("\n");
+}

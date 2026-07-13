@@ -136,11 +136,13 @@ export function BookScene({
               </div>
 
               <div
-                className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 pointer-events-none z-[1]"
+                className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 pointer-events-none z-[6]"
                 style={{
+                  width: "clamp(10px, 1.8vmin, 22px)",
+                  background:
+                    "linear-gradient(90deg, hsl(0 0% 0% / 0.12) 0%, hsl(0 0% 0% / 0.04) 38%, hsl(0 0% 0% / 0.1) 50%, hsl(0 0% 0% / 0.04) 62%, hsl(0 0% 0% / 0.12) 100%)",
                   boxShadow:
-                    "-10px 0 18px -8px hsl(0 0% 0% / 0.05), 10px 0 18px -8px hsl(0 0% 0% / 0.05)",
-                  background: "hsl(var(--border) / 0.35)",
+                    "-14px 0 22px -12px hsl(0 0% 0% / 0.14), 14px 0 22px -12px hsl(0 0% 0% / 0.14)",
                 }}
               />
 
