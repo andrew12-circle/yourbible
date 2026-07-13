@@ -11,8 +11,8 @@ describe("parseTranscriptFetchError", () => {
     const parsed = parseTranscriptFetchError(
       "Rate limited — wait 2 minutes, then tap Re-analyze once.",
     );
-    expect(parsed.headline).toMatch(/rate limit/i);
-    expect(parsed.hint).toMatch(/insight cards are already visible/i);
+    expect(parsed.headline).toBe("AI analysis is temporarily busy.");
+    expect(parsed.hint).toMatch(/not your personal usage limit/i);
     expect(parsed.attempts).toBeNull();
   });
 
