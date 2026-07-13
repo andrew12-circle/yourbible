@@ -40,7 +40,7 @@ describe("PwaResumeManager", () => {
   it("restores the last safe standalone PWA route from the launch URL", async () => {
     savePwaResumeSnapshot(
       localStorage,
-      createPwaResumeSnapshot("/journal/e/entry-1?tab=chat#reply", 0, 240, 1_000),
+      createPwaResumeSnapshot("/journal/e/entry-1?tab=chat#reply", 0, 240),
     );
 
     render(
@@ -72,7 +72,7 @@ describe("PwaResumeManager", () => {
           dispatchEvent: vi.fn(),
         }) as unknown as MediaQueryList,
     );
-    savePwaResumeSnapshot(localStorage, createPwaResumeSnapshot("/home", 0, 0, 1_000));
+    savePwaResumeSnapshot(localStorage, createPwaResumeSnapshot("/home", 0, 0));
 
     render(
       <MemoryRouter initialEntries={["/"]}>
