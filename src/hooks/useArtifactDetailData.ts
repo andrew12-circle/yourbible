@@ -87,6 +87,24 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     });
   }, []);
 
+  const repairRateLimitArtifactRow = useCallback(async (
+    targetId: string,
+    row: ArtifactRow | null,
+  ): Promise<ArtifactRow | null> => {
+    if (
+      row &&
+      shouldRepairRateLimitArtifact({
+        status: row.status,
+        error: row.error,
+        rawText: row.raw_text,
+      })
+    ) {
+      await supabase.from("artifacts").update({ status: "ready", error: null }).eq("id", targetId);
+      return { ...row, status: "ready", error: null };
+    }
+    return row;
+  }, []);
+
   const fetchArtifactRow = useCallback(async (targetId: string): Promise<ArtifactRow | null> => {
     const artWithMeta = await supabase
       .from("artifacts")
@@ -101,19 +119,8 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
           .maybeSingle()
       : artWithMeta;
     const row = (artResult.data as ArtifactRow | null) ?? null;
-    if (
-      row &&
-      shouldRepairRateLimitArtifact({
-        status: row.status,
-        error: row.error,
-        rawText: row.raw_text,
-      })
-    ) {
-      await supabase.from("artifacts").update({ status: "ready", error: null }).eq("id", targetId);
-      return { ...row, status: "ready", error: null };
-    }
-    return row;
-  }, []);
+    return repairRateLimitArtifactRow(targetId, row);
+  }, [repairRateLimitArtifactRow]);
 
   const loadClaimsOnly = useCallback(async () => {
     if (!artifactId) return;
@@ -229,7 +236,8 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
       .eq("id", artifactId)
       .maybeSingle();
     if (!data) return;
-    const row = data as ArtifactRow;
+    const row = await repairRateLimitArtifactRow(artifactId, data as ArtifactRow);
+    if (!row) return;
     const prevStatus = prevStatusRef.current;
     applyArtifact(row);
     prevStatusRef.current = row.status;
@@ -251,7 +259,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (transitioned || (terminal && prevStatus !== row.status)) {
       await loadFull();
     }
-  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull]);
+  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull, repairRateLimitArtifactRow]);
 
   useEffect(() => {
     ensureFetchRef.current = null;

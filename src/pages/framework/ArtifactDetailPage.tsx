@@ -3,6 +3,10 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2, RefreshCw, FileText, Clock, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import type {
+  ArtifactMetadata,
+  Claim,
+} from "@/lib/framework/artifactDetailTypes";
 import type { BeliefInfluenceAttachment } from "@/lib/framework/quickBelief";
 import { useAuth } from "@/contexts/AuthContext";
 import FrameworkLayout from "./FrameworkLayout";
@@ -10,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
-import { floatingJournalInsertRef } from "@/lib/journal/floatingJournalInsertRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import ArtifactEntitiesPanel from "@/components/framework/ArtifactEntitiesPanel";
 import TeachingsPanel from "@/components/framework/TeachingsPanel";
@@ -24,7 +27,7 @@ import ArtifactDetailLegacyOverviewSummary from "@/components/framework/artifact
 import ArtifactLibraryStanding from "@/components/framework/artifact-detail/ArtifactLibraryStanding";
 import ArtifactYoutubeMissingVideoCard from "@/components/framework/artifact-detail/ArtifactYoutubeMissingVideoCard";
 import ArtifactDetailPageDialogs from "@/components/framework/artifact-detail/ArtifactDetailPageDialogs";
-import ArtifactDetailDesktopShell from "@/components/framework/artifact-detail/ArtifactDetailDesktopShell";
+import ArtifactDetailPrimaryMedia from "@/components/framework/artifact-detail/ArtifactDetailPrimaryMedia";
 import {
   type RenderClaimCardContext,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
@@ -34,7 +37,7 @@ import ArtifactChaptersSection from "@/components/framework/artifact-detail/Arti
 import ArtifactClaimsSection from "@/components/framework/artifact-detail/ArtifactClaimsSection";
 import ArtifactHeaderActions from "@/components/framework/artifact-detail/ArtifactHeaderActions";
 import ArtifactDetailLoadingSkeleton from "@/components/framework/artifact-detail/ArtifactDetailLoadingSkeleton";
-import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
+import ArtifactDetailProcessingState from "@/components/framework/artifact-detail/ArtifactDetailProcessingState";
 import {
   ArtifactDetailDockedJournalPanel,
   ArtifactDetailMobileJournalTabPanel,
@@ -44,12 +47,9 @@ import ArtifactDetailMobileTabPanels, {
   ArtifactDetailMobileAppDock,
 } from "@/components/framework/artifact-detail/ArtifactDetailMobileTabPanels";
 import ArtifactDetailStudyColumnWrapper from "@/components/framework/artifact-detail/ArtifactDetailStudyColumnWrapper";
-import ArtifactTranscriptFetchErrorCard from "@/components/framework/artifact-detail/ArtifactTranscriptFetchErrorCard";
-import { isNonBlockingAnalysisError } from "@/lib/framework/artifactAnalysisRecovery";
 import ArtifactMobileMenu from "@/components/framework/artifact-detail/ArtifactMobileMenu";
 import { buildArtifactDetailTranscriptPanel } from "@/components/framework/artifact-detail/ArtifactDetailTranscriptPanel";
 import ArtifactBookReaderTabPanel from "@/components/framework/artifact-detail/ArtifactBookReaderTabPanel";
-import ArtifactYoutubeVideoBlock from "@/components/framework/artifact-detail/ArtifactYoutubeVideoBlock";
 import ArtifactDocumentDetailBlock, {
   chapterIndexForStartSeconds,
   type ArtifactDocumentDetailBlockHandle,
@@ -67,22 +67,18 @@ import {
 } from "@/hooks/useArtifactLayoutMode";
 import { useArtifactDetailData } from "@/hooks/useArtifactDetailData";
 import { useArtifactDetailProcessingActions } from "@/hooks/useArtifactDetailProcessingActions";
+import { useArtifactMomentActions } from "@/hooks/useArtifactMomentActions";
 import { useArtifactDetailMobileTabs } from "@/hooks/useArtifactDetailMobileTabs";
 import { useArtifactMobileInsightExplore } from "@/hooks/useArtifactMobileInsightExplore";
 import { useArtifactEntityCount } from "@/hooks/useArtifactEntityCount";
 import {
   useArtifactGlobalVideoHandoff,
 } from "@/hooks/useArtifactGlobalVideoHandoff";
-import {
-  artifactJournalReturnPath,
-  handoffArtifactVideoForJournal,
-} from "@/lib/framework/artifactJournalNavigation";
 import { useArtifactVideoPlayback } from "@/hooks/useArtifactVideoPlayback";
 import {
   artifactCard,
   artifactDesktopBodySheet,
   artifactDesktopSplitPaneCard,
-  artifactDesktopVideoCard,
   artifactMobileDockPadding,
   artifactMobileTabScrollPane,
   artifactMobileStudyContentInset,
@@ -96,23 +92,17 @@ import { scrollMobileInsightPickerIntoView } from "@/lib/framework/scrollMobileI
 import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaimIntoView";
 import { ARTIFACT_STUDY_PANE_SELECTOR } from "@/lib/framework/artifactLayoutCss";
 import { groupClaimsUnderYoutubeChapters } from "@/lib/framework/groupClaimsUnderYoutubeChapters";
-import { parseClaimEpistemology, type ClaimEpistemology } from "@/lib/framework/epistemology";
 import {
-  formatClaimVerdict,
   isDeferredVerdict,
   type ClaimVerdict,
 } from "@/lib/framework/claimVerdict";
 import {
   countTimedTranscriptLines,
   looksLikeYoutubeShowTranscriptPaste,
-  cleanTranscriptQuoteForDisplay,
   needsTranscriptNormalization,
   normalizePastedTranscript,
 } from "@/lib/normalizePastedTranscript";
 import {
-  collectTranscriptTextOverlappingInclusiveRange,
-  formatClaimSourceClock,
-  formatTranscriptClock,
   splitTranscript,
   type TranscriptSegment,
 } from "@/lib/transcriptSplit";
@@ -121,75 +111,15 @@ import type { YoutubeChapter } from "@/lib/youtubeChapters";
 import { getYouTubeVideoId } from "@/lib/youtube";
 import { resolveLiveBroadcast } from "@/lib/youtube/liveBroadcast";
 import {
-  buildClaimResearchJournalTitle,
-  buildClaimResearchMarkdown,
   findClaimSource,
   formatArtifactKind,
   formatArtifactStatus,
-  withYouTubeTimestamp,
 } from "@/lib/framework/artifactDetailPageHelpers";
 import { fetchLastResearchedAtByClaimIds } from "@/lib/framework/claimResearchRuns";
 import { filterSubstantiveClaims } from "@/lib/framework/claimQuality";
 import { useArtifactFrameworkOverview } from "@/hooks/useArtifactFrameworkOverview";
 import { useArtifactCorpusStanding } from "@/hooks/useArtifactCorpusStanding";
 import { useArtifactYoutubeMetaRepair } from "@/hooks/useArtifactYoutubeMetaRepair";
-
-interface ArtifactMetadata {
-  source?: string;
-  channel_title?: string | null;
-  channel_url?: string | null;
-  channel_thumbnail_url?: string | null;
-  author_name?: string | null;
-  author?: string | null;
-  thumbnail_url?: string | null;
-  provider_name?: string | null;
-  duration_seconds?: number | null;
-  title?: string;
-  youtube_chapters?: YoutubeChapter[];
-  youtube_chapters_source?: string | null;
-  video_id?: string;
-}
-
-interface MatchedBelief {
-  id: string;
-  topic: string;
-  statement: string;
-  answer: string | null;
-  confidence: number;
-}
-
-interface Claim {
-  id: string;
-  claim: string;
-  tone: string | null;
-  doctrine_tags: string[];
-  scripture_supports: { ref: string; note?: string }[];
-  scripture_challenges: { ref: string; note?: string }[];
-  match_relation: string | null;
-  matched_belief_id: string | null;
-  bias_flags: string[];
-  verdict: string | null;
-  deferred_at: string | null;
-  user_note: string | null;
-  /** Populated when claims were extracted per YouTube chapter (see `framework-analyze`). */
-  chapter_start_seconds?: number | null;
-  /** AI epistemology layers (empty until re-analyze). */
-  epistemology?: ClaimEpistemology | null;
-}
-
-type ArtifactMomentKind = "bookmark" | "note" | "belief_seed";
-
-interface ArtifactMoment {
-  id: string;
-  user_id: string;
-  artifact_id: string;
-  start_seconds: number;
-  end_seconds: number | null;
-  kind: ArtifactMomentKind;
-  body: string | null;
-  label: string | null;
-  created_at: string;
-}
 
 export default function ArtifactDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -1003,6 +933,56 @@ export default function ArtifactDetailPage() {
     setGeneratingChapters,
   });
 
+  const claimsDigest = studyClaims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
+  const canCaptureMoments = Boolean(youTubeVideoId);
+  const {
+    copyTranscript,
+    openJournalFromArtifact,
+    openJournalFromClaim,
+    startClaimResearchChat,
+    bookmarkAtSeconds,
+    journalTranscriptSegment,
+    researchLaterTranscriptSegment,
+    saveSegmentNote,
+    bookmarkCurrentMoment,
+    addNoteAtCurrentMoment,
+    believeCurrentMoment,
+    openStudyJournal,
+  } = useArtifactMomentActions({
+    artifact: a,
+    userId: user?.id,
+    youTubeVideoId,
+    displayTranscriptText,
+    claimsDigest,
+    navigate,
+    matchedBeliefs,
+    isDesktop,
+    mobilePinnedPane,
+    openMobileResearchTab,
+    openArtifactJournal,
+    getPlaybackSeconds,
+    getCurrentPlaybackSeconds,
+    getIsPlaying,
+    getWantsContinuousPlayback,
+    persistSeconds,
+    seekVideoToSeconds,
+    pipEnabled,
+    enterPip: youtubePip.enterPip,
+    pipLayout: youtubePip.pipOverlayLayout,
+    bookmarkLabel,
+    setBookmarkLabel,
+    noteBody,
+    setNoteBody,
+    setSavingMoment,
+    setMoments,
+    setQuickBeliefText,
+    setQuickBeliefSource,
+    setQuickBeliefOpen,
+    transcriptTimedLayout,
+    transcriptSegments,
+    lastBookmarkJournalInsertAtRef,
+  });
+
   if (loading) {
     return (
       <FrameworkLayout
@@ -1108,252 +1088,6 @@ export default function ArtifactDetailPage() {
           } as Json,
         }
       : null;
-  const claimsDigest = studyClaims.map((c, i) => `${i + 1}. ${c.claim}`).join("\n");
-  const canCaptureMoments = Boolean(youTubeVideoId);
-
-  const copyTranscript = async () => {
-    if (!displayTranscriptText) return;
-    await navigator.clipboard.writeText(displayTranscriptText);
-    toast({ title: "Transcript copied" });
-  };
-
-  const saveMoment = async (
-    kind: ArtifactMomentKind,
-    values: {
-      label?: string | null;
-      body?: string | null;
-      startSeconds?: number;
-      toastDescription?: string | null;
-    } = {},
-  ) => {
-    if (!user) return null;
-    const startSeconds = values.startSeconds ?? getCurrentPlaybackSeconds();
-    setSavingMoment(true);
-    const payload = {
-      user_id: user.id,
-      artifact_id: a.id,
-      start_seconds: startSeconds,
-      kind,
-      label: values.label?.trim() || null,
-      body: values.body?.trim() || null,
-    };
-    const { data, error } = await supabase
-      .from("artifact_moments")
-      .insert(payload)
-      .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
-      .maybeSingle();
-    setSavingMoment(false);
-    if (error || !data) {
-      toast({ title: "Could not save moment", description: error?.message, variant: "destructive" });
-      return null;
-    }
-    const saved = (data as unknown) as ArtifactMoment;
-    setMoments((current) => [...current, saved].sort((left, right) => left.start_seconds - right.start_seconds));
-    const title = kind === "note" ? "Note saved" : kind === "belief_seed" ? "Belief moment saved" : "Moment bookmarked";
-    const d = values.toastDescription?.trim();
-    toast(d ? { title, description: d } : { title });
-    return saved;
-  };
-
-  const openJournalFromArtifact = (startSeconds?: number) => {
-    const returnTo = artifactJournalReturnPath(a.id);
-    if (youTubeVideoId) {
-      handoffArtifactVideoForJournal({
-        artifactId: a.id,
-        youTubeVideoId,
-        title: a.title ?? null,
-        getPlaybackSeconds,
-        getIsPlaying,
-        persistSeconds,
-        pipLayout: youtubePip.pipOverlayLayout,
-      });
-    }
-    const qs = new URLSearchParams();
-    qs.set("returnTo", encodeURIComponent(returnTo));
-    if (a.title) qs.set("artifactTitle", encodeURIComponent(a.title));
-    if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
-    if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));
-    if (claimsDigest) qs.set("artifactClaims", encodeURIComponent(claimsDigest.slice(0, 6000)));
-    if (startSeconds != null) qs.set("artifactTime", String(Math.max(0, Math.floor(startSeconds))));
-    navigate(`/journal/new?${qs.toString()}`);
-  };
-
-  const openJournalFromClaim = (claim: Claim, startSeconds?: number) => {
-    const returnTo = artifactJournalReturnPath(a.id);
-    if (youTubeVideoId) {
-      handoffArtifactVideoForJournal({
-        artifactId: a.id,
-        youTubeVideoId,
-        title: a.title ?? null,
-        getPlaybackSeconds,
-        getIsPlaying,
-        persistSeconds,
-        pipLayout: youtubePip.pipOverlayLayout,
-      });
-    }
-    const qs = new URLSearchParams();
-    qs.set("returnTo", encodeURIComponent(returnTo));
-    if (a.title) qs.set("artifactTitle", encodeURIComponent(`${a.title} — one claim`));
-    if (a.url) qs.set("artifactUrl", encodeURIComponent(startSeconds == null ? a.url : withYouTubeTimestamp(a.url, startSeconds)));
-    if (displayTranscriptText) qs.set("artifactTranscript", encodeURIComponent(displayTranscriptText.slice(0, 12000)));
-    qs.set("artifactClaims", encodeURIComponent(`Focus on this claim:\n\n${claim.claim}`));
-    if (startSeconds != null) qs.set("artifactTime", String(Math.max(0, Math.floor(startSeconds))));
-    navigate(`/journal/new?${qs.toString()}`);
-  };
-
-  const startClaimResearchChat = (claim: Claim, source: TranscriptSegment | null | undefined) => {
-    const belief = claim.matched_belief_id ? matchedBeliefs[claim.matched_belief_id] : undefined;
-    const markdown = buildClaimResearchMarkdown(a.title, claim, source, belief);
-    const handoff = {
-      claimId: claim.id,
-      artifactId: a.id,
-      claimMarkdown: markdown,
-      journalTitle: buildClaimResearchJournalTitle(a.title, claim),
-      transcriptExcerpt: source?.text ? source.text.slice(0, 4000) : undefined,
-      initialTab: "chat" as const,
-      claimPreview: claim.claim.trim().slice(0, 220) || "Claim",
-      matchedBeliefId: claim.matched_belief_id,
-      artifactTitle: a.title,
-    };
-    if (!isDesktop) {
-      if (mobilePinnedPane) {
-        useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
-        openMobileResearchTab();
-        return;
-      }
-      useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
-      navigate(`/framework/artifacts/${a.id}/research/${claim.id}`);
-      return;
-    }
-    useFloatingJournalStore.getState().setFloatingClaimResearch(handoff);
-    useFloatingJournalStore.getState().setArtifactJournalMode("closed");
-    useFloatingJournalStore.getState().setPanelOpen(true);
-    if (getWantsContinuousPlayback() && pipEnabled) {
-      youtubePip.enterPip();
-    }
-  };
-
-  const bookmarkAtSeconds = async (seconds: number, label?: string | null) => {
-    const t = Math.max(0, Math.floor(seconds));
-    const saved = await saveMoment("bookmark", {
-      label: label ?? bookmarkLabel,
-      startSeconds: t,
-      toastDescription: label?.trim()
-        ? `Bookmarked at ${formatTranscriptClock(t)}`
-        : null,
-    });
-    if (saved && label?.trim()) return;
-    if (saved) setBookmarkLabel("");
-  };
-
-  const journalTranscriptSegment = (seconds: number, snippet: string) => {
-    const t = Math.max(0, Math.floor(seconds));
-    seekVideoToSeconds(t, { play: false });
-    openStudyJournal();
-    const routeId = useFloatingJournalStore.getState().routeArtifact?.id;
-    const insertTarget = floatingJournalInsertRef.current;
-    const journalOpen =
-      useFloatingJournalStore.getState().panelOpen ||
-      useFloatingJournalStore.getState().artifactJournalMode !== "closed";
-    if (insertTarget?.artifactId === a.id && routeId === a.id && journalOpen) {
-      const block = `\n\n---\n\n#### Transcript · ${formatTranscriptClock(t)}\n\n> ${snippet}\n\n`;
-      insertTarget.append(block);
-      toast({
-        title: "Added to journal",
-        description: `Quoted line at ${formatTranscriptClock(t)}`,
-      });
-      return;
-    }
-    openJournalFromArtifact(t);
-  };
-
-  const researchLaterTranscriptSegment = async (seconds: number, snippet: string) => {
-    const t = Math.max(0, Math.floor(seconds));
-    await saveMoment("bookmark", {
-      label: "Research later",
-      body: snippet,
-      startSeconds: t,
-      toastDescription: `Saved at ${formatTranscriptClock(t)} — find it in your moments on this video.`,
-    });
-  };
-
-  const saveSegmentNote = async (seconds: number) => {
-    const t = Math.max(0, Math.floor(seconds));
-    const saved = await saveMoment("note", { body: noteBody, startSeconds: t });
-    if (saved) setNoteBody("");
-  };
-
-  const bookmarkCurrentMoment = async () => {
-    const t = getCurrentPlaybackSeconds();
-    const t0 = Math.max(0, t - 10);
-    const panelOpen = useFloatingJournalStore.getState().panelOpen;
-    const inlineJournal = useFloatingJournalStore.getState().artifactJournalMode !== "closed";
-    const routeId = useFloatingJournalStore.getState().routeArtifact?.id;
-    const insertTarget = floatingJournalInsertRef.current;
-    const journalTied =
-      (panelOpen || inlineJournal) &&
-      routeId === a.id &&
-      insertTarget?.artifactId === a.id &&
-      a.kind === "youtube";
-
-    let toastDescription: string | null = null;
-    if (journalTied) {
-      const now = Date.now();
-      if (now - lastBookmarkJournalInsertAtRef.current < 1000) {
-        toastDescription = "Journal excerpt skipped (wait about a second between clips).";
-      } else {
-        const clock0 = formatTranscriptClock(t0);
-        const clock1 = formatTranscriptClock(t);
-        const lines = transcriptTimedLayout
-          ? collectTranscriptTextOverlappingInclusiveRange(transcriptSegments, t0, t)
-          : [];
-        let body: string;
-        if (lines.length) {
-          body = lines.join("\n\n");
-        } else if (displayTranscriptText.trim()) {
-          if (transcriptTimedLayout) {
-            body = `*(No timed lines overlapped ${clock0}–${clock1}.)*\n\n${displayTranscriptText.trim().slice(-700)}`;
-          } else {
-            body =
-              "*(This transcript has no line-level timestamps, so the last ~10 seconds cannot be auto-selected.)*";
-          }
-        } else {
-          body = "_Transcript not available yet._";
-        }
-        const block = `\n\n---\n\n#### Bookmark · ${clock0}–${clock1}\n_Transcript — last ~10s of playback (through ${clock1})_\n\n${body}\n\n`;
-        insertTarget.append(block);
-        lastBookmarkJournalInsertAtRef.current = now;
-        toastDescription = "Last ~10s of transcript added to your open journal.";
-      }
-    }
-
-    const saved = await saveMoment("bookmark", {
-      label: bookmarkLabel,
-      startSeconds: t,
-      toastDescription,
-    });
-    if (saved) setBookmarkLabel("");
-  };
-
-  const addNoteAtCurrentMoment = async () => {
-    const saved = await saveMoment("note", { body: noteBody });
-    if (saved) setNoteBody("");
-  };
-
-  const believeCurrentMoment = async () => {
-    const seconds = getCurrentPlaybackSeconds();
-    const timestamp = formatTranscriptClock(seconds);
-    const sourceUrl = withYouTubeTimestamp(a.url, seconds);
-    const text = `I believe this from ${a.title || "this video"} at ${timestamp}:\n\n`;
-    const source = sourceUrl || `${a.title || "YouTube artifact"} at ${timestamp}`;
-    setQuickBeliefText(text);
-    setQuickBeliefSource(source);
-    setQuickBeliefOpen(true);
-    await saveMoment("belief_seed", { label: "Belief seed", body: text, startSeconds: seconds });
-  };
-
-  const openStudyJournal = () => openArtifactJournal("docked");
-
   const claimCardContext: RenderClaimCardContext = {
     isDesktop,
     youTubeVideoId,
@@ -1548,72 +1282,6 @@ export default function ArtifactDetailPage() {
 
   const secondaryStudyPanel = isReadableDocument ? readerPanel : transcriptPanel;
 
-  const desktopPremiumVideoShell =
-    desktopPremiumYoutube && youTubeVideoId ? (
-      <ArtifactDetailDesktopShell
-        videoSlotRef={youtubePip.videoSlotRef}
-        hero={{
-          displayTitle,
-          statusLabel: formatArtifactStatus(a.status),
-          inFlight,
-          channel: mergedVideoMeta.channel_title,
-          channelUrl: mergedVideoMeta.channel_url,
-          channelThumbnailUrl: mergedVideoMeta.channel_thumbnail_url,
-          thumbnailUrl: mergedVideoMeta.thumbnail_url,
-          youTubeVideoId,
-          durationSeconds: mergedVideoMeta.duration_seconds ?? artifactMetadata.duration_seconds,
-          createdAt: a.created_at,
-          isPlaying: videoPlayback.isPlaying,
-          onTogglePlay: () => {
-            if (videoPlayback.playerReady) togglePlayback();
-            else videoPlayback.activateAndPlay();
-          },
-          onAddNote: () => navigateToArtifactHash("#capture"),
-          showPaste: a.kind === "youtube",
-          showWrapUp: a.kind === "youtube" && a.status === "ready",
-          showReanalyze: !inFlight && a.status !== "error",
-          onPasteTranscript: () => setPasteOpen(true),
-          onWrapUp: () => setWrapUpOpen(true),
-          onReanalyze: reanalyze,
-          videoInPip: youtubePip.pipMode || artifactJournalExpanded,
-        }}
-        videoBlock={
-          <ArtifactYoutubeVideoBlock
-            youTubeVideoId={youTubeVideoId}
-            youtubePip={youtubePip}
-            pipEnabled={pipEnabled}
-            stickyMode={stickyVideoMode}
-            heroEmbed={desktopPremiumYoutube}
-            youtubePlayer={youtubePlayer}
-            playback={videoPlayback}
-            artifactId={a.id}
-            moments={moments}
-            bookmarkLabel={bookmarkLabel}
-            onBookmarkLabelChange={setBookmarkLabel}
-            noteBody={noteBody}
-            onNoteBodyChange={setNoteBody}
-            canCaptureMoments={canCaptureMoments}
-            savingMoment={savingMoment}
-            hasTranscript={Boolean(a.raw_text?.trim())}
-            onBookmark={bookmarkCurrentMoment}
-            onSaveNote={addNoteAtCurrentMoment}
-            onBelieve={believeCurrentMoment}
-            onStudyJournal={openStudyJournal}
-            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-            onOpenJournalFull={() => openJournalFromArtifact()}
-            onScrollVideoIntoView={handleRestoreFromPip}
-          />
-        }
-      />
-    ) : null;
-
-  const desktopPremiumDocumentShell =
-    desktopPremiumDocument && documentDetailBlockProps ? (
-      <section className={artifactDesktopVideoCard} id="video" aria-label="Book">
-        <ArtifactDocumentDetailBlock ref={documentBlockRef} heroEmbed {...documentDetailBlockProps} />
-      </section>
-    ) : null;
-
   return (
     <FrameworkLayout
       title={youtubeHeaderLeading ? undefined : a.title || "Untitled artifact"}
@@ -1687,79 +1355,59 @@ export default function ArtifactDetailPage() {
                 : "space-y-5 sm:space-y-6",
           )}
         >
-        {desktopPremiumVideoShell}
-        {desktopPremiumDocumentShell}
-        {youTubeVideoId && !desktopPremiumYoutube ? (
-          <ArtifactYoutubeVideoBlock
-            youTubeVideoId={youTubeVideoId}
-            displayTitle={stickyVideoMode ? displayTitle : undefined}
-            channel={stickyVideoMode ? mergedVideoMeta.channel_title : undefined}
-            channelUrl={stickyVideoMode ? mergedVideoMeta.channel_url : undefined}
-            channelThumbnailUrl={stickyVideoMode ? mergedVideoMeta.channel_thumbnail_url : undefined}
-            providerName={stickyVideoMode ? mergedVideoMeta.provider_name : undefined}
-            thumbnailUrl={mergedVideoMeta.thumbnail_url}
-            youtubePip={youtubePip}
-            pipEnabled={pipEnabled}
-            stickyMode={stickyVideoMode}
-            youtubePlayer={youtubePlayer}
-            playback={videoPlayback}
-            artifactId={a.id}
-            moments={moments}
-            bookmarkLabel={bookmarkLabel}
-            onBookmarkLabelChange={setBookmarkLabel}
-            noteBody={noteBody}
-            onNoteBodyChange={setNoteBody}
-            canCaptureMoments={canCaptureMoments}
-            savingMoment={savingMoment}
-            hasTranscript={Boolean(a.raw_text?.trim())}
-            onBookmark={bookmarkCurrentMoment}
-            onSaveNote={addNoteAtCurrentMoment}
-            onBelieve={believeCurrentMoment}
-            onStudyJournal={openStudyJournal}
-            onOpenJournalTimestamp={() => openJournalFromArtifact(getCurrentPlaybackSeconds())}
-            onOpenJournalFull={() => openJournalFromArtifact()}
-            mobileActiveTab={mobileTab}
-            mobileMenuOpen={mobileMenuOpen}
-            onMobileMenuOpenChange={stickyVideoMode ? setMobileMenuOpen : undefined}
-            menuSections={navSections}
-            menuActiveHash={pageSectionHash}
-            menuShowPaste={a.kind === "youtube"}
-            menuShowRetryFetch={a.kind === "youtube" && a.status === "error" && Boolean(a.url)}
-            menuShowWrapUp={a.kind === "youtube" && a.status === "ready"}
-            menuShowReanalyze={!inFlight && a.status !== "error"}
-            onMenuRetryFetch={() => void retryFetch()}
-            onMenuNavigateSection={navigateToArtifactHash}
-            onMenuOpenTranscript={switchToTranscriptTab}
-            onMenuOpenStudy={switchToStudyTab}
-            onMenuOpenJournal={handleDockJournalClick}
-            onMenuGoHome={() => navigate("/home")}
-            menuMobileTab={mobileTab}
-            menuJournalActive={artifactJournalOpen}
-            menuSecondaryViewLabel="Transcript"
-            onOpenNotesTab={openNotesTabWithNote}
-            insightExplorePanel={mobileInsightExplorePanel}
-            insightExploreOpen={mobileInsightExploreOpen}
-            onMenuPaste={() => setPasteOpen(true)}
-            onMenuWrapUp={() => setWrapUpOpen(true)}
-            onMenuReanalyze={reanalyze}
-            backTo="/framework/artifacts"
-            mobileChromeHost={mobileChromeHost}
-            onScrollVideoIntoView={handleRestoreFromPip}
-          />
-        ) : null}
-        {isReadableDocument && !desktopPremiumDocument && documentDetailBlockProps ? (
-          <ArtifactDocumentDetailBlock
-            ref={documentBlockRef}
-            stickyMode={!isDesktop && !mobilePinnedPane}
-            mobilePinnedLayout={mobilePinnedPane && isReadableDocument}
-            mobileActiveTab={mobileTab}
-            mobileChromeHost={mobileChromeHost}
-            backTo="/framework/artifacts"
-            insightExplorePanel={mobileInsightExplorePanel}
-            insightExploreOpen={mobileInsightExploreOpen}
-            {...documentDetailBlockProps}
-          />
-        ) : null}
+        <ArtifactDetailPrimaryMedia
+          artifact={a}
+          artifactMetadata={artifactMetadata}
+          mergedVideoMeta={mergedVideoMeta}
+          displayTitle={displayTitle}
+          youTubeVideoId={youTubeVideoId}
+          desktopPremiumYoutube={desktopPremiumYoutube}
+          desktopPremiumDocument={desktopPremiumDocument}
+          stickyVideoMode={stickyVideoMode}
+          mobilePinnedPane={mobilePinnedPane}
+          isReadableDocument={isReadableDocument}
+          isDesktop={isDesktop}
+          inFlight={inFlight}
+          artifactJournalExpanded={artifactJournalExpanded}
+          documentDetailBlockProps={documentDetailBlockProps}
+          documentBlockRef={documentBlockRef}
+          videoPlayback={videoPlayback}
+          pipEnabled={pipEnabled}
+          moments={moments}
+          bookmarkLabel={bookmarkLabel}
+          noteBody={noteBody}
+          canCaptureMoments={canCaptureMoments}
+          savingMoment={savingMoment}
+          mobileTab={mobileTab}
+          mobileMenuOpen={mobileMenuOpen}
+          navSections={navSections}
+          pageSectionHash={pageSectionHash}
+          artifactJournalOpen={artifactJournalOpen}
+          mobileChromeHost={mobileChromeHost}
+          mobileInsightExplorePanel={mobileInsightExplorePanel}
+          mobileInsightExploreOpen={mobileInsightExploreOpen}
+          onTogglePlayback={togglePlayback}
+          onNavigateHash={navigateToArtifactHash}
+          onPasteTranscript={() => setPasteOpen(true)}
+          onWrapUp={() => setWrapUpOpen(true)}
+          onReanalyze={reanalyze}
+          onRetryFetch={() => void retryFetch()}
+          onOpenTranscriptTab={switchToTranscriptTab}
+          onOpenStudyTab={switchToStudyTab}
+          onOpenJournalTab={handleDockJournalClick}
+          onGoHome={() => navigate("/home")}
+          onOpenNotesTab={openNotesTabWithNote}
+          onRestoreFromPip={handleRestoreFromPip}
+          onBookmark={bookmarkCurrentMoment}
+          onSaveNote={addNoteAtCurrentMoment}
+          onBelieve={believeCurrentMoment}
+          onStudyJournal={openStudyJournal}
+          onOpenJournalFromArtifact={openJournalFromArtifact}
+          getCurrentPlaybackSeconds={getCurrentPlaybackSeconds}
+          onBookmarkLabelChange={setBookmarkLabel}
+          onNoteBodyChange={setNoteBody}
+          onMobileMenuOpenChange={setMobileMenuOpen}
+        />
         {embeddedJournalPanel && !mobilePinnedPane ? embeddedJournalPanel : null}
         <div
           ref={mobileBodyScrollRef}
@@ -1863,42 +1511,19 @@ export default function ArtifactDetailPage() {
         />
       ) : null}
 
-      {inFlight && (
-        <ArtifactPipelineBanner
-          status={a.status}
-          kind={a.kind}
-          elapsed={elapsed}
-          label={stageLabel[a.status] ?? "Working…"}
-          hint={stageHint[a.status] ?? ""}
-          onPasteTranscript={() => setPasteOpen(true)}
-          onRetryAnalyze={
-            a.status === "analyzing" && a.raw_text?.trim() ? () => void reanalyze() : undefined
-          }
-        />
-      )}
-
-      {a.error && a.status === "error" && (
-        <ArtifactTranscriptFetchErrorCard
-          error={a.error}
-          variant={
-            isNonBlockingAnalysisError({
-              error: a.error,
-              rawText: a.raw_text,
-              claimsCount: studyClaims.length,
-            })
-              ? "warning"
-              : "destructive"
-          }
-          retryingFetch={retryingFetch}
-          inFlight={inFlight}
-          showRetry={a.kind === "youtube" && Boolean(a.url) && !a.raw_text?.trim()}
-          showReanalyze={Boolean(a.raw_text?.trim())}
-          onRetry={() => void retryFetch()}
-          onPaste={() => setPasteOpen(true)}
-          onReanalyze={() => void reanalyze()}
-          className={mobilePinnedPane ? artifactMobileStudyContentInset : undefined}
-        />
-      )}
+      <ArtifactDetailProcessingState
+        artifact={a}
+        inFlight={inFlight}
+        elapsed={elapsed}
+        stageLabel={stageLabel}
+        stageHint={stageHint}
+        studyClaimsCount={studyClaims.length}
+        mobilePinnedPane={mobilePinnedPane}
+        retryingFetch={retryingFetch}
+        onPasteTranscript={() => setPasteOpen(true)}
+        onRetryFetch={() => void retryFetch()}
+        onReanalyze={() => void reanalyze()}
+      />
 
       <ArtifactDetailStudyColumnWrapper
         isDesktop={isDesktop}

@@ -57,6 +57,9 @@ type Props = {
   responseDepth?: ResponseDepthSetting;
   onResponseDepthChange?: (value: ResponseDepthSetting) => void;
   onOpenInMyAi?: () => void;
+  onSaveAsEntry?: () => void;
+  saveAsEntryLabel?: string;
+  saveAsEntryDisabled?: boolean;
   placeholder?: string;
   trailingControls?: ReactNode;
   onRetryLast?: () => void;
@@ -83,6 +86,9 @@ export default function InlineJournalChatComposer({
   responseDepth,
   onResponseDepthChange,
   onOpenInMyAi,
+  onSaveAsEntry,
+  saveAsEntryLabel = "Save as journal entry",
+  saveAsEntryDisabled = false,
   placeholder = "Type anything",
   trailingControls,
   onRetryLast,
@@ -127,6 +133,7 @@ export default function InlineJournalChatComposer({
     onIncludeGeneralChange ||
     onResponseDepthChange ||
     onOpenInMyAi ||
+    onSaveAsEntry ||
     onRetryLast;
 
   return (
@@ -172,6 +179,11 @@ export default function InlineJournalChatComposer({
               {onOpenInMyAi ? (
                 <DropdownMenuItem onClick={onOpenInMyAi}>
                   Open in My AI
+                </DropdownMenuItem>
+              ) : null}
+              {onSaveAsEntry ? (
+                <DropdownMenuItem onClick={onSaveAsEntry} disabled={saveAsEntryDisabled}>
+                  {saveAsEntryLabel}
                 </DropdownMenuItem>
               ) : null}
               {(onIncludeGeneralChange || onResponseDepthChange) && (

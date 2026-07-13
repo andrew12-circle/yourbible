@@ -72,7 +72,7 @@ type Props = {
   onOpenJournalTimestamp: () => void;
   onOpenJournalFull: () => void;
   /** Mobile sticky layout: which tab is active (controls capture section visibility). */
-  mobileActiveTab?: "study" | "transcript" | "notes" | "journal";
+  mobileActiveTab?: "study" | "transcript" | "notes" | "journal" | "research";
   mobileMenuOpen?: boolean;
   onMobileMenuOpenChange?: (open: boolean) => void;
   menuSections?: ArtifactNavSection[];
@@ -87,7 +87,7 @@ type Props = {
   onMenuRetryFetch?: () => void;
   onMenuWrapUp?: () => void;
   onMenuReanalyze?: () => void;
-  menuMobileTab?: "study" | "transcript" | "notes" | "journal";
+  menuMobileTab?: "study" | "transcript" | "notes" | "journal" | "research";
   menuJournalActive?: boolean;
   onMenuOpenStudy?: () => void;
   onMenuOpenJournal?: () => void;

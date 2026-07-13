@@ -24,10 +24,9 @@ export function parseTranscriptFetchError(error: string): {
 } {
   const trimmed = error.trim();
   if (/rate limit|provider limit/i.test(trimmed)) {
-    const headline = trimmed.replace(/\s+/g, " ").trim();
     return {
-      headline,
-      hint: "If insight cards are already visible below, you can keep studying — tap Re-analyze later only if you want more coverage.",
+      headline: "AI analysis is temporarily busy.",
+      hint: "This is provider throttling, not your personal usage limit. If study content is visible, keep going; tap Re-analyze later only if you want more coverage.",
       attempts: null,
     };
   }
