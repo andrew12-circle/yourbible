@@ -23,7 +23,10 @@ export type PageIllustrationPromptInput = {
 };
 
 function systemPromptForBook(book: ChildrenBook): string {
-  return buildLillySystemPrompt(book.heroName?.trim() || LILLY_HERO_NAME);
+  return buildLillySystemPrompt(book.heroName?.trim() || LILLY_HERO_NAME, {
+    bookArtDirection: book.artDirectionPrompt,
+    heroModelSheet: book.heroModelSheet,
+  });
 }
 
 /** Align scene text with the book's heroine name when retelling classic stories. */

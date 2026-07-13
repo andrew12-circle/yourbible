@@ -63,8 +63,13 @@ describe("children book storybook data", () => {
 
     expect(book).toBeDefined();
     expect(book!.title).toBe("Aurora: God's Perfect Protection");
+    expect(book!.heroName).toBe("Aurora");
+    expect(book!.heroModelSheet).toContain("AURORA CHARACTER MODEL SHEET");
+    expect(book!.artDirectionPrompt).toContain("Aurora image refresh");
     expect(book!.useDefaultCoverPath).toBe(true);
     expect(book!.useDefaultImagePaths).toBe(true);
+    expect(book!.useDefaultClosingImagePath).toBe(true);
+    expect(book!.closingIllustrationPrompt).toContain("cozy forest cottage");
     expect(book!.pages).toHaveLength(26);
     expect(book!.pages.at(-1)?.scriptureThread).toContain("Psalm 121:8");
   });
@@ -96,5 +101,16 @@ describe("page illustration prompts", () => {
         expect(prompt).toContain(localizeScenePrompt(book, page.picturePrompt));
       });
     }
+  });
+
+  it("uses Aurora's model sheet and picture-book refresh guidance for Aurora images", () => {
+    const book = findChildrenBook("aurora-perfect-protection")!;
+    const prompt = buildPageIllustrationPrompt({ book, page: book.pages[0]!, pageNumber: 1 });
+
+    expect(prompt).toContain("HEROINE FOR THIS BOOK: Aurora");
+    expect(prompt).toContain("AURORA CHARACTER MODEL SHEET");
+    expect(prompt).toContain("warm honey-blonde");
+    expect(prompt).toContain("Aurora image refresh");
+    expect(prompt).not.toContain("LILLY CHARACTER MODEL SHEET");
   });
 });

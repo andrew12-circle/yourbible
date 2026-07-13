@@ -18,6 +18,17 @@ describe("Lilly Storybook Art Bible", () => {
     expect(system).toContain("Never photorealistic");
   });
 
+  it("supports book-specific art direction and model sheets", () => {
+    const system = buildLillySystemPrompt("Aurora", {
+      bookArtDirection: "Aurora image refresh: classic hand-painted picture book pages.",
+      heroModelSheet: "AURORA CHARACTER MODEL SHEET (maintain exactly)",
+    });
+
+    expect(system).toContain("BOOK-SPECIFIC ART DIRECTION");
+    expect(system).toContain("Aurora image refresh");
+    expect(system).toContain("AURORA CHARACTER MODEL SHEET");
+  });
+
   it("localizes Cinderella scenes to Lilly in page prompts", () => {
     const book = findChildrenBook("kingdom-invitation")!;
     const page = book.pages[0]!;
