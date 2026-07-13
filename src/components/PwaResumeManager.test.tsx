@@ -31,7 +31,7 @@ describe("PwaResumeManager", () => {
     );
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      window.setTimeout(() => callback(performance.now()), 0);
+      callback(performance.now());
       return 1;
     });
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
