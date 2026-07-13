@@ -102,11 +102,25 @@ magic spells, fairy dust, wands, fantasy creatures, harsh black backgrounds, vis
 /** @deprecated Use LILLY_STORYBOOK_ART_BIBLE — kept for tests and backward references. */
 export const LILLY_STORYBOOK_STYLE_GUIDE = LILLY_STORYBOOK_ART_BIBLE;
 
-export function buildLillySystemPrompt(heroName?: string): string {
+export type LillySystemPromptOptions = {
+  bookArtDirection?: string;
+  heroModelSheet?: string;
+};
+
+function localizedLillyModelSheet(heroName: string): string {
+  return LILLY_CHARACTER_MODEL_SHEET.replace(/LILLY/g, heroName.toUpperCase()).replace(/Lilly/g, heroName);
+}
+
+export function buildLillySystemPrompt(
+  heroName?: string,
+  options: LillySystemPromptOptions = {},
+): string {
   const sections = [LILLY_MASTER_PROMPT, "", LILLY_STORYBOOK_ART_BIBLE];
   const name = heroName?.trim() || LILLY_HERO_NAME;
+  const bookArtDirection = options.bookArtDirection?.trim();
+  if (bookArtDirection) sections.push("", "BOOK-SPECIFIC ART DIRECTION", bookArtDirection);
   if (name) {
-    sections.push("", `HEROINE FOR THIS BOOK: ${name}`, LILLY_CHARACTER_MODEL_SHEET.replace(/Lilly/g, name));
+    sections.push("", `HEROINE FOR THIS BOOK: ${name}`, options.heroModelSheet?.trim() || localizedLillyModelSheet(name));
   }
   return sections.join("\n");
 }
