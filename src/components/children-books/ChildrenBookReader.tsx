@@ -35,6 +35,8 @@ type ChildrenBookReaderProps = {
 
 type TurnDirection = "forward" | "back";
 
+const CHILDREN_BOOK_MOBILE_RIGHT_PEEK = 0.12;
+
 function StoryPageFace({
   book,
   page,
@@ -317,6 +319,7 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
             fillContainer
             fabricSurround={showHubShell}
             hubInline={showHubShell}
+            rightPagePeek={CHILDREN_BOOK_MOBILE_RIGHT_PEEK}
             coverStyle={
               {
                 "--lc-base": "28 35% 20%",
