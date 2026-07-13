@@ -396,6 +396,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     useDefaultImagePaths: true,
     closingPrayer:
       "Dear Jesus, thank You for watching over me wherever I go. Help me pray first, trust Your promises, choose courage, and remember that Your protection is forever. Amen.",
+    closingIllustrationPrompt:
+      "Aurora standing with her family at a sunlit castle window, hands folded in thankful prayer, forest and river glowing at dawn beyond them, a gentle shield-shaped light in the sky, peaceful storybook ending.",
     pages: [
       {
         title: "A kingdom that prayed",
