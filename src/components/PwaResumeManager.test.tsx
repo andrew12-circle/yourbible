@@ -2,7 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { PwaResumeManager } from "@/components/PwaResumeManager";
-import { createPwaResumeSnapshot, savePwaResumeSnapshot } from "@/lib/pwaResume";
+import {
+  createPwaResumeSnapshot,
+  PWA_RESUME_STORAGE_KEY,
+  savePwaResumeSnapshot,
+} from "@/lib/pwaResume";
 
 function LocationProbe() {
   const location = useLocation();
@@ -38,10 +42,14 @@ describe("PwaResumeManager", () => {
   });
 
   it("restores the last safe standalone PWA route from the launch URL", async () => {
-    savePwaResumeSnapshot(
-      localStorage,
-      createPwaResumeSnapshot("/journal/e/entry-1?tab=chat#reply", 0, 240),
-    );
+    expect(
+      savePwaResumeSnapshot(
+        localStorage,
+        createPwaResumeSnapshot("/journal/e/entry-1?tab=chat#reply", 0, 240),
+      ),
+    ).toBe(true);
+    expect(localStorage.getItem(PWA_RESUME_STORAGE_KEY)).toContain("/journal/e/entry-1");
+    expect(window.matchMedia("(display-mode: standalone)").matches).toBe(true);
 
     render(
       <MemoryRouter initialEntries={["/"]}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   buildPwaResumeUrl,
@@ -33,7 +33,7 @@ export function PwaResumeManager() {
     );
   }, [locationUrl]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (didCheckInitialResumeRef.current) return;
     didCheckInitialResumeRef.current = true;
     if (typeof window === "undefined" || !isStandalonePwa(window)) return;
