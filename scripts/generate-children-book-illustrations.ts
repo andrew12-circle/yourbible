@@ -6,19 +6,29 @@
  *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --from 1 --to 3
  *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --cover
  *   npx tsx scripts/generate-children-book-illustrations.ts --character-sheets --force
+ *   npx tsx scripts/generate-children-book-illustrations.ts --model-sheets --force
+ *   npx tsx scripts/generate-children-book-illustrations.ts --model-sheets --only lilly,winston --force
  *   npx tsx scripts/generate-children-book-illustrations.ts --all-books --all --force
+ *   npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --all --style-version v2
+ *
+ * --model-sheets generates the permanent per-character master model sheets
+ * (Lilly, Tish, Andrew, Winston) — the "actors" every illustration must match.
+ *
+ * By default the active Studio Style is used (or a book's pinned studioStyleVersion).
+ * Pass --style-version v1|v2 to force a version for this run.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listCharacterSheetJobs } from "../src/lib/children-books/characterSheets.ts";
+import { listMasterModelSheetJobs } from "../src/lib/children-books/characterModelSheets.ts";
 import {
   buildClosingIllustrationPrompt,
   buildCoverIllustrationPrompt,
   buildPageIllustrationPrompt,
 } from "../src/lib/children-books/illustrationPrompt.ts";
-import { CHILDREN_BOOKS, findChildrenBook } from "../src/lib/children-books/storybook.ts";
+import { CHILDREN_BOOKS, findChildrenBook, type ChildrenBook } from "../src/lib/children-books/storybook.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -51,8 +61,12 @@ function parseArgs(argv: string[]) {
   const positionals = argv.filter((a) => !a.startsWith("--"));
 
   const characterSheets = flags.has("--character-sheets");
+  const modelSheets = flags.has("--model-sheets");
   const allBooks = flags.has("--all-books");
-  const slug = allBooks || characterSheets ? undefined : (positionals[0] ?? "kingdom-invitation");
+  const slug =
+    allBooks || characterSheets || modelSheets
+      ? undefined
+      : (positionals[0] ?? "kingdom-invitation");
 
   let from = 1;
   let to = Number.POSITIVE_INFINITY;
@@ -61,6 +75,7 @@ function parseArgs(argv: string[]) {
   let end = flags.has("--end");
   let all = flags.has("--all");
   let onlySheets: string[] = [];
+  let styleVersion: string | undefined;
 
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--from" && argv[i + 1]) from = Number(argv[++i]);
@@ -68,12 +83,13 @@ function parseArgs(argv: string[]) {
     if (argv[i] === "--only" && argv[i + 1]) {
       onlySheets = argv[++i]!.split(",").map((s) => s.trim()).filter(Boolean);
     }
+    if (argv[i] === "--style-version" && argv[i + 1]) styleVersion = argv[++i];
   }
   if (all) {
     cover = true;
     end = true;
   }
-  return { slug, from, to, force, cover, end, all, characterSheets, allBooks, onlySheets };
+  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, allBooks, onlySheets, styleVersion };
 }
 
 type ImageSize = "1024x1536" | "1536x1024" | "1024x1024";
@@ -146,8 +162,9 @@ async function generateCharacterSheets(
   force: boolean,
   delayMs: number,
   onlySheets: string[] = [],
+  styleVersion?: string,
 ): Promise<number> {
-  let jobs = listCharacterSheetJobs();
+  let jobs = listCharacterSheetJobs(undefined, styleVersion);
   if (onlySheets.length > 0) {
     const wanted = new Set(onlySheets.map((s) => s.toLowerCase()));
     jobs = jobs.filter((job) => wanted.has(`${job.characterId}/${job.kind}`.toLowerCase()));
@@ -177,16 +194,58 @@ async function generateCharacterSheets(
   return failures;
 }
 
+async function generateModelSheets(
+  apiKey: string,
+  model: string,
+  quality: string,
+  force: boolean,
+  delayMs: number,
+  onlyIds: string[] = [],
+  styleVersion?: string,
+): Promise<number> {
+  let jobs = listMasterModelSheetJobs(undefined, styleVersion);
+  if (onlyIds.length > 0) {
+    const wanted = new Set(onlyIds.map((s) => s.toLowerCase()));
+    jobs = jobs.filter((job) => wanted.has(job.characterId.toLowerCase()));
+    if (jobs.length === 0) {
+      throw new Error(`No character model sheets matched --only ${onlyIds.join(",")}`);
+    }
+  }
+  console.log(`Character model sheets — ${jobs.length} sheet(s)`);
+  let failures = 0;
+
+  for (const job of jobs) {
+    const filePath = path.join(root, "public", job.relativePath);
+    const ok = await saveImage(
+      `${job.characterId}/model-sheet`,
+      filePath,
+      job.prompt,
+      apiKey,
+      model,
+      force,
+      job.size,
+      quality,
+    );
+    if (!ok) failures += 1;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+
+  return failures;
+}
+
 async function generateBook(
   slug: string,
-  opts: { from: number; to: number; force: boolean; cover: boolean; end: boolean; all: boolean },
+  opts: { from: number; to: number; force: boolean; cover: boolean; end: boolean; all: boolean; styleVersion?: string },
   apiKey: string,
   model: string,
   quality: string,
   delayMs: number,
 ): Promise<number> {
-  const book = findChildrenBook(slug);
-  if (!book) throw new Error(`Unknown book slug: ${slug}`);
+  const found = findChildrenBook(slug);
+  if (!found) throw new Error(`Unknown book slug: ${slug}`);
+  const book: ChildrenBook = opts.styleVersion
+    ? { ...found, studioStyleVersion: opts.styleVersion as ChildrenBook["studioStyleVersion"] }
+    : found;
 
   const outDir = path.join(root, "public", "children-books", book.slug);
   await mkdir(outDir, { recursive: true });
@@ -279,16 +338,29 @@ async function main() {
       args.force,
       delayMs,
       args.onlySheets,
+      args.styleVersion,
     );
   }
 
-  if (args.characterSheets && !args.allBooks) {
+  if (args.modelSheets) {
+    failures += await generateModelSheets(
+      apiKey,
+      model,
+      quality,
+      args.force,
+      delayMs,
+      args.onlySheets,
+      args.styleVersion,
+    );
+  }
+
+  if ((args.characterSheets || args.modelSheets) && !args.allBooks) {
     console.log(failures ? `Done with ${failures} failure(s).` : "Done.");
     process.exit(failures > 0 ? 1 : 0);
   }
 
-  if (!args.characterSheets && !args.allBooks && !args.slug) {
-    throw new Error("Provide a book slug, --character-sheets, or --all-books");
+  if (!args.characterSheets && !args.modelSheets && !args.allBooks && !args.slug) {
+    throw new Error("Provide a book slug, --character-sheets, --model-sheets, or --all-books");
   }
 
   const slugs = args.allBooks
@@ -308,6 +380,7 @@ async function main() {
         cover: args.cover || args.allBooks,
         end: args.end || args.allBooks,
         all: args.all || args.allBooks,
+        styleVersion: args.styleVersion,
       },
       apiKey,
       model,

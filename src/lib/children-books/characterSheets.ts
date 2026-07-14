@@ -3,7 +3,11 @@ import {
   type CharacterBible,
   type CharacterBibleId,
 } from "@/lib/children-books/characterBibles";
-import { LILLY_MASTER_PROMPT, LILLY_NEGATIVE_PROMPT, LILLY_STUDIO_STYLE } from "@/lib/children-books/lillyStyleGuide";
+import {
+  getStudioStyle,
+  type StudioStyle,
+  type StudioStyleVersion,
+} from "@/lib/children-books/studioStyles";
 
 export type CharacterSheetKind = "turnaround" | "expressions" | "outfits";
 
@@ -13,15 +17,17 @@ export type CharacterSheetJob = {
   /** Relative path under public/ */
   relativePath: string;
   prompt: string;
+  /** Studio Style version used to build the prompt. */
+  styleVersion: StudioStyleVersion;
   /** Preferred generation size — landscape for sheet layouts. */
   size: "1536x1024" | "1024x1536";
 };
 
-function sheetHeader(character: CharacterBible): string {
+function sheetHeader(character: CharacterBible, style: StudioStyle): string {
   return [
-    LILLY_MASTER_PROMPT,
+    style.masterPrompt,
     "",
-    LILLY_STUDIO_STYLE,
+    style.studioStyle,
     "",
     character.sheet,
     "",
@@ -32,9 +38,12 @@ function sheetHeader(character: CharacterBible): string {
   ].join("\n");
 }
 
-export function buildCharacterTurnaroundPrompt(character: CharacterBible): string {
+export function buildCharacterTurnaroundPrompt(
+  character: CharacterBible,
+  style: StudioStyle = getStudioStyle(),
+): string {
   return [
-    sheetHeader(character),
+    sheetHeader(character, style),
     "",
     "SHEET LAYOUT — TURNAROUND (landscape)",
     `Three equal portrait panels of ${character.name} left to right:`,
@@ -45,14 +54,17 @@ export function buildCharacterTurnaroundPrompt(character: CharacterBible): strin
     "Even lighting, model-sheet clarity, large readable shapes.",
     "",
     "NEGATIVE PROMPT",
-    LILLY_NEGATIVE_PROMPT,
+    style.negativePrompt,
     "text, labels, panel numbers, arrows, charts, multiple different girls.",
   ].join("\n");
 }
 
-export function buildCharacterExpressionsPrompt(character: CharacterBible): string {
+export function buildCharacterExpressionsPrompt(
+  character: CharacterBible,
+  style: StudioStyle = getStudioStyle(),
+): string {
   return [
-    sheetHeader(character),
+    sheetHeader(character, style),
     "",
     "SHEET LAYOUT — FIVE EXPRESSIONS (landscape)",
     `Five bust / head-and-shoulders portraits of ${character.name} in a tidy row or 2+3 grid:`,
@@ -66,14 +78,17 @@ export function buildCharacterExpressionsPrompt(character: CharacterBible): stri
     "Child-friendly storybook faces only — wholesome, modest, age-appropriate children's illustration.",
     "",
     "NEGATIVE PROMPT",
-    LILLY_NEGATIVE_PROMPT,
+    style.negativePrompt,
     "text, labels, panel numbers, different hairstyles between panels, different faces.",
   ].join("\n");
 }
 
-export function buildCharacterOutfitsPrompt(character: CharacterBible): string {
+export function buildCharacterOutfitsPrompt(
+  character: CharacterBible,
+  style: StudioStyle = getStudioStyle(),
+): string {
   return [
-    sheetHeader(character),
+    sheetHeader(character, style),
     "",
     "SHEET LAYOUT — OUTFITS & SIGNATURE POSES (landscape)",
     `Three or four full-body figures of ${character.name} side by side, each in a different wardrobe from her character bible.`,
@@ -83,25 +98,29 @@ export function buildCharacterOutfitsPrompt(character: CharacterBible): string {
     "Clean spacing, fashion-sheet clarity, no story background scenery.",
     "",
     "NEGATIVE PROMPT",
-    LILLY_NEGATIVE_PROMPT,
+    style.negativePrompt,
     "text, labels, racks, mirrors, different faces, crowded backgrounds.",
   ].join("\n");
 }
 
 const KIND_BUILDERS: Record<
   CharacterSheetKind,
-  (character: CharacterBible) => string
+  (character: CharacterBible, style: StudioStyle) => string
 > = {
   turnaround: buildCharacterTurnaroundPrompt,
   expressions: buildCharacterExpressionsPrompt,
   outfits: buildCharacterOutfitsPrompt,
 };
 
-export function listCharacterSheetJobs(ids?: CharacterBibleId[]): CharacterSheetJob[] {
+export function listCharacterSheetJobs(
+  ids?: CharacterBibleId[],
+  styleVersion?: StudioStyleVersion | string,
+): CharacterSheetJob[] {
   const selected = ids?.length
     ? ids.map((id) => CHARACTER_BIBLES[id])
     : Object.values(CHARACTER_BIBLES);
 
+  const style = getStudioStyle(styleVersion);
   const kinds: CharacterSheetKind[] = ["turnaround", "expressions", "outfits"];
   const jobs: CharacterSheetJob[] = [];
 
@@ -111,7 +130,8 @@ export function listCharacterSheetJobs(ids?: CharacterBibleId[]): CharacterSheet
         characterId: character.id,
         kind,
         relativePath: `children-books/character-bibles/${character.id}/${kind}.png`,
-        prompt: KIND_BUILDERS[kind](character),
+        prompt: KIND_BUILDERS[kind](character, style),
+        styleVersion: style.version,
         size: "1536x1024",
       });
     }

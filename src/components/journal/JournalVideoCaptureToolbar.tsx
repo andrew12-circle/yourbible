@@ -157,7 +157,7 @@ export function JournalVideoCaptureToolbar({
   };
 
   const menuClass = menuElevated ? VIDEO_CAPTURE_MENU_Z : undefined;
-  const showCameraPicker = videoDevices.length > 1;
+  const showCameraPicker = videoDevices.length > 0;
   const showCameraControls = capture.mode === "camera" || capture.mode === "screen";
   const showScreenControls = capture.mode === "screen";
 

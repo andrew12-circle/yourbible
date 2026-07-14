@@ -31,7 +31,8 @@
     "generate:children-books": "npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --all --force",
     "generate:children-books:pages": "npx tsx scripts/generate-children-book-illustrations.ts kingdom-invitation --force",
     "generate:children-books:all": "npx tsx scripts/generate-children-book-illustrations.ts --all-books --all --force",
-    "generate:children-character-sheets": "npx tsx scripts/generate-children-book-illustrations.ts --character-sheets --force"
+    "generate:children-character-sheets": "npx tsx scripts/generate-children-book-illustrations.ts --character-sheets --force",
+    "generate:children-model-sheets": "npx tsx scripts/generate-children-book-illustrations.ts --model-sheets --force"
   },
   "dependencies": {
     "@fix-webm-duration/fix": "^1.0.1",

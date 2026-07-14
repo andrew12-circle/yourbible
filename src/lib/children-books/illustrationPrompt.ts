@@ -3,6 +3,7 @@ import {
   buildLillySystemPrompt,
   LILLY_HERO_NAME,
   LILLY_NEGATIVE_PROMPT,
+  negativePromptForStyle,
 } from "@/lib/children-books/lillyStyleGuide";
 
 export const STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT = buildLillySystemPrompt({
@@ -13,11 +14,16 @@ export const STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT = buildLillySystemPrompt({
 
 export const STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT = LILLY_NEGATIVE_PROMPT;
 
+/** Negative prompt for the version this book is pinned to (defaults to active). */
+function negativeForBook(book: ChildrenBook): string {
+  return negativePromptForStyle(book.studioStyleVersion);
+}
+
 const paletteGuidance: Record<ChildrenBookPage["palette"], string> = {
-  dawn: "Warm cream, golden sunlight, soft sunrise, dusty rose accents.",
-  garden: "Sage green, wildflowers, rolling hills, warm brown, soft blue.",
-  royal: "Muted navy accents, golden sunlight, lavender, rich wood tones, soft ivory.",
-  starlight: "Soft blue, soft ivory, gentle moonlight, dusty rose, peaceful night.",
+  dawn: "Bright clear morning light, soft sky blue, ivory white, blush pink accents, pale blue-gray shadows.",
+  garden: "Fresh spring green, sea-glass green, wildflowers, rolling hills, soft sky blue, ivory white, airy daylight.",
+  royal: "Muted royal blue accents, porcelain and ivory white, lavender, very restrained gold, bright light-filled interiors.",
+  starlight: "Soft powder blue, lavender-gray, ivory white, gentle cool moonlight, peaceful clean night — never muddy or dark.",
 };
 
 export type PageIllustrationPromptInput = {
@@ -31,6 +37,8 @@ function systemPromptForBook(book: ChildrenBook): string {
     characterId: book.characterId,
     worldId: book.worldId,
     heroName: book.heroName?.trim() || LILLY_HERO_NAME,
+    styleVersion: book.studioStyleVersion,
+    castIds: book.castIds,
   });
 }
 
@@ -73,7 +81,7 @@ export function buildPageIllustrationPrompt({
     localizeScenePrompt(book, page.picturePrompt),
     "",
     "NEGATIVE PROMPT",
-    STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
+    negativeForBook(book),
   ].join("\n");
 }
 
@@ -95,13 +103,13 @@ export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
     "Premium Lilly storybook front cover, portrait orientation.",
     "Leave gentle open space along the top third for a title overlay.",
     "No text, letters, logos, or watermarks in the artwork.",
-    "Warm, inviting, classic hardcover storybook feel.",
+    "Bright, inviting, classic hardcover storybook feel in clean, luminous color.",
     "",
     "SCENE",
     localizeScenePrompt(book, book.coverPrompt),
     "",
     "NEGATIVE PROMPT",
-    STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
+    negativeForBook(book),
     "text, title lettering, author name, publisher logo, barcode, spine text.",
   ].join("\n");
 }
@@ -121,15 +129,15 @@ export function buildClosingIllustrationPrompt(book: ChildrenBook): string {
     "",
     "CLOSING COMPOSITION",
     "Premium storybook ENDING illustration, portrait orientation.",
-    "Soft golden hour or gentle starlight. Joyful peace, gratitude, and quiet wonder.",
-    "Simple eye-level composition, cozy and magical without flashiness.",
+    "Soft, bright morning light or gentle clear starlight. Joyful peace, gratitude, and quiet wonder.",
+    "Simple eye-level composition, cozy and wholesome without flashiness.",
     "No text in the artwork.",
     "",
     "SCENE",
     localizeScenePrompt(book, book.closingIllustrationPrompt),
     "",
     "NEGATIVE PROMPT",
-    STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
+    negativeForBook(book),
     "text, title lettering, author name, publisher logo.",
   ].join("\n");
 }

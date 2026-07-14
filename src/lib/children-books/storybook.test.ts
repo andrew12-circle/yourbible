@@ -86,7 +86,7 @@ describe("page illustration prompts", () => {
     expect(prompt).toContain(page.picturePrompt.replace("Cinderella", "Lilly").slice(0, 20));
     expect(prompt).toContain(page.scriptureThread);
     expect(prompt).toContain("Page 1:");
-    expect(prompt).toContain("Clean, expressive ink linework");
+    expect(prompt).toContain("Clean ink linework");
     expect(prompt).toContain("Avoid photorealism");
   });
 

@@ -110,6 +110,7 @@ export interface UseJournalVideoCaptureApi {
   cancel: () => void;
   switchFacing: () => Promise<void>;
   selectDevice: (deviceId: string) => Promise<void>;
+  selectAudioDevice: (audioDeviceId: string) => Promise<void>;
   markChapter: (label?: string) => string | null;
   setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
   patchSettings: (patch: Partial<JournalVideoCaptureSettings>) => void;

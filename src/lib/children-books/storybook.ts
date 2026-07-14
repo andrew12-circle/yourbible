@@ -1,4 +1,6 @@
 import type { CharacterBibleId } from "@/lib/children-books/characterBibles";
+import type { FamilyCharacterId } from "@/lib/children-books/familyCast";
+import type { StudioStyleVersion } from "@/lib/children-books/studioStyles";
 import type { WorldBibleId } from "@/lib/children-books/worldBibles";
 
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
@@ -58,6 +60,13 @@ export type ChildrenBook = {
   characterId?: CharacterBibleId;
   /** Layer 2 — World Bible id (story setting). */
   worldId?: WorldBibleId;
+  /** Layer 1 — Studio Style version pin (defaults to the active version). */
+  studioStyleVersion?: StudioStyleVersion;
+  /**
+   * Recurring family cast appearing in this book (Tish, Andrew, Winston).
+   * Their approved model sheets/bibles are anchored into every scene prompt.
+   */
+  castIds?: FamilyCharacterId[];
   sourceNote: string;
   ageRange: string;
   spiritualFocus: string;
@@ -95,7 +104,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       "Lilly learns that God sees the overlooked, kindness is never wasted, and the Lord often answers prayer through ordinary people willing to help.",
     coverGradient: "linear-gradient(135deg, #7c3aed 0%, #f59e0b 100%)",
     coverPrompt:
-      "Front cover portrait: Lilly (soft chestnut hair, round face, warm smile) in a gentle golden gown, humble and kind, warm candlelit cottage and rolling forest hills behind her, golden hour light, elegant storybook cover composition with open space along the top for a title.",
+      "Front cover portrait: Lilly (short chestnut curls just below her ears, signature white bow, soft oval face, warm brown eyes, gentle genuine smile) in an ivory-and-soft-blue dress with an embroidered collar, humble and kind, a bright stone cottage and rolling forest hills behind her, clear morning light, elegant storybook cover composition with open space along the top for a title.",
     useDefaultCoverPath: true,
     generationSeed:
       "Use the provided Cinderella faith retelling as a Lilly children's picture book about God's perfect timing, kindness, prayer, humility, and forgiveness.",
@@ -104,7 +113,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     closingPrayer:
       "Dear Jesus, thank You for seeing me when no one else does. Help me stay kind, trust Your perfect timing, and love others the way You love me. Amen.",
     closingIllustrationPrompt:
-      "Lilly standing in a golden sunset meadow, hands folded in thankful prayer, gentle smile, village and soft castle in the distance, firefly-like warm lights in the air, rolling hills, cinematic storybook ending, peaceful joy and wonder.",
+      "Lilly standing in a bright spring meadow in clear morning light, short chestnut curls and white bow, hands folded in thankful prayer, gentle smile, village and soft castle in the distance, rolling hills, soft white blossoms drifting on the breeze, peaceful joy and wonder.",
     pages: [
       {
         title: "A mother's reminder",
@@ -112,7 +121,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "Long ago, in a beautiful kingdom surrounded by forests and rolling hills, there lived a young girl named Cinderella. Each night, her mother reminded her, 'God sees you, even when no one else does.'",
         scriptureThread: "God sees His children, even when the world overlooks them.",
         picturePrompt:
-          "A gentle mother tucking a little girl into bed in a candlelit cottage, forest hills outside the window, warm golden light.",
+          "A gentle mother tucking a little girl into bed in a cozy cottage bedroom, forest hills and a soft cool-blue evening sky through the window, gentle clean lamplight.",
         palette: "dawn",
         symbol: "heart",
       },
@@ -132,7 +141,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "After Cinderella's mother went to be with the Lord, her father cared for her tenderly. Years later, he also passed away, and Cinderella was left with her stepmother and two stepsisters.",
         scriptureThread: "God stays near to the brokenhearted.",
         picturePrompt:
-          "A quiet cottage at sunset with Cinderella looking at family portraits, soft light around her shoulders.",
+          "A quiet cottage in soft evening light with Cinderella looking at family portraits, gentle pale light around her shoulders.",
         palette: "dawn",
         symbol: "light",
       },
@@ -262,7 +271,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "When Cinderella arrived, no one recognized her. Not because of her dress, but because she carried quiet joy instead of pride.",
         scriptureThread: "True beauty begins with humility.",
         picturePrompt:
-          "Cinderella entering a palace hall in a blue dress, golden light around her, guests turning in wonder.",
+          "Cinderella entering a bright palace hall in a soft-blue dress, clean luminous light around her, guests turning in wonder.",
         palette: "royal",
         symbol: "crown",
       },
@@ -401,7 +410,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       "Aurora learns that God hears prayer, watches over His children, and is stronger than every plan meant for harm.",
     coverGradient: "linear-gradient(135deg, #4f46e5 0%, #f59e0b 100%)",
     coverPrompt:
-      "Front cover portrait: Princess Aurora with kind expressive eyes in a soft dawn-gold gown, standing near a sunlit castle window with forest, river, and morning light behind her, a peaceful shield-shaped glow of sunlight in the composition, no magic, elegant storybook cover with open space along the top for a title.",
+      "Front cover portrait: Princess Aurora with kind expressive eyes in a soft dawn-rose and ivory gown, standing near a sunlit castle window with forest, river, and bright morning light behind her, a peaceful shield-shaped glow of soft light in the composition, no magic, elegant storybook cover with open space along the top for a title.",
     useDefaultCoverPath: true,
     generationSeed:
       "Use the Aurora faith retelling as a children's picture book about God's perfect protection, prayer, courage, kindness, family reunion, and the truth that we trust God instead of pretend magic.",
@@ -438,7 +447,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "The whole kingdom celebrated and thanked God for the precious little girl. Flora prayed for kindness, Fauna prayed for joy, and Merryweather prayed, 'Protect this little girl all the days of her life, and remind her that You are always with her.'",
         scriptureThread: "Faithful prayers surround children with love.",
         picturePrompt:
-          "Three beloved wise women praying beside baby Aurora's cradle in a candlelit castle hall while families celebrate gently in the background.",
+          "Three beloved wise women praying beside baby Aurora's cradle in a softly lit castle hall while families celebrate gently in the background.",
         palette: "royal",
         symbol: "heart",
       },
@@ -478,7 +487,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "The king ordered every spinning wheel destroyed, yet they knew Maleficent would not easily give up. Flora, Fauna, and Merryweather took Aurora to live in a small cottage deep in the forest until she was grown.",
         scriptureThread: "Wise protection can be an act of faithful love.",
         picturePrompt:
-          "Three wise women carrying baby Aurora along a forest path toward a warm cottage, distant castle towers behind them at sunset.",
+          "Three wise women carrying baby Aurora along a forest path toward a welcoming cottage, distant castle towers behind them in soft evening light.",
         palette: "garden",
         symbol: "shield",
       },
@@ -488,7 +497,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "It was the hardest decision the king and queen had ever made. As their little girl rode away, the queen wiped away tears and prayed, 'Lord, watch over our daughter until we hold her again.'",
         scriptureThread: "God watches children when parents cannot hold them close.",
         picturePrompt:
-          "The king and queen standing on castle steps with tearful hope, watching a carriage disappear toward the forest in golden evening light.",
+          "The king and queen standing on castle steps with tearful hope, watching a carriage disappear toward the forest in soft evening light.",
         palette: "starlight",
         symbol: "heart",
       },
@@ -696,7 +705,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     closingPrayer:
       "Dear Jesus, soften my heart when I am afraid. Teach me to see others with mercy, speak truth with kindness, and forgive the way You forgive me. Amen.",
     closingIllustrationPrompt:
-      "Mara in a blooming rose garden at golden hour, thorns loosened into heart shapes, restored prince planting flowers beside her, castle soft in the distance, magical peaceful storybook ending.",
+      "Mara in a blooming rose garden in bright clear daylight, thorns loosened into heart shapes, restored prince planting flowers beside her, castle soft in the distance, peaceful joyful storybook ending.",
     pages: [
       {
         title: "The locked garden",
@@ -753,7 +762,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       "An ocean adventure about a little princess who discovers that the deepest longing in her heart is answered by the Living Water.",
     coverGradient: "linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%)",
     coverPrompt:
-      "Front cover portrait: a bright coral undersea princess singing with bubbles rising like musical notes, gentle rays of warm light from above the waves, teal and gold storybook cover with open space along the top for a title.",
+      "Front cover portrait: a bright coral undersea princess singing with bubbles rising like musical notes, gentle rays of soft light from above the waves, teal and sea-green storybook cover with open space along the top for a title.",
     useDefaultCoverPath: true,
     generationSeed:
       "Create an original sea-princess fairy tale for children where longing, song, and wonder point toward Jesus as Living Water instead of toward self-saving magic.",
@@ -762,7 +771,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     closingPrayer:
       "Dear Jesus, You are the living water my heart needs. Quiet the storms inside me, help me listen for Your voice, and fill me with Your peace. Amen.",
     closingIllustrationPrompt:
-      "Liora at a glowing shore where ocean meets a garden spring, hands open in worship, warm light from above the waves, bubbles of light rising, cinematic peaceful storybook ending.",
+      "Liora at a bright shore where ocean meets a garden spring, hands open in worship, soft light from above the waves, bubbles of light rising, peaceful joyful storybook ending.",
     pages: [
       {
         title: "Songs under the waves",

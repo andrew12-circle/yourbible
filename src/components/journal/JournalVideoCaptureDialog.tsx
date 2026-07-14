@@ -352,7 +352,8 @@ export default function JournalVideoCaptureDialog({
 
       {showAudioCheck ? (
         <JournalVideoAudioCheckOverlay
-          stream={capture.previewStream}
+          capture={capture}
+          isMobile={isMobile}
           onContinue={handleAudioCheckContinue}
         />
       ) : null}
@@ -492,7 +493,7 @@ export default function JournalVideoCaptureDialog({
                   ? "Your screen is recording with your camera in the corner."
                   : "Talk naturally. Tap pause if you need a moment."
               : showAudioCheck
-                ? "Test your mic, then tap Continue to setup. Adjust camera and mic before starting the countdown."
+                ? "Pick your camera and mic, watch the bars move, then tap Continue."
               : showCountdown
               ? "Get ready… tap the screen to pause, or tap Start now."
               : countdownDeferred

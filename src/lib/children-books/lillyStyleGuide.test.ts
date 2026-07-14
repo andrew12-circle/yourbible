@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { getCharacterBible } from "@/lib/children-books/characterBibles";
 import { buildPageIllustrationPrompt } from "@/lib/children-books/illustrationPrompt";
 import {
+  ACTIVE_STUDIO_STYLE_VERSION,
   buildLillySystemPrompt,
   LILLY_CHARACTER_MODEL_SHEET,
   LILLY_MASTER_PROMPT,
   LILLY_STUDIO_STYLE,
+  negativePromptForStyle,
 } from "@/lib/children-books/lillyStyleGuide";
 import { findChildrenBook } from "@/lib/children-books/storybook";
 import { getWorldBible } from "@/lib/children-books/worldBibles";
@@ -65,5 +67,70 @@ describe("Lilly Storybooks prompt layers", () => {
     expect(prompt).toContain("CHARACTER BIBLE: AURORA");
     expect(prompt).toContain("WOODLAND DAWN");
     expect(prompt).not.toContain("CHARACTER BIBLE: LILLY");
+  });
+
+  it("uses the new permanent Lilly model (5yo, short curls, white bow, brown eyes)", () => {
+    const lilly = getCharacterBible("lilly").sheet;
+    expect(lilly).toContain("5 years old");
+    expect(lilly).toContain("white bow");
+    expect(lilly).toContain("short soft curls");
+    expect(lilly).toContain("brown eyes");
+    expect(lilly).not.toContain("hazel");
+  });
+
+  it("defaults the system prompt to the active studio style version (v2)", () => {
+    expect(ACTIVE_STUDIO_STYLE_VERSION).toBe("v2");
+    const system = buildLillySystemPrompt({ characterId: "lilly", worldId: "european-kingdom" });
+    expect(system).toContain(LILLY_STUDIO_STYLE);
+    expect(system).toContain("studioStyle_v2");
+    expect(system).not.toContain("studioStyle_v1");
+  });
+
+  it("honors an explicit studio style version override", () => {
+    const v1 = buildLillySystemPrompt({ characterId: "lilly", styleVersion: "v1" });
+    const v2 = buildLillySystemPrompt({ characterId: "lilly", styleVersion: "v2" });
+    expect(v1).toContain("studioStyle_v1");
+    expect(v1).toContain("golden-hour");
+    expect(v2).toContain("studioStyle_v2");
+    expect(v2).not.toContain("studioStyle_v1");
+  });
+
+  it("anchors supporting family cast when castIds are provided", () => {
+    const withCast = buildLillySystemPrompt({
+      characterId: "lilly",
+      worldId: "european-kingdom",
+      castIds: ["tish", "andrew", "winston"],
+    });
+    const withoutCast = buildLillySystemPrompt({
+      characterId: "lilly",
+      worldId: "european-kingdom",
+    });
+
+    expect(withCast).toContain("SUPPORTING CAST FOR THIS BOOK");
+    expect(withCast).toContain('CHARACTER BIBLE: TISH — "MAMA"');
+    expect(withCast).toContain('CHARACTER BIBLE: ANDREW — "DADDY"');
+    expect(withCast).toContain("CHARACTER BIBLE: WINSTON — THE AIREDALE TERRIER");
+    expect(withCast).toContain("match each approved model sheet exactly");
+
+    expect(withoutCast).not.toContain("SUPPORTING CAST FOR THIS BOOK");
+    expect(withoutCast).not.toContain("CHARACTER BIBLE: WINSTON");
+    // Ignores unknown cast ids without adding an empty section.
+    expect(buildLillySystemPrompt({ characterId: "lilly", castIds: ["nobody"] })).not.toContain(
+      "SUPPORTING CAST FOR THIS BOOK",
+    );
+  });
+
+  it("pins a book's studio style version through the page prompt + negative prompt", () => {
+    const base = findChildrenBook("kingdom-invitation")!;
+    const pinnedV1 = { ...base, studioStyleVersion: "v1" as const };
+    const page = base.pages[0]!;
+
+    const promptV1 = buildPageIllustrationPrompt({ book: pinnedV1, page, pageNumber: 1 });
+    const promptActive = buildPageIllustrationPrompt({ book: base, page, pageNumber: 1 });
+
+    expect(promptV1).toContain("studioStyle_v1");
+    expect(promptV1).toContain(negativePromptForStyle("v1"));
+    expect(promptActive).toContain("studioStyle_v2");
+    expect(promptActive).toContain(negativePromptForStyle());
   });
 });

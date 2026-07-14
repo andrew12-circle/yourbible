@@ -17,43 +17,47 @@ export const CHARACTER_BIBLES: Record<CharacterBibleId, CharacterBible> = {
   lilly: {
     id: "lilly",
     name: "Lilly",
-    sheet: `LAYER 3 — CHARACTER BIBLE: LILLY (maintain exactly across every illustration)
+    sheet: `LAYER 3 — CHARACTER BIBLE: LILLY (permanent model — maintain exactly across every illustration)
 
-Casting note: humble kitchen-and-kindness heroine. Quiet confidence. Slightly slimmer silhouette than other series heroines. Never cast as a golden-haired princess or a sea explorer.
+Casting note: the series' signature heroine — a bright, kind five-year-old with short curly chestnut hair and a white bow. Energetic, curious, and helpful. Never redesign her; never cast as a long-haired golden princess, a dark-curled garden heroine, or a sea explorer. She must be recognizable by silhouette alone (short chestnut curls + white bow).
+
+Age & body:
+• 5 years old; average height for a healthy five-year-old
+• Slim child proportions, longer legs than a toddler, natural posture (about 6½–7 heads tall — never a toddler head)
 
 Portrait sheet — front / three-quarter / profile must match:
-• Face shape: softly oval, gently tapered chin (not round-apple like Aurora)
-• Eyes: warm blue-brown hazel, almond with soft kindness, simple white highlight dots
-• Cheeks: soft peach blush, not rose-pink heavy
-• Nose: small and neat
-• Brows: simple gentle arcs
-• Smile: quiet, modest, closed or soft — never dazzling show-smile
+• Face shape: soft oval with a gentle taper toward the chin — not round, not doll-like; natural forehead
+• Eyes: warm, expressive brown eyes, almond-shaped with visible eyelids and gentle kindness
+• Brows: soft, natural
+• Cheeks: light rosy cheeks; tiny dimples when smiling
+• Nose: small and natural with a visible bridge and soft tip — never a button nose
+• Smile: warm and genuine
 
 Hair reference:
-• Soft chestnut brown, medium-brown warmth
-• Side part, hair often loosely tied back with a simple ribbon or soft knot for work scenes
-• Large painted wave shapes — no strands; smooth highlight mass on one side
-• Later celebration scenes may show hair partly down in soft waves — same color and part
+• Chestnut brown, short soft curls that sit just below the ears and around the jawline — not shoulder length, not long
+• Natural loose curls painted as large curl masses (5–10 flowing shapes), soft painted highlights — no individual strands, no cotton-ball fluff
+• Signature accessory: a large white bow, always present
 
 Silhouette & posture:
-• Slightly slimmer, humble posture — shoulders soft, helpful hands ready
-• Modest fairy-tale girl, not court-raised elegance
+• Petite, upright, lively child silhouette; helpful ready hands
+• Distinct short-curl-plus-white-bow outline sets her apart from every other heroine
 
 Color palette (heroine):
-• Soft blue dress (celebration), dusty cream apron (work), warm linen whites
-• Chestnut hair + hazel eyes + warm peachy skin
+• Porcelain and ivory whites, soft sky blue, powder blue, blush pink accents
+• Chestnut curls + warm brown eyes + light rosy fair skin
 
 Wardrobe (3–4 looks):
-1. Work: practical cream apron over muted blue dress, simple sleeves rolled
-2. Quiet home: soft dusty-blue day dress, embroidered cream collar
-3. Celebration: elegant but humble soft-blue gown, ribbon, sparkling simple shoes
-4. Prayer: same day dress, shawl optional, kneeling silhouette
+1. Everyday: ivory-white dress with an embroidered classic collar and a soft blue sash, white bow, classic shoes
+2. Quiet home: soft powder-blue day dress with a white collar, white bow
+3. Celebration: elegant but simple white-and-soft-blue dress with a blue sash and bow, simple classic shoes
+4. Prayer: everyday dress, hands folded, kneeling silhouette, white bow
 
 Personality & gestures:
-• Quiet confidence, kindness first, humility
-• Signature poses: sweeping / serving with care; kneeling in morning prayer; offering a helping hand; gentle grateful smile with hands folded
+• Loves to learn about God's world, kind to everyone, curiously brave, prays with a sincere heart, sees beauty in everything
+• Movement is energetic, playful, confident, and kind — always helping, always hopeful
+• Signature poses: reaching out with wonder; offering a helping hand; kneeling in sincere prayer; a bright genuine smile with hands clasped
 
-Expressions (preserve these five): wonder, quiet joy, gentle sadness, hopeful prayer, warm thankfulness.`,
+Expressions (preserve these): joy, wonder, curiosity, thoughtfulness, prayer, excitement, gentle smile.`,
   },
 
   aurora: {
