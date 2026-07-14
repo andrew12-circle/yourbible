@@ -322,7 +322,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "After several days of searching, the prince reached Cinderella's house. Her stepsisters rushed forward, but the shoe did not fit them. Then Cinderella quietly stepped forward, and it fit perfectly.",
         scriptureThread: "God can reveal what is true at the right time.",
         picturePrompt:
-          "Cinderella seated calmly as the shoe fits, villagers and servants smiling in a humble cottage room.",
+          "Lilly seated calmly in a humble cottage as a sparkling shoe fits her foot, villagers and servants smiling nearby with warm morning light.",
         palette: "dawn",
         symbol: "crown",
       },

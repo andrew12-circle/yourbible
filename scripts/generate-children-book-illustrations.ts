@@ -47,7 +47,7 @@ async function loadEnvAsync(): Promise<Record<string, string>> {
 }
 
 function parseArgs(argv: string[]) {
-  const flags = new Set(argv.filter((a) => a.startsWith("--")));
+  const flags = new Set(argv.filter((a) => a.startsWith("--") && !a.includes("=")));
   const positionals = argv.filter((a) => !a.startsWith("--"));
 
   const characterSheets = flags.has("--character-sheets");
@@ -60,16 +60,20 @@ function parseArgs(argv: string[]) {
   let cover = flags.has("--cover");
   let end = flags.has("--end");
   let all = flags.has("--all");
+  let onlySheets: string[] = [];
 
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--from" && argv[i + 1]) from = Number(argv[++i]);
     if (argv[i] === "--to" && argv[i + 1]) to = Number(argv[++i]);
+    if (argv[i] === "--only" && argv[i + 1]) {
+      onlySheets = argv[++i]!.split(",").map((s) => s.trim()).filter(Boolean);
+    }
   }
   if (all) {
     cover = true;
     end = true;
   }
-  return { slug, from, to, force, cover, end, all, characterSheets, allBooks };
+  return { slug, from, to, force, cover, end, all, characterSheets, allBooks, onlySheets };
 }
 
 type ImageSize = "1024x1536" | "1536x1024" | "1024x1024";
@@ -141,8 +145,16 @@ async function generateCharacterSheets(
   quality: string,
   force: boolean,
   delayMs: number,
+  onlySheets: string[] = [],
 ): Promise<number> {
-  const jobs = listCharacterSheetJobs();
+  let jobs = listCharacterSheetJobs();
+  if (onlySheets.length > 0) {
+    const wanted = new Set(onlySheets.map((s) => s.toLowerCase()));
+    jobs = jobs.filter((job) => wanted.has(`${job.characterId}/${job.kind}`.toLowerCase()));
+    if (jobs.length === 0) {
+      throw new Error(`No character sheets matched --only ${onlySheets.join(",")}`);
+    }
+  }
   console.log(`Character bible sheets — ${jobs.length} plate(s)`);
   let failures = 0;
 
@@ -259,8 +271,15 @@ async function main() {
 
   let failures = 0;
 
-  if (args.characterSheets || args.allBooks) {
-    failures += await generateCharacterSheets(apiKey, model, quality, args.force, delayMs);
+  if (args.characterSheets) {
+    failures += await generateCharacterSheets(
+      apiKey,
+      model,
+      quality,
+      args.force,
+      delayMs,
+      args.onlySheets,
+    );
   }
 
   if (args.characterSheets && !args.allBooks) {
@@ -268,9 +287,15 @@ async function main() {
     process.exit(failures > 0 ? 1 : 0);
   }
 
+  if (!args.characterSheets && !args.allBooks && !args.slug) {
+    throw new Error("Provide a book slug, --character-sheets, or --all-books");
+  }
+
   const slugs = args.allBooks
     ? CHILDREN_BOOKS.map((b) => b.slug)
-    : [args.slug!];
+    : args.slug
+      ? [args.slug]
+      : [];
 
   for (const slug of slugs) {
     console.log(`\n=== ${slug} ===`);
