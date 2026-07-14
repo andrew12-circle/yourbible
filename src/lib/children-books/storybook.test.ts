@@ -69,6 +69,23 @@ describe("children book storybook data", () => {
     expect(book!.pages).toHaveLength(26);
     expect(book!.pages.at(-1)?.scriptureThread).toContain("Psalm 121:8");
   });
+
+  it("includes Lilly and Ariel treasure adventure as a built-in book", () => {
+    const book = findChildrenBook("lilly-and-ariel-treasure");
+
+    expect(book).toBeDefined();
+    expect(book!.title).toBe("Lilly and Ariel");
+    expect(book!.subtitle).toBe("The Treasure Worth Waiting For");
+    expect(book!.series).toBe("Lilly's Adventures");
+    expect(book!.characterId).toBe("lilly");
+    expect(book!.worldId).toBe("kitchen-coral-reef");
+    expect(book!.pages).toHaveLength(35);
+    expect(book!.pages[0]?.body).toContain("Sunshine spilled across Lilly's kitchen table");
+    expect(book!.pages[28]?.body).toContain("Listen first. Speak gently. Choose wisely.");
+    expect(book!.pages.at(-1)?.title).toBe("Talk About the Adventure");
+    expect(book!.closingPrayer).toContain("Holy Spirit");
+    expect(book!.supportingCastPrompt).toContain("Ariel");
+  });
 });
 
 describe("page illustration prompts", () => {

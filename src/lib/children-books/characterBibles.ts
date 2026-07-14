@@ -19,7 +19,7 @@ export const CHARACTER_BIBLES: Record<CharacterBibleId, CharacterBible> = {
     name: "Lilly",
     sheet: `LAYER 3 — CHARACTER BIBLE: LILLY (maintain exactly across every illustration)
 
-Casting note: humble kitchen-and-kindness heroine. Quiet confidence. Slightly slimmer silhouette than other series heroines. Never cast as a golden-haired princess or a sea explorer.
+Casting note: preschool-age heroine of Lilly's Adventures — curious, loving, energetic, still learning self-control. Slightly slimmer silhouette than other series heroines. Never cast as a golden-haired forest princess or freckled sea-princess substitute; Lilly remains herself at home and underwater.
 
 Portrait sheet — front / three-quarter / profile must match:
 • Face shape: softly oval, gently tapered chin (not round-apple like Aurora)
@@ -30,30 +30,29 @@ Portrait sheet — front / three-quarter / profile must match:
 • Smile: quiet, modest, closed or soft — never dazzling show-smile
 
 Hair reference:
-• Soft chestnut brown, medium-brown warmth
-• Side part, hair often loosely tied back with a simple ribbon or soft knot for work scenes
+• Soft light-brown to dark-blonde / soft chestnut with warm medium-brown highlights
+• Side part; home scenes may show hair loosely down or softly tied; underwater scenes keep the same color in large flowing painted shapes
 • Large painted wave shapes — no strands; smooth highlight mass on one side
-• Later celebration scenes may show hair partly down in soft waves — same color and part
 
 Silhouette & posture:
-• Slightly slimmer, humble posture — shoulders soft, helpful hands ready
-• Modest fairy-tale girl, not court-raised elegance
+• Preschool-age girl proportions — slightly slimmer, humble posture — shoulders soft, helpful hands ready
+• Modest fairy-tale child, not court-raised elegance; she does NOT have a mermaid tail
 
 Color palette (heroine):
-• Soft blue dress (celebration), dusty cream apron (work), warm linen whites
-• Chestnut hair + hazel eyes + warm peachy skin
+• Soft blue / aqua adventure dress, dusty cream pajamas (home), warm linen whites
+• Light-brown / chestnut hair + hazel eyes + warm peachy skin
 
-Wardrobe (3–4 looks):
-1. Work: practical cream apron over muted blue dress, simple sleeves rolled
-2. Quiet home: soft dusty-blue day dress, embroidered cream collar
-3. Celebration: elegant but humble soft-blue gown, ribbon, sparkling simple shoes
-4. Prayer: same day dress, shawl optional, kneeling silhouette
+Wardrobe (keep face identical across looks):
+1. Morning home: soft pajamas at the kitchen table
+2. Quiet home / day: soft dusty-blue day dress, embroidered cream collar
+3. Underwater adventure: flowing aqua-blue underwater dress with soft pearl details (moves naturally in water; she can breathe underwater as storybook wonder — never explained as magic spells)
+4. Prayer / bedtime: day dress or pajamas, kneeling silhouette, folded hands
 
 Personality & gestures:
-• Quiet confidence, kindness first, humility
-• Signature poses: sweeping / serving with care; kneeling in morning prayer; offering a helping hand; gentle grateful smile with hands folded
+• Curious, loving, energetic, emotionally expressive, learning patience and gentle words
+• Signature poses: waiting at the table; hand over heart while breathing; holding a friend's hand in prayer; anchoring to coral to help someone; offering a helping hand; gentle grateful smile
 
-Expressions (preserve these five): wonder, quiet joy, gentle sadness, hopeful prayer, warm thankfulness.`,
+Expressions (preserve these five): wonder, quiet joy, frustrated pout (childlike, never cruel), hopeful prayer, warm thankfulness.`,
   },
 
   aurora: {

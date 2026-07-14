@@ -69,6 +69,9 @@ export function buildPageIllustrationPrompt({
     `Emotional emphasis: ${page.scriptureThread}`,
     `Palette guidance: ${paletteGuidance[page.palette]}`,
     "",
+    ...(book.supportingCastPrompt?.trim()
+      ? [book.supportingCastPrompt.trim(), ""]
+      : []),
     "SCENE",
     localizeScenePrompt(book, page.picturePrompt),
     "",
@@ -97,6 +100,9 @@ export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
     "No text, letters, logos, or watermarks in the artwork.",
     "Warm, inviting, classic hardcover storybook feel.",
     "",
+    ...(book.supportingCastPrompt?.trim()
+      ? [book.supportingCastPrompt.trim(), ""]
+      : []),
     "SCENE",
     localizeScenePrompt(book, book.coverPrompt),
     "",
@@ -125,6 +131,9 @@ export function buildClosingIllustrationPrompt(book: ChildrenBook): string {
     "Simple eye-level composition, cozy and magical without flashiness.",
     "No text in the artwork.",
     "",
+    ...(book.supportingCastPrompt?.trim()
+      ? [book.supportingCastPrompt.trim(), ""]
+      : []),
     "SCENE",
     localizeScenePrompt(book, book.closingIllustrationPrompt),
     "",

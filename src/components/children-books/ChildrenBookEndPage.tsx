@@ -133,7 +133,7 @@ export function ChildrenBookEndPrayerPage({
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-3 py-8 text-center sm:px-4 sm:py-10">
         <p className="font-display text-[0.7rem] uppercase tracking-[0.28em] text-leather/55 sm:text-xs">
-          A Lilly storybook
+          {book.series?.trim() || "A Lilly storybook"}
         </p>
         <h2 className="mt-3 font-display text-2xl text-leather sm:text-3xl">The end</h2>
         <ChildrenBookGoldFlourish className="mt-4" />
