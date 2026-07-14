@@ -85,6 +85,10 @@ import {
 } from "@/hooks/useJournalComposePersistence";
 import { hasMeaningfulComposeContent } from "@/lib/journal/composeEntryDraft";
 import { useVideoJournalAutoTitle } from "@/hooks/useVideoJournalAutoTitle";
+import {
+  journalComposeCaretKeyboardInset,
+  journalComposeUsesVisualViewportLayout,
+} from "@/lib/journal/journalComposeKeyboardLayout";
 
 interface BeliefOpt {
   id: string;
@@ -192,6 +196,15 @@ export function useNewJournalEntryPage() {
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
   const keyboardOpen = kbInset > 0;
+  const visualViewportKeyboardLayout = journalComposeUsesVisualViewportLayout({
+    isMobile,
+    inMiniPhone,
+    keyboardOpen,
+  });
+  const caretKeyboardInset = journalComposeCaretKeyboardInset(
+    kbInset,
+    visualViewportKeyboardLayout,
+  );
 
   voiceRepliesRef.current = voiceReplies;
 
@@ -290,14 +303,12 @@ export function useNewJournalEntryPage() {
   const { scrollToCaretEnd } = useJournalEditorCaretScroll({
     scrollRef: mainScrollRef,
     bottomDockRef: bodyFocused ? undefined : bottomDockRef,
-    kbInset,
+    kbInset: caretKeyboardInset,
     enabled: !inlineChatMode,
     resetKey: editId ?? "journal-new",
     fixedBottomInsetPx:
       bodyFocused || (keyboardOpen && !inlineChatMode)
-        ? inMiniPhone
-          ? 16
-          : kbInset + 16
+        ? 16
         : undefined,
     topInsetPx: inMiniPhone ? 12 : vvOffsetTop > 0 ? vvOffsetTop + 72 : 16,
   });
