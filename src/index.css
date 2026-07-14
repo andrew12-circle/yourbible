@@ -377,6 +377,8 @@
 
   /* Lumen chat — prayer on an open Bible page (drop cap + verse numbers). */
   .chat-prayer-bible {
+    --chat-prayer-page-stack-width: 14px;
+    --chat-prayer-ribbon-safe-width: 2.7rem;
     max-width: min(100%, 32rem);
     margin-inline: auto;
     background: transparent;
@@ -410,8 +412,8 @@
   .chat-prayer-bible__content {
     position: relative;
     z-index: 2;
-    padding: 1.15rem 1.35rem 1rem 1.85rem;
-    margin-left: 14px;
+    padding: 1.15rem clamp(2.65rem, 8vw, 3.25rem) 1rem clamp(2.2rem, 7vw, 3rem);
+    margin-left: var(--chat-prayer-page-stack-width);
   }
 
   .chat-prayer-bible__label {
@@ -443,6 +445,10 @@
     -webkit-hyphens: none;
   }
 
+  .chat-prayer-bible__body .scripture-verse:not(.scripture-verse-chapter-open) {
+    margin-inline-start: 0.35em;
+  }
+
   .chat-prayer-bible__body .chapter-drop-cap {
     font-size: 2.85em;
     line-height: 0.84;
@@ -465,7 +471,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: 2.5rem;
+    width: var(--chat-prayer-ribbon-safe-width);
     pointer-events: none;
     z-index: 3;
   }
@@ -486,6 +492,26 @@
   .chat-prayer-bible__ribbon:nth-child(1) { transform: rotate(-0.5deg); }
   .chat-prayer-bible__ribbon:nth-child(2) { transform: rotate(0.35deg); }
   .chat-prayer-bible__ribbon:nth-child(3) { transform: rotate(-0.15deg); }
+
+  @media (max-width: 480px) {
+    .chat-prayer-bible__cover {
+      padding: 8px 9px 8px 8px;
+    }
+
+    .chat-prayer-bible__content {
+      padding: 1rem clamp(2.65rem, 12vw, 3rem) 0.9rem clamp(2.35rem, 12vw, 2.85rem);
+    }
+
+    .chat-prayer-bible__title {
+      font-size: 1.02rem;
+    }
+
+    .chat-prayer-bible__body {
+      font-size: 0.9rem;
+      line-height: 1.68;
+      text-align: left;
+    }
+  }
 
   /* Ink — dark brown-black with subtle bleed */
   .ink-text {
