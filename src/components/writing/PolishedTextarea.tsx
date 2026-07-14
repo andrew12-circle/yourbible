@@ -43,6 +43,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       className,
       wrapperClassName,
       disabled,
+      onFocus,
       onBlur,
       onAfterBlurAssist,
       allowAiPolish = true,
@@ -178,6 +179,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
         }
       },
       onBlur: handleBlur,
+      onFocus,
     });
 
     const setRefs = (el: HTMLTextAreaElement | null) => {
