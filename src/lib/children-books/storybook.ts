@@ -2,6 +2,7 @@ import type { CharacterBibleId } from "@/lib/children-books/characterBibles";
 import type { FamilyCharacterId } from "@/lib/children-books/familyCast";
 import type { StudioStyleVersion } from "@/lib/children-books/studioStyles";
 import type { WorldBibleId } from "@/lib/children-books/worldBibles";
+import { LILLY_AND_ARIEL_TREASURE_BOOK } from "@/lib/children-books/books/lillyAndArielTreasure";
 
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
 
@@ -54,6 +55,10 @@ export function resolvePageLayout(
 export type ChildrenBook = {
   slug: string;
   title: string;
+  /** Optional subtitle shown on the cover under the title. */
+  subtitle?: string;
+  /** Series label for library / cover chrome (e.g. Lilly's Adventures). */
+  series?: string;
   /** Display name in prompts (defaults to character bible name / Lilly). */
   heroName?: string;
   /** Layer 3 — Character Bible id (unique casting). */
@@ -79,6 +84,8 @@ export type ChildrenBook = {
   /** Load cover from public/children-books/{slug}/cover.png */
   useDefaultCoverPath?: boolean;
   generationSeed: string;
+  /** Extra cast / prop continuity appended to every illustration prompt. */
+  supportingCastPrompt?: string;
   /** Load illustrations from public/children-books/{slug}/{page}.png */
   useDefaultImagePaths?: boolean;
   /** Short prayer read aloud on the closing spread. */
@@ -815,6 +822,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
       },
     ],
   },
+  LILLY_AND_ARIEL_TREASURE_BOOK,
 ];
 
 export const DEFAULT_CHILDREN_BOOK_SLUG = CHILDREN_BOOKS[0]!.slug;

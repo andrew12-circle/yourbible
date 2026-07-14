@@ -133,4 +133,16 @@ describe("Lilly Storybooks prompt layers", () => {
     expect(promptActive).toContain("studioStyle_v2");
     expect(promptActive).toContain(negativePromptForStyle());
   });
+
+  it("uses kitchen-coral world and supporting cast on Lilly and Ariel pages", () => {
+    const book = findChildrenBook("lilly-and-ariel-treasure")!;
+    const page = book.pages[10]!;
+    const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: 11 });
+
+    expect(prompt).toContain("CHARACTER BIBLE: LILLY");
+    expect(prompt).toContain("KITCHEN & CORAL REEF");
+    expect(prompt).toContain("SUPPORTING CAST");
+    expect(prompt).toContain("Ariel");
+    expect(getWorldBible("kitchen-coral-reef").name).toBe("Kitchen & Coral Reef");
+  });
 });

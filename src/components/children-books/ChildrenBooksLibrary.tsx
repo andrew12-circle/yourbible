@@ -36,6 +36,11 @@ function BookCover({ book, onSelect }: { book: ChildrenBook; onSelect: () => voi
             <p className="line-clamp-3 font-display text-[10px] font-semibold leading-tight text-white drop-shadow">
               {book.title}
             </p>
+            {book.subtitle ? (
+              <p className="mt-0.5 line-clamp-2 text-[8px] leading-snug text-white/85 drop-shadow">
+                {book.subtitle}
+              </p>
+            ) : null}
             <p className="mt-0.5 text-[9px] text-white/80">{book.ageRange}</p>
           </div>
         </div>

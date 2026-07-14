@@ -72,9 +72,19 @@ export function ChildrenBookCoverSpread({ book, opening, onOpen }: ChildrenBookC
           <BookOpen className="h-7 w-7 text-white/90 drop-shadow sm:h-8 sm:w-8" aria-hidden />
 
           <div>
+            {book.series ? (
+              <p className="mb-2 text-[0.65rem] font-medium uppercase tracking-[0.22em] text-white/75 drop-shadow sm:text-xs">
+                {book.series}
+              </p>
+            ) : null}
             <h2 className="font-display text-xl font-semibold leading-tight text-white drop-shadow sm:text-2xl lg:text-3xl">
               {book.title}
             </h2>
+            {book.subtitle ? (
+              <p className="mt-1.5 font-display text-sm text-white/90 drop-shadow sm:text-base lg:text-lg">
+                {book.subtitle}
+              </p>
+            ) : null}
             <p className="mt-2 text-sm text-white/85 sm:text-base">{book.ageRange}</p>
             <p
               className={cn(
