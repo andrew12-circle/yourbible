@@ -2105,6 +2105,13 @@
   letter-spacing: -0.022em;
   font-weight: 600;
 }
+/* Playful storybook font — explicit opt-in that beats the .app-theme SF
+   stack above so children's-book headings feel magical, not corporate. */
+.app-theme .font-storybook,
+.font-storybook {
+  font-family: "Fredoka", "Baloo 2", system-ui, sans-serif;
+  letter-spacing: 0.005em;
+}
 /* Scripture / serif still allowed inside the app for explicit opt-ins
    (e.g. artifact previews, mirror detail) — only when authors apply
    .font-scripture or .font-serif directly. */

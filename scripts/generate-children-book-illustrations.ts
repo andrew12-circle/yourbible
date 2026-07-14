@@ -24,14 +24,146 @@ import { fileURLToPath } from "node:url";
 import { listCharacterSheetJobs } from "../src/lib/children-books/characterSheets.ts";
 import { listMasterModelSheetJobs } from "../src/lib/children-books/characterModelSheets.ts";
 import {
-  buildClosingIllustrationPrompt,
-  buildCoverIllustrationPrompt,
-  buildPageIllustrationPrompt,
-} from "../src/lib/children-books/illustrationPrompt.ts";
-import { CHILDREN_BOOKS, findChildrenBook, type ChildrenBook } from "../src/lib/children-books/storybook.ts";
+  CHILDREN_BOOKS,
+  findChildrenBook,
+  type ChildrenBook,
+  type ChildrenBookPage,
+} from "../src/lib/children-books/storybook.ts";
+import {
+  buildClosingGenerationRequest,
+  buildCoverGenerationRequest,
+  buildPageGenerationRequest,
+  type StorybookGenerationRequest,
+} from "../src/lib/children-books/generationRequest.ts";
+import { generationFingerprint } from "../src/lib/children-books/generationFingerprint.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+
+function contentTypeForAsset(p: string): string {
+  const lower = p.toLowerCase();
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  return "image/png";
+}
+
+type LoadedReference = { bytes: Uint8Array; contentType: string; name: string };
+
+async function readReferenceBytes(
+  refs: StorybookGenerationRequest["referenceImages"],
+): Promise<LoadedReference[]> {
+  const out: LoadedReference[] = [];
+  for (const ref of refs) {
+    const filePath = path.join(root, "public", ref.path);
+    if (!existsSync(filePath)) throw new Error(`Missing approved reference asset: public/${ref.path}`);
+    const bytes = new Uint8Array(await readFile(filePath));
+    out.push({ bytes, contentType: contentTypeForAsset(ref.path), name: path.basename(ref.path) });
+  }
+  return out;
+}
+
+async function generateImageBytesWithRefs(
+  prompt: string,
+  refImages: LoadedReference[],
+  apiKey: string,
+  model: string,
+  size: ImageSize,
+  quality: string,
+): Promise<Uint8Array> {
+  const form = new FormData();
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("size", size);
+  form.append("quality", quality);
+  for (const img of refImages) {
+    form.append("image[]", new Blob([img.bytes], { type: img.contentType }), img.name);
+  }
+  const res = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 500)}`);
+  const data = (await res.json()) as { data?: Array<{ b64_json?: string }> };
+  const b64 = data.data?.[0]?.b64_json;
+  if (!b64) throw new Error("OpenAI returned no image data");
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+/** Generate + save one image from a fully-assembled request (with references). */
+async function saveFromRequest(
+  label: string,
+  filePath: string,
+  request: StorybookGenerationRequest,
+  apiKey: string,
+  model: string,
+  force: boolean,
+  size: ImageSize,
+  quality: string,
+): Promise<boolean> {
+  if (!force && existsSync(filePath)) {
+    console.log(`  [${label}] skip (exists)`);
+    return true;
+  }
+  if (!request.validation.ok) {
+    console.error(`  [${label}] BLOCKED (pre-generation validation): ${request.validation.errors.join(" ")}`);
+    return false;
+  }
+
+  console.log(
+    `  [${label}] generating with ${request.referenceImages.length} reference image(s)…`,
+  );
+  try {
+    const refImages = await readReferenceBytes(request.referenceImages);
+    const bytes = refImages.length
+      ? await generateImageBytesWithRefs(request.prompt, refImages, apiKey, model, size, quality)
+      : await generateImageBytes(request.prompt, apiKey, model, size, quality);
+
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, bytes);
+
+    const hash = generationFingerprint({
+      bookSlug: request.bookSlug,
+      imageKind: request.imageKind,
+      pageNumber: request.pageNumber,
+      studioStyleVersion: request.versionMetadata.studioStyleVersion,
+      worldBibleVersion: request.versionMetadata.worldBibleVersion,
+      promptVersion: request.versionMetadata.promptVersion,
+      sanitizerVersion: request.versionMetadata.sanitizerVersion,
+      characterReferenceVersions: request.versionMetadata.characterReferenceVersions,
+      prompt: request.prompt,
+      model,
+      quality,
+      size,
+    });
+    await writeFile(
+      filePath.replace(/\.png$/, ".json"),
+      JSON.stringify(
+        {
+          ...request.versionMetadata,
+          bookSlug: request.bookSlug,
+          imageKind: request.imageKind,
+          pageNumber: request.pageNumber ?? null,
+          promptHash: hash,
+          model,
+          quality,
+          size,
+          referencePaths: request.referenceImages.map((r) => r.path),
+          presentCharacterIds: request.presentCharacterIds,
+          generatedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(`  [${label}] saved ${path.relative(root, filePath)} (${bytes.length} bytes)`);
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`  [${label}] FAILED: ${message}`);
+    return false;
+  }
+}
 
 async function loadEnvAsync(): Promise<Record<string, string>> {
   const envPath = path.join(root, ".env");
@@ -63,8 +195,9 @@ function parseArgs(argv: string[]) {
   const characterSheets = flags.has("--character-sheets");
   const modelSheets = flags.has("--model-sheets");
   const allBooks = flags.has("--all-books");
+  const acceptance = flags.has("--acceptance");
   const slug =
-    allBooks || characterSheets || modelSheets
+    allBooks || characterSheets || modelSheets || acceptance
       ? undefined
       : (positionals[0] ?? "kingdom-invitation");
 
@@ -89,7 +222,7 @@ function parseArgs(argv: string[]) {
     cover = true;
     end = true;
   }
-  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, allBooks, onlySheets, styleVersion };
+  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, allBooks, acceptance, onlySheets, styleVersion };
 }
 
 type ImageSize = "1024x1536" | "1536x1024" | "1024x1024";
@@ -255,10 +388,10 @@ async function generateBook(
 
   if (opts.cover) {
     console.log(`Cover — ${book.title}`);
-    const ok = await saveImage(
+    const ok = await saveFromRequest(
       "cover",
       path.join(outDir, "cover.png"),
-      buildCoverIllustrationPrompt(book),
+      buildCoverGenerationRequest(book),
       apiKey,
       model,
       opts.force,
@@ -285,10 +418,10 @@ async function generateBook(
       if (!page) continue;
 
       const filePath = path.join(outDir, `${String(pageNumber).padStart(2, "0")}.png`);
-      const ok = await saveImage(
+      const ok = await saveFromRequest(
         String(pageNumber),
         filePath,
-        buildPageIllustrationPrompt({ book, page, pageNumber }),
+        buildPageGenerationRequest(book, page, pageNumber),
         apiKey,
         model,
         opts.force,
@@ -302,10 +435,10 @@ async function generateBook(
 
   if (opts.end) {
     console.log(`Closing spread — ${book.title}`);
-    const ok = await saveImage(
+    const ok = await saveFromRequest(
       "end",
       path.join(outDir, "end.png"),
-      buildClosingIllustrationPrompt(book),
+      buildClosingGenerationRequest(book),
       apiKey,
       model,
       opts.force,
@@ -315,6 +448,118 @@ async function generateBook(
     if (!ok) failures += 1;
   }
 
+  return failures;
+}
+
+/**
+ * Controlled acceptance tests (Section 18). Run these THREE scenes before any
+ * full-library regeneration:
+ *   A — Lilly portrait   B — family kitchen   C — underwater Lilly + Liora
+ * Output: public/children-books/_acceptance/{a,b,c}.png (+ .json fingerprint).
+ */
+function acceptanceBook(overrides: Partial<ChildrenBook>): ChildrenBook {
+  return {
+    slug: "_acceptance",
+    title: "Acceptance Test",
+    heroName: "Lilly",
+    characterId: "lilly",
+    worldId: "european-kingdom",
+    sourceNote: "Controlled acceptance test",
+    ageRange: "Ages 4-8",
+    spiritualFocus: "Studio consistency check",
+    summary: "Controlled acceptance test scene.",
+    coverGradient: "linear-gradient(135deg,#e0f2fe,#ffffff)",
+    coverPrompt: "n/a",
+    generationSeed: "n/a",
+    closingPrayer: "n/a",
+    closingIllustrationPrompt: "n/a",
+    pages: [],
+    ...overrides,
+  };
+}
+
+function acceptancePage(overrides: Partial<ChildrenBookPage>): ChildrenBookPage {
+  return {
+    title: "Acceptance",
+    body: "",
+    scriptureThread: "Studio consistency check.",
+    picturePrompt: "",
+    palette: "home-daylight",
+    symbol: "heart",
+    ...overrides,
+  };
+}
+
+async function generateAcceptanceTests(
+  apiKey: string,
+  model: string,
+  quality: string,
+  force: boolean,
+  delayMs: number,
+): Promise<number> {
+  const outDir = path.join(root, "public", "children-books", "_acceptance");
+  await mkdir(outDir, { recursive: true });
+  const size: ImageSize = "1024x1536";
+
+  const bookB = acceptanceBook({ worldId: "kitchen-coral-reef", castIds: ["tish", "andrew", "winston"] });
+  const bookC = acceptanceBook({ worldId: "coastal-kingdom" });
+
+  const cases: Array<{ label: string; request: StorybookGenerationRequest }> = [
+    {
+      label: "A-lilly-portrait",
+      request: buildPageGenerationRequest(
+        acceptanceBook({}),
+        acceptancePage({
+          presentCharacterIds: ["lilly"],
+          picturePrompt:
+            "Lilly, age five, standing in bright neutral daylight in a simple white-and-pale-blue dress, natural gentle smile, approved short curls and bow, plain pale background.",
+        }),
+        1,
+      ),
+    },
+    {
+      label: "B-family-kitchen",
+      request: buildPageGenerationRequest(
+        bookB,
+        acceptancePage({
+          presentCharacterIds: ["lilly", "tish", "andrew", "winston"],
+          picturePrompt:
+            "Lilly seated at a pale breakfast table. Tish cooking pancakes at the stove. Andrew pouring orange juice. Winston beside Lilly. Bright open-window daylight. White and pale-blue kitchen. Simple composition with ample pale negative space.",
+        }),
+        1,
+      ),
+    },
+    {
+      label: "C-underwater-lilly-liora",
+      request: buildPageGenerationRequest(
+        bookC,
+        acceptancePage({
+          palette: "coastal",
+          presentCharacterIds: ["lilly", "liora"],
+          picturePrompt:
+            "Lilly and Liora together underwater. Lilly retains her short curls and wears an aqua dress (no mermaid tail). Liora retains her own distinct approved face and long auburn hair. Clean turquoise water, simple coral framing limited to the edges, a large open water area, and one turtle in the distance.",
+        }),
+        1,
+      ),
+    },
+  ];
+
+  let failures = 0;
+  console.log(`Acceptance tests — ${cases.length} controlled scene(s)`);
+  for (const c of cases) {
+    const ok = await saveFromRequest(
+      c.label,
+      path.join(outDir, `${c.label}.png`),
+      c.request,
+      apiKey,
+      model,
+      force,
+      size,
+      quality,
+    );
+    if (!ok) failures += 1;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
   return failures;
 }
 
@@ -329,6 +574,12 @@ async function main() {
   const delayMs = Number(env.OPENAI_IMAGE_DELAY_MS ?? 1500);
 
   let failures = 0;
+
+  if (args.acceptance) {
+    failures += await generateAcceptanceTests(apiKey, model, quality, args.force, delayMs);
+    console.log(failures ? `Done with ${failures} failure(s).` : "Done.");
+    process.exit(failures > 0 ? 1 : 0);
+  }
 
   if (args.characterSheets) {
     failures += await generateCharacterSheets(
@@ -359,8 +610,10 @@ async function main() {
     process.exit(failures > 0 ? 1 : 0);
   }
 
-  if (!args.characterSheets && !args.modelSheets && !args.allBooks && !args.slug) {
-    throw new Error("Provide a book slug, --character-sheets, --model-sheets, or --all-books");
+  if (!args.characterSheets && !args.modelSheets && !args.allBooks && !args.acceptance && !args.slug) {
+    throw new Error(
+      "Provide a book slug, --acceptance, --character-sheets, --model-sheets, or --all-books",
+    );
   }
 
   const slugs = args.allBooks

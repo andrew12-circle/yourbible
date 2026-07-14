@@ -1,4 +1,5 @@
 import type { CharacterBibleId } from "@/lib/children-books/characterBibles";
+import type { StorybookCharacterId } from "@/lib/children-books/characterReferenceAssets";
 import type { FamilyCharacterId } from "@/lib/children-books/familyCast";
 import type { StudioStyleVersion } from "@/lib/children-books/studioStyles";
 import type { WorldBibleId } from "@/lib/children-books/worldBibles";
@@ -27,10 +28,22 @@ export type ChildrenBookPage = {
   imageAlt?: string;
   /** Load from public/children-books/{bookSlug}/{pageNumber}.webp */
   useDefaultImagePath?: boolean;
-  palette: "dawn" | "garden" | "royal" | "starlight";
+  palette:
+    | "dawn"
+    | "garden"
+    | "royal"
+    | "starlight"
+    | "coastal"
+    | "home-daylight";
   symbol: ChildrenBookSymbol;
   /** Override the automatic picture-book layout rhythm for this page. */
   layout?: ChildrenBookPageLayout;
+  /**
+   * Recurring characters actually present on this page. When omitted, the book's
+   * heroine + recurring family cast are assumed. Only references for present
+   * characters (plus the studio anchor) are sent to the image model.
+   */
+  presentCharacterIds?: StorybookCharacterId[];
 };
 
 /** Occasional layout accents on top of the default left/right rhythm. */
@@ -72,6 +85,14 @@ export type ChildrenBook = {
    * Their approved model sheets/bibles are anchored into every scene prompt.
    */
   castIds?: FamilyCharacterId[];
+  /**
+   * Recurring characters that appear anywhere in this book (heroine + family +
+   * other approved heroines). Defaults to `characterId` + `castIds`. Drives which
+   * approved reference images are eligible to be sent to the image model.
+   */
+  characterIds?: StorybookCharacterId[];
+  /** Pin approved reference-asset versions per character (defaults to registry). */
+  characterReferenceVersions?: Partial<Record<StorybookCharacterId, string>>;
   sourceNote: string;
   ageRange: string;
   spiritualFocus: string;

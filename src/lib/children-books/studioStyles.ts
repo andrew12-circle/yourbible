@@ -13,7 +13,7 @@
  * regenerate — the character and world bibles are preserved.
  */
 
-export type StudioStyleVersion = "v1" | "v2";
+export type StudioStyleVersion = "v1" | "v2" | "v3";
 
 export type StudioStyle = {
   version: StudioStyleVersion;
@@ -152,13 +152,59 @@ magic spells, fairy dust, wands, fantasy creatures, occult themes,
 same face reused across different heroines, generic identical silhouettes, costume-only character differentiation.`,
 };
 
+/**
+ * studioStyle_v3 — the approved bright, airy, traditional-2D-animation master
+ * brief. This is the direction reference images enforce on every page: elegant
+ * animation-style linework, restrained cel shading on characters, softly painted
+ * subordinate backgrounds, truly white whites, and NO amber/beige/sepia/orange
+ * wash, NO watercolor grain on faces, and NO generic AI-princess construction.
+ * This is the active studio style; v1/v2 remain for rollback.
+ */
+const STUDIO_STYLE_V3: StudioStyle = {
+  version: "v3",
+  masterPrompt: `A bright, airy, traditionally illustrated children's storybook scene in the permanent Lilly Storybooks studio language. Use elegant 2D animation-style drawing, clean controlled linework, simplified flat local colors, restrained cel-style shading on characters, and softly painted backgrounds. Keep whites truly white, skies pale and clear, shadows cool-neutral, and colors fresh. Characters must have believable human proportions and individual identities. The result must feel like a beautifully printed classic animated picture book, not modern digital fantasy art, not a textured watercolor painting, and not a cinematic concept-art poster.`,
+  studioStyle: `LAYER 1 — LILLY STORYBOOKS STUDIO STYLE (studioStyle_v3 — never changes within this version)
+
+VISUAL TARGET
+A timeless premium children's picture book with the clarity of traditional hand-drawn animated storytelling. The characters are cleaner and more graphic than the backgrounds.
+
+CHARACTERS
+Clear controlled outlines. Elegant shape design. Flat local colors. One or two restrained shadow shapes. Minimal surface texture. No individual hair strands. No heavy brush texture across faces or clothing.
+
+BACKGROUNDS
+Softly painted, simplified, atmospheric, light and uncluttered, subordinate to the characters. No tiny detail covering every surface.
+
+COLOR AND TONALITY
+Use a high-key palette: porcelain white, clean ivory white, pale sky blue, powder blue, robin's-egg blue, sea-glass green, crystal turquoise, blush pink, pale lavender, fresh spring green, restrained coral, and limited clean gold accents. Whites must remain visibly white. At least 35–50% of most domestic or royal scenes should be composed of white, pale ivory, open sky, pale walls, or light negative space. Do not cover the image with a unified warm filter. Shadows are pale blue-gray, lavender-gray, neutral soft gray, or muted cool violet where appropriate. Never use brown shadows as the default.
+
+LIGHTING
+Use neutral morning daylight, open-window daylight, cloud-filtered daylight, soft reflected water light, bright pale chapel light, or clear outdoor daylight. Warmth may appear only as a small local accent. Never use amber atmosphere, golden filter, orange sunrise wash, sepia, tan haze, candlelight as the dominant page color, or dramatic shafts that turn the entire image yellow.
+
+CHARACTER GEOMETRY
+Characters are stylized but humanlike. Faces are oval or individually defined — never circular by default — with a natural forehead, visible jaw, natural chin, age-appropriate cheek volume, visible eyelids, medium-sized expressive eyes, a believable nose bridge and tip, and unique facial construction per character. Bodies have age-appropriate proportions, heads proportional to bodies, a visible neck, and believable shoulders, arms, and legs. No toddler proportions unless the character is actually a toddler. No large-head doll bodies. No chibi construction.
+
+COMPOSITION
+One instantly readable story action. One primary emotional focus. Simple eye-level staging. Strong readable silhouettes. Intentional open space. No poster collage. No excessive coral, flowers, bubbles, sparkles, or objects. No wall-to-wall detail. No duplicate portrayal of the same character in one scene unless explicitly requested.
+
+TEXTURE
+Characters are nearly texture-free: smooth illustrated color fields, restrained watercolor softness only at edges, no gritty paper grain over faces, no visible impasto, no ornate dress rendering. Backgrounds may carry a light watercolor/gouache suggestion, but texture must remain subtle — large calm color masses, no dense painterly noise.
+
+CHRISTIAN WORLDVIEW
+Wonder comes from God's creation. Prayer is peaceful. Miracles are reverent. No occult themes, spells, wands, fairy dust, or magical powers. Fantasy elements from fairy-tale-inspired stories are imaginative storytelling, clearly distinct from trusting God. Do not render the Holy Spirit as colorful energy ribbons circling a body.
+
+CHARACTER CONSISTENCY
+Each character has a permanent model. Never redesign a character, never reuse another character's face, and never change facial structure, hairstyle, eye shape, age, or silhouette. Each character is recognizable by silhouette alone — never "the same person in different clothes" and never "the same AI princess in a different wig."`,
+  negativePrompt: `Avoid photorealism, 3D rendering, CGI, anime, manga, chibi, toddlerized proportions, oversized heads, round doll faces, apple cheeks, giant eyes, button noses, tiny pointed chins, generic AI-princess faces, identical faces across heroines, long hair on Lilly, shoulder-length hair on Lilly, adult-looking Lilly, toddler-looking Lilly, generic blonde mother, generic prince father, curly-haired or heavily bearded Andrew, generic doodle dog, golden retriever Winston, painterly character rendering, heavily textured faces, individual hair-strand rendering, muddy watercolor texture, wall-to-wall watercolor grain, amber cast, beige cast, tan wash, orange cast, sepia, golden filter, yellow haze, brown shadows, cinematic lighting, HDR, lens flare, dramatic depth of field, movie-poster composition, clutter, excessive coral, excessive bubbles, excessive jewelry, glitter, sparkles, magic ribbons, multicolored spiritual energy, duplicate characters, extra fingers, malformed hands, text, logos, and watermarks.`,
+};
+
 export const STUDIO_STYLES: Record<StudioStyleVersion, StudioStyle> = {
   v1: STUDIO_STYLE_V1,
   v2: STUDIO_STYLE_V2,
+  v3: STUDIO_STYLE_V3,
 };
 
 /** The studio style used when a book does not pin a specific version. */
-export const ACTIVE_STUDIO_STYLE_VERSION: StudioStyleVersion = "v2";
+export const ACTIVE_STUDIO_STYLE_VERSION: StudioStyleVersion = "v3";
 
 /** Resolve a studio style, falling back to the active version. */
 export function getStudioStyle(version?: StudioStyleVersion | string): StudioStyle {

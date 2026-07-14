@@ -1,8 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
-  buildCoverIllustrationPrompt,
-  buildPageIllustrationPrompt,
-} from "@/lib/children-books/illustrationPrompt";
+  buildCoverGenerationRequest,
+  buildPageGenerationRequest,
+  type StorybookGenerationRequest,
+} from "@/lib/children-books/generationRequest";
 import {
   setStoredCoverImageUrl,
   setStoredPageImageUrl,
@@ -27,27 +28,42 @@ export type GeneratePageIllustrationResult = {
   cached: boolean;
 };
 
-export async function generatePageIllustration(
-  input: GeneratePageIllustrationInput,
-): Promise<GeneratePageIllustrationResult> {
-  const prompt = buildPageIllustrationPrompt({
-    book: input.book,
-    page: input.page,
-    pageNumber: input.pageNumber,
-  });
+type EdgeResponse = {
+  image_url?: string;
+  cached?: boolean;
+  error?: string;
+};
 
-  const { data, error } = await supabase.functions.invoke<{
-    image_url?: string;
-    cached?: boolean;
-    error?: string;
-  }>("children-book-illustrate", {
-    body: {
-      book_slug: input.book.slug,
-      page_number: input.pageNumber,
-      prompt,
-      force: input.force ?? false,
-    },
-  });
+/** Shared request body for the reference-image generation edge function. */
+function edgeBody(request: StorybookGenerationRequest, force: boolean) {
+  return {
+    book_slug: request.bookSlug,
+    image_kind: request.imageKind,
+    page_number: request.pageNumber,
+    prompt: request.prompt,
+    reference_images: request.referenceImages,
+    present_character_ids: request.presentCharacterIds,
+    version_metadata: request.versionMetadata,
+    force,
+  };
+}
+
+function assertValid(request: StorybookGenerationRequest): void {
+  if (!request.validation.ok) {
+    throw new Error(
+      `Cannot generate: ${request.validation.errors.join(" ")}`,
+    );
+  }
+}
+
+async function invokeIllustrate(
+  request: StorybookGenerationRequest,
+  force: boolean,
+): Promise<GeneratePageIllustrationResult> {
+  const { data, error } = await supabase.functions.invoke<EdgeResponse>(
+    "children-book-illustrate",
+    { body: edgeBody(request, force) },
+  );
 
   if (error) {
     throw new Error(await edgeFunctionErrorMessage("children-book-illustrate", error, data));
@@ -55,38 +71,27 @@ export async function generatePageIllustration(
   if (data?.error) throw new Error(data.error);
   if (!data?.image_url?.trim()) throw new Error("Illustration generation returned no image URL");
 
-  const imageUrl = data.image_url.trim();
-  setStoredPageImageUrl(input.book.slug, input.pageNumber, imageUrl);
+  return { imageUrl: data.image_url.trim(), cached: data.cached === true };
+}
 
-  return { imageUrl, cached: data.cached === true };
+export async function generatePageIllustration(
+  input: GeneratePageIllustrationInput,
+): Promise<GeneratePageIllustrationResult> {
+  const request = buildPageGenerationRequest(input.book, input.page, input.pageNumber);
+  assertValid(request);
+
+  const result = await invokeIllustrate(request, input.force ?? false);
+  setStoredPageImageUrl(input.book.slug, input.pageNumber, result.imageUrl);
+  return result;
 }
 
 export async function generateCoverIllustration(
   input: GenerateCoverIllustrationInput,
 ): Promise<GeneratePageIllustrationResult> {
-  const prompt = buildCoverIllustrationPrompt(input.book);
+  const request = buildCoverGenerationRequest(input.book);
+  assertValid(request);
 
-  const { data, error } = await supabase.functions.invoke<{
-    image_url?: string;
-    cached?: boolean;
-    error?: string;
-  }>("children-book-illustrate", {
-    body: {
-      book_slug: input.book.slug,
-      image_kind: "cover",
-      prompt,
-      force: input.force ?? false,
-    },
-  });
-
-  if (error) {
-    throw new Error(await edgeFunctionErrorMessage("children-book-illustrate", error, data));
-  }
-  if (data?.error) throw new Error(data.error);
-  if (!data?.image_url?.trim()) throw new Error("Cover generation returned no image URL");
-
-  const imageUrl = data.image_url.trim();
-  setStoredCoverImageUrl(input.book.slug, imageUrl);
-
-  return { imageUrl, cached: data.cached === true };
+  const result = await invokeIllustrate(request, input.force ?? false);
+  setStoredCoverImageUrl(input.book.slug, result.imageUrl);
+  return result;
 }

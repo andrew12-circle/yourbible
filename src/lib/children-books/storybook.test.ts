@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPageIllustrationPrompt,
-  localizeScenePrompt,
+  sceneTextFor,
   STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT,
   STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT,
 } from "@/lib/children-books/illustrationPrompt";
@@ -103,7 +103,7 @@ describe("page illustration prompts", () => {
     expect(prompt).toContain(page.picturePrompt.replace("Cinderella", "Lilly").slice(0, 20));
     expect(prompt).toContain(page.scriptureThread);
     expect(prompt).toContain("Page 1:");
-    expect(prompt).toContain("Clean ink linework");
+    expect(prompt).toContain("controlled linework");
     expect(prompt).toContain("Avoid photorealism");
   });
 
@@ -112,7 +112,8 @@ describe("page illustration prompts", () => {
       book.pages.forEach((page, index) => {
         const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: index + 1 });
         expect(prompt.length).toBeGreaterThan(500);
-        expect(prompt).toContain(localizeScenePrompt(book, page.picturePrompt));
+        // Prompt embeds the sanitized scene text (forbidden terms scrubbed).
+        expect(prompt).toContain(sceneTextFor(book, page.picturePrompt));
       });
     }
   });

@@ -24,10 +24,10 @@ describe("character bible model sheets", () => {
     expect(jobs[0]!.prompt).toContain("TURNAROUND");
   });
 
-  it("defaults to the active studio style version (v2)", () => {
+  it("defaults to the active studio style version (v3)", () => {
     const jobs = listCharacterSheetJobs();
-    expect(jobs.every((j) => j.styleVersion === "v2")).toBe(true);
-    expect(jobs[0]!.prompt).toContain("studioStyle_v2");
+    expect(jobs.every((j) => j.styleVersion === "v3")).toBe(true);
+    expect(jobs[0]!.prompt).toContain("studioStyle_v3");
   });
 
   it("builds prompts for an explicit studio style version", () => {

@@ -10,6 +10,7 @@ export default {
       fontFamily: {
         scripture: ["'Cormorant Garamond'", "Georgia", "serif"],
         display: ["'Playfair Display'", "Georgia", "serif"],
+        storybook: ["Fredoka", "'Baloo 2'", "system-ui", "sans-serif"],
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {

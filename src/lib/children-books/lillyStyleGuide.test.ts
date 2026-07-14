@@ -41,7 +41,7 @@ describe("Lilly Storybooks prompt layers", () => {
     expect(aurora).toContain("LAYER 2 — WORLD BIBLE: WOODLAND DAWN");
     expect(aurora).not.toContain("chestnut brown, medium-brown warmth");
     expect(mara).toContain("emerald");
-    expect(mara).toContain("dark brown curls");
+    expect(mara).toContain("dark-brown curls");
     expect(liora).toContain("auburn");
     expect(liora).toContain("COASTAL KINGDOM");
     expect(getCharacterBible("aurora").name).toBe("Aurora");
@@ -69,20 +69,22 @@ describe("Lilly Storybooks prompt layers", () => {
     expect(prompt).not.toContain("CHARACTER BIBLE: LILLY");
   });
 
-  it("uses the new permanent Lilly model (5yo, short curls, white bow, brown eyes)", () => {
+  it("locks the permanent Lilly model (5yo, short ear-to-jaw curls, white bow, brown eyes)", () => {
     const lilly = getCharacterBible("lilly").sheet;
-    expect(lilly).toContain("5 years old");
+    expect(lilly).toContain("Five years old");
     expect(lilly).toContain("white bow");
-    expect(lilly).toContain("short soft curls");
-    expect(lilly).toContain("brown eyes");
-    expect(lilly).not.toContain("hazel");
+    expect(lilly).toContain("short natural curls");
+    expect(lilly).toContain("brown");
+    // Locked short hair — never long/shoulder-length princess hair.
+    expect(lilly).toContain("ears and jaw");
+    expect(lilly).toContain("never long flowing princess hair");
   });
 
-  it("defaults the system prompt to the active studio style version (v2)", () => {
-    expect(ACTIVE_STUDIO_STYLE_VERSION).toBe("v2");
+  it("defaults the system prompt to the active studio style version (v3)", () => {
+    expect(ACTIVE_STUDIO_STYLE_VERSION).toBe("v3");
     const system = buildLillySystemPrompt({ characterId: "lilly", worldId: "european-kingdom" });
     expect(system).toContain(LILLY_STUDIO_STYLE);
-    expect(system).toContain("studioStyle_v2");
+    expect(system).toContain("studioStyle_v3");
     expect(system).not.toContain("studioStyle_v1");
   });
 
@@ -130,7 +132,7 @@ describe("Lilly Storybooks prompt layers", () => {
 
     expect(promptV1).toContain("studioStyle_v1");
     expect(promptV1).toContain(negativePromptForStyle("v1"));
-    expect(promptActive).toContain("studioStyle_v2");
+    expect(promptActive).toContain("studioStyle_v3");
     expect(promptActive).toContain(negativePromptForStyle());
   });
 

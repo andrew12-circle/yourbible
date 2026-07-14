@@ -13,6 +13,8 @@ const paletteClasses: Record<ChildrenBookPage["palette"], string> = {
   garden: "from-emerald-100 via-lime-50 to-rose-100",
   royal: "from-violet-100 via-amber-50 to-rose-100",
   starlight: "from-indigo-100 via-sky-50 to-amber-100",
+  coastal: "from-cyan-100 via-sky-50 to-emerald-100",
+  "home-daylight": "from-sky-50 via-white to-blue-100",
 };
 
 type ChildrenBookArtPageProps = {

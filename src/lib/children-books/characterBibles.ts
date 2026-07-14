@@ -2,13 +2,23 @@
  * Layer 3 — Character Bible (changes per heroine).
  * Casting sheets: unique face, hair, eyes, silhouette, palette, wardrobe, personality.
  * Every heroine must be recognizable by silhouette alone.
+ *
+ * The text bible clarifies identity; the APPROVED reference image
+ * (`characterReferenceAssets.ts`) is authoritative for likeness. Each bible
+ * declares its reference asset id + version so generation can require the image.
  */
+
+import type { StorybookCharacterId } from "@/lib/children-books/characterReferenceAssets";
 
 export type CharacterBibleId = "lilly" | "aurora" | "mara" | "liora";
 
 export type CharacterBible = {
   id: CharacterBibleId;
   name: string;
+  /** Approved reference-asset id (authoritative likeness). */
+  referenceAssetId: StorybookCharacterId;
+  /** Approved reference-asset version required for this heroine. */
+  referenceVersion: string;
   /** Full model-sheet prompt text. */
   sheet: string;
 };
@@ -17,44 +27,45 @@ export const CHARACTER_BIBLES: Record<CharacterBibleId, CharacterBible> = {
   lilly: {
     id: "lilly",
     name: "Lilly",
-    sheet: `LAYER 3 — CHARACTER BIBLE: LILLY (permanent model — maintain exactly across every illustration)
+    referenceAssetId: "lilly",
+    referenceVersion: "v1",
+    sheet: `LAYER 3 — CHARACTER BIBLE: LILLY (permanent locked identity — match the approved Lilly reference on every scene where she appears)
 
-Casting note: the series' signature heroine — a bright, kind five-year-old with short curly chestnut hair and a white bow. Energetic, curious, and helpful. Never redesign her; never cast as a long-haired golden princess, a dark-curled garden heroine, or a sea explorer. She must be recognizable by silhouette alone (short chestnut curls + white bow).
+Casting note: the series' signature heroine — a bright, kind FIVE-YEAR-OLD girl with short curly light-brown/chestnut hair and a white bow. Energetic, curious, and helpful. Never redesign her; never cast as a long-haired golden princess, a dark-curled garden heroine, or a sea explorer. Recognizable by silhouette alone (short ear-to-jaw curls + bow). Costume may change; face, age, hair length, proportions, and identity may NOT.
 
-Age & body:
-• 5 years old; average height for a healthy five-year-old
-• Slim child proportions, longer legs than a toddler, natural posture (about 6½–7 heads tall — never a toddler head)
+Age & body (locked):
+• Five years old — not a toddler and not an older child
+• Average height and build for age five; slim natural child build
+• Proportional head, approximately one-sixth of total standing height
+• Visible neck, natural shoulders; legs longer than preschool-toddler proportions
 
-Portrait sheet — front / three-quarter / profile must match:
-• Face shape: soft oval with a gentle taper toward the chin — not round, not doll-like; natural forehead
-• Eyes: warm, expressive brown eyes, almond-shaped with visible eyelids and gentle kindness
-• Brows: soft, natural
-• Cheeks: light rosy cheeks; tiny dimples when smiling
-• Nose: small and natural with a visible bridge and soft tip — never a button nose
-• Smile: warm and genuine
+Face (follow the approved reference closely):
+• Softly oval face, not circular; natural forehead; gently tapered lower face; natural cheek fullness (not apple-cheeked)
+• Warm brown, hazel-flecked, almond-shaped eyes with visible upper eyelids
+• Light natural eyebrows
+• Small natural nose with a visible bridge and a soft tip — never a button nose
+• Recognizable broad joyful smile with simplified child teeth when smiling
+• Fair warm-neutral skin with a light fresh blush — never orange, never tan-washed
 
-Hair reference:
-• Chestnut brown, short soft curls that sit just below the ears and around the jawline — not shoulder length, not long
-• Natural loose curls painted as large curl masses (5–10 flowing shapes), soft painted highlights — no individual strands, no cotton-ball fluff
-• Signature accessory: a large white bow, always present
+Hair (CRITICAL — locked):
+• Light brown to soft chestnut; short natural curls
+• Length ends around the ears and jaw — never past the shoulders, never long flowing princess hair
+• Side-parted; curls form several clean grouped shapes with moderate volume — no individual strands, no cotton-ball fluff
+• Signature accessory: a large white or pale-blue bow when appropriate
+• Underwater movement may lift the short curls but may NOT lengthen the hair
 
 Silhouette & posture:
-• Petite, upright, lively child silhouette; helpful ready hands
-• Distinct short-curl-plus-white-bow outline sets her apart from every other heroine
+• Petite, upright, lively five-year-old silhouette; helpful ready hands
+• Distinct short-curl-plus-bow outline sets her apart from every other heroine
 
 Color palette (heroine):
 • Porcelain and ivory whites, soft sky blue, powder blue, blush pink accents
-• Chestnut curls + warm brown eyes + light rosy fair skin
+• Chestnut curls + warm brown eyes + light fresh fair skin
 
-Wardrobe (3–4 looks):
-1. Everyday: ivory-white dress with an embroidered classic collar and a soft blue sash, white bow, classic shoes
-2. Quiet home: soft powder-blue day dress with a white collar, white bow
-3. Celebration: elegant but simple white-and-soft-blue dress with a blue sash and bow, simple classic shoes
-4. Prayer: everyday dress, hands folded, kneeling silhouette, white bow
+Wardrobe (identity fixed across every look): everyday ivory-and-soft-blue dress with an embroidered collar and blue sash + white bow; quiet powder-blue day dress; simple white-and-soft-blue celebration dress; pajamas; church clothing; underwater aqua dress; outdoor play clothes. Lilly remains Lilly in all of them.
 
 Personality & gestures:
-• Loves to learn about God's world, kind to everyone, curiously brave, prays with a sincere heart, sees beauty in everything
-• Movement is energetic, playful, confident, and kind — always helping, always hopeful
+• Loves to learn about God's world, kind to everyone, curiously brave, prays with a sincere heart
 • Signature poses: reaching out with wonder; offering a helping hand; kneeling in sincere prayer; a bright genuine smile with hands clasped
 
 Expressions (preserve these): joy, wonder, curiosity, thoughtfulness, prayer, excitement, gentle smile.`,
@@ -63,84 +74,75 @@ Expressions (preserve these): joy, wonder, curiosity, thoughtfulness, prayer, ex
   aurora: {
     id: "aurora",
     name: "Aurora",
-    sheet: `LAYER 3 — CHARACTER BIBLE: AURORA (maintain exactly across every illustration)
+    referenceAssetId: "aurora",
+    referenceVersion: "v1",
+    sheet: `LAYER 3 — CHARACTER BIBLE: AURORA (permanent locked identity — match the approved Aurora reference on every scene where she appears)
 
-Casting note: forest-raised princess of dawn light. Graceful, calm, rose-soft. Never chestnut kitchen-girl; never freckled sea explorer.
+Casting note: forest-raised princess of dawn light. Graceful, calm, gentle. A distinct heroine — never Lilly's short-curl kitchen-girl silhouette; never a freckled sea explorer; never a duplicate of any other heroine's face.
 
-Portrait sheet — front / three-quarter / profile must match:
-• Face shape: softly rounded, youthful apple cheeks, graceful oval
-• Eyes: large kind eyes in warm soft brown, gentle wide wonder
-• Cheeks: soft rose blush
-• Nose: tiny and delicate
-• Brows: soft arched
-• Smile: calm, gentle, serene — quiet dawn joy
+Face (follow the approved reference; distinct construction):
+• Graceful, softly elongated oval face with a defined gentle jaw and natural chin — not circular, not apple-cheeked
+• Almond, medium-sized calm eyes in warm soft brown, with visible eyelids
+• Soft, gently arched brows
+• Refined natural nose with a visible bridge and soft tip — never a tiny button nose
+• Calm, serene, gentle smile — quiet dawn joy
+• Age-appropriate cheek volume; fair warm-neutral skin, never orange
 
 Hair reference:
-• Long flowing golden / honey-gold hair
-• Large painted ribbon-like shapes, soft waves, no strands
+• Long flowing golden / honey-gold hair painted as large ribbon-like shapes, soft waves, no strands
 • Often unbound and flowing; occasional soft braid with forest flowers
-• Smooth luminous highlight mass catching morning light
 
 Silhouette & posture:
-• Graceful upright posture, light floating silhouette
-• Elegant but still childlike — never adult fashion-model proportions
+• Graceful upright posture, light silhouette; childlike, never adult fashion-model proportions
 • Slightly fuller soft dress volume than Lilly's work silhouette
 
 Color palette (heroine):
-• Light pink, dawn-gold, soft rose, cream
-• Golden hair + rose cheeks + warm peach skin
+• Soft rose, pale gold accents, cream, blush — kept bright and fresh, never amber-washed
+• Golden hair + warm brown eyes + fair warm-neutral skin
 
-Wardrobe (3–4 looks):
-1. Forest cottage: soft rose-pink simple dress, cream apron, barefoot or soft slippers
-2. Gathering flowers: light pink dress with flower basket, woodland blooms in hair
-3. Castle return: dawn-gold or soft rose gown, gentle sash, no glitter excess
-4. Prayer / closing: same gown, peaceful folded hands at a sunlit window
+Wardrobe (identity fixed across looks): soft rose cottage dress with cream apron; light gathering dress with a basket; pale-rose or soft-gold return gown with a gentle sash; prayerful window look. Face and hair fixed in every look.
 
 Personality & gestures:
 • Calm, trusting, kind, curious about beauty in creation
-• Signature poses: gathering forest flowers; walking a sunlit path; hands folded in prayer; embracing family; standing at dawn window in soft light
+• Signature poses: gathering forest flowers; walking a bright path; hands folded in prayer; embracing family; standing at a bright window
 
-Expressions (preserve these five): serene joy, soft wonder, tearful compassion, peaceful trust, grateful dawn smile.`,
+Expressions (preserve these five): serene joy, soft wonder, tearful compassion, peaceful trust, grateful morning smile.`,
   },
 
   mara: {
     id: "mara",
     name: "Mara",
-    sheet: `LAYER 3 — CHARACTER BIBLE: MARA (maintain exactly across every illustration)
+    referenceAssetId: "mara",
+    referenceVersion: "v1",
+    sheet: `LAYER 3 — CHARACTER BIBLE: MARA (permanent locked identity — match the approved Mara reference on every scene where she appears)
 
-Casting note: brave garden-gate heroine — mercy with courage. Determined, warm, grounded. Not a golden forest princess; not a blue-apron kitchen girl; not a sea-haired explorer.
+Casting note: brave garden-gate heroine — mercy with courage. Determined, warm, grounded. A distinct heroine — not a golden forest princess; not a short-curl kitchen girl; not a sea-haired explorer; never a duplicate of another heroine's face.
 
-Portrait sheet — front / three-quarter / profile must match:
-• Face shape: warmly rounded with a firm, kind jaw — open and earnest
-• Eyes: bright rich brown, direct and determined, kind highlight dots
-• Cheeks: warm peach-rose
-• Nose: soft and friendly
-• Brows: slightly stronger arcs (resolve without harshness)
-• Smile: bright determined smile — hope with grit
+Face (follow the approved reference; distinct construction):
+• Earnest oval face with a firm, kind, clearly defined jaw and natural chin — open and honest, not circular, not apple-cheeked
+• Bright rich-brown eyes, direct and determined, almond-shaped with visible eyelids
+• Slightly stronger arched brows (resolve without harshness)
+• Soft, friendly natural nose with a visible bridge
+• Bright determined smile — hope with grit
+• Age-appropriate cheek volume; warm medium skin, never orange
 
 Hair reference:
-• Rich dark brown curls, gathered elegantly (half-up twist or soft gathered crown)
-• Large curling painted masses — no strand detail
-• Occasional garden flower or green ribbon accent
+• Rich dark-brown curls, gathered elegantly (half-up twist or soft gathered crown)
+• Large curling painted masses — no strand detail; occasional garden flower or green ribbon accent
 
 Silhouette & posture:
 • Hard-working upright posture — planted feet, forward heart
-• Slightly sturdier helpful silhouette than Aurora's floating grace
-• Ready hands: pushing a gate, offering a rose, planting
+• Slightly sturdier helpful silhouette than Aurora's; ready hands: pushing a gate, offering a rose, planting
 
 Color palette (heroine):
-• Emerald green, cream, soft gold accents, rose touches
+• Emerald green, cream, soft gold accents, rose touches — kept bright, never muddy
 • Dark curls + bright brown eyes + warm medium skin
 
-Wardrobe (3–4 looks):
-1. Journey: emerald skirt, cream blouse, simple cloak, sturdy shoes
-2. Garden gate: emerald-and-cream dress with gold sash, apron optional
-3. Night intercession: soft cream night dress / shawl at a garden window
-4. Restoration ending: emerald-and-cream celebration dress with gold accents, garden motifs
+Wardrobe (identity fixed across looks): emerald journey outfit with cream blouse; emerald-and-cream garden dress; soft cream night look; emerald-and-cream restoration dress. Face and hair fixed in every look.
 
 Personality & gestures:
 • Courageous mercy, truth with kindness, hard-working love
-• Signature poses: standing firm before a thorned gate; offering a glowing rose; kneeling in moonlight prayer; planting flowers beside a restored heart
+• Signature poses: standing firm before a thorned gate; offering a rose; kneeling in prayer; planting flowers
 
 Expressions (preserve these five): determined courage, compassionate concern, quiet prayer, relieved joy, bright hope.`,
   },
@@ -148,41 +150,37 @@ Expressions (preserve these five): determined courage, compassionate concern, qu
   liora: {
     id: "liora",
     name: "Liora",
-    sheet: `LAYER 3 — CHARACTER BIBLE: LIORA (maintain exactly across every illustration)
+    referenceAssetId: "liora",
+    referenceVersion: "v1",
+    sheet: `LAYER 3 — CHARACTER BIBLE: LIORA (permanent locked identity — match the approved Liora reference on every scene where she appears)
 
-Casting note: coastal / living-water heroine — curious explorer of shore and song. Never golden forest princess; never humble chestnut kitchen silhouette; never emerald garden porter.
+Casting note: coastal / living-water heroine — curious explorer of shore and song. A distinct heroine — never a golden forest princess; never a short-curl kitchen silhouette; never an emerald garden porter; never a duplicate of another heroine's face.
 
-Portrait sheet — front / three-quarter / profile must match:
-• Face shape: lively oval with soft freckles across nose and cheeks
-• Eyes: bright sea-green / teal-green, curious and awake
-• Cheeks: sun-warmed peach with freckles (simplified dots — not photo freckles)
-• Nose: small upturned suggestion
-• Brows: soft, expressive
-• Smile: curious open wonder — loves exploring
+Face (follow the approved reference; distinct construction):
+• Lively oval face with a soft natural jaw and simplified freckles across the nose and cheeks (dots, not photo freckles)
+• Bright sea-green / teal-green almond eyes with visible eyelids, curious and awake
+• Soft, expressive brows
+• Small natural nose with a soft upturned tip and a visible bridge
+• Curious open-wonder smile
+• Sun-warmed skin, kept fresh — never orange
 
 Hair reference:
-• Deep auburn / copper-red flowing hair
-• Wind-swept large painted shapes, often loose; shell clip or simple braid for shore scenes
+• Deep auburn / copper-red flowing hair painted as large wind-swept shapes, often loose; shell clip or simple braid for shore scenes
 • Wet scenes keep the same auburn color and large shapes — no strand spaghetti
 
 Silhouette & posture:
-• Light, exploring posture — leaning forward toward wonder
-• Wind-blown fabrics creating a distinct moving silhouette
-• Shell jewelry as a readable accent (simple shapes only)
+• Light, exploring posture — leaning toward wonder; wind-blown fabrics create a distinct moving silhouette
+• Simple shell jewelry as a readable accent
 
 Color palette (heroine):
-• Sea-green, turquoise, cream, coral accents, shell-pink
-• Deep auburn hair + freckles + sea-green eyes + sunlit warm skin
+• Sea-green, turquoise, cream, coral accents, shell-pink — luminous and clean, never gold-filtered
+• Deep auburn hair + freckles + sea-green eyes + sun-warmed fresh skin
 
-Wardrobe (3–4 looks):
-1. Undersea song: sea-green dress with soft flowing panels, shell necklace
-2. Shore journey: turquoise-and-cream travel dress, wind-blown sash, shell bracelet
-3. Storm boat: deeper teal wrap, hair windswept, gripping boat edge in faith
-4. Living water ending: bright sea-green dress at shore spring, open hands in worship
+Wardrobe (identity fixed across looks): sea-green song dress with shell necklace; turquoise-and-cream travel dress; deeper-teal storm wrap; bright sea-green shore dress. Face and hair fixed in every look.
 
 Personality & gestures:
-• Curious, songful, longing for home above the waves, brave listener
-• Signature poses: singing with rising bubbles; receiving a pearl; looking up through parted clouds; standing at shore spring with open hands
+• Curious, songful, longing for home, brave listener
+• Signature poses: singing with rising bubbles; receiving a pearl; looking up through parted clouds; standing at a shore spring with open hands
 
 Expressions (preserve these five): curious wonder, longing hope, storm-courage, peaceful worship, bright joyful discovery.`,
   },

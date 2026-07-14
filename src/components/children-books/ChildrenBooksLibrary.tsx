@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { ChildrenBookCoverThumbnail } from "@/components/children-books/ChildrenBookCoverSpread";
 import type { ChildrenBook } from "@/lib/children-books/storybook";
 import { cn } from "@/lib/utils";
@@ -63,8 +63,20 @@ export function ChildrenBooksLibrary({ books, showHubShell, onSelectBook }: Chil
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10">
         <div className="mx-auto max-w-5xl">
           <header className="mb-8 text-center sm:mb-10">
-            <h1 className="font-display text-3xl text-leather sm:text-4xl">Children&apos;s books</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 sm:gap-3">
+              <Sparkles
+                className="h-5 w-5 animate-pulse text-gold-bright drop-shadow-[0_1px_4px_rgba(217,164,65,0.55)] sm:h-6 sm:w-6"
+                aria-hidden
+              />
+              <h1 className="font-storybook bg-gradient-to-br from-gold-bright via-rose-400 to-fuchsia-500 bg-clip-text text-4xl font-bold tracking-wide text-transparent drop-shadow-[0_2px_6px_rgba(0,0,0,0.12)] sm:text-5xl">
+                Children&apos;s books
+              </h1>
+              <Sparkles
+                className="h-5 w-5 animate-pulse text-fuchsia-400 drop-shadow-[0_1px_4px_rgba(232,121,249,0.5)] [animation-delay:0.6s] sm:h-6 sm:w-6"
+                aria-hidden
+              />
+            </div>
+            <p className="mt-2 font-storybook text-sm font-medium text-leather/70 sm:text-base">
               Faith-filled stories for ages 4–8
             </p>
           </header>

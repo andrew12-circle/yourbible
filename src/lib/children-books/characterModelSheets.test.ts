@@ -20,7 +20,7 @@ describe("Character Model Creation System", () => {
     for (const job of jobs) {
       expect(job.relativePath).toBe(`children-books/character-bibles/${job.characterId}/model-sheet.png`);
       expect(job.size).toBe("1536x1024");
-      expect(job.styleVersion).toBe("v2");
+      expect(job.styleVersion).toBe("v3");
     }
   });
 
