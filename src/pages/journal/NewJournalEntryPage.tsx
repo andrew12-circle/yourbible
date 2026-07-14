@@ -39,6 +39,10 @@ import { JOURNAL_COMPOSE_HINT } from "@/lib/journal/journalPurpose";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  journalComposeMainPaddingBottom,
+  journalComposeUsesVisualViewportLayout,
+} from "@/lib/journal/journalComposeKeyboardLayout";
 
 export default function NewJournalEntryPage() {
   const p = useNewJournalEntryPage();
@@ -75,7 +79,11 @@ export default function NewJournalEntryPage() {
   const hideBottomChrome = keyboardOpen || (p.bodyFocused && !p.inlineChatMode);
   const showComposeMap = !hideBottomChrome && !p.inlineChatMode && !p.isListening;
 
-  const mobileKeyboardLayout = (p.isMobile || p.inMiniPhone) && keyboardOpen;
+  const mobileKeyboardLayout = journalComposeUsesVisualViewportLayout({
+    isMobile: p.isMobile,
+    inMiniPhone: p.inMiniPhone,
+    keyboardOpen,
+  });
 
   return (
     <div
@@ -154,11 +162,15 @@ export default function NewJournalEntryPage() {
         ref={p.mainScrollRef}
         className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
         style={{
-          paddingBottom: hideBottomChrome
-            ? keyboardOpen
-              ? `calc(env(safe-area-inset-bottom) + 0.75rem)`
-              : "max(env(safe-area-inset-bottom), 0.75rem)"
-            : "calc(env(safe-area-inset-bottom) + var(--journal-entry-dock-h, 9.5rem) + 0.75rem)",
+          paddingBottom: journalComposeMainPaddingBottom({
+            bodyFocused: p.bodyFocused,
+            hideBottomChrome,
+            inMiniPhone: p.inMiniPhone,
+            inlineChatMode: p.inlineChatMode,
+            isMobile: p.isMobile,
+            keyboardOpen,
+            viewportHeight: p.viewportHeight,
+          }),
         }}
         onPointerDown={(e) => {
           if (p.inlineChatMode) return;
