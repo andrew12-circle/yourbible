@@ -66,4 +66,20 @@ describe("Lilly Storybooks prompt layers", () => {
     expect(prompt).toContain("WOODLAND DAWN");
     expect(prompt).not.toContain("CHARACTER BIBLE: LILLY");
   });
+
+  it("adds companion character bibles without replacing the main heroine", () => {
+    const system = buildLillySystemPrompt({
+      characterId: "lilly",
+      companionCharacterIds: ["ariel"],
+      worldId: "coastal-kingdom",
+      heroName: "Lilly",
+    });
+
+    expect(system).toContain("HEROINE FOR THIS BOOK: Lilly");
+    expect(system).toContain("CHARACTER BIBLE: LILLY");
+    expect(system).toContain("FEATURED COMPANION CAST");
+    expect(system).toContain("CHARACTER BIBLE: ARIEL");
+    expect(system).toContain("COASTAL KINGDOM");
+    expect(getCharacterBible("ariel").name).toBe("Ariel");
+  });
 });

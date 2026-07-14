@@ -69,6 +69,21 @@ describe("children book storybook data", () => {
     expect(book!.pages).toHaveLength(26);
     expect(book!.pages.at(-1)?.scriptureThread).toContain("Psalm 121:8");
   });
+
+  it("includes Lilly and Ariel as a built-in illustrated book", () => {
+    const book = findChildrenBook("lilly-and-ariel-heart-that-listens");
+
+    expect(book).toBeDefined();
+    expect(book!.title).toBe("Lilly and Ariel: A Heart That Listens");
+    expect(book!.characterId).toBe("lilly");
+    expect(book!.companionCharacterIds).toEqual(["ariel"]);
+    expect(book!.worldId).toBe("coastal-kingdom");
+    expect(book!.useDefaultCoverPath).toBe(true);
+    expect(book!.useDefaultImagePaths).toBe(true);
+    expect(book!.pages).toHaveLength(19);
+    expect(book!.closingPrayer).toContain("heart that listens quickly");
+    expect(book!.pages.at(-1)?.scriptureThread).toContain("ordinary moments");
+  });
 });
 
 describe("page illustration prompts", () => {
@@ -98,5 +113,16 @@ describe("page illustration prompts", () => {
         expect(prompt).toContain(localizeScenePrompt(book, page.picturePrompt));
       });
     }
+  });
+
+  it("includes Lilly and Ariel casting in ocean book prompts", () => {
+    const book = findChildrenBook("lilly-and-ariel-heart-that-listens")!;
+    const prompt = buildPageIllustrationPrompt({ book, page: book.pages[1]!, pageNumber: 2 });
+
+    expect(prompt).toContain("CHARACTER BIBLE: LILLY");
+    expect(prompt).toContain("FEATURED COMPANION CAST");
+    expect(prompt).toContain("CHARACTER BIBLE: ARIEL");
+    expect(prompt).toContain("COASTAL KINGDOM");
+    expect(prompt).toContain("Ariel waving from a smooth rock");
   });
 });
