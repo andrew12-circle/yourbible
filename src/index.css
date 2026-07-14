@@ -378,6 +378,7 @@
   /* Lumen chat — prayer on an open Bible page (drop cap + verse numbers). */
   .chat-prayer-bible {
     --chat-prayer-page-stack-width: 14px;
+    --chat-prayer-ribbon-safe-width: 2.7rem;
     max-width: min(100%, 32rem);
     margin-inline: auto;
     background: transparent;
@@ -411,7 +412,7 @@
   .chat-prayer-bible__content {
     position: relative;
     z-index: 2;
-    padding: 1.15rem clamp(1.15rem, 4vw, 1.45rem) 1rem clamp(2.2rem, 7vw, 3rem);
+    padding: 1.15rem clamp(2.65rem, 8vw, 3.25rem) 1rem clamp(2.2rem, 7vw, 3rem);
     margin-left: var(--chat-prayer-page-stack-width);
   }
 
@@ -470,7 +471,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: 2.5rem;
+    width: var(--chat-prayer-ribbon-safe-width);
     pointer-events: none;
     z-index: 3;
   }
@@ -498,7 +499,7 @@
     }
 
     .chat-prayer-bible__content {
-      padding: 1rem 1rem 0.9rem clamp(2.35rem, 12vw, 2.85rem);
+      padding: 1rem clamp(2.65rem, 12vw, 3rem) 0.9rem clamp(2.35rem, 12vw, 2.85rem);
     }
 
     .chat-prayer-bible__title {
