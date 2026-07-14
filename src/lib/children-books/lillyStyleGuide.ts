@@ -95,6 +95,7 @@ same face reused across different heroines, generic identical silhouettes, costu
 
 export type LillyPromptLayers = {
   characterId?: CharacterBibleId | string;
+  companionCharacterIds?: Array<CharacterBibleId | string>;
   worldId?: WorldBibleId | string;
   /** Display name override; defaults to character bible name. */
   heroName?: string;
@@ -108,8 +109,20 @@ export function buildLillySystemPrompt(layers?: LillyPromptLayers | string): str
     typeof layers === "string" ? { heroName: layers, characterId: "lilly" } : layers ?? {};
 
   const character = getCharacterBible(opts.characterId);
+  const companions = (opts.companionCharacterIds ?? []).map((id) => getCharacterBible(id));
   const world = getWorldBible(opts.worldId);
   const heroLabel = opts.heroName?.trim() || character.name;
+  const companionBlock = companions.length
+    ? [
+        "",
+        "FEATURED COMPANION CAST",
+        "Use these additional character bibles only when the page scene includes the companion.",
+        ...companions.map((companion) => companion.sheet),
+        "",
+        "COMPANION CASTING RULE",
+        "Keep every companion visually distinct from the heroine and from other series heroines.",
+      ].join("\n")
+    : "";
 
   return [
     LILLY_MASTER_PROMPT,
@@ -124,5 +137,6 @@ export function buildLillySystemPrompt(layers?: LillyPromptLayers | string): str
     "CASTING RULE",
     "Treat this as casting a unique heroine — not dressing one generic girl in new clothes.",
     "She must be recognizable by silhouette alone. Do not borrow another heroine's face, hair, eyes, or body language.",
+    companionBlock,
   ].join("\n");
 }

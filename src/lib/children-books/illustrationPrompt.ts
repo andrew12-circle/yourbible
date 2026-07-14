@@ -29,6 +29,7 @@ export type PageIllustrationPromptInput = {
 function systemPromptForBook(book: ChildrenBook): string {
   return buildLillySystemPrompt({
     characterId: book.characterId,
+    companionCharacterIds: book.companionCharacterIds,
     worldId: book.worldId,
     heroName: book.heroName?.trim() || LILLY_HERO_NAME,
   });

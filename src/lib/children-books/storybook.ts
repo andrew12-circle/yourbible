@@ -56,6 +56,8 @@ export type ChildrenBook = {
   heroName?: string;
   /** Layer 3 — Character Bible id (unique casting). */
   characterId?: CharacterBibleId;
+  /** Additional character bibles used by recurring companions in this book. */
+  companionCharacterIds?: CharacterBibleId[];
   /** Layer 2 — World Bible id (story setting). */
   worldId?: WorldBibleId;
   sourceNote: string;
@@ -803,6 +805,223 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
           "A child by a clear spring at the shore, ocean and garden meeting, joyful green and blue light.",
         palette: "garden",
         symbol: "crown",
+      },
+    ],
+  },
+  {
+    slug: "lilly-and-ariel-heart-that-listens",
+    title: "Lilly and Ariel: A Heart That Listens",
+    heroName: "Lilly",
+    characterId: "lilly",
+    companionCharacterIds: ["ariel"],
+    worldId: "coastal-kingdom",
+    sourceNote: "Original faith story about Lilly and Ariel learning to listen, obey, and choose what is best",
+    ageRange: "Ages 4-8",
+    spiritualFocus: "Obedience, self-control, prayer, honoring parents, kindness, and healthy choices",
+    summary:
+      "Lilly and Ariel explore the ocean, learn that love wants what is best, pray for hearts that listen, try healthy food, and obey parents the first time.",
+    coverGradient: "linear-gradient(135deg, #0ea5e9 0%, #22c55e 55%, #f97316 100%)",
+    coverPrompt:
+      "Front cover portrait: Lilly in a simple beach dress holding a little bucket and a beautiful shell, smiling beside Ariel, a childlike mermaid friend with long copper-red hair and a bright green tail seated on a smooth rock, sparkling waves, coral colors, warm sunrise beach, open space along the top for a title.",
+    useDefaultCoverPath: true,
+    generationSeed:
+      "Use the provided Lilly and Ariel story as a children's picture book about obedience, prayer, choosing what is right, honoring parents, and asking Jesus for a heart that listens.",
+    useDefaultImagePaths: true,
+    useDefaultClosingImagePath: true,
+    closingPrayer:
+      "Dear Jesus, thank You for loving me. Please help me have a heart that listens quickly, obeys happily, speaks kindly, and trusts Mommy and Daddy because You gave them to take care of me. Help me become more like You every day. Amen.",
+    closingIllustrationPrompt:
+      "Lilly and Ariel watching the sun sparkle across the ocean at sunset, Lilly holding Ariel's shell gift close, Ariel smiling peacefully near the water, both thankful after praying, warm golden light, gentle waves, cozy storybook ending.",
+    pages: [
+      {
+        title: "A bright beach morning",
+        body:
+          "One bright morning, Lilly skipped down to the beach with her little bucket and shovel. She loved collecting seashells.",
+        scriptureThread: "God gives good gifts in creation and invites thankful wonder.",
+        picturePrompt:
+          "Lilly skipping along a sunny beach with a little bucket and shovel, seashells in the sand, sparkling waves in the distance, warm morning light.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "Hello from the rock",
+        body:
+          "As Lilly looked across the sparkling waves, she heard a cheerful voice say, 'Hello!' There on a smooth rock sat Ariel, with long flowing red hair and a bright green tail.",
+        scriptureThread: "Friendship can begin with a cheerful welcome.",
+        picturePrompt:
+          "Lilly blinking in wonder at Ariel waving from a smooth rock near the shore, Ariel's copper-red hair flowing and bright green tail catching sea light.",
+        palette: "garden",
+        symbol: "heart",
+      },
+      {
+        title: "Exploring together",
+        body:
+          "'Would you like to explore the ocean with me?' Ariel asked with a smile. Lilly's eyes grew wide. 'I'd love to!'",
+        scriptureThread: "God's world is full of wonders to explore with gratitude.",
+        picturePrompt:
+          "Lilly and Ariel beginning an ocean adventure together, coral colors below the clear water, Lilly delighted and Ariel smiling warmly.",
+        palette: "garden",
+        symbol: "light",
+      },
+      {
+        title: "Coral gardens and dolphins",
+        body:
+          "Together they searched through colorful coral gardens, watched dolphins leap, and laughed as little fish darted around them.",
+        scriptureThread: "Joy grows when friends delight in God's creation together.",
+        picturePrompt:
+          "Lilly and Ariel in a bright coral garden with playful little fish and dolphins leaping above the sparkling water, joyful childlike wonder.",
+        palette: "royal",
+        symbol: "heart",
+      },
+      {
+        title: "The tiny seahorse",
+        body:
+          "Soon they found a family of tiny seahorses. Just then, one little seahorse swam away from its family. 'I want to keep him!' Ariel said.",
+        scriptureThread: "Love notices when someone small and vulnerable is afraid.",
+        picturePrompt:
+          "A family of tiny seahorses near coral while one little seahorse drifts away, Ariel reaching with excited wonder and Lilly watching gently.",
+        palette: "garden",
+        symbol: "shield",
+      },
+      {
+        title: "What love wants",
+        body:
+          "Lilly looked at the tiny seahorse. 'He looks scared.' Then she remembered, 'If we really love someone, we want what's best for them.'",
+        scriptureThread: "True love seeks another's good, not only our own wishes.",
+        picturePrompt:
+          "Lilly gently pointing toward the scared little seahorse while Ariel pauses, the seahorse's family waiting nearby in soft coral light.",
+        palette: "dawn",
+        symbol: "heart",
+      },
+      {
+        title: "Back to his family",
+        body:
+          "Ariel looked again. 'He belongs with his family.' She gently smiled and watched him swim back to his mother. 'I think that made me happier than keeping him.'",
+        scriptureThread: "Choosing what is best can bring deeper joy than taking what we want.",
+        picturePrompt:
+          "Ariel smiling peacefully as the tiny seahorse swims back to his mother, Lilly grinning beside her, coral garden glowing with gentle light.",
+        palette: "garden",
+        symbol: "heart",
+      },
+      {
+        title: "The pearl cave",
+        body:
+          "As they continued exploring, they found a beautiful cave filled with shiny pearls. Ariel reached toward them, then noticed a driftwood sign: Please leave these pearls here so everyone can enjoy them.",
+        scriptureThread: "Shared beauty should be cared for so others can enjoy it too.",
+        picturePrompt:
+          "Lilly and Ariel at the entrance of a glowing pearl cave, shiny pearls nestled safely in shells, a small driftwood sign beside them.",
+        palette: "starlight",
+        symbol: "crown",
+      },
+      {
+        title: "Hearts that listen",
+        body:
+          "Ariel frowned. 'But I really want one.' Lilly wanted one too. Finally Lilly whispered, 'My daddy tells me that obeying is easier when we ask Jesus to help us.'",
+        scriptureThread: "Prayer helps children choose obedience when desire feels strong.",
+        picturePrompt:
+          "Lilly and Ariel standing quietly before the pearls, both thoughtful, soft underwater light surrounding them like a peaceful pause.",
+        palette: "starlight",
+        symbol: "light",
+      },
+      {
+        title: "Dear Jesus",
+        body:
+          "The girls closed their eyes. 'Dear Jesus, thank You for giving us such a beautiful world. Help us choose what is right. Give us hearts that listen. Amen.'",
+        scriptureThread: "God gladly helps His children choose what is right.",
+        picturePrompt:
+          "Lilly and Ariel with eyes closed in prayer near the pearl cave, hands folded, gentle rays of light streaming through clear blue water.",
+        palette: "dawn",
+        symbol: "light",
+      },
+      {
+        title: "Obedience made them smile",
+        body:
+          "When they opened their eyes, neither one wanted to take the pearls anymore. Instead, they smiled because they had obeyed.",
+        scriptureThread: "Obedience can bring a clean and peaceful joy.",
+        picturePrompt:
+          "Lilly and Ariel smiling as they leave the pearls untouched in the cave, the driftwood sign and glowing pearls still beautiful for everyone.",
+        palette: "royal",
+        symbol: "heart",
+      },
+      {
+        title: "The beach picnic",
+        body:
+          "A little while later they became hungry. They found a picnic waiting on the beach with strawberries, carrots, turkey sandwiches, apples, and little pieces of broccoli.",
+        scriptureThread: "God provides many foods to help our bodies grow strong.",
+        picturePrompt:
+          "A cheerful beach picnic blanket with strawberries, carrots, turkey sandwiches, apples, and broccoli, Lilly and Ariel arriving hungry and happy.",
+        palette: "dawn",
+        symbol: "crown",
+      },
+      {
+        title: "One little bite",
+        body:
+          "Ariel wrinkled her nose. 'I don't like broccoli.' Lilly giggled, 'I don't always like it either.' Then they remembered that God gives healthy foods and each took one little bite.",
+        scriptureThread: "Trying something with a willing heart can be the hardest part.",
+        picturePrompt:
+          "Lilly and Ariel each trying one tiny bite of broccoli at the beach picnic, surprised smiles beginning, strawberries and apples nearby.",
+        palette: "garden",
+        symbol: "shield",
+      },
+      {
+        title: "Time to come home",
+        body:
+          "As the sun began to set, King Triton called from across the water, 'Ariel! It's time to come home.' Ariel crossed her arms. 'But I'm not ready!'",
+        scriptureThread: "Disappointment is a moment to practice a listening heart.",
+        picturePrompt:
+          "Sunset over the ocean as a kind sea king calls from across the water, Ariel crossing her arms while Lilly stands beside her with gentle concern.",
+        palette: "starlight",
+        symbol: "shield",
+      },
+      {
+        title: "Obeying the first time",
+        body:
+          "Lilly quietly took Ariel's hand. 'My daddy says parents make rules because God gave them the job of protecting us.' Ariel looked at her father and whispered, 'I think you're right.'",
+        scriptureThread: "Parents are entrusted by God to protect and guide their children.",
+        picturePrompt:
+          "Lilly gently holding Ariel's hand at sunset while Ariel looks toward her loving father across the water, a peaceful choice forming.",
+        palette: "dawn",
+        symbol: "heart",
+      },
+      {
+        title: "Yes, Father",
+        body:
+          "Ariel swam over and said, 'Yes, Father.' King Triton smiled warmly. 'Thank you for obeying the first time.' Then he thanked Lilly for helping his daughter choose wisely.",
+        scriptureThread: "Quick obedience honors parents and brings peace.",
+        picturePrompt:
+          "Ariel respectfully swimming toward her father as he smiles warmly, Lilly watching from the shore, sunset waves glowing gold.",
+        palette: "royal",
+        symbol: "crown",
+      },
+      {
+        title: "The shell gift",
+        body:
+          "Before Lilly went home, Ariel gave her a beautiful shell. 'Whenever you see this shell, remember that a heart that listens to God becomes beautiful on the inside.'",
+        scriptureThread: "A listening heart becomes beautiful on the inside.",
+        picturePrompt:
+          "Ariel giving Lilly a beautiful shell at the shoreline, the friends hugging gently, warm sunset colors across the water.",
+        palette: "garden",
+        symbol: "heart",
+      },
+      {
+        title: "Lilly's lesson",
+        body:
+          "Together they watched the sun sparkle across the ocean. They thanked God for the wonderful day and remembered, 'Children, obey your parents in the Lord, for this is right.' - Ephesians 6:1",
+        scriptureThread: "Children, obey your parents in the Lord, for this is right. - Ephesians 6:1",
+        picturePrompt:
+          "An open Bible on the beach beside Lilly's shell, sunset sparkles on the ocean, gentle footprints in the sand, peaceful thankful ending.",
+        palette: "starlight",
+        symbol: "light",
+      },
+      {
+        title: "Today I can practice",
+        body:
+          "Today I can practice: I obey the first time. I say 'Yes, ma'am' and 'Yes, sir.' I try foods before saying I don't like them. I use kind words when I'm disappointed. I ask Jesus to help me make good choices.",
+        scriptureThread: "A heart that listens practices obedience in ordinary moments.",
+        picturePrompt:
+          "Lilly's shell, a tiny broccoli bite on a picnic plate, a small heart shape in the sand, and gentle sunrise light as reminders of wise choices.",
+        palette: "dawn",
+        symbol: "heart",
       },
     ],
   },

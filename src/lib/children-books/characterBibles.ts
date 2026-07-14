@@ -4,7 +4,7 @@
  * Every heroine must be recognizable by silhouette alone.
  */
 
-export type CharacterBibleId = "lilly" | "aurora" | "mara" | "liora";
+export type CharacterBibleId = "lilly" | "aurora" | "mara" | "liora" | "ariel";
 
 export type CharacterBible = {
   id: CharacterBibleId;
@@ -181,6 +181,48 @@ Personality & gestures:
 • Signature poses: singing with rising bubbles; receiving a pearl; looking up through parted clouds; standing at shore spring with open hands
 
 Expressions (preserve these five): curious wonder, longing hope, storm-courage, peaceful worship, bright joyful discovery.`,
+  },
+
+  ariel: {
+    id: "ariel",
+    name: "Ariel",
+    sheet: `LAYER 3 — CHARACTER BIBLE: ARIEL (maintain exactly across every illustration)
+
+Casting note: cheerful ocean friend and mermaid companion. Bright, curious, tenderhearted, and learning to listen. Never reuse Liora's freckled shore-explorer face; never copy any protected animation-studio character design.
+
+Portrait sheet — front / three-quarter / profile must match:
+• Face shape: soft heart-shaped childlike face with gentle rounded cheeks
+• Eyes: bright blue-green, wide and expressive, simple white highlight dots
+• Cheeks: warm coral-pink blush
+• Nose: tiny rounded suggestion
+• Brows: lively gentle arcs
+• Smile: open, joyful, and sincere — never mischievous or glamorous
+
+Hair reference:
+• Long flowing copper-red hair, fuller and more polished than Liora's windswept auburn
+• Large ribbon-like painted masses that drift underwater — no individual strands
+• Optional small pearl or shell clip, simple and readable
+
+Silhouette & posture:
+• Childlike mermaid silhouette with a bright green tail and modest sea-flower top
+• Flowing underwater posture, hands expressive, often leaning toward wonder
+• Keep proportions innocent, rounded, and age-appropriate
+
+Color palette (heroine):
+• Bright sea-green tail, aqua highlights, shell-pink and pearl accents
+• Copper-red hair + blue-green eyes + warm peach skin
+
+Wardrobe (3–4 looks):
+1. Ocean exploring: bright green mermaid tail, modest shell-pink sea-flower top, pearl bracelet
+2. Coral gardens: green tail with aqua fin edges, tiny shell clip, simple pearl necklace
+3. Prayer / obedience: hands folded near coral or pearls, softened expression
+4. Beach farewell: resting near the shore with a gift shell, sunset light on hair and tail
+
+Personality & gestures:
+• Cheerful, curious, affectionate, quick to want beautiful things, learning obedience and love
+• Signature poses: waving from a smooth rock; swimming beside Lilly through coral; gently releasing a seahorse; folding hands in prayer; offering a shell
+
+Expressions (preserve these five): bright welcome, wide wonder, disappointed self-control, prayerful listening, peaceful obedience.`,
   },
 };
 
