@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AppRouteFallback from "@/components/AppRouteFallback";
 import OfflineBanner from "@/components/OfflineBanner";
+import { PwaResumeManager } from "@/components/PwaResumeManager";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -117,6 +118,7 @@ const App = () => (
         <Sonner />
         <PwaUpdatePrompt />
         <BrowserRouter>
+          <PwaResumeManager />
           <AppOfflineBanner />
           <AuthProvider>
             <GlobalMediaPlayerProvider>
