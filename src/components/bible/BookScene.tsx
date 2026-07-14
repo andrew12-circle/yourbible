@@ -28,6 +28,8 @@ interface Props {
   pageClassName?: string;
   /** Cropped spread — nudge the open book right on interior pages (more right-page peek). */
   spreadNudgeRight?: boolean;
+  /** Fraction of the right page visible when the spread is cropped on mobile. */
+  rightPagePeek?: number;
 }
 
 const coverRadiusLeft = (hubInline: boolean) => (hubInline ? "0.5rem" : "0.75rem");
@@ -50,6 +52,7 @@ export function BookScene({
   coverClassName,
   pageClassName,
   spreadNudgeRight = false,
+  rightPagePeek = SPREAD_RIGHT_PEEK,
 }: Props) {
   const croppedSpread = singlePage;
   const stackWidths = spreadPageStackWidths(progress);
@@ -185,7 +188,7 @@ export function BookScene({
             )}
             style={{
               ...coverStyle,
-              width: spreadCropWidthCss(SPREAD_RIGHT_PEEK, hubInline, leftInset),
+              width: spreadCropWidthCss(rightPagePeek, hubInline, leftInset),
               marginLeft: leftInset,
               borderTopLeftRadius: leftRadius,
               borderBottomLeftRadius: leftRadius,
