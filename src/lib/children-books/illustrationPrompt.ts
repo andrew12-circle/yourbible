@@ -5,7 +5,11 @@ import {
   LILLY_NEGATIVE_PROMPT,
 } from "@/lib/children-books/lillyStyleGuide";
 
-export const STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT = buildLillySystemPrompt();
+export const STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT = buildLillySystemPrompt({
+  characterId: "lilly",
+  worldId: "european-kingdom",
+  heroName: LILLY_HERO_NAME,
+});
 
 export const STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT = LILLY_NEGATIVE_PROMPT;
 
@@ -23,16 +27,29 @@ export type PageIllustrationPromptInput = {
 };
 
 function systemPromptForBook(book: ChildrenBook): string {
-  return buildLillySystemPrompt(book.heroName?.trim() || LILLY_HERO_NAME);
+  return buildLillySystemPrompt({
+    characterId: book.characterId,
+    worldId: book.worldId,
+    heroName: book.heroName?.trim() || LILLY_HERO_NAME,
+  });
 }
 
-/** Align scene text with the book's heroine name when retelling classic stories. */
+/**
+ * Align classic retelling names in scene text with the book's heroine when needed.
+ * Prefer writing scenes with the heroine's real name; this is a safety net.
+ */
 export function localizeScenePrompt(book: ChildrenBook, scene: string): string {
   const name = book.heroName?.trim();
   if (!name) return scene;
-  return scene.replace(/\bCinderella\b/g, name);
+
+  let next = scene;
+  if (name === "Lilly") {
+    next = next.replace(/\bCinderella\b/g, name);
+  }
+  return next;
 }
 
+/** Layers 1–3 + Layer 4 scene. */
 export function buildPageIllustrationPrompt({
   book,
   page,
@@ -40,6 +57,9 @@ export function buildPageIllustrationPrompt({
 }: PageIllustrationPromptInput): string {
   return [
     systemPromptForBook(book),
+    "",
+    "LAYER 4 — SCENE TO ILLUSTRATE (this page only)",
+    "Describe only what is happening on this page. Do not redesign the heroine or change the studio style.",
     "",
     "BOOK CONTEXT",
     `Book: ${book.title}`,
@@ -49,7 +69,7 @@ export function buildPageIllustrationPrompt({
     `Emotional emphasis: ${page.scriptureThread}`,
     `Palette guidance: ${paletteGuidance[page.palette]}`,
     "",
-    "SCENE TO ILLUSTRATE",
+    "SCENE",
     localizeScenePrompt(book, page.picturePrompt),
     "",
     "NEGATIVE PROMPT",
@@ -60,6 +80,9 @@ export function buildPageIllustrationPrompt({
 export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
   return [
     systemPromptForBook(book),
+    "",
+    "LAYER 4 — SCENE TO ILLUSTRATE (cover only)",
+    "Describe only the cover moment. Keep studio style and character bible fixed.",
     "",
     "BOOK CONTEXT",
     `Book: ${book.title}`,
@@ -74,7 +97,7 @@ export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
     "No text, letters, logos, or watermarks in the artwork.",
     "Warm, inviting, classic hardcover storybook feel.",
     "",
-    "SCENE TO ILLUSTRATE",
+    "SCENE",
     localizeScenePrompt(book, book.coverPrompt),
     "",
     "NEGATIVE PROMPT",
@@ -86,6 +109,9 @@ export function buildCoverIllustrationPrompt(book: ChildrenBook): string {
 export function buildClosingIllustrationPrompt(book: ChildrenBook): string {
   return [
     systemPromptForBook(book),
+    "",
+    "LAYER 4 — SCENE TO ILLUSTRATE (closing only)",
+    "Describe only the ending moment. Keep studio style and character bible fixed.",
     "",
     "BOOK CONTEXT",
     `Book: ${book.title}`,
@@ -99,7 +125,7 @@ export function buildClosingIllustrationPrompt(book: ChildrenBook): string {
     "Simple eye-level composition, cozy and magical without flashiness.",
     "No text in the artwork.",
     "",
-    "SCENE TO ILLUSTRATE",
+    "SCENE",
     localizeScenePrompt(book, book.closingIllustrationPrompt),
     "",
     "NEGATIVE PROMPT",

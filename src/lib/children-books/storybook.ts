@@ -1,3 +1,6 @@
+import type { CharacterBibleId } from "@/lib/children-books/characterBibles";
+import type { WorldBibleId } from "@/lib/children-books/worldBibles";
+
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
 
 /**
@@ -49,8 +52,12 @@ export function resolvePageLayout(
 export type ChildrenBook = {
   slug: string;
   title: string;
-  /** Series heroine name for illustration prompts (defaults to Lilly). */
+  /** Display name in prompts (defaults to character bible name / Lilly). */
   heroName?: string;
+  /** Layer 3 — Character Bible id (unique casting). */
+  characterId?: CharacterBibleId;
+  /** Layer 2 — World Bible id (story setting). */
+  worldId?: WorldBibleId;
   sourceNote: string;
   ageRange: string;
   spiritualFocus: string;
@@ -79,6 +86,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     slug: "kingdom-invitation",
     title: "Lilly: A Story of Faith, Kindness, and God's Perfect Timing",
     heroName: "Lilly",
+    characterId: "lilly",
+    worldId: "european-kingdom",
     sourceNote: "Original faith retelling inspired by the public-domain Cinderella story",
     ageRange: "Ages 4-8",
     spiritualFocus: "Faith, kindness, humility, prayer, forgiveness, and God's timing",
@@ -382,6 +391,9 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
   {
     slug: "aurora-perfect-protection",
     title: "Aurora: God's Perfect Protection",
+    heroName: "Aurora",
+    characterId: "aurora",
+    worldId: "woodland-dawn",
     sourceNote: "Original faith retelling inspired by public-domain sleeping-princess fairy tales",
     ageRange: "Ages 4-8",
     spiritualFocus: "God's protection, prayer, courage, family, kindness, and trust over fear",
@@ -394,6 +406,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     generationSeed:
       "Use the Aurora faith retelling as a children's picture book about God's perfect protection, prayer, courage, kindness, family reunion, and the truth that we trust God instead of pretend magic.",
     useDefaultImagePaths: true,
+    useDefaultClosingImagePath: true,
     closingPrayer:
       "Dear Jesus, thank You for watching over me wherever I go. Help me pray first, trust Your promises, choose courage, and remember that Your protection is forever. Amen.",
     closingIllustrationPrompt:
@@ -664,6 +677,9 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
   {
     slug: "garden-of-grace",
     title: "The Garden of Grace",
+    heroName: "Mara",
+    characterId: "mara",
+    worldId: "rose-garden-palace",
     sourceNote: "Inspired by the public-domain Beauty and the Beast tradition",
     ageRange: "Ages 5-9",
     spiritualFocus: "Mercy, inner transformation, forgiveness, and spiritual sight",
@@ -675,6 +691,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     useDefaultCoverPath: true,
     generationSeed:
       "Create an original Beauty-and-the-Beast-inspired children's book where the enchanted garden teaches mercy, repentance, and God's power to restore a wounded heart.",
+    useDefaultImagePaths: true,
+    useDefaultClosingImagePath: true,
     closingPrayer:
       "Dear Jesus, soften my heart when I am afraid. Teach me to see others with mercy, speak truth with kindness, and forgive the way You forgive me. Amen.",
     closingIllustrationPrompt:
@@ -725,6 +743,9 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
   {
     slug: "living-water-princess",
     title: "The Living Water Princess",
+    heroName: "Liora",
+    characterId: "liora",
+    worldId: "coastal-kingdom",
     sourceNote: "Inspired by public-domain sea-princess fairy tales",
     ageRange: "Ages 4-8",
     spiritualFocus: "Longing, worship, living water, and choosing God's voice",
@@ -736,6 +757,8 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     useDefaultCoverPath: true,
     generationSeed:
       "Create an original sea-princess fairy tale for children where longing, song, and wonder point toward Jesus as Living Water instead of toward self-saving magic.",
+    useDefaultImagePaths: true,
+    useDefaultClosingImagePath: true,
     closingPrayer:
       "Dear Jesus, You are the living water my heart needs. Quiet the storms inside me, help me listen for Your voice, and fill me with Your peace. Amen.",
     closingIllustrationPrompt:
@@ -799,7 +822,7 @@ export function buildChildrenBookGenerationPrompt(book: ChildrenBook): string {
     `Spiritual focus: ${book.spiritualFocus}.`,
     "Write short page text for an illustrated children's book.",
     "For every page, include one scene description for illustration, one spiritual thread, and a parent note.",
-    "Wrap each page scene with the Lilly Storybook Art Bible and character model sheet.",
+    "Wrap each page scene with Lilly Storybooks studio style, this book's world bible, and this heroine's character bible.",
     "Use original wording and avoid copying protected modern adaptations.",
   ].join(" ");
 }

@@ -55,7 +55,8 @@ describe("children book storybook data", () => {
     expect(book).toBeDefined();
     expect(buildChildrenBookGenerationPrompt(book!)).toContain(book!.spiritualFocus);
     expect(buildChildrenBookGenerationPrompt(book!)).toContain("avoid copying protected modern adaptations");
-    expect(buildChildrenBookGenerationPrompt(book!)).toContain("Lilly Storybook Art Bible");
+    expect(buildChildrenBookGenerationPrompt(book!)).toContain("studio style");
+    expect(buildChildrenBookGenerationPrompt(book!)).toContain("character bible");
   });
 
   it("includes Aurora as a built-in illustrated book", () => {
@@ -79,12 +80,13 @@ describe("page illustration prompts", () => {
 
     expect(prompt).toContain(STORYBOOK_ILLUSTRATION_SYSTEM_PROMPT.slice(0, 40));
     expect(prompt).toContain(STORYBOOK_ILLUSTRATION_NEGATIVE_PROMPT);
-    expect(prompt).toContain("Lilly Storybook Art Bible");
-    expect(prompt).toContain("LILLY CHARACTER MODEL SHEET");
+    expect(prompt).toContain("LAYER 1 — LILLY STORYBOOKS STUDIO STYLE");
+    expect(prompt).toContain("LAYER 3 — CHARACTER BIBLE: LILLY");
+    expect(prompt).toContain("LAYER 4 — SCENE TO ILLUSTRATE");
     expect(prompt).toContain(page.picturePrompt.replace("Cinderella", "Lilly").slice(0, 20));
     expect(prompt).toContain(page.scriptureThread);
     expect(prompt).toContain("Page 1:");
-    expect(prompt).toContain("clean ink linework");
+    expect(prompt).toContain("Clean, expressive ink linework");
     expect(prompt).toContain("Avoid photorealism");
   });
 
