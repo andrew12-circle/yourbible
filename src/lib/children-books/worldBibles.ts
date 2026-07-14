@@ -8,7 +8,8 @@ export type WorldBibleId =
   | "european-kingdom"
   | "woodland-dawn"
   | "rose-garden-palace"
-  | "coastal-kingdom";
+  | "coastal-kingdom"
+  | "kitchen-coral-reef";
 
 export type WorldBible = {
   id: WorldBibleId;
@@ -68,6 +69,29 @@ Places: bright coral rooms under gentle rays, shorelines where ocean meets garde
 Nature: bubbles like musical notes, clear springs at the shore, soft sea plants, warm sky meeting water.
 Mood: longing song, listening through storms, living water and worship.
 Do not drift into inland European cottage kitchens, misty woodland-only settings, or locked rose thorn courts as the primary world.`,
+  },
+
+  "kitchen-coral-reef": {
+    id: "kitchen-coral-reef",
+    name: "Kitchen & Coral Reef",
+    sheet: `LAYER 2 — WORLD BIBLE: KITCHEN & CORAL REEF (this story only)
+
+Atmosphere: two linked worlds — a cozy morning kitchen full of pancakes and family love, then a bright tropical underwater reef full of wonder. The ocean feels alive and majestic but never dark or frightening.
+Palette accents: warm kitchen amber and cream sunlight; underwater turquoise, pink coral, lavender, soft gold sunbeams, pearl white, sea-green.
+Places: lived-in family kitchen with stove, table, sunny windows; glowing tropical reef; underwater palace with soft blue-and-gold light; calm shipwreck among coral; pearly seashell as the gentle transition token.
+Nature: schools of silver fish, sea turtles, soft seaweed, clear currents that can rush then settle, bubbles, diamond-shimmer surface light from above.
+Mood: patience, gentle voices, adventure with safety, friendship, rescue, grace after mistakes.
+Supporting cast continuity (original storybook designs — never copy any film frame or studio character sheet):
+• Ariel — young mermaid friend with long flowing red hair, sea-green tail, lavender shell-inspired top, bright blue-green eyes; energetic, affectionate, sometimes impatient
+• Mama — warm, gentle, beautiful mother (established Tish likeness): loving and firm at the stove
+• Daddy — calm, protective, playful father; kneels at Lilly's eye level
+• Winston — large Airedale terrier, tan face and legs, darker saddle, expressive eyebrows; comic relief
+• King Triton — powerful but gentle underwater king, silver-white beard, golden crown, royal blue and sea-gold details, trident as a royal symbol not a magic weapon
+• Sebastian — small bright-red crab with expressive eyes and dramatic humorous gestures
+• Flounder — small yellow-and-blue tropical fish with a round friendly face
+• Baby sea turtle — consistent shell markings through the rescue; mother turtle appears later
+Props continuity: identical pearly seashell (kitchen transition); identical antique golden compass with carved lid message
+Do not drift into misty woodland cottages, thorn-gate rose courts, or dark stormy seas as the primary look.`,
   },
 };
 
