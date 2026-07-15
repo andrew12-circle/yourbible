@@ -2170,15 +2170,15 @@
   --hub-edge: 0.75rem;
   --hub-card-gap: 0.75rem;
   --hub-card-height: calc(100% - var(--hub-safe-top) - var(--hub-edge));
+  /* Fabric weave is drawn once by the fixed ::before layer below. Keep only a
+     solid fallback here — no `background-attachment: fixed`, which glitches. */
   background-color: hsl(var(--muted) / 0.4);
-  background-image: url("/images/fabric-light-herringbone.png");
-  background-repeat: repeat;
-  background-size: 512px 512px;
-  background-position: top left;
-  background-attachment: fixed;
 }
 
-/* Cream body peeks below the hub when height math drifts — paint fabric on the root chain. */
+/* Cream body peeks below the hub when height math drifts — solid fallback only.
+   The single fixed fabric layer is painted by .hub-shell::before (see below); we
+   deliberately avoid `background-attachment: fixed` here to prevent Chromium's
+   fixed-background repaint glitch that leaves stale tan seams until a reflow. */
 html:has(.hub-shell),
 body:has(.hub-shell),
 #root:has(.hub-shell) {
@@ -2186,11 +2186,6 @@ body:has(.hub-shell),
   height: 100lvh;
   overflow: hidden;
   background-color: hsl(var(--muted) / 0.4);
-  background-image: url("/images/fabric-light-herringbone.png");
-  background-repeat: repeat;
-  background-size: 512px 512px;
-  background-position: top left;
-  background-attachment: fixed;
 }
 
 .group\/sidebar-wrapper.hub-shell {
@@ -2199,7 +2194,10 @@ body:has(.hub-shell),
   max-height: none !important;
 }
 
-/* Full-viewport fabric — fixed layer so the weave covers the left gutter and entire screen */
+/* Full-viewport fabric — the single source of the weave. A position:fixed layer
+   (NOT background-attachment: fixed) that covers the left gutter and entire screen.
+   Promoted onto its own compositor layer so Chromium always repaints it and never
+   flashes the tan fallback in the sidebar/content gutter. */
 .hub-shell::before {
   content: "";
   position: fixed;
@@ -2211,6 +2209,8 @@ body:has(.hub-shell),
   background-repeat: repeat;
   background-size: 512px 512px;
   background-position: top left;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -2234,14 +2234,11 @@ body:has(.hub-shell),
   left: calc((var(--sidebar-width) + var(--hub-edge)) * -1);
 }
 
-/* app-theme paints white on the fixed slot; show fabric in the gutter only */
+/* app-theme slot stays transparent so the fixed ::before weave shows in the gutter.
+   (Previously painted its own `background-attachment: fixed` fabric, which glitched.) */
 .hub-shell .peer[data-variant="floating"] > .fixed.app-theme {
-  background-color: hsl(var(--muted) / 0.4) !important;
-  background-image: url("/images/fabric-light-herringbone.png") !important;
-  background-repeat: repeat !important;
-  background-size: 512px 512px !important;
-  background-position: top left !important;
-  background-attachment: fixed !important;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 .hub-shell .peer[data-variant="floating"] > .fixed > [data-sidebar="sidebar"] {

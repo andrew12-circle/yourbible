@@ -46,25 +46,30 @@ function baseFingerprint(): GenerationFingerprintInput {
 }
 
 describe("reference-image resolution", () => {
-  it("sends the anchor first and a dedicated heroine sheet after it", () => {
+  it("sends the dedicated style anchor first, then each heroine identity sheet", () => {
     const refs = resolveSceneReferenceImages({
       heroId: "lilly",
       presentCharacterIds: ["lilly", "liora"],
     });
     expect(refs[0]!.role).toBe("studio-style");
     expect(refs[0]!.path).toBe(STUDIO_STYLE_ANCHOR.path);
-    // Lilly's identity is carried by the shared family/anchor plate…
-    expect(refs[0]!.path).toBe(LILLY_SHEET);
-    // …while Liora has her own dedicated sheet sent after the anchor.
+    // The dedicated style anchor is a pure-style plate, not a character sheet.
+    expect(refs[0]!.path).not.toBe(LILLY_SHEET);
+    // Lilly's identity sheet is sent after the anchor…
+    expect(refs.some((r) => r.characterId === "lilly" && r.path === LILLY_SHEET)).toBe(true);
+    // …and Liora has her own dedicated sheet.
     expect(refs.some((r) => r.characterId === "liora")).toBe(true);
   });
 
-  it("covers Lilly, Tish, Andrew and Winston via the shared anchor plate", () => {
+  it("sends the shared family model sheet once as the family identity reference", () => {
     expect(missingCharacterReferences(FAMILY)).toEqual([]);
     const refs = resolveSceneReferenceImages({ heroId: "lilly", presentCharacterIds: FAMILY });
-    expect(refs.some((r) => r.role === "studio-style")).toBe(true);
-    const covered = studioAnchorCoveredCharacterIds();
-    for (const id of FAMILY) expect(covered).toContain(id);
+    expect(refs[0]!.role).toBe("studio-style");
+    // All four family members share one approved plate → exactly one identity ref.
+    const familyRefs = refs.filter((r) => r.role === "character" && r.path === LILLY_SHEET);
+    expect(familyRefs.length).toBe(1);
+    // The dedicated anchor no longer doubles as a character identity plate.
+    expect(studioAnchorCoveredCharacterIds()).toEqual([]);
   });
 
   it("keeps at least one approved image for every registered character", () => {
@@ -144,10 +149,11 @@ describe("storybook generation requests use the reference-image workflow", () =>
 
   it("page generation attaches the anchor + heroine identity and version metadata", () => {
     const req = buildPageGenerationRequest(book, book.pages[0]!, 1);
-    expect(req.referenceImages.length).toBeGreaterThanOrEqual(1);
+    expect(req.referenceImages.length).toBeGreaterThanOrEqual(2);
     expect(req.referenceImages[0]!.role).toBe("studio-style");
-    // Heroine identity is carried by the shared anchor plate.
-    expect(req.referenceImages[0]!.path).toBe(LILLY_SHEET);
+    expect(req.referenceImages[0]!.path).toBe(STUDIO_STYLE_ANCHOR.path);
+    // Heroine identity is a separate approved sheet sent after the anchor.
+    expect(req.referenceImages.some((r) => r.path === LILLY_SHEET)).toBe(true);
     expect(req.versionMetadata.characterReferenceVersions.studio).toBe("v1");
     expect(req.versionMetadata.characterReferenceVersions.lilly).toBe("v1");
     expect(req.versionMetadata.studioStyleVersion).toBe("v3");
@@ -158,7 +164,8 @@ describe("storybook generation requests use the reference-image workflow", () =>
     const req = buildCoverGenerationRequest(book);
     expect(req.imageKind).toBe("cover");
     expect(req.referenceImages[0]!.role).toBe("studio-style");
-    expect(req.referenceImages[0]!.path).toBe(LILLY_SHEET);
+    expect(req.referenceImages[0]!.path).toBe(STUDIO_STYLE_ANCHOR.path);
+    expect(req.referenceImages.some((r) => r.path === LILLY_SHEET)).toBe(true);
     expect(req.versionMetadata.characterReferenceVersions.lilly).toBe("v1");
   });
 
@@ -166,7 +173,8 @@ describe("storybook generation requests use the reference-image workflow", () =>
     const req = buildClosingGenerationRequest(book);
     expect(req.imageKind).toBe("closing");
     expect(req.referenceImages[0]!.role).toBe("studio-style");
-    expect(req.referenceImages[0]!.path).toBe(LILLY_SHEET);
+    expect(req.referenceImages[0]!.path).toBe(STUDIO_STYLE_ANCHOR.path);
+    expect(req.referenceImages.some((r) => r.path === LILLY_SHEET)).toBe(true);
     expect(req.versionMetadata.characterReferenceVersions.lilly).toBe("v1");
   });
 

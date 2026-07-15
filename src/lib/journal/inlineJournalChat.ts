@@ -156,6 +156,22 @@ export type JournalReflectionEntrySnapshot = {
 export const JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE =
   "I'd like to talk about what I just wrote in this journal entry.";
 
+/**
+ * Builds the opening chat message from a saved journal entry so a reflection
+ * conversation starts with the full entry text (as if the user pasted it in),
+ * and the AI replies to it. Prefers the body, then the summary, then the title.
+ * Returns an empty string when the entry has no text yet (e.g. video-only).
+ */
+export function buildJournalReflectionSeedMessage(
+  snapshot: JournalReflectionEntrySnapshot | null | undefined,
+): string {
+  const body = snapshot?.body?.trim() ?? "";
+  if (body) return body;
+  const summary = snapshot?.summary?.trim() ?? "";
+  if (summary) return summary;
+  return snapshot?.title?.trim() ?? "";
+}
+
 export async function bootstrapJournalReflectionOpener(params: {
   chatId: string;
   entryId: string;

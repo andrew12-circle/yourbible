@@ -74,6 +74,15 @@ async function main() {
   for (const rel of paths) {
     const filePath = path.join(root, "public", rel);
     if (!existsSync(filePath)) {
+      // The dedicated studio anchor is optional until approved: generation falls
+      // back to the family model sheet, so a missing anchor is only a warning.
+      if (rel === STUDIO_STYLE_ANCHOR.path) {
+        console.warn(
+          `  (optional) studio anchor not approved yet: public/${rel} — ` +
+            `falls back to the family model sheet. Generate with --style-anchor.`,
+        );
+        continue;
+      }
       console.error(`  MISSING approved asset: public/${rel}`);
       failures += 1;
       continue;

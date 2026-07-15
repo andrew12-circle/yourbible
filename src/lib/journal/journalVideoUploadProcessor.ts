@@ -116,6 +116,13 @@ export async function uploadQueuedJournalVideo(
     throw new Error("Queued video data is missing");
   }
 
+  const snap = bodySnapFromMeta(meta.bodySnapBody, meta.bodySnapAnchor);
+  const liveCaptions = pickBestVideoJournalTranscript(meta.liveTranscript, meta.peakLiveTranscript);
+
+  // Commit the transcript before the (larger, failure-prone) video upload so a
+  // persistently failing upload can never strand the user's words.
+  await mergeTranscriptIntoEntry(meta.userId, meta.entryId, meta.anchorOffset, liveCaptions, snap);
+
   const saved = await saveJournalVideoCapture(
     meta.userId,
     meta.entryId,
@@ -133,7 +140,7 @@ export async function uploadQueuedJournalVideo(
     meta.entryId,
     meta.anchorOffset,
     saved.transcript,
-    bodySnapFromMeta(meta.bodySnapBody, meta.bodySnapAnchor),
+    snap,
   );
   return saved;
 }
@@ -204,6 +211,10 @@ export async function saveJournalVideoCaptureWithQueue(
     result.chapters,
   );
 
+  // Commit the live transcript to the entry body before uploading the video, so
+  // an upload failure (or a later crash) can never lose the words.
+  await mergeTranscriptIntoEntry(userId, entryId, anchorOffset, liveCaptions, bodySnap ?? null);
+
   try {
     const saved = await saveJournalVideoCapture(
       userId,
@@ -256,6 +267,25 @@ export async function recoverAndSaveJournalVideoRecording(
   video: Blob,
   audio: Blob | null,
 ): Promise<SaveJournalVideoCaptureResult> {
+  const snap = bodySnapFromMeta(meta.bodySnapBody, meta.bodySnapAnchor);
+  const liveCaptions = pickBestVideoJournalTranscript(meta.liveTranscript, meta.peakLiveTranscript);
+
+  // Secure the words in the entry body FIRST. A corrupt or missing video must
+  // never cost the user their transcript — the transcript is the journal entry.
+  await mergeTranscriptIntoEntry(meta.userId, meta.entryId, meta.anchorOffset, liveCaptions, snap);
+
+  // No usable video bytes: the transcript is already saved, so we're done.
+  if (!video || video.size === 0) {
+    return {
+      transcript: liveCaptions,
+      anchorOffset: meta.anchorOffset,
+      sttError: null,
+      liveTranscript: meta.liveTranscript,
+      peakLiveTranscript: liveCaptions,
+    };
+  }
+
+  // Upload the video + run server transcription, then merge the richer result.
   const saved = await saveJournalVideoCapture(
     meta.userId,
     meta.entryId,
@@ -272,7 +302,7 @@ export async function recoverAndSaveJournalVideoRecording(
     meta.entryId,
     meta.anchorOffset,
     saved.transcript,
-    bodySnapFromMeta(meta.bodySnapBody, meta.bodySnapAnchor),
+    snap,
   );
   return saved;
 }

@@ -11,6 +11,14 @@
 
 export const REFERENCE_BUCKET = "children-book-references";
 
+/**
+ * Transitional fallback for the dedicated studio-style anchor: until the approved
+ * `references/studio/.../style-anchor.png` is seeded, the shared family model
+ * sheet stands in as the studio anchor so generation keeps working.
+ */
+const STUDIO_ANCHOR_FALLBACK_PATH =
+  "children-books/character-bibles/reference-family-model-sheet.png";
+
 /** Only approved, registry-shaped relative paths may be fetched. */
 const ALLOWED_REFERENCE_PATH =
   /^children-books\/(?:character-bibles|references)\/[a-z0-9/_-]+\.(?:png|webp|jpe?g)$/i;
@@ -97,8 +105,23 @@ export async function resolveReferenceBytes(
       return { images: [], err: `Disallowed or invalid reference path: ${ref?.path ?? "(none)"}` };
     }
 
-    let bytes = await downloadFromBucket(admin, ref.path);
-    if (!bytes && base) bytes = await fetchBytes(`${base}/${ref.path}`);
+    // The studio anchor may fall back to the shared family sheet until a
+    // dedicated anchor is approved. Other references have no fallback.
+    const candidates =
+      ref.role === "studio-style" && ref.path !== STUDIO_ANCHOR_FALLBACK_PATH
+        ? [ref.path, STUDIO_ANCHOR_FALLBACK_PATH]
+        : [ref.path];
+
+    let bytes: Uint8Array | null = null;
+    let usedPath = ref.path;
+    for (const candidate of candidates) {
+      bytes = await downloadFromBucket(admin, candidate);
+      if (!bytes && base) bytes = await fetchBytes(`${base}/${candidate}`);
+      if (bytes) {
+        usedPath = candidate;
+        break;
+      }
+    }
     if (!bytes) {
       return {
         images: [],
@@ -109,10 +132,10 @@ export async function resolveReferenceBytes(
     images.push({
       role: ref.role ?? "character",
       characterId: ref.characterId,
-      path: ref.path,
+      path: usedPath,
       version: ref.version,
       bytes,
-      contentType: contentTypeFor(ref.path),
+      contentType: contentTypeFor(usedPath),
     });
   }
 

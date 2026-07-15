@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   bootstrapJournalReflectionOpener,
+  buildJournalReflectionSeedMessage,
   composeChatTranscript,
   ensureInlineJournalChatSession,
   ensureJournalReflectionChatSession,
   loadInlineChatTurns,
-  JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE,
   type InlineChatTurn,
   type JournalReflectionEntrySnapshot,
 } from "@/lib/journal/inlineJournalChat";
@@ -124,10 +124,27 @@ export function useInlineJournalChat({
     if (!reflectionMode || !userId || !entryId) return false;
     setAiBusy(true);
     const assistantTempId = `tmp-asst-${Date.now()}`;
+    const userTempId = `tmp-user-${Date.now()}`;
     setStreamingAssistantId(assistantTempId);
-    setChatTurns([{ id: assistantTempId, role: "assistant", content: "" }]);
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+
+    const snapshot = reflectionEntrySnapshot;
+    const hasSnapshot = Boolean(
+      snapshot?.title?.trim() || snapshot?.summary?.trim() || snapshot?.body?.trim(),
+    );
+    // Open the conversation with the journal entry itself as the first user
+    // message so the chat visibly flows from what they just wrote.
+    const seedMessage = buildJournalReflectionSeedMessage(snapshot);
+
+    setChatTurns(
+      seedMessage
+        ? [
+            { id: userTempId, role: "user", content: seedMessage },
+            { id: assistantTempId, role: "assistant", content: "" },
+          ]
+        : [{ id: assistantTempId, role: "assistant", content: "" }],
+    );
 
     try {
       const ensured = await ensureSession();
@@ -143,38 +160,14 @@ export function useInlineJournalChat({
         return true;
       }
 
-      try {
-        await bootstrapJournalReflectionOpener({
-          chatId: ensured.chatId,
-          entryId: ensured.entryId,
-          entrySnapshot: reflectionEntrySnapshot ?? undefined,
-          includeGeneralKnowledge,
-          responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
-        });
-      } catch (bootstrapErr) {
-        const description =
-          bootstrapErr instanceof Error ? bootstrapErr.message : String(bootstrapErr);
-        // Older deployed my-ai-chat builds reject empty-message bootstrap; retry as a normal
-        // reflection turn with the auto-open prompt + journal snapshot.
-        if (!/message is required/i.test(description)) throw bootstrapErr;
-
-        const seed = JOURNAL_REFLECTION_AUTO_OPEN_MESSAGE;
-        const userTempId = `tmp-user-${Date.now()}`;
-        setChatTurns([
-          { id: userTempId, role: "user", content: seed },
-          { id: assistantTempId, role: "assistant", content: "" },
-        ]);
-
-        const snapshot = reflectionEntrySnapshot;
-        const hasSnapshot = Boolean(
-          snapshot?.title?.trim() || snapshot?.summary?.trim() || snapshot?.body?.trim(),
-        );
-
+      if (seedMessage) {
+        // Sending the entry text as a real message persists it as the opening
+        // user turn (the edge function saves it and replies to it).
         await streamMyAiChat({
           signal: abortRef.current.signal,
           body: {
             chat_id: ensured.chatId,
-            message: seed,
+            message: seedMessage,
             mode: "journal",
             journal_entry_id: ensured.entryId,
             journal_reflection: true,
@@ -188,6 +181,15 @@ export function useInlineJournalChat({
             );
           },
         });
+      } else {
+        // No entry text yet (e.g. a video-only entry) — fall back to a warm opener.
+        await bootstrapJournalReflectionOpener({
+          chatId: ensured.chatId,
+          entryId: ensured.entryId,
+          entrySnapshot: hasSnapshot ? snapshot ?? undefined : undefined,
+          includeGeneralKnowledge,
+          responseDepth: readResponseDepthSetting(JOURNAL_RESPONSE_DEPTH_STORAGE_KEY),
+        });
       }
 
       const loaded = await loadInlineChatTurns(ensured.chatId);
@@ -195,6 +197,7 @@ export function useInlineJournalChat({
       scrollToBottom();
       return true;
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return false;
       const description = e instanceof Error ? e.message : String(e);
       toast({ title: "Couldn't start My AI", description, variant: "destructive" });
       setChatTurns([]);

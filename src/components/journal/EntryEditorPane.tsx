@@ -29,7 +29,6 @@ import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
 import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
-import JournalReflectionContextCard from "@/components/journal/JournalReflectionContextCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -1315,26 +1314,15 @@ export default function EntryEditorPane({
           )}
 
           {inlineChatMode ? (
-            <>
-              {reflectionMode ? (
-                <JournalReflectionContextCard
-                  title={entry.title}
-                  summary={entry.summary}
-                  body={entry.body}
-                  hasVideo={videos.length > 0}
-                  className="mb-4"
-                />
-              ) : null}
-              <InlineJournalChatTranscript
-                scrollRef={chatScrollRef}
-                bottomRef={chatBottomRef}
-                turns={chatTurns}
-                aiBusy={aiBusy}
-                streamingAssistantId={streamingAssistantId}
-                dictInterim={dictInterim}
-                className="-mx-2 px-2"
-              />
-            </>
+            <InlineJournalChatTranscript
+              scrollRef={chatScrollRef}
+              bottomRef={chatBottomRef}
+              turns={chatTurns}
+              aiBusy={aiBusy}
+              streamingAssistantId={streamingAssistantId}
+              dictInterim={dictInterim}
+              className="-mx-2 px-2"
+            />
           ) : showSavedChatView ? (
             editingChatSummary ? (
               <>

@@ -36,6 +36,11 @@ import {
   type StorybookGenerationRequest,
 } from "../src/lib/children-books/generationRequest.ts";
 import { generationFingerprint } from "../src/lib/children-books/generationFingerprint.ts";
+import { STUDIO_STYLE_ANCHOR } from "../src/lib/children-books/characterReferenceAssets.ts";
+import {
+  ACTIVE_STUDIO_STYLE_VERSION,
+  getStudioStyle,
+} from "../src/lib/children-books/studioStyles.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -54,10 +59,25 @@ async function readReferenceBytes(
 ): Promise<LoadedReference[]> {
   const out: LoadedReference[] = [];
   for (const ref of refs) {
-    const filePath = path.join(root, "public", ref.path);
-    if (!existsSync(filePath)) throw new Error(`Missing approved reference asset: public/${ref.path}`);
-    const bytes = new Uint8Array(await readFile(filePath));
-    out.push({ bytes, contentType: contentTypeForAsset(ref.path), name: path.basename(ref.path) });
+    // The studio anchor falls back to the shared family sheet until a dedicated
+    // anchor is approved; every other reference must exist as approved.
+    const candidates =
+      ref.role === "studio-style" && ref.path !== STUDIO_STYLE_ANCHOR.fallbackPath
+        ? [ref.path, STUDIO_STYLE_ANCHOR.fallbackPath]
+        : [ref.path];
+    const resolvedRel = candidates.find((rel) => existsSync(path.join(root, "public", rel)));
+    if (!resolvedRel) {
+      throw new Error(`Missing approved reference asset: public/${ref.path}`);
+    }
+    if (resolvedRel !== ref.path) {
+      console.log(`    (studio anchor not approved yet — falling back to ${resolvedRel})`);
+    }
+    const bytes = new Uint8Array(await readFile(path.join(root, "public", resolvedRel)));
+    out.push({
+      bytes,
+      contentType: contentTypeForAsset(resolvedRel),
+      name: path.basename(resolvedRel),
+    });
   }
   return out;
 }
@@ -90,6 +110,55 @@ async function generateImageBytesWithRefs(
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
+/** gpt-image output-stage moderation and 429/5xx/network errors are transient. */
+function isRetryableImageError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("moderation_blocked") ||
+    m.includes("safety system") ||
+    m.includes("no image data") ||
+    m.includes("empty image") ||
+    m.includes("openai 429") ||
+    /openai 5\d\d/.test(m) ||
+    m.includes("timeout") ||
+    m.includes("network") ||
+    m.includes("fetch failed") ||
+    m.includes("econnreset")
+  );
+}
+
+/**
+ * Retry a single image generation on transient failures (chiefly gpt-image's
+ * probabilistic output-stage moderation "other" false positives on illustrated
+ * children/mermaid scenes). Each retry re-runs the same request; because output
+ * moderation is stochastic, a re-roll usually passes.
+ */
+async function withImageRetry(
+  label: string,
+  attempt: () => Promise<Uint8Array>,
+  maxAttempts = 5,
+): Promise<Uint8Array> {
+  let lastErr: unknown;
+  for (let i = 1; i <= maxAttempts; i += 1) {
+    try {
+      return await attempt();
+    } catch (err) {
+      lastErr = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (i < maxAttempts && isRetryableImageError(message)) {
+        const backoff = 2000 * i;
+        console.log(
+          `  [${label}] attempt ${i}/${maxAttempts} failed (${message.slice(0, 140)}); retrying in ${backoff}ms…`,
+        );
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+
 /** Generate + save one image from a fully-assembled request (with references). */
 async function saveFromRequest(
   label: string,
@@ -115,9 +184,11 @@ async function saveFromRequest(
   );
   try {
     const refImages = await readReferenceBytes(request.referenceImages);
-    const bytes = refImages.length
-      ? await generateImageBytesWithRefs(request.prompt, refImages, apiKey, model, size, quality)
-      : await generateImageBytes(request.prompt, apiKey, model, size, quality);
+    const bytes = await withImageRetry(label, () =>
+      refImages.length
+        ? generateImageBytesWithRefs(request.prompt, refImages, apiKey, model, size, quality)
+        : generateImageBytes(request.prompt, apiKey, model, size, quality),
+    );
 
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, bytes);
@@ -194,10 +265,11 @@ function parseArgs(argv: string[]) {
 
   const characterSheets = flags.has("--character-sheets");
   const modelSheets = flags.has("--model-sheets");
+  const styleAnchor = flags.has("--style-anchor");
   const allBooks = flags.has("--all-books");
   const acceptance = flags.has("--acceptance");
   const slug =
-    allBooks || characterSheets || modelSheets || acceptance
+    allBooks || characterSheets || modelSheets || styleAnchor || acceptance
       ? undefined
       : (positionals[0] ?? "kingdom-invitation");
 
@@ -222,7 +294,7 @@ function parseArgs(argv: string[]) {
     cover = true;
     end = true;
   }
-  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, allBooks, acceptance, onlySheets, styleVersion };
+  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, styleAnchor, allBooks, acceptance, onlySheets, styleVersion };
 }
 
 type ImageSize = "1024x1536" | "1536x1024" | "1024x1024";
@@ -276,7 +348,9 @@ async function saveImage(
 
   console.log(`  [${label}] generating…`);
   try {
-    const bytes = await generateImageBytes(prompt, apiKey, model, size, quality);
+    const bytes = await withImageRetry(label, () =>
+      generateImageBytes(prompt, apiKey, model, size, quality),
+    );
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, bytes);
     console.log(`  [${label}] saved ${path.relative(root, filePath)} (${bytes.length} bytes)`);
@@ -325,6 +399,55 @@ async function generateCharacterSheets(
   }
 
   return failures;
+}
+
+/**
+ * Generate the dedicated studio-style anchor — a PURE-STYLE exemplar that
+ * demonstrates studioStyle_v3 (bright, airy, clean 2D-animation linework) with a
+ * generic, non-specific figure. It is sent first on every page so the whole
+ * library keeps one consistent look. Approve this once, then regenerate books.
+ */
+async function generateStyleAnchor(
+  apiKey: string,
+  model: string,
+  quality: string,
+  force: boolean,
+  styleVersion?: string,
+): Promise<number> {
+  const style = getStudioStyle(styleVersion ?? ACTIVE_STUDIO_STYLE_VERSION);
+  const prompt = [
+    style.masterPrompt,
+    "",
+    "PURPOSE: This image is the permanent STUDIO STYLE ANCHOR — a single representative sample that defines the illustration language for the whole library. It is a style reference only.",
+    "",
+    style.studioStyle,
+    "",
+    "SCENE (generic style demonstration — do NOT depict any specific named character)",
+    "One gentle, generic storybook child and a small friendly dog standing in a bright meadow under a clear pale-blue sky, a soft simplified tree line behind them. Calm, joyful, everyday moment. This is a neutral exemplar of the studio look, not a story page.",
+    "",
+    "COMPOSITION",
+    "Single clear subject, eye-level, strong readable silhouette, generous pale open space. No text, labels, turnaround views, or palette strip.",
+    "",
+    "PALETTE",
+    "Bright, clean, high-key palette — porcelain white, pale sky blue, sea-glass green, blush accents. Truly white whites, cool-neutral shadows. No amber, orange, sepia, or golden wash.",
+    "",
+    "EXCLUSIONS / NEGATIVE PROMPT",
+    style.negativePrompt,
+  ].join("\n");
+
+  const filePath = path.join(root, "public", STUDIO_STYLE_ANCHOR.path);
+  console.log(`Studio style anchor (${style.version}) → public/${STUDIO_STYLE_ANCHOR.path}`);
+  const ok = await saveImage(
+    "studio-anchor",
+    filePath,
+    prompt,
+    apiKey,
+    model,
+    force,
+    "1024x1536",
+    quality,
+  );
+  return ok ? 0 : 1;
 }
 
 async function generateModelSheets(
@@ -574,6 +697,12 @@ async function main() {
   const delayMs = Number(env.OPENAI_IMAGE_DELAY_MS ?? 1500);
 
   let failures = 0;
+
+  if (args.styleAnchor) {
+    failures += await generateStyleAnchor(apiKey, model, quality, args.force, args.styleVersion);
+    console.log(failures ? `Done with ${failures} failure(s).` : "Done.");
+    process.exit(failures > 0 ? 1 : 0);
+  }
 
   if (args.acceptance) {
     failures += await generateAcceptanceTests(apiKey, model, quality, args.force, delayMs);

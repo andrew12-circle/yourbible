@@ -144,8 +144,29 @@ function referenceInstructionsBlock(
       }
       return;
     }
-    const asset = ref.characterId ? getCharacterReferenceAsset(ref.characterId) : undefined;
-    const name = asset?.displayName ?? ref.characterId ?? "character";
+    // A shared plate (the family model sheet) can carry several present
+    // characters. Name every present character whose identity lives on this
+    // exact image so none of them is silently hidden under one name.
+    const sharedIds = present.filter(
+      (id) => getCharacterReferenceAsset(id)?.referenceImagePaths[0] === ref.path,
+    );
+    const ids = sharedIds.length > 0 ? sharedIds : ref.characterId ? [ref.characterId] : [];
+    if (ids.length > 1) {
+      const names = ids.map((id) => getCharacterReferenceAsset(id)?.displayName ?? id).join(", ");
+      const rules = ids
+        .map((id) => {
+          const a = getCharacterReferenceAsset(id);
+          return `${a?.displayName ?? id}: ${a?.requiredIdentityRules ?? ""}`;
+        })
+        .join(" ");
+      lines.push(
+        `Image ${n} — ${names.toUpperCase()} IDENTITY (${ref.version}): this approved plate shows them together; keep each one on-model. ${rules}`,
+      );
+      return;
+    }
+    const soleId = ids[0];
+    const asset = soleId ? getCharacterReferenceAsset(soleId) : undefined;
+    const name = asset?.displayName ?? soleId ?? "character";
     const rules = asset?.requiredIdentityRules ?? "";
     lines.push(`Image ${n} — ${name.toUpperCase()} IDENTITY (${ref.version}): ${rules}`);
   });

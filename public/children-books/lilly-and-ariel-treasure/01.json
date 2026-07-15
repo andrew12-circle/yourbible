@@ -1,0 +1,25 @@
+{
+  "studioStyleVersion": "v3",
+  "worldBibleVersion": "v2",
+  "promptVersion": "v3",
+  "sanitizerVersion": "v1",
+  "characterReferenceVersions": {
+    "studio": "v1",
+    "lilly": "v1"
+  },
+  "bookSlug": "lilly-and-ariel-treasure",
+  "imageKind": "page",
+  "pageNumber": 1,
+  "promptHash": "09a75ac642e73360",
+  "model": "gpt-image-2",
+  "quality": "high",
+  "size": "1024x1536",
+  "referencePaths": [
+    "children-books/references/studio/v1/style-anchor.png",
+    "children-books/character-bibles/reference-family-model-sheet.png"
+  ],
+  "presentCharacterIds": [
+    "lilly"
+  ],
+  "generatedAt": "2026-07-14T22:28:47.307Z"
+}

@@ -47,14 +47,25 @@ export type ResolvedReferenceImage = {
 };
 
 /**
- * The permanent studio-style anchor. The approved family model sheet doubles as
- * the studio anchor: it embodies the bright, airy, clean-linework studio look and
- * carries the shared color palette strip. It is always sent first.
+ * The permanent studio-style anchor — a dedicated, approved PURE-STYLE exemplar
+ * that carries the bright, airy, clean-linework studio look (no specific named
+ * character). It is sent FIRST on every generation so the whole library keeps one
+ * consistent style. Generate/approve it once with:
+ *   npx tsx scripts/generate-children-book-illustrations.ts --style-anchor --force
+ *
+ * Until the dedicated anchor is approved, generation falls back to the shared
+ * family model sheet (`fallbackPath`) so nothing breaks in the meantime.
  */
 export const STUDIO_STYLE_ANCHOR = {
   version: "v1",
-  path: "children-books/character-bibles/reference-family-model-sheet.png",
+  path: "children-books/references/studio/v1/style-anchor.png",
+  fallbackPath: "children-books/character-bibles/reference-family-model-sheet.png",
 } as const;
+
+/** Ordered candidate paths for the studio anchor bytes (dedicated → fallback). */
+export function studioAnchorCandidatePaths(): string[] {
+  return [STUDIO_STYLE_ANCHOR.path, STUDIO_STYLE_ANCHOR.fallbackPath];
+}
 
 /**
  * The approved family model sheet contains Lilly (age 5), Tish, Andrew, and
@@ -217,10 +228,11 @@ export function missingCharacterReferences(
 }
 
 /**
- * Character ids whose approved identity image IS the studio anchor image (the
- * shared family model sheet). Their identity is carried by the anchor plate, so
- * the anchor must be treated as an identity reference for them — not as a
- * "style-only, do not copy the characters" image.
+ * Character ids whose approved identity image IS the studio anchor image. With a
+ * dedicated pure-style anchor this is empty (every character is sent as its own
+ * identity reference). It only returns ids if the anchor is pointed back at a
+ * character's plate (e.g. the family sheet), in which case the anchor must be
+ * treated as an identity reference for them rather than a style-only image.
  */
 export function studioAnchorCoveredCharacterIds(): StorybookCharacterId[] {
   return STORYBOOK_CHARACTER_IDS.filter(
