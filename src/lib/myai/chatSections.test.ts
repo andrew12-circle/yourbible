@@ -46,7 +46,7 @@ describe("buildChatSidebarSections", () => {
       chat({ id: "b", title: "Hard question — Evil", updated_at: "2026-06-12T09:00:00.000Z" }),
       chat({ id: "c", title: "General chat", updated_at: "2026-06-11T09:00:00.000Z" }),
     ];
-    const projects = [{ id: "p1", name: "Faith", sort_order: 0 }];
+    const projects = [{ id: "p1", name: "Faith", memory: "", sort_order: 0 }];
     const now = new Date("2026-06-12T15:00:00.000Z");
 
     const sections = buildChatSidebarSections(chats, projects, { now });
@@ -60,7 +60,7 @@ describe("buildChatSidebarSections", () => {
     const chats: MyAiChatListItem[] = [
       chat({ id: "a", title: "General chat", updated_at: "2026-06-12T10:00:00.000Z" }),
     ];
-    const projects = [{ id: "p1", name: "Faith", sort_order: 0 }];
+    const projects = [{ id: "p1", name: "Faith", memory: "", sort_order: 0 }];
     const sections = buildChatSidebarSections(chats, projects, { now: new Date("2026-06-12T15:00:00.000Z") });
     expect(sections.find((s) => s.kind === "project")?.label).toBe("Faith");
     expect(sections.find((s) => s.kind === "project")?.chats).toEqual([]);

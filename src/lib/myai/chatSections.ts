@@ -11,6 +11,7 @@ export type MyAiChatListItem = {
 export type MyAiProjectRow = {
   id: string;
   name: string;
+  memory: string;
   sort_order: number;
 };
 

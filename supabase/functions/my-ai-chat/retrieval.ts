@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { getEmbedding } from "../_shared/aiProvider.ts";
 import { youtubeWatchUrlFromArtifact } from "./enrichCitations.ts";
+import { formatProjectMemoryContext } from "./projectMemory.ts";
 
 const MAX_CONTEXT_CHARS = 28_000;
 const BODY_PREVIEW = 700;
@@ -390,6 +391,7 @@ export async function buildFrameworkRetrievalContext(
     coreBeliefsRes,
     beliefLinksRes,
     frameworkClaimsRes,
+    chatMetaRes,
   ] = await Promise.all([
     supabase.from("profiles").select("identity_summary").eq("user_id", userId).maybeSingle(),
     supabase.from("my_ai_messages").select("role, content, created_at").eq("user_id", userId).eq("chat_id", chatId).order("created_at", { ascending: false }).limit(12),
@@ -420,7 +422,24 @@ export async function buildFrameworkRetrievalContext(
       .not("matched_belief_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(frameworkLimits.frameworkClaims),
+    supabase
+      .from("my_ai_chats")
+      .select("project_id")
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
+
+  const projectId = typeof chatMetaRes.data?.project_id === "string" ? chatMetaRes.data.project_id : null;
+  const projectMemoryBlock = projectId
+    ? await supabase
+        .from("my_ai_projects")
+        .select("name,memory")
+        .eq("id", projectId)
+        .eq("user_id", userId)
+        .maybeSingle()
+        .then(({ data }) => formatProjectMemoryContext(data as { name?: string | null; memory?: string | null } | null))
+    : null;
 
   const { data: cogState } = await supabase
     .from("user_cognitive_state")
@@ -798,6 +817,7 @@ export async function buildFrameworkRetrievalContext(
           return lines.length ? lines.join("\n") : "(empty)";
         })()
       : "(not generated yet — speak from raw context below)"),
+    ...(projectMemoryBlock ? [projectMemoryBlock] : []),
     "## Identity summary (profiles.identity_summary)\n" + identityJson,
     ...(pinnedBlock?.trim() ? [pinnedBlock.trim()] : []),
     "## Your framework — beliefs you marked (PRIMARY — anchor every answer here first; core beliefs always included)\n" + (beliefLines.length ? beliefLines.join("\n") : "(none recorded yet)"),
