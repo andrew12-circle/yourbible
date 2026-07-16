@@ -9,8 +9,8 @@
   },
   "bookSlug": "lilly-anna-elsa-treasure",
   "imageKind": "page",
-  "pageNumber": 1,
-  "promptHash": "07aad36d1b30933b",
+  "pageNumber": 24,
+  "promptHash": "ff8d0cd3391cfea9",
   "model": "gpt-image-1",
   "quality": "high",
   "size": "1024x1536",
@@ -21,5 +21,5 @@
   "presentCharacterIds": [
     "lilly"
   ],
-  "generatedAt": "2026-07-15T22:04:58.707Z"
+  "generatedAt": "2026-07-15T22:54:02.805Z"
 }

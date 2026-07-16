@@ -90,11 +90,16 @@ async function generateImageBytesWithRefs(
   size: ImageSize,
   quality: string,
 ): Promise<Uint8Array> {
+  if (isGeminiModel(model)) return generateImageBytesGemini(prompt, refImages, apiKey, model, size);
   const form = new FormData();
   form.append("model", model);
   form.append("prompt", prompt);
   form.append("size", size);
   form.append("quality", quality);
+  // These are wholesome faith-based children's illustrations; the default image
+  // output moderation produces frequent "other" false positives on multi-child
+  // storybook scenes. Relax it so on-model art is not spuriously blocked.
+  form.append("moderation", "low");
   for (const img of refImages) {
     form.append("image[]", new Blob([img.bytes], { type: img.contentType }), img.name);
   }
@@ -110,7 +115,84 @@ async function generateImageBytesWithRefs(
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
-/** gpt-image output-stage moderation and 429/5xx/network errors are transient. */
+/** True when the chosen image model is a Google Gemini image model. */
+function isGeminiModel(model: string): boolean {
+  return model.toLowerCase().startsWith("gemini");
+}
+
+/** Map our fixed pixel sizes to the aspect ratios Gemini image models accept. */
+function sizeToAspectRatio(size: ImageSize): string {
+  if (size === "1536x1024") return "3:2";
+  if (size === "1024x1024") return "1:1";
+  return "2:3"; // 1024x1536 portrait storybook page
+}
+
+type GeminiImagePart = {
+  inlineData?: { mimeType?: string; data?: string };
+  text?: string;
+};
+
+/**
+ * Generate one image with a Google Gemini image model (e.g. gemini-2.5-flash-image
+ * aka "Nano Banana"). Reference images are passed as inline data so the model keeps
+ * the studio style + character identity, mirroring the OpenAI images/edits flow.
+ * Used as a fallback provider when OpenAI is unavailable (billing/quota) — pass
+ * `--model gemini-2.5-flash-image`.
+ */
+async function generateImageBytesGemini(
+  prompt: string,
+  refImages: LoadedReference[],
+  apiKey: string,
+  model: string,
+  size: ImageSize,
+): Promise<Uint8Array> {
+  const parts: GeminiImagePart[] = [{ text: prompt }];
+  for (const img of refImages) {
+    parts.push({
+      inlineData: {
+        mimeType: img.contentType,
+        data: Buffer.from(img.bytes).toString("base64"),
+      },
+    });
+  }
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          responseModalities: ["IMAGE"],
+          imageConfig: { aspectRatio: sizeToAspectRatio(size) },
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 500)}`);
+
+  const data = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: GeminiImagePart[] }; finishReason?: string }>;
+    promptFeedback?: { blockReason?: string };
+  };
+  const outParts = data.candidates?.[0]?.content?.parts ?? [];
+  for (const part of outParts) {
+    const b64 = part.inlineData?.data;
+    if (b64) {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      if (bytes.length > 512) return bytes;
+    }
+  }
+  const finish = data.candidates?.[0]?.finishReason;
+  const block = data.promptFeedback?.blockReason;
+  throw new Error(
+    `Gemini returned no image data${finish ? ` (finishReason=${finish})` : ""}${block ? ` (blockReason=${block})` : ""}`,
+  );
+}
+
+/** gpt-image / Gemini output-stage moderation and 429/5xx/network errors are transient. */
 function isRetryableImageError(message: string): boolean {
   const m = message.toLowerCase();
   return (
@@ -120,6 +202,13 @@ function isRetryableImageError(message: string): boolean {
     m.includes("empty image") ||
     m.includes("openai 429") ||
     /openai 5\d\d/.test(m) ||
+    m.includes("gemini 429") ||
+    /gemini 5\d\d/.test(m) ||
+    m.includes("resource_exhausted") ||
+    m.includes("unavailable") ||
+    m.includes("overloaded") ||
+    m.includes("finishreason=image_safety") ||
+    m.includes("finishreason=prohibited_content") ||
     m.includes("timeout") ||
     m.includes("network") ||
     m.includes("fetch failed") ||
@@ -281,6 +370,8 @@ function parseArgs(argv: string[]) {
   let all = flags.has("--all");
   let onlySheets: string[] = [];
   let styleVersion: string | undefined;
+  let model: string | undefined;
+  let pages: number[] | undefined;
 
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--from" && argv[i + 1]) from = Number(argv[++i]);
@@ -289,12 +380,21 @@ function parseArgs(argv: string[]) {
       onlySheets = argv[++i]!.split(",").map((s) => s.trim()).filter(Boolean);
     }
     if (argv[i] === "--style-version" && argv[i + 1]) styleVersion = argv[++i];
+    if (argv[i] === "--model" && argv[i + 1]) model = argv[++i];
+    // Explicit non-contiguous page list, e.g. --pages 2,4,5,19,25 — regenerate
+    // only these pages and leave every other already-good page untouched.
+    if (argv[i] === "--pages" && argv[i + 1]) {
+      pages = argv[++i]!
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
   }
   if (all) {
     cover = true;
     end = true;
   }
-  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, styleAnchor, allBooks, acceptance, onlySheets, styleVersion };
+  return { slug, from, to, force, cover, end, all, characterSheets, modelSheets, styleAnchor, allBooks, acceptance, onlySheets, styleVersion, model, pages };
 }
 
 type ImageSize = "1024x1536" | "1536x1024" | "1024x1024";
@@ -306,6 +406,7 @@ async function generateImageBytes(
   size: ImageSize,
   quality: string,
 ): Promise<Uint8Array> {
+  if (isGeminiModel(model)) return generateImageBytesGemini(prompt, [], apiKey, model, size);
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -317,6 +418,7 @@ async function generateImageBytes(
       prompt,
       size,
       quality,
+      moderation: "low",
     }),
   });
 
@@ -491,7 +593,7 @@ async function generateModelSheets(
 
 async function generateBook(
   slug: string,
-  opts: { from: number; to: number; force: boolean; cover: boolean; end: boolean; all: boolean; styleVersion?: string },
+  opts: { from: number; to: number; force: boolean; cover: boolean; end: boolean; all: boolean; styleVersion?: string; pages?: number[] },
   apiKey: string,
   model: string,
   quality: string,
@@ -528,15 +630,29 @@ async function generateBook(
     await new Promise((r) => setTimeout(r, delayMs));
   }
 
+  const explicitPages =
+    opts.pages && opts.pages.length > 0
+      ? [...new Set(opts.pages)].filter((n) => n >= 1 && n <= book.pages.length).sort((a, b) => a - b)
+      : null;
+
   const lastPage = Math.min(book.pages.length, Number.isFinite(opts.to) ? opts.to : book.pages.length);
   const firstPage = Math.max(1, opts.from);
-  const runPages = opts.all || !opts.cover || opts.from <= book.pages.length;
 
-  if (runPages && (opts.all || !opts.cover || firstPage <= lastPage)) {
-    console.log(`Pages ${firstPage}-${lastPage} — ${book.title}`);
+  const pageNumbers: number[] = explicitPages
+    ? explicitPages
+    : opts.all || !opts.cover || firstPage <= lastPage
+      ? Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, i) => firstPage + i)
+      : [];
+
+  if (pageNumbers.length > 0) {
+    console.log(
+      explicitPages
+        ? `Pages ${explicitPages.join(", ")} — ${book.title}`
+        : `Pages ${firstPage}-${lastPage} — ${book.title}`,
+    );
     console.log(`→ public/children-books/${book.slug}/`);
 
-    for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber += 1) {
+    for (const pageNumber of pageNumbers) {
       const page = book.pages[pageNumber - 1];
       if (!page) continue;
 
@@ -689,10 +805,16 @@ async function generateAcceptanceTests(
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const env = await loadEnvAsync();
-  const apiKey = env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENAI_API_KEY missing in .env");
 
-  const model = env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
+  const model = args.model?.trim() || env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
+  const apiKey = isGeminiModel(model) ? env.GEMINI_API_KEY?.trim() : env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      isGeminiModel(model) ? "GEMINI_API_KEY missing in .env" : "OPENAI_API_KEY missing in .env",
+    );
+  }
+  console.log(`Image provider: ${isGeminiModel(model) ? "gemini" : "openai"} (${model})`);
+
   const quality = env.OPENAI_IMAGE_QUALITY?.trim() || "high";
   const delayMs = Number(env.OPENAI_IMAGE_DELAY_MS ?? 1500);
 
@@ -763,6 +885,7 @@ async function main() {
         end: args.end || args.allBooks,
         all: args.all || args.allBooks,
         styleVersion: args.styleVersion,
+        pages: args.pages,
       },
       apiKey,
       model,
