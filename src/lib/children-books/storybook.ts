@@ -4,6 +4,7 @@ import type { FamilyCharacterId } from "@/lib/children-books/familyCast";
 import type { StudioStyleVersion } from "@/lib/children-books/studioStyles";
 import type { WorldBibleId } from "@/lib/children-books/worldBibles";
 import { LILLY_AND_ARIEL_TREASURE_BOOK } from "@/lib/children-books/books/lillyAndArielTreasure";
+import { LILLY_ANNA_ELSA_TREASURE_BOOK } from "@/lib/children-books/books/lillyAnnaElsaTreasure";
 
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
 
@@ -93,6 +94,14 @@ export type ChildrenBook = {
   characterIds?: StorybookCharacterId[];
   /** Pin approved reference-asset versions per character (defaults to registry). */
   characterReferenceVersions?: Partial<Record<StorybookCharacterId, string>>;
+  /**
+   * Literal term substitutions applied ONLY to the composed image-generation
+   * prompt — never to the reader-facing text. Lets a story keep its real
+   * character names on the page while trademarked proper nouns are swapped for
+   * neutral stand-ins in the text sent to the image model (which refuses to
+   * depict protected franchise characters by name).
+   */
+  promptSafeReplacements?: Array<{ find: string; replace: string }>;
   sourceNote: string;
   ageRange: string;
   spiritualFocus: string;
@@ -844,6 +853,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
     ],
   },
   LILLY_AND_ARIEL_TREASURE_BOOK,
+  LILLY_ANNA_ELSA_TREASURE_BOOK,
 ];
 
 export const DEFAULT_CHILDREN_BOOK_SLUG = CHILDREN_BOOKS[0]!.slug;

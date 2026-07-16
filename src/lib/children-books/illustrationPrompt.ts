@@ -252,6 +252,25 @@ type ComposeInput = {
   extraNegative?: string[];
 };
 
+/**
+ * Swap trademarked proper nouns for neutral stand-ins in the FINAL composed
+ * prompt only. The reader-facing book text keeps its real names; the image
+ * model (which refuses to depict protected franchise characters by name) never
+ * sees them. Literal, case-sensitive, all-occurrences substitution.
+ */
+function applyPromptSafeReplacements(
+  prompt: string,
+  replacements?: ChildrenBook["promptSafeReplacements"],
+): string {
+  if (!replacements?.length) return prompt;
+  let next = prompt;
+  for (const { find, replace } of replacements) {
+    if (!find) continue;
+    next = next.split(find).join(replace);
+  }
+  return next;
+}
+
 /** Section 12 — compose the prompt in the exact required priority order. */
 function composeIllustrationPrompt(input: ComposeInput): string {
   const { book } = input;
@@ -259,7 +278,7 @@ function composeIllustrationPrompt(input: ComposeInput): string {
   const world = getWorldBible(book.worldId);
   const heroName = book.heroName?.trim() || LILLY_HERO_NAME;
 
-  return [
+  const composed = [
     style.masterPrompt,
     "",
     referenceInstructionsBlock(input.references, input.present),
@@ -294,6 +313,8 @@ function composeIllustrationPrompt(input: ComposeInput): string {
     "",
     finalValidationBlock(heroName),
   ].join("\n");
+
+  return applyPromptSafeReplacements(composed, book.promptSafeReplacements);
 }
 
 export function buildPageIllustrationPrompt({

@@ -16,7 +16,8 @@ export type WorldBibleId =
   | "woodland-dawn"
   | "rose-garden-palace"
   | "coastal-kingdom"
-  | "kitchen-coral-reef";
+  | "kitchen-coral-reef"
+  | "arendelle-castle";
 
 export type WorldBible = {
   id: WorldBibleId;
@@ -99,6 +100,26 @@ Supporting cast continuity (original storybook designs — never copy any film f
 • Baby sea turtle — consistent shell markings through the rescue; mother turtle appears later
 Props continuity: identical pearly seashell (kitchen transition); identical antique golden compass with carved lid message
 Do not drift into misty woodland cottages, thorn-gate rose courts, or dark stormy seas. Keep the kitchen in clean daylight — no amber kitchen wash — and the water luminous and clean.`,
+  },
+
+  "arendelle-castle": {
+    id: "arendelle-castle",
+    name: "Arendelle Castle & Fjord",
+    sheet: `LAYER 2 — WORLD BIBLE: ARENDELLE CASTLE & FJORD (this story only)
+
+Atmosphere: a grand, welcoming snow-crowned castle rising high above a calm mountain fjord. Crisp clear winter air, bright and airy, never gloomy. The castle feels majestic yet lived-in, safe, and full of family love.
+Palette accents: porcelain and snow white, pale sky blue, powder blue, ice blue, sea-glass teal, pale stone gray, soft lavender, blush pink, and limited clean gold accents. Whites and snow must stay truly white; shadows cool-neutral. At least 40% of most scenes should be white snow, pale stone, open sky, or light negative space.
+Places (the treasure-hunt map): tall castle towers with waving banners; a snowy courtyard with wide stone steps down to the fjord; bright grand halls with tall arched windows; a warm royal kitchen with copper pots and pale walls; a two-story library with a rotating/moving bookshelf; an armory of polished shields and helmets; a walled winter garden where a few flowers bloom beneath the snow; a music room with an old wooden music box; a clock tower holding an enormous grandfather clock; a hidden winding stone staircase behind a tapestry that leads deep beneath the castle; a deep lantern-lit stone passage; a treasure chamber behind an ancient handleless gold door.
+Nature: snow-dusted pine mountains, a glassy blue fjord, gentle drifting snowflakes, clear pale-blue sky, distant sailing ships, small friendly birds.
+Mood: joyful welcome, playful dress-up and hide-and-seek, tender remembering, gratitude, courage, and the discovery that God's wisdom and a family's love are the greatest treasure.
+Supporting cast continuity (ORIGINAL storybook interpretations — never copy any film frame, poster, or studio character design):
+• Anna — cheerful, warm young woman; strawberry-blonde/auburn hair in two neat braids; freckles; teal-and-black bodice, black skirt, and teal cape as her everyday outfit; bubbly and affectionate
+• Elsa — gentle, graceful older sister; platinum-blonde hair in a soft side braid; calm kind eyes; an elegant ice-blue gown as her everyday outfit; warm and reassuring
+• Olaf — small friendly snowman: three round white snow segments, two thin twig arms, a stubby carrot nose, three dark round "coal" buttons, three little twig hairs, big goofy happy smile; gentle comic relief
+• Sven — large friendly reindeer: warm brown coat, tan face and muzzle, small branching antlers, big expressive dark eyes; loyal and playful
+• Kristoff — kind young mountain man; tousled blond hair; sturdy tan-and-brown winter tunic; warm, easygoing laugh
+Props continuity: the ribbon-tied parchment (faded blue ribbon) reading "For our beloved daughters, when the time is right"; a little hand-drawn treasure map with a tiny drawn crown; an engraved wooden kitchen spoon; the King's leather Bible with a few verses marked in gold; an engraved metal shield; an old wooden music box; an enormous grandfather clock; matching hand-lanterns; the ancient handleless gold door carved "Only thankful hearts may enter"; a carved gold treasure chest; a handmade dollhouse that is a tiny replica of Arendelle castle; a thick leather book lettered "For Anna and Elsa — Our Greatest Treasure".
+Do not drift into underwater coral, misty woodland cottages, thorn-gate rose courts, or modern settings. No visible spirits, spell effects, ice magic, glowing energy, or wands — this is a warm faith story about family, gratitude, and God's Word. Keep every scene bright, clean, and preschool-safe — no amber, sepia, or golden-hour wash; snow stays white.`,
   },
 };
 
