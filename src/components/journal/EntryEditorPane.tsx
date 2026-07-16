@@ -446,7 +446,8 @@ export default function EntryEditorPane({
       }
       entryRef.current = row;
       setEntry(row);
-      setReplyWithAi(row.entry_kind === "chat");
+      // Always open in the normal write layout; chat lives in a collapsed accordion.
+      setReplyWithAi(false);
       setChatDraft("");
       if (shouldSuggestJournalTitle(row.title, row.body, row.summary)) {
         scheduleTitleSuggestion(row);
@@ -1016,12 +1017,8 @@ export default function EntryEditorPane({
     if (!entry || !user?.id) return;
     dictateRef.current?.stop();
     await flushSave({ silent: true });
-    if (inlineChatMode || entry.entry_kind === "chat") {
-      if (inlineChatMode && chatTurns.length > 0) {
-        persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
-      }
-      navigate(`/journal/chat/${entry.id}`);
-      return;
+    if (inlineChatMode && chatTurns.length > 0) {
+      persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
     }
     navigate(`/journal/${entry.id}/edit`);
   };
@@ -1481,15 +1478,23 @@ export default function EntryEditorPane({
                   label={reflectionMode ? "My AI conversation about this entry" : "AI conversation"}
                 />
               ) : null}
-              {reflectionMode && canReplyWithAi && (entry.body?.trim() || videos.length > 0 || entry.summary?.trim()) ? (
-                <button
-                  type="button"
-                  onClick={() => void openChatMode()}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-                >
-                  <MessageCircle className="h-4 w-4" aria-hidden />
-                  Talk with My AI about this entry
-                </button>
+              {!inlineChatMode && canReplyWithAi && (reflectionMode || entry.entry_kind === "chat") ? (
+                (reflectionMode
+                  ? entry.body?.trim() || videos.length > 0 || entry.summary?.trim()
+                  : true) ? (
+                  <button
+                    type="button"
+                    onClick={() => void openChatMode()}
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                    {reflectionMode
+                      ? "Talk with My AI about this entry"
+                      : chatTurns.length > 0
+                        ? "Continue conversation"
+                        : "Chat with AI"}
+                  </button>
+                ) : null
               ) : null}
             </>
           )}

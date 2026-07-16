@@ -6,9 +6,10 @@ import {
 } from "./entryNavigation";
 
 describe("entryNavigation", () => {
-  it("routes chat entries to journal chat", () => {
-    expect(journalEntryHref("abc", "chat")).toBe("/journal/chat/abc");
-    expect(journalDeskEntryHref("abc", "jid", "chat")).toBe("/journal/chat/abc");
+  it("routes chat entries to normal journal URLs (not dedicated chat page)", () => {
+    expect(journalEntryHref("abc", "chat")).toBe("/journal/abc");
+    expect(journalDeskEntryHref("abc", "jid", "chat")).toBe("/journal/j/jid/e/abc");
+    expect(journalDeskEntryHref("abc", null, "chat")).toBe("/journal/e/abc");
   });
 
   it("routes normal entries to read and desk URLs", () => {

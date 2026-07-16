@@ -1,6 +1,5 @@
-/** Canonical href for opening a journal entry (read or chat). */
-export function journalEntryHref(entryId: string, entryKind?: string | null): string {
-  if (entryKind === "chat") return `/journal/chat/${entryId}`;
+/** Canonical href for opening a journal entry (read view). */
+export function journalEntryHref(entryId: string, _entryKind?: string | null): string {
   return `/journal/${entryId}`;
 }
 
@@ -13,9 +12,8 @@ export function journalNewEntryEditHref(entryId: string): string {
 export function journalDeskEntryHref(
   entryId: string,
   journalId: string | null,
-  entryKind?: string | null,
+  _entryKind?: string | null,
 ): string {
-  if (entryKind === "chat") return `/journal/chat/${entryId}`;
   if (journalId) return `/journal/j/${journalId}/e/${entryId}`;
   return `/journal/e/${entryId}`;
 }

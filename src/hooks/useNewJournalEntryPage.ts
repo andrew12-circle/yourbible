@@ -510,9 +510,9 @@ export function useNewJournalEntryPage() {
         setChatId(chatRow.id);
         await loadChatTurns(chatRow.id);
       }
-      if (loadedKind === "chat") {
-        setReplyWithAi(true);
-      }
+      // Open in the normal write layout; chat lives in a collapsed accordion.
+      // Opt in with ?chat=1 when the user explicitly continues a conversation.
+      setReplyWithAi(params.get("chat") === "1");
 
       const { data: photos } = await supabase
         .from("journal_photos")
@@ -523,7 +523,7 @@ export function useNewJournalEntryPage() {
         (photos ?? []).map((p) => ({ id: p.id, storage_path: p.storage_path, url: urls[p.storage_path] })),
       );
     })();
-  }, [editId, user, loadChatTurns]);
+  }, [editId, user, loadChatTurns, params]);
 
   useEffect(() => {
     setPhotoSuggestionDismissed(false);
@@ -1190,7 +1190,7 @@ export function useNewJournalEntryPage() {
       } catch (e) {
         toast({ title: "Couldn't open AI reply", description: String(e), variant: "destructive" });
       }
-      navigate(`/journal/chat/${entryId}`);
+      navigate(`/journal/${entryId}/edit?chat=1`);
       return;
     }
 

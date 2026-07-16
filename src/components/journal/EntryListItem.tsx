@@ -8,6 +8,7 @@ import {
   entryDisplayTitle,
   isTextOnlyJournalEntry,
 } from "@/lib/journal/entryDisplay";
+import { journalEntryHref } from "@/lib/journal/entryNavigation";
 import SwipeableEntryRow from "./SwipeableEntryRow";
 import EntryListMediaThumbnail from "@/components/journal/EntryListMediaThumbnail";
 
@@ -47,7 +48,7 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
     entry.weather_temp_c != null ? formatTemp(entry.weather_temp_c) : null;
   const faithKind = coerceJournalEntryKind(entry.entry_kind);
   const isChat = entry.entry_kind === "chat";
-  const href = isChat ? `/journal/chat/${entry.id}` : `/journal/${entry.id}`;
+  const href = journalEntryHref(entry.id, entry.entry_kind);
 
   const displayTitle = entryDisplayTitle(entry);
   const preview = entryDisplayPreview(entry);

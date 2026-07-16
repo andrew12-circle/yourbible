@@ -31,6 +31,8 @@ import {
 } from "@/lib/journal/listeningEntry";
 import { isChatJournalExport } from "@/lib/journal/chatJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
+import JournalLiveChatCollapsible from "@/components/journal/JournalLiveChatCollapsible";
+import { useInlineJournalChat } from "@/hooks/useInlineJournalChat";
 import {
   loadMorningEntrySourceLinks,
   type MorningEntrySourceLink,
@@ -81,6 +83,12 @@ export default function JournalEntryPage() {
   const autoTranscribeAttempted = useRef(false);
   const titleSuggestAttempted = useRef(false);
   const inMiniPhone = useMiniPhoneEmbed();
+
+  const { chatTurns } = useInlineJournalChat({
+    userId: user?.id,
+    entryId: id ?? null,
+    active: false,
+  });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -259,10 +267,6 @@ export default function JournalEntryPage() {
     );
   }
 
-  if (entry.entry_kind === "chat") {
-    return <Navigate to={`/journal/chat/${entry.id}`} replace />;
-  }
-
   const remove = async () => {
     if (!user || !entry) return;
     if (!confirm("Delete this entry permanently?")) return;
@@ -296,8 +300,9 @@ export default function JournalEntryPage() {
   const entryHeading = entry.title?.trim() || null;
   const mapHeight = inMiniPhone ? 160 : 200;
   const openEdit = () => navigate(`/journal/${entry.id}/edit`);
+  const openContinueChat = () => navigate(`/journal/${entry.id}/edit?chat=1`);
   const bodyEmpty = !entry.body?.trim() && !transcribingSketch && videos.length === 0;
-  const canWrite = entry.entry_kind !== "chat" && entry.entry_kind !== "vent";
+  const canWrite = entry.entry_kind !== "vent";
 
   const mapFooter = (
     <div className="px-5 py-3">
@@ -511,6 +516,25 @@ export default function JournalEntryPage() {
           </section>
         </div>
       )}
+
+      {!showChatJournalView && chatTurns.length > 0 ? (
+        <JournalLiveChatCollapsible
+          turns={chatTurns}
+          className="mb-6"
+          label={isChatEntry ? "AI conversation" : "My AI conversation about this entry"}
+        />
+      ) : null}
+
+      {(isChatEntry || chatTurns.length > 0) && !showChatJournalView ? (
+        <button
+          type="button"
+          onClick={openContinueChat}
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden />
+          {chatTurns.length > 0 ? "Continue conversation" : "Chat with AI"}
+        </button>
+      ) : null}
 
       {id ? (
         <EntryLinksPanel
