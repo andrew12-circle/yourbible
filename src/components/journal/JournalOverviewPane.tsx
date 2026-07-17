@@ -22,6 +22,7 @@ import {
 } from "@/lib/journal/covers";
 import JournalCoverBanner from "@/components/journal/JournalCoverBanner";
 import JournalSettingsDialog from "@/components/journal/JournalSettingsDialog";
+import JournalHandwritingScriptureNote from "@/components/journal/JournalHandwritingScriptureNote";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -312,6 +313,8 @@ export default function JournalOverviewPane({
         ) : (
           <StatsRow stats={stats} accent={accent} />
         )}
+
+        <JournalHandwritingScriptureNote className="mt-6" onStart={onNew} />
       </div>
 
       <input

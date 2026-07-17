@@ -24,6 +24,7 @@ import OverviewHeader from "@/components/journal/overview/OverviewHeader";
 import StatsRow from "@/components/journal/overview/StatsRow";
 import { ALL_ENTRIES_ACCENT } from "@/components/journal/overview/overviewConstants";
 import JournalPlacesMap, { JOURNAL_OVERVIEW_MAP_TYPE } from "@/components/journal/JournalPlacesMap";
+import JournalHandwritingScriptureNote from "@/components/journal/JournalHandwritingScriptureNote";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
@@ -311,6 +312,8 @@ export default function AllEntriesOverviewPane({
         ) : (
           <StatsRow stats={stats} accent={ALL_ENTRIES_ACCENT} />
         )}
+
+        <JournalHandwritingScriptureNote className="mt-6" onStart={onNew} />
       </div>
 
       <div className="max-w-2xl flex-shrink-0 px-8 pb-6">
