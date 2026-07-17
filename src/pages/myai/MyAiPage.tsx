@@ -17,6 +17,7 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import { useMobileComposerDock } from "@/hooks/useMobileComposerDock";
+import { useMyAiSendQueue } from "@/hooks/useMyAiSendQueue";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -335,6 +336,11 @@ export default function MyAiPage() {
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const sendRef = useRef<
+    ((textOverride?: string, scope?: MyAiResearchScope) => Promise<void>) | null
+  >(null);
+  const { queuedCount, enqueue, dequeue, clearQueue } = useMyAiSendQueue();
   const [input, setInput] = useState("");
   const [includeGeneral, setIncludeGeneral] = useState(readIncludeGeneralDefault);
   const [companionMode, setCompanionMode] = useState<MyAiCompanionMode>(() => readCompanionModeSetting());
@@ -494,6 +500,13 @@ export default function MyAiPage() {
     persistResponseDepthSetting(MY_AI_RESPONSE_DEPTH_STORAGE_KEY, responseDepth);
   }, [responseDepth]);
 
+  const flushQueuedTurn = useCallback(() => {
+    if (sendingRef.current) return;
+    const next = dequeue();
+    if (!next) return;
+    void sendRef.current?.(next.text, next.scope);
+  }, [dequeue]);
+
   if (authLoading) {
     return (
       <div className={mobileCenteredScreen("bg-background")}>
@@ -515,6 +528,7 @@ export default function MyAiPage() {
     abortRef.current?.abort();
     abortRef.current = null;
     assistantTtsRef.current.stop();
+    sendingRef.current = false;
     setSending(false);
   };
 
@@ -542,6 +556,7 @@ export default function MyAiPage() {
   const newChat = () => {
     setMobileSheetOpen(false);
     assistantTtsRef.current.stop();
+    clearQueue();
     navigate("/my-ai");
     setMessages([]);
     setTimeout(() => taRef.current?.focus(), 50);
@@ -621,7 +636,12 @@ export default function MyAiPage() {
 
   const send = async (textOverride?: string, scope?: MyAiResearchScope) => {
     const text = (textOverride ?? input).trim();
-    if (!text || sending) return;
+    if (!text) return;
+
+    if (sendingRef.current) {
+      if (enqueue(text, scope)) setInput("");
+      return;
+    }
 
     const scopeFlags = buildMyAiTurnBody(scope, { companionMode, includeGeneral, responseDepth });
 
@@ -650,11 +670,13 @@ export default function MyAiPage() {
     }
 
     setInput("");
+    sendingRef.current = true;
     setSending(true);
     assistantTtsRef.current.stop();
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
+    let shouldFlushQueue = true;
     try {
       const done = await streamMyAiChat({
         signal: abortRef.current.signal,
@@ -711,20 +733,25 @@ export default function MyAiPage() {
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         if (routeChatId) await loadMessages(routeChatId);
-        return;
+      } else {
+        shouldFlushQueue = false;
+        toast({ title: "My AI failed", description: String(e), variant: "destructive" });
+        setMessages((prev) => prev.filter((m) => !m.id.startsWith("pending-")));
+        setInput(text);
       }
-      toast({ title: "My AI failed", description: String(e), variant: "destructive" });
-      setMessages((prev) => prev.filter((m) => !m.id.startsWith("pending-")));
-      setInput(text);
     } finally {
       abortRef.current = null;
+      sendingRef.current = false;
       setSending(false);
       setTimeout(() => taRef.current?.focus(), 50);
+      if (shouldFlushQueue) flushQueuedTurn();
     }
   };
+  sendRef.current = send;
+
 
   const retryWithScope = async (scope?: MyAiResearchScope) => {
-    if (!routeChatId || sending) return;
+    if (!routeChatId || sendingRef.current) return;
     const scopeFlags = buildMyAiTurnBody(scope, { companionMode, includeGeneral, responseDepth });
     const assistantTempId = `pending-retry-${Date.now()}`;
     setMessages((prev) => {
@@ -741,6 +768,7 @@ export default function MyAiPage() {
         { id: assistantTempId, role: "assistant", content: "", citations: [] },
       ];
     });
+    sendingRef.current = true;
     setSending(true);
     assistantTtsRef.current.stop();
     abortRef.current?.abort();
@@ -768,7 +796,9 @@ export default function MyAiPage() {
       await loadMessages(routeChatId);
     } finally {
       abortRef.current = null;
+      sendingRef.current = false;
       setSending(false);
+      flushQueuedTurn();
     }
   };
 
@@ -989,10 +1019,12 @@ export default function MyAiPage() {
                   layout="center"
                   input={input}
                   onInputChange={setInput}
-                  onSend={() => void send()}
+                  onSend={(text) => void send(text)}
                   onResearchScope={handleResearchScope}
                   onStop={sending ? stopGeneration : undefined}
                   sending={sending}
+                  queuedCount={queuedCount}
+                  onClearQueue={clearQueue}
                   editingMessageId={editingMessageId}
                   onCancelEdit={() => {
                     setEditingMessageId(null);
@@ -1100,10 +1132,12 @@ export default function MyAiPage() {
             onComposerBlur={() => setComposerFocused(false)}
             input={input}
             onInputChange={setInput}
-            onSend={() => void send()}
+            onSend={(text) => void send(text)}
             onResearchScope={handleResearchScope}
             onStop={sending ? stopGeneration : undefined}
             sending={sending}
+            queuedCount={queuedCount}
+            onClearQueue={clearQueue}
             editingMessageId={editingMessageId}
             onCancelEdit={() => {
               setEditingMessageId(null);
