@@ -113,11 +113,13 @@ export default function JournalVideoCaptureDialog({
   });
   const openPreviewRef = useRef(capture.openPreview);
   const cancelRef = useRef(capture.cancel);
+  const releaseCaptureRef = useRef(capture.releaseCapture);
   const cancelCountdownRef = useRef(capture.cancelCountdown);
   cancelCountdownRef.current = capture.cancelCountdown;
   const beginCountdownRef = useRef(capture.beginCountdown);
   openPreviewRef.current = capture.openPreview;
   cancelRef.current = capture.cancel;
+  releaseCaptureRef.current = capture.releaseCapture;
   beginCountdownRef.current = capture.beginCountdown;
   bindPreviewRef.current = capture.bindPreview;
 
@@ -219,7 +221,9 @@ export default function JournalVideoCaptureDialog({
     }
     return () => {
       countdownStartedRef.current = false;
-      cancelRef.current();
+      // Do not cancel() here — that wiped recovery drafts on reload while paused.
+      // Tear down media only; crash recovery can still salvage transcript/video.
+      releaseCaptureRef.current();
     };
   }, [open, isMobile, defaultMode]);
 

@@ -17,6 +17,12 @@ export type JournalVideoLaunchRequest = {
   reviewBeforeUpload?: boolean;
   /** Keep recorder in the main dialog (not floating) — avoids stacked modal issues. */
   forceInline?: boolean;
+  /** Crash-recovery identity — enables transcript/video salvage after reload. */
+  recovery?: {
+    userId: string;
+    entryId: string;
+    anchorOffset: number;
+  };
   /** Called when recording stops and review begins — before the user taps confirm. */
   onReviewReady?: (result: JournalVideoCaptureResult, durationMs: number) => void;
   /** Override confirm button on the review step. */
@@ -67,6 +73,7 @@ export function JournalVideoLaunchProvider({ children }: { children: ReactNode }
           stackElevated
           onRecordingStart={request.onRecordingStart}
           onLiveTranscript={request.onLiveTranscript}
+          recovery={request.recovery}
           onReviewReady={request.onReviewReady}
           confirmLabel={request.confirmLabel}
           reviewHint={request.reviewHint}

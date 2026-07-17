@@ -40,8 +40,13 @@ import {
 import { useSpeechDictation } from "@/hooks/useSpeechDictation";
 import { composeVideoLiveTranscript, appendVideoSpeechFinal, pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 import {
+  bodySnapFromMeta,
+  persistVideoJournalTranscriptToEntry,
+} from "@/lib/journal/journalVideoEntryMerge";
+import {
   appendInProgressJournalVideoRecordingChunk,
   clearInProgressJournalVideoRecording,
+  listInProgressJournalVideoRecordings,
   startInProgressJournalVideoRecording,
   updateInProgressJournalVideoRecording,
 } from "@/lib/journal/journalVideoRecordingRecovery";
@@ -108,6 +113,9 @@ export interface UseJournalVideoCaptureApi {
   pauseRecording: () => void;
   resumeRecording: () => void;
   stopRecording: () => Promise<JournalVideoCaptureResult | null>;
+  /** Tear down media without deleting crash-recovery drafts (safe for remount/reload). */
+  releaseCapture: () => void;
+  /** User discarded the recording — clears recovery drafts. */
   cancel: () => void;
   switchFacing: () => Promise<void>;
   selectDevice: (deviceId: string) => Promise<void>;
@@ -125,9 +133,11 @@ export function useJournalVideoCapture(
   const onInterimRef = useRef(onInterim);
   const onScreenShareEndedRef = useRef(onScreenShareEnded);
   const onMaxDurationRef = useRef(onMaxDuration);
+  const recoveryOptionsRef = useRef(options.recovery);
   onInterimRef.current = onInterim;
   onScreenShareEndedRef.current = onScreenShareEnded;
   onMaxDurationRef.current = onMaxDuration;
+  recoveryOptionsRef.current = options.recovery;
 
   const supported = journalVideoCaptureSupported();
   const [mode, setMode] = useState<JournalVideoCaptureMode | null>(null);
@@ -426,13 +436,65 @@ export function useJournalVideoCapture(
     [],
   );
 
-  const cancel = useCallback(() => {
+  const flushRecoveryTranscript = useCallback(() => {
+    const id = recoveryDraftIdRef.current;
+    if (!id) return;
+    const liveTranscript = composeVideoLiveTranscript(
+      finalizedTranscriptRef.current,
+      interimPartialRef.current,
+    );
+    if (liveTranscript.length > peakLiveTranscriptRef.current.length) {
+      peakLiveTranscriptRef.current = liveTranscript;
+    }
+    updateInProgressJournalVideoRecording(id, {
+      liveTranscript,
+      peakLiveTranscript: peakLiveTranscriptRef.current,
+      durationMs: getRecordingElapsedMs(),
+      chapters: chaptersRef.current,
+    });
+  }, [getRecordingElapsedMs]);
+
+  /** Persist peak captions into the entry body so a reload can't erase spoken words. */
+  const persistRecoveryTranscriptToEntry = useCallback(() => {
+    const recovery = recoveryOptionsRef.current;
+    const id = recoveryDraftIdRef.current;
+    const text = pickBestVideoJournalTranscript(
+      peakLiveTranscriptRef.current,
+      composeVideoLiveTranscript(finalizedTranscriptRef.current, interimPartialRef.current),
+    ).trim();
+    if (!recovery || !id || !text) return;
+    const meta = listInProgressJournalVideoRecordings().find((row) => row.id === id);
+    const snap = bodySnapFromMeta(meta?.bodySnapBody, meta?.bodySnapAnchor);
+    void persistVideoJournalTranscriptToEntry(
+      recovery.userId,
+      recovery.entryId,
+      text,
+      meta?.bodySnapAnchor ?? recovery.anchorOffset,
+      snap,
+    ).catch((e) => {
+      console.warn("[journal-video] pause transcript persist failed:", e);
+    });
+  }, []);
+
+  const releaseCapture = useCallback(() => {
+    // Keep crash-recovery drafts — remount/reload must still be able to salvage.
+    if (
+      recoveryDraftIdRef.current &&
+      (phaseRef.current === "recording" ||
+        phaseRef.current === "paused" ||
+        phaseRef.current === "processing")
+    ) {
+      flushRecoveryTranscript();
+    }
     openGenRef.current += 1;
     clearCountdown();
     resetRecordingClock();
     speechStopRef.current();
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
+        if (typeof recorderRef.current.requestData === "function") {
+          recorderRef.current.requestData();
+        }
         recorderRef.current.stop();
       } catch {
         /* ignore */
@@ -440,6 +502,9 @@ export function useJournalVideoCapture(
     }
     if (audioRecorderRef.current && audioRecorderRef.current.state !== "inactive") {
       try {
+        if (typeof audioRecorderRef.current.requestData === "function") {
+          audioRecorderRef.current.requestData();
+        }
         audioRecorderRef.current.stop();
       } catch {
         /* ignore */
@@ -449,7 +514,9 @@ export function useJournalVideoCapture(
     resolveStopRef.current = null;
     resolveAudioStopRef.current?.(null);
     resolveAudioStopRef.current = null;
-    void clearInProgressJournalVideoRecording(recoveryDraftIdRef.current);
+    recoveryDraftIdRef.current = null;
+    videoChunkIndexRef.current = 0;
+    audioChunkIndexRef.current = 0;
     cleanupStream();
     setMode(null);
     setPhase("idle");
@@ -458,13 +525,33 @@ export function useJournalVideoCapture(
     peakLiveTranscriptRef.current = "";
     chaptersRef.current = [];
     lastSpeechFinalRef.current = { text: "", at: 0 };
-    recoveryDraftIdRef.current = null;
-    videoChunkIndexRef.current = 0;
-    audioChunkIndexRef.current = 0;
     setChapters([]);
     setInterim("");
     onInterimRef.current?.("");
-  }, [cleanupStream, clearCountdown, resetRecordingClock]);
+  }, [cleanupStream, clearCountdown, flushRecoveryTranscript, resetRecordingClock]);
+
+  const cancel = useCallback(() => {
+    const id = recoveryDraftIdRef.current;
+    releaseCapture();
+    void clearInProgressJournalVideoRecording(id);
+  }, [releaseCapture]);
+
+  useEffect(() => {
+    const flushIfCapturing = () => {
+      if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+      flushRecoveryTranscript();
+      persistRecoveryTranscriptToEntry();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushIfCapturing();
+    };
+    window.addEventListener("pagehide", flushIfCapturing);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flushIfCapturing);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [flushRecoveryTranscript, persistRecoveryTranscriptToEntry]);
 
   const openPreview = useCallback(
     async (captureMode: JournalVideoCaptureMode) => {
@@ -741,10 +828,19 @@ export function useJournalVideoCapture(
       phaseRef.current = "paused";
       setPhase("paused");
       syncPreviewPlayback();
+      // Speech stop clears interim synchronously; flush peak captions + entry body
+      // so a reload while paused still recovers the words.
+      flushRecoveryTranscript();
+      persistRecoveryTranscriptToEntry();
     } catch {
       setError("Couldn't pause recording. Try stopping instead.");
     }
-  }, [getRecordingElapsedMs, syncPreviewPlayback]);
+  }, [
+    flushRecoveryTranscript,
+    getRecordingElapsedMs,
+    persistRecoveryTranscriptToEntry,
+    syncPreviewPlayback,
+  ]);
 
   const resumeRecording = useCallback(() => {
     const rec = recorderRef.current;
@@ -1068,6 +1164,7 @@ export function useJournalVideoCapture(
     pauseRecording,
     resumeRecording,
     stopRecording,
+    releaseCapture,
     cancel,
     switchFacing,
     selectDevice,

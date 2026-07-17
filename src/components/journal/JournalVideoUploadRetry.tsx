@@ -9,6 +9,11 @@ import {
   listInProgressJournalVideoRecordings,
   readInProgressJournalVideoRecording,
 } from "@/lib/journal/journalVideoRecordingRecovery";
+import {
+  bodySnapFromMeta,
+  persistVideoJournalTranscriptToEntry,
+} from "@/lib/journal/journalVideoEntryMerge";
+import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
 import { toast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -37,7 +42,7 @@ export function JournalVideoUploadRetry() {
   }, [online]);
 
   useEffect(() => {
-    if (!online || recoveringRef.current) return;
+    if (recoveringRef.current) return;
     const recordings = listInProgressJournalVideoRecordings();
     if (!recordings.length) return;
 
@@ -57,21 +62,44 @@ export function JournalVideoUploadRetry() {
             continue;
           }
 
-          const hasTranscript = Boolean(
-            (payload.meta.peakLiveTranscript || payload.meta.liveTranscript || "").trim(),
-          );
+          const liveCaptions = pickBestVideoJournalTranscript(
+            payload.meta.peakLiveTranscript,
+            payload.meta.liveTranscript,
+          ).trim();
+          const hasTranscript = Boolean(liveCaptions);
+          const hasVideo = payload.video.size > 0;
 
           // Only give up when there is genuinely nothing to save — no video AND
           // no transcript. A lost video must never discard salvageable words.
-          if (payload.video.size === 0 && !hasTranscript) {
+          if (!hasVideo && !hasTranscript) {
             await clearInProgressJournalVideoRecording(recording.id);
             discarded += 1;
             continue;
           }
 
+          // Offline: still secure the transcript into the entry body. Keep recovery
+          // drafts when video remains so upload can finish once we're back online.
+          if (!online) {
+            if (hasTranscript) {
+              const snap = bodySnapFromMeta(payload.meta.bodySnapBody, payload.meta.bodySnapAnchor);
+              await persistVideoJournalTranscriptToEntry(
+                payload.meta.userId,
+                payload.meta.entryId,
+                liveCaptions,
+                payload.meta.bodySnapAnchor ?? payload.meta.anchorOffset,
+                snap,
+              );
+              transcriptOnly += 1;
+              if (!hasVideo) {
+                await clearInProgressJournalVideoRecording(recording.id);
+              }
+            }
+            continue;
+          }
+
           await recoverAndSaveJournalVideoRecording(payload.meta, payload.video, payload.audio);
           await clearInProgressJournalVideoRecording(recording.id);
-          if (payload.video.size === 0) transcriptOnly += 1;
+          if (!hasVideo) transcriptOnly += 1;
           else recovered += 1;
         } catch (e) {
           console.warn("[journal-video-recovery] recovery failed:", e);
@@ -94,7 +122,9 @@ export function JournalVideoUploadRetry() {
             transcriptOnly === 1
               ? "Recovered your journal transcript"
               : `Recovered ${transcriptOnly} journal transcripts`,
-          description: "The video was interrupted, but your words were saved to the entry.",
+          description: online
+            ? "The video was interrupted, but your words were saved to the entry."
+            : "Your words were saved. Video will finish uploading when you're back online.",
         });
       }
       if (discarded > 0 && recovered === 0 && transcriptOnly === 0 && failed === 0) {
@@ -107,7 +137,9 @@ export function JournalVideoUploadRetry() {
       if (failed > 0) {
         toast({
           title: "Interrupted video recovery failed",
-          description: "We'll try again next time you're online.",
+          description: online
+            ? "We'll try again next time you're online."
+            : "Transcript may still be recoverable when you're back online.",
           variant: "destructive",
         });
       }
