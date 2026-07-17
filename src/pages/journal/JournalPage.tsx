@@ -11,6 +11,7 @@ import EntryEditorPane from "@/components/journal/EntryEditorPane";
 import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
 import AllEntriesOverviewPane from "@/components/journal/AllEntriesOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
+import JournalHandwritingScriptureNote from "@/components/journal/JournalHandwritingScriptureNote";
 import { Input } from "@/components/ui/input";
 import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useIsDesktop } from "@/hooks/use-desktop";
@@ -260,6 +261,7 @@ function MobileJournalList({
   notesJournalId: string | null;
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
@@ -406,6 +408,13 @@ function MobileJournalList({
             className="pl-9 h-9 rounded-[10px] bg-muted/70 border-0 text-[15px] placeholder:text-muted-foreground/70 focus-visible:ring-0"
           />
         </div>
+      </div>
+
+      <div className="px-5 pb-3">
+        <JournalHandwritingScriptureNote
+          compact
+          onStart={() => navigate(`/journal/new${journalId ? `?journalId=${journalId}` : ""}`)}
+        />
       </div>
 
       {loadError && filtered.length === 0 && (
