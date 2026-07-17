@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
+  JOURNAL_VIDEO_BITS_PER_SECOND,
+  JOURNAL_VIDEO_TARGET_BITS_PER_SECOND,
   isJournalVideoUploadTooLarge,
   journalVideoUploadTooLargeMessage,
 } from "@/lib/journal/journalVideoLimits";
@@ -71,6 +73,90 @@ export function pickJournalVideoMimeType(): string {
     if (MediaRecorder.isTypeSupported(t)) return t;
   }
   return "";
+}
+
+/** Chunk interval for ondataavailable. Safari MP4 needs ≥1s segments. */
+export function journalVideoRecorderTimesliceMs(): number {
+  return isAppleVideoCapture() ? 1000 : 250;
+}
+
+/**
+ * Create a MediaRecorder that actually constructs on this browser.
+ * Safari/iPad often rejects bitrate options or specific mime types even when
+ * isTypeSupported() returned true — try several combinations.
+ */
+export function createJournalVideoMediaRecorder(
+  stream: MediaStream,
+): { recorder: MediaRecorder; mimeType: string } | null {
+  if (typeof MediaRecorder === "undefined") return null;
+
+  const preferred = pickJournalVideoMimeType();
+  const pool = isAppleVideoCapture() ? VIDEO_MIME_CANDIDATES_APPLE : VIDEO_MIME_CANDIDATES;
+  const mimeCandidates = [
+    ...(preferred ? [preferred] : []),
+    ...pool.filter((t) => t !== preferred && MediaRecorder.isTypeSupported(t)),
+    "", // browser default as last resort
+  ];
+
+  for (const mimeType of mimeCandidates) {
+    const optionSets: MediaRecorderOptions[] = [];
+    if (mimeType) {
+      optionSets.push({
+        mimeType,
+        bitsPerSecond: JOURNAL_VIDEO_TARGET_BITS_PER_SECOND,
+        videoBitsPerSecond: JOURNAL_VIDEO_BITS_PER_SECOND.video,
+        audioBitsPerSecond: JOURNAL_VIDEO_BITS_PER_SECOND.audio,
+      });
+      optionSets.push({ mimeType });
+    } else {
+      optionSets.push({});
+    }
+
+    for (const options of optionSets) {
+      try {
+        const recorder = new MediaRecorder(stream, options);
+        return {
+          recorder,
+          mimeType: recorder.mimeType || mimeType || "video/mp4",
+        };
+      } catch {
+        /* try next mime / options combo */
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Start recording with a timeslice when possible.
+ * Some Safari builds throw on start(timeslice) — fall back to start().
+ * Reject only if the recorder is still inactive after both attempts.
+ */
+export function startJournalMediaRecorder(
+  recorder: MediaRecorder,
+  timesliceMs: number = journalVideoRecorderTimesliceMs(),
+): void {
+  try {
+    recorder.start(timesliceMs);
+  } catch {
+    recorder.start();
+  }
+  if (recorder.state === "inactive") {
+    throw new Error("MediaRecorder failed to enter recording state");
+  }
+}
+
+/** Stable id for in-progress recording recovery (works when randomUUID is missing). */
+export function createJournalVideoRecoveryId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* fall through */
+  }
+  return `rec-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /** Audio-only mime for a parallel transcription track (ElevenLabs rejects video containers). */
@@ -330,7 +416,7 @@ export type TranscribeJournalVideoOptions = {
   audioBlob?: Blob | null;
   /** Live speech captions shown during recording (fallback when server STT fails). */
   liveTranscript?: string;
-  /** Longest live caption string seen during recording (includes speech while paused). */
+  /** Longest live caption string seen during recording (peak before pause or during recording). */
   peakLiveTranscript?: string;
 };
 

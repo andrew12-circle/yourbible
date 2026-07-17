@@ -2,9 +2,13 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   buildJournalVideoConstraints,
   createJournalAudioSidecarRecorder,
+  createJournalVideoMediaRecorder,
+  createJournalVideoRecoveryId,
+  journalVideoRecorderTimesliceMs,
   journalVideoTranscriptEmptyMessage,
   pickJournalAudioMimeType,
   pickJournalVideoMimeType,
+  startJournalMediaRecorder,
 } from "@/lib/journal/videos";
 
 describe("pickJournalVideoMimeType", () => {
@@ -32,9 +36,116 @@ describe("pickJournalVideoMimeType", () => {
     expect(pickJournalVideoMimeType()).toBe("video/mp4");
   });
 
+  it("prefers mp4 on iPadOS desktop-class UA when supported", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      maxTouchPoints: 5,
+    });
+    expect(pickJournalVideoMimeType()).toBe("video/mp4");
+  });
+
   it("returns empty when MediaRecorder missing", () => {
     vi.stubGlobal("MediaRecorder", undefined);
     expect(pickJournalVideoMimeType()).toBe("");
+  });
+});
+
+describe("createJournalVideoMediaRecorder", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("falls back when bitrate options throw (Safari-style)", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)",
+    });
+    class FakeRecorder {
+      mimeType: string;
+      static isTypeSupported(t: string) {
+        return t === "video/mp4";
+      }
+      constructor(_stream: MediaStream, options?: MediaRecorderOptions) {
+        if (options?.videoBitsPerSecond != null) {
+          throw new Error("NotSupportedError");
+        }
+        this.mimeType = options?.mimeType || "video/mp4";
+      }
+    }
+    vi.stubGlobal("MediaRecorder", FakeRecorder);
+    const stream = { getTracks: () => [] } as unknown as MediaStream;
+    const created = createJournalVideoMediaRecorder(stream);
+    expect(created?.mimeType).toBe("video/mp4");
+  });
+
+  it("returns null when every constructor attempt fails", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" });
+    class Boom {
+      static isTypeSupported() {
+        return true;
+      }
+      constructor() {
+        throw new Error("fail");
+      }
+    }
+    vi.stubGlobal("MediaRecorder", Boom);
+    expect(createJournalVideoMediaRecorder({} as MediaStream)).toBeNull();
+  });
+});
+
+describe("startJournalMediaRecorder", () => {
+  it("falls back to start() when timeslice start throws", () => {
+    const calls: unknown[] = [];
+    const recorder = {
+      state: "inactive",
+      start(timeslice?: number) {
+        calls.push(timeslice);
+        if (timeslice != null) throw new Error("timeslice unsupported");
+        this.state = "recording";
+      },
+    } as MediaRecorder;
+    startJournalMediaRecorder(recorder, 1000);
+    expect(calls).toEqual([1000, undefined]);
+    expect(recorder.state).toBe("recording");
+  });
+
+  it("throws when recorder stays inactive", () => {
+    const recorder = {
+      state: "inactive",
+      start() {
+        /* no-op */
+      },
+    } as MediaRecorder;
+    expect(() => startJournalMediaRecorder(recorder, 1000)).toThrow(/recording state/i);
+  });
+});
+
+describe("createJournalVideoRecoveryId", () => {
+  it("returns a non-empty id without randomUUID", async () => {
+    const { createJournalVideoRecoveryId } = await import("@/lib/journal/videos");
+    vi.stubGlobal("crypto", {});
+    const id = createJournalVideoRecoveryId();
+    expect(id.length).toBeGreaterThan(8);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("journalVideoRecorderTimesliceMs", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses 1s on Apple devices", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)",
+    });
+    expect(journalVideoRecorderTimesliceMs()).toBe(1000);
+  });
+
+  it("uses 250ms on desktop Chrome UA", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120",
+    });
+    expect(journalVideoRecorderTimesliceMs()).toBe(250);
   });
 });
 

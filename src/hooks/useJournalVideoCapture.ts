@@ -3,6 +3,7 @@ import {
   canChangeJournalVideoDevices,
   isJournalVideoLiveCapture,
   restartJournalVideoAudioSidecar,
+  setJournalVideoStreamAudioEnabled,
   swapJournalVideoAudioTrack,
   swapJournalVideoCameraTrack,
 } from "@/lib/journal/journalVideoLiveDevices";
@@ -17,15 +18,15 @@ import { toggleCameraFacing } from "@/lib/journal/journalVideoDevices";
 import {
   buildJournalVideoConstraints,
   createJournalAudioSidecarRecorder,
+  createJournalVideoMediaRecorder,
+  createJournalVideoRecoveryId,
   journalVideoCaptureSupported,
-  pickJournalVideoMimeType,
+  startJournalMediaRecorder,
   stopMediaRecorderWithFlush,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
 import {
-  JOURNAL_VIDEO_BITS_PER_SECOND,
   JOURNAL_VIDEO_MAX_DURATION_MS,
-  JOURNAL_VIDEO_TARGET_BITS_PER_SECOND,
   journalVideoEffectiveRemainingMs,
   shouldStopJournalVideoRecording,
   sumJournalVideoBytes,
@@ -59,7 +60,7 @@ export type JournalVideoCaptureResult = {
   video: Blob;
   audio: Blob | null;
   liveTranscript: string;
-  /** Longest live caption string seen during the session (handles speech during pauses). */
+  /** Longest live caption string seen during the session (covers interim flicker before pause). */
   peakLiveTranscript: string;
   chapters: JournalVideoChapter[];
   durationMs: number;
@@ -307,22 +308,37 @@ export function useJournalVideoCapture(
     audioChunksRef.current = [];
   }, []);
 
-  const bindPreview = useCallback((el: HTMLVideoElement | null) => {
-    videoElRef.current = el;
-    if (el && streamRef.current) {
-      el.srcObject = streamRef.current;
-      void el.play().catch(() => {});
+  const syncPreviewPlayback = useCallback((el: HTMLVideoElement | null = videoElRef.current) => {
+    if (!el || !streamRef.current) return;
+    if (phaseRef.current === "paused") {
+      el.pause();
+      return;
     }
+    void el.play().catch(() => {});
   }, []);
 
-  const attachPreviewStream = useCallback((stream: MediaStream) => {
-    streamRef.current = stream;
-    setPreviewStream(stream);
-    if (videoElRef.current) {
-      videoElRef.current.srcObject = stream;
-      void videoElRef.current.play().catch(() => {});
-    }
-  }, []);
+  const bindPreview = useCallback(
+    (el: HTMLVideoElement | null) => {
+      videoElRef.current = el;
+      if (el && streamRef.current) {
+        el.srcObject = streamRef.current;
+        syncPreviewPlayback(el);
+      }
+    },
+    [syncPreviewPlayback],
+  );
+
+  const attachPreviewStream = useCallback(
+    (stream: MediaStream) => {
+      streamRef.current = stream;
+      setPreviewStream(stream);
+      if (videoElRef.current) {
+        videoElRef.current.srcObject = stream;
+        syncPreviewPlayback(videoElRef.current);
+      }
+    },
+    [syncPreviewPlayback],
+  );
 
   const liveDeviceRefs = useRef({
     streamRef,
@@ -502,127 +518,187 @@ export function useJournalVideoCapture(
   );
 
   const startRecording = useCallback(() => {
-    const stream = streamRef.current;
-    if (!stream || (phase !== "preview" && phase !== "countdown")) return;
-    const mime = pickJournalVideoMimeType();
-    if (!mime) {
-      setError("Video recording isn't supported in this browser.");
-      return;
-    }
-    clearCountdown();
-    setError(null);
-    finalizedTranscriptRef.current = "";
-    interimPartialRef.current = "";
-    peakLiveTranscriptRef.current = "";
-    chaptersRef.current = [];
-    lastSpeechFinalRef.current = { text: "", at: 0 };
-    setChapters([]);
-    setInterim("");
-    chunksRef.current = [];
-    audioChunksRef.current = [];
-    const recorderOptions: MediaRecorderOptions = { mimeType: mime };
-    try {
-      recorderOptions.bitsPerSecond = JOURNAL_VIDEO_TARGET_BITS_PER_SECOND;
-      recorderOptions.videoBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.video;
-      recorderOptions.audioBitsPerSecond = JOURNAL_VIDEO_BITS_PER_SECOND.audio;
-    } catch {
-      /* optional */
-    }
-    const rec = new MediaRecorder(stream, recorderOptions);
-    const recoveryId = options.recovery ? crypto.randomUUID() : null;
-    recoveryDraftIdRef.current = recoveryId;
-    videoChunkIndexRef.current = 0;
-    audioChunkIndexRef.current = 0;
-    if (recoveryId && options.recovery) {
-      startInProgressJournalVideoRecording({
-        id: recoveryId,
-        userId: options.recovery.userId,
-        entryId: options.recovery.entryId,
-        anchorOffset: options.recovery.anchorOffset,
-        durationMs: 0,
-        liveTranscript: "",
-        peakLiveTranscript: "",
-        videoMimeType: rec.mimeType || mime,
-        audioMimeType: null,
-        chapters: [],
-      });
-    }
-    rec.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunksRef.current.push(e.data);
-        const index = videoChunkIndexRef.current;
-        videoChunkIndexRef.current += 1;
-        void appendInProgressJournalVideoRecordingChunk(
-          recoveryDraftIdRef.current,
-          "video",
-          index,
-          e.data,
-        );
-        syncRecordingBytes();
+    const failToPreview = (message: string) => {
+      clearCountdown();
+      try {
+        if (recorderRef.current && recorderRef.current.state !== "inactive") {
+          recorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
       }
+      recorderRef.current = null;
+      try {
+        if (audioRecorderRef.current && audioRecorderRef.current.state !== "inactive") {
+          audioRecorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
+      }
+      audioRecorderRef.current = null;
+      phaseRef.current = "preview";
+      setPhase("preview");
+      setError(message);
     };
-    rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: rec.mimeType || mime });
-      resolveStopRef.current?.(blob.size > 0 ? blob : null);
-      resolveStopRef.current = null;
-    };
-    rec.start(250);
-    recorderRef.current = rec;
 
-    const sidecar = createJournalAudioSidecarRecorder(stream);
-    if (sidecar) {
-      const { recorder: audioRec, mimeType: audioMime } = sidecar;
+    try {
+      const stream = streamRef.current;
+      const currentPhase = phaseRef.current;
+      if (currentPhase !== "preview" && currentPhase !== "countdown") {
+        return;
+      }
+      if (!stream) {
+        failToPreview("Camera stream was lost. Tap Start countdown to try again.");
+        return;
+      }
+
+      clearCountdown();
+      setError(null);
+
+      const created = createJournalVideoMediaRecorder(stream);
+      if (!created) {
+        failToPreview(
+          "Video recording isn't supported in this browser. On iPad, try an updated Safari or Chrome.",
+        );
+        return;
+      }
+
+      const { recorder: rec, mimeType: mime } = created;
+
+      finalizedTranscriptRef.current = "";
+      interimPartialRef.current = "";
+      peakLiveTranscriptRef.current = "";
+      chaptersRef.current = [];
+      lastSpeechFinalRef.current = { text: "", at: 0 };
+      setChapters([]);
+      setInterim("");
+      chunksRef.current = [];
       audioChunksRef.current = [];
-      audioRec.ondataavailable = (e) => {
+
+      const recoveryId = options.recovery ? createJournalVideoRecoveryId() : null;
+      recoveryDraftIdRef.current = recoveryId;
+      videoChunkIndexRef.current = 0;
+      audioChunkIndexRef.current = 0;
+      if (recoveryId && options.recovery) {
+        try {
+          startInProgressJournalVideoRecording({
+            id: recoveryId,
+            userId: options.recovery.userId,
+            entryId: options.recovery.entryId,
+            anchorOffset: options.recovery.anchorOffset,
+            durationMs: 0,
+            liveTranscript: "",
+            peakLiveTranscript: "",
+            videoMimeType: rec.mimeType || mime,
+            audioMimeType: null,
+            chapters: [],
+          });
+        } catch {
+          /* recovery is best-effort; don't block recording */
+        }
+      }
+      rec.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-          const index = audioChunkIndexRef.current;
-          audioChunkIndexRef.current += 1;
+          chunksRef.current.push(e.data);
+          const index = videoChunkIndexRef.current;
+          videoChunkIndexRef.current += 1;
           void appendInProgressJournalVideoRecordingChunk(
             recoveryDraftIdRef.current,
-            "audio",
+            "video",
             index,
             e.data,
           );
+          syncRecordingBytes();
         }
       };
-      audioRec.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: audioRec.mimeType || audioMime,
-        });
-        resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
-        resolveAudioStopRef.current = null;
+      rec.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || mime });
+        resolveStopRef.current?.(blob.size > 0 ? blob : null);
+        resolveStopRef.current = null;
       };
-      try {
-        audioRec.start(250);
-        audioRecorderRef.current = audioRec;
-        updateInProgressJournalVideoRecording(recoveryDraftIdRef.current, {
-          audioMimeType: audioRec.mimeType || audioMime,
-        });
-      } catch {
-        audioRecorderRef.current = null;
-      }
-    }
+      rec.onerror = () => {
+        setError("Recording failed. Tap stop if needed, then try again.");
+      };
 
-    recordingStartedAtRef.current = Date.now();
-    pausedAccumMsRef.current = 0;
-    pauseStartedAtRef.current = null;
-    maxDurationTriggeredRef.current = false;
-    peakLiveTranscriptRef.current = "";
-    setRecordingElapsedMs(0);
-    setRecordingBytes(0);
-    startRecordingTick();
-    setPhase("recording");
-    if (speechSupportedRef.current) speechStartRef.current();
-  }, [phase, clearCountdown, options.recovery, startRecordingTick, syncRecordingBytes]);
+      try {
+        startJournalMediaRecorder(rec);
+      } catch {
+        failToPreview(
+          "Couldn't start recording on this device. Update Safari, or try Chrome for iPad.",
+        );
+        return;
+      }
+      recorderRef.current = rec;
+
+      // Sidecar is best-effort — Safari often rejects a second recorder on the same tracks.
+      const sidecar = createJournalAudioSidecarRecorder(stream);
+      if (sidecar) {
+        const { recorder: audioRec, mimeType: audioMime } = sidecar;
+        audioChunksRef.current = [];
+        audioRec.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+            const index = audioChunkIndexRef.current;
+            audioChunkIndexRef.current += 1;
+            void appendInProgressJournalVideoRecordingChunk(
+              recoveryDraftIdRef.current,
+              "audio",
+              index,
+              e.data,
+            );
+          }
+        };
+        audioRec.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: audioRec.mimeType || audioMime,
+          });
+          resolveAudioStopRef.current?.(audioBlob.size > 0 ? audioBlob : null);
+          resolveAudioStopRef.current = null;
+        };
+        try {
+          startJournalMediaRecorder(audioRec);
+          audioRecorderRef.current = audioRec;
+          updateInProgressJournalVideoRecording(recoveryDraftIdRef.current, {
+            audioMimeType: audioRec.mimeType || audioMime,
+          });
+        } catch {
+          audioRecorderRef.current = null;
+        }
+      }
+
+      recordingStartedAtRef.current = Date.now();
+      pausedAccumMsRef.current = 0;
+      pauseStartedAtRef.current = null;
+      maxDurationTriggeredRef.current = false;
+      peakLiveTranscriptRef.current = "";
+      setRecordingElapsedMs(0);
+      setRecordingBytes(0);
+      startRecordingTick();
+      phaseRef.current = "recording";
+      setPhase("recording");
+      if (speechSupportedRef.current) {
+        try {
+          speechStartRef.current();
+        } catch {
+          /* live captions optional */
+        }
+      }
+    } catch {
+      failToPreview("Couldn't start recording. Tap Start countdown to try again.");
+    }
+  }, [clearCountdown, options.recovery, startRecordingTick, syncRecordingBytes]);
+
+  const startRecordingRef = useRef(startRecording);
+  startRecordingRef.current = startRecording;
 
   const beginCountdown = useCallback(() => {
-    if (phase !== "preview" || countdownTimerRef.current) return;
+    if (phaseRef.current !== "preview" || countdownTimerRef.current) return;
     const seconds = settingsRef.current.countdown;
     if (seconds <= 0) {
-      startRecording();
+      startRecordingRef.current();
       return;
     }
+    phaseRef.current = "countdown";
     setPhase("countdown");
     setCountdown(seconds);
     let n = seconds;
@@ -630,44 +706,51 @@ export function useJournalVideoCapture(
       n -= 1;
       if (n <= 0) {
         clearCountdown();
-        startRecording();
+        startRecordingRef.current();
         return;
       }
       setCountdown(n);
     }, 1000);
-  }, [phase, clearCountdown, startRecording]);
+  }, [clearCountdown]);
 
   const skipCountdown = useCallback(() => {
-    if (phase !== "countdown") return;
+    if (phaseRef.current !== "countdown") return;
     clearCountdown();
-    startRecording();
-  }, [phase, clearCountdown, startRecording]);
+    startRecordingRef.current();
+  }, [clearCountdown]);
 
   const cancelCountdown = useCallback(() => {
-    if (phase !== "countdown") return;
+    if (phaseRef.current !== "countdown") return;
     clearCountdown();
+    phaseRef.current = "preview";
     setPhase("preview");
-  }, [phase, clearCountdown]);
+  }, [clearCountdown]);
 
   const pauseRecording = useCallback(() => {
     const rec = recorderRef.current;
-    if (!rec || phase !== "recording" || rec.state !== "recording") return;
+    if (!rec || phaseRef.current !== "recording" || rec.state !== "recording") return;
     try {
       rec.pause();
       const audioRec = audioRecorderRef.current;
       if (audioRec && audioRec.state === "recording") audioRec.pause();
+      // Fully idle until Resume: stop captions, mute mic, freeze mirror.
+      speechStopRef.current();
+      setJournalVideoStreamAudioEnabled(streamRef.current, false);
       pauseStartedAtRef.current = Date.now();
       setRecordingElapsedMs(getRecordingElapsedMs());
+      phaseRef.current = "paused";
       setPhase("paused");
+      syncPreviewPlayback();
     } catch {
-      /* ignore */
+      setError("Couldn't pause recording. Try stopping instead.");
     }
-  }, [phase, getRecordingElapsedMs]);
+  }, [getRecordingElapsedMs, syncPreviewPlayback]);
 
   const resumeRecording = useCallback(() => {
     const rec = recorderRef.current;
-    if (!rec || phase !== "paused" || rec.state !== "paused") return;
+    if (!rec || phaseRef.current !== "paused" || rec.state !== "paused") return;
     try {
+      setJournalVideoStreamAudioEnabled(streamRef.current, true);
       rec.resume();
       const audioRec = audioRecorderRef.current;
       if (audioRec && audioRec.state === "paused") audioRec.resume();
@@ -675,14 +758,17 @@ export function useJournalVideoCapture(
         pausedAccumMsRef.current += Date.now() - pauseStartedAtRef.current;
         pauseStartedAtRef.current = null;
       }
+      phaseRef.current = "recording";
       setPhase("recording");
+      syncPreviewPlayback();
       if (speechSupportedRef.current && !speechListeningRef.current) {
         speechStartRef.current();
       }
     } catch {
-      /* ignore */
+      setJournalVideoStreamAudioEnabled(streamRef.current, false);
+      setError("Couldn't resume recording. Try stopping and starting again.");
     }
-  }, [phase]);
+  }, [syncPreviewPlayback]);
 
   const stopRecording = useCallback(async (): Promise<JournalVideoCaptureResult | null> => {
     if (phase !== "recording" && phase !== "paused") return null;
@@ -771,6 +857,9 @@ export function useJournalVideoCapture(
   const swapCameraAudioTrack = useCallback(async () => {
     await swapJournalVideoAudioTrack(liveDeviceRefs.current, notifyStreamUpdated);
     restartAudioSidecar();
+    if (phaseRef.current === "paused") {
+      setJournalVideoStreamAudioEnabled(streamRef.current, false);
+    }
   }, [notifyStreamUpdated, restartAudioSidecar]);
 
   const switchFacing = useCallback(async () => {
@@ -872,6 +961,9 @@ export function useJournalVideoCapture(
           setPreviewStream(session.compositeStream);
           if (isJournalVideoLiveCapture(currentPhase)) {
             restartAudioSidecar();
+          }
+          if (phaseRef.current === "paused") {
+            setJournalVideoStreamAudioEnabled(streamRef.current, false);
           }
         } catch {
           setError("Could not switch microphone.");

@@ -121,6 +121,7 @@ export function JournalVideoCaptureToolbar({
     capture.phase === "paused";
   const qualityLocked = capture.phase === "recording" || capture.phase === "paused";
   const showCountdown = capture.phase === "countdown";
+  const showStartNow = showCountdown && capture.countdown != null;
   const showPreviewStart =
     capture.phase === "preview" && countdownDeferred && !processing && !showCountdown;
 
@@ -184,7 +185,7 @@ export function JournalVideoCaptureToolbar({
           </Button>
         ) : null}
 
-        {showCountdown ? (
+        {showStartNow ? (
           <Button
             type="button"
             size="sm"

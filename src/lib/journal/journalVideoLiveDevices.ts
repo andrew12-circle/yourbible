@@ -3,6 +3,7 @@ import {
   buildJournalVideoConstraints,
   createJournalAudioSidecarRecorder,
   replaceMediaStreamTracks,
+  startJournalMediaRecorder,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
 import type { JournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
@@ -20,6 +21,17 @@ export function canChangeJournalVideoDevices(phase: JournalVideoLivePhase | stri
 
 export function isJournalVideoLiveCapture(phase: JournalVideoLivePhase | string): boolean {
   return phase === "recording" || phase === "paused";
+}
+
+/** Mute/unmute capture mics without stopping tracks (keeps MediaRecorder attached). */
+export function setJournalVideoStreamAudioEnabled(
+  stream: MediaStream | null,
+  enabled: boolean,
+): void {
+  if (!stream) return;
+  for (const track of stream.getAudioTracks()) {
+    track.enabled = enabled;
+  }
 }
 
 type AudioSidecarRefs = {
@@ -76,7 +88,7 @@ export function restartJournalVideoAudioSidecar(refs: AudioSidecarRefs): void {
     refs.resolveAudioStopRef.current = null;
   };
   try {
-    audioRec.start(250);
+    startJournalMediaRecorder(audioRec);
     if (currentPhase === "paused") audioRec.pause();
     refs.audioRecorderRef.current = audioRec;
     updateInProgressJournalVideoRecording(refs.recoveryDraftIdRef.current, {

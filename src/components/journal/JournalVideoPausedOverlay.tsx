@@ -40,8 +40,8 @@ export function JournalVideoPausedOverlay({ reason, onResume, className }: Props
           <p className="text-2xl font-semibold tracking-tight text-white">Recording paused</p>
           <p className="text-sm leading-relaxed text-white/80">
             {silence
-              ? "No speech detected for a few seconds — we paused so you don't lose your place. Tap resume when you're ready to keep talking."
-              : "Tap resume when you're ready to keep recording."}
+              ? "No speech detected for a few seconds — we paused so you don't lose your place. Take your time; tap resume when you're ready."
+              : "Recording stays paused until you resume — take a call, write notes, or step away. Tap resume when you're ready."}
           </p>
         </div>
 

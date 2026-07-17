@@ -17,6 +17,8 @@ export function JournalVideoLiveMicWaveform({
 }: Props) {
   const levels = useMicWaveformFromStream(stream, active);
   const minBarHeight = 3;
+  const peak = levels.reduce((max, level) => Math.max(max, level), 0);
+  const live = active && peak > 0.18;
 
   return (
     <div
@@ -27,7 +29,10 @@ export function JournalVideoLiveMicWaveform({
       {levels.map((level, index) => (
         <span
           key={index}
-          className="inline-block w-1 shrink-0 rounded-sm bg-white/35 transition-[height] duration-75 ease-out"
+          className={cn(
+            "inline-block w-1 shrink-0 rounded-sm transition-[height,background-color] duration-75 ease-out",
+            live ? "bg-emerald-400" : "bg-white/35",
+          )}
           style={{
             height: `${Math.max(minBarHeight, level * maxBarHeight)}px`,
           }}

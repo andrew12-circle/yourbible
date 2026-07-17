@@ -128,6 +128,17 @@ export default function JournalVideoCaptureDialog({
     prevPhaseRef.current = capture.phase;
   }, [capture.phase]);
 
+  // Countdown number cleared but recording never began — recover after a beat
+  // so we don't race the synchronous startRecording() that follows clearCountdown().
+  useEffect(() => {
+    if (capture.phase !== "countdown" || capture.countdown != null) return;
+    const timer = window.setTimeout(() => {
+      setCountdownDeferred(true);
+      cancelCountdownRef.current();
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [capture.phase, capture.countdown]);
+
   const handleCancelCountdown = useCallback(() => {
     cancelCountdownRef.current();
     setCountdownDeferred(true);

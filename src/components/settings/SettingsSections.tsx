@@ -14,6 +14,7 @@ import { parseHomeMode } from "@/lib/profile/homeMedia";
 import { cn } from "@/lib/utils";
 import { todayIso, useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
+import { SettingsAppUpdateSection } from "@/components/settings/SettingsAppUpdateSection";
 import { SettingsOfflineBible } from "@/components/settings/SettingsOfflineBible";
 import { readBibleLanguage, LS_BIBLE_LANGUAGE_KEY } from "@/hooks/useBibles";
 import { EOTC_BIBLE_ID, readCanon, writeCanon, type CanonId } from "@/lib/bible/canon";
@@ -112,6 +113,8 @@ export function SettingsProfileSection({
         </div>
         <AiWritingAssistToggle />
       </SettingsCard>
+
+      <SettingsAppUpdateSection />
 
       <SettingsCard className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

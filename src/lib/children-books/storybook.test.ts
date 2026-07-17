@@ -112,8 +112,14 @@ describe("page illustration prompts", () => {
       book.pages.forEach((page, index) => {
         const prompt = buildPageIllustrationPrompt({ book, page, pageNumber: index + 1 });
         expect(prompt.length).toBeGreaterThan(500);
-        // Prompt embeds the sanitized scene text (forbidden terms scrubbed).
-        expect(prompt).toContain(sceneTextFor(book, page.picturePrompt));
+        // Prompt embeds sanitized scene text; franchise names may be swapped
+        // via promptSafeReplacements in the final composed prompt only.
+        let expectedScene = sceneTextFor(book, page.picturePrompt);
+        for (const { find, replace } of book.promptSafeReplacements ?? []) {
+          if (!find) continue;
+          expectedScene = expectedScene.split(find).join(replace);
+        }
+        expect(prompt).toContain(expectedScene);
       });
     }
   });

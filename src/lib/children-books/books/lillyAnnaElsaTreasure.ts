@@ -148,7 +148,7 @@ IMAGE CONTINUITY RULES
         "When the giggles finally settled, the friends changed into comfy clothes.\n\n\"Now,\" said Elsa, \"let's explore the whole castle together.\"\n\n\"Hide-and-seek first!\" cried Anna.\n\nNone of them knew they were about to uncover a secret hidden for many years.",
       scriptureThread: "God often hides good surprises inside ordinary days.",
       picturePrompt:
-        "A bright grand castle hall with tall arched windows. Lilly (now in Outfit C: sage-green pinafore over a cream blouse, small canvas satchel, white bow) stands ready to play with Anna and Elsa. Anna points playfully toward a corridor for hide-and-seek; Elsa smiles. Olaf and Sven join eagerly. Pale stone, clean daylight, snowy peaks through the windows. Leave open space in the upper-left for text.",
+        "Wide, airy shot of a bright castle hall with tall arched windows and lots of pale open floor. Lilly (Outfit C: sage-green pinafore over a cream blouse, small canvas satchel, white bow) stands ready with her two royal friends a comfortable distance apart — one cheerful sister with auburn braids pointing playfully toward a corridor, one gentle sister in an ice-blue gown smiling. Faces stay small in the frame; no crowding. Pale stone, clean daylight, snowy peaks far through the windows. Leave open space in the upper-left for text.",
       palette: "dawn",
       symbol: "light",
       layout: "picture-book",
@@ -316,7 +316,7 @@ IMAGE CONTINUITY RULES
         "Instead of pushing and pulling, Lilly said,\n\n\"Let's thank God for everything He's given us.\"\n\nEveryone joined hands.\n\nThey thanked God for family, for memories, for friendship, and for love.",
       scriptureThread: "Give thanks to the Lord, for He is good.",
       picturePrompt:
-        "Lilly (Outfit C), Anna, and Elsa stand in a small circle holding hands with their heads gently bowed in a simple, sincere thankful prayer before the gold door; lanterns rest at their feet. Olaf and Sven wait quietly nearby. Soft pale light, peaceful and reverent — no visible spirits or glowing energy, just gentle warmth in their faces. Leave clean space above them for text.",
+        "Wide peaceful scene before a tall carved gold door. Lilly (Outfit C) and her two royal friends stand side by side at a comfortable distance, hands lightly joined, looking up with quiet grateful smiles. Matching hand-lanterns rest on the pale stone floor nearby. Soft clean daylight, calm and hopeful — no glowing energy, no sparks, no spirits. Generous open space above them for text.",
       palette: "starlight",
       symbol: "light",
       layout: "picture-book",
@@ -388,7 +388,7 @@ IMAGE CONTINUITY RULES
         "Anna closed the book and hugged Lilly tightly.\n\n\"If you hadn't noticed that little letter, we never would have found this.\"\n\nElsa nodded. \"You didn't just help us find treasure. You helped us remember what our parents wanted us to become.\"",
       scriptureThread: "A thankful helper leaves a lasting gift.",
       picturePrompt:
-        "Warm group embrace in the bright chamber. Anna (auburn braids) hugs Lilly (Outfit C) tightly with grateful tears of joy; Elsa (ice-blue gown) leans in with a gentle hand on them both, the leather book of letters held close. Olaf and Sven watch happily nearby. Emotional, safe, tender; clean high-key light. Leave text space in the upper-right.",
+        "Wide, tender scene in the bright pale treasure chamber. The cheerful sister with auburn braids gives Lilly (Outfit C) a grateful hug; the gentle sister in an ice-blue gown stands close with a kind smile, holding a thick leather book of letters. Characters are medium-sized in the frame with clear space between them. Clean high-key daylight, joyful and safe. Leave text space in the upper-right.",
       palette: "dawn",
       symbol: "heart",
       layout: "picture-book",
@@ -400,7 +400,7 @@ IMAGE CONTINUITY RULES
         "Lilly grinned. \"The greatest treasure was never hidden in the chest.\n\nIt was hidden in your parents' hearts all along.\"\n\nAs they climbed back up the stairs together, the castle felt warmer than before — not because of magic, but because love, gratitude, and God's truth had been rediscovered.",
       scriptureThread: "Wisdom and love are treasures that can never be lost.",
       picturePrompt:
-        "The friends climb back up the winding stone stairs toward bright daylight, faces glowing with joy. Lilly (Outfit C) walks between Anna and Elsa, all three arm in arm and smiling; Anna carries the leather book of letters; Olaf and Sven follow happily. Clean pale light pours down from above, the castle feeling bright and full of love. Leave open space in the upper-left for text.",
+        "Wide shot of a winding pale stone staircase rising toward bright daylight. Lilly (Outfit C) walks between her two royal friends, all three smiling and walking calmly upward — one sister carries a thick leather book. Faces stay small-to-medium; generous open space around them. Clean pale light pours from above. Leave open space in the upper-left for text.",
       palette: "dawn",
       symbol: "crown",
       layout: "picture-book",
