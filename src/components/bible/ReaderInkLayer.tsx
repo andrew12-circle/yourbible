@@ -316,7 +316,7 @@ export default function ReaderInkLayer({
 
     const resolveDrawToolLocal = () => {
       const t = toolRef.current.tool;
-      if (t === "ruler") return "fountain";
+      if (t === "ruler") return "fineline";
       return normalizeInkDrawTool(t);
     };
 

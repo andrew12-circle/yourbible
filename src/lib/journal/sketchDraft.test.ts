@@ -30,9 +30,30 @@ describe("sketchDraft", () => {
 
     const loaded = loadSketchDraft("test-entry");
     expect(loaded?.strokes).toHaveLength(1);
-    expect(loaded?.strokes[0].tool).toBe("fountain");
+    expect(loaded?.strokes[0].tool).toBe("fineline");
+    expect(loaded?.tool).toBe("fineline");
     expect(loaded?.strokes[0].points[0]).toEqual({ x: 1, y: 2, p: 0.5 });
     expect(localStorage.getItem(sketchDraftStorageKey("test-entry"))).toContain('"version":2');
+  });
+
+  it("persists notebook pages", () => {
+    saveSketchDraft("test-entry", {
+      strokes: [],
+      pages: [
+        [{ tool: "fineline", color: "#000", size: 6, points: [{ x: 1, y: 1, p: 0.5 }] }],
+        [{ tool: "pencil", color: "#111", size: 3, points: [{ x: 2, y: 2, p: 0.5 }] }],
+      ],
+      pageIndex: 1,
+      paper: "ruled",
+      color: "#000",
+      size: 6,
+      tool: "fineline",
+    });
+
+    const loaded = loadSketchDraft("test-entry");
+    expect(loaded?.pages).toHaveLength(2);
+    expect(loaded?.pageIndex).toBe(1);
+    expect(loaded?.strokes[0].tool).toBe("pencil");
   });
 
   it("normalizes paper types including yellow pad", () => {

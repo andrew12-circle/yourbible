@@ -1,5 +1,8 @@
 import { forwardRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Grid2X2,
   GripHorizontal,
@@ -37,10 +40,9 @@ export type SketchPaper = "blank" | "ruled" | "legal" | "graph" | "dot";
 
 type PenColor = { name: string; value: string };
 
-/** Tool strip order — matches Apple Pencil / Handwritten reference. */
+/** Tool strip order — pressure fountain pen removed (legacy strokes still render). */
 export const SKETCH_TOOL_ITEMS: { id: InkTool; label: string }[] = [
-  { id: "fineline", label: "Fine tip" },
-  { id: "fountain", label: "Pen" },
+  { id: "fineline", label: "Pen" },
   { id: "marker", label: "Marker" },
   { id: "pencil", label: "Pencil" },
   { id: "highlighter", label: "Highlighter" },
@@ -49,11 +51,12 @@ export const SKETCH_TOOL_ITEMS: { id: InkTool; label: string }[] = [
   { id: "lasso", label: "Lasso" },
 ];
 
-const READER_TOOL_ITEMS = SKETCH_TOOL_ITEMS.filter(
-  (t) => t.id !== "ruler" && t.id !== "eraser",
-);
+/** Drawing tools shown in the scroll strip (eraser lives next to undo for one-tap access). */
+const DRAW_TOOL_ITEMS = SKETCH_TOOL_ITEMS.filter((t) => t.id !== "eraser");
 
-const READER_ERASER_ITEM = SKETCH_TOOL_ITEMS.find((t) => t.id === "eraser")!;
+const READER_TOOL_ITEMS = DRAW_TOOL_ITEMS.filter((t) => t.id !== "ruler");
+
+const ERASER_ITEM = SKETCH_TOOL_ITEMS.find((t) => t.id === "eraser")!;
 
 const APPLE_PALETTE = [
   { name: "White", value: "#ffffff" },
@@ -90,10 +93,22 @@ type Props = {
   tabletPortrait?: boolean;
   /** Phone / compact portrait — full-width ink dock with horizontal scroll. */
   compactInkLayout?: boolean;
-  /** Collapsed pen chip alignment (artifact journal: top-left; Bible reader: top-right). */
+  /** Collapsed pen chip alignment (artifact journal: start; Bible reader: end). */
   collapsedAnchor?: "center" | "start" | "end";
   /** Pin toolbar over the paper (no reserved vertical space). */
   floatOverPaper?: boolean;
+  /** Journal handwrite docks tools under the page so writing expands upward. */
+  dockEdge?: "top" | "bottom";
+  /** Collapse shortly after picking a tool / color / size (journal handwrite). */
+  autoCollapseOnSelect?: boolean;
+  /** Notebook page controls (journal handwrite). */
+  pageIndex?: number;
+  pageCount?: number;
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
+  onAddPage?: () => void;
+  /** Tool restored when leaving eraser via the quick toggle. */
+  resumeDrawTool?: InkDrawTool;
   onToolChange: (tool: InkTool) => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
@@ -206,6 +221,14 @@ export default function SketchInkToolbar({
   compactInkLayout = false,
   collapsedAnchor = "center",
   floatOverPaper = false,
+  dockEdge = "top",
+  autoCollapseOnSelect = false,
+  pageIndex,
+  pageCount,
+  onPrevPage,
+  onNextPage,
+  onAddPage,
+  resumeDrawTool = "fineline",
   onToolChange,
   onColorChange,
   onSizeChange,
@@ -220,13 +243,24 @@ export default function SketchInkToolbar({
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const isReader = variant === "reader";
-  const toolItems = isReader ? READER_TOOL_ITEMS : SKETCH_TOOL_ITEMS;
+  const toolItems = isReader ? READER_TOOL_ITEMS : DRAW_TOOL_ITEMS;
   const isDrawTool = tool !== "ruler" && tool !== "lasso";
   const isEraser = tool === "eraser";
   const canPickColor = !isEraser;
   const canAdjustSize = isDrawTool || isEraser;
   const customColorActive =
     isDrawTool && !APPLE_PALETTE.some((c) => colorMatchesPalette(color, c.value));
+  const dockBottom = dockEdge === "bottom";
+  const showPages =
+    typeof pageIndex === "number" &&
+    typeof pageCount === "number" &&
+    pageCount >= 1 &&
+    (onPrevPage || onNextPage || onAddPage);
+
+  const scheduleAutoCollapse = () => {
+    if (!autoCollapseOnSelect) return;
+    window.setTimeout(() => onCollapsedChange(true), 650);
+  };
 
   const selectTool = (next: InkTool) => {
     onToolChange(next);
@@ -237,10 +271,20 @@ export default function SketchInkToolbar({
       onSizeChange(preset.defaultSize);
       if (preset.defaultColor) onColorChange(preset.defaultColor);
     }
+    scheduleAutoCollapse();
+  };
+
+  const toggleEraser = () => {
+    if (tool === "eraser") {
+      selectTool(resumeDrawTool);
+    } else {
+      selectTool("eraser");
+    }
   };
 
   const pillChrome = cn(
-    "sticky top-1 z-50 mx-auto flex min-w-0 shrink items-center gap-0 rounded-full px-2",
+    "mx-auto flex min-w-0 shrink items-center gap-0 rounded-full px-2",
+    dockBottom ? "sticky bottom-1 z-50" : "sticky top-1 z-50",
     "border backdrop-blur-[36px] backdrop-saturate-[180%]",
     isReader || compactInkLayout
       ? cn(
@@ -258,62 +302,128 @@ export default function SketchInkToolbar({
 
   const ringOffset = isNightMode ? "ring-offset-[rgba(18,18,22,0.76)]" : "ring-offset-[rgba(255,255,255,0.78)]";
 
+  const edgeAnchorClass = (edge: "top" | "bottom") =>
+    floatOverPaper
+      ? cn(
+          "absolute",
+          edge === "bottom"
+            ? "bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+            : "top-2",
+          collapsedAnchor === "start"
+            ? "left-[max(0.5rem,env(safe-area-inset-left,0px))]"
+            : collapsedAnchor === "end"
+              ? "right-[max(0.5rem,env(safe-area-inset-right,0px))]"
+              : "left-1/2 -translate-x-1/2",
+        )
+      : cn(
+          edge === "bottom" ? "sticky bottom-1 px-3" : "sticky top-1 px-3",
+          collapsedAnchor === "start"
+            ? "justify-start pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-3"
+            : collapsedAnchor === "end"
+              ? "justify-end pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-3"
+              : "justify-center",
+        );
+
   if (collapsed) {
+    const penTool: InkTool = tool === "eraser" ? "fineline" : tool === "ruler" || tool === "lasso" ? "fineline" : tool;
     return (
-      <div
-        className={cn(
-          "pointer-events-none z-50 flex",
-          floatOverPaper
-            ? cn(
-                "absolute top-2",
-                collapsedAnchor === "start"
-                  ? "left-[max(0.5rem,env(safe-area-inset-left,0px))]"
-                  : collapsedAnchor === "end"
-                    ? "right-[max(0.5rem,env(safe-area-inset-right,0px))]"
-                    : "left-1/2 -translate-x-1/2",
-              )
-            : cn(
-                "sticky top-1 px-3",
-                collapsedAnchor === "start"
-                  ? "justify-start pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-3"
-                  : collapsedAnchor === "end"
-                    ? "justify-end pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-3"
-                    : "justify-center",
-              ),
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => onCollapsedChange(false)}
-          aria-label={isReader ? "Show ink tools" : "Show markup tools"}
-          aria-expanded={false}
+      <div className={cn("pointer-events-none z-50 flex items-center gap-2", edgeAnchorClass(dockBottom ? "bottom" : "top"))}>
+        <div
           className={cn(
-            "pointer-events-auto relative flex items-center justify-center overflow-hidden rounded-full shadow-md transition active:scale-95",
-            floatOverPaper ? "h-12 w-12 border-2" : "h-14 w-14 border-[3px] shadow-lg",
-            floatOverPaper
-              ? isNightMode
-                ? "border-white/20 bg-white/10 backdrop-blur-[32px] hover:bg-white/15"
-                : "border-border/55 bg-muted/35 backdrop-blur-[32px] hover:bg-muted/45"
-              : isNightMode
-                ? "border-white/25 bg-[rgba(18,18,22,0.78)] backdrop-blur-[32px] hover:bg-[rgba(28,28,32,0.88)]"
-                : "border-black/[0.08] bg-[rgba(255,255,255,0.72)] backdrop-blur-[32px] hover:bg-[rgba(255,255,255,0.82)]",
+            "pointer-events-auto flex items-center gap-1 rounded-full p-1 shadow-md backdrop-blur-[32px]",
+            isNightMode
+              ? "bg-[rgba(18,18,22,0.78)] ring-1 ring-white/20"
+              : "bg-[rgba(255,255,255,0.82)] ring-1 ring-black/[0.08]",
           )}
-          style={{ borderColor: isDrawTool && !floatOverPaper ? color : undefined }}
         >
-          {!floatOverPaper ? (
-            <span
-              className="absolute inset-1 rounded-full opacity-20"
-              style={{ background: isDrawTool ? color : "#94a3b8" }}
-              aria-hidden
+          <button
+            type="button"
+            onClick={() => onCollapsedChange(false)}
+            aria-label={isReader ? "Show ink tools" : "Show markup tools"}
+            aria-expanded={false}
+            className={cn(
+              "relative flex items-center justify-center overflow-hidden rounded-full transition active:scale-95",
+              floatOverPaper ? "h-11 w-11 border-2" : "h-12 w-12 border-[3px]",
+              tool !== "eraser"
+                ? isNightMode
+                  ? "border-white/25 bg-white/10"
+                  : "border-border/55 bg-muted/35"
+                : isNightMode
+                  ? "border-white/10 bg-transparent"
+                  : "border-transparent bg-transparent",
+            )}
+            style={{ borderColor: tool !== "eraser" && isDrawTool && !floatOverPaper ? color : undefined }}
+          >
+            <InkToolSilhouette
+              tool={penTool}
+              active={tool !== "eraser"}
+              accentColor={isDrawTool && tool !== "eraser" ? color : undefined}
+              variant="chip"
             />
-          ) : null}
-          <InkToolSilhouette
-            tool={tool}
-            active
-            accentColor={isDrawTool ? color : undefined}
-            variant="chip"
-          />
-        </button>
+          </button>
+          <button
+            type="button"
+            onClick={toggleEraser}
+            aria-label={tool === "eraser" ? "Back to pen" : "Eraser"}
+            aria-pressed={tool === "eraser"}
+            title={tool === "eraser" ? "Back to pen" : "Eraser"}
+            className={cn(
+              "relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 transition active:scale-95",
+              tool === "eraser"
+                ? isNightMode
+                  ? "border-sky-300/80 bg-sky-400/20"
+                  : "border-sky-500/70 bg-sky-500/15"
+                : isNightMode
+                  ? "border-white/15 bg-white/5 hover:bg-white/10"
+                  : "border-border/40 bg-muted/25 hover:bg-muted/40",
+            )}
+          >
+            <InkToolSilhouette tool="eraser" active={tool === "eraser"} variant="chip" />
+          </button>
+        </div>
+        {showPages ? (
+          <div
+            className={cn(
+              "pointer-events-auto flex items-center gap-0.5 rounded-full px-1 py-1 shadow-md backdrop-blur-[32px]",
+              isNightMode
+                ? "bg-[rgba(18,18,22,0.78)] ring-1 ring-white/20"
+                : "bg-[rgba(255,255,255,0.82)] ring-1 ring-black/[0.08]",
+            )}
+          >
+            <button
+              type="button"
+              aria-label="Previous page"
+              disabled={!onPrevPage || pageIndex! <= 0}
+              onClick={onPrevPage}
+              className="grid h-9 w-9 place-items-center rounded-full disabled:opacity-30"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+            <span className={cn("min-w-[2.5rem] text-center text-[11px] font-medium tabular-nums", isNightMode ? "text-white/80" : "text-foreground/80")}>
+              {pageIndex! + 1}/{pageCount}
+            </span>
+            <button
+              type="button"
+              aria-label="Next page"
+              disabled={!onNextPage || pageIndex! >= pageCount! - 1}
+              onClick={onNextPage}
+              className="grid h-9 w-9 place-items-center rounded-full disabled:opacity-30"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+            {onAddPage ? (
+              <button
+                type="button"
+                aria-label="Add page"
+                title="Add page"
+                onClick={onAddPage}
+                className="grid h-9 w-9 place-items-center rounded-full"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2.25} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -322,7 +432,16 @@ export default function SketchInkToolbar({
     <div
       className={cn(
         "pointer-events-none z-50 flex justify-center",
-        floatOverPaper ? "absolute inset-x-0 top-2 px-3" : "sticky top-1 px-3",
+        floatOverPaper
+          ? cn(
+              "absolute inset-x-0 px-3",
+              dockBottom
+                ? "bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+                : "top-2",
+            )
+          : dockBottom
+            ? "sticky bottom-1 px-3"
+            : "sticky top-1 px-3",
       )}
     >
       <div
@@ -345,15 +464,13 @@ export default function SketchInkToolbar({
           >
             <Redo2 className="h-4 w-4" strokeWidth={2} />
           </PillCircleButton>
-          {isReader ? (
-            <InkToolSilhouetteSlot
-              tool={READER_ERASER_ITEM.id}
-              active={tool === "eraser"}
-              isNightMode={isNightMode}
-              label={READER_ERASER_ITEM.label}
-              onClick={() => selectTool("eraser")}
-            />
-          ) : null}
+          <InkToolSilhouetteSlot
+            tool={ERASER_ITEM.id}
+            active={tool === "eraser"}
+            isNightMode={isNightMode}
+            label={ERASER_ITEM.label}
+            onClick={toggleEraser}
+          />
         </ToolbarTray>
 
         <ToolbarDivider isNightMode={isNightMode} />
@@ -402,7 +519,10 @@ export default function SketchInkToolbar({
                   aria-label={`Color ${c.name}`}
                   aria-pressed={selected}
                   disabled={!canPickColor}
-                  onClick={() => onColorChange(c.value)}
+                  onClick={() => {
+                    onColorChange(c.value);
+                    scheduleAutoCollapse();
+                  }}
                   className={cn(
                     "h-5 w-5 rounded-full border border-white/90 transition hover:scale-105 disabled:opacity-40",
                     COLOR_SWATCH_SHADOW,
@@ -444,8 +564,9 @@ export default function SketchInkToolbar({
               else {
                 const sizes = [...INK_PEN_SIZES];
                 const idx = sizes.indexOf(size as (typeof sizes)[number]);
-                onSizeChange(sizes[(idx + 1) % sizes.length] ?? 4);
+                onSizeChange(sizes[(idx + 1) % sizes.length] ?? 6);
               }
+              scheduleAutoCollapse();
             }}
           >
             <span
@@ -515,7 +636,7 @@ export default function SketchInkToolbar({
               {isReader ? (
                 <>
                   <DropdownMenuItem onClick={() => selectTool("lasso")}>Lasso</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => selectTool("eraser")}>Eraser</DropdownMenuItem>
+                  <DropdownMenuItem onClick={toggleEraser}>Eraser</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Eraser size</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
@@ -566,7 +687,7 @@ export default function SketchInkToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {!isReader ? (
+          {!isReader && !onAddPage ? (
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <PillCircleButton isNightMode={isNightMode} label="Paper type">
@@ -586,12 +707,34 @@ export default function SketchInkToolbar({
             </DropdownMenu>
           ) : null}
 
+          {onAddPage ? (
+            <PillCircleButton isNightMode={isNightMode} label="Add page" onClick={onAddPage}>
+              <Plus className="h-5 w-5" strokeWidth={2} />
+            </PillCircleButton>
+          ) : null}
+
+          {showPages ? (
+            <span
+              className={cn(
+                "px-1.5 text-[11px] font-medium tabular-nums",
+                isNightMode ? "text-white/75" : "text-foreground/70",
+              )}
+              aria-label={`Page ${pageIndex! + 1} of ${pageCount}`}
+            >
+              {pageIndex! + 1}/{pageCount}
+            </span>
+          ) : null}
+
           <PillCircleButton
             isNightMode={isNightMode}
             label="Minimize tools"
             onClick={() => onCollapsedChange(true)}
           >
-            <ChevronUp className="h-5 w-5" strokeWidth={2} />
+            {dockBottom ? (
+              <ChevronDown className="h-5 w-5" strokeWidth={2} />
+            ) : (
+              <ChevronUp className="h-5 w-5" strokeWidth={2} />
+            )}
           </PillCircleButton>
         </ToolbarTray>
         </div>

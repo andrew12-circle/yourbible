@@ -31,12 +31,14 @@ export const INK_TOOL_PRESETS: Record<InkDrawTool, InkToolPreset> = {
   },
   fineline: {
     id: "fineline",
-    label: "Fine tip",
-    defaultSize: 2,
+    label: "Pen",
+    /** Third line-weight step in INK_PEN_SIZES ([2, 4, 6, …]). */
+    defaultSize: 6,
     pressureRange: { min: 0.85, max: 1.1 },
     opacity: 0.95,
     widthMultiplier: 0.9,
   },
+  /** Legacy pressure nib — kept for older strokes; not offered in the toolbar. */
   fountain: {
     id: "fountain",
     label: "Fountain pen",
@@ -74,7 +76,7 @@ export const INK_TOOL_PRESETS: Record<InkDrawTool, InkToolPreset> = {
 };
 
 export function normalizeInkDrawTool(tool: string | undefined): InkDrawTool {
-  if (tool === "pen") return "fountain";
+  if (tool === "pen") return "fineline";
   if (tool && tool in INK_TOOL_PRESETS) return tool as InkDrawTool;
-  return "fountain";
+  return "fineline";
 }
