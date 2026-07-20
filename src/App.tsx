@@ -7,6 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AppRouteFallback from "@/components/AppRouteFallback";
+import { AppRoutePreloader } from "@/components/AppRoutePreloader";
 import OfflineBanner from "@/components/OfflineBanner";
 import { PwaResumeManager } from "@/components/PwaResumeManager";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
@@ -117,6 +118,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <PwaUpdatePrompt />
+        <AppRoutePreloader />
         <BrowserRouter>
           <PwaResumeManager />
           <AppOfflineBanner />
