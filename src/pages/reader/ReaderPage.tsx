@@ -35,7 +35,11 @@ import {
   readStoredReaderFontScale,
   writeStoredReaderFontScale,
 } from "@/lib/bible/readerFontScale";
-import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import {
+  getStoredBibleId,
+  getStoredBibleIdOrDefault,
+  persistBibleSelection,
+} from "@/lib/bible/storedBibleId";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { ReaderPageHeader, ReaderPageFooter, ReaderPageBodyPlaceholder } from "@/pages/reader/ReaderPageChrome";
 import { renderReaderPageScripture } from "@/pages/reader/renderReaderPageScripture";
@@ -86,7 +90,6 @@ import { clearReaderInkChapter } from "@/lib/ink/readerInkChapterClear";
 import { INK_PEN_SIZES } from "@/lib/ink/strokeRender";
 import type { InkTool } from "@/lib/ink/types";
 
-/** Bible margin ink defaults — fine tip (not fountain), 2px, toolbar blue. */
 const READER_INK_DEFAULT_TOOL: InkTool = "fineline";
 const READER_INK_DEFAULT_COLOR = "#007aff";
 const READER_INK_DEFAULT_SIZE = INK_PEN_SIZES[0];
@@ -176,7 +179,6 @@ import { useReaderSelectionMarks } from "@/hooks/useReaderSelectionMarks";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
-/** Approximate chapter title block above the first page article (px). */
 const CHAPTER_HEADER_RESERVE_PX = 96;
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
@@ -239,7 +241,7 @@ export default function ReaderPage() {
         : bibles.filter((b) => b.id !== EOTC_BIBLE_ID),
     [bibles],
   );
-  const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const [bibleId, setBibleId] = useState<string>(() => getStoredBibleIdOrDefault());
   const bibleEditionAbbr = useMemo(
     () => displayBibles.find((b) => b.id === bibleId)?.abbreviation,
     [displayBibles, bibleId],
@@ -290,12 +292,12 @@ export default function ReaderPage() {
     if (readCanon() === "ethiopian") {
       if (bibleId !== EOTC_BIBLE_ID) {
         setBibleId(EOTC_BIBLE_ID);
-        localStorage.setItem(LS_BIBLE_KEY, EOTC_BIBLE_ID);
+        persistBibleSelection(EOTC_BIBLE_ID, "EOTC");
       }
       return;
     }
     if (bibles.length === 0) return;
-    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    const next = pickDefaultBibleId(bibles, bibleId || getStoredBibleId());
     const nextEntry = bibles.find((b) => b.id === next);
     if (next && next !== bibleId) {
       setBibleId(next);
@@ -327,7 +329,6 @@ export default function ReaderPage() {
 
   const [activeVerse, setActiveVerse] = useState<{ number: number; text: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  /** Default highlighter color for toolbar swatches. */
   const [activeHighlightColor, setActiveHighlightColor] = useState<string>(() => {
     try {
       return localStorage.getItem(LS_HIGHLIGHT_COLOR_KEY) ?? "";
@@ -335,11 +336,9 @@ export default function ReaderPage() {
       return "";
     }
   });
-  /** Last mark kind chosen from the selection toolbar. */
   const [_markTool, setMarkTool] = useState<"highlight" | "underline">("highlight");
   const [noteOpen, setNoteOpen] = useState<{ verse: number } | null>(null);
   const [bmDialog, setBmDialog] = useState<{ position: 1 | 2 | 3 } | null>(null);
-  // Reading text-size scale (persisted). Clamp into a sane range.
   const [fontScale, setFontScale] = useState<number>(() => readStoredReaderFontScale());
   const updateFontScale = (next: number) => {
     const clamped = clampReaderFontScale(next);
@@ -498,12 +497,10 @@ export default function ReaderPage() {
     return fn;
   }, []);
 
-  // Persist last-read position so the home screen can offer "continue".
   useEffect(() => {
     try { localStorage.setItem("yb_last_read", `${book.abbr}/${chapter}`); } catch { /* ignore */ }
   }, [book.abbr, chapter]);
 
-  // Total chapters across the canon → progress through the Bible
   const { progress } = useMemo(() => {
     const total = canonBooks.reduce((s, b) => s + b.chapters, 0);
     let before = 0;
@@ -515,7 +512,6 @@ export default function ReaderPage() {
       progress: Math.max(0, Math.min(1, (before + chapter - 1) / Math.max(1, total - 1))),
     };
   }, [book.abbr, chapter, canonBooks]);
-
 
   const { highlights, notes, setMark: _setMark, setMarks, setMarkRanges, upsertNote, deleteNote } =
     useChapterData(book.abbr, chapter);
@@ -531,7 +527,6 @@ export default function ReaderPage() {
   );
   const { bookmarks, setBookmark } = useBookmarks();
 
-  // Companion pane integration
   const openCompanion = useCompanion(s => s.openWith);
   const [anchorBelief, setAnchorBelief] = useState<{ id: string; statement: string } | null>(null);
   useEffect(() => {
@@ -563,9 +558,6 @@ export default function ReaderPage() {
     };
   };
 
-  // (long-press highlight removed — we now use native drag-selection)
-
-  // ---- Page measurement ----
   const {
     pageBox,
     firstPageHeight,
@@ -593,7 +585,6 @@ export default function ReaderPage() {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
 
-  // ---- Pagination ----
   const [splits, setSplits] = useState<number[]>([0]);
   const [streamSplits, setStreamSplits] = useState<number[]>([0]);
   const handleSplitsChange = useCallback((next: number[]) => {
@@ -607,7 +598,6 @@ export default function ReaderPage() {
     () => (chapterStudyParseReliable(verses) ? effectiveStudyLayout : "inline"),
     [verses, effectiveStudyLayout],
   );
-  // Reset splits when chapter / typography changes.
   useEffect(() => {
     setSplits([0]);
     setStreamSplits([0]);
@@ -753,12 +743,9 @@ export default function ReaderPage() {
     !useSpreadDoubleColumn ||
     !useBookSpread ||
     isSpreadDoubleColumnSplitsReady(displayStreamSplits, readerStream.length);
-  /** Article measurement already excludes the page footer; only reserve clip slack. */
   const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
 
-  // Pre-compute red-letter segmentation for the whole chapter so multi-verse
-  // quotes (an opener in v.5, closer in v.8) carry red text across verses.
   const redSegments = useMemo<Map<number, JesusSegment[]>>(
     () =>
       isEotcBibleId(bibleId)
@@ -782,7 +769,6 @@ export default function ReaderPage() {
     return m;
   }, [bibleId, useStreamReader, streamChapters, book.abbr, chapter, verses]);
 
-  // ---- Page cursor (which page within this chapter is showing) ----
   const [chapterPage, setChapterPage] = useState(0);
   const [spreadPageIdx, setSpreadPageIdx] = useState(0);
   const [pendingSpreadEnd, setPendingSpreadEnd] = useState(false);
@@ -864,9 +850,6 @@ export default function ReaderPage() {
 
   useBibleScrollWheel(scrollMode, `${book.abbr}-${chapter}`);
 
-  // Pending verse-jump: after the user picks a verse from the TopBar picker,
-  // remember it so once the chapter (re)loads and pagination splits are known,
-  // we can hop to the page that contains that verse.
   const [pendingVerse, setPendingVerse] = useState<number | null>(null);
 
   const bookmarkVerse = useMemo(() => {
@@ -1021,7 +1004,6 @@ export default function ReaderPage() {
     useSpreadDoubleColumn,
   ]);
 
-  // Spread shows two consecutive pages; portrait mobile shows one page per turn.
   const pagesPerTurn = effectiveSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
@@ -1079,9 +1061,6 @@ export default function ReaderPage() {
     }
   };
 
-  // ---- Verse interactions ----
-  // Tapping a verse number opens the verse sheet. Selection of body text is
-  // native — handled by the document-level `selectionchange` listener below.
   const onVerseNumberClick = (
     e: React.MouseEvent,
     v: { number: number; text: string },
@@ -1257,7 +1236,6 @@ export default function ReaderPage() {
     return () => document.body.classList.remove("reader-ink-mode");
   }, [inkMode]);
 
-  // Block native text selection while writing — especially on iOS Safari.
   useEffect(() => {
     if (!inkMode) return;
 
@@ -1351,7 +1329,6 @@ export default function ReaderPage() {
 
   const openReaderSettings = () => setSettingsOpenRequest((n) => n + 1);
 
-  // JSX factory — not an inline component type (which would remount ink on every parent render).
   const renderPageSurface = (pageIdx: number, side: "left" | "right") => {
     if (spreadStudyActive && side === studyPageSide) {
       const sel = tbSel;
@@ -1619,7 +1596,6 @@ export default function ReaderPage() {
     );
   };
 
-  // Determine left & right page indices (spread = two consecutive pages)
   const activePageIdx = useBookSpread ? spreadPageIdx : chapterPage;
   const leftIdx = activePageIdx;
   const rightIdx = useSpreadDoubleColumn ? activePageIdx : activePageIdx + 1;
@@ -1856,7 +1832,6 @@ export default function ReaderPage() {
       />
       </div>
 
-      {/* Page-turn hot zones — narrow strips at the screen edge */}
       {!scrollMode && (
         <>
       <button
@@ -1892,7 +1867,6 @@ export default function ReaderPage() {
         </>
       )}
 
-      {/* Headless paginator — measures and reports splits (page mode only) */}
       {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
           chapters={streamChapters}
@@ -1985,11 +1959,8 @@ export default function ReaderPage() {
         chapterCtx={chapterCtx}
       />
 
-      {/* Live pencil underline that tracks the current text selection */}
       <SelectionPencilOverlay enabled={!inkMode} />
 
-      {/* Toolbar that appears above the user's selection. Highlighter swatches,
-          a pen for underlining, a note shortcut, and a clear control. */}
       <ReaderSelectionChrome
         tbSel={tbSel}
         inkMode={inkMode}

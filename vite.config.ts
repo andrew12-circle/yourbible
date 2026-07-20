@@ -26,6 +26,20 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         navigateFallback: "/index.html",
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/bibles\/csb\/chapters\/.*\.json$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "bible-csb-chapters",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: {
+                maxEntries: 1_250,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+            },
+          },
+        ],
       },
     }),
     mode === "development" && componentTagger(),
