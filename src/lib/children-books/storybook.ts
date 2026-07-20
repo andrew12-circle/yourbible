@@ -5,6 +5,7 @@ import type { StudioStyleVersion } from "@/lib/children-books/studioStyles";
 import type { WorldBibleId } from "@/lib/children-books/worldBibles";
 import { LILLY_AND_ARIEL_TREASURE_BOOK } from "@/lib/children-books/books/lillyAndArielTreasure";
 import { LILLY_ANNA_ELSA_TREASURE_BOOK } from "@/lib/children-books/books/lillyAnnaElsaTreasure";
+import { LILLY_HOW_MOMMY_DADDY_MET_BOOK } from "@/lib/children-books/books/lillyHowMommyDaddyMet";
 
 export type ChildrenBookSymbol = "crown" | "heart" | "light" | "shield";
 
@@ -854,6 +855,7 @@ export const CHILDREN_BOOKS: ChildrenBook[] = [
   },
   LILLY_AND_ARIEL_TREASURE_BOOK,
   LILLY_ANNA_ELSA_TREASURE_BOOK,
+  LILLY_HOW_MOMMY_DADDY_MET_BOOK,
 ];
 
 export const DEFAULT_CHILDREN_BOOK_SLUG = CHILDREN_BOOKS[0]!.slug;

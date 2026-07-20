@@ -86,6 +86,27 @@ describe("children book storybook data", () => {
     expect(book!.closingPrayer).toContain("Holy Spirit");
     expect(book!.supportingCastPrompt).toContain("Ariel");
   });
+
+  it("includes How Mommy and Daddy Met as a built-in Memory Book", () => {
+    const book = findChildrenBook("lilly-how-mommy-daddy-met");
+
+    expect(book).toBeDefined();
+    expect(book!.title).toBe("How Mommy and Daddy Met");
+    expect(book!.subtitle).toBe("Before We Knew Your Name");
+    expect(book!.series).toBe("Lilly's Adventures");
+    expect(book!.characterId).toBe("lilly");
+    expect(book!.worldId).toBe("chattanooga-memory-book");
+    expect(book!.castIds).toEqual(["tish", "andrew", "winston"]);
+    expect(book!.pages).toHaveLength(30);
+    expect(book!.pages[0]?.body).toContain("Memory Book");
+    expect(book!.pages.some((p) => p.body.includes("kissed Mommy's hand"))).toBe(true);
+    expect(book!.pages.some((p) => p.body.includes("is the bowl that holds everything together"))).toBe(
+      true,
+    );
+    expect(book!.pages.at(-1)?.title).toBe("Talk About Our Story");
+    expect(book!.closingPrayer).toContain("real love");
+    expect(book!.supportingCastPrompt).toContain("Grandpa Turtle");
+  });
 });
 
 describe("page illustration prompts", () => {

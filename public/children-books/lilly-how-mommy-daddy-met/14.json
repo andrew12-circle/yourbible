@@ -1,0 +1,29 @@
+{
+  "studioStyleVersion": "v3",
+  "worldBibleVersion": "v2",
+  "promptVersion": "v3",
+  "sanitizerVersion": "v1",
+  "characterReferenceVersions": {
+    "studio": "v1",
+    "lilly": "v1",
+    "tish": "v1",
+    "andrew": "v1"
+  },
+  "bookSlug": "lilly-how-mommy-daddy-met",
+  "imageKind": "page",
+  "pageNumber": 14,
+  "promptHash": "dea26cb2805c57cd",
+  "model": "gpt-image-2",
+  "quality": "high",
+  "size": "1024x1536",
+  "referencePaths": [
+    "children-books/references/studio/v1/style-anchor.png",
+    "children-books/character-bibles/reference-family-model-sheet.png"
+  ],
+  "presentCharacterIds": [
+    "lilly",
+    "tish",
+    "andrew"
+  ],
+  "generatedAt": "2026-07-20T00:35:54.039Z"
+}

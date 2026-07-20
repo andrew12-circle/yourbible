@@ -17,7 +17,8 @@ export type WorldBibleId =
   | "rose-garden-palace"
   | "coastal-kingdom"
   | "kitchen-coral-reef"
-  | "arendelle-castle";
+  | "arendelle-castle"
+  | "chattanooga-memory-book";
 
 export type WorldBible = {
   id: WorldBibleId;
@@ -120,6 +121,29 @@ Supporting cast continuity (ORIGINAL storybook interpretations — never copy an
 • Kristoff — kind young mountain man; tousled blond hair; sturdy tan-and-brown winter tunic; warm, easygoing laugh
 Props continuity: the ribbon-tied parchment (faded blue ribbon) reading "For our beloved daughters, when the time is right"; a little hand-drawn treasure map with a tiny drawn crown; an engraved wooden kitchen spoon; the King's leather Bible with a few verses marked in gold; an engraved metal shield; an old wooden music box; an enormous grandfather clock; matching hand-lanterns; the ancient handleless gold door carved "Only thankful hearts may enter"; a carved gold treasure chest; a handmade dollhouse that is a tiny replica of Arendelle castle; a thick leather book lettered "For Anna and Elsa — Our Greatest Treasure".
 Do not drift into underwater coral, misty woodland cottages, thorn-gate rose courts, or modern settings. No visible spirits, spell effects, ice magic, glowing energy, or wands — this is a warm faith story about family, gratitude, and God's Word. Keep every scene bright, clean, and preschool-safe — no amber, sepia, or golden-hour wash; snow stays white.`,
+  },
+
+  "chattanooga-memory-book": {
+    id: "chattanooga-memory-book",
+    name: "Chattanooga Memory Book",
+    sheet: `LAYER 2 — WORLD BIBLE: CHATTANOOGA MEMORY BOOK (this story only)
+
+Atmosphere: a cozy bedtime bedroom framing a true first-date memory that comes gently alive inside an open storybook. Lilly peeks into Mommy and Daddy's memories; she never changes history. Magical aquarium friends notice Lilly and whisper soft lessons while young Mommy and Daddy enjoy their real date, unaware of the whimsy around them.
+Palette accents: porcelain white, soft blush, pale sky blue, crystal turquoise aquarium water, sea-glass green, lavender, warm ivory dessert-shop light, restrained clean gold. Keep every scene bright, high-key, and preschool-safe — no amber, sepia, or golden-hour wash.
+Places: a cozy family bedroom with an open Memory Book; a quiet riverside street near an ice cream shop across from a bright aquarium; luminous aquarium halls with tall glass tanks; a butterfly sanctuary under soft netting; a shallow stingray touch pool; Toto's sushi restaurant near Coolidge Park across a river bridge; Rembrandt's coffee-and-dessert shop with a corner window table; a gentle nighttime parking area beside Mommy's car.
+Nature & magical friends (ORIGINAL storybook companions — never copy film designs):
+• Grandpa Turtle — wise old sea turtle with kind eyes and gentle nods; teaches that real love moves gently and does not rush
+• Ollie Octopus — soft lavender octopus who models calm breaths when feelings get big
+• Bella Butterfly — luminous pale-blue and peach butterfly who lands on kind hands; teaches that a kind heart makes someone beautiful
+• Ray the Stingray — gentle spotted stingray in clear shallow water; calm and curious
+• Pip the Dolphin — playful small dolphin who smiles about good manners
+Props continuity: the Memory Book (cream cover with a soft heart and butterfly motif); a tiny golden keepsake dessert box; glowing "family scoops" of kindness, patience, listening, laughter, forgiveness, respect, courage, and joy; Love as the bowl that holds them; Daddy's first photo moment of Mommy beside the stingrays.
+Cast continuity:
+• Young Mommy (Tish) — long pale golden-blonde waves, soft first-date dress in soft blue or ivory, gentle smile; match approved Tish identity
+• Young Daddy (Andrew) — short neat dark brown hair, kind first-date shirt and chinos; match approved Andrew identity
+• Present-day Mommy, Daddy, Lilly, and Winston appear in the bedroom frame scenes
+Mood: wonder, tenderness, respect, patience, and the joy of a family God was writing before Lilly was born.
+Do not drift into fairy-tale castles, coral mermaid palaces, snowy fjords, or dark scary aquariums. Magical moments stay soft and storybook — never scary, never spell-casting. Keep whites white and lighting clean daylight or gentle clear evening.`,
   },
 };
 
