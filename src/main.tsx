@@ -8,8 +8,6 @@ const root = document.getElementById("root")!;
 
 async function bootstrap() {
   try {
-    initSentry();
-
     if (!hasSupabaseEnv()) {
       createRoot(root).render(<ConfigError />);
       return;
@@ -19,6 +17,7 @@ async function bootstrap() {
 
     const { default: App } = await appPromise;
     createRoot(root).render(<App />);
+    scheduleSentryInit();
   } catch (e) {
     console.error("[bootstrap]", e);
     createRoot(root).render(<ConfigError />);
@@ -26,3 +25,9 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+function scheduleSentryInit() {
+  window.setTimeout(() => {
+    initSentry();
+  }, 1500);
+}

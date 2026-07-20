@@ -20,11 +20,65 @@ export default defineConfig(({ mode }) => ({
     youtubeCaptionsDevPlugin(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],
+      includeAssets: [
+        "app-icon-32.png",
+        "app-icon-180.png",
+        "app-icon-192.png",
+        "app-icon-512.png",
+        "apple-touch-icon.png",
+        "favicon.ico",
+        "favicon.svg",
+        "site.webmanifest",
+      ],
       manifest: false,
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         navigateFallback: "/index.html",
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "google-fonts-stylesheets",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /\/(?:app-icon|icon|favicon|apple-touch-icon|framework-icon|placeholder).*$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "app-shell-images",
+              expiration: {
+                maxEntries: 24,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
