@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { MiniPhoneProvider } from "@/contexts/MiniPhoneContext";
 import { HomeDashboardProvider } from "@/contexts/HomeDashboardContext";
@@ -9,6 +10,9 @@ import { FloatingPhoneBubble } from "@/components/mini-phone/FloatingPhoneBubble
 import { MiniPhoneDrawer } from "@/components/mini-phone/MiniPhoneDrawer";
 
 export function HubShell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const showMiniPhone = !pathname.startsWith("/children-books");
+
   return (
     <MiniPhoneProvider>
       <HomeDashboardProvider>
@@ -22,8 +26,12 @@ export function HubShell({ children }: { children: ReactNode }) {
               </Suspense>
             </div>
           </SidebarInset>
-          <FloatingPhoneBubble />
-          <MiniPhoneDrawer />
+          {showMiniPhone && (
+            <>
+              <FloatingPhoneBubble />
+              <MiniPhoneDrawer />
+            </>
+          )}
         </SidebarProvider>
       </HomeDashboardProvider>
     </MiniPhoneProvider>

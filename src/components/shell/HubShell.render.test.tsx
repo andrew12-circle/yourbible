@@ -34,18 +34,32 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 describe("HubShell", () => {
+  function renderHubShell(path = "/home") {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <HubShell>
+          <div>Hub child content</div>
+        </HubShell>
+      </MemoryRouter>,
+    );
+  }
+
   it("renders without throwing when hub children are provided", () => {
-    expect(() =>
-      render(
-        <MemoryRouter>
-          <HubShell>
-            <div>Hub child content</div>
-          </HubShell>
-        </MemoryRouter>,
-      ),
-    ).not.toThrow();
+    expect(() => renderHubShell()).not.toThrow();
 
     expect(screen.getByText("Hub child content")).toBeInTheDocument();
     expect(screen.getByText("Belief")).toBeInTheDocument();
+  });
+
+  it("shows the mini phone tab on regular hub routes", () => {
+    renderHubShell("/home");
+
+    expect(screen.getByLabelText("Toggle phone")).toBeInTheDocument();
+  });
+
+  it("hides the mini phone tab in children books", () => {
+    renderHubShell("/children-books/lilly-how-mommy-daddy-met");
+
+    expect(screen.queryByLabelText("Toggle phone")).not.toBeInTheDocument();
   });
 });
