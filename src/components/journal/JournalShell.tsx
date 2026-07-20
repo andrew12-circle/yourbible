@@ -218,6 +218,7 @@ export default function JournalShell({
             onOpenRail={() => setSheetOpen(true)}
             backTo={backTo}
             right={headerRight ?? defaultHeaderRight}
+            containedInShell={fillViewport}
           />
           <main
             className={cn(

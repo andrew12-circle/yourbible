@@ -22,6 +22,8 @@ interface Props {
   onOpenRail?: () => void;
   /** Where the back button goes on mobile (defaults to /journal). */
   backTo?: string;
+  /** True when rendered inside a rounded shell/card that already accounts for top chrome. */
+  containedInShell?: boolean;
 }
 
 export default function JournalCover({
@@ -32,6 +34,7 @@ export default function JournalCover({
   right,
   onOpenRail,
   backTo = "/home",
+  containedInShell = false,
 }: Props) {
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
@@ -45,9 +48,8 @@ export default function JournalCover({
     ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
     : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)";
 
-  const safeTopPad = inMiniPhone
-    ? "pt-[calc(var(--safe-area-inset-top)+1.25rem)]"
-    : "pt-[calc(var(--safe-area-inset-top)+0.75rem)]";
+  const useCompactTopPad = inMiniPhone || containedInShell;
+  const safeTopPad = useCompactTopPad ? "pt-3" : "pt-[calc(var(--safe-area-inset-top)+0.75rem)]";
 
   const photoHeroMinH = inMiniPhone
     ? "min-h-[clamp(200px,32svh,280px)]"
