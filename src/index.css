@@ -375,6 +375,101 @@
     transform: scale(0.995);
   }
 
+  /* Prayer list cards — compact Lumen-style Bible page in a leather cover. */
+  .prayer-bible-card {
+    --prayer-bible-page-stack-width: 12px;
+    --prayer-bible-ribbon-safe-width: 2rem;
+    position: relative;
+    border-radius: 0.85rem;
+    padding: 8px 10px 8px 8px;
+    box-shadow:
+      inset 0 2px 0 hsl(var(--lc-highlight) / 0.35),
+      inset 0 -3px 10px hsl(var(--lc-deep) / 0.4),
+      0 8px 24px -14px hsl(0 0% 0% / 0.5),
+      0 2px 10px -4px hsl(0 0% 0% / 0.18);
+    transition:
+      transform 160ms var(--ease-soft),
+      box-shadow 160ms var(--ease-soft);
+  }
+
+  .prayer-bible-card__frame {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: 0.48rem;
+    box-shadow:
+      inset 0 0 0 1px hsl(38 58% 52% / 0.48),
+      inset 0 0 0 2px hsl(0 0% 0% / 0.18),
+      0 1px 0 hsl(12 35% 28% / 0.35);
+  }
+
+  .prayer-bible-card__paper {
+    position: relative;
+    min-height: 7rem;
+    overflow: hidden;
+  }
+
+  .prayer-bible-card__content {
+    position: relative;
+    z-index: 2;
+    padding: 0.95rem clamp(2.15rem, 7vw, 2.65rem) 0.9rem clamp(1.75rem, 6vw, 2.35rem);
+    margin-left: var(--prayer-bible-page-stack-width);
+  }
+
+  .prayer-bible-card__ribbons {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--prayer-bible-ribbon-safe-width);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .prayer-bible-card__ribbon {
+    position: absolute;
+    top: -2px;
+    width: 5px;
+    height: calc(100% + 14px);
+    border-radius: 1px;
+    box-shadow:
+      inset 1px 0 0 rgba(255, 255, 255, 0.35),
+      inset -1px 0 0 rgba(0, 0, 0, 0.32),
+      1px 2px 6px rgba(0, 0, 0, 0.38);
+    transform-origin: top center;
+  }
+
+  .prayer-bible-card__ribbon:nth-child(1) { transform: rotate(-0.55deg); }
+  .prayer-bible-card__ribbon:nth-child(2) { transform: rotate(0.35deg); }
+  .prayer-bible-card__ribbon:nth-child(3) { transform: rotate(-0.2deg); }
+
+  .prayer-bible-card__text {
+    font-family: var(--font-scripture, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif);
+    font-size: 0.975rem;
+    line-height: 1.6;
+    color: hsl(20 22% 14%);
+    white-space: pre-wrap;
+  }
+
+  .group:hover .prayer-bible-card {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 2px 0 hsl(var(--lc-highlight) / 0.4),
+      inset 0 -3px 10px hsl(var(--lc-deep) / 0.4),
+      0 12px 28px -14px hsl(0 0% 0% / 0.55),
+      0 3px 12px -5px hsl(0 0% 0% / 0.2);
+  }
+
+  @media (max-width: 480px) {
+    .prayer-bible-card {
+      padding: 7px 8px 7px 7px;
+    }
+
+    .prayer-bible-card__content {
+      padding: 0.85rem clamp(2rem, 10vw, 2.45rem) 0.8rem clamp(1.65rem, 9vw, 2.2rem);
+    }
+  }
+
   /* Lumen chat — prayer on an open Bible page (drop cap + verse numbers). */
   .chat-prayer-bible {
     --chat-prayer-page-stack-width: 14px;
@@ -2719,13 +2814,14 @@ body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
 /* Compatibility shims — when app-theme is active, neutralize the
    leftover leather/paper/gold styling from older pages so we don't
    have to rewrite every screen. */
-.app-theme .paper-texture:not(.chat-prayer-bible__paper),
+.app-theme .paper-texture:not(.chat-prayer-bible__paper):not(.prayer-bible-card__paper),
 .app-theme .real-paper,
 .app-theme .leather-texture {
   background: transparent !important;
 }
-/* Keep Bible parchment on chat prayer pages inside the neutral app theme. */
-.app-theme .chat-prayer-bible__paper.paper-texture {
+/* Keep Bible parchment on chat prayer pages and prayer cards inside the neutral app theme. */
+.app-theme .chat-prayer-bible__paper.paper-texture,
+.app-theme .prayer-bible-card__paper.paper-texture {
   background-color: hsl(var(--paper)) !important;
 }
 /* Keep parchment scroll styling inside the neutral app theme. */
