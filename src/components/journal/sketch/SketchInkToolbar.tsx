@@ -94,6 +94,7 @@ type Props = {
   collapsedAnchor?: "center" | "start" | "end";
   /** Pin toolbar over the paper (no reserved vertical space). */
   floatOverPaper?: boolean;
+  placement?: "top" | "bottom";
   onToolChange: (tool: InkTool) => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
@@ -206,6 +207,7 @@ export default function SketchInkToolbar({
   compactInkLayout = false,
   collapsedAnchor = "center",
   floatOverPaper = false,
+  placement = "top",
   onToolChange,
   onColorChange,
   onSizeChange,
@@ -227,6 +229,7 @@ export default function SketchInkToolbar({
   const canAdjustSize = isDrawTool || isEraser;
   const customColorActive =
     isDrawTool && !APPLE_PALETTE.some((c) => colorMatchesPalette(color, c.value));
+  const atBottom = placement === "bottom";
 
   const selectTool = (next: InkTool) => {
     onToolChange(next);
@@ -265,7 +268,8 @@ export default function SketchInkToolbar({
           "pointer-events-none z-50 flex",
           floatOverPaper
             ? cn(
-                "absolute top-2",
+                "absolute",
+                atBottom ? "bottom-2" : "top-2",
                 collapsedAnchor === "start"
                   ? "left-[max(0.5rem,env(safe-area-inset-left,0px))]"
                   : collapsedAnchor === "end"
@@ -273,7 +277,8 @@ export default function SketchInkToolbar({
                     : "left-1/2 -translate-x-1/2",
               )
             : cn(
-                "sticky top-1 px-3",
+                "sticky px-3",
+                atBottom ? "bottom-1" : "top-1",
                 collapsedAnchor === "start"
                   ? "justify-start pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-3"
                   : collapsedAnchor === "end"
@@ -322,7 +327,9 @@ export default function SketchInkToolbar({
     <div
       className={cn(
         "pointer-events-none z-50 flex justify-center",
-        floatOverPaper ? "absolute inset-x-0 top-2 px-3" : "sticky top-1 px-3",
+        floatOverPaper
+          ? cn("absolute inset-x-0 px-3", atBottom ? "bottom-2" : "top-2")
+          : cn("sticky px-3", atBottom ? "bottom-1" : "top-1"),
       )}
     >
       <div
