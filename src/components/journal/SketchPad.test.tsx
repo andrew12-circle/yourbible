@@ -181,6 +181,37 @@ describe("SketchPad", () => {
     );
   });
 
+  it("can open journal handwriting minimized at the bottom with preferred black fine tip", () => {
+    render(
+      <SketchPad
+        open
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        defaultTool="fineline"
+        defaultColor="#000000"
+        defaultSize={4}
+        defaultToolbarCollapsed
+        toolbarPlacement="bottom"
+      />,
+    );
+
+    const showTools = screen.getByRole("button", { name: "Show markup tools" });
+    expect(showTools.parentElement).toHaveClass("bottom-2");
+    expect(screen.queryByRole("toolbar", { name: "Handwritten markup tools" })).not.toBeInTheDocument();
+
+    fireEvent.click(showTools);
+
+    expect(screen.getByRole("button", { name: "Fine tip" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Custom color" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Stroke size 4" })).toBeInTheDocument();
+  });
+
   it("blocks finger touch on inline artifact journal before the pencil is used", () => {
     render(<SketchPad open layout="inline" fullBleed onClose={vi.fn()} onSave={vi.fn()} />);
 

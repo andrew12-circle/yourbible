@@ -82,6 +82,12 @@ export interface SketchPadProps {
   fullBleed?: boolean;
   /** Keep stroke draft after Save (continue editing the same page). */
   clearDraftOnSave?: boolean;
+  /** Initial drawing tool when no stroke draft exists. */
+  defaultTool?: InkDrawTool;
+  defaultColor?: string;
+  defaultSize?: number;
+  defaultToolbarCollapsed?: boolean;
+  toolbarPlacement?: "top" | "bottom";
   /** Restored PNG when stroke draft is empty (returning to a saved page). */
   backgroundImageUrl?: string | null;
   /** Show "New page" in the header (artifact journal). */
@@ -114,6 +120,11 @@ export default function SketchPad({
   inlineTitle,
   fullBleed = false,
   clearDraftOnSave = true,
+  defaultTool,
+  defaultColor,
+  defaultSize,
+  defaultToolbarCollapsed,
+  toolbarPlacement = "top",
   backgroundImageUrl = null,
   showNewPage = false,
   onNewPage,
@@ -130,6 +141,11 @@ export default function SketchPad({
   const strictPalmRejection = journalHandwriteChrome || (isInline && preferHandwritten);
   const disableViewZoom = preferHandwritten;
   const edgeToEdgePaper = Boolean(isInline && fullBleed) || tablet;
+  const initialTool = defaultTool ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain");
+  const initialColor = defaultColor ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_COLOR : getSketchPenColors(prefersNightMode())[0].value);
+  const initialSize = defaultSize ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1]);
+  const initialToolbarCollapsed = defaultToolbarCollapsed ?? journalHandwriteChrome;
+  const toolbarFloatsOverPaper = journalHandwriteChrome || toolbarPlacement === "bottom";
   useLockPageZoom(open && disableViewZoom);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -150,31 +166,23 @@ export default function SketchPad({
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
-  const [tool, setTool] = useState<InkTool>(() =>
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
-  );
-  const lastDrawToolRef = useRef<InkDrawTool>(
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain",
-  );
+  const [tool, setTool] = useState<InkTool>(() => initialTool);
+  const lastDrawToolRef = useRef<InkDrawTool>(initialTool);
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const [rulerVisible, setRulerVisible] = useState(false);
   const [rulerCenter, setRulerCenter] = useState({ x: 200, y: 200 });
   const [rulerAngle, setRulerAngle] = useState(35);
   const [rulerLength, setRulerLength] = useState(400);
   const [snapToRuler, setSnapToRuler] = useState(true);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(journalHandwriteChrome);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(initialToolbarCollapsed);
   const rulerDragRef = useRef<{ mode: "move" | "rotate"; startAngle?: number; startPointerAngle?: number } | null>(
     null,
   );
   const lassoPointsRef = useRef<Point[]>([]);
   const [isNightMode, setIsNightMode] = useState(prefersNightMode);
   const isNightModeRef = useRef(isNightMode);
-  const [color, setColor] = useState<string>(() =>
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_COLOR : getSketchPenColors(prefersNightMode())[0].value,
-  );
-  const [size, setSize] = useState<number>(() =>
-    journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1],
-  );
+  const [color, setColor] = useState<string>(() => initialColor);
+  const [size, setSize] = useState<number>(() => initialSize);
   /**
    * When on (default), once an Apple Pencil / stylus has been detected we
    * ignore finger & palm (`touch`) input on the canvas — just like Apple Notes.
@@ -492,8 +500,8 @@ export default function SketchPad({
   }, [open, backgroundImageUrl, draftKey]);
 
   useEffect(() => {
-    if (open && journalHandwriteChrome) setToolbarCollapsed(true);
-  }, [open, journalHandwriteChrome]);
+    if (open) setToolbarCollapsed(initialToolbarCollapsed);
+  }, [open, initialToolbarCollapsed]);
 
   // Reset / restore when opened
   useEffect(() => {
@@ -508,7 +516,7 @@ export default function SketchPad({
     setHasStrokes(strokesRef.current.length > 0);
     setRedoCount(0);
     const restoredTool =
-      draft?.tool ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_TOOL : "fountain");
+      draft?.tool ?? initialTool;
     setTool(restoredTool);
     if (restoredTool !== "ruler" && restoredTool !== "lasso") {
       lastDrawToolRef.current = restoredTool;
@@ -519,17 +527,15 @@ export default function SketchPad({
     setColor(
       draft?.color
         ? mappedSketchColorForMode(draft.color, isNightModeRef.current)
-        : journalHandwriteChrome
-          ? JOURNAL_HANDWRITE_COLOR
-          : getSketchPenColors(isNightModeRef.current)[0].value,
+        : initialColor,
     );
-    setSize(draft?.size ?? (journalHandwriteChrome ? JOURNAL_HANDWRITE_SIZE : PEN_SIZES[1]));
+    setSize(draft?.size ?? initialSize);
     resetViewRef.current();
     requestAnimationFrame(() => {
       resizeCanvasRef.current();
       flushRedrawRef.current();
     });
-  }, [open, draftKey, journalHandwriteChrome, palmRejection, strictPalmRejection]);
+  }, [open, draftKey, initialColor, initialSize, initialTool, palmRejection, strictPalmRejection]);
 
   useEffect(() => {
     if (!open) return;
@@ -1032,6 +1038,8 @@ export default function SketchPad({
           onCollapsedChange={setToolbarCollapsed}
           tabletPortrait={tabletPortrait}
           collapsedAnchor="center"
+          floatOverPaper={toolbarFloatsOverPaper}
+          placement={toolbarPlacement}
           tool={tool}
           color={color}
           size={size}
@@ -1062,7 +1070,7 @@ export default function SketchPad({
         <div
           className={cn(
             "relative flex min-h-0 flex-1 flex-col",
-            !journalHandwriteChrome &&
+            !toolbarFloatsOverPaper &&
               (toolbarCollapsed ? "-mt-14 pt-14" : "-mt-[3.5rem] pt-[4.5rem]"),
             edgeToEdgePaper ? "px-0 pb-0" : tabletPortrait ? "px-3 pb-3" : "px-1.5 pb-1.5 sm:px-3 sm:pb-3",
             isNightMode
@@ -1145,7 +1153,8 @@ export default function SketchPad({
                 onCollapsedChange={setToolbarCollapsed}
                 tabletPortrait={tabletPortrait}
                 collapsedAnchor="start"
-                floatOverPaper
+                floatOverPaper={toolbarFloatsOverPaper}
+                placement={toolbarPlacement}
                 tool={tool}
                 color={color}
                 size={size}

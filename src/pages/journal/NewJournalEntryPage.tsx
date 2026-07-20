@@ -582,6 +582,12 @@ export default function NewJournalEntryPage() {
         open={p.sketchOpen}
         onClose={() => p.setSketchOpen(false)}
         draftKey={p.sketchDraftKey}
+        clearDraftOnSave={Boolean(p.editId)}
+        defaultTool="fineline"
+        defaultColor="#000000"
+        defaultSize={4}
+        defaultToolbarCollapsed
+        toolbarPlacement="bottom"
         onAutosave={p.editId && p.user ? p.handleSketchAutosave : undefined}
         onSave={p.handleSketchSave}
         onUnsavedExit={p.handleSketchUnsavedExit}

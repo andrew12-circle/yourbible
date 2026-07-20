@@ -84,6 +84,8 @@ import {
   type ComposePersistenceSnapshot,
 } from "@/hooks/useJournalComposePersistence";
 import { hasMeaningfulComposeContent } from "@/lib/journal/composeEntryDraft";
+import { usePendingJournalSketchAttachment } from "@/hooks/usePendingJournalSketchAttachment";
+import { pendingJournalSketchKey } from "@/lib/journal/pendingJournalSketch";
 import { useVideoJournalAutoTitle } from "@/hooks/useVideoJournalAutoTitle";
 import {
   journalComposeCaretKeyboardInset,
@@ -136,7 +138,6 @@ export function useNewJournalEntryPage() {
   const [weatherTempC, setWeatherTempC] = useState<number | null>(null);
   const [weatherIcon, setWeatherIcon] = useState<string | null>(null);
 
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<
     { id: string; storage_path: string; url?: string }[]
   >([]);
@@ -190,6 +191,22 @@ export function useNewJournalEntryPage() {
     enabled: () => voiceRepliesRef.current,
     mounted: () => mountedRef.current,
   }));
+  const sketchDraftKey = useMemo(
+    () => pendingJournalSketchKey(user?.id, editId, null),
+    [editId, user?.id],
+  );
+  const {
+    pendingFiles,
+    setPendingFiles,
+    addPendingFiles,
+    savePendingSketchFile,
+    removePendingFile,
+    clearStoredPendingSketch,
+  } = usePendingJournalSketchAttachment({
+    userId: user?.id,
+    editId,
+    draftKey: sketchDraftKey,
+  });
 
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
@@ -743,8 +760,6 @@ export function useNewJournalEntryPage() {
       photoSuggestionDismissed,
     ],
   );
-  const sketchDraftKey = `compose:${editId ?? journalId ?? "new"}`;
-
   const weatherLabel =
     weatherTempC != null ? `${Math.round((weatherTempC * 9) / 5 + 32)}\u00b0F` : (weather ?? "");
 
@@ -1100,6 +1115,7 @@ export function useNewJournalEntryPage() {
       await syncEntryWikilinks(user.id, entryId, composedBody);
     }
 
+    const hasPendingSketchUpload = pendingFiles.some((file) => isJournalSketchAsset(file.name));
     if (pendingFiles.length && entryId) {
       setBusyLabel("Uploading photos");
       try {
@@ -1150,8 +1166,21 @@ export function useNewJournalEntryPage() {
             });
           }
         }
+        if (hasPendingSketchUpload) {
+          await clearStoredPendingSketch();
+        }
       } catch (e) {
-        toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
+        toast({
+          title: hasPendingSketchUpload ? "Handwritten upload failed" : "Photo upload failed",
+          description: hasPendingSketchUpload
+            ? "Your handwritten note is still saved on this device. Try Done again."
+            : String(e),
+          variant: "destructive",
+        });
+        if (hasPendingSketchUpload) {
+          setBusy(false);
+          return;
+        }
       }
     }
 
@@ -1225,6 +1254,7 @@ export function useNewJournalEntryPage() {
     navigate,
     flushComposeSave,
     clearComposeDraft,
+    clearStoredPendingSketch,
   ]);
 
   const openChatMode = useCallback(async () => {
@@ -1546,12 +1576,8 @@ export function useNewJournalEntryPage() {
   }, [editId, inlineEntryId]);
 
   const handlePhotoInputChange = useCallback((files: FileList | null) => {
-    setPendingFiles((arr) => [...arr, ...Array.from(files ?? [])]);
-  }, []);
-
-  const removePendingFile = useCallback((file: File) => {
-    setPendingFiles((arr) => arr.filter((f) => f !== file));
-  }, []);
+    addPendingFiles(Array.from(files ?? []));
+  }, [addPendingFiles]);
 
   const handleSketchAutosave = useCallback(
     async (file: File) => {
@@ -1620,18 +1646,18 @@ export function useNewJournalEntryPage() {
         });
         return;
       }
-      setPendingFiles((arr) => [...arr.filter((f) => !isJournalSketchAsset(f.name)), file]);
+      await savePendingSketchFile(file);
     },
-    [editId, user],
+    [editId, user, savePendingSketchFile],
   );
 
-  const handleSketchUnsavedExit = useCallback((file: File) => {
-    setPendingFiles((arr) => [...arr.filter((f) => !isJournalSketchAsset(f.name)), file]);
+  const handleSketchUnsavedExit = useCallback(async (file: File) => {
+    await savePendingSketchFile(file);
     toast({
       title: "Handwritten note kept",
       description: "Save your entry to attach it to your journal.",
     });
-  }, []);
+  }, [savePendingSketchFile]);
 
   return {
     user,
