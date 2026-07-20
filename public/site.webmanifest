@@ -4,9 +4,10 @@
   "short_name": "Belief",
   "description": "Map beliefs, journal, study scripture, and grow your personal faith framework.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#faf9f7",
+  "theme_color": "#faf9f7",
   "icons": [
     {
       "src": "/app-icon-192.png",

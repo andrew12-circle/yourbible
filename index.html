@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Belief" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="color-scheme" content="light dark" />
     <title>Belief Architecture</title>
     <meta name="description" content="Map beliefs, journal, study scripture, and grow your personal faith framework.">
     <meta name="author" content="Belief Architecture" />
@@ -13,8 +18,9 @@
     <link rel="icon" href="/app-icon-32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="/app-icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/app-icon-180.png" sizes="180x180" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#faf9f7" />
 
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/app-icon-512.png">
@@ -36,27 +42,68 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap"></noscript>
     <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+        background: #faf9f7;
+      }
       #boot-loading {
         display: flex;
+        flex-direction: column;
+        gap: 0.875rem;
         min-height: 100dvh;
         align-items: center;
         justify-content: center;
-        background: #faf9f7;
+        box-sizing: border-box;
+        padding: max(2rem, env(safe-area-inset-top)) 1.5rem max(2rem, env(safe-area-inset-bottom));
+        background:
+          radial-gradient(circle at 50% 24%, rgba(214, 168, 76, 0.22), transparent 34%),
+          linear-gradient(180deg, #fffaf0 0%, #faf9f7 58%, #efe6d8 100%);
+        color: #2a2118;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        text-align: center;
       }
-      #boot-loading span {
-        width: 2rem;
-        height: 2rem;
-        border: 2px solid rgba(0, 0, 0, 0.12);
-        border-top-color: #ef852c;
+      #boot-loading .boot-mark {
+        display: grid;
+        width: 4.5rem;
+        height: 4.5rem;
+        place-items: center;
+        border: 1px solid rgba(109, 42, 34, 0.18);
+        border-radius: 1.375rem;
+        background: linear-gradient(135deg, #4d1719, #7a2828 52%, #3a1112);
+        box-shadow: 0 18px 42px rgba(47, 19, 12, 0.22);
+        color: #f8e7b4;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 2.25rem;
+        line-height: 1;
+      }
+      #boot-loading .boot-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+      }
+      #boot-loading .boot-spinner {
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 2px solid rgba(122, 40, 40, 0.16);
+        border-top-color: #c18a2f;
         border-radius: 9999px;
         animation: boot-spin 0.7s linear infinite;
       }
       @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-loading .boot-spinner {
+          animation: none;
+        }
+      }
     </style>
   </head>
 
   <body>
-    <div id="root"><div id="boot-loading" aria-live="polite" aria-busy="true"><span aria-hidden="true"></span></div></div>
+    <div id="root"><div id="boot-loading" aria-live="polite" aria-busy="true"><div class="boot-mark" aria-hidden="true">B</div><p class="boot-title">Belief Architecture</p><span class="boot-spinner" aria-hidden="true"></span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
