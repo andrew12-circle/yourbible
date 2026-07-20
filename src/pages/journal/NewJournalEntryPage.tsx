@@ -582,6 +582,7 @@ export default function NewJournalEntryPage() {
         open={p.sketchOpen}
         onClose={() => p.setSketchOpen(false)}
         draftKey={p.sketchDraftKey}
+        clearDraftOnSave={Boolean(p.editId)}
         onAutosave={p.editId && p.user ? p.handleSketchAutosave : undefined}
         onSave={p.handleSketchSave}
         onUnsavedExit={p.handleSketchUnsavedExit}
